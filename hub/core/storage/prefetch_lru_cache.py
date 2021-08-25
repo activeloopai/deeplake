@@ -1,3 +1,4 @@
+from functools import lru_cache
 import warnings
 import numpy as np
 from itertools import repeat
@@ -299,9 +300,13 @@ class PrefetchLRUCache(LRUCache):
 
     def _chunks_from_names(self, tensor: str, chunk_names: List[str]):
         """Takes a list of chunk names and returns a list with corresponding chunk objects"""
-        shm_names = [self.chunk_shared_mem_map[(tensor, name)] for name in chunk_names]
-        chunk_data = [self[shm_name] for shm_name in shm_names]
-        return [Chunk.frombuffer(data) for data in chunk_data]
+        return [self._chunk_from_name(tensor, chunk_name) for chunk_name in chunk_names]
+
+    @lru_cache(25)
+    def _chunk_from_name(self, tensor: str, chunk_name: str):
+        shm_name = self.chunk_shared_mem_map[(tensor, chunk_name)]
+        chunk_data = self[shm_name]
+        return Chunk.frombuffer(chunk_data)
 
     def _get_data(self, index: int):
         """Returns all the data for a given index"""
@@ -314,6 +319,9 @@ class PrefetchLRUCache(LRUCache):
                 return None
             data[tensor] = arr
         return data
+
+    def __hash__(self):
+        return 1
 
     def _generate_shared_memory_names(self, chunk_groups: List[List[Tuple[str, str]]]):
         """Generates shared memory names for all chunks in chunk_groups as chunks names often get too large for some OS"""
