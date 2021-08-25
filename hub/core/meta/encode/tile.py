@@ -31,7 +31,7 @@ class TileEncoder(Cachable):
         # TODO: docstring
 
         # TODO: htype-based tile ordering?
-        self.entries[idx] = {
+        self.entries[str(idx)] = {
             "sample_shape": shape,
             "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
         }
@@ -43,6 +43,19 @@ class TileEncoder(Cachable):
 
         raise NotImplementedError
 
+
+    def __getitem__(self, global_sample_index: int):
+        return self.entries[str(global_sample_index)]
+
+    def __contains__(self, global_sample_index: int):
+        return str(global_sample_index) in self.entries
+    
+    def get_tile_shape(self, global_sample_index: int):
+        # TODO: maybe this should be dynamic?
+        return tuple(self[global_sample_index]["tile_shape"])
+
+    def get_sample_shape(self, global_sample_index: int):
+        return tuple(self[global_sample_index]["sample_shape"])
 
     # def prune_chunks(self, tile_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index) -> List[ENCODING_DTYPE]:
     #     """This method handles the main tile logic, given a subslice_index it replaces the chunk IDs that 
@@ -113,7 +126,7 @@ class TileEncoder(Cachable):
         if len(chunk_ids) == 1:
             return np.array(chunk_ids)
 
-        tile_meta = self.entries[global_sample_index]
+        tile_meta = self[global_sample_index]
         tile_shape = tile_meta["tile_shape"]
         sample_shape = tile_meta["sample_shape"]
 
@@ -125,15 +138,13 @@ class TileEncoder(Cachable):
         return ordered_tiles
 
 
-    def get_tile_shape_mask(self, sample_index: int, ordered_tile_ids: np.ndarray) -> np.ndarray:
+    def get_tile_shape_mask(self, global_sample_index: int, ordered_tile_ids: np.ndarray) -> np.ndarray:
         # TODO: docstring
 
-        if sample_index not in self.entries:
+        if global_sample_index not in self:
             return np.array([])
 
-        tile_meta = self.entries[sample_index]
-        tile_shape = tile_meta["tile_shape"]
-
+        tile_shape = self.get_tile_shape(global_sample_index)
         tile_shape_mask = np.empty(ordered_tile_ids.shape, dtype=object)
 
         # right now tile shape is the same for all tiles, but we might want to add dynamic tile shapes
@@ -161,8 +172,11 @@ class TileEncoder(Cachable):
 
     @property
     def nbytes(self):
-        # TODO: BEFORE MERGING IMPLEMENT THIS PROPERLY
-        return 100
+        # TODO: optimize this
+        return len(self.tobytes())
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"entries": self.entries}
+
+    def __setstate__(self, state: Dict[str, Any]):
+        self.entries = state["entries"]

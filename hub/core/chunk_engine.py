@@ -155,6 +155,7 @@ class ChunkEngine:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
                 and their corresponding chunks.
         """
+
         key = get_chunk_id_encoder_key(self.key)
         if not self.chunk_id_encoder_exists:
 
@@ -280,6 +281,10 @@ class ChunkEngine:
         # synchronize chunk ID encoder
         chunk_id_key = get_chunk_id_encoder_key(self.key)
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
+
+        # synchronize tile encoder
+        tile_encoder_key = get_tile_encoder_key(self.key)
+        self.meta_cache[tile_encoder_key] = self.tile_encoder
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -603,8 +608,6 @@ class ChunkEngine:
     def coalesce_sample(self, global_sample_index: int, tiles: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index, dtype: np.dtype) -> np.ndarray:
         # TODO: docstring
 
-        # TODO: this indexing might be broken for negative / slice indexes with "skip" components
-
         is_tiled = tiles.size > 1
 
         if not is_tiled:
@@ -621,6 +624,8 @@ class ChunkEngine:
             tile_shape = tile_shape_mask[tile_index]
             low, _ = get_tile_bounds(tile_index, tile_shape)
             tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+
+            # TODO: this indexing might be broken for negative / slice indexes with "skip" components
 
             # get tile index
             tile_slices = []
