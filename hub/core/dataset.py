@@ -70,8 +70,8 @@ class Dataset:
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
-        if index is None and isinstance(
-            base_storage, S3Provider
+        if (
+            not read_only and index is None and isinstance(base_storage, S3Provider)
         ):  # Dataset locking only for S3 datasets
             try:
                 lock(base_storage, callback=lambda: self._lock_lost_handler)
@@ -174,6 +174,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -187,6 +188,7 @@ class Dataset:
                 May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
+            chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -227,6 +229,7 @@ class Dataset:
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
