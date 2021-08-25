@@ -451,10 +451,16 @@ class ChunkEngine:
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+        length = self.num_samples
+        value0_index, subslice_index = index.split_subslice()
 
         # TODO:
-        # 1. download the tiles we need
-        # 2. update each individual tile
+        for global_sample_index in value0_index.values[0].indices(length):  # TODO: generalize this iterator
+            # 1. download the tiles we need
+            tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
+
+            # 2. update each individual tile
+
         # 3. upload new tiles
 
 
