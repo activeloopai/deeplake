@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Callable, Dict, Optional, Sequence, Set
 from hub.core.storage import StorageProvider, SharedMemoryProvider
 from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
+from hub.constants import INTELLIGENT_SHUFFLING_THRESHOLD
 
 
 class ShuffleLRUCache(PrefetchLRUCache):
@@ -60,7 +61,10 @@ class ShuffleLRUCache(PrefetchLRUCache):
 
     def _suggest_next_index(self) -> int:
         """Suggests the next index to return data from. For shuffle cache this is done by a combination of random picking as well as greedy picking depending on the number of chunks present in the cache for the indexes."""
-        if self.cache_used < 0.8 * self.cache_size or not self.index_ct:
+        if (
+            self.cache_used < INTELLIGENT_SHUFFLING_THRESHOLD * self.cache_size
+            or not self.index_ct
+        ):
             index = random.choice(list(self.all_remaining_indexes))
         else:
             largest_ct = max(self.ct_indexes.keys())

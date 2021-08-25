@@ -4,7 +4,7 @@ import pickle
 import pytest
 
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import DatasetUnsupportedPytorch
+from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.util.storage import get_pytorch_local_storage
 from hub.util.check_installation import requires_torch
 from hub.core.dataset import Dataset
@@ -245,6 +245,13 @@ def test_custom_tensor_order(ds):
             dl = ds.pytorch(num_workers=2)
         return
 
+    with pytest.raises(TensorDoesNotExistError):
+        dl = ds.pytorch(num_workers=2, tensors=["c", "d", "e"])
+    with pytest.raises(TensorDoesNotExistError):
+        dl = dataset_to_pytorch(
+            ds, num_workers=2, tensors=["c", "e"], python_version_warning=False
+        )
+
     dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
     dl_old = dataset_to_pytorch(
         ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
@@ -355,7 +362,6 @@ def test_pytorch_local_cache(ds):
     local_cache = get_pytorch_local_storage(ds)
 
     for buffer_size in [0, 0.001, 0.002, 0.003, 0.004, 1]:
-        print(f"Testing buffer size {buffer_size}")
         dl = ds.pytorch(
             num_workers=2, batch_size=1, buffer_size=buffer_size, use_local_cache=True
         )

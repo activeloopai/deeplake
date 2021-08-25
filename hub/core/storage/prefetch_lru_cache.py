@@ -97,10 +97,6 @@ class PrefetchLRUCache(LRUCache):
                 self._insert_in_cache(path, result)
             return result
 
-    def __len__(self):
-        # TODO: changes this
-        return self.length
-
     def iterate_samples(self):
         """Iterates over the contents of the dataset and yields data indexwise."""
         # chunk groups to be fetched, each inner list will be handled by a separate worker
