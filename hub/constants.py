@@ -107,7 +107,6 @@ KAGGLE_OPT = "--kaggle"
 
 EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
 LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
-SHARED_MEMORY_CACHE_SIZE = 10 * GB
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8

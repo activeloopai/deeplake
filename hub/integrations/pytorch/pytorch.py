@@ -4,19 +4,19 @@ from hub.core.storage import SharedMemoryProvider
 from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
 from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache
 from hub.util.dataset import try_flushing
-from hub.util.check_installation import pytorch_installed
 from hub.util.exceptions import (
     DatasetUnsupportedSharedMemoryCache,
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
 )
-from hub.constants import LOCAL_CACHE_PREFIX, MB, SHARED_MEMORY_CACHE_SIZE
+from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
+pytorch_installed = True
 try:
     import torch
 except ModuleNotFoundError:
-    pass
+    pytorch_installed = False
 
 
 def dataset_to_pytorch(
