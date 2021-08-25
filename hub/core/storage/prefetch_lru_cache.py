@@ -1,4 +1,3 @@
-from functools import lru_cache
 import warnings
 import numpy as np
 from itertools import repeat
@@ -80,6 +79,9 @@ class PrefetchLRUCache(LRUCache):
         self.emergency_storage = (
             LocalProvider(EMERGENCY_STORAGE_PATH) if self.next_storage is None else None
         )
+
+        # keeps track of the latest chunk per tensor in order to prevent multiple redundant Chunk.frombuffer calls
+        self.latest_chunk_per_tensor: Dict[str, tuple[str, Chunk]] = {}
 
     def __getitem__(self, path):
         if path in self.lru_sizes:
@@ -302,11 +304,17 @@ class PrefetchLRUCache(LRUCache):
         """Takes a list of chunk names and returns a list with corresponding chunk objects"""
         return [self._chunk_from_name(tensor, chunk_name) for chunk_name in chunk_names]
 
-    @lru_cache(25)
     def _chunk_from_name(self, tensor: str, chunk_name: str):
+        """Takes a single chunk name and tensor and returns Chunk"""
+        if tensor in self.latest_chunk_per_tensor:
+            existing_chunk_name, existing_chunk = self.latest_chunk_per_tensor[tensor]
+            if chunk_name == existing_chunk_name:
+                return existing_chunk
         shm_name = self.chunk_shared_mem_map[(tensor, chunk_name)]
         chunk_data = self[shm_name]
-        return Chunk.frombuffer(chunk_data)
+        chunk = Chunk.frombuffer(chunk_data)
+        self.latest_chunk_per_tensor[tensor] = (chunk_name, chunk)
+        return chunk
 
     def _get_data(self, index: int):
         """Returns all the data for a given index"""
