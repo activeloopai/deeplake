@@ -7,6 +7,7 @@ from hub.core.compression import (
     decompress_array,
     compress_multiple,
     decompress_multiple,
+    verify_compressed_file,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
@@ -75,6 +76,11 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     path = compressed_image_paths[compression]
     sample = hub.read(path, verify=True)
     sample.compressed_bytes(compression)
+    verify_compressed_file(path, compression)
+    with open(path, "rb") as f:
+        verify_compressed_file(f, compression)
+    with open(path, "rb") as f:
+        verify_compressed_file(f.read(), compression)
     if compression in corrupt_image_paths:
         path = corrupt_image_paths[compression]
         sample = hub.read(path)
@@ -83,3 +89,11 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
         with pytest.raises(CorruptedSampleError):
             sample = hub.read(path, verify=True)
             sample.compressed_bytes(compression)
+        with pytest.raises(CorruptedSampleError):
+            verify_compressed_file(path, compression)
+        with pytest.raises(CorruptedSampleError):
+            with open(path, "rb") as f:
+                verify_compressed_file(f, compression)
+        with pytest.raises(CorruptedSampleError):
+            with open(path, "rb") as f:
+                verify_compressed_file(f.read(), compression)

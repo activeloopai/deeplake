@@ -6,7 +6,7 @@ from hub.util.exceptions import (
     CorruptedSampleError,
 )
 from hub.compression import get_compression_type
-from typing import Union, Tuple, Sequence, List, Optional
+from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
@@ -206,34 +206,32 @@ def decompress_multiple(
     return arrays
 
 
-def verify_compressed_file(file, compression: str):
+def verify_compressed_file(file: Union[str, BinaryIO, bytes], compression: str):
     """Verify the contents of an image file
     Args:
-        path (str): Path to the image file
+        file (Union[str, BinaryIO]): Path to the file or file like object or contents of the file
         compression (str): Expected compression of the image file
     """
     if isinstance(file, str):
-        f = open(file, "rb")
+        file = open(file, "rb")
         close = True
     elif hasattr(file, "read"):
-        f = file
         close = False
-        f.seek(0)
+        file.seek(0)  # type: ignore
     else:
-        f = file
         close = False
     try:
         if compression == "png":
-            return _verify_png(f)
+            return _verify_png(file)
         elif compression == "jpeg":
-            return "uint8", _verify_jpeg(f)
+            return "uint8", _verify_jpeg(file)
         else:
-            return _fast_decompress(f)
+            return _fast_decompress(file)
     except Exception as e:
         raise CorruptedSampleError(compression)
     finally:
         if close:
-            f.close()
+            file.close()  # type: ignore
 
 
 def get_compression(header):
@@ -374,24 +372,25 @@ def read_meta_from_compressed_file(
             img = Image.open(f)
             shape, typestr = Image._conv_type_shape(img)
             compression = img.format.lower()
-        return compression, shape, typestr   # type: ignore
+        return compression, shape, typestr  # type: ignore
     finally:
         if close:
             f.close()
 
 
-def _read_jpeg_shape(f) -> Tuple[int]:
+def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int]:
     if hasattr(f, "read"):
         return _read_jpeg_shape_from_file(f)
-    return _read_jpeg_shape_from_buffer(f)
+    return _read_jpeg_shape_from_buffer(f)  # type: ignore
 
 
 def _read_jpeg_shape_from_file(f) -> Tuple[int]:
+    """Reads shape of a jpeg image from file without loading the whole image in memory"""
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
     try:
-        sof_idx = mm.find(b"\xff\xc0", 2)
+        sof_idx = mm.find(b"\xff\xc0", 2)  # Look for Baseline DCT marker
         if sof_idx == -1:
-            sof_idx = mm.find(b"\xff\xc2", 2)
+            sof_idx = mm.find(b"\xff\xc2", 2)  # Look for Progressive DCT marker
             if sof_idx == -1:
                 raise Exception()
         f.seek(sof_idx + 5)
@@ -402,6 +401,7 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
 
 
 def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
+    """Gets shape of a jpeg file from its contents"""
     sof_idx = buf.find(b"\xff\xc0", 2)
     if sof_idx == -1:
         sof_idx = buf.find(b"\xff\xc2", 2)
@@ -410,28 +410,32 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
     return struct.unpack(">HHB", memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
 
 
-def _read_png_shape_and_dtype(f) -> Tuple[Tuple[int], str]:
+def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], str]:
+    """Reads shape and dtype of a png file from a file like object or file contents.
+    If a file like object is provided, all of its contents are NOT loaded into memory."""
     if not hasattr(f, "read"):
-        f = BytesIO(f)
-    f.seek(16)
-    size = struct.unpack(">ii", f.read(8))[::-1]
-    im_mode, im_rawmode = f.read(2)
-    if im_rawmode == 0:
-        if im_mode == 1:
+        f = BytesIO(f)  # type: ignore
+    f.seek(16)  # type: ignore
+    size = struct.unpack(">ii", f.read(8))[::-1]  # type: ignore
+    bits, colors = f.read(2)  # type: ignore
+
+    # Get the number of channels and dtype based on bits and colors:
+    if colors == 0:
+        if bits == 1:
             typstr = "|b1"
-        elif im_mode == 16:
+        elif bits == 16:
             typstr = _NATIVE_INT32
         else:
             typstr = "|u1"
         nlayers = None
     else:
         typstr = "|u1"
-        if im_rawmode == 2:
+        if colors == 2:
             nlayers = 3
-        elif im_rawmode == 3:
+        elif colors == 3:
             nlayers = None
-        elif im_rawmode == 4:
-            if im_mode == 8:
+        elif colors == 4:
+            if bits == 8:
                 nlayers = 2
             else:
                 nlayers = 4
