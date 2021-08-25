@@ -123,10 +123,7 @@ def deserialize_chunk(
         encoded byte positions as numpy array,
         chunk data as memoryview.
     """
-    if isinstance(byts, bytes):
-        mview = memoryview(byts)
-    else:
-        mview = byts
+    mview = memoryview(byts)
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
@@ -206,10 +203,7 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
         hub version used to create the chunk,
         encoded chunk ids as memoryview.
     """
-    if isinstance(byts, bytes):
-        mview = memoryview(byts)
-    else:
-        mview = byts
+    mview = memoryview(byts)
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
