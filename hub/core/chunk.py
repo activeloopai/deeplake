@@ -292,7 +292,7 @@ class Chunk(Cachable):
             len_data=len(self._data),
         )
 
-    def tobytes(self) -> bytearray:
+    def tobytes(self) -> memoryview:
         return serialize_chunk(
             self.version,
             self.shapes_encoder.array,

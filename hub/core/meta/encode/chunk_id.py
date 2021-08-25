@@ -12,7 +12,7 @@ CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, Cachable):
-    def tobytes(self) -> bytearray:
+    def tobytes(self) -> memoryview:
         return serialize_chunkids(self.version, [self._encoded])
 
     @staticmethod

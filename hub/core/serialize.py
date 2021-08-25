@@ -42,7 +42,7 @@ def serialize_chunk(
     byte_positions: np.ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
-) -> bytearray:
+) -> memoryview:
     """Serializes a chunk's headers and data into a single byte stream. This is how the chunk will be written to the storage provider.
 
     Args:
@@ -61,7 +61,7 @@ def serialize_chunk(
     offset = write_shape_info(shape_info, flatbuff, offset)
     offset = write_byte_positions(byte_positions, flatbuff, offset)
     offset = write_actual_data(data, flatbuff, offset)
-    return flatbuff
+    return memoryview(flatbuff)
 
 
 def write_version(version, buffer) -> int:
@@ -109,7 +109,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def deserialize_chunk(
-    byts: Union[bytes, bytearray]
+    byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
@@ -123,7 +123,7 @@ def deserialize_chunk(
         encoded byte positions as numpy array,
         chunk data as memoryview.
     """
-    mview = memoryview(byts)
+    byts = memoryview(byts)
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
@@ -134,22 +134,20 @@ def deserialize_chunk(
     offset = 1 + len_version
 
     # Read shape info
-    shape_info_nrows, shape_info_ncols = struct.unpack(
-        "<ii", mview[offset : offset + 8]
-    )
+    shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
     offset += 8
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
         shape_info = (
-            np.frombuffer(mview[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
             .copy()
         )
         offset += shape_info_nbytes
     # Read byte positions
-    byte_positions_rows = int.from_bytes(mview[offset : offset + 4], "little")
+    byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
     offset += 4
     byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     if byte_positions_nbytes == 0:
@@ -157,19 +155,19 @@ def deserialize_chunk(
     else:
         byte_positions = (
             np.frombuffer(
-                mview[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+                byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
             )
             .reshape(byte_positions_rows, 3)
             .copy()
         )
         offset += byte_positions_nbytes
     # Read data
-    data = mview[offset:]
+    data = byts[offset:]
 
     return version, shape_info, byte_positions, data
 
 
-def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> bytearray:
+def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
@@ -193,10 +191,10 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> bytearray:
         flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
         offset += arr.nbytes
 
-    return flatbuff
+    return memoryview(flatbuff)
 
 
-def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray]:
+def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
@@ -207,6 +205,7 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
         hub version used to create the chunk,
         encoded chunk ids as memoryview.
     """
+    byts = memoryview(byts)
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
     # Read version
@@ -215,9 +214,7 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
     offset = 1 + len_version
 
     # Read chunk ids
-    ids = (
-        np.frombuffer(memoryview(byts)[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
-    )
+    ids = np.frombuffer(byts[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
     return version, ids
 
 
