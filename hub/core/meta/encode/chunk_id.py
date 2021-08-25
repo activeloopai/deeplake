@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List, Tuple, Union
 
 from numpy.testing._private.utils import jiffies
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
@@ -167,14 +167,14 @@ class ChunkIdEncoder(Encoder, Cachable):
 
     def __getitem__(
         self, local_sample_index: int, return_row_index: bool = False
-    ) -> List[ENCODING_DTYPE]:
+    ) -> Union[List[ENCODING_DTYPE], Tuple[List[ENCODING_DTYPE], Any]]:
         """Returns a list of chunk IDs. If the sample is not tiled it will always return a tuple of length 1."""
 
         # TODO: this method can probably be generalized into base class `__getitem__` with an extra parameter
 
         root_chunk_id, root_chunk_id_index = super().__getitem__(
             local_sample_index, return_row_index=True
-        )
+        )  # type: ignore
         root_chunk_last_seen_index = self._encoded[
             root_chunk_id_index, LAST_SEEN_INDEX_COLUMN
         ]

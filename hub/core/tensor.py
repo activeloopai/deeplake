@@ -169,12 +169,12 @@ class Tensor:
             np.ndarray([1, 1, 1, 1, 1])
 
         Args:
-            shape (Tuple[int]): Shape of the sample.
+            shape (Tuple[int, ...]): Shape of the sample.
         """
 
         self.chunk_engine.extend_empty(shape)
 
-    def append_empty(self, shape: Tuple[int]):
+    def append_empty(self, shape: Tuple[int, ...]):
         """Appends a single empty sample with the given shape to the end of the tensor. Use this when your sample is too large for memory.
 
         Examples:
@@ -190,7 +190,7 @@ class Tensor:
             np.ndarray(1)
 
         Args:
-            shape (Tuple[int]): Shape of the sample.
+            shape (Tuple[int, ...]): Shape of the sample.
         """
 
         self.extend_empty((1, *shape))
@@ -302,7 +302,9 @@ class Tensor:
 
     def __getitem__(
         self,
-        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+        item: Union[
+            int, slice, List[int], Tuple[Union[int, slice, Tuple[int, ...]]], Index
+        ],
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)

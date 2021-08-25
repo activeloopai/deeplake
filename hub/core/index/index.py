@@ -1,18 +1,16 @@
 from typing import Union, List, Tuple, Iterable, Optional, TypeVar
 import numpy as np
 
-IndexValue = Union[int, slice, Tuple[int]]
+IndexValue = Union[int, slice, Tuple[int, ...]]
 
 
 def slice_has_step(s: slice):
-    return ((s.step or 1) != 1)
+    return (s.step or 1) != 1
+
 
 def is_trivial_slice(s: slice):
-    return (
-        not s.start
-        and s.stop == None
-        and not slice_has_step(s)
-    )
+    return not s.start and s.stop == None and not slice_has_step(s)
+
 
 def is_value_within_slice(s: slice, value: int):
     # TODO: docstring
@@ -29,6 +27,7 @@ def is_value_within_slice(s: slice, value: int):
         return value < s.stop
 
     return (s.start <= value) and (value < s.stop)
+
 
 def has_negatives(s: slice) -> bool:
     if s.start and s.start < 0:
@@ -136,7 +135,7 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
-def tuple_length(t: Tuple[int], l: int) -> int:
+def tuple_length(t: Tuple[int, ...], l: int) -> int:
     """Returns the length of a tuple of indexes given the length of its parent."""
     return len(t)
 
@@ -217,7 +216,6 @@ class IndexEntry:
             return False
 
         return is_trivial_slice(self.value)
-        
 
     def length(self, parent_length: int) -> int:
         """Returns the length of an IndexEntry given the length of the parent it is indexing.
@@ -276,7 +274,7 @@ class IndexEntry:
 
         if isinstance(self.value, int):
             return low_dim <= self.value and self.value < high_dim
-        
+
         raise NotImplementedError
 
     @property
@@ -298,6 +296,7 @@ class IndexEntry:
         elif isinstance(self.value, slice):
             return self.value.stop
         raise NotImplementedError
+
 
 class Index:
     def __init__(
@@ -408,12 +407,12 @@ class Index:
                 value = index.value
                 if isinstance(value, tuple):
                     value = (value,)  # type: ignore
-                base = base[value]
+                base = base[value]  # type: ignore
             return base
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, samples: List[np.ndarray], include_first_value: bool=False):
+    def apply(self, samples: List[np.ndarray], include_first_value: bool = False):
         """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
@@ -493,13 +492,17 @@ class Index:
         """Checks that the index is not accessing values outside the range of the parent."""
         self.values[0].validate(parent_length)
 
-    def intersects(self, low_bound: Tuple[int], high_bound: Tuple[int]) -> bool:
+    def intersects(
+        self, low_bound: Tuple[int, ...], high_bound: Tuple[int, ...]
+    ) -> bool:
         """Checks if the incoming n-dimensional rectangle is intersected by this index object.
         This is useful for tiling, when trying to determine if a tile should be downloaded or not
         (if it exists on this index)."""
 
         # check if this index overlaps the incoming n dimensional rectangle
-        for in_low_dim, in_high_dim, index_entry in zip(low_bound, high_bound, self.values):
+        for in_low_dim, in_high_dim, index_entry in zip(
+            low_bound, high_bound, self.values
+        ):
             if index_entry.is_trivial():
                 continue
             if in_high_dim < index_entry.low_bound:
@@ -511,9 +514,9 @@ class Index:
         return True
 
     @property
-    def low_bound(self) -> Tuple[int]:
+    def low_bound(self) -> Tuple[int, ...]:
         """Get the low-bound of this index.
-        
+
         Example:
             indexing like: array[0:5, 500:505, :]
             returns: (0, 500, None)
@@ -526,9 +529,9 @@ class Index:
         return tuple(low)
 
     @property
-    def high_bound(self) -> Tuple[int]:
+    def high_bound(self) -> Tuple[int, ...]:
         """Get the high-bound of this index.
-        
+
         Example:
             indexing like: array[0:5, 500:505, :]
             returns: (5, 505, None)

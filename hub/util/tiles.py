@@ -61,7 +61,9 @@ def num_tiles_for_sample(
     return num_tiles
 
 
-def get_tile_bounds(tile_index: Tuple[int], tile_shape: Tuple[int]) -> Tuple[Tuple[int], Tuple[int]]:
+def get_tile_bounds(
+    tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     low, high = [], []
 
     for index_dim, shape_dim in zip(tile_index, tile_shape):
@@ -71,8 +73,9 @@ def get_tile_bounds(tile_index: Tuple[int], tile_shape: Tuple[int]) -> Tuple[Tup
     return tuple(low), tuple(high)
 
 
-
-def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index):
+def get_tile_mask(
+    ordered_tile_ids: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index
+):
     # loop through each tile ID, check if it exists within the subslice_index.
 
     mask = np.zeros(ordered_tile_ids.shape, dtype=bool)

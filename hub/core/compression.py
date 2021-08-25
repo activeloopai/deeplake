@@ -67,7 +67,9 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise SampleCompressionError(array.shape, compression, str(e))
 
 
-def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.ndarray:
+def decompress_array(
+    buffer: Union[bytes, memoryview], shape: Tuple[int, ...]
+) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
@@ -77,7 +79,7 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
     Args:
         buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`.
-        shape (Tuple[int]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
+        shape (Tuple[int, ...]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
 
     Raises:
         SampleDecompressionError: Right now only buffers compatible with `PIL` will be decompressed.

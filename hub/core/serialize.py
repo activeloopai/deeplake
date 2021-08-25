@@ -226,7 +226,7 @@ def _serialize_input_sample(
     sample_compression: Optional[str],
     expected_dtype: np.dtype,
     htype: str,
-) -> Tuple[bytes, Tuple[int]]:
+) -> Tuple[bytes, Tuple[int, ...]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if isinstance(sample, Sample):
@@ -264,7 +264,7 @@ def serialize_input_samples(
     samples: Union[Sequence[SampleValue], SampleValue],
     meta: TensorMeta,
     min_chunk_size: int,
-) -> List[Tuple[memoryview, Tuple[int]]]:
+) -> List[Tuple[memoryview, Tuple[int, ...]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
     Args:
@@ -276,7 +276,7 @@ def serialize_input_samples(
         ValueError: Tensor meta should have it's dtype set.
 
     Returns:
-        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
+        List[Tuple[memoryview, Tuple[int, ...]]]: Buffers and their corresponding shapes for the input samples.
     """
 
     if meta.dtype is None:

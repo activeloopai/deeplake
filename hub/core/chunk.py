@@ -83,7 +83,7 @@ class Chunk(Cachable):
         Args:
             buffer (memoryview): Buffer that represents a single sample.
             max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Raises:
             FullChunkError: If `buffer` is too large.
@@ -110,7 +110,7 @@ class Chunk(Cachable):
 
         Args:
             incoming_num_bytes (int): The length of the buffer that was used to
-            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+            sample_shape (Tuple[int, ...]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
 
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
@@ -121,7 +121,10 @@ class Chunk(Cachable):
         self.byte_positions_encoder.register_samples(num_bytes_per_sample, 1)
 
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
+        self,
+        local_sample_index: int,
+        new_buffer: memoryview,
+        new_shape: Tuple[int, ...],
     ):
         """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
 

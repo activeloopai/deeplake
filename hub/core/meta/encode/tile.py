@@ -8,17 +8,21 @@ from hub.core.storage.cachable import Cachable
 from typing import Any, Dict, List, Tuple
 
 
-
-def get_tile_layout_shape(tile_shape: Tuple[int], sample_shape: Tuple[int]) -> Tuple[int]:
+def get_tile_layout_shape(
+    tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]
+) -> Tuple[int, ...]:
     # TODO: docstring
 
-    assert len(tile_shape) == len(sample_shape), 'need same dimensionality'  # TODO: exception (sanity check)
+    assert len(tile_shape) == len(
+        sample_shape
+    ), "need same dimensionality"  # TODO: exception (sanity check)
 
     layout = []
     for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape):
         layout.append(ceildiv(sample_shape_dim, tile_shape_dim))
 
     return tuple(layout)
+
 
 # TODO: do we want to make this a BaseEncoder subclass?
 class TileEncoder(Cachable):
@@ -36,20 +40,24 @@ class TileEncoder(Cachable):
             "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
         }
 
-    def translate_index_relative_to_tiles(self, element_index: Tuple[int], tile_shape: Tuple[int], sample_shape: Tuple[int]) -> int:
+    def translate_index_relative_to_tiles(
+        self,
+        element_index: Tuple[int, ...],
+        tile_shape: Tuple[int, ...],
+        sample_shape: Tuple[int, ...],
+    ) -> int:
         """Takes in an N-dimensional element-index and returns a 1d index to be used for a flat tile-ordered list of chunks"""
 
         # TODO: remove this method?
 
         raise NotImplementedError
 
-
     def __getitem__(self, global_sample_index: int):
         return self.entries[str(global_sample_index)]
 
     def __contains__(self, global_sample_index: int):
         return str(global_sample_index) in self.entries
-    
+
     def get_tile_shape(self, global_sample_index: int):
         # TODO: maybe this should be dynamic?
         return tuple(self[global_sample_index]["tile_shape"])
@@ -58,14 +66,14 @@ class TileEncoder(Cachable):
         return tuple(self[global_sample_index]["sample_shape"])
 
     # def prune_chunks(self, tile_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index) -> List[ENCODING_DTYPE]:
-    #     """This method handles the main tile logic, given a subslice_index it replaces the chunk IDs that 
+    #     """This method handles the main tile logic, given a subslice_index it replaces the chunk IDs that
     #     are not needed to be downloaded with `None`, returning a new (pruned) list.
 
     #     Args:
     #         tile_ids (List[ENCODING_DTYPE]): All tile chunk IDs that correspond with this sample in tile-order.
     #         global_sample_index (int): Primary index for the tensor.
     #             Example: `tensor[0, 10:50, 50:100]` -- the first slice component would be the `global_sample_index`.
-    #         subslice_index (Index): Subslice index of a tensor. 
+    #         subslice_index (Index): Subslice index of a tensor.
     #             Example: `tensor[0, 10:50, 50:100]` -- the last 2 slice components would be the `subslice_index`.
 
     #     Raises:
@@ -96,28 +104,28 @@ class TileEncoder(Cachable):
     #             pruned_tile_ids.append(tile_id)
     #         else:
     #             pruned_tile_ids.append(None)
-    #             
+    #
     #     return tile_ids
 
-    
-    # def first_element_index_of_tile(self, tile_shape: Tuple[int], num_tiles: int, tile_index_1d: int) -> Tuple[int]:
+    # def first_element_index_of_tile(self, tile_shape: Tuple[int, ...], num_tiles: int, tile_index_1d: int) -> Tuple[int, ...]:
     #     # TODO: docstring
 
     #     raise NotImplementedError
 
-
-    def order_tiles(self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]) -> np.ndarray:
+    def order_tiles(
+        self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
+    ) -> np.ndarray:
         """Given a flat list of `chunk_ids` for the sample at `global_sample_index`,
         return a new numpy array that has the tiles laid out how they will be
         spacially if they were on a single tensor.
-        
+
         Example:
             Given 16 tiles that represent a 160x160 element sample in c-order:
                 - each tile represents a 10x10 collection of elements.
                 - should return:
                     [
-                        [ch0, ch1, ch2, ch3], 
-                        [ch4, ch5, ch6, ch7], 
+                        [ch0, ch1, ch2, ch3],
+                        [ch4, ch5, ch6, ch7],
                         [ch8, ch9, ch10, ch11],
                         [ch12, ch13, ch14, ch15],
                     ]
@@ -137,8 +145,9 @@ class TileEncoder(Cachable):
 
         return ordered_tiles
 
-
-    def get_tile_shape_mask(self, global_sample_index: int, ordered_tile_ids: np.ndarray) -> np.ndarray:
+    def get_tile_shape_mask(
+        self, global_sample_index: int, ordered_tile_ids: np.ndarray
+    ) -> np.ndarray:
         # TODO: docstring
 
         if global_sample_index not in self:
@@ -154,8 +163,7 @@ class TileEncoder(Cachable):
 
         return tile_shape_mask
 
-
-    def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int]):
+    def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int, ...]):
         tile_meta = self.entries[sample_index]
         sample_shape = tile_meta["sample_shape"]
         tile_shape = tile_meta["tile_shape"]
@@ -167,7 +175,7 @@ class TileEncoder(Cachable):
         for ax in range(ndims):
             chunk_idx += (tile_index[ax] // tile_shape[ax]) * factor
             factor *= ceildiv(tile_shape[ax], sample_shape[ax])
-        
+
         return chunk_idx
 
     @property

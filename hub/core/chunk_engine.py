@@ -1,6 +1,11 @@
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import get_tile_shape
-from hub.util.tiles import approximate_num_bytes, get_tile_bounds, get_tile_mask, num_tiles_for_sample
+from hub.util.tiles import (
+    approximate_num_bytes,
+    get_tile_bounds,
+    get_tile_mask,
+    num_tiles_for_sample,
+)
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
@@ -237,14 +242,14 @@ class ChunkEngine:
 
         return not self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
         Args:
             buffer (memoryview): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
         """
 
         # num samples is always 1 when appending
@@ -287,14 +292,14 @@ class ChunkEngine:
         self.meta_cache[tile_encoder_key] = self.tile_encoder
 
     def _try_appending_to_last_chunk(
-        self, buffer: memoryview, shape: Tuple[int]
+        self, buffer: memoryview, shape: Tuple[int, ...]
     ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Returns:
             bool: True if `buffer` was successfully written to the last chunk, otherwise False.
@@ -326,13 +331,13 @@ class ChunkEngine:
 
         return False
 
-    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int]) -> Chunk:
+    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int, ...]) -> Chunk:
         """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
         This should be called if `buffer` could not be added to the last chunk.
 
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Returns:
             Chunk: The newly created chunk instance.
@@ -459,117 +464,123 @@ class ChunkEngine:
 
             self._update_samples_subslice(index, samples)
 
-    def _update_samples(
-        self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]
-    ):
-        """Update the samples at `index` with entirely new samples.
+    # def _update_samples(
+    #     self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]
+    # ):
+    #     """Update the samples at `index` with entirely new samples.
 
-        Note:
-            This method allows the incoming samples' shapes to be different from the original.
-            However, this requires that only the primary axis is being updated upon (no subslicing).
-            For subslice updates, use `_update_samples_subslice`.
-        """
+    #     Note:
+    #         This method allows the incoming samples' shapes to be different from the original.
+    #         However, this requires that only the primary axis is being updated upon (no subslicing).
+    #         For subslice updates, use `_update_samples_subslice`.
+    #     """
 
-        tensor_meta = self.tensor_meta
-        enc = self.chunk_id_encoder
-        updated_chunks = set()
+    #     tensor_meta = self.tensor_meta
+    #     enc = self.chunk_id_encoder
+    #     updated_chunks = set()
 
-        index_length = index.length(self.num_samples)
-        samples = _make_sequence(samples, index_length)
-        serialized_input_samples = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size
-        )
+    #     index_length = index.length(self.num_samples)
+    #     samples = _make_sequence(samples, index_length)
+    #     serialized_input_samples = serialize_input_samples(
+    #         samples, tensor_meta, self.min_chunk_size
+    #     )
 
-        chunks_nbytes_after_updates = []
-        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        for i, (buffer, shape) in enumerate(serialized_input_samples):
-            global_sample_index = global_sample_indices[i]  # TODO!
+    #     chunks_nbytes_after_updates = []
+    #     global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+    #     for i, (buffer, shape) in enumerate(serialized_input_samples):
+    #         global_sample_index = global_sample_indices[i]  # TODO!
 
-            chunks = self.get_chunks_for_sample(global_sample_index, enc)
+    #         chunks = self.get_chunks_for_sample(global_sample_index, enc)
 
-            if len(chunks) > 1:
-                # TODO
-                raise NotImplementedError(
-                    "Updating for tiled samples not yet implemented"
-                )
+    #         if len(chunks) > 1:
+    #             # TODO
+    #             raise NotImplementedError(
+    #                 "Updating for tiled samples not yet implemented"
+    #             )
 
-            for chunk in chunks:
-                local_sample_index = enc.translate_index_relative_to_chunks(
-                    global_sample_index
-                )
+    #         for chunk in chunks:
+    #             local_sample_index = enc.translate_index_relative_to_chunks(
+    #                 global_sample_index
+    #             )
 
-                tensor_meta.update_shape_interval(shape)
-                chunk.update_sample(local_sample_index, buffer, shape)
-                updated_chunks.add(chunk)
+    #             tensor_meta.update_shape_interval(shape)
+    #             chunk.update_sample(local_sample_index, buffer, shape)
+    #             updated_chunks.add(chunk)
 
-                # only care about deltas if it isn't the last chunk
-                if chunk.key != self.last_chunk_key:  # type: ignore
-                    chunks_nbytes_after_updates.append(chunk.nbytes)
+    #             # only care about deltas if it isn't the last chunk
+    #             if chunk.key != self.last_chunk_key:  # type: ignore
+    #                 chunks_nbytes_after_updates.append(chunk.nbytes)
 
-        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
-        for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk  # type: ignore
+    #     # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
+    #     for chunk in updated_chunks:
+    #         self.cache[chunk.key] = chunk  # type: ignore
 
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
+    #     self._synchronize_cache(chunk_keys=[])
+    #     self.cache.maybe_flush()
 
-        _warn_if_suboptimal_chunks(
-            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
-        )
+    #     _warn_if_suboptimal_chunks(
+    #         chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
+    #     )
 
-    def _update_samples_subslice(self, index: Index, incoming_samples: np.ndarray):
-        """Update the samples at `index` (must be a subslice index) with incoming samples.
+    # def _update_samples_subslice(self, index: Index, incoming_samples: np.ndarray):
+    #     """Update the samples at `index` (must be a subslice index) with incoming samples.
 
-        Note:
-            This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
-            For full sample updates (allowing new shapes), use `_update_samples`.
-        """
+    #     Note:
+    #         This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
+    #         For full sample updates (allowing new shapes), use `_update_samples`.
+    #     """
 
-        index_shape = index.shape
-        if index_shape[0] != 1:
-            raise MultiSampleSubsliceUpdateError(index_shape)
+    #     index_shape = index.shape
+    #     if index_shape[0] != 1:
+    #         raise MultiSampleSubsliceUpdateError(index_shape)
 
-        # squeeze 1s away
-        squeezed_index_shape = tuple([dim for dim in index_shape if dim != 1])
-        if squeezed_index_shape != incoming_samples.shape:
-            raise InvalidSubsliceUpdateShapeError(
-                incoming_samples.shape, squeezed_index_shape
-            )
+    #     # squeeze 1s away
+    #     squeezed_index_shape = tuple([dim for dim in index_shape if dim != 1])
+    #     if squeezed_index_shape != incoming_samples.shape:
+    #         raise InvalidSubsliceUpdateShapeError(
+    #             incoming_samples.shape, squeezed_index_shape
+    #         )
 
-        # in order to update an exact subslice of a single sample:
-        # TODO: we may want to optimize this, but it won't be too slow (other than decompressing/recompressing)
+    #     # in order to update an exact subslice of a single sample:
+    #     # TODO: we may want to optimize this, but it won't be too slow (other than decompressing/recompressing)
 
-        # 1. we need to decompress the sample into a numpy array (ignoring chunk-wise compression for now)
-        value0_index = Index([index.values[0]])
-        new_sample = self.numpy(value0_index)
+    #     # 1. we need to decompress the sample into a numpy array (ignoring chunk-wise compression for now)
+    #     value0_index = Index([index.values[0]])
+    #     new_sample = self.numpy(value0_index)
 
-        # 2. perform update on this numpy array
-        subsliced_sample = index.apply([new_sample])[0]
-        subsliced_sample[:] = incoming_samples
+    #     # 2. perform update on this numpy array
+    #     subsliced_sample = index.apply([new_sample])[0]
+    #     subsliced_sample[:] = incoming_samples
 
-        # 3. normally update this sample
-        self._update_samples(value0_index, [new_sample])
+    #     # 3. normally update this sample
+    #     self._update_samples(value0_index, [new_sample])
 
-
-    def sample_from_tiles(self, global_sample_index: int, subslice_index: Index, dtype: np.dtype) -> np.ndarray:
+    def sample_from_tiles(
+        self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
+    ) -> np.ndarray:
         # TODO: docstring
 
         chunk_id_encoder = self.chunk_id_encoder
         tile_encoder = self.tile_encoder
 
         tile_ids = chunk_id_encoder[global_sample_index]
-        
-        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
 
-        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, ordered_tile_ids)
+        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)  # type: ignore
+
+        tile_shape_mask = tile_encoder.get_tile_shape_mask(
+            global_sample_index, ordered_tile_ids
+        )
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
-        sample = self.coalesce_sample(global_sample_index, tiles, tile_shape_mask, subslice_index, dtype)
+        sample = self.coalesce_sample(
+            global_sample_index, tiles, tile_shape_mask, subslice_index, dtype
+        )
 
         return sample
 
-
-    def download_tiles(self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray) -> np.ndarray:
+    def download_tiles(
+        self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray
+    ) -> np.ndarray:
         """Downloads the tiles and returns a numpy array of Chunk objects with the same shape.
 
         Args:
@@ -582,7 +593,9 @@ class ChunkEngine:
         """
 
         if ordered_tile_ids.shape != download_mask.shape:
-            raise ValueError(f"Tiles {ordered_tile_ids.shape} and the download mask {download_mask.shape} should be the same shape.")
+            raise ValueError(
+                f"Tiles {ordered_tile_ids.shape} and the download mask {download_mask.shape} should be the same shape."
+            )
 
         chunks = np.empty(ordered_tile_ids.shape, dtype=object)
 
@@ -595,7 +608,6 @@ class ChunkEngine:
 
         return chunks
 
-
     def download_tile(self, tile_id: ENCODING_DTYPE) -> Chunk:
         # TODO: docstring
 
@@ -604,8 +616,14 @@ class ChunkEngine:
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         return chunk
 
-    
-    def coalesce_sample(self, global_sample_index: int, tiles: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index, dtype: np.dtype) -> np.ndarray:
+    def coalesce_sample(
+        self,
+        global_sample_index: int,
+        tiles: np.ndarray,
+        tile_shape_mask: np.ndarray,
+        subslice_index: Index,
+        dtype: np.dtype,
+    ) -> np.ndarray:
         # TODO: docstring
 
         is_tiled = tiles.size > 1
@@ -633,12 +651,11 @@ class ChunkEngine:
                 tile_low_dim = subslice_value.low_bound - low_dim
                 tile_high_dim = subslice_value.high_bound - low_dim
                 tile_slices.append(slice(tile_low_dim, tile_high_dim))
-            tile_slices = tuple(tile_slices)
+            tile_slices = tuple(tile_slices)  # type: ignore
 
             sample[:] = tile_sample[tile_slices]
 
         return sample
-        
 
     def numpy(
         self, index: Index, aslist: bool = False
@@ -659,7 +676,7 @@ class ChunkEngine:
         length = self.num_samples
         last_shape = None
         samples = []
-        
+
         tensor_meta = self.tensor_meta
         dtype = tensor_meta.dtype
 
