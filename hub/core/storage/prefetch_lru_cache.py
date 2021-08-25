@@ -81,7 +81,7 @@ class PrefetchLRUCache(LRUCache):
         )
 
         # keeps track of the latest chunk per tensor in order to prevent multiple redundant Chunk.frombuffer calls
-        self.latest_chunk_per_tensor: Dict[str, tuple[str, Chunk]] = {}
+        self.latest_chunk_per_tensor: Dict[str, Tuple[str, Chunk]] = {}
 
     def __getitem__(self, path):
         if path in self.lru_sizes:
