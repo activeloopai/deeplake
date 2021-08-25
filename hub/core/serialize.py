@@ -7,6 +7,7 @@ from typing import List, Optional, Sequence, Union, Tuple, Iterable
 from itertools import repeat
 import hub
 import numpy as np
+import struct
 
 
 def infer_chunk_num_bytes(
@@ -41,7 +42,7 @@ def serialize_chunk(
     byte_positions: np.ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
-) -> memoryview:
+) -> bytearray:
     """Serializes a chunk's headers and data into a single byte stream. This is how the chunk will be written to the storage provider.
 
     Args:
@@ -60,14 +61,14 @@ def serialize_chunk(
     offset = write_shape_info(shape_info, flatbuff, offset)
     offset = write_byte_positions(byte_positions, flatbuff, offset)
     offset = write_actual_data(data, flatbuff, offset)
-    return memoryview(flatbuff)
+    return flatbuff
 
 
 def write_version(version, buffer) -> int:
     """Writes version info to the buffer, returns offset."""
     len_version = len(version)
     buffer[0] = len_version
-    buffer[1 : 1 + len_version] = list(map(ord, version))
+    buffer[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
     return offset
 
@@ -77,8 +78,7 @@ def write_shape_info(shape_info, buffer, offset) -> int:
     if shape_info.ndim == 1:
         offset += 8
     else:
-        buffer[offset : offset + 4] = shape_info.shape[0].to_bytes(4, "little")
-        buffer[offset + 4 : offset + 8] = shape_info.shape[1].to_bytes(4, "little")
+        buffer[offset : offset + 8] = struct.pack("<ii", *shape_info.shape)
         offset += 8
 
         buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
@@ -109,7 +109,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def deserialize_chunk(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, bytearray]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
@@ -123,52 +123,52 @@ def deserialize_chunk(
         encoded byte positions as numpy array,
         chunk data as memoryview.
     """
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    if isinstance(byts, bytes):
+        mview = memoryview(byts)
+    else:
+        mview = byts
 
-    buff = np.frombuffer(byts, dtype=np.byte)
+    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    itemsize = enc_dtype.itemsize
 
     # Read version
-    len_version = buff[0]
-    version = "".join(map(chr, buff[1 : 1 + len_version]))
+    len_version = byts[0]
+    version = byts[1 : 1 + len_version].decode("ascii")
     offset = 1 + len_version
 
     # Read shape info
-    shape_info_shape = buff[offset : offset + 8].view(np.int32)
+    shape_info_nrows, shape_info_ncols = struct.unpack(
+        "<ii", mview[offset : offset + 8]
+    )
     offset += 8
-    shape_info_nbytes = np.prod(shape_info_shape) * enc_dtype.itemsize
+    shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
-        shape_info = (
-            buff[offset : offset + shape_info_nbytes]
-            .view(enc_dtype)
-            .reshape(shape_info_shape)
-            .copy()
-        )
+        shape_info = np.frombuffer(
+            mview[offset : offset + shape_info_nbytes], dtype=enc_dtype
+        ).reshape(shape_info_nrows, shape_info_ncols)
         offset += shape_info_nbytes
 
     # Read byte positions
-    byte_positions_rows = buff[offset : offset + 4].view(np.int32)[0]
+    byte_positions_rows = int.from_bytes(mview[offset : offset + 4], "little")
     offset += 4
-    byte_positions_nbytes = byte_positions_rows * 3 * enc_dtype.itemsize
+    byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
-        byte_positions = (
-            buff[offset : offset + byte_positions_nbytes]
-            .view(enc_dtype)
-            .reshape(byte_positions_rows, 3)
-            .copy()
-        )
+        byte_positions = np.frombuffer(
+            mview[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+        ).reshape(byte_positions_rows, 3)
         offset += byte_positions_nbytes
 
     # Read data
-    data = memoryview(buff[offset:].tobytes())
+    data = mview[offset:]
 
     return version, shape_info, byte_positions, data
 
 
-def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> bytearray:
     """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
@@ -179,23 +179,23 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
         Serialized chunk ids as memoryview.
     """
     len_version = len(version)
-    flatbuff = np.zeros(1 + len_version + sum([x.nbytes for x in ids]), dtype=np.byte)
+    flatbuff = bytearray(1 + len_version + sum([x.nbytes for x in ids]))
 
     # Write version
     len_version = len(version)
     flatbuff[0] = len_version
-    flatbuff[1 : 1 + len_version] = list(map(ord, version))
+    flatbuff[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
 
     # Write ids
     for arr in ids:
-        flatbuff[offset : offset + arr.nbytes] = arr.view(np.byte).reshape(-1)
+        flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
         offset += arr.nbytes
 
-    return memoryview(flatbuff.tobytes())
+    return flatbuff
 
 
-def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
@@ -206,17 +206,20 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         hub version used to create the chunk,
         encoded chunk ids as memoryview.
     """
+    if isinstance(byts, bytes):
+        mview = memoryview(byts)
+    else:
+        mview = byts
+
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
-    buff = np.frombuffer(byts, dtype=np.byte)
-
     # Read version
-    len_version = buff[0]
-    version = "".join(map(chr, buff[1 : 1 + len_version]))
+    len_version = byts[0]
+    version = byts[1 : 1 + len_version].decode("ascii")
     offset = 1 + len_version
 
     # Read chunk ids
-    ids = buff[offset:].view(enc_dtype).reshape(-1, 2).copy()
+    ids = np.frombuffer(mview[offset:], dtype=enc_dtype).reshape(-1, 2)
 
     return version, ids
 
