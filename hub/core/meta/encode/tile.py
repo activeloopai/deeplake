@@ -128,6 +128,9 @@ class TileEncoder(Cachable):
     def get_tile_shape_mask(self, sample_index: int, ordered_tile_ids: np.ndarray) -> np.ndarray:
         # TODO: docstring
 
+        if sample_index not in self.entries:
+            return np.array([])
+
         tile_meta = self.entries[sample_index]
         tile_shape = tile_meta["tile_shape"]
 

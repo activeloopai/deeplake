@@ -77,6 +77,10 @@ def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape_mask: np.ndarray, sub
 
     mask = np.zeros(ordered_tile_ids.shape, dtype=bool)
 
+    if ordered_tile_ids.size == 1:
+        mask[:] = True
+        return mask
+
     for tile_index, _ in np.ndenumerate(ordered_tile_ids):
         tile_shape = tile_shape_mask[tile_index]
         low, high = get_tile_bounds(tile_index, tile_shape)
