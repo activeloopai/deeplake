@@ -543,6 +543,29 @@ class Index:
 
         return tuple(high)
 
+    def split_subslice(self) -> Tuple["Index", "Index"]:
+        """Splits the primary axis index from the sample subslice index.
+
+        Examples:
+            array[0:5, 10, 5:10]
+                - primary:  [0:5]
+                - subslice: [10, 5:10]
+            array[0]
+                - primary:  [0]
+                - subslice: [:]
+
+        Returns:
+            Tuple[Index, Index]: value0_index, subslice_index
+        """
+
+        value0_index = Index([self.values[0]])
+        if len(self.values) > 1:
+            subslice_index = Index(self.values[1:])
+        else:
+            subslice_index = Index()
+
+        return value0_index, subslice_index
+
     def __str__(self):
         values = [entry.value for entry in self.values]
         return f"Index({values})"

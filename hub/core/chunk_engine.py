@@ -680,14 +680,9 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         dtype = tensor_meta.dtype
 
-        # TODO: make methods of Index?
-        value0_index = index.values[0].indices(length)
-        if len(index.values) > 1:
-            subslice_index = Index(index.values[1:])
-        else:
-            subslice_index = Index()
+        value0_index, subslice_index = index.split_subslice()
 
-        for global_sample_index in value0_index:
+        for global_sample_index in value0_index.values[0].indices(length):
             sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
             shape = sample.shape
 
