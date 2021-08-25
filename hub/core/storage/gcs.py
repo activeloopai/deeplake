@@ -71,7 +71,8 @@ class GCSProvider(StorageProvider):
         """Remove all keys below root - empties out mapping"""
         self.check_readonly()
         blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        self.client_bucket.delete_blobs(blob_objects)
+        for blob in blob_objects:
+            blob.delete()
 
     def __getitem__(self, key):
         """Retrieve data"""
