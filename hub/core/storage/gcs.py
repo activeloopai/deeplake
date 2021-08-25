@@ -1,8 +1,11 @@
 import posixpath
-from typing import Dict, Optional, Union
-from hub.core.storage.provider import StorageProvider
-import gcsfs  # type: ignore
 import json
+import os
+from typing import Dict, Union
+
+from google.auth import credentials
+from hub.core.storage.provider import StorageProvider
+from google.cloud import storage  # type: ignore
 
 
 class GCSProvider(StorageProvider):
@@ -28,12 +31,27 @@ class GCSProvider(StorageProvider):
             FileNotFoundError,
             IsADirectoryError,
             NotADirectoryError,
+            AttributeError,
         )
         self._initialize_provider()
 
     def _initialize_provider(self):
         self._set_bucket_and_path()
-        self.fs = gcsfs.GCSFileSystem(token=self.token)
+        from google.oauth2 import service_account
+
+        if isinstance(self.token, dict):
+            token_path = posixpath.expanduser("gcs.json")
+            with open(token_path, "wb") as f:
+                json.dump(self.token, f)
+            self.token = token_path
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.token
+        credentials = service_account.Credentials.from_service_account_file(self.token)
+
+        scoped_credentials = credentials.with_scopes(
+            ["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        self.client = storage.Client(credentials=scoped_credentials)
+        self.client_bucket = self.client.get_bucket(self.bucket)
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
@@ -42,42 +60,54 @@ class GCSProvider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
+    def _get_path_from_key(self, key):
+        return posixpath.join(self.path, key)
+
+    def _list_keys(self):
+        self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        return [obj.name for obj in self._blob_objects]
+
     def clear(self):
         """Remove all keys below root - empties out mapping"""
         self.check_readonly()
-        self.fs.delete(self.path, True)
-
-    def _get_full_key_path(self, key):
-        return posixpath.join(self.path, key)
+        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        self.client_bucket.delete_blobs(blob_objects)
 
     def __getitem__(self, key):
         """Retrieve data"""
         try:
-            with self.fs.open(self._get_full_key_path(key), "rb") as f:
-                return f.read()
+            blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+            return blob.download_as_bytes()
         except self.missing_exceptions:
             raise KeyError(key)
 
     def __setitem__(self, key, value):
         """Store value in key"""
         self.check_readonly()
-        with self.fs.open(self._get_full_key_path(key), "wb") as f:
-            f.write(value)
+        blob = self.client_bucket.blob(self._get_path_from_key(key))
+        if isinstance(value, memoryview):
+            value = value.tobytes()
+        blob.upload_from_string(
+            value,
+        )
 
     def __iter__(self):
         """Iterating over the structure"""
-        yield from (x for x in self.fs.find(self.root))
+        yield from [f for f in self._list_keys() if not f.endswith("/")]
 
     def __len__(self):
         """Returns length of the structure"""
-        return len(self.fs.find(self.root))
+        return len(self._list_keys())
 
     def __delitem__(self, key):
         """Remove key"""
         self.check_readonly()
-        self.fs.rm(self._get_full_key_path(key))
+        blob = self.client_bucket.blob(self._get_path_from_key(key))
+        blob.delete()
 
     def __contains__(self, key):
         """Does key exist in mapping?"""
-        path = self._get_full_key_path(key)
-        return self.fs.exists(path)
+        stats = storage.Blob(
+            bucket=self.client_bucket, name=self._get_path_from_key(key)
+        ).exists(self.client)
+        return stats
