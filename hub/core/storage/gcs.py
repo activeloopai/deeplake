@@ -49,8 +49,8 @@ class GCSProvider(StorageProvider):
         scoped_credentials = credentials.with_scopes(
             ["https://www.googleapis.com/auth/cloud-platform"]
         )
-        self.client = storage.Client(credentials=scoped_credentials)
-        self.client_bucket = self.client.get_bucket(self.bucket)
+        client = storage.Client(credentials=scoped_credentials)
+        self.client_bucket = client.get_bucket(self.bucket)
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
@@ -87,9 +87,7 @@ class GCSProvider(StorageProvider):
         blob = self.client_bucket.blob(self._get_path_from_key(key))
         if isinstance(value, memoryview):
             value = value.tobytes()
-        blob.upload_from_string(
-            value,
-        )
+        blob.upload_from_string(value)
 
     def __iter__(self):
         """Iterating over the structure"""
@@ -109,5 +107,14 @@ class GCSProvider(StorageProvider):
         """Does key exist in mapping?"""
         stats = storage.Blob(
             bucket=self.client_bucket, name=self._get_path_from_key(key)
-        ).exists(self.client)
+        ).exists(self.client_bucket.client)
         return stats
+
+    def __getstate__(self):
+        return (self.root, self.token, self.missing_exceptions)
+
+    def __setstate__(self, state):
+        self.root = state[0]
+        self.token = state[1]
+        self.missing_exceptions = state[2]
+        self._initialize_provider()
