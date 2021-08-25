@@ -328,9 +328,6 @@ class PrefetchLRUCache(LRUCache):
             data[tensor] = arr
         return data
 
-    def __hash__(self):
-        return 1
-
     def _generate_shared_memory_names(self, chunk_groups: List[List[Tuple[str, str]]]):
         """Generates shared memory names for all chunks in chunk_groups as chunks names often get too large for some OS"""
         for chunk_group in chunk_groups:
