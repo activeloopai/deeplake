@@ -37,19 +37,24 @@ class GCSProvider(StorageProvider):
 
     def _initialize_provider(self):
         self._set_bucket_and_path()
+        if self.token:
+            if isinstance(self.token, dict):
+                token_path = posixpath.expanduser("gcs.json")
+                with open(token_path, "wb") as f:
+                    json.dump(self.token, f)
+                self.token = token_path
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.token
+            credentials = service_account.Credentials.from_service_account_file(
+                self.token
+            )
 
-        if isinstance(self.token, dict):
-            token_path = posixpath.expanduser("gcs.json")
-            with open(token_path, "wb") as f:
-                json.dump(self.token, f)
-            self.token = token_path
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.token
-        credentials = service_account.Credentials.from_service_account_file(self.token)
+            scoped_credentials = credentials.with_scopes(
+                ["https://www.googleapis.com/auth/cloud-platform"]
+            )
 
-        scoped_credentials = credentials.with_scopes(
-            ["https://www.googleapis.com/auth/cloud-platform"]
-        )
-        client = storage.Client(credentials=scoped_credentials)
+            client = storage.Client(credentials=scoped_credentials)
+        else:
+            client = storage.Client(credentials=self.token)
         self.client_bucket = client.get_bucket(self.bucket)
 
     def _set_bucket_and_path(self):
