@@ -133,10 +133,11 @@ class LocalProvider(StorageProvider):
         Returns:
             list: list of all the objects found at the root of the Provider.
         """
+        full_path = os.path.expanduser(self.root)
         ls = []
-        for root, dirs, files in os.walk(self.root):
+        for root, dirs, files in os.walk(full_path):
             for file in files:
-                ls.append(os.path.relpath(os.path.join(root, file), self.root))
+                ls.append(os.path.relpath(os.path.join(full_path, file), full_path))
         return ls
 
     def _check_is_file(self, path: str):
