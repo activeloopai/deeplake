@@ -130,7 +130,7 @@ def deserialize_chunk(
 
     # Read version
     len_version = byts[0]
-    version = byts[1 : 1 + len_version].decode("ascii")
+    version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
 
     # Read shape info
@@ -211,7 +211,7 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
 
     # Read version
     len_version = byts[0]
-    version = byts[1 : 1 + len_version].decode("ascii")
+    version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
 
     # Read chunk ids
