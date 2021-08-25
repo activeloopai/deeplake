@@ -34,7 +34,9 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict = None):
             raise KaggleMissingCredentialsError(ENV_KAGGLE_KEY)
 
 
-def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = None):
+def download_kaggle_dataset(
+    tag: str, local_path: str, kaggle_credentials: dict = None, exist_ok: bool = False
+):
     """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
 
     Args:
@@ -42,6 +44,7 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
         local_path (str): Path where the kaggle dataset will be downloaded and unzipped. Only local path downloading is supported.
         kaggle_credentials (dict): Credentials are gathered from the environment variables or `~/kaggle.json`.
             If those don't exist, the `kaggle_credentials` argument will be used.
+        exist_ok (bool): If the kaggle dataset was already downloaded, and `exist_ok` is True, no error is thrown.
 
     Raises:
         KaggleMissingCredentialsError: If no kaggle credentials are found.
@@ -49,13 +52,26 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
     """
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
+    subfolders = glob.glob(os.path.join(local_path, "*"))
+
     if len(zip_files) > 0:
         # TODO: this case means file did not finish unzipping (after unzip, it should be deleted)
-        raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
-    subfolders = glob.glob(os.path.join(local_path, "*"))
-    if len(subfolders) > 0:
+
+        if not exist_ok:
+            raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
+
+        print(
+            f'Kaggle dataset "{tag}" was already downloaded, but not extracted. Extracting...'
+        )
+
+    elif len(subfolders) > 0:
         # TODO: this case means file finished unzipping and dataset is already there
-        raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
+
+        if not exist_ok:
+            raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
+
+        print(f'Kaggle dataset "{tag}" was already downloaded and extracted.')
+        return
 
     _set_environment_credentials_if_none(kaggle_credentials)
 
@@ -65,7 +81,7 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
 
     _exec_command("kaggle datasets download -d %s" % (tag))
 
-    for item in os.listdir(local_path):
+    for item in os.listdir():
         if item.endswith(".zip"):
             file_name = os.path.abspath(item)
             zip_ref = ZipFile(file_name)

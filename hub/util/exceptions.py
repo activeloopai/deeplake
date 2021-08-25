@@ -24,7 +24,7 @@ class KaggleMissingCredentialsError(KaggleError):
 
 class KaggleDatasetAlreadyDownloadedError(KaggleError):
     def __init__(self, tag: str, path: str):
-        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
+        self.message = f"Kaggle dataset {tag} already exists at {path}. You can get rid of this error by setting the `exist_ok` parameter to `True`."
         super().__init__(self.message)
 
 
@@ -75,7 +75,9 @@ class TensorDoesNotExistError(KeyError):
 
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
-        super().__init__(f"Tensor '{key}' already exists.")
+        super().__init__(
+            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+        )
 
 
 class InvalidTensorNameError(Exception):
