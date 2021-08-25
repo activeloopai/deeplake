@@ -225,7 +225,7 @@ class LRUCache(StorageProvider):
         """Forward the value at a given path to the next storage, and un-marks its key.
         If the value at the path is Cachable, it will only be un-dirtied if remove_from_dirty=True.
         """
-        if self.next_storage:
+        if self.next_storage is not None:
             self._forward_value(path, self.cache_storage[path], remove_from_dirty)
 
     def _forward_value(self, path, value, remove_from_dirty=False):
