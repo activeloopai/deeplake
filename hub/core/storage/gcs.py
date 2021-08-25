@@ -92,6 +92,8 @@ class GCSProvider(StorageProvider):
         blob = self.client_bucket.blob(self._get_path_from_key(key))
         if isinstance(value, memoryview):
             value = value.tobytes()
+        elif isinstance(value, bytearray):
+            value = bytes(value)
         blob.upload_from_string(value)
 
     def __iter__(self):
