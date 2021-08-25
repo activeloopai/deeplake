@@ -102,16 +102,6 @@ class SharedMemoryProvider(StorageProvider):
         except (FileNotFoundError, KeyError):
             pass
 
-    def delete_items(self, paths: List[str]):
-        """Deletes the items from the provider.
-
-        Args:
-            paths (List[str]): List of paths to be deleted.
-        """
-        self.check_readonly()
-        for path in paths:
-            del self[path]
-
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
 

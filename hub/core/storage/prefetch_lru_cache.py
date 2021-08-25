@@ -180,15 +180,8 @@ class PrefetchLRUCache(LRUCache):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """
-        self._flush_if_not_read_only()
-        self.cache_used = 0
         self.last_index_suggested = -1
-        self.lru_sizes.clear()
-        self.dirty_keys.clear()
-        self.cache_storage.clear()
-
-        if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
-            self.next_storage.clear_cache()
+        super().clear_cache()
 
     def _get_all_chunks_start_end_index(self) -> Dict[str, Dict[str, Tuple[int, int]]]:
         """Gets the start and end indexes present in each chunk across all tensors."""
