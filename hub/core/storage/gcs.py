@@ -145,6 +145,9 @@ class GoogleCredentials:
             method (str/Dict): Supported methods: google_default|cache|anon|browser|None.
                 Type of authorisation to implement - calls `_connect_*` methods.
                 If None, will try sequence of methods.
+
+        Raises:
+            AttributeError: If method is invalid.
         """
         if method not in [
             "google_default",
