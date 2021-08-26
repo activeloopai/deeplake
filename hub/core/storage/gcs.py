@@ -1,4 +1,5 @@
 import posixpath
+import pickle
 import json
 import os
 from typing import Dict, Union
@@ -10,34 +11,40 @@ import google.auth as gauth  # type: ignore
 import google.auth.compute_engine  # type: ignore
 import google.auth.credentials  # type: ignore
 import google.auth.exceptions  # type: ignore
-from google.oauth2.credentials import Credentials  # type: ignore
-
-from hub.core.storage.provider import StorageProvider
+from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+from hub.core.storage.provider import StorageProvider  # type: ignore
+from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
 
 class GoogleCredentials:
-    def __init__(self, token, project=None):
+    def __init__(self, token: Union[str, Dict] = None, project: str = None):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
         self.project = project
-        self.access = "full-access"
-        self.heads = {}
         self.credentials = None
-        self.method = None
         self.token = token
+        self.tokens = {}
         self.connect(method=token)
+
+    @classmethod
+    def load_tokens(cls):
+        """Get "browser" tokens from disc"""
+        try:
+            with open(".gcstoken", "rb") as f:
+                tokens = pickle.load(f)
+        except Exception:
+            tokens = {}
+        GoogleCredentials.tokens = tokens
+
+    def _save_tokens(self):
+        with open(".gcstoken", "wb") as f:
+            pickle.dump(self.tokens, f, 2)
 
     def _connect_google_default(self):
         credentials, project = gauth.default(scopes=[self.scope])
-        msg = textwrap.dedent(
-            """\
-        User-provided project '{}' does not match the google default project '{}'. Either
-          1. Accept the google-default project by not passing a `project` to GCSFileSystem
-          2. Configure the default project to match the user-provided project (gcloud config set project)
-          3. Use an authorization method other than 'google_default' by providing 'token=...'
-        """
-        )
         if self.project and self.project != project:
-            raise ValueError(msg.format(self.project, project))
+            raise ValueError(
+                "Project name does not match the google default project name."
+            )
         self.project = project
         self.credentials = credentials
 
@@ -45,29 +52,38 @@ class GoogleCredentials:
         self.credentials = gauth.compute_engine.Credentials()
 
     def _connect_cache(self):
-        project, access = self.project, self.access
-        if (project, access) in self.tokens:
-            credentials = self.tokens[(project, access)]
+        credentials = self.project.get(self.project, None)
+        if credentials:
             self.credentials = credentials
 
-    def _dict_to_credentials(self, token):
+    def _dict_to_credentials(self, token: Dict):
         """
         Convert old dict-style token.
         Does not preserve access token itself, assumes refresh required.
+
+        Args:
+            token (dict): dictionary with token to be stored in .json file.
+
+        Returns:
+            Path to stored .json file.
         """
-        token_path = posixpath.expanduser("gcs.json")
+        token_path = posixpath.expanduser("~/.config/gcloud/gcs.json")
         with open(token_path, "w") as f:
             json.dump(token, f)
         return token_path
 
-    def _connect_token(self, token):
+    def _connect_token(self, token: Union[str, Dict]):
         """
-        Connect using a concrete token
-        Parameters
-        ----------
-        token: str, dict or Credentials
-            If a str, try to load as a Service file, or next as a JSON; if
-            dict, try to interpret as credentials; if Credentials, use directly.
+        Connect using a concrete token.
+
+        Args:
+            token (str/dict/Credentials):
+                If a str, try to load as a Service file, or next as a JSON; if
+                dict, try to interpret as credentials; if Credentials, use directly.
+
+        Raises:
+            FileNotFoundError: If token file doesn't exist.
+            ValueError: If token format isn't supported by gauth.
         """
         if isinstance(token, str):
             if not os.path.exists(token):
@@ -86,13 +102,39 @@ class GoogleCredentials:
         else:
             raise ValueError("Token format not understood")
         self.credentials = credentials
-        if self.credentials.valid:
-            self.credentials.apply(self.heads)
 
     def _connect_service(self, fn):
         credentials = service_account.Credentials.from_service_account_file(
             fn, scopes=[self.scope]
         )
+        self.credentials = credentials
+
+    def _connect_browser(self):
+        try:
+            import pdb
+
+            pdb.set_trace()
+            with open(
+                posixpath.expanduser(
+                    "~/.config/gcloud/application_default_credentials.json"
+                ),
+                "r",
+            ) as f:
+                default_config = json.load(f)
+        except:
+            raise GCSDefaultCredsNotFoundError()
+        client_config = {
+            "installed": {
+                "client_id": default_config["client_id"],
+                "client_secret": default_config["client_secret"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://accounts.google.com/o/oauth2/token",
+            }
+        }
+        flow = InstalledAppFlow.from_client_config(client_config, [self.scope])
+        credentials = flow.run_console()
+        self.tokens[(self.project, self.access)] = credentials
+        self._save_tokens()
         self.credentials = credentials
 
     def _connect_anon(self):
@@ -102,11 +144,11 @@ class GoogleCredentials:
         """
         Establish session token. A new token will be requested if the current
         one is within 100s of expiry.
-        Parameters
-        ----------
-        method: str (google_default|cache|cloud|token|anon|browser) or None
-            Type of authorisation to implement - calls `_connect_*` methods.
-            If None, will try sequence of methods.
+
+        Args:
+            method (str): Supported methods: google_default|cache|cloud|token|anon|browser|None.
+                Type of authorisation to implement - calls `_connect_*` methods.
+                If None, will try sequence of methods.
         """
         if method not in [
             "google_default",
@@ -114,6 +156,7 @@ class GoogleCredentials:
             "cloud",
             "token",
             "anon",
+            "browser",
             None,
         ]:
             self._connect_token(method)
@@ -123,21 +166,16 @@ class GoogleCredentials:
                 break
         else:
             self.__getattribute__("_connect_" + method)()
-            self.method = method
 
 
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
 
-    def __init__(
-        self,
-        root: str,
-        token: Union[str, Dict] = None,
-    ):
+    def __init__(self, root: str, token: Union[str, Dict] = None, project: str = None):
         """Initializes the GCSProvider
 
         Example:
-            gcs_provider = GCSProvider("snark-test/gcs_ds")
+            gcs_provider = GCSProvider("gcs://my-bucket/gcs_ds")
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
@@ -145,6 +183,7 @@ class GCSProvider(StorageProvider):
         """
         self.root = root
         self.token: Union[str, Dict, None] = token
+        self.project = project
         self.missing_exceptions = (
             FileNotFoundError,
             IsADirectoryError,
@@ -157,7 +196,7 @@ class GCSProvider(StorageProvider):
         self._set_bucket_and_path()
         if not self.token:
             self.token = None
-        scoped_credentials = GoogleCredentials(self.token)
+        scoped_credentials = GoogleCredentials(self.token, project=self.project)
         client = storage.Client(credentials=scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
