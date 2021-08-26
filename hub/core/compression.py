@@ -6,12 +6,22 @@ from hub.util.exceptions import (
     CorruptedSampleError,
 )
 from hub.compression import get_compression_type
-from typing import Union, Tuple, Sequence, List, Optional
+from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
+import struct
+import sys
+
+
+if sys.byteorder == "little":
+    _NATIVE_INT32 = "<i4"
+    _NATIVE_FLOAT32 = "<f4"
+else:
+    _NATIVE_INT32 = ">i4"
+    _NATIVE_FLOAT32 = ">f4"
 
 import lz4.frame  # type: ignore
 
@@ -85,6 +95,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         out.seek(0)
         compressed_bytes = out.read()
         out._close()  # type: ignore
+        decompress_array(compressed_bytes, array.shape)
         return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
@@ -195,32 +206,84 @@ def decompress_multiple(
     return arrays
 
 
-def verify_compressed_file(path: str, compression: str):
+def verify_compressed_file(file: Union[str, BinaryIO, bytes], compression: str):
     """Verify the contents of an image file
     Args:
-        path (str): Path to the image file
+        file (Union[str, BinaryIO]): Path to the file or file like object or contents of the file
         compression (str): Expected compression of the image file
     """
+    if isinstance(file, str):
+        file = open(file, "rb")
+        close = True
+    elif hasattr(file, "read"):
+        close = False
+        file.seek(0)  # type: ignore
+    else:
+        close = False
     try:
         if compression == "png":
-            _verify_png(path)
+            return _verify_png(file)
         elif compression == "jpeg":
-            _verify_jpeg(path)
+            return "uint8", _verify_jpeg(file)
         else:
-            _fast_decompress(path)
+            return _fast_decompress(file)
     except Exception as e:
         raise CorruptedSampleError(compression)
+    finally:
+        if close:
+            file.close()  # type: ignore
 
 
-def _verify_png(path):
-    img = Image.open(path)
+def get_compression(header):
+    if not Image.OPEN:
+        Image.init()
+    for fmt in Image.OPEN:
+        accept = Image.OPEN[fmt][1]
+        if accept and accept(header):
+            return fmt.lower()
+    raise SampleDecompressionError()
+
+
+def _verify_png(buf):
+    if not hasattr(buf, "read"):
+        buf = BytesIO(buf)
+    img = Image.open(buf)
     img.verify()
+    return Image._conv_type_shape(img)
 
 
-def _verify_jpeg(path):
+def _verify_jpeg(f):
+    if hasattr(f, "read"):
+        return _verify_jpeg_file(f)
+    return _verify_jpeg_buffer(f)
+
+
+def _verify_jpeg_buffer(buf: bytes):
+    # Start of Image
+    mview = memoryview(buf)
+    assert buf.startswith(b"\xff\xd8")
+    # Look for Baseline DCT marker
+    sof_idx = buf.find(b"\xff\xc0", 2)
+    if sof_idx == -1:
+        # Look for Progressive DCT marker
+        sof_idx = buf.find(b"\xff\xc2", 2)
+        if sof_idx == -1:
+            raise Exception()
+    length = int.from_bytes(mview[sof_idx + 2 : sof_idx + 4], "big")
+    assert mview[sof_idx + length + 2 : sof_idx + length + 4] in [
+        b"\xff\xc4",
+        b"\xff\xdb",
+        b"\xff\xdd",
+    ]  # DHT, DQT, DRI
+    shape = struct.unpack(">HHB", mview[sof_idx + 5 : sof_idx + 10])
+    assert buf.find(b"\xff\xd9") != -1
+    return shape
+
+
+def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
-    with open(path, "r+b") as f:
-        mm = mmap.mmap(f.fileno(), 0)
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    try:
         soi = f.read(2)
         # Start of Image
         assert soi == b"\xff\xd8"
@@ -241,13 +304,19 @@ def _verify_jpeg(path):
             b"\xff\xdb",
             b"\xff\xdd",
         ]  # DHT, DQT, DRI
-
+        f.seek(sof_idx + 5)
+        shape = struct.unpack(">HHB", f.read(5))
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
+        return shape
+    finally:
+        mm.close()
 
 
-def _fast_decompress(path):
-    img = Image.open(path)
+def _fast_decompress(buf):
+    if not hasattr(buf, "read"):
+        buf = BytesIO(buf)
+    img = Image.open(buf)
     img.load()
     if img.mode == 1:
         args = ("L",)
@@ -264,3 +333,112 @@ def _fast_decompress(path):
             break
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
+    return Image._conv_type_shape(img)
+
+
+def read_meta_from_compressed_file(
+    file, compression: Optional[str] = None
+) -> Tuple[str, Tuple[int], str]:
+    """Reads shape, dtype and format without decompressing or verifying the sample."""
+    if isinstance(file, str):
+        f = open(file, "rb")
+        close = True
+    elif hasattr(file, "read"):
+        f = file
+        close = False
+        f.seek(0)
+    else:
+        f = file
+        close = False
+    try:
+        if compression is None:
+            if hasattr(f, "read"):
+                compression = get_compression(f.read(32))
+                f.seek(0)
+            else:
+                compression = get_compression(f[:32])  # type: ignore
+        if compression == "jpeg":
+            try:
+                shape, typestr = _read_jpeg_shape(f), "|u1"
+            except Exception:
+                raise CorruptedSampleError("jpeg")
+        elif compression == "png":
+            try:
+                shape, typestr = _read_png_shape_and_dtype(f)
+            except Exception:
+                raise CorruptedSampleError("png")
+        else:
+            f.seek(0)
+            img = Image.open(f)
+            shape, typestr = Image._conv_type_shape(img)
+            compression = img.format.lower()
+        return compression, shape, typestr  # type: ignore
+    finally:
+        if close:
+            f.close()
+
+
+def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int]:
+    if hasattr(f, "read"):
+        return _read_jpeg_shape_from_file(f)
+    return _read_jpeg_shape_from_buffer(f)  # type: ignore
+
+
+def _read_jpeg_shape_from_file(f) -> Tuple[int]:
+    """Reads shape of a jpeg image from file without loading the whole image in memory"""
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
+    try:
+        sof_idx = mm.find(b"\xff\xc0", 2)  # Look for Baseline DCT marker
+        if sof_idx == -1:
+            sof_idx = mm.find(b"\xff\xc2", 2)  # Look for Progressive DCT marker
+            if sof_idx == -1:
+                raise Exception()
+        f.seek(sof_idx + 5)
+        return struct.unpack(">HHB", f.read(5))  # type: ignore
+    finally:
+        pass
+        mm.close()
+
+
+def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
+    """Gets shape of a jpeg file from its contents"""
+    sof_idx = buf.find(b"\xff\xc0", 2)
+    if sof_idx == -1:
+        sof_idx = buf.find(b"\xff\xc2", 2)
+        if sof_idx == -1:
+            raise Exception()
+    return struct.unpack(">HHB", memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
+
+
+def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], str]:
+    """Reads shape and dtype of a png file from a file like object or file contents.
+    If a file like object is provided, all of its contents are NOT loaded into memory."""
+    if not hasattr(f, "read"):
+        f = BytesIO(f)  # type: ignore
+    f.seek(16)  # type: ignore
+    size = struct.unpack(">ii", f.read(8))[::-1]  # type: ignore
+    bits, colors = f.read(2)  # type: ignore
+
+    # Get the number of channels and dtype based on bits and colors:
+    if colors == 0:
+        if bits == 1:
+            typstr = "|b1"
+        elif bits == 16:
+            typstr = _NATIVE_INT32
+        else:
+            typstr = "|u1"
+        nlayers = None
+    else:
+        typstr = "|u1"
+        if colors == 2:
+            nlayers = 3
+        elif colors == 3:
+            nlayers = None
+        elif colors == 4:
+            if bits == 8:
+                nlayers = 2
+            else:
+                nlayers = 4
+        else:
+            nlayers = 4
+    return size + (nlayers,), typstr  # type: ignore
