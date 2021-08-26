@@ -79,6 +79,9 @@ class ChunkIdEncoder(Encoder, Cachable):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
+        if num_samples < 0:
+            raise ValueError(f"Can only register a positive number of samples. Got {num_samples}")
+
         if num_samples == 0:
             super().register_samples(None, 1)
             if self.num_chunks <= 0:
