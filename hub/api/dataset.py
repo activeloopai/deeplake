@@ -1,6 +1,7 @@
 from hub.util.exceptions import (
     DatasetHandlerError,
     InvalidPathException,
+    KaggleDatasetAlreadyDownloadedError,
     SamePathException,
 )
 from hub.util.storage import get_storage_and_cache_chain
@@ -378,6 +379,7 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
+        exist_ok: bool = False,
         images_compression: str = "auto",
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
@@ -392,12 +394,13 @@ class dataset:
 
         Args:
             tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
-            src (str): Local path to where the unstructured dataset is stored.
-            dest (str): Destination path where the structured dataset will be stored. Can be:-
+            src (str): Local path to where the raw kaggle dataset will be downlaoded to.
+            dest (str): Destination path where the structured dataset will be stored. Can be:
                 - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            exist_ok (bool): If the kaggle dataset was already downloaded and `exist_ok` is True, ingestion will proceed without error.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
@@ -417,7 +420,10 @@ class dataset:
                 raise SamePathException(src)
 
         download_kaggle_dataset(
-            tag, local_path=src, kaggle_credentials=kaggle_credentials
+            tag,
+            local_path=src,
+            kaggle_credentials=kaggle_credentials,
+            exist_ok=exist_ok,
         )
 
         ds = hub.ingest(
