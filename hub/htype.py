@@ -44,7 +44,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},
     "image": {
         "dtype": "uint8",
-        "sample_compression": REQUIRE_USER_SPECIFICATION,
     },
     "class_label": {
         "dtype": "uint32",
@@ -62,6 +61,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
     "sample_compression": None,
+    "chunk_compression": None,
     "dtype": None,
     "max_chunk_size": None,
 }

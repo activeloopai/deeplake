@@ -7,3 +7,4 @@ humbug>=0.2.6
 types-requests
 types-click
 tqdm
+lz4

@@ -1,15 +1,20 @@
 # type: ignore
-from hub.core.compression import compress_array, verify_compressed_file
+from hub.core.compression import (
+    compress_array,
+    verify_compressed_file,
+    read_meta_from_compressed_file,
+    get_compression,
+)
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
-import pathlib
 from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
+from io import BytesIO
 
 
 class Sample:
-    path: Optional[pathlib.Path]
+    path: Optional[str]
 
     def __init__(
         self,
@@ -40,18 +45,44 @@ class Sample:
         self._uncompressed_bytes = None
 
         if path is not None:
-            self.path = pathlib.Path(path)
+            self.path = path
             self._array = None
-            self._read_meta()
-            if verify:
-                verify_compressed_file(self.path, self.compression)
+            self._typestr = None
+            self._shape = None
+            self._compression = None
+            self._verified = False
+            self._verify = verify
 
         if array is not None:
             self.path = None
             self._array = array
-            self.shape = array.shape
-            self.dtype = array.dtype.name
-            self.compression = None
+            self._shape = array.shape
+            self._typestr = array.__array_interface__["typestr"]
+            self._compression = None
+
+    @property
+    def dtype(self):
+        self._read_meta()
+        return np.dtype(self._typestr).name
+
+    @property
+    def shape(self):
+        self._read_meta()
+        return self._shape
+
+    @property
+    def compression(self):
+        self._read_meta()
+        return self._compression
+
+    def _read_meta(self, f=None):
+        if self._shape is not None:
+            return
+        if f is None:
+            f = self.path
+        self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+            f
+        )
 
     @property
     def is_lazy(self) -> bool:
@@ -80,17 +111,29 @@ class Sample:
 
         compressed_bytes = self._compressed_bytes.get(compression)
         if compressed_bytes is None:
-
-            # if the sample is already compressed in the requested format, just return the raw bytes
-            if self.path is not None and self.compression == compression:
-
+            if self.path is not None:
                 with open(self.path, "rb") as f:
                     compressed_bytes = f.read()
-
+                self._compression = get_compression(compressed_bytes[:32])
+                if self._compression == compression:
+                    if self._verify:
+                        self._shape, self._typestr = verify_compressed_file(
+                            compressed_bytes, self._compression
+                        )
+                    else:
+                        _, self._shape, self._typestr = read_meta_from_compressed_file(
+                            compressed_bytes, compression=self._compression
+                        )
+                else:
+                    img = Image.open(BytesIO(compressed_bytes))
+                    if img.mode == "1":
+                        self._uncompressed_bytes = img.tobytes("raw", "L")
+                    else:
+                        self._uncompressed_bytes = img.tobytes()
+                    compressed_bytes = compress_array(self.array, compression)
             else:
                 compressed_bytes = compress_array(self.array, compression)
             self._compressed_bytes[compression] = compressed_bytes
-
         return compressed_bytes
 
     def uncompressed_bytes(self) -> bytes:
@@ -105,15 +148,17 @@ class Sample:
                 else:
                     self._uncompressed_bytes = img.tobytes()
             else:
-                self._uncompressed_bytes = self.array.tobytes()
+                self._uncompressed_bytes = self._array.tobytes()
 
         return self._uncompressed_bytes
 
     @property
     def array(self) -> np.ndarray:
+
         if self._array is None:
+            self._read_meta()
             array_interface = {
-                "shape": self.shape,
+                "shape": self._shape,
                 "typestr": self._typestr,
                 "version": 3,
                 "data": self.uncompressed_bytes(),
@@ -124,13 +169,6 @@ class Sample:
 
             self._array = np.array(ArrayData, None)
         return self._array
-
-    def _read_meta(self):
-        """Reads shape, dtype and format without decompressing the sample."""
-        img = Image.open(self.path)
-        self.shape, self._typestr = Image._conv_type_shape(img)
-        self.dtype = np.dtype(self._typestr).name
-        self.compression = img.format.lower()
 
     def __str__(self):
         if self.is_lazy:
