@@ -43,7 +43,7 @@ from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
 
-from hub.core.serialize import serialize_input_samples
+from hub.core.serialize import serialize_input_sample
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
@@ -373,8 +373,9 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        samples = serialize_input_samples(samples, tensor_meta)
-        for buffer, shape in samples:
+        for sample in samples:
+            buffer, shape = serialize_input_sample(sample, tensor_meta)
+
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
             # TODO: move these functions somewhere usable by update and any other methods
             tensor_meta.update_shape_interval(shape)
@@ -464,7 +465,26 @@ class ChunkEngine:
         length = self.num_samples
         value0_index, subslice_index = index.split_subslice()
 
-        # TODO update!
+        samples = _make_sequence(samples, length)
+        serialized_input_samples = serialize_input_samples(samples, tensor_meta)
+
+        # update one sample at a time
+        iterator = value0_index.values[0].indices(length)
+        for global_sample_index in iterator:
+            tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
+            buffer, shape = serialized_input_samples[global_sample_index]
+
+            is_tiled = tiles.size > 1
+
+            if is_tiled:
+                for tile_index, tile in np.ndenumerate(tiles):
+                    sample_subslice = sample # TODO: get the subslice of the sample that corresponds with this tile index
+                    self.update_sample_in_chunk(global_sample_index, tile, subslice_index, sample_subslice)
+
+                raise NotImplementedError("Cannot update tiled samples yet.")
+            else:
+                raise NotImplementedError("Cannot update non-tiled samples yet.")
+
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
@@ -652,6 +672,11 @@ class ChunkEngine:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
         return sample
+
+    def update_sample_in_chunk(self, global_sample_index: int, chunk: Chunk, subslice_index: Index, sample: np.ndarray):
+        # TODO: docstring
+
+        raise NotImplementedError
 
     def get_chunk_names(
         self, sample_index: int, last_index: int, target_chunk_count: int

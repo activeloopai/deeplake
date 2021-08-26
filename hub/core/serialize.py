@@ -221,13 +221,19 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def _serialize_input_sample(
+def serialize_input_sample(
     sample: SampleValue,
-    sample_compression: Optional[str],
-    expected_dtype: np.dtype,
-    htype: str,
+    tensor_meta: TensorMeta,
 ) -> Tuple[bytes, Tuple[int, ...]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
+
+    expected_dtype = tensor_meta.dtype
+    if expected_dtype is None:
+        raise ValueError("Cannot serialize an input sample unless tensor meta dtype is specified.")
+
+    sample_compression = tensor_meta.sample_compression
+    htype = tensor_meta.htype
+    expected_dimensionality = len(tensor_meta.min_shape)
 
     if isinstance(sample, Sample):
         buffer = sample.compressed_bytes(sample_compression)
@@ -244,51 +250,13 @@ def _serialize_input_sample(
     if len(shape) == 0:
         shape = (1,)
 
+    _check_shape(shape, expected_dimensionality)
     return buffer, shape
 
 
-def _check_input_samples_are_valid(buffer_and_shapes: List):
+def _check_shape(shape: Tuple[int], expected_dimensionality: Tuple[int]):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
-    expected_dimensionality = None
-    for _, shape in buffer_and_shapes:
-        # check that all samples have the same dimensionality
-        if expected_dimensionality is None:
-            expected_dimensionality = len(shape)
-
-        if len(shape) != expected_dimensionality:
-            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
-
-
-def serialize_input_samples(
-    samples: Union[Sequence[SampleValue], SampleValue],
-    meta: TensorMeta,
-) -> List[Tuple[memoryview, Tuple[int, ...]]]:
-    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
-
-    Args:
-        samples (Union[Sequence[SampleValue], SampleValue]): Either a single sample or sequence of samples.
-        meta (TensorMeta): Tensor meta. Will not be modified.
-
-    Raises:
-        ValueError: Tensor meta should have it's dtype set.
-
-    Returns:
-        List[Tuple[memoryview, Tuple[int, ...]]]: Buffers and their corresponding shapes for the input samples.
-    """
-
-    if meta.dtype is None:
-        raise ValueError("Dtype must be set before input samples can be serialized.")
-
-    sample_compression = meta.sample_compression
-    dtype = np.dtype(meta.dtype)
-    htype = meta.htype
-
-    serialized = []
-    for sample in samples:
-        byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
-        buffer = memoryview(byts)
-        serialized.append((buffer, shape))
-
-    _check_input_samples_are_valid(serialized)
-    return serialized
+    # check that all samples have the same dimensionality
+    if len(shape) != expected_dimensionality and expected_dimensionality > 0:
+        raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
