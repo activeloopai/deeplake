@@ -11,6 +11,9 @@ from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 
 
+Buffer = Union[bytes, memoryview]
+
+
 class Chunk(Cachable):
     def __init__(
         self,
@@ -76,7 +79,7 @@ class Chunk(Cachable):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
     def append_sample(
-        self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int, ...]
+        self, buffer: Buffer, max_data_bytes: int, shape: Tuple[int, ...]
     ):
         """Store `buffer` in this chunk.
 

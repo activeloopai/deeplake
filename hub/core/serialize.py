@@ -229,7 +229,9 @@ def serialize_input_sample(
 
     expected_dtype = tensor_meta.dtype
     if expected_dtype is None:
-        raise ValueError("Cannot serialize an input sample unless tensor meta dtype is specified.")
+        raise ValueError(
+            "Cannot serialize an input sample unless tensor meta dtype is specified."
+        )
 
     sample_compression = tensor_meta.sample_compression
     htype = tensor_meta.htype
@@ -254,7 +256,7 @@ def serialize_input_sample(
     return buffer, shape
 
 
-def _check_shape(shape: Tuple[int], expected_dimensionality: Tuple[int]):
+def _check_shape(shape: Tuple[int], expected_dimensionality: int):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
     # check that all samples have the same dimensionality

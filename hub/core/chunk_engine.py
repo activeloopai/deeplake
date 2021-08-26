@@ -38,7 +38,7 @@ import numpy as np
 
 from hub.core.storage.lru_cache import LRUCache
 
-from hub.core.chunk import Chunk
+from hub.core.chunk import Buffer, Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
@@ -246,7 +246,7 @@ class ChunkEngine:
 
         return not self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...]):
+    def _append_bytes(self, buffer: Buffer, shape: Tuple[int, ...]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -296,7 +296,7 @@ class ChunkEngine:
         self.meta_cache[tile_encoder_key] = self.tile_encoder
 
     def _try_appending_to_last_chunk(
-        self, buffer: memoryview, shape: Tuple[int, ...]
+        self, buffer: Buffer, shape: Tuple[int, ...]
     ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
@@ -335,7 +335,7 @@ class ChunkEngine:
 
         return False
 
-    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int, ...]) -> Chunk:
+    def _append_to_new_chunk(self, buffer: Buffer, shape: Tuple[int, ...]) -> Chunk:
         """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
         This should be called if `buffer` could not be added to the last chunk.
 
@@ -466,25 +466,29 @@ class ChunkEngine:
         value0_index, subslice_index = index.split_subslice()
 
         samples = _make_sequence(samples, length)
-        serialized_input_samples = serialize_input_samples(samples, tensor_meta)
 
         # update one sample at a time
         iterator = value0_index.values[0].indices(length)
-        for global_sample_index in iterator:
-            tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
-            buffer, shape = serialized_input_samples[global_sample_index]
+        for i, global_sample_index in enumerate(iterator):
+            sample = samples[i]
+            buffer, shape = serialize_input_sample(sample, tensor_meta)
+
+            tiles, tile_shape_mask = self.download_required_tiles(
+                global_sample_index, subslice_index
+            )
 
             is_tiled = tiles.size > 1
 
             if is_tiled:
                 for tile_index, tile in np.ndenumerate(tiles):
-                    sample_subslice = sample # TODO: get the subslice of the sample that corresponds with this tile index
-                    self.update_sample_in_chunk(global_sample_index, tile, subslice_index, sample_subslice)
+                    sample_subslice = sample  # TODO: get the subslice of the sample that corresponds with this tile index
+                    self.update_sample_in_chunk(
+                        global_sample_index, tile, subslice_index, sample_subslice
+                    )
 
                 raise NotImplementedError("Cannot update tiled samples yet.")
             else:
                 raise NotImplementedError("Cannot update non-tiled samples yet.")
-
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
@@ -673,7 +677,13 @@ class ChunkEngine:
 
         return sample
 
-    def update_sample_in_chunk(self, global_sample_index: int, chunk: Chunk, subslice_index: Index, sample: np.ndarray):
+    def update_sample_in_chunk(
+        self,
+        global_sample_index: int,
+        chunk: Chunk,
+        subslice_index: Index,
+        sample: np.ndarray,
+    ):
         # TODO: docstring
 
         raise NotImplementedError

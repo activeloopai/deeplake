@@ -80,7 +80,9 @@ class ChunkIdEncoder(Encoder, Cachable):
         """
 
         if num_samples < 0:
-            raise ValueError(f"Can only register a positive number of samples. Got {num_samples}")
+            raise ValueError(
+                f"Can only register a positive number of samples. Got {num_samples}"
+            )
 
         if num_samples == 0:
             super().register_samples(None, 1)
