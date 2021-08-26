@@ -456,124 +456,12 @@ class ChunkEngine:
         ffw_tensor_meta(tensor_meta)
         ffw_tile_encoder(tile_encoder)
 
+        dtype = tensor_meta.dtype
         length = self.num_samples
         value0_index, subslice_index = index.split_subslice()
 
-        # TODO: only allow single index updates for now
+        # TODO update!
 
-        # TODO:
-        for global_sample_index in value0_index.values[0].indices(length):  # TODO: generalize this iterator
-            # 1. download the tiles we need
-            tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
-
-            # 2. update each individual tile
-
-        # 3. upload new tiles
-
-
-        # TODO: updates
-        raise NotImplementedError("updates with tiles not supported yet")
-
-        if index.is_single_dim_effective():
-            self._update_samples(index, samples)
-        else:
-            if not hasattr(samples, "shape"):
-                raise TypeError(
-                    f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}"
-                )
-
-            self._update_samples_subslice(index, samples)
-
-    # def _update_samples(
-    #     self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]
-    # ):
-    #     """Update the samples at `index` with entirely new samples.
-
-    #     Note:
-    #         This method allows the incoming samples' shapes to be different from the original.
-    #         However, this requires that only the primary axis is being updated upon (no subslicing).
-    #         For subslice updates, use `_update_samples_subslice`.
-    #     """
-
-    #     tensor_meta = self.tensor_meta
-    #     enc = self.chunk_id_encoder
-    #     updated_chunks = set()
-
-    #     index_length = index.length(self.num_samples)
-    #     samples = _make_sequence(samples, index_length)
-    #     serialized_input_samples = serialize_input_samples(
-    #         samples, tensor_meta
-    #     )
-
-    #     chunks_nbytes_after_updates = []
-    #     global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-    #     for i, (buffer, shape) in enumerate(serialized_input_samples):
-    #         global_sample_index = global_sample_indices[i]  # TODO!
-
-    #         chunks = self.get_chunks_for_sample(global_sample_index, enc)
-
-    #         if len(chunks) > 1:
-    #             # TODO
-    #             raise NotImplementedError(
-    #                 "Updating for tiled samples not yet implemented"
-    #             )
-
-    #         for chunk in chunks:
-    #             local_sample_index = enc.translate_index_relative_to_chunks(
-    #                 global_sample_index
-    #             )
-
-    #             tensor_meta.update_shape_interval(shape)
-    #             chunk.update_sample(local_sample_index, buffer, shape)
-    #             updated_chunks.add(chunk)
-
-    #             # only care about deltas if it isn't the last chunk
-    #             if chunk.key != self.last_chunk_key:  # type: ignore
-    #                 chunks_nbytes_after_updates.append(chunk.nbytes)
-
-    #     # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
-    #     for chunk in updated_chunks:
-    #         self.cache[chunk.key] = chunk  # type: ignore
-
-    #     self._synchronize_cache(chunk_keys=[])
-    #     self.cache.maybe_flush()
-
-    #     _warn_if_suboptimal_chunks(
-    #         chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
-    #     )
-
-    # def _update_samples_subslice(self, index: Index, incoming_samples: np.ndarray):
-    #     """Update the samples at `index` (must be a subslice index) with incoming samples.
-
-    #     Note:
-    #         This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
-    #         For full sample updates (allowing new shapes), use `_update_samples`.
-    #     """
-
-    #     index_shape = index.shape
-    #     if index_shape[0] != 1:
-    #         raise MultiSampleSubsliceUpdateError(index_shape)
-
-    #     # squeeze 1s away
-    #     squeezed_index_shape = tuple([dim for dim in index_shape if dim != 1])
-    #     if squeezed_index_shape != incoming_samples.shape:
-    #         raise InvalidSubsliceUpdateShapeError(
-    #             incoming_samples.shape, squeezed_index_shape
-    #         )
-
-    #     # in order to update an exact subslice of a single sample:
-    #     # TODO: we may want to optimize this, but it won't be too slow (other than decompressing/recompressing)
-
-    #     # 1. we need to decompress the sample into a numpy array (ignoring chunk-wise compression for now)
-    #     value0_index = Index([index.values[0]])
-    #     new_sample = self.numpy(value0_index)
-
-    #     # 2. perform update on this numpy array
-    #     subsliced_sample = index.apply([new_sample])[0]
-    #     subsliced_sample[:] = incoming_samples
-
-    #     # 3. normally update this sample
-    #     self._update_samples(value0_index, [new_sample])
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
@@ -729,36 +617,6 @@ class ChunkEngine:
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
         return chunk
-
-    # def get_chunks_for_sample(self, global_sample_index: int) -> List[Chunk]:
-    #     """Retrives the `Chunk` objects corresponding to `global_sample_index`.
-    #     Will only get tile chunks inside of `subslice_index`.
-
-    #     Note:
-    #         Can only retrieve the chunks for a single sample.
-
-    #     Args:
-    #         global_sample_index (int): Numeric (singular) index relative to the entire tensor
-    #             representing the sample.
-
-    #     Returns:
-    #         List[Chunk]: Chunk objects for the sample (subslice).
-    #     """
-
-    #     chunks = []
-
-    #     enc = self.chunk_id_encoder
-    #     chunk_ids = enc[global_sample_index]
-
-    #     # TODO: take subslice_index into account
-    #     for chunk_id in chunk_ids:
-    #         chunk_name = chunk_name_from_id(chunk_id)
-    #         chunk_key = get_chunk_key(self.key, chunk_name)
-    #         chunk = self.cache.get_cachable(chunk_key, Chunk)
-    #         chunk.key = chunk_key
-    #         chunks.append(chunk)
-
-    #     return chunks
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk, cast: bool = True
