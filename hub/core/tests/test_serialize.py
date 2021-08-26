@@ -26,7 +26,7 @@ def test_chunk_serialize():
         decoded = deserialize_chunk(encoded)
     end = time.time()
 
-    assert end - start < 0.1
+    assert end - start < 0.5
 
     version2, shape_info2, byte_positions2, data2 = decoded
     assert version2 == version
