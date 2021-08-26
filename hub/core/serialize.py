@@ -123,9 +123,7 @@ def deserialize_chunk(
         encoded byte positions as numpy array,
         chunk data as memoryview.
     """
-    incoming_mview = isinstance(byts, memoryview)
-    if not incoming_mview:
-        byts = memoryview(byts)
+    byts = memoryview(byts)
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
@@ -148,6 +146,7 @@ def deserialize_chunk(
             .copy()
         )
         offset += shape_info_nbytes
+
     # Read byte positions
     byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
     offset += 4
@@ -163,10 +162,10 @@ def deserialize_chunk(
             .copy()
         )
         offset += byte_positions_nbytes
+
     # Read data
     data = byts[offset:]
-    if incoming_mview:
-        data = memoryview(bytes(data))
+
     return version, shape_info, byte_positions, data  # type: ignore
 
 
