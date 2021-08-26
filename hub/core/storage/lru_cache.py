@@ -5,7 +5,7 @@ from typing import Any, Dict, Set, Union
 from hub.core.storage.provider import StorageProvider
 
 
-def _get_nbytes(obj: Union[bytes, memoryview, bytearray, Cachable]):
+def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
     if isinstance(obj, Cachable):
         return obj.nbytes
     return len(obj)
@@ -87,7 +87,7 @@ class LRUCache(StorageProvider):
                 )
             return item
 
-        if isinstance(item, (bytes, memoryview, bytearray)):
+        if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
 
             if isinstance(obj, CachableCallback):
