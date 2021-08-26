@@ -48,7 +48,7 @@ class GoogleCredentials:
         self.credentials = credentials
 
     def _connect_cache(self):
-        credentials = self.project.get(self.project, None)
+        credentials = self.tokens.get(self.project, None)
         if credentials:
             self.credentials = credentials
 
@@ -266,10 +266,11 @@ class GCSProvider(StorageProvider):
         return stats
 
     def __getstate__(self):
-        return (self.root, self.token, self.missing_exceptions)
+        return (self.root, self.token, self.missing_exceptions, self.project)
 
     def __setstate__(self, state):
         self.root = state[0]
         self.token = state[1]
         self.missing_exceptions = state[2]
+        self.project = state[3]
         self._initialize_provider()
