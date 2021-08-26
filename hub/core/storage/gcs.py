@@ -48,9 +48,6 @@ class GoogleCredentials:
         self.project = project
         self.credentials = credentials
 
-    def _connect_cloud(self):
-        self.credentials = gauth.compute_engine.Credentials()
-
     def _connect_cache(self):
         credentials = self.project.get(self.project, None)
         if credentials:
@@ -140,28 +137,26 @@ class GoogleCredentials:
     def _connect_anon(self):
         self.credentials = None
 
-    def connect(self, method=None):
+    def connect(self, method: str = None):
         """
         Establish session token. A new token will be requested if the current
         one is within 100s of expiry.
 
         Args:
-            method (str): Supported methods: google_default|cache|cloud|token|anon|browser|None.
+            method (str): Supported methods: google_default|cache|anon|browser|None.
                 Type of authorisation to implement - calls `_connect_*` methods.
                 If None, will try sequence of methods.
         """
         if method not in [
             "google_default",
             "cache",
-            "cloud",
-            "token",
             "anon",
             "browser",
             None,
         ]:
             self._connect_token(method)
         elif method is None:
-            for meth in ["google_default", "cache", "cloud", "anon"]:
+            for meth in ["google_default", "cache", "anon"]:
                 self.connect(method=meth)
                 break
         else:
@@ -180,6 +175,11 @@ class GCSProvider(StorageProvider):
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
             token (str/Dict): GCP token, used for fetching credentials for storage).
+                Can be a path to the credentials file, actual credential dictionary or one of the folowing:
+                `google_default`: Tries to load default credentials for the specified project.
+                `cache`: Retrieves the previously used credentials from cache if exist.
+                `anon`: Sets credentials=None
+                `browser`: Generates and stores new token file using cli.
         """
         self.root = root
         self.token: Union[str, Dict, None] = token
