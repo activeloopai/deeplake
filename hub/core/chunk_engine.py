@@ -471,20 +471,16 @@ class ChunkEngine:
         iterator = value0_index.values[0].indices(length)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
-            buffer, shape = serialize_input_sample(sample, tensor_meta)
 
             tiles, tile_shape_mask = self.download_required_tiles(
                 global_sample_index, subslice_index
             )
-
             is_tiled = tiles.size > 1
 
             if is_tiled:
                 for tile_index, tile in np.ndenumerate(tiles):
                     sample_subslice = sample  # TODO: get the subslice of the sample that corresponds with this tile index
-                    self.update_sample_in_chunk(
-                        global_sample_index, tile, subslice_index, sample_subslice
-                    )
+                    buffer, shape = serialize_input_sample(sample_subslice, tensor_meta)
 
                 raise NotImplementedError("Cannot update tiled samples yet.")
             else:
@@ -680,17 +676,6 @@ class ChunkEngine:
 
         return sample
 
-    def update_sample_in_chunk(
-        self,
-        global_sample_index: int,
-        chunk: Chunk,
-        subslice_index: Index,
-        sample: np.ndarray,
-    ):
-        # TODO: docstring
-
-        raise NotImplementedError
-
     def get_chunk_names(
         self, sample_index: int, last_index: int, target_chunk_count: int
     ) -> Set[str]:
@@ -745,9 +730,6 @@ def _format_read_samples(
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
 
-    # TODO: might need to still do this for non-tiled samples!
-    # samples = index.apply(samples)  # type: ignore
-
     if aslist and all(map(np.isscalar, samples)):
         samples = list(arr.item() for arr in samples)
 
@@ -801,6 +783,7 @@ def _make_sequence(
     return samples
 
 
+# TODO: make sure to call this!!! (BEFORE MERGING)
 def _warn_if_suboptimal_chunks(
     chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
 ):
