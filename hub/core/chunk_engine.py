@@ -6,7 +6,11 @@ from hub.util.tiles import (
     get_tile_mask,
     num_tiles_for_sample,
 )
-from hub.core.fast_forwarding import ffw_chunk_id_encoder, ffw_tensor_meta, ffw_tile_encoder
+from hub.core.fast_forwarding import (
+    ffw_chunk_id_encoder,
+    ffw_tensor_meta,
+    ffw_tile_encoder,
+)
 import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
@@ -462,20 +466,23 @@ class ChunkEngine:
 
         # TODO update!
 
-
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
     ) -> np.ndarray:
         # TODO: docstring
 
-        tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
+        tiles, tile_shape_mask = self.download_required_tiles(
+            global_sample_index, subslice_index
+        )
         sample = self.coalesce_sample(
             global_sample_index, tiles, tile_shape_mask, subslice_index, dtype
         )
 
         return sample
 
-    def download_required_tiles(self, global_sample_index: int, subslice_index: Index) -> Tuple[np.ndarray, np.ndarray]:
+    def download_required_tiles(
+        self, global_sample_index: int, subslice_index: Index
+    ) -> Tuple[np.ndarray, np.ndarray]:
         # TODO: docstring
 
         chunk_id_encoder = self.chunk_id_encoder
@@ -492,7 +499,6 @@ class ChunkEngine:
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
 
         return tiles, tile_shape_mask
-
 
     def download_tiles(
         self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray
