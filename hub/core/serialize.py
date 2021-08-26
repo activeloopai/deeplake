@@ -167,7 +167,7 @@ def deserialize_chunk(
     data = byts[offset:]
     if incoming_mview:
         data = memoryview(bytes(data))
-    return version, shape_info, byte_positions, data
+    return version, shape_info, byte_positions, data  # type: ignore
 
 
 def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
