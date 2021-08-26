@@ -3,7 +3,6 @@ import pickle
 import json
 import os
 from typing import Dict, Union
-import textwrap
 
 from google.cloud import storage  # type: ignore
 from google.oauth2 import service_account  # type: ignore
@@ -12,7 +11,7 @@ import google.auth.compute_engine  # type: ignore
 import google.auth.credentials  # type: ignore
 import google.auth.exceptions  # type: ignore
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
-from hub.core.storage.provider import StorageProvider  # type: ignore
+from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
 
@@ -22,7 +21,7 @@ class GoogleCredentials:
         self.project = project
         self.credentials = None
         self.token = token
-        self.tokens = {}
+        self.tokens: Dict[str] = {}
         self.connect(method=token)
 
     @classmethod
@@ -59,7 +58,7 @@ class GoogleCredentials:
         Does not preserve access token itself, assumes refresh required.
 
         Args:
-            token (dict): dictionary with token to be stored in .json file.
+            token (Dict): dictionary with token to be stored in .json file.
 
         Returns:
             Path to stored .json file.
@@ -69,7 +68,7 @@ class GoogleCredentials:
             json.dump(token, f)
         return token_path
 
-    def _connect_token(self, token: Union[str, Dict]):
+    def _connect_token(self, token: Union[str, Dict] = None):
         """
         Connect using a concrete token.
 
@@ -137,13 +136,13 @@ class GoogleCredentials:
     def _connect_anon(self):
         self.credentials = None
 
-    def connect(self, method: str = None):
+    def connect(self, method: Union[str, Dict] = None):
         """
         Establish session token. A new token will be requested if the current
         one is within 100s of expiry.
 
         Args:
-            method (str): Supported methods: google_default|cache|anon|browser|None.
+            method (str/Dict): Supported methods: google_default|cache|anon|browser|None.
                 Type of authorisation to implement - calls `_connect_*` methods.
                 If None, will try sequence of methods.
         """
@@ -180,6 +179,7 @@ class GCSProvider(StorageProvider):
                 `cache`: Retrieves the previously used credentials from cache if exist.
                 `anon`: Sets credentials=None
                 `browser`: Generates and stores new token file using cli.
+            project (str): Name of the project from gcloud.
         """
         self.root = root
         self.token: Union[str, Dict, None] = token
