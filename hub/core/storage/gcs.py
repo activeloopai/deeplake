@@ -15,7 +15,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
 
-class GoogleCredentials:
+class GCloudCredentials:
     def __init__(self, token: Union[str, Dict] = None, project: str = None):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
         self.project = project
@@ -28,14 +28,14 @@ class GoogleCredentials:
     def load_tokens(cls):
         """Get "browser" tokens from disc"""
         try:
-            with open(".gcstoken", "rb") as f:
+            with open(".gcs_token", "rb") as f:
                 tokens = pickle.load(f)
         except Exception:
             tokens = {}
-        GoogleCredentials.tokens = tokens
+        GCloudCredentials.tokens = tokens
 
     def _save_tokens(self):
-        with open(".gcstoken", "wb") as f:
+        with open(".gcs_token", "wb") as f:
             pickle.dump(self.tokens, f, 2)
 
     def _connect_google_default(self):
@@ -107,9 +107,6 @@ class GoogleCredentials:
 
     def _connect_browser(self):
         try:
-            import pdb
-
-            pdb.set_trace()
             with open(
                 posixpath.expanduser(
                     "~/.config/gcloud/application_default_credentials.json"
@@ -201,7 +198,7 @@ class GCSProvider(StorageProvider):
         self._set_bucket_and_path()
         if not self.token:
             self.token = None
-        scoped_credentials = GoogleCredentials(self.token, project=self.project)
+        scoped_credentials = GCloudCredentials(self.token, project=self.project)
         client = storage.Client(credentials=scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
