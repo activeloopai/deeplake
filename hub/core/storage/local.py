@@ -113,7 +113,7 @@ class LocalProvider(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self._list_keys()
+        yield from self._all_keys()
 
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
@@ -125,20 +125,20 @@ class LocalProvider(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self._list_keys())
+        return len(self._all_keys())
 
-    def _list_keys(self):
-        """Helper function that lists all the objects present at the root of the Provider.
+    def _all_keys(self):
+        """Lists all the objects present at the root of the Provider.
 
         Returns:
-            list: list of all the objects found at the root of the Provider.
+            set: set of all the objects found at the root of the Provider.
         """
         full_path = os.path.expanduser(self.root)
-        ls = []
+        key_set = set()
         for root, dirs, files in os.walk(full_path):
             for file in files:
-                ls.append(os.path.relpath(os.path.join(full_path, file), full_path))
-        return ls
+                key_set.add(os.path.relpath(os.path.join(full_path, file), full_path))
+        return key_set
 
     def _check_is_file(self, path: str):
         """Checks if the path is a file. Returns the full_path to file if True.

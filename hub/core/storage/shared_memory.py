@@ -66,6 +66,14 @@ class SharedMemoryProvider(StorageProvider):
         shared_memory.buf[4 : size + 4] = value
         shared_memory.close()
 
+    def _all_keys(self):
+        """Lists all the objects present at the root of the Provider.
+
+        Returns:
+            set: set of all the objects found at the root of the Provider.
+        """
+        return self.files
+
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
 

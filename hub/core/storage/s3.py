@@ -131,11 +131,11 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3DeletionError(err)
 
-    def _list_keys(self):
+    def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
 
         Returns:
-            list: list of all the objects found at the root of the S3Provider.
+            set: set of all the objects found at the root of the S3Provider.
 
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
@@ -150,7 +150,7 @@ class S3Provider(StorageProvider):
             names = [item["Key"] for item in items]
             # removing the prefix from the names
             len_path = len(self.path.split("/")) - 1
-            names = ["/".join(name.split("/")[len_path:]) for name in names]
+            names = {"/".join(name.split("/")[len_path:]) for name in names}
             return names
         except Exception as err:
             raise S3ListError(err)
@@ -165,7 +165,7 @@ class S3Provider(StorageProvider):
             S3ListError: Any S3 error encountered while listing the objects.
         """
         self._check_update_creds()
-        return len(self._list_keys())
+        return len(self._all_keys())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the S3Provider.
@@ -174,7 +174,7 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         self._check_update_creds()
-        yield from self._list_keys()
+        yield from self._all_keys()
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""

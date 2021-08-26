@@ -380,7 +380,7 @@ class PrefetchLRUCache(LRUCache):
             for chunk_name in chunk_names:
                 chunk = (tensor, chunk_name)
                 shm_name = self.chunk_shared_mem_map.get(chunk)
-                if shm_name is None or shm_name not in self._list_keys():
+                if shm_name is None or shm_name not in self._all_keys():
                     missing_chunks.append((tensor, chunk_name))
                 else:
                     self.required_chunks.add(chunk)

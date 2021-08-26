@@ -211,7 +211,7 @@ class LRUCache(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self._list_keys())
+        return len(self._all_keys())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the cache and the underlying storage.
@@ -219,7 +219,7 @@ class LRUCache(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self._list_keys()
+        yield from self._all_keys()
 
     def _forward(self, path, remove_from_dirty=False):
         """Forward the value at a given path to the next storage, and un-marks its key.
@@ -282,18 +282,17 @@ class LRUCache(StorageProvider):
 
         self.update_used_cache_for_path(path, _get_nbytes(value))
 
-    def _list_keys(self):
+    def _all_keys(self):
         """Helper function that lists all the objects present in the cache and the underlying storage.
 
         Returns:
-            list: list of all the objects found in the cache and the underlying storage.
+            set: set of all the objects found in the cache and the underlying storage.
         """
-        all_keys = set()
+        key_set = set()
         if self.next_storage is not None:
-            all_keys = {key for key in self.next_storage}
-        for key in self.cache_storage:
-            all_keys.add(key)
-        return list(all_keys)
+            key_set = self.next_storage._all_keys()  # type: ignore
+        key_set = key_set.union(self.cache_storage._all_keys())
+        return key_set
 
     def _flush_if_not_read_only(self):
         """Flushes the cache if not in read-only mode."""
