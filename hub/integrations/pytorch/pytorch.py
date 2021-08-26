@@ -312,7 +312,7 @@ class TorchDataset:
             chunk_names, shared_memory_names, chunk_sizes
         ):
             shared_memory = SharedMemory(name=shared_memory_name)
-            chunk = Chunk.frombuffer(shared_memory.buf[:chunk_size])
+            chunk = Chunk.frombuffer(bytes(shared_memory.buf[:chunk_size]))
             chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
