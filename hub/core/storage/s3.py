@@ -145,7 +145,7 @@ class S3Provider(StorageProvider):
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
             if items["KeyCount"] <= 0:
-                return []
+                return set()
             items = items["Contents"]
             names = [item["Key"] for item in items]
             # removing the prefix from the names
