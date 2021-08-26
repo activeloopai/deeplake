@@ -177,6 +177,7 @@ commands:
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --gcs --hub-cloud --kaggle --ignore-glob=buH/*
+                no_output_timeout: 30m
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -187,6 +188,7 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --gcs --hub-cloud --kaggle --ignore-glob=buH/*
+                no_output_timeout: 30m
 
   run-backwards-compatibility-tests:
     steps:
@@ -292,7 +294,6 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - slack-status
-  no_output_timeout: 30m
   deploy:
     executor: linux
     environment:
