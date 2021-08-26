@@ -251,7 +251,7 @@ class ChunkEngine:
         determining which chunks contain which parts of `buffer`.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample. Can have a
+            buffer (Buffer): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
         """
@@ -302,7 +302,7 @@ class ChunkEngine:
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
         Args:
-            buffer (memoryview): Data to store. This can represent any number of samples.
+            buffer (Buffer): Data to store. This can represent any number of samples.
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Returns:
@@ -340,7 +340,7 @@ class ChunkEngine:
         This should be called if `buffer` could not be added to the last chunk.
 
         Args:
-            buffer (memoryview): Data to store. This can represent any number of samples.
+            buffer (Buffer): Data to store. This can represent any number of samples.
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Returns:
@@ -533,6 +533,9 @@ class ChunkEngine:
             ordered_tile_ids (np.ndarray): Array of tile (chunk) IDs with their shape in tile-order.
             download_mask (np.ndarray): Boolean array with the same shape of `ordered_tile_ids`.
                 If the corresponding element is `True`, the chunk with it's ID will be downloaded.
+
+        Raises:
+            ValueError: If the shape of `ordered_tile_ids` and `download_mask` do not match.
 
         Returns:
             # TODO

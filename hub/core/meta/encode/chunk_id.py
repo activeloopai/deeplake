@@ -75,8 +75,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         Raises:
             ValueError: `num_samples` should be non-negative.
-            ChunkIdEncoderError: Must call `generate_chunk_id` before registering samples.
-            ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
+            IndexError: At least 1 chunk is required for `num_samples` to be 0.
         """
 
         if num_samples < 0:

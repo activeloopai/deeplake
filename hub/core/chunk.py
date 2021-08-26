@@ -84,7 +84,7 @@ class Chunk(Cachable):
         """Store `buffer` in this chunk.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample.
+            buffer (Buffer): Buffer that represents a single sample.
             max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
