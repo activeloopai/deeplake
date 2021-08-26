@@ -21,7 +21,7 @@ class GoogleCredentials:
         self.project = project
         self.credentials = None
         self.token = token
-        self.tokens: Dict[str] = {}
+        self.tokens: Dict[str, Dict] = {}
         self.connect(method=token)
 
     @classmethod
@@ -158,8 +158,10 @@ class GoogleCredentials:
             for meth in ["google_default", "cache", "anon"]:
                 self.connect(method=meth)
                 break
-        else:
+        elif isinstance(method, str):
             self.__getattribute__("_connect_" + method)()
+        else:
+            raise AttributeError(f"Invalid method: {method}")
 
 
 class GCSProvider(StorageProvider):
