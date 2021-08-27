@@ -8,6 +8,9 @@ import numpy as np
 # number of bytes tiles can be off by in comparison to max_chunk_size
 COST_THRESHOLD = 800 * KB  # TODO: make smaller with better optimizers
 
+# dtype for intermediate tile shape calculations
+INTERM_DTYPE = np.dtype(np.uint32)
+
 
 def _cost(tile_shape: Tuple[int, ...], dtype: np.dtype, tile_target_bytes: int, compression_factor: float) -> int:
     # TODO: docstring
@@ -22,15 +25,15 @@ def _cost(tile_shape: Tuple[int, ...], dtype: np.dtype, tile_target_bytes: int, 
     return abs_cost
 
 
-def _downscale(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]):
+def _downscale(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
     # TODO: docstring
-
-    return tuple(map(min, zip(tile_shape, sample_shape)))
+    
+    return np.minimum(tile_shape, sample_shape).astype(INTERM_DTYPE)
 
 
 def _propose_tile_shape(
     sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int, compression_factor: float
-):
+) -> np.ndarray:
     # TODO: docstring (use args)
 
     dtype_num_bytes = dtype.itemsize
@@ -44,25 +47,26 @@ def _propose_tile_shape(
     # Tile length must be at least 16, so we don't round too close to zero
     tile_shape = max((16,) * ndims, (tile_target_length,) * ndims)
 
-    return tile_shape
+    return np.array(tile_shape, dtype=INTERM_DTYPE)
 
 
 def _optimize_tile_shape(
     sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int, compression_factor: float
-):
+) -> Tuple[int, ...]:
     # TODO: docstring
 
     tile_shape = _propose_tile_shape(sample_shape, dtype, max_chunk_size, compression_factor)
     downscaled_tile_shape = _downscale(tile_shape, sample_shape)
-    frozen_dims_mask = np.array(tile_shape) != np.array(downscaled_tile_shape)
+    frozen_dims_mask = tile_shape != downscaled_tile_shape
 
     # iterate until we find a tile shape close to max chunk size
     proposed_tile_shape = downscaled_tile_shape
     while _cost(proposed_tile_shape, dtype, max_chunk_size, compression_factor) > COST_THRESHOLD:
         # TODO!
+        
         break
 
-    return proposed_tile_shape
+    return tuple(proposed_tile_shape.tolist())
 
 
 def _validate_tile_shape(
