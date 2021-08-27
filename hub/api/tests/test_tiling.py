@@ -31,9 +31,9 @@ def test_initialize_large_tensor(local_ds_generator, compression):
     assert ds.tensor.shape == (1, 10000, 10000)
 
     if compression is None:
-        assert ds.tensor.num_chunks == 13
+        assert ds.tensor.num_chunks == 16
     else:
-        assert ds.tensor.num_chunks < 13
+        assert ds.tensor.num_chunks < 16
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
