@@ -227,7 +227,7 @@ def verify_compressed_file(
         if compression == "png":
             return _verify_png(file)
         elif compression == "jpeg":
-            return _verify_jpeg(file), "uint8"
+            return _verify_jpeg(file), "|u1"
         else:
             return _fast_decompress(file)
     except Exception as e:
