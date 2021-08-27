@@ -74,7 +74,7 @@ def add_missing_meta_attributes(
 
     Args:
         key (str): The internal identifier for this tensor.
-        storage (LRUCache): The storage provider for the parent dataset.
+        storage (StorageProvider): The storage provider for the parent dataset.
         tensor_meta (TensorMeta): The Tensor object to be modified.
 
     Raises:
@@ -95,6 +95,7 @@ def add_missing_meta_attributes(
     if "hash_samples" not in tensor_meta.__dict__:
         tensor_meta._required_meta_keys += ("hash_samples",)
         tensor_meta.hash_samples = False  # Default value
+
 
 class Tensor:
     def __init__(

@@ -1,5 +1,5 @@
 import numpy as np
-import mmh3 # type: ignore
+import mmh3  # type: ignore
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.serialize import serialize_input_samples
 from hub.core.meta.tensor_meta import TensorMeta

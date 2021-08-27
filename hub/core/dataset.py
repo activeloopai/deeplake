@@ -187,6 +187,9 @@ class Dataset:
             kwargs: kwargs used during create_tensor.
             htype: The class of data for the tensor.
 
+        Returns:
+            meta_kwargs: Separated meta kwargs
+            info_kwargs: Seperated info kwargs
         """
 
         htype_config = HTYPE_CONFIGURATIONS[htype].copy()
@@ -233,7 +236,7 @@ class Dataset:
                                         and stored in a hidden linked tensor.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
-            
+
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
 
@@ -306,7 +309,7 @@ class Dataset:
                                         and stored in a hidden linked tensor.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
-            
+
         Returns:
             The new hidden tensor, which can also be accessed by `self[name]` and `self._name`.
 
