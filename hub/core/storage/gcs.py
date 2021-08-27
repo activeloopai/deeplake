@@ -25,19 +25,17 @@ class GCloudCredentials:
         self.tokens: Dict[str, Dict] = {}
         self.connect(method=token)
 
-    @classmethod
-    def load_tokens(cls):
+    def load_tokens(self):
         """Get "browser" tokens from disc"""
         try:
             with open(".gcs_token", "rb") as f:
-                tokens = pickle.load(f)
+                return pickle.load(f)
         except Exception:
-            tokens = {}
-        GCloudCredentials.tokens = tokens
+            return None
 
-    def _save_tokens(self):
+    def _save_tokens(self, token):
         with open(".gcs_token", "wb") as f:
-            pickle.dump(self.tokens, f, 2)
+            pickle.dump(token, f, 2)
 
     def _connect_google_default(self):
         credentials, project = gauth.default(scopes=[self.scope])
@@ -49,7 +47,7 @@ class GCloudCredentials:
         self.credentials = credentials
 
     def _connect_cache(self):
-        credentials = self.tokens.get(self.project, None)
+        credentials = self.load_tokens()
         if credentials:
             self.credentials = credentials
 
@@ -127,8 +125,7 @@ class GCloudCredentials:
         }
         flow = InstalledAppFlow.from_client_config(client_config, [self.scope])
         credentials = flow.run_console()
-        self.tokens[(self.project, self.access)] = credentials
-        self._save_tokens()
+        self._save_tokens(credentials)
         self.credentials = credentials
 
     def _connect_anon(self):
