@@ -7,6 +7,12 @@ enabled_datasets = pytest.mark.parametrize(
     indirect=True,
 )
 
+enabled_non_gcs_datasets = pytest.mark.parametrize(
+    "non_gcs_ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
+
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
     "ds_generator",
     ["local_ds_generator", "s3_ds_generator", "gcs_ds_generator"],
@@ -74,6 +80,12 @@ def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
 @pytest.fixture
 def ds(request):
     """Used with parametrize to use all enabled dataset fixtures."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def non_gcs_ds(request):
+    """Used with parametrize to use all enabled dataset fixtures except gcs_ds."""
     return request.getfixturevalue(request.param)
 
 
