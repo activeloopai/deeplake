@@ -44,6 +44,8 @@ _JPEG_SOFS = [
 ]
 
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
+_STRUCT_HHB = struct.Struct(">HHB")
+_STRUCT_II = struct.Struct(">ii")
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -297,7 +299,7 @@ def _verify_jpeg_buffer(buf: bytes):
         b"\xff\xdb",
         b"\xff\xdd",
     ]  # DHT, DQT, DRI
-    shape = struct.unpack(">HHB", mview[sof_idx + 5 : sof_idx + 10])
+    shape = _STRUCT_HHB.unpack(mview[sof_idx + 5 : sof_idx + 10])
     assert buf.find(b"\xff\xd9") != -1
     return shape
 
@@ -327,7 +329,7 @@ def _verify_jpeg_file(f):
             b"\xff\xdd",
         ]  # DHT, DQT, DRI
         f.seek(sof_idx + 5)
-        shape = struct.unpack(">HHB", f.read(5))
+        shape = _STRUCT_HHB.unpack(f.read(5))
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
         return shape
@@ -417,7 +419,7 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
         if sof_idx == -1:
             raise Exception()
         f.seek(sof_idx + 5)
-        return struct.unpack(">HHB", f.read(5))  # type: ignore
+        return _STRUCT_HHB.unpack(f.read(5))  # type: ignore
     finally:
         pass
         mm.close()
@@ -431,7 +433,7 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
         sof_idx = sof_match.start(0)
     if sof_idx == -1:
         raise Exception()
-    return struct.unpack(">HHB", memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
+    return _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
 
 
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], str]:
@@ -440,7 +442,7 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], st
     if not hasattr(f, "read"):
         f = BytesIO(f)  # type: ignore
     f.seek(16)  # type: ignore
-    size = struct.unpack(">ii", f.read(8))[::-1]  # type: ignore
+    size = _STRUCT_II.unpack(f.read(8))[::-1]  # type: ignore
     bits, colors = f.read(2)  # type: ignore
 
     # Get the number of channels and dtype based on bits and colors:
