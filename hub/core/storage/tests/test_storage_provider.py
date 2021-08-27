@@ -1,5 +1,4 @@
 import json
-from google.auth.environment_vars import GCE_METADATA_HOST
 from hub.tests.path_fixtures import gcs_creds
 from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
