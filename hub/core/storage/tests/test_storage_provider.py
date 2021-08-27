@@ -3,6 +3,7 @@ from hub.tests.path_fixtures import gcs_creds
 from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
 from hub.core.storage.gcs import GCloudCredentials
+from hub.util.exceptions import GCSDefaultCredsNotFoundError
 import os
 import pytest
 from hub.constants import MB
@@ -153,3 +154,5 @@ def test_gcs_tokens():
     assert gcreds.credentials
     gcreds = GCloudCredentials(token="anon")
     assert not gcreds.credentials
+    with pytest.raises(GCSDefaultCredsNotFoundError) as e:
+        gcreds = GCloudCredentials(token="browser")
