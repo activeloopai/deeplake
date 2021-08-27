@@ -659,6 +659,28 @@ def test_invalid_tesnor_name(memory_ds):
         memory_ds.create_tensor("info")
 
 
+def test_compressions_list():
+    assert hub.compressions == [
+        "bmp",
+        "dib",
+        "gif",
+        "ico",
+        "jpeg",
+        "jpeg2000",
+        "lz4",
+        "pcx",
+        "png",
+        "ppm",
+        "sgi",
+        "tga",
+        "tiff",
+        "webp",
+        "wmf",
+        "xbm",
+        None,
+    ]
+
+
 def test_htypes_list():
     assert hub.htypes == [
         "generic",

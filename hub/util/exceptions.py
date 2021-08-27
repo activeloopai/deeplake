@@ -1,6 +1,6 @@
+import hub
 from hub.htype import HTYPE_CONFIGURATIONS
-from hub.constants import SUPPORTED_COMPRESSIONS
-from typing import Any, List, Sequence, Tuple
+from typing import Any, List, Sequence, Tuple, Optional
 
 
 class ExternalCommandError(Exception):
@@ -24,7 +24,7 @@ class KaggleMissingCredentialsError(KaggleError):
 
 class KaggleDatasetAlreadyDownloadedError(KaggleError):
     def __init__(self, tag: str, path: str):
-        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
+        self.message = f"Kaggle dataset {tag} already exists at {path}. You can get rid of this error by setting the `exist_ok` parameter to `True`."
         super().__init__(self.message)
 
 
@@ -75,7 +75,9 @@ class TensorDoesNotExistError(KeyError):
 
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
-        super().__init__(f"Tensor '{key}' already exists.")
+        super().__init__(
+            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+        )
 
 
 class HashesTensorAlreadyExistsError(Exception):
@@ -305,7 +307,7 @@ class CompressionError(Exception):
 class UnsupportedCompressionError(CompressionError):
     def __init__(self, compression: str):
         super().__init__(
-            f"Compression '{compression}' is not supported. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+            f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
         )
 
 
@@ -321,7 +323,7 @@ class SampleCompressionError(CompressionError):
 class SampleDecompressionError(CompressionError):
     def __init__(self):
         super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {hub.compressions}."
         )
 
 
@@ -416,7 +418,7 @@ class TensorMetaMissingRequiredValue(MetaError):
     def __init__(self, htype: str, key: str):
         extra = ""
         if key == "sample_compression":
-            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {hub.compressions}"
 
         super().__init__(
             f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
@@ -441,6 +443,17 @@ class TensorDtypeMismatchError(MetaError):
             msg += f" Htype '{htype}' expects samples to have dtype='{htype_dtype}'."
             super().__init__("")
 
+        super().__init__(msg)
+
+
+class TensorMetaMutuallyExclusiveKeysError(MetaError):
+    def __init__(
+        self, keys: Optional[List[str]] = None, custom_message: Optional[str] = None
+    ):
+        if custom_message:
+            msg = custom_message
+        else:
+            msg = f"Following fields are mutually exclusive: {keys}. "
         super().__init__(msg)
 
 
