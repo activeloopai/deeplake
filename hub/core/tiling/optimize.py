@@ -1,19 +1,25 @@
 from hub.core.compression import COMPRESSION_FACTORS, get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.constants import MB
+from hub.constants import KB
 from typing import Tuple
 import numpy as np
 
 
 # number of bytes tiles can be off by in comparison to max_chunk_size
-COST_THRESHOLD = 1 * MB  # TODO: make smaller with better optimizers
+COST_THRESHOLD = 800 * KB  # TODO: make smaller with better optimizers
 
 
 def _cost(tile_shape: Tuple[int, ...], dtype: np.dtype, tile_target_bytes: int, compression_factor: float) -> int:
     # TODO: docstring
 
     actual_bytes = np.prod(tile_shape) * dtype.itemsize // compression_factor
-    return abs(tile_target_bytes - actual_bytes)
+    abs_cost = abs(tile_target_bytes - actual_bytes)
+
+    # higher cost for when `actual_bytes` is smaller than `target_bytes`
+    if actual_bytes < tile_target_bytes:
+        return abs_cost * 2
+
+    return abs_cost
 
 
 def _downscale(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]):
@@ -47,28 +53,16 @@ def _optimize_tile_shape(
     # TODO: docstring
 
     tile_shape = _propose_tile_shape(sample_shape, dtype, max_chunk_size, compression_factor)
-
     downscaled_tile_shape = _downscale(tile_shape, sample_shape)
-    if tile_shape == downscaled_tile_shape:
-        return tile_shape
-
-    # TODO
-    raise NotImplementedError("Iterative optimization of tile shapes not yet implemented.")
-
-    frozen_dims_mask = np.array(tile_shape) == np.array(downscaled_tile_shape)
+    frozen_dims_mask = np.array(tile_shape) != np.array(downscaled_tile_shape)
 
     # iterate until we find a tile shape close to max chunk size
     proposed_tile_shape = downscaled_tile_shape
-    while _cost(proposed_tile_shape, dtype, compression_factor) > COST_THRESHOLD:
-
-
+    while _cost(proposed_tile_shape, dtype, max_chunk_size, compression_factor) > COST_THRESHOLD:
+        # TODO!
         break
 
-    return tile_shape
-
-    # TODO: rescale up (must do before merging)
-    raise NotImplementedError
-    return tile_shape
+    return proposed_tile_shape
 
 
 def _validate_tile_shape(
