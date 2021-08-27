@@ -15,6 +15,7 @@ import mmap
 import struct
 import sys
 import re
+import lz4.frame  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -24,7 +25,25 @@ else:
     _NATIVE_INT32 = ">i4"
     _NATIVE_FLOAT32 = ">f4"
 
-import lz4.frame  # type: ignore
+
+_JPEG_SOFS = [
+    b"\xff\xc0",
+    b"\xff\xc2",
+    b"\xff\xc1",
+    b"\xff\xc3",
+    b"\xff\xc5",
+    b"\xff\xc6",
+    b"\xff\xc7",
+    b"\xff\xc9",
+    b"\xff\xca",
+    b"\xff\xcb",
+    b"\xff\xcd",
+    b"\xff\xce",
+    b"\xff\xcf",
+    b"\xff\xde",
+]
+
+_JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -281,26 +300,6 @@ def _verify_jpeg_buffer(buf: bytes):
     shape = struct.unpack(">HHB", mview[sof_idx + 5 : sof_idx + 10])
     assert buf.find(b"\xff\xd9") != -1
     return shape
-
-
-_JPEG_SOFS = [
-    b"\xff\xc0",
-    b"\xff\xc2",
-    b"\xff\xc1",
-    b"\xff\xc3",
-    b"\xff\xc5",
-    b"\xff\xc6",
-    b"\xff\xc7",
-    b"\xff\xc9",
-    b"\xff\xca",
-    b"\xff\xcb",
-    b"\xff\xcd",
-    b"\xff\xce",
-    b"\xff\xcf",
-    b"\xff\xde",
-]
-
-_JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 
 
 def _verify_jpeg_file(f):
