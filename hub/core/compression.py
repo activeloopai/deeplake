@@ -14,6 +14,7 @@ from io import BytesIO
 import mmap
 import struct
 import sys
+import re
 
 
 if sys.byteorder == "little":
@@ -206,7 +207,9 @@ def decompress_multiple(
     return arrays
 
 
-def verify_compressed_file(file: Union[str, BinaryIO, bytes], compression: str):
+def verify_compressed_file(
+    file: Union[str, BinaryIO, bytes], compression: str
+) -> Tuple[Tuple[int, ...], str]:
     """Verify the contents of an image file
     Args:
         file (Union[str, BinaryIO]): Path to the file or file like object or contents of the file
@@ -224,7 +227,7 @@ def verify_compressed_file(file: Union[str, BinaryIO, bytes], compression: str):
         if compression == "png":
             return _verify_png(file)
         elif compression == "jpeg":
-            return "uint8", _verify_jpeg(file)
+            return _verify_jpeg(file), "uint8"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -262,13 +265,13 @@ def _verify_jpeg_buffer(buf: bytes):
     # Start of Image
     mview = memoryview(buf)
     assert buf.startswith(b"\xff\xd8")
-    # Look for Baseline DCT marker
-    sof_idx = buf.find(b"\xff\xc0", 2)
+    # Look for Start of Frame
+    sof_idx = -1
+    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
+        sof_idx = sof_match.start(0)
     if sof_idx == -1:
-        # Look for Progressive DCT marker
-        sof_idx = buf.find(b"\xff\xc2", 2)
-        if sof_idx == -1:
-            raise Exception()
+        raise Exception()
+
     length = int.from_bytes(mview[sof_idx + 2 : sof_idx + 4], "big")
     assert mview[sof_idx + length + 2 : sof_idx + length + 4] in [
         b"\xff\xc4",
@@ -280,6 +283,25 @@ def _verify_jpeg_buffer(buf: bytes):
     return shape
 
 
+_JPEG_SOFS = [
+    b"\xff\xc0",
+    b"\xff\xc1",
+    b"\xff\xc2",
+    b"\xff\xc3",
+    b"\xff\xc5",
+    b"\xff\xc6",
+    b"\xff\xc7",
+    b"\xff\xc9",
+    b"\xff\xca",
+    b"\xff\xcb",
+    b"\xff\xcd",
+    b"\xff\xce",
+    b"\xff\xcf",
+    b"\xff\xde",
+]
+_JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
+
+
 def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
@@ -288,13 +310,13 @@ def _verify_jpeg_file(f):
         # Start of Image
         assert soi == b"\xff\xd8"
 
-        # Look for Baseline DCT marker
-        sof_idx = mm.find(b"\xff\xc0", 2)
+        # Look for Start of Frame
+        sof_idx = -1
+        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):
+            sof_idx = sof_match.start(0)
         if sof_idx == -1:
-            # Look for Progressive DCT marker
-            sof_idx = mm.find(b"\xff\xc2", 2)
-            if sof_idx == -1:
-                raise Exception()  # Caught by verify_compressed_file()
+            raise Exception()  # Caught by verify_compressed_file()
+
         f.seek(sof_idx + 2)
         length = int.from_bytes(f.read(2), "big")
         f.seek(length - 2, 1)
@@ -388,11 +410,12 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
     try:
-        sof_idx = mm.find(b"\xff\xc0", 2)  # Look for Baseline DCT marker
+        # Look for Start of Frame
+        sof_idx = -1
+        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):
+            sof_idx = sof_match.start(0)
         if sof_idx == -1:
-            sof_idx = mm.find(b"\xff\xc2", 2)  # Look for Progressive DCT marker
-            if sof_idx == -1:
-                raise Exception()
+            raise Exception()
         f.seek(sof_idx + 5)
         return struct.unpack(">HHB", f.read(5))  # type: ignore
     finally:
@@ -402,11 +425,12 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
 
 def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
     """Gets shape of a jpeg file from its contents"""
-    sof_idx = buf.find(b"\xff\xc0", 2)
+    # Look for Start of Frame
+    sof_idx = -1
+    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
+        sof_idx = sof_match.start(0)
     if sof_idx == -1:
-        sof_idx = buf.find(b"\xff\xc2", 2)
-        if sof_idx == -1:
-            raise Exception()
+        raise Exception()
     return struct.unpack(">HHB", memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
 
 
