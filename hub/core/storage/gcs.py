@@ -2,6 +2,7 @@ import posixpath
 import pickle
 import json
 import os
+import tempfile
 from typing import Dict, Union
 
 from google.cloud import storage  # type: ignore
@@ -62,10 +63,10 @@ class GCloudCredentials:
         Returns:
             Path to stored .json file.
         """
-        token_path = posixpath.expanduser("~/.config/gcloud/gcs.json")
-        with open(token_path, "w") as f:
+        token_file = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        with open(token_file.name, "w") as f:
             json.dump(token, f)
-        return token_path
+        return token_file.name
 
     def _connect_token(self, token: Union[str, Dict] = None):
         """
