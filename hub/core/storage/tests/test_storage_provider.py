@@ -1,5 +1,10 @@
+import json
+from google.auth.environment_vars import GCE_METADATA_HOST
+from hub.tests.path_fixtures import gcs_creds
 from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
+from hub.core.storage.gcs import GCloudCredentials
+import os
 import pytest
 from hub.constants import MB
 import pickle
@@ -132,3 +137,20 @@ def test_pickling(storage):
     pickled_storage = pickle.dumps(storage)
     unpickled_storage = pickle.loads(pickled_storage)
     assert unpickled_storage[FILE_1] == b"hello world"
+
+
+def test_gcs_tokens():
+    gcreds = GCloudCredentials()
+    assert gcreds.credentials
+    token_path = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    gcreds = GCloudCredentials(token=token_path)
+    assert gcreds.credentials
+
+    with open(token_path, "rb") as f:
+        token = json.load(f)
+    gcreds = GCloudCredentials(token=token)
+    assert gcreds.credentials
+    gcreds = GCloudCredentials(token="google_default")
+    assert gcreds.credentials
+    gcreds = GCloudCredentials(token="anon")
+    assert not gcreds.credentials
