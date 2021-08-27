@@ -551,6 +551,7 @@ class UpdateSampleError(Exception):
         super().__init__(message)
 
 
+# TODO: remove this exception?
 class MultiSampleSubsliceUpdateError(UpdateSampleError):
     def __init__(self, index_shape):
         super().__init__(

@@ -19,9 +19,8 @@ from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CannotInferTilesError,
     CorruptedMetaError,
+    CorruptedSampleError,
     DynamicTensorNumpyError,
-    InvalidSubsliceUpdateShapeError,
-    MultiSampleSubsliceUpdateError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -456,6 +455,7 @@ class ChunkEngine:
         self.cache.check_readonly()
         tensor_meta = self.tensor_meta
         tile_encoder = self.tile_encoder
+        chunk_id_encoder = self.chunk_id_encoder
 
         ffw_chunk_id_encoder(self.chunk_id_encoder)
         ffw_tensor_meta(tensor_meta)
@@ -471,6 +471,7 @@ class ChunkEngine:
         iterator = value0_index.values[0].indices(length)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
+            local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(global_sample_index)
 
             tiles, tile_shape_mask = self.download_required_tiles(
                 global_sample_index, subslice_index
@@ -479,12 +480,33 @@ class ChunkEngine:
 
             if is_tiled:
                 for tile_index, tile in np.ndenumerate(tiles):
-                    sample_subslice = sample  # TODO: get the subslice of the sample that corresponds with this tile index
-                    buffer, shape = serialize_input_sample(sample_subslice, tensor_meta)
+                    if tile is None:
+                        continue
 
-                raise NotImplementedError("Cannot update tiled samples yet.")
+                    tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+
+                    # sanity check
+                    tile_shape = tile_shape_mask[tile_index]
+                    if tile_sample.shape != tile_shape:
+                        raise CorruptedSampleError(f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}")
+
+                    low, high = get_tile_bounds(tile_index, tile_shape)  # TODO: this only works for non-dynamic tile shapes
+                    trimmed_subslice_index = subslice_index.trim(low)
+
+                    # TODO: maybe this should be a different function? lots of stuff going on here:
+                    subslice_tile_sample = trimmed_subslice_index.apply([tile_sample], include_first_value=True)[0]
+
+                    subslice_tile_sample[:] = sample
+
+                    buffer, shape = serialize_input_sample(tile_sample, tensor_meta)
+                    tile.update_sample(local_sample_index, buffer, shape)
             else:
                 raise NotImplementedError("Cannot update non-tiled samples yet.")
+
+            self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
+            self._sync_tiles(tiles)
+            self.cache.maybe_flush()
+            self.meta_cache.maybe_flush()
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
@@ -499,6 +521,13 @@ class ChunkEngine:
         )
 
         return sample
+
+    def _sync_tiles(self, tiles: np.ndarray):
+        # TODO: docstring
+
+        for _, tile in np.ndenumerate(tiles):
+            if tile is not None:
+                self.cache[tile.key] = tile
 
     def download_required_tiles(
         self, global_sample_index: int, subslice_index: Index
@@ -559,6 +588,7 @@ class ChunkEngine:
         chunk_name = chunk_name_from_id(tile_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
         return chunk
 
     def coalesce_sample(

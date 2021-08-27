@@ -298,6 +298,23 @@ class IndexEntry:
         raise NotImplementedError
 
 
+    def trim(self, amount: int) -> "IndexEntry":
+        # TODO: docstring
+
+        if isinstance(self.value, int):
+            return IndexEntry(self.value - amount)
+
+        if isinstance(self.value, slice):
+            s = self.value
+            if s.start is None:
+                new_slice = slice(None, s.stop - amount, s.step)
+            else:
+                new_slice = slice(s.start - amount, s.stop - amount, s.step)
+            return IndexEntry(new_slice)
+
+        raise NotImplementedError
+
+
 class Index:
     def __init__(
         self,
@@ -565,6 +582,15 @@ class Index:
             subslice_index = Index()
 
         return value0_index, subslice_index
+
+    def trim(self, amount_per_dimension: Tuple[int]) -> "Index":
+        # TODO: docstring
+
+        new_values = []
+        for value, amount in zip(self.values, amount_per_dimension):
+            new_values.append(value.trim(amount))
+
+        return Index(new_values)
 
     def __str__(self):
         values = [entry.value for entry in self.values]

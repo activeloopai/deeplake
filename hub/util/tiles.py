@@ -64,6 +64,9 @@ def num_tiles_for_sample(
 def get_tile_bounds(
     tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    # TODO: docstring
+
+    # TODO: note: this ONLY works when tile_shapes are uniform for a sample!
     low, high = [], []
 
     for index_dim, shape_dim in zip(tile_index, tile_shape):
