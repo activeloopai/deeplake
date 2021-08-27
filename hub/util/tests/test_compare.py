@@ -15,7 +15,7 @@ import glob
 import os
 
 
-def test_compare_np_arrays(memory_ds: Dataset, memory_ds_2: Dataset):
+def test_compare_np_arrays(memory_ds, memory_ds_2):
 
     with memory_ds:
         memory_ds.create_tensor("image", hash_samples=True)
@@ -30,7 +30,7 @@ def test_compare_np_arrays(memory_ds: Dataset, memory_ds_2: Dataset):
     assert hub.compare(memory_ds, memory_ds_2) == 1.0
 
 
-def test_compare_half_np_arrays(memory_ds: Dataset, memory_ds_2: Dataset):
+def test_compare_half_np_arrays(memory_ds, memory_ds_2):
 
     with memory_ds:
         memory_ds.create_tensor("image", hash_samples=True)
@@ -45,7 +45,7 @@ def test_compare_half_np_arrays(memory_ds: Dataset, memory_ds_2: Dataset):
     assert hub.compare(memory_ds, memory_ds_2) == 0.5
 
 
-def test_compare_image_datasets(memory_ds: Dataset, memory_ds_2: Dataset):
+def test_compare_image_datasets(memory_ds, memory_ds_2):
 
     dataset_1 = glob.glob(get_dummy_data_path("tests_compare/dataset_1/*"))
     dataset_2 = glob.glob(get_dummy_data_path("tests_compare/dataset_2/*"))

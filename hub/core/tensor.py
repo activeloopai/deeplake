@@ -59,45 +59,48 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
-def add_missing_meta_attributes(key: str, storage: StorageProvider, tensor_meta: TensorMeta):
-        """Adds missing attributes to tensor meta.
 
-        Note:
-            Older versions of tensor meta didn't contain attributes, "hash_samples", "linked_tensors" and 
-            "is_linked_tensor". This operation adds them (if missing) to tensor meta files.
+def add_missing_meta_attributes(
+    key: str, storage: StorageProvider, tensor_meta: TensorMeta
+):
+    """Adds missing attributes to tensor meta.
 
-        Args:
-            key (str): The internal identifier for this tensor.
-            storage (LRUCache): The storage provider for the parent dataset.
-            tensor_meta (TensorMeta): The Tensor object to be modified.
+    Note:
+        Older versions of tensor meta didn't contain attributes, "hash_samples", "linked_tensors" and
+        "is_linked_tensor". This operation adds them (if missing) to tensor meta files.
 
-        Raises:
-            TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
-        """
+    Args:
+        key (str): The internal identifier for this tensor.
+        storage (LRUCache): The storage provider for the parent dataset.
+        tensor_meta (TensorMeta): The Tensor object to be modified.
 
-        if not tensor_exists(key, storage):
-            raise TensorDoesNotExistError(key)
-        
-        missing_attribute = False
+    Raises:
+        TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+    """
 
-        if ("linked_tensors" not in tensor_meta.__dict__):   
-            missing_attribute = True 
-            tensor_meta._required_meta_keys += ('linked_tensors',)
-            tensor_meta.linked_tensors = [] # Default value
-            
-        if ("is_linked_tensor" not in tensor_meta.__dict__):
-            missing_attribute = True
-            tensor_meta._required_meta_keys += ('is_linked_tensor',)
-            tensor_meta.is_linked_tensor = False # Default value
-        
-        if ("hash_samples" not in tensor_meta.__dict__):
-            missing_attribute = True
-            tensor_meta._required_meta_keys += ('hash_samples',)
-            tensor_meta.hash_samples = False # Default value
-        
-        if missing_attribute:
-            meta_key = get_tensor_meta_key(key)
-            storage[meta_key] = tensor_meta
+    if not tensor_exists(key, storage):
+        raise TensorDoesNotExistError(key)
+
+    # missing_attribute = False
+
+    if "linked_tensors" not in tensor_meta.__dict__:
+        # missing_attribute = True
+        tensor_meta._required_meta_keys += ("linked_tensors",)
+        tensor_meta.linked_tensors = []  # Default value
+
+    if "is_linked_tensor" not in tensor_meta.__dict__:
+        # missing_attribute = True
+        tensor_meta._required_meta_keys += ("is_linked_tensor",)
+        tensor_meta.is_linked_tensor = False  # Default value
+
+    if "hash_samples" not in tensor_meta.__dict__:
+        # missing_attribute = True
+        tensor_meta._required_meta_keys += ("hash_samples",)
+        tensor_meta.hash_samples = False  # Default value
+
+    # if missing_attribute:
+    #     meta_key = get_tensor_meta_key(key)
+    #     storage[meta_key] = tensor_meta
 
 
 class Tensor:
@@ -133,13 +136,12 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
-        
+
         add_missing_meta_attributes(self.key, self.storage, self.meta)
-        
-        if (HASHES_TENSOR_FOLDER in self.meta.linked_tensors):
+
+        if HASHES_TENSOR_FOLDER in self.meta.linked_tensors:
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
 
-    
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
@@ -170,7 +172,7 @@ class Tensor:
 
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
-            LinkedTensorError: Appending samples directly to a linked tensor is not permitted. 
+            LinkedTensorError: Appending samples directly to a linked tensor is not permitted.
         """
 
         if self.meta.is_linked_tensor:
@@ -431,4 +433,3 @@ class Tensor:
 
     def __ior__(self, other):
         raise NotImplementedError
-

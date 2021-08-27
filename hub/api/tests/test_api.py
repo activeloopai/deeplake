@@ -668,5 +668,5 @@ def test_htypes_list():
         "video",
         "binary_mask",
         "segment_mask",
-        "hash"
+        "hash",
     ]

@@ -11,7 +11,7 @@ import os, glob, numpy as np
 def jaccard_similarity(list_1, list_2):
     """Calculated the Jaccard similarity score (also known as Intersection over Union) for the two
        lists being compared
-    
+
     Note:
         Identical samples aren't counted as different when calculating this similarity score. For example, if two datasets contain samples,
         [cat.jpg, cat.jpg, dog.jpg] and [cat.jpg, dog.jpg], the similarity score will still be 1.0.
@@ -42,12 +42,15 @@ def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
         int: The Jaccard similarity score between the two hashlists being compared. This score ranges from 0.0 to 1.0, with 1.0 being the highest.
     """
 
-    if (HASHES_TENSOR_FOLDER not in dataset_1.hidden_tensors or HASHES_TENSOR_FOLDER not in dataset_2.hidden_tensors):
+    if (
+        HASHES_TENSOR_FOLDER not in dataset_1.hidden_tensors
+        or HASHES_TENSOR_FOLDER not in dataset_2.hidden_tensors
+    ):
         raise HashesTensorDoesNotExistError()
 
     hashlist_1 = dataset_1[HASHES_TENSOR_FOLDER].numpy()
     hashlist_2 = dataset_2[HASHES_TENSOR_FOLDER].numpy()
-    
+
     # Concatenating numpy arrays in the list. For example, the hashlist
     # [[1234, 5678], [90, 12]] becomes [1234, 5678, 90, 12]
     concat_list_1 = np.concatenate(hashlist_1, axis=None)

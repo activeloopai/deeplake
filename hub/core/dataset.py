@@ -181,12 +181,12 @@ class Dataset:
         kwargs,
         htype: str = DEFAULT_HTYPE,
     ):
-        """ Separate kwargs used for tensor's meta and info files.
-        
+        """Separate kwargs used for tensor's meta and info files.
+
         Args:
             kwargs: kwargs used during create_tensor.
             htype: The class of data for the tensor.
-        
+
         """
 
         htype_config = HTYPE_CONFIGURATIONS[htype].copy()
@@ -258,19 +258,21 @@ class Dataset:
             hash_samples=hash_samples,
             **meta_kwargs,
         )
-        
+
         self.meta.tensors.append(name)
         ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
-        
+
         tensor = Tensor(name, self.storage)  # type: ignore
-        self.tensors[name] = tensor    
+        self.tensors[name] = tensor
         tensor.info.update(info_kwargs)
-        
+
         if hash_samples:
-            hashes_tensor = self._create_hidden_tensor(HASHES_TENSOR_FOLDER, htype="hash")
+            hashes_tensor = self._create_hidden_tensor(
+                HASHES_TENSOR_FOLDER, htype="hash"
+            )
             self._link_tensor(tensor, hashes_tensor)
-            
+
         return tensor
 
     def _create_hidden_tensor(
@@ -282,8 +284,8 @@ class Dataset:
         hash_samples: Optional[bool] = False,
         **kwargs,
     ):
-        """Creates a new hidden tensor in the dataset. Hidden tensors are used to separate tensors created by the user from 
-           those created internally (e.g hashes tensor). Hidden tensors aren't accessible from dataset.tensors but can be retrived 
+        """Creates a new hidden tensor in the dataset. Hidden tensors are used to separate tensors created by the user from
+           those created internally (e.g hashes tensor). Hidden tensors aren't accessible from dataset.tensors but can be retrived
            by getitem/getattr.
 
         Args:
@@ -329,13 +331,12 @@ class Dataset:
         self.meta.hidden_tensors.append(name)
         ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
-        
+
         tensor = Tensor(name, self.storage)  # type: ignore
-        self.hidden_tensors[name] = tensor    
+        self.hidden_tensors[name] = tensor
         tensor.info.update(info_kwargs)
 
         return tensor
-        
 
     def _link_tensor(self, main_tensor: "Tensor", link_tensor: "Tensor"):
         """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and
@@ -409,13 +410,15 @@ class Dataset:
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        
+
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
             for hidden_tensor_name in self.meta.hidden_tensors:
-                self.hidden_tensors[hidden_tensor_name] = Tensor(hidden_tensor_name, self.storage)
-                
+                self.hidden_tensors[hidden_tensor_name] = Tensor(
+                    hidden_tensor_name, self.storage
+                )
+
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
             raise PathNotEmptyException
