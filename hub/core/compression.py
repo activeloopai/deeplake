@@ -413,7 +413,7 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
     try:
         # Look for Start of Frame
         sof_idx = -1
-        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):
+        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):  # type: ignore
             sof_idx = sof_match.start(0)
         if sof_idx == -1:
             raise Exception()
