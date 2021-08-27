@@ -5,6 +5,7 @@ import os
 from typing import Dict, Union
 
 from google.cloud import storage  # type: ignore
+from google.api_core import retry  # type: ignore
 from google.oauth2 import service_account  # type: ignore
 import google.auth as gauth  # type: ignore
 import google.auth.compute_engine  # type: ignore
@@ -199,6 +200,7 @@ class GCSProvider(StorageProvider):
         if not self.token:
             self.token = None
         scoped_credentials = GCloudCredentials(self.token, project=self.project)
+        self.retry = retry.Retry(deadline=60)
         client = storage.Client(credentials=scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
@@ -227,7 +229,7 @@ class GCSProvider(StorageProvider):
         """Retrieve data"""
         try:
             blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-            return blob.download_as_bytes()
+            return blob.download_as_bytes(retry=self.retry)
         except self.missing_exceptions:
             raise KeyError(key)
 
@@ -239,7 +241,7 @@ class GCSProvider(StorageProvider):
             value = value.tobytes()
         elif isinstance(value, bytearray):
             value = bytes(value)
-        blob.upload_from_string(value)
+        blob.upload_from_string(value, retry=self.retry)
 
     def __iter__(self):
         """Iterating over the structure"""
