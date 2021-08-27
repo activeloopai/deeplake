@@ -1,5 +1,5 @@
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
-from hub.core.tiling.optimize import get_tile_shape
+from hub.core.tiling.optimize import optimize_tile_shape
 from hub.util.tiles import (
     approximate_num_bytes,
     get_tile_bounds,
@@ -138,9 +138,9 @@ class ChunkEngine:
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        return (
-            getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
-        )
+        value = getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+        self.tensor_meta.max_chunk_size = value
+        return value
 
     @property
     def min_chunk_size(self):
@@ -418,7 +418,7 @@ class ChunkEngine:
             # TODO: dynamic tile shapes?
 
             # 1. determine our tile shapes (tiles are only as good as these shapes are)
-            tile_shape = get_tile_shape(sample_shape, dtype, self.max_chunk_size)
+            tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
 
             # 2. find the number of chunks/tiles required (N)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)

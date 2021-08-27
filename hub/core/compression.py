@@ -1,3 +1,4 @@
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import SUPPORTED_COMPRESSIONS
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -8,7 +9,7 @@ from hub.util.exceptions import (
 from typing import Union, Tuple
 import numpy as np
 
-from PIL import Image, UnidentifiedImageError  # type: ignore
+from PIL import Image # type: ignore
 from io import BytesIO
 import mmap
 
@@ -164,3 +165,29 @@ def _fast_decompress(path):
             break
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
+
+
+# this maps a compressor to the average compression ratio it achieves assuming the data is natural
+# for example, if compressor X on average removes 50% of the data, the compression factor would be 2.0.
+# TODO: for every compressor we have, we should have an accurate number here!
+COMPRESSION_FACTORS = {
+    "png": 2.0,
+    "mp4": 100.0,
+}
+
+
+def get_compression_factor(tensor_meta: TensorMeta) -> float:
+    factor = 1.0
+
+    # check sample compression first. we don't support compressing both sample + chunk-wise at the same time, but in case we
+    # do support this in the future, try both.
+    sc = tensor_meta.sample_compression
+    if sc is not None:
+        factor *= COMPRESSION_FACTORS[sc]
+
+    # TODO: UNCOMMENT AFTER CHUNK-WISE COMPRESSION IS MERGED!
+    # cc = tensor_meta.chunk_compression
+    # if cc is not None:
+    #     factor *= COMPRESSION_FACTORS[cc]
+
+    return factor
