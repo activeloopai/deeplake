@@ -8,7 +8,11 @@ from typing import List, Sequence, Union
 
 
 def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
-    """Generate two unsigned 64-bit murmurhash3 of samples
+    """Generates a single 64-bit murmurhash3 for each sample
+
+    Note:
+        mmh3.hash64 returns two 64-bit hashes. The first one is used in this function.
+
     Args:
         samples (Union[np.ndarray, Sequence[SampleValue]): Samples for which hashes are generated.
 
@@ -24,6 +28,6 @@ def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
         else:
             hashed_sample = mmh3.hash64(sample.tobytes())
 
-        hashlist.append(np.array(hashed_sample, dtype="int64"))
+        hashlist.append(np.array(hashed_sample[0], dtype="int64"))
 
     return hashlist

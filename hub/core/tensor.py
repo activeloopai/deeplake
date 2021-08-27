@@ -66,7 +66,7 @@ def create_tensor(
 def add_missing_meta_attributes(
     key: str, storage: StorageProvider, tensor_meta: TensorMeta
 ):
-    """Adds missing attributes to tensor meta.
+    """Adds attributes to tensor meta if missing.
 
     Note:
         Older versions of tensor meta didn't contain attributes, "hash_samples", "linked_tensors" and
@@ -84,27 +84,17 @@ def add_missing_meta_attributes(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    # missing_attribute = False
-
     if "linked_tensors" not in tensor_meta.__dict__:
-        # missing_attribute = True
         tensor_meta._required_meta_keys += ("linked_tensors",)
         tensor_meta.linked_tensors = []  # Default value
 
     if "is_linked_tensor" not in tensor_meta.__dict__:
-        # missing_attribute = True
         tensor_meta._required_meta_keys += ("is_linked_tensor",)
         tensor_meta.is_linked_tensor = False  # Default value
 
     if "hash_samples" not in tensor_meta.__dict__:
-        # missing_attribute = True
         tensor_meta._required_meta_keys += ("hash_samples",)
         tensor_meta.hash_samples = False  # Default value
-
-    # if missing_attribute:
-    #     meta_key = get_tensor_meta_key(key)
-    #     storage[meta_key] = tensor_meta
-
 
 class Tensor:
     def __init__(

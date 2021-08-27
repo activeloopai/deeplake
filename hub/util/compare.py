@@ -51,11 +51,11 @@ def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
     hashlist_1 = dataset_1[HASHES_TENSOR_FOLDER].numpy()
     hashlist_2 = dataset_2[HASHES_TENSOR_FOLDER].numpy()
 
-    # Concatenating numpy arrays in the list. For example, the hashlist
-    # [[1234, 5678], [90, 12]] becomes [1234, 5678, 90, 12]
+    # Concatenating numpy arrays into a single list. 
+    # For example, the hashlist [[1234], [56], [78]] becomes [1234, 56, 78]
     concat_list_1 = np.concatenate(hashlist_1, axis=None)
     concat_list_2 = np.concatenate(hashlist_2, axis=None)
-
+    
     similarity_score = jaccard_similarity(concat_list_1, concat_list_2)
 
     logger.info(
