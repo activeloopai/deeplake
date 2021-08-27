@@ -285,8 +285,8 @@ def _verify_jpeg_buffer(buf: bytes):
 
 _JPEG_SOFS = [
     b"\xff\xc0",
-    b"\xff\xc1",
     b"\xff\xc2",
+    b"\xff\xc1",
     b"\xff\xc3",
     b"\xff\xc5",
     b"\xff\xc6",
@@ -299,6 +299,7 @@ _JPEG_SOFS = [
     b"\xff\xcf",
     b"\xff\xde",
 ]
+
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 
 
