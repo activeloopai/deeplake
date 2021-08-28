@@ -10,7 +10,7 @@ import numpy as np
 INTERM_DTYPE = np.dtype(np.uint32)
 
 
-def _energy(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> float:
+def _energy(tile_shape: np.ndarray, sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> float:
     # TODO: docstring
 
     num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
@@ -43,19 +43,35 @@ def _propose_tile_shape(
     return _clamp(proposal, sample_shape)
 
 
+def _perturbate_tile_shape(tile_shape: np.ndarray, unfrozen_dim_mask: np.ndarray, temperature: float) -> Tuple[int, ...]:
+    # TODO: docstring
+
+    print(temperature)
+
+
 def _optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> Tuple[int, ...]:
     tile_shape = _propose_tile_shape(sample_shape, tensor_meta)
+    unfrozen_dim_mask = tile_shape != sample_shape
 
     # TODO: make params
     try_count = 0
     max_tries = 100
 
+    best_shape = None
+    lowest_energy = float("inf")
+
     # TODO: minimize energy with respect to tile shape
     while try_count < max_tries:
-        # TODO: perturbate
+        temperature = 1 - ((try_count) / max_tries) ** 2
+        _perturbate_tile_shape(tile_shape, unfrozen_dim_mask, temperature)
+        energy = _energy(tile_shape, sample_shape, tensor_meta)
+
+        if energy < lowest_energy:
+            best_shape = tile_shape.copy()
+
         try_count += 1
 
-    return tile_shape, []
+    return tuple(tile_shape.tolist()), []
 
 
 def _validate_tile_shape(
