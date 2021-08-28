@@ -1,4 +1,4 @@
-from hub.util.tiles import approximate_num_bytes
+from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.compression import get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import KB
@@ -7,39 +7,43 @@ import numpy as np
 
 
 # number of simulated annealing iterations
-ANNEALING_MAX_TRIES = 100
+ANNEALING_MAX_TRIES = 1000
 
 # rectangularization is when the proposed tile shape is no longer square (all dimensions are not equal)
-ANNEALING_CHANCE_TO_RECTANGULARIZE = 0.01
+ANNEALING_CHANCE_TO_RECTANGULARIZE = 0.0
 ANNEALING_MIN_TRIES_TO_RECTANGULARIZE = 5
 
-ANNEALING_MAX_MAGNITUDE = 10
+ANNEALING_MAX_MAGNITUDE = 50
 
 # number of bytes tiles can be off by in comparison to max_chunk_size
-COST_THRESHOLD = 800 * KB  # TODO: make smaller with better optimizers
+COST_THRESHOLD = 1e-8  # TODO: make smaller with better optimizers
 
 # dtype for intermediate tile shape calculations
 INTERM_DTYPE = np.dtype(np.uint32)
 
 
 
-def _cost(tile_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> int:
+def _cost(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> int:
     # TODO: docstring
 
     actual_bytes = approximate_num_bytes(tile_shape, tensor_meta)
-    abs_cost = abs(tensor_meta.max_chunk_size - actual_bytes)
+    num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+
+    distance = abs(actual_bytes - tensor_meta.max_chunk_size)
+    # cost = distance * num_tiles
+    cost = num_tiles * distance
 
     # higher cost if the actual bytes is less than the min chunk size
     if actual_bytes < tensor_meta.min_chunk_size:
-        return abs_cost * 2
+        return cost * 2
 
-    return abs_cost
+    return cost
 
 
-def _downscale(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
+def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
     # TODO: docstring
 
-    return np.minimum(tile_shape, sample_shape).astype(INTERM_DTYPE)
+    return np.maximum(1, np.minimum(tile_shape, sample_shape).astype(INTERM_DTYPE))
 
 
 def _propose_tile_shape(
@@ -67,12 +71,13 @@ def _optimize_tile_shape(
     # TODO: explain using simulated annealing
 
     tile_shape = _propose_tile_shape(sample_shape, tensor_meta)
-    downscaled_tile_shape = _downscale(tile_shape, sample_shape)
+    downscaled_tile_shape = _clamp(tile_shape, sample_shape)
     unfrozen_dims_mask = tile_shape == downscaled_tile_shape
+    num_unfrozen_dims = np.sum(unfrozen_dims_mask)
 
     # it is expected that at least 1 dimension is unfrozen. this shouldn't happen, but in the event it does, this
     # check will save a lot of debugging time
-    if np.all(unfrozen_dims_mask == False):
+    if num_unfrozen_dims == 0:
         raise NotImplementedError(f"Cannot determine a tile shape when all axes are too small. Sample shape: {sample_shape}.")
 
     target_chunk_size = tensor_meta.max_chunk_size
@@ -87,8 +92,8 @@ def _optimize_tile_shape(
 
     history = []
 
-    get_cost = lambda: _cost(proposed_tile_shape, tensor_meta)
-    is_under_cost_threshold = lambda: get_cost() < COST_THRESHOLD
+    get_cost = lambda: _cost(proposed_tile_shape, sample_shape, tensor_meta)
+    is_above_cost_threshold = lambda: get_cost() > COST_THRESHOLD
     is_under_max_tries = lambda: tries < ANNEALING_MAX_TRIES
     calculate_temperature = lambda: (1 - (tries + 1) / ANNEALING_MAX_TRIES)
     random_magnitude = lambda: np.random.randint(1, int(max(ANNEALING_MAX_MAGNITUDE * calculate_temperature(), 2)))
@@ -113,7 +118,7 @@ def _optimize_tile_shape(
     set_best_tile_shape()
 
     # iterate until we find a tile shape close to max chunk size
-    while is_under_cost_threshold() and is_under_max_tries():
+    while is_above_cost_threshold() and is_under_max_tries():
         average_tile_size = approximate_num_bytes(proposed_tile_shape, tensor_meta)
 
         sign = 1 if average_tile_size < target_chunk_size else -1
@@ -121,14 +126,15 @@ def _optimize_tile_shape(
 
         # TODO: explain this
         if can_rectangularize() and should_rectangularize():
-            random_index = np.random.choice(np.arange(num_dims))
-            grad = np.zeros(num_dims)
+            # TODO: fix! (should not perturbate frozen dims)
+            grad = np.zeros(num_unfrozen_dims)
+            random_index = np.random.choice(np.arange(num_unfrozen_dims))
             grad[random_index] = magnitude
         else:
-            grad = np.ones(num_dims) * magnitude
+            grad = np.ones(num_unfrozen_dims) * magnitude
 
-        proposed_tile_shape += grad.astype(INTERM_DTYPE)
-        print(grad)
+        proposed_tile_shape[unfrozen_dims_mask] += grad.astype(INTERM_DTYPE)
+        proposed_tile_shape = _clamp(proposed_tile_shape, sample_shape)
         
         # float_tile_shape = proposed_tile_shape.astype(np.float64)
         # print((float_tile_shape[unfrozen_dims_mask] * grad).astype(INTERM_DTYPE))
@@ -148,14 +154,20 @@ def _validate_tile_shape(
 ):
     # TODO: docstring
 
-    if not np.all(np.array(tile_shape) >= sample_shape):
+    tile_shape = np.array(tile_shape)
+
+    if not np.all(tile_shape <= sample_shape):
         raise Exception()  # TODO
 
-    cost = _cost(tile_shape, tensor_meta)
-    if cost > COST_THRESHOLD:
-        raise Exception(
-            f"Cost too large ({cost}) for tile shape {tile_shape} and max chunk size {tensor_meta.max_chunk_size}. Dtype={tensor_meta.dtype}"
-        )  # TODO: exceptions.py
+    if np.any(tile_shape <= 0):
+        raise Exception()
+
+    # TODO: uncomment
+    # cost = _cost(tile_shape, sample_shape, tensor_meta)
+    # if cost > COST_THRESHOLD:
+    #     raise Exception(
+    #         f"Cost too large ({cost}) for tile shape {tile_shape} and max chunk size {tensor_meta.max_chunk_size}. Dtype={tensor_meta.dtype}"
+    #     )  # TODO: exceptions.py
 
 
 def optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta, validate: bool=True, return_history: bool=False):
