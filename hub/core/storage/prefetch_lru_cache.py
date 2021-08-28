@@ -80,9 +80,6 @@ class PrefetchLRUCache(LRUCache):
             LocalProvider(EMERGENCY_STORAGE_PATH) if self.next_storage is None else None
         )
 
-        # keeps track of the latest chunk per tensor in order to prevent multiple redundant Chunk.frombuffer calls
-        self.latest_chunk_per_tensor: Dict[str, Tuple[str, Chunk]] = {}
-
     def __getitem__(self, path):
         if path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
@@ -269,7 +266,9 @@ class PrefetchLRUCache(LRUCache):
         chunk = chunks[0]
         if self.mode != "pytorch":
             try:
-                return chunk_engine.read_sample_from_chunk(index, chunk, cast=True)
+                return chunk_engine.read_sample_from_chunk(
+                    index, chunk, cast=True, copy=True
+                )
             except SampleDecompressionError:
                 warnings.warn(
                     f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
@@ -280,7 +279,9 @@ class PrefetchLRUCache(LRUCache):
             import torch
 
             try:
-                value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+                value = chunk_engine.read_sample_from_chunk(
+                    index, chunk, cast=False, copy=True
+                )
             except SampleDecompressionError:
                 warnings.warn(
                     f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
@@ -306,23 +307,22 @@ class PrefetchLRUCache(LRUCache):
 
     def _chunk_from_name(self, tensor: str, chunk_name: str):
         """Takes a single chunk name and tensor and returns Chunk"""
-        if tensor in self.latest_chunk_per_tensor:
-            existing_chunk_name, existing_chunk = self.latest_chunk_per_tensor[tensor]
-            if chunk_name == existing_chunk_name:
-                return existing_chunk
         shm_name = self.chunk_shared_mem_map[(tensor, chunk_name)]
         chunk_data = self[shm_name]
-        chunk = Chunk.frombuffer(chunk_data)
-        self.latest_chunk_per_tensor[tensor] = (chunk_name, chunk)
+        chunk = Chunk.frombuffer(chunk_data, copy=False)
         return chunk
+
+    def _numpy_from_chunk_names(self, tensor, chunk_names, index):
+        chunks = self._chunks_from_names(tensor, chunk_names)
+        arr = self._numpy_from_chunks(index, tensor, chunks)
+        return arr
 
     def _get_data(self, index: int):
         """Returns all the data for a given index"""
         data: Dict[str, np.ndarray] = {}
         chunk_names_dict = self._get_chunk_names(index)
         for tensor, chunk_names in chunk_names_dict.items():
-            chunks = self._chunks_from_names(tensor, chunk_names)
-            arr = self._numpy_from_chunks(index, tensor, chunks)
+            arr = self._numpy_from_chunk_names(tensor, chunk_names, index)
             if arr is None:
                 return None
             data[tensor] = arr

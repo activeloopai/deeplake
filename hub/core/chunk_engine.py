@@ -552,7 +552,7 @@ class ChunkEngine:
         return chunk
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk, cast: bool = True
+        self, global_sample_index: int, chunk: Chunk, cast: bool = True, copy=False
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
@@ -587,6 +587,8 @@ class ChunkEngine:
             if cast and sample.dtype != dtype:
                 sample = sample.astype(dtype)
         else:
+            if copy:
+                buffer = bytes(buffer)
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
         return sample

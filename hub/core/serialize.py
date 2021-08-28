@@ -109,7 +109,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def deserialize_chunk(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, memoryview], copy=True
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
@@ -165,7 +165,7 @@ def deserialize_chunk(
         offset += byte_positions_nbytes
     # Read data
     data = byts[offset:]
-    if incoming_mview:
+    if incoming_mview and copy:
         data = memoryview(bytes(data))
     return version, shape_info, byte_positions, data  # type: ignore
 
