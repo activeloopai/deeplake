@@ -76,7 +76,6 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     for path in compressed_image_paths[compression]:
         sample = hub.read(path)
         sample_loaded = hub.read(path)
-        sample_loaded = hub.read(path)
         sample_loaded.compressed_bytes(compression)
         sample_verified_and_loaded = hub.read(path, verify=True)
         sample_verified_and_loaded.compressed_bytes(compression)
