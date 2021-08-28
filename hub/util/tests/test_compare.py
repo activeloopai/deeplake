@@ -1,4 +1,4 @@
-from hub.util import compare
+from hub.util import compare_hashes
 from hub.api.dataset import dataset
 from hub.core.dataset import Dataset
 from hub.util.exceptions import (
@@ -33,7 +33,7 @@ def test_compare_np_arrays(memory_ds, memory_ds_2):
         for i in range(10):
             memory_ds_2.image.append(np.ones((28, 28), dtype=np.uint8) * i)
 
-    assert hub.compare(memory_ds, memory_ds_2) == 1.0
+    assert hub.compare_hashes(memory_ds, memory_ds_2) == 1.0
 
 
 def test_compare_half_np_arrays(memory_ds, memory_ds_2):
@@ -48,7 +48,7 @@ def test_compare_half_np_arrays(memory_ds, memory_ds_2):
         for i in range(10):
             memory_ds_2.image.append(np.ones((28, 28), dtype=np.uint8) * i)
 
-    assert hub.compare(memory_ds, memory_ds_2) == 0.5
+    assert hub.compare_hashes(memory_ds, memory_ds_2) == 0.5
 
 
 def test_compare_image_datasets(memory_ds, memory_ds_2):
@@ -86,7 +86,7 @@ def test_compare_image_datasets(memory_ds, memory_ds_2):
 
     assert memory_ds.hidden_tensors[HASHES_TENSOR_FOLDER].meta.is_linked_tensor == True
     assert HASHES_TENSOR_FOLDER in memory_ds.images.meta.linked_tensors
-    assert hub.compare(memory_ds, memory_ds_2) == 0.5
+    assert hub.compare_hashes(memory_ds, memory_ds_2) == 0.5
 
 
 def test_compare_errors(memory_ds, memory_ds_2):
@@ -94,7 +94,7 @@ def test_compare_errors(memory_ds, memory_ds_2):
     memory_ds_2.create_tensor("image")
 
     with pytest.raises(HashesTensorDoesNotExistError):
-        hub.compare(memory_ds, memory_ds_2)
+        hub.compare_hashes(memory_ds, memory_ds_2)
 
 
 @enabled_datasets

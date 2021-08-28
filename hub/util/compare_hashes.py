@@ -28,11 +28,11 @@ def jaccard_similarity(list_1, list_2):
     return float(intersection) / union
 
 
-def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
+def compare_hashes(dataset_1: Dataset, dataset_2: Dataset) -> int:
     """Utility that compares two datasets using hashes stored in "_hashes" tensor.
 
     Examples:
-        >>> sample = hub.compare(dataset_1, dataset_2)
+        >>> sample = hub.compare_hashes(dataset_1, dataset_2)
         1.0
 
     Args:

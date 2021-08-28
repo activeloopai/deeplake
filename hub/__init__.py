@@ -23,7 +23,7 @@ from .api.read import read
 from .core.transform import compute, compose
 from .core.dataset import Dataset
 from .util.bugout_reporter import hub_reporter
-from .util.compare import compare
+from .util.compare_hashes import compare_hashes
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 
