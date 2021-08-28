@@ -280,7 +280,7 @@ class PrefetchLRUCache(LRUCache):
 
             try:
                 value = chunk_engine.read_sample_from_chunk(
-                    index, chunk, cast=False, copy=True
+                    index, chunk, cast=False, copy=False
                 )
             except SampleDecompressionError:
                 warnings.warn(
