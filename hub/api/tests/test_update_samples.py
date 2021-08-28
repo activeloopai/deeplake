@@ -223,10 +223,6 @@ def test_failures(memory_ds):
     with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
-    # inplace operators
-    with pytest.raises(NotImplementedError):
-        memory_ds.labels[0:5] += 1
-
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
@@ -252,3 +248,31 @@ def test_warnings(memory_ds):
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):
         tensor[:] = np.zeros((10, 32, 31), dtype="int32")
+
+
+def test_inplace_updates(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.x.extend(np.zeros((32, 32)))
+    ds.x += 1
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((32, 32)))
+    ds.x += ds.x
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((32, 32)) * 2)
+    ds.x *= np.zeros((32,))
+    np.testing.assert_array_equal(ds.x.numpy(), np.zeros((32, 32)))
+    ds.x -= 4
+    ds.x /= 2
+    np.testing.assert_array_equal(ds.x.numpy(), -np.ones((32, 32)) * 4 / 2)
+
+    compressions = [
+        {"sample_compression": "jpeg"},
+        {"chunk_compression": "jpeg"},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ]
+
+    for i, compression in enumerate(compressions):
+        tensor = ds.create_tensor(f"image_{i}", htype="image", **compression)
+        tensor.append(np.ones((100, 100, 3), dtype="uint8"))
+        tensor *= 0
+        np.testing.assert_array_equal(tensor.numpy()[0], np.zeros((100, 100, 3)))

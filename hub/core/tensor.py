@@ -8,7 +8,7 @@ from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
-from hub.util.casting import get_incompatible_dtype
+from hub.util.casting import get_incompatible_dtype, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -52,6 +52,16 @@ def create_tensor(
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
+
+
+def _inplace_op(f):
+    op = f.__name__
+
+    def inner(tensor, other):
+        tensor.chunk_engine.update_inplace(tensor.index, other, op)
+        return tensor
+
+    return inner
 
 
 class Tensor:
@@ -287,7 +297,8 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
-
+        if isinstance(value, Tensor):
+            value = value.numpy(aslist=True)
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
@@ -323,39 +334,50 @@ class Tensor:
     def __array__(self) -> np.ndarray:
         return self.numpy()
 
-    # TODO: Inplace operatitions
+    @_inplace_op
     def __iadd__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __isub__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __imul__(self, other):
-        raise NotImplementedError
+        pass
 
-    def __idiv__(self, other):
-        raise NotImplementedError
+    @_inplace_op
+    def __itruediv__(self, other):
+        pass
 
+    @_inplace_op
     def __ifloordiv__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __imod__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ipow__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ilshift__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __irshift__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __iand__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ixor__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ior__(self, other):
-        raise NotImplementedError
+        pass

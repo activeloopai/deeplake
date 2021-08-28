@@ -318,7 +318,7 @@ def serialize_input_samples(
             shapes.append(shape)
     elif (
         isinstance(samples, np.ndarray)
-        or np.iscalar(samples)
+        or np.isscalar(samples)
         or isinstance(samples, Sequence)
     ):
         samples = intelligent_cast(samples, dtype, htype)
@@ -339,6 +339,6 @@ def serialize_input_samples(
             "Extending with `Sample` instance is not supported yet."
         )
     else:
-        raise TypeError(f"Cannot serializes samples of type {type(samples)}")
+        raise TypeError(f"Cannot serialize samples of type {type(samples)}")
     _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
     return buff, nbytes, shapes
