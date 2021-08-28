@@ -144,9 +144,12 @@ def _optimize_tile_shape(
 
 
 def _validate_tile_shape(
-    tile_shape: Tuple[int, ...], tensor_meta: TensorMeta
+    tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
 ):
     # TODO: docstring
+
+    if not np.all(np.array(tile_shape) >= sample_shape):
+        raise Exception()  # TODO
 
     cost = _cost(tile_shape, tensor_meta)
     if cost > COST_THRESHOLD:
@@ -155,13 +158,13 @@ def _validate_tile_shape(
         )  # TODO: exceptions.py
 
 
-def optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta, validate_cost: bool=True, return_history: bool=False):
+def optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta, validate: bool=True, return_history: bool=False):
     # TODO: docstring
     
     tile_shape, history = _optimize_tile_shape(sample_shape, tensor_meta)
 
-    if validate_cost:
-        _validate_tile_shape(tile_shape, tensor_meta)
+    if validate:
+        _validate_tile_shape(tile_shape, sample_shape, tensor_meta)
 
     if return_history:
         return tile_shape, history
