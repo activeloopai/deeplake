@@ -10,6 +10,13 @@ import numpy as np
 INTERM_DTYPE = np.dtype(np.uint32)
 
 
+def _energy(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> float:
+    # TODO: docstring
+
+    num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+    num_bytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta)
+    return num_tiles * num_bytes_per_tile
+
 
 def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
     # TODO: docstring
@@ -38,6 +45,16 @@ def _propose_tile_shape(
 
 def _optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> Tuple[int, ...]:
     tile_shape = _propose_tile_shape(sample_shape, tensor_meta)
+
+    # TODO: make params
+    try_count = 0
+    max_tries = 100
+
+    # TODO: minimize energy with respect to tile shape
+    while try_count < max_tries:
+        # TODO: perturbate
+        try_count += 1
+
     return tile_shape, []
 
 
