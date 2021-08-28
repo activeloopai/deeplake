@@ -399,7 +399,7 @@ def read_meta_from_compressed_file(
             except Exception:
                 raise CorruptedSampleError("png")
         else:
-            img = Image.open(f) if isfile else Image.open(BytesIO(f))
+            img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
             compression = img.format.lower()
         return compression, shape, typestr  # type: ignore
@@ -408,13 +408,13 @@ def read_meta_from_compressed_file(
             f.close()
 
 
-def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int]:
+def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
     if hasattr(f, "read"):
         return _read_jpeg_shape_from_file(f)
     return _read_jpeg_shape_from_buffer(f)  # type: ignore
 
 
-def _read_jpeg_shape_from_file(f) -> Tuple[int]:
+def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
     try:
@@ -434,7 +434,7 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
         mm.close()
 
 
-def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
+def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     """Gets shape of a jpeg file from its contents"""
     # Look for Start of Frame
     sof_idx = -1
@@ -448,7 +448,7 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
     return shape
 
 
-def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], str]:
+def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
     """Reads shape and dtype of a png file from a file like object or file contents.
     If a file like object is provided, all of its contents are NOT loaded into memory."""
     if not hasattr(f, "read"):

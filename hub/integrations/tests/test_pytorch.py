@@ -233,7 +233,7 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = local_ds.pytorch(num_workers=2)
         return
-    img_good = hub.read(compressed_image_paths["jpeg"])
+    img_good = hub.read(compressed_image_paths["jpeg"][0])
     img_bad = hub.read(corrupt_image_paths["jpeg"])
     with local_ds:
         local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
