@@ -264,7 +264,9 @@ def test_inplace_updates(memory_ds):
     ds.x /= 2
     np.testing.assert_array_equal(ds.x.numpy(), -np.ones((32, 32)) * 4 / 2)
     ds.x[:16] *= 0
-    np.testing.assert_array_equal(ds.x.numpy(), np.concatenate([np.zeros((16, 32)),-np.ones((16, 32)) * 4 / 2]))
+    np.testing.assert_array_equal(
+        ds.x.numpy(), np.concatenate([np.zeros((16, 32)), -np.ones((16, 32)) * 4 / 2])
+    )
 
     compressions = [
         {"sample_compression": "jpeg"},

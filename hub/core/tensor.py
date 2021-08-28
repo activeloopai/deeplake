@@ -58,7 +58,7 @@ def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
-        tensor.chunk_engine.update_inplace(tensor.index, other, op)
+        tensor.chunk_engine.update(tensor.index, other, op)
         return tensor
 
     return inner
@@ -287,7 +287,7 @@ class Tensor:
             raise TypeError(f"Cannot infer numpy dtype for {val}")
 
     def __setitem__(self, item: Union[int, slice], value: Any):
-        """Update samples with new values. Sub-slice updates are not supported yet.
+        """Update samples with new values.
 
         Example:
             >>> tensor.append(np.zeros((10, 10)))
