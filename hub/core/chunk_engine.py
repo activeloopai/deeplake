@@ -135,12 +135,17 @@ class ChunkEngine:
         self.cache = cache
         self._meta_cache = meta_cache
 
+        # store min/max chunk sizes for tiling purposes
+        # we do not want to store min chunk size in the tensor meta file
+        # in case later we want to change it
+        # however, max chunk size *should* be stored in the tensor meta file
+        self.tensor_meta.max_chunk_size = self.max_chunk_size
+        self.tensor_meta.min_chunk_size = self.min_chunk_size
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        value = getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
-        self.tensor_meta.max_chunk_size = value
-        return value
+        return getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
 
     @property
     def min_chunk_size(self):
