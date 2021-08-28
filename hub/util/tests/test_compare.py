@@ -1,12 +1,18 @@
 from hub.util import compare
 from hub.api.dataset import dataset
 from hub.core.dataset import Dataset
-from hub.util.exceptions import TensorAlreadyLinkedError
+from hub.util.exceptions import (
+    TensorAlreadyLinkedError,
+    TensorAlreadyExistsError,
+    InvalidTensorNameError,
+    TensorDoesNotExistError,
+    LinkedTensorError,
+    HashesTensorDoesNotExistError,
+)
 from hub.tests.common import get_dummy_data_path
 import hub, pytest
 import numpy as np
-from PIL import Image
-from hub.core.tensor import Tensor
+from hub.core.tensor import Tensor, add_missing_meta_attributes
 from hub.tests.common import TENSOR_KEY
 from hub.constants import HASHES_TENSOR_FOLDER
 from hub.tests.dataset_fixtures import enabled_datasets
@@ -83,17 +89,59 @@ def test_compare_image_datasets(memory_ds, memory_ds_2):
     assert hub.compare(memory_ds, memory_ds_2) == 0.5
 
 
+def test_compare_errors(memory_ds, memory_ds_2):
+    memory_ds.create_tensor("image")
+    memory_ds_2.create_tensor("image")
+
+    with pytest.raises(HashesTensorDoesNotExistError):
+        hub.compare(memory_ds, memory_ds_2)
+
+
 @enabled_datasets
 def test_linked_tensors(ds):
 
     ds.create_tensor("image")
     ds.create_tensor("grayscale_image")
+    ds.create_tensor("cropped_image")
 
     ds._link_tensor(ds.image, ds.grayscale_image)
+    ds._link_tensor(ds.image, ds.cropped_image)
 
     assert ds.grayscale_image.meta.is_linked_tensor == True
     assert "grayscale_image" in ds.image.meta.linked_tensors
+    assert "cropped_image" in ds.image.meta.linked_tensors
+
+    with pytest.raises(TensorAlreadyExistsError):
+        ds._create_hidden_tensor("hidden_tensor")
+        ds._create_hidden_tensor("hidden_tensor")
+
+    with pytest.raises(LinkedTensorError):
+        ds.grayscale_image.append([1, 2, 3])
+
+    with pytest.raises(LinkedTensorError):
+        ds.grayscale_image[0] = np.zeros((3, 3))
+
+    with pytest.raises(InvalidTensorNameError):
+        ds._create_hidden_tensor("tensors")
 
     with pytest.raises(TensorAlreadyLinkedError):
         ds.create_tensor("rotated_image")
         ds._link_tensor(ds.grayscale_image, ds.rotated_image)
+
+
+def test_missing_meta_attributes():
+
+    ds = hub.dataset(get_dummy_data_path("tests_compare/dataset_with_old_meta/"))
+
+    add_missing_meta_attributes(
+        ds["images"].key, ds["images"].storage, ds["images"].meta
+    )
+
+    assert ds.images.meta.linked_tensors == []
+    assert ds.images.meta.is_linked_tensor == False
+    assert ds.images.meta.hash_samples == False
+
+    with pytest.raises(TensorDoesNotExistError):
+        add_missing_meta_attributes(
+            ds["no_image"].key, ds["no_image"].storage, ds["no_image"].meta
+        )

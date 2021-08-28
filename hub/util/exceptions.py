@@ -80,11 +80,6 @@ class TensorAlreadyExistsError(Exception):
         )
 
 
-class HashesTensorAlreadyExistsError(Exception):
-    def __init__(self, key: str):
-        super().__init__(f"Hashes tensor already exists.")
-
-
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
         super().__init__(

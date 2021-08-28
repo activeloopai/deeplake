@@ -16,7 +16,6 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    HashesTensorAlreadyExistsError,
     TensorDtypeMismatchError,
     LinkedTensorError,
 )
