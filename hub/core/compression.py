@@ -301,6 +301,8 @@ def _verify_jpeg_buffer(buf: bytes):
     ]  # DHT, DQT, DRI
     shape = _STRUCT_HHB.unpack(mview[sof_idx + 5 : sof_idx + 10])
     assert buf.find(b"\xff\xd9") != -1
+    if shape[-1] in (1, None):
+        shape = shape[:-1]
     return shape
 
 
@@ -332,6 +334,8 @@ def _verify_jpeg_file(f):
         shape = _STRUCT_HHB.unpack(f.read(5))
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
+        if shape[-1] in (1, None):
+            shape = shape[:-1]
         return shape
     finally:
         mm.close()
@@ -366,12 +370,15 @@ def read_meta_from_compressed_file(
     """Reads shape, dtype and format without decompressing or verifying the sample."""
     if isinstance(file, str):
         f = open(file, "rb")
+        isfile = True
         close = True
     elif hasattr(file, "read"):
         f = file
         close = False
+        isfile = True
         f.seek(0)
     else:
+        isfile = False
         f = file
         close = False
     try:
@@ -392,8 +399,7 @@ def read_meta_from_compressed_file(
             except Exception:
                 raise CorruptedSampleError("png")
         else:
-            f.seek(0)
-            img = Image.open(f)
+            img = Image.open(f) if isfile else Image.open(BytesIO(f))
             shape, typestr = Image._conv_type_shape(img)
             compression = img.format.lower()
         return compression, shape, typestr  # type: ignore
@@ -419,7 +425,10 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int]:
         if sof_idx == -1:
             raise Exception()
         f.seek(sof_idx + 5)
-        return _STRUCT_HHB.unpack(f.read(5))  # type: ignore
+        shape = _STRUCT_HHB.unpack(f.read(5))  # type: ignore
+        if shape[-1] in (1, None):
+            shape = shape[:-1]
+        return shape
     finally:
         pass
         mm.close()
@@ -433,7 +442,10 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
         sof_idx = sof_match.start(0)
     if sof_idx == -1:
         raise Exception()
-    return _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
+    shape = _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
+    if shape[-1] in (1, None):
+        shape = shape[:-1]
+    return shape
 
 
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], str]:
@@ -467,4 +479,5 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int], st
                 nlayers = 4
         else:
             nlayers = 4
-    return size + (nlayers,), typstr  # type: ignore
+    shape = size if nlayers is None else size + (nlayers,)
+    return shape, typstr  # type: ignore
