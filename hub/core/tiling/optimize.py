@@ -1,13 +1,12 @@
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.compression import get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.constants import KB
 from typing import Tuple
 import numpy as np
 
 
 # dtype for intermediate tile shape calculations
-INTERM_DTYPE = np.dtype(np.uint32)
+INTERM_DTYPE = np.dtype(np.int32)
 
 
 def _energy(tile_shape: np.ndarray, sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> float:
@@ -15,7 +14,12 @@ def _energy(tile_shape: np.ndarray, sample_shape: Tuple[int, ...], tensor_meta: 
 
     num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
     num_bytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta)
-    return num_tiles * num_bytes_per_tile
+
+    distance = abs(num_bytes_per_tile - tensor_meta.max_chunk_size)
+    if num_bytes_per_tile < tensor_meta.min_chunk_size or num_bytes_per_tile > tensor_meta.max_chunk_size:
+        distance = distance * distance
+    
+    return num_tiles * distance
 
 
 def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
@@ -43,10 +47,22 @@ def _propose_tile_shape(
     return _clamp(proposal, sample_shape)
 
 
-def _perturbate_tile_shape(tile_shape: np.ndarray, unfrozen_dim_mask: np.ndarray, temperature: float) -> Tuple[int, ...]:
+def _perturbate_tile_shape(tile_shape: np.ndarray, sample_shape: Tuple[int, ...], unfrozen_dim_mask: np.ndarray, max_magnitude: int=100) -> Tuple[int, ...]:
     # TODO: docstring
 
-    print(temperature)
+    num_unfrozen_dims = len(unfrozen_dim_mask.shape)
+
+    new_tile_shape = tile_shape.copy()
+    new_tile_shape[unfrozen_dim_mask] += (np.random.uniform(-max_magnitude, max_magnitude+1, size=num_unfrozen_dims)).astype(INTERM_DTYPE)
+
+    return _clamp(new_tile_shape, sample_shape)
+
+
+def _transition_probability(energy_old: float, energy_new: float, temperature: float) -> float:
+    if energy_new < energy_old:
+        return 1
+
+    return np.exp(-(energy_new - energy_old) / temperature)
 
 
 def _optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta) -> Tuple[int, ...]:
@@ -55,23 +71,34 @@ def _optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta)
 
     # TODO: make params
     try_count = 0
-    max_tries = 100
+    max_tries = 1000
 
     best_shape = None
     lowest_energy = float("inf")
 
+    history = []
+
     # TODO: minimize energy with respect to tile shape
     while try_count < max_tries:
         temperature = 1 - ((try_count) / max_tries) ** 2
-        _perturbate_tile_shape(tile_shape, unfrozen_dim_mask, temperature)
+        new_tile_shape = _perturbate_tile_shape(tile_shape, sample_shape, unfrozen_dim_mask)
+
         energy = _energy(tile_shape, sample_shape, tensor_meta)
+        new_energy = _energy(new_tile_shape, sample_shape, tensor_meta)
 
-        if energy < lowest_energy:
-            best_shape = tile_shape.copy()
+        print(tile_shape)
+        print(energy, new_energy)
 
+        if _transition_probability(energy, new_energy, temperature) > np.random.uniform():
+            tile_shape = new_tile_shape
+            if new_energy < lowest_energy:
+                best_shape = new_tile_shape.copy()
+                lowest_energy = new_energy
+
+            history.append({"energy": new_energy})
         try_count += 1
 
-    return tuple(tile_shape.tolist()), []
+    return tuple(best_shape.tolist()), history
 
 
 def _validate_tile_shape(
@@ -86,6 +113,13 @@ def _validate_tile_shape(
 
     if np.any(tile_shape <= 0):
         raise Exception()
+
+    # TODO: exceptions.py
+    average_num_bytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta)
+    if average_num_bytes_per_tile > tensor_meta.max_chunk_size:
+        raise Exception(f"Average num bytes per tile {average_num_bytes_per_tile} is greater than max chunk size {tensor_meta.max_chunk_size}.")
+    elif average_num_bytes_per_tile < tensor_meta.min_chunk_size:
+        raise Exception(f"Average num bytes per tile {average_num_bytes_per_tile} is less than min chunk size {tensor_meta.min_chunk_size}.") 
 
     # TODO: uncomment
     # cost = _cost(tile_shape, sample_shape, tensor_meta)
