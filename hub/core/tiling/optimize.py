@@ -12,7 +12,11 @@ INTERM_DTYPE = np.dtype(np.int32)
 def _energy(
     tile_shape: np.ndarray, sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
 ) -> float:
-    # TODO: docstring
+    """Function to be minimized during simulated annealing. The energy of a state is the
+    cumulative waste that a tile shape has. The target tile size is `tensor_meta.max_chunk_size`.
+
+    The distance is squared when it is not between min / max chunk size.
+    """
 
     num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
     num_bytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta)
@@ -28,16 +32,16 @@ def _energy(
 
 
 def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
-    # TODO: docstring
+    """Clamps `tile_shape` on each dimension inclusively between 1 and sample_shape for the corresponding dimension."""
 
     tile_shape = np.minimum(tile_shape, sample_shape)
     return np.maximum(1, tile_shape)
 
 
-def _propose_tile_shape(
+def _initial_tile_shape(
     sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
 ) -> np.ndarray:
-    # TODO: docstring (use args)
+    """Calculates the initial tile shape for simulated annealing."""
 
     dtype_num_bytes = np.dtype(tensor_meta.dtype).itemsize
     ndims = len(sample_shape)
@@ -59,7 +63,18 @@ def _perturbate_tile_shape(
     unfrozen_dim_mask: np.ndarray,
     max_magnitude: int = 100,
 ) -> np.ndarray:
-    # TODO: docstring
+    """Pertubrate the tile shape in a random direction, only where `unfrozen_dim_mask` is True.
+
+    Args:
+        tile_shape (np.ndarray): Tile shape to perturbate.
+        sample_shape (Tuple[int]): Shape of the sample that is being tiled.
+        unfrozen_dim_mask (np.ndarray): Boolean mask of dimensions that are not frozen.
+        max_magnitude (int): No dimension will be perturbated by more than this value
+            in the negative or positive direction.
+
+    Returns:
+        A new numpy array representing the perturbated tile shape.
+    """
 
     num_unfrozen_dims = len(unfrozen_dim_mask.shape)
 
@@ -74,30 +89,44 @@ def _perturbate_tile_shape(
 def _transition_probability(
     energy_old: float, energy_new: float, temperature: float
 ) -> float:
+    """Metropolis-Hastings acceptance function."""
+
     if energy_new < energy_old:
         return 1
 
     return np.exp(-(energy_new - energy_old) / temperature)
 
 
-def _optimize_tile_shape(
-    sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
+def anneal_tile_shape(
+    sample_shape: Tuple[int, ...], tensor_meta: TensorMeta, max_steps: int = 1000
 ) -> Tuple[Tuple[int, ...], List[Dict]]:
-    tile_shape = _propose_tile_shape(sample_shape, tensor_meta)
+    """Use simulated annealing to find a tile shape that is between the min / max chunk size of `tensor_meta`.
+
+    Simulated Annealing:
+        https://en.wikipedia.org/wiki/Simulated_annealing
+        State variable: `tile_shape`
+
+    Args:
+        sample_shape (Tuple[int]): Shape of the sample that is being tiled.
+        tensor_meta (TensorMeta): Tensor meta for the tensor that is being tiled. Should include
+            `min_chunk_size` and `max_chunk_size`.
+        max_steps (int): Maximum number of simulated annealing steps.
+
+    Returns:
+        Tuple[Tuple[int], List[Dict]]: Tile shape and history of simulated annealing.
+    """
+
+    tile_shape = _initial_tile_shape(sample_shape, tensor_meta)
     unfrozen_dim_mask = tile_shape != sample_shape
 
-    # TODO: make params
     try_count = 0
-    max_tries = 1000
-
     best_shape = None
     lowest_energy = float("inf")
-
     history = []
 
-    # TODO: minimize energy with respect to tile shape
-    while try_count < max_tries:
-        temperature = 1 - ((try_count) / max_tries) ** 2
+    # minimize energy with respect to tile shape
+    while try_count < max_steps:
+        temperature = 1 - ((try_count) / max_steps) ** 2
         new_tile_shape = _perturbate_tile_shape(
             tile_shape, sample_shape, unfrozen_dim_mask
         )
@@ -105,16 +134,16 @@ def _optimize_tile_shape(
         energy = _energy(tile_shape, sample_shape, tensor_meta)
         new_energy = _energy(new_tile_shape, sample_shape, tensor_meta)
 
-        if (
-            _transition_probability(energy, new_energy, temperature)
-            > np.random.uniform()
-        ):
+        p = _transition_probability(energy, new_energy, temperature)
+        r = np.random.uniform()
+
+        if p > r:
             tile_shape = new_tile_shape
             if new_energy < lowest_energy:
                 best_shape = new_tile_shape.copy()
                 lowest_energy = new_energy
-
             history.append({"energy": new_energy})
+
         try_count += 1
 
     return tuple(best_shape.tolist()), history  # type: ignore
@@ -146,28 +175,31 @@ def _validate_tile_shape(
             f"Average num bytes per tile {average_num_bytes_per_tile} is less than min chunk size {tensor_meta.min_chunk_size}."  # type: ignore
         )
 
-    # TODO: uncomment
-    # cost = _cost(tile_shape, sample_shape, tensor_meta)
-    # if cost > COST_THRESHOLD:
-    #     raise Exception(
-    #         f"Cost too large ({cost}) for tile shape {tile_shape} and max chunk size {tensor_meta.max_chunk_size}. Dtype={tensor_meta.dtype}"
-    #     )  # TODO: exceptions.py
-
 
 def optimize_tile_shape(
     sample_shape: Tuple[int, ...],
     tensor_meta: TensorMeta,
     validate: bool = True,
     return_history: bool = False,
-):
-    # TODO: docstring
+) -> Tuple[int, ...]:
+    """Find a tile shape using simulated annealing.
 
-    tile_shape, history = _optimize_tile_shape(sample_shape, tensor_meta)
+    Args:
+        sample_shape (Tuple[int]): Shape of the sample that is being tiled.
+        tensor_meta (TensorMeta): Tensor meta for the tensor that is being tiled.
+        validate (bool): Whether to validate the tile shape.
+        return_history (bool): Whether to return the history of the simulated annealing. Useful for debugging.
+
+    Returns:
+        The tile shape found by simulated annealing.
+    """
+
+    tile_shape, history = anneal_tile_shape(sample_shape, tensor_meta)
 
     if validate:
         _validate_tile_shape(tile_shape, sample_shape, tensor_meta)
 
     if return_history:
-        return tile_shape, history
+        return tile_shape, history  # type: ignore
 
     return tile_shape

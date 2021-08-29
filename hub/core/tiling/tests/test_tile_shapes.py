@@ -19,7 +19,7 @@ def _get_tensor_meta(sample_compression: str) -> TensorMeta:
         "generic", sample_compression=sample_compression, dtype="int32"
     )
     tensor_meta.max_chunk_size = 32 * MB
-    tensor_meta.min_chunk_size = 16 * MB
+    tensor_meta.min_chunk_size = 16 * MB  # type: ignore
     return tensor_meta
 
 
