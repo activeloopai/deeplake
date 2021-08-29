@@ -86,9 +86,6 @@ def _optimize_tile_shape(sample_shape: Tuple[int, ...], tensor_meta: TensorMeta)
         energy = _energy(tile_shape, sample_shape, tensor_meta)
         new_energy = _energy(new_tile_shape, sample_shape, tensor_meta)
 
-        print(tile_shape)
-        print(energy, new_energy)
-
         if _transition_probability(energy, new_energy, temperature) > np.random.uniform():
             tile_shape = new_tile_shape
             if new_energy < lowest_energy:
