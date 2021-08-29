@@ -3,9 +3,12 @@ import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
+from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorAlreadyExistsError,
+    GroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
@@ -691,3 +694,33 @@ def test_htypes_list():
         "binary_mask",
         "segment_mask",
     ]
+
+
+def test_hierarchical_tensors(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.create_tensor("x/y")
+    ds.create_tensor("y/x")
+
+    assert isinstance(ds.y, Dataset)
+    assert isinstance(ds.x, Tensor)
+    assert isinstance(ds.y.x, Tensor)
+
+    assert list(ds.groups) == ["y"]
+    assert list(ds.tensors) == ["x"]
+    assert list(ds.all_tensors) == ["x", "y/x"]
+
+    z = ds.y.create_group("z")
+    assert "z" in ds.y.groups
+
+    c = z.create_tensor("a/b/c")
+    print(z._groups, z.groups)
+    d = z.a.b.create_group("d")
+
+    c.append(np.zeros((3, 2)))
+
+    ds = local_ds_generator()
+    c = ds.y.z.a.b.c
+    np.testing.assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
+    assert "d" in ds.y.z.a.b.groups

@@ -80,6 +80,11 @@ class TensorAlreadyExistsError(Exception):
         )
 
 
+class GroupAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Group '{key}' already exists.")
+
+
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
         super().__init__(
