@@ -1,7 +1,7 @@
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.compression import get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
-from typing import Tuple
+from typing import Dict, List, Tuple
 import numpy as np
 
 
@@ -19,7 +19,7 @@ def _energy(
 
     distance = abs(num_bytes_per_tile - tensor_meta.max_chunk_size)
     if (
-        num_bytes_per_tile < tensor_meta.min_chunk_size
+        num_bytes_per_tile < tensor_meta.min_chunk_size  # type: ignore
         or num_bytes_per_tile > tensor_meta.max_chunk_size
     ):
         distance = distance * distance
@@ -58,7 +58,7 @@ def _perturbate_tile_shape(
     sample_shape: Tuple[int, ...],
     unfrozen_dim_mask: np.ndarray,
     max_magnitude: int = 100,
-) -> Tuple[int, ...]:
+) -> np.ndarray:
     # TODO: docstring
 
     num_unfrozen_dims = len(unfrozen_dim_mask.shape)
@@ -82,7 +82,7 @@ def _transition_probability(
 
 def _optimize_tile_shape(
     sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
-) -> Tuple[int, ...]:
+) -> Tuple[Tuple[int, ...], List[Dict]]:
     tile_shape = _propose_tile_shape(sample_shape, tensor_meta)
     unfrozen_dim_mask = tile_shape != sample_shape
 
@@ -117,7 +117,7 @@ def _optimize_tile_shape(
             history.append({"energy": new_energy})
         try_count += 1
 
-    return tuple(best_shape.tolist()), history
+    return tuple(best_shape.tolist()), history  # type: ignore
 
 
 def _validate_tile_shape(
@@ -125,25 +125,25 @@ def _validate_tile_shape(
 ):
     # TODO: docstring
 
-    tile_shape = np.array(tile_shape)
+    tile_shape_arr = np.array(tile_shape)
 
-    if not np.all(tile_shape <= sample_shape):
+    if not np.all(tile_shape_arr <= sample_shape):
         raise Exception(
-            f"Invalid tile shape {tile_shape} for sample shape {sample_shape}."
+            f"Invalid tile shape {tile_shape_arr} for sample shape {sample_shape}."
         )  # TODO
 
-    if np.any(tile_shape <= 0):
+    if np.any(tile_shape_arr <= 0):
         raise Exception()
 
     # TODO: exceptions.py
-    average_num_bytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta)
-    if average_num_bytes_per_tile > tensor_meta.max_chunk_size:
+    average_num_bytes_per_tile = approximate_num_bytes(tile_shape_arr, tensor_meta)
+    if average_num_bytes_per_tile > tensor_meta.max_chunk_size:  # type: ignore
         raise Exception(
-            f"Average num bytes per tile {average_num_bytes_per_tile} is greater than max chunk size {tensor_meta.max_chunk_size}."
+            f"Average num bytes per tile {average_num_bytes_per_tile} is greater than max chunk size {tensor_meta.max_chunk_size}."  # type: ignore
         )
-    elif average_num_bytes_per_tile < tensor_meta.min_chunk_size:
+    elif average_num_bytes_per_tile < tensor_meta.min_chunk_size:  # type: ignore
         raise Exception(
-            f"Average num bytes per tile {average_num_bytes_per_tile} is less than min chunk size {tensor_meta.min_chunk_size}."
+            f"Average num bytes per tile {average_num_bytes_per_tile} is less than min chunk size {tensor_meta.min_chunk_size}."  # type: ignore
         )
 
     # TODO: uncomment

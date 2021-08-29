@@ -582,7 +582,7 @@ class Index:
 
         return value0_index, subslice_index
 
-    def trim(self, amount_per_dimension: Tuple[int]) -> "Index":
+    def trim(self, amount_per_dimension: Tuple[int, ...]) -> "Index":
         # TODO: docstring
 
         new_values = []
