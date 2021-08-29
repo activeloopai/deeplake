@@ -58,7 +58,10 @@ def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
+        print(tensor.index)
         tensor.chunk_engine.update(tensor.index, other, op)
+        if not tensor.index.is_trivial():
+            tensor._skip_next_setitem = True
         return tensor
 
     return inner
@@ -97,6 +100,9 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
+
+        # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
+        self._skip_next_setitem = False
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -298,6 +304,9 @@ class Tensor:
             (1, 3, 3)
         """
         if isinstance(value, Tensor):
+            if value._skip_next_setitem:
+                value._skip_next_setitem = False
+                return
             value = value.numpy(aslist=True)
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
