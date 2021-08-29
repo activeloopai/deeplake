@@ -54,7 +54,7 @@ class Dataset:
         Args:
             storage (StorageProvider): The storage provider used to access the dataset.
             index (Index, optional): The Index object restricting the view of this dataset's tensors.
-            group_index (str, optional): TODO
+            group_index (str): TODO
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             public (bool, optional): Applied only if storage is Hub cloud storage and a new Dataset is being created. Defines if the dataset will have public access.
