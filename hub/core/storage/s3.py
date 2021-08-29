@@ -74,7 +74,10 @@ class S3Provider(StorageProvider):
         try:
             path = posixpath.join(self.path, path)
             if isinstance(content, memoryview):
-                content = content.obj
+                if content.strides == (1,) and content.shape == (len(content.obj),):
+                    content = content.obj
+                else:
+                    content = bytes(content)
             self.client.put_object(
                 Bucket=self.bucket,
                 Body=content,
