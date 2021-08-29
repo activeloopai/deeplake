@@ -398,63 +398,50 @@ class ChunkEngine:
     def extend_empty(self, shape: Tuple[int, ...]):
         """If `shape` is determined to spill over into another chunk,"""  # TODO: docstring
 
-        num_samples = shape[0]
-        if num_samples > 1:
-            # TODO: allow extends for empty
-            raise NotImplementedError(
-                "Currently you can only create 1 empty sample at a time!"
-            )
-        sample_shape = shape[1:]
-
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
-        tensor_meta = self.tensor_meta
-        if tensor_meta.dtype is None:
-            raise CannotInferTilesError(
-                "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
-            )
-        dtype = np.dtype(tensor_meta.dtype)
+        sample_shape = shape[1:]
+        for _ in range(shape[0]):
+            tensor_meta = self.tensor_meta
+            if tensor_meta.dtype is None:
+                raise CannotInferTilesError(
+                    "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
+                )
 
-        nbytes = approximate_num_bytes(shape, tensor_meta)
+            nbytes = approximate_num_bytes(sample_shape, tensor_meta)
+            if self._needs_multiple_chunks(nbytes):
+                # in order for us to create an empty sample that exceeds 1 chunk (needs to be tiled)
+                # we need to:
 
-        if self._needs_multiple_chunks(nbytes):
-            # in order for us to create an empty sample that exceeds 1 chunk (needs to be tiled)
-            # we need to:
+                tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
+                num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
 
-            # TODO: dynamic tile shapes?
+                # initialize our N empty chunks including headers + register with tile encoder
+                idx = self.num_samples
+                tile_encoder = self.tile_encoder
+                chunk_id_encoder = self.chunk_id_encoder
+                for i in range(num_tiles):
+                    tile_chunk = self._create_new_chunk()
+                    empty_buffer = memoryview(bytes())
 
-            # 1. determine our tile shapes (tiles are only as good as these shapes are)
-            tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
+                    # TODO: edge chunks may need to override `tile_shape` (even for non-dynamic tile_shapes)
+                    tile_chunk.append_sample(empty_buffer, self.max_chunk_size, tile_shape)
+                    chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
+                    
+                    # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
+                    tile_encoder.register_sample(idx, sample_shape, tile_shape)  
 
-            # 2. find the number of chunks/tiles required (N)
-            num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+                tensor_meta.update_shape_interval(sample_shape)
+                tensor_meta.length += 1
 
-            # 3. initialize our N empty chunks including headers + register with tile encoder
-            idx = self.num_samples
-            tile_encoder = self.tile_encoder
-            chunk_id_encoder = self.chunk_id_encoder
-            for i in range(num_tiles):
-                tile_chunk = self._create_new_chunk()
-                empty_buffer = memoryview(bytes())
+                # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
 
-                # TODO: edge chunks may need to override `tile_shape` (even for non-dynamic tile_shapes)
-                tile_chunk.append_sample(empty_buffer, self.max_chunk_size, tile_shape)
-                chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
+                self._synchronize_cache()
+                self.cache.maybe_flush()
 
-                tile_encoder.register_sample(idx, sample_shape, tile_shape)
-
-            # 4. update tensor_meta (shape and stuffs)
-            tensor_meta.update_shape_interval(sample_shape)
-            tensor_meta.length += num_samples
-
-            # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method
-
-            self._synchronize_cache()
-            self.cache.maybe_flush()
-
-        else:
-            self.extend(np.zeros(shape, dtype=tensor_meta.dtype))
+            else:
+                self.append(np.zeros(sample_shape, dtype=tensor_meta.dtype))
 
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         """Update data at `index` with `samples`."""
