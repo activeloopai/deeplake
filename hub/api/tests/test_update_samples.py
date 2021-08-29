@@ -276,3 +276,15 @@ def test_inplace_updates(memory_ds, compression):
         ds.x.numpy(),
         np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
     )
+
+    # Different shape
+    ds.x.append(np.zeros((100, 50, 3), dtype="uint8"))
+    ds.x[5] += 1
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+    np.testing.assert_array_equal(
+        ds.x[:5].numpy(),
+        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+    )
+    ds.x[:5] *= 0
+    np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))

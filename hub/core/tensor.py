@@ -58,7 +58,6 @@ def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
-        print(tensor.index)
         tensor.chunk_engine.update(tensor.index, other, op)
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
