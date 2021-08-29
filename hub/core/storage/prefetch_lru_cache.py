@@ -376,11 +376,12 @@ class PrefetchLRUCache(LRUCache):
     ) -> List[Tuple[str, str]]:
         """Processes the chunk names dictionary and returns names of chunks that need to be fetched"""
         missing_chunks = []
+        all_keys = self._all_keys()
         for tensor, chunk_names in chunk_names_dict.items():
             for chunk_name in chunk_names:
                 chunk = (tensor, chunk_name)
                 shm_name = self.chunk_shared_mem_map.get(chunk)
-                if shm_name is None or shm_name not in self._all_keys():
+                if shm_name is None or shm_name not in all_keys:
                     missing_chunks.append((tensor, chunk_name))
                 else:
                     self.required_chunks.add(chunk)

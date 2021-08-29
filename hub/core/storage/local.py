@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
@@ -23,6 +24,7 @@ class LocalProvider(StorageProvider):
         if os.path.isfile(root):
             raise FileAtPathException(root)
         self.root = root
+        self.files: Optional[Set[str]] = None
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
@@ -76,6 +78,8 @@ class LocalProvider(StorageProvider):
             os.makedirs(directory, exist_ok=True)
         file = open(full_path, "wb")
         file.write(value)
+        if self.files is not None:
+            self.files.add(path)
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -97,6 +101,8 @@ class LocalProvider(StorageProvider):
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
+            if self.files is not None:
+                self.files.discard(path)
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
@@ -133,12 +139,16 @@ class LocalProvider(StorageProvider):
         Returns:
             set: set of all the objects found at the root of the Provider.
         """
-        full_path = os.path.expanduser(self.root)
-        key_set = set()
-        for root, dirs, files in os.walk(full_path):
-            for file in files:
-                key_set.add(os.path.relpath(os.path.join(full_path, file), full_path))
-        return key_set
+        if self.files is None:
+            full_path = os.path.expanduser(self.root)
+            key_set = set()
+            for root, dirs, files in os.walk(full_path):
+                for file in files:
+                    key_set.add(
+                        os.path.relpath(os.path.join(full_path, file), full_path)
+                    )
+            self.files = key_set
+        return self.files
 
     def _check_is_file(self, path: str):
         """Checks if the path is a file. Returns the full_path to file if True.
