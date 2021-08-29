@@ -24,7 +24,7 @@ from hub.util.exceptions import (
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
     TensorAlreadyExistsError,
-    GroupAlreadyExistsError,
+    TensorGroupAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
     LockedException,
@@ -595,5 +595,5 @@ class Dataset:
         if self.is_group():
             return self.root.create_group(posixpath.join(self.group_index, name))
         if name in self._groups:
-            raise GroupAlreadyExistsError(name)
+            raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)

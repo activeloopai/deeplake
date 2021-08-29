@@ -82,7 +82,9 @@ class TensorAlreadyExistsError(Exception):
 
 class TensorGroupAlreadyExistsError(Exception):
     def __init__(self, key: str):
-        super().__init__(f"Tensor group '{key}' already exists. A tensor group is created when a tensor has a '/' in its name, or using 'ds.create_group'.")
+        super().__init__(
+            f"Tensor group '{key}' already exists. A tensor group is created when a tensor has a '/' in its name, or using 'ds.create_group'."
+        )
 
 
 class InvalidTensorNameError(Exception):

@@ -8,7 +8,7 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
-    GroupAlreadyExistsError,
+    TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
