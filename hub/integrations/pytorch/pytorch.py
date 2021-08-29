@@ -57,6 +57,10 @@ def dataset_to_pytorch(
                 get_pytorch_local_storage(dataset) if use_local_cache else None
             )
 
+            # currently cache can't work across sessions so it's better to clear it
+            if next_storage is not None:
+                next_storage.clear()
+
             try:
                 self.cache = cache(
                     cache_storage=cache_storage,
