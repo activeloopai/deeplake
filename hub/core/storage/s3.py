@@ -73,7 +73,8 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
-            content = bytearray(memoryview(content))
+            if isinstance(content, memoryview):
+                content = content.obj
             self.client.put_object(
                 Bucket=self.bucket,
                 Body=content,
