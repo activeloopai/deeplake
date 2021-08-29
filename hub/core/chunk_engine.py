@@ -1,6 +1,6 @@
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
-from hub.util.casting import get_dtype
+from hub.util.casting import get_dtype, intelligent_cast
 from hub.core.compression import decompress_array
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from math import ceil
@@ -24,7 +24,7 @@ from hub.util.keys import (
 )
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
-
+import hub
 from itertools import repeat
 
 import numpy as np
@@ -446,8 +446,16 @@ class ChunkEngine:
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
 
-    def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+    def update(
+        self,
+        index: Index,
+        samples: Union[Sequence[SampleValue], SampleValue],
+        operator: Optional[str] = None,
+    ):
         """Update data at `index` with `samples`."""
+
+        if operator is not None:
+            return self._update_with_operator(index, samples, operator)
 
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -496,6 +504,27 @@ class ChunkEngine:
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
         )
+
+    def _update_with_operator(
+        self,
+        index: Index,
+        samples: Union[Sequence[SampleValue], SampleValue],
+        operator: str,
+    ):
+        """Update data at `index` with the output of elem-wise operatorion with samples"""
+        try:
+            if isinstance(samples, hub.core.tensor.Tensor):
+                samples = samples.numpy()
+            arr = self.numpy(index)
+        except DynamicTensorNumpyError:
+            raise NotImplementedError(
+                "Inplace update operations are not available for dynamic tensors yet."
+            )
+        samples = intelligent_cast(
+            samples, self.tensor_meta.dtype, self.tensor_meta.htype
+        )
+        getattr(arr, operator)(samples)
+        self.update(index, arr)
 
     def numpy(
         self, index: Index, aslist: bool = False

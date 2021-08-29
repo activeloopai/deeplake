@@ -124,8 +124,7 @@ def deserialize_chunk(
         chunk data as memoryview.
     """
     incoming_mview = isinstance(byts, memoryview)
-    if not incoming_mview:
-        byts = memoryview(byts)
+    byts = memoryview(byts)
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
@@ -148,6 +147,7 @@ def deserialize_chunk(
             .copy()
         )
         offset += shape_info_nbytes
+
     # Read byte positions
     byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
     offset += 4
@@ -163,6 +163,7 @@ def deserialize_chunk(
             .copy()
         )
         offset += byte_positions_nbytes
+
     # Read data
     data = byts[offset:]
     if incoming_mview and copy:
@@ -319,7 +320,7 @@ def serialize_input_samples(
             shapes.append(shape)
     elif (
         isinstance(samples, np.ndarray)
-        or np.iscalar(samples)
+        or np.isscalar(samples)
         or isinstance(samples, Sequence)
     ):
         samples = intelligent_cast(samples, dtype, htype)
@@ -340,6 +341,6 @@ def serialize_input_samples(
             "Extending with `Sample` instance is not supported yet."
         )
     else:
-        raise TypeError(f"Cannot serializes samples of type {type(samples)}")
+        raise TypeError(f"Cannot serialize samples of type {type(samples)}")
     _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
     return buff, nbytes, shapes

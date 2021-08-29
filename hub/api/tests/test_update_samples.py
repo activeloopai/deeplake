@@ -223,10 +223,6 @@ def test_failures(memory_ds):
     with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
-    # inplace operators
-    with pytest.raises(NotImplementedError):
-        memory_ds.labels[0:5] += 1
-
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
@@ -252,3 +248,43 @@ def test_warnings(memory_ds):
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):
         tensor[:] = np.zeros((10, 32, 31), dtype="int32")
+
+
+@pytest.mark.parametrize(
+    "compression",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
+def test_inplace_updates(memory_ds, compression):
+    ds = memory_ds
+    ds.create_tensor("x", **compression)
+    ds.x.extend(np.zeros((5, 32, 32, 3), dtype="uint8"))
+    ds.x += 1
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)))
+    ds.x += ds.x
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 2)
+    ds.x *= np.zeros(3, dtype="uint8")
+    np.testing.assert_array_equal(ds.x.numpy(), np.zeros((5, 32, 32, 3)))
+    ds.x += 6
+    ds.x //= 2
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 3)
+    ds.x[:3] *= 0
+    np.testing.assert_array_equal(
+        ds.x.numpy(),
+        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+    )
+
+    # Different shape
+    ds.x.append(np.zeros((100, 50, 3), dtype="uint8"))
+    ds.x[5] += 1
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+    np.testing.assert_array_equal(
+        ds.x[:5].numpy(),
+        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+    )
+    ds.x[:5] *= 0
+    np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
