@@ -145,7 +145,9 @@ class ChunkEngine:
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        return getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+        return (
+            getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+        )
 
     @property
     def min_chunk_size(self):
@@ -476,7 +478,9 @@ class ChunkEngine:
         iterator = value0_index.values[0].indices(length)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
-            local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(global_sample_index)
+            local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
+                global_sample_index
+            )
 
             tiles, tile_shape_mask = self.download_required_tiles(
                 global_sample_index, subslice_index
@@ -493,13 +497,19 @@ class ChunkEngine:
                     # sanity check
                     tile_shape = tile_shape_mask[tile_index]
                     if tile_sample.shape != tile_shape:
-                        raise CorruptedSampleError(f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}")
+                        raise CorruptedSampleError(
+                            f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
+                        )
 
-                    low, high = get_tile_bounds(tile_index, tile_shape)  # TODO: this only works for non-dynamic tile shapes
+                    low, high = get_tile_bounds(
+                        tile_index, tile_shape
+                    )  # TODO: this only works for non-dynamic tile shapes
                     trimmed_subslice_index = subslice_index.trim(low)
 
                     # TODO: maybe this should be a different function? lots of stuff going on here:
-                    subslice_tile_sample = trimmed_subslice_index.apply([tile_sample], include_first_value=True)[0]
+                    subslice_tile_sample = trimmed_subslice_index.apply(
+                        [tile_sample], include_first_value=True
+                    )[0]
 
                     subslice_tile_sample[:] = sample
 

@@ -17,7 +17,7 @@ def approximate_num_bytes(shape, tensor_meta: TensorMeta) -> int:
     num_bytes = _num_bytes_without_compression(shape, np.dtype(tensor_meta.dtype))
     factor = get_compression_factor(tensor_meta)
     return num_bytes // factor
-    
+
 
 def ceildiv(a: int, b: int) -> int:
     """Computes the ceiling of the division of two ints.

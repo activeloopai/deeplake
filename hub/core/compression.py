@@ -9,7 +9,7 @@ from hub.util.exceptions import (
 from typing import Union, Tuple
 import numpy as np
 
-from PIL import Image # type: ignore
+from PIL import Image  # type: ignore
 from io import BytesIO
 import mmap
 

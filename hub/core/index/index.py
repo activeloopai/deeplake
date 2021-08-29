@@ -297,7 +297,6 @@ class IndexEntry:
             return self.value.stop
         raise NotImplementedError
 
-
     def trim(self, amount: int) -> "IndexEntry":
         # TODO: docstring
 
