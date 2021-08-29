@@ -1,5 +1,5 @@
 from hub.util.cache_chain import generate_chain
-from hub.constants import MB
+from hub.constants import LOCAL_CACHE_PREFIX, MB
 from hub.util.tag import check_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
@@ -106,3 +106,13 @@ def get_storage_and_cache_chain(
         storage, memory_cache_size_bytes, local_cache_size_bytes, path
     )
     return storage, storage_chain
+
+
+def get_pytorch_local_storage(dataset):
+    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
+    local_cache_name: str = dataset.path + "_pytorch"
+    local_cache_name = local_cache_name.replace("://", "_")
+    local_cache_name = local_cache_name.replace("/", "_")
+    local_cache_name = local_cache_name.replace("\\", "_")
+    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
+    return LocalProvider(local_cache_path)

@@ -334,9 +334,12 @@ class Dataset:
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
         batch_size: Optional[int] = 1,
-        drop_last: Optional[bool] = False,
+        drop_last: bool = False,
         collate_fn: Optional[Callable] = None,
-        pin_memory: Optional[bool] = False,
+        pin_memory: bool = False,
+        shuffle: bool = False,
+        buffer_size: int = 10 * 1000,
+        use_local_cache: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -349,13 +352,16 @@ class Dataset:
             tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int, optional): Number of samples per batch to load. Default value is 1.
-            drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
+            drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
                 If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             collate_fn (Callable, optional): merges a list of samples to form a mini-batch of Tensor(s). Used when using batched loading from a map-style dataset.
                 Read torch.utils.data.DataLoader docs for more details.
-            pin_memory (bool, optional): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
+            pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
+            use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -371,6 +377,9 @@ class Dataset:
             drop_last=drop_last,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
+            shuffle=shuffle,
+            buffer_size=buffer_size,
+            use_local_cache=use_local_cache,
         )
 
     def _get_total_meta(self):

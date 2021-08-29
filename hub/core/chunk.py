@@ -301,10 +301,10 @@ class Chunk(Cachable):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes):
+    def frombuffer(cls, buffer: bytes, copy=True):
         if not buffer:
             return cls()
-        version, shapes, byte_positions, data = deserialize_chunk(buffer)
+        version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
