@@ -564,3 +564,15 @@ class InvalidSubsliceUpdateShapeError(UpdateSampleError):
         super().__init__(
             f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples_shape} Expected shape: {index_shape}"
         )
+
+
+class TileOptimizerError(Exception):
+    def __init__(
+        self,
+        reason: str,
+        found_tile_shape: Tuple[int, ...],
+        overall_sample_shape: Tuple[int, ...],
+    ):
+        super().__init__(
+            f"{reason}. found_tile_shape={found_tile_shape}, overall_sample_shape={overall_sample_shape}"
+        )

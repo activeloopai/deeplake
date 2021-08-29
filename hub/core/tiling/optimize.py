@@ -1,3 +1,4 @@
+from hub.util.exceptions import TileOptimizerError
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.compression import get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
@@ -152,28 +153,32 @@ def anneal_tile_shape(
 def _validate_tile_shape(
     tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], tensor_meta: TensorMeta
 ):
-    # TODO: docstring
+    """Raises appropriate errors if the tile shape is not valid.
+
+    Args:
+        tile_shape (Tuple[int, ...]): Tile shape to validate.
+        sample_shape (Tuple[int, ...]): Shape of the sample that is being tiled.
+        tensor_meta (TensorMeta): Tile meta for the tensor that is being tiled.
+
+    Raises:
+        TileOptimizerError: If the tile shape is not valid.
+    """
 
     tile_shape_arr = np.array(tile_shape)
-
-    if not np.all(tile_shape_arr <= sample_shape):
-        raise Exception(
-            f"Invalid tile shape {tile_shape_arr} for sample shape {sample_shape}."
-        )  # TODO
-
-    if np.any(tile_shape_arr <= 0):
-        raise Exception()
-
-    # TODO: exceptions.py
     average_num_bytes_per_tile = approximate_num_bytes(tile_shape_arr, tensor_meta)
-    if average_num_bytes_per_tile > tensor_meta.max_chunk_size:  # type: ignore
-        raise Exception(
-            f"Average num bytes per tile {average_num_bytes_per_tile} is greater than max chunk size {tensor_meta.max_chunk_size}."  # type: ignore
-        )
+
+    failure_reason = None
+    if not np.all(tile_shape_arr <= sample_shape):
+        failure_reason = "Tile shape must not be > sample shape on any dimension"
+    elif np.any(tile_shape_arr <= 0):
+        failure_reason = "Tile shape must not be <= 0 on any dimension"
+    elif average_num_bytes_per_tile > tensor_meta.max_chunk_size:  # type: ignore
+        failure_reason = f"Number of bytes per tile ({average_num_bytes_per_tile}) is larger than what is allowed ({tensor_meta.max_chunk_size})"  # type: ignore
     elif average_num_bytes_per_tile < tensor_meta.min_chunk_size:  # type: ignore
-        raise Exception(
-            f"Average num bytes per tile {average_num_bytes_per_tile} is less than min chunk size {tensor_meta.min_chunk_size}."  # type: ignore
-        )
+        failure_reason = f"Number of bytes per tile ({average_num_bytes_per_tile}) is smaller than what is allowed ({tensor_meta.min_chunk_size})"  # type: ignore
+
+    if failure_reason is not None:
+        raise TileOptimizerError(failure_reason, tile_shape, sample_shape)
 
 
 def optimize_tile_shape(
