@@ -537,15 +537,6 @@ class CorruptedSampleError(Exception):
         super().__init__(f"Invalid {compression} file.")
 
 
-class TilingError(Exception):
-    pass
-
-
-class CannotInferTilesError(TilingError):
-    def __init__(self, reason):
-        super().__init__(reason)
-
-
 class UpdateSampleError(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -566,7 +557,11 @@ class InvalidSubsliceUpdateShapeError(UpdateSampleError):
         )
 
 
-class TileOptimizerError(Exception):
+class TilingError(Exception):
+    pass
+
+
+class TileOptimizerError(TilingError):
     def __init__(
         self,
         reason: str,
@@ -576,3 +571,8 @@ class TileOptimizerError(Exception):
         super().__init__(
             f"{reason}. found_tile_shape={found_tile_shape}, overall_sample_shape={overall_sample_shape}"
         )
+
+
+class CannotInferTilesError(TilingError):
+    def __init__(self, reason):
+        super().__init__(reason)
