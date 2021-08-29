@@ -134,6 +134,7 @@ class Dataset:
             "path": self.path,
             "_read_only": self.read_only,
             "index": self.index,
+            "group_index": self.group_index,
             "public": self.public,
             "storage": self.storage,
             "_token": self.token,
@@ -221,7 +222,8 @@ class Dataset:
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
-        if name in vars(self):
+
+        if name in dir(self):
             raise InvalidTensorNameError(name)
 
         if self.is_group():
@@ -234,7 +236,7 @@ class Dataset:
             )
 
         if "/" in name:
-            self.create_group(posixpath.split(name)[0])
+            self._create_group(posixpath.split(name)[0])
 
         # Seperate meta and info
 
@@ -263,7 +265,6 @@ class Dataset:
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
-        ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
 
@@ -322,7 +323,7 @@ class Dataset:
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-
+            ffw_dataset_meta(self.meta)
             for tensor_name in self.meta.tensors:
                 self._tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
@@ -508,7 +509,7 @@ class Dataset:
         return self._token
 
     @property
-    def tensors(self) -> Dict[str, Tensor]:
+    def _ungrouped_tensors(self) -> Dict[str, Tensor]:
         return {
             posixpath.basename(k): v
             for k, v in self._tensors.items()
@@ -524,7 +525,7 @@ class Dataset:
         ]
 
     @property
-    def all_tensors(self) -> Dict[str, Tensor]:
+    def tensors(self) -> Dict[str, Tensor]:
         return {t: self[t] for t in self._all_tensors_filtered}
 
     @property
@@ -576,18 +577,23 @@ class Dataset:
             self.verbose,
         )
 
-    def create_group(self, name: str) -> "Dataset":
+    def _create_group(self, name: str) -> "Dataset":
         groups = self._groups
-        if self.is_group():
-            return self.root.create_group(posixpath.join(self.group_index, name))
-        if name in self._tensors:
-            raise TensorAlreadyExistsError(name)
-        if name in groups:
-            raise GroupAlreadyExistsError(name)
         ret = name
         while name:
+            if name in self._tensors:
+                raise TensorAlreadyExistsError(name)
             groups.append(name)
             name, _ = posixpath.split(name)
-        ffw_dataset_meta(self.meta)
+        unique = set(groups)
+        groups.clear()
+        groups += unique
         self.storage.maybe_flush()
         return self[ret]
+
+    def create_group(self, name: str) -> "Dataset":
+        if self.is_group():
+            return self.root.create_group(posixpath.join(self.group_index, name))
+        if name in self._groups:
+            raise GroupAlreadyExistsError(name)
+        return self._create_group(name)

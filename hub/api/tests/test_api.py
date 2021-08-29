@@ -708,14 +708,12 @@ def test_hierarchical_tensors(local_ds_generator):
     assert isinstance(ds.y.x, Tensor)
 
     assert list(ds.groups) == ["y"]
-    assert list(ds.tensors) == ["x"]
-    assert list(ds.all_tensors) == ["x", "y/x"]
-
+    assert list(ds.tensors) == ["x", "y/x"]
+    assert list(ds.y.tensors) == ["x"]
     z = ds.y.create_group("z")
     assert "z" in ds.y.groups
 
     c = z.create_tensor("a/b/c")
-    print(z._groups, z.groups)
     d = z.a.b.create_group("d")
 
     c.append(np.zeros((3, 2)))
