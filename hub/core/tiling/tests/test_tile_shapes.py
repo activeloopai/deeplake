@@ -14,6 +14,15 @@ np.random.seed(1)
 # https://gist.github.com/mccrearyd/d4a9506813fe64d42c63b090997d9145
 
 
+def _get_tensor_meta(sample_compression: str) -> TensorMeta:
+    tensor_meta = TensorMeta(
+        "generic", sample_compression=sample_compression, dtype="int32"
+    )
+    tensor_meta.max_chunk_size = 32 * MB
+    tensor_meta.min_chunk_size = 16 * MB
+    return tensor_meta
+
+
 # sample_shape, sample_compression, expected_num_tiles
 @pytest.mark.parametrize(
     "config",
@@ -35,12 +44,7 @@ np.random.seed(1)
 def test_simple(config):
     # for simple cases, the shape optimization should find the global minimum energy state
     sample_shape, sample_compression, expected_num_tiles = config
-
-    tensor_meta = TensorMeta(
-        "generic", sample_compression=sample_compression, dtype="int32"
-    )
-    tensor_meta.max_chunk_size = 32 * MB
-    tensor_meta.min_chunk_size = 16 * MB
+    tensor_meta = _get_tensor_meta(sample_compression)
 
     actual_tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
     actual_num_tiles = num_tiles_for_sample(actual_tile_shape, sample_shape)
@@ -64,12 +68,7 @@ def test_simple(config):
 @pytest.mark.parametrize("sample_compression", [None, "png"])
 def test_complex(sample_shape, sample_compression):
     # for complex cases, the shape optimization should find an energy state good enough
-
-    tensor_meta = TensorMeta(
-        "generic", sample_compression=sample_compression, dtype="int32"
-    )
-    tensor_meta.max_chunk_size = 32 * MB
-    tensor_meta.min_chunk_size = 16 * MB
+    tensor_meta = _get_tensor_meta(sample_compression)
 
     actual_tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
     actual_num_bytes_per_tile = approximate_num_bytes(actual_tile_shape, tensor_meta)
