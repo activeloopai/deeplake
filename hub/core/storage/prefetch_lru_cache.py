@@ -25,6 +25,8 @@ from hub.util.prefetch_cache import read_and_store_chunk_group
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
+# TODO: fetching from local cache happens on the main thread, this needs to be improved
+# TODO: transforms are performed on the main thread, this needs to be improved
 class PrefetchLRUCache(LRUCache):
     """Creates a cache that fetches multiple chunks parallelly."""
 
