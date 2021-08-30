@@ -367,6 +367,7 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
         chunk.name = chunk_name
+        
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -417,10 +418,11 @@ class ChunkEngine:
                 tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
                 num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
 
-                # initialize our N empty chunks including headers + register with tile encoder
                 idx = self.num_samples
                 tile_encoder = self.tile_encoder
                 chunk_id_encoder = self.chunk_id_encoder
+
+                # initialize our N empty chunks including headers + register with tile encoder
                 for i in range(num_tiles):
                     tile_chunk = self._create_new_chunk()
                     empty_buffer = memoryview(bytes())
@@ -449,6 +451,8 @@ class ChunkEngine:
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         """Update data at `index` with `samples`."""
 
+        # TODO: break into smaller functions
+
         self.cache.check_readonly()
         tensor_meta = self.tensor_meta
         tile_encoder = self.tile_encoder
@@ -458,14 +462,13 @@ class ChunkEngine:
         ffw_tensor_meta(tensor_meta)
         ffw_tile_encoder(tile_encoder)
 
-        dtype = tensor_meta.dtype
-        length = self.num_samples
         value0_index, subslice_index = index.split_subslice()
 
-        samples = _make_sequence(samples, length)
+        index_length: int = value0_index.shape[0]  # type: ignore
+        samples = _make_sequence(samples, index_length)
 
         # update one sample at a time
-        iterator = value0_index.values[0].indices(length)
+        iterator = value0_index.values[0].indices(index_length)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
@@ -475,15 +478,16 @@ class ChunkEngine:
             tiles, tile_shape_mask = self.download_required_tiles(
                 global_sample_index, subslice_index
             )
+
             is_tiled = tiles.size > 1
+            # if is_tiled:
+            for tile_index, tile in np.ndenumerate(tiles):
+                if tile is None:
+                    continue
 
-            if is_tiled:
-                for tile_index, tile in np.ndenumerate(tiles):
-                    if tile is None:
-                        continue
+                tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
 
-                    tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
-
+                if is_tiled:
                     # sanity check
                     tile_shape = tile_shape_mask[tile_index]
                     if tile_sample.shape != tile_shape:
@@ -491,22 +495,22 @@ class ChunkEngine:
                             f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
                         )
 
-                    low, high = get_tile_bounds(
-                        tile_index, tile_shape
-                    )  # TODO: this only works for non-dynamic tile shapes
-                    trimmed_subslice_index = subslice_index.trim(low)
+                low, high = get_tile_bounds(
+                    tile_index, tile_sample.shape
+                )  # TODO: this only works for non-dynamic tile shapes
+                trimmed_subslice_index = subslice_index.trim(low)
 
-                    # TODO: maybe this should be a different function? lots of stuff going on here:
-                    subslice_tile_sample = trimmed_subslice_index.apply(
-                        [tile_sample], include_first_value=True
-                    )[0]
+                # TODO: maybe this should be a different function? lots of stuff going on here:
+                subslice_tile_sample = trimmed_subslice_index.apply(
+                    [tile_sample], include_first_value=True
+                )[0]
 
-                    subslice_tile_sample[:] = sample
+                subslice_tile_sample[:] = sample
 
-                    buffer, shape = serialize_input_sample(tile_sample, tensor_meta)
-                    tile.update_sample(local_sample_index, buffer, shape)
-            else:
-                raise NotImplementedError("Cannot update non-tiled samples yet.")
+                buffer, shape = serialize_input_sample(tile_sample, tensor_meta)
+                tile.update_sample(local_sample_index, buffer, shape)
+            # else:
+            # raise NotImplementedError("Cannot update non-tiled samples yet.")
 
             self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
             self._sync_tiles(tiles)
