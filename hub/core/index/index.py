@@ -305,10 +305,14 @@ class IndexEntry:
 
         if isinstance(self.value, slice):
             s = self.value
-            if s.start is None:
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, None)
+            elif s.start is None:
                 new_slice = slice(None, s.stop - amount, s.step)
             else:
                 new_slice = slice(s.start - amount, s.stop - amount, s.step)
+
             return IndexEntry(new_slice)
 
         raise NotImplementedError
