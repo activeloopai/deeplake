@@ -47,7 +47,6 @@ def test(local_ds_generator, images_compression):
     
     expected[6][10:20, 0] = np.ones((10), dtype="uint8") * 5
     expected[7][10:20, 0] = np.ones((10), dtype="uint8") * 5
-    expected[8][10:20, 0] = np.ones((10), dtype="uint8") * 5
 
     expected[9] = np.ones((0, 10), dtype="uint8")
 
