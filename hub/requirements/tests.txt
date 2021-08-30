@@ -6,4 +6,3 @@ mypy
 black
 darglint
 kaggle
-typing_extensions
