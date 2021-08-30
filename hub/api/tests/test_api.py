@@ -113,6 +113,7 @@ def test_larger_data_memory(memory_ds):
     assert len(memory_ds) == 4
     assert memory_ds.image.shape == (4, 4096, 4096)
     np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((4, 4096, 4096)))
+    assert memory_ds.image.num_chunks == 2
 
 
 def test_stringify(memory_ds):
