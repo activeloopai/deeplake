@@ -27,7 +27,7 @@ def test(local_ds_generator, images_compression):
     ds = local_ds_generator()
     ds.create_tensor("images", htype="image", sample_compression=images_compression)
     ds.images.extend(np.zeros((10, 28, 28), dtype=np.uint8))
-    
+
     ds = local_ds_generator()
     ds.images[0] = np.ones((25, 30), dtype=np.uint8)
     ds.images[1] = np.ones((3, 4), dtype=np.uint8)
@@ -44,7 +44,7 @@ def test(local_ds_generator, images_compression):
     expected[0] = np.ones((25, 30), dtype="uint8")
     expected[1] = np.ones((3, 4), dtype="uint8")
     expected[2:5] = np.ones((3, 5, 5), dtype="uint8")
-    
+
     expected[6][10:20, 0] = np.ones((10), dtype="uint8") * 5
     expected[7][10:20, 0] = np.ones((10), dtype="uint8") * 5
 

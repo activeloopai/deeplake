@@ -382,6 +382,11 @@ class ChunkEngine:
 
         return chunk
 
+    def _update_tensor_meta(self, shape: Tuple[int, ...], num_new_samples: int):
+        tensor_meta = self.tensor_meta
+        tensor_meta.update_shape_interval(shape)
+        tensor_meta.length += num_new_samples
+
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
@@ -394,13 +399,10 @@ class ChunkEngine:
 
         for sample in samples:
             buffer, shape = serialize_input_sample(sample, tensor_meta)
-
             # TODO: if buffer exceeds a single chunk, use `extend_empty`!
 
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
-            # TODO: move these functions somewhere usable by update and any other methods
-            tensor_meta.update_shape_interval(shape)
-            tensor_meta.length += 1
+            self._update_tensor_meta(shape, 1)
             self._append_bytes(buffer, shape)
 
         self.cache.maybe_flush()
@@ -449,8 +451,7 @@ class ChunkEngine:
                     # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
                     tile_encoder.register_sample(idx, sample_shape, tile_shape)
 
-                tensor_meta.update_shape_interval(sample_shape)
-                tensor_meta.length += 1
+                self._update_tensor_meta(sample_shape, 1)
 
                 # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
 
@@ -485,7 +486,7 @@ class ChunkEngine:
         iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
-            
+
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
             )
@@ -498,7 +499,9 @@ class ChunkEngine:
 
             # TODO: re-tile if necessary!
             if is_full_sample_replacement and is_tiled:
-                raise NotImplementedError("Replacing tiles without a subslice is not yet supported!")
+                raise NotImplementedError(
+                    "Replacing tiles without a subslice is not yet supported!"
+                )
 
             for tile_index, tile in np.ndenumerate(tiles):
                 if tile is None:
@@ -511,7 +514,9 @@ class ChunkEngine:
                 else:
 
                     tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
-                    tile_sample = np.array(tile_sample)  # memcopy necessary to support inplace updates using numpy slicing
+                    tile_sample = np.array(
+                        tile_sample
+                    )  # memcopy necessary to support inplace updates using numpy slicing
 
                     if is_tiled:
                         # sanity check
@@ -540,10 +545,7 @@ class ChunkEngine:
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
                 tile.update_sample(local_sample_index, buffer, shape)
 
-                # TODO: update tensor meta?
-
-            # else:
-            # raise NotImplementedError("Cannot update non-tiled samples yet.")
+                self._update_tensor_meta(shape, 0)
 
             self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
             self._sync_tiles(tiles)

@@ -136,7 +136,6 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     # np.testing.assert_array_equal(ds.large.numpy(), np.ones((5, 5), dtype="int32") * 4)
     # assert ds.large.shape == (1, 5, 5)
     # assert ds.large.num_chunks == 1
-    
 
 
 def test_failures(memory_ds):
