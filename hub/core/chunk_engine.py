@@ -545,7 +545,8 @@ class ChunkEngine:
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
                 tile.update_sample(local_sample_index, buffer, shape)
 
-                self._update_tensor_meta(shape, 0)
+                if is_full_sample_replacement:
+                    self._update_tensor_meta(shape, 0)
 
             self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
             self._sync_tiles(tiles)
