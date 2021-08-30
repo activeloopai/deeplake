@@ -197,9 +197,13 @@ class GCSProvider(StorageProvider):
         self._set_bucket_and_path()
         if not self.token:
             self.token = None
-        scoped_credentials = GCloudCredentials(self.token, project=self.project)
+        self.scoped_credentials = GCloudCredentials(self.token, project=self.project)
         self.retry = retry.Retry(deadline=60)
-        client = storage.Client(credentials=scoped_credentials.credentials)
+        client = storage.Client(credentials=self.scoped_credentials.credentials)
+        self.client_bucket = client.get_bucket(self.bucket)
+
+    def reinitialize_provider(self):
+        client = storage.Client(credentials=self.scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
     def _set_bucket_and_path(self):
