@@ -115,7 +115,7 @@ class Pipeline:
             ds_out[tensor].chunk_engine.chunk_id_encoder
 
         compute_provider = get_compute_provider(scheduler, num_workers)
-        if isinstance(ds_out, storage, LRUCache) and isinstance(
+        if isinstance(ds_out.storage, LRUCache) and isinstance(
             ds_out.storage.next_storage, GCSProvider
         ):
             ds_out.storage.next_storage.reinitialize_provider()
