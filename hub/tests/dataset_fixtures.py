@@ -80,12 +80,7 @@ def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
 @pytest.fixture
 def ds(request):
     """Used with parametrize to use all enabled dataset fixtures."""
-    return request.getfixturevalue(request.param)
-
-
-@pytest.fixture
-def non_gcs_ds(request):
-    """Used with parametrize to use all enabled dataset fixtures except gcs_ds."""
+    print(request.param)
     return request.getfixturevalue(request.param)
 
 
