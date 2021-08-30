@@ -142,6 +142,11 @@ class ChunkEngine:
         self.tensor_meta.max_chunk_size = self.max_chunk_size
         self.tensor_meta.min_chunk_size = self.min_chunk_size
 
+    def is_last_chunk_a_tile(self) -> bool:
+        # TODO: explain
+
+        return self.tensor_meta.length - 1 in self.tile_encoder
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -319,6 +324,10 @@ class ChunkEngine:
         if last_chunk is None:
             return False
 
+        # can never append new samples to a tile chunk
+        if self.is_last_chunk_a_tile():
+            return False
+
         incoming_num_bytes = len(buffer)
 
         if last_chunk.is_under_min_space(self.min_chunk_size):
@@ -366,8 +375,11 @@ class ChunkEngine:
         chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
+
+        # TODO: make these actual properties of the Chunk class
         chunk.name = chunk_name
-        
+        chunk.id = chunk_id
+
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -486,6 +498,7 @@ class ChunkEngine:
                     continue
 
                 tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+                tile_sample = np.array(tile_sample)
 
                 if is_tiled:
                     # sanity check
@@ -495,12 +508,14 @@ class ChunkEngine:
                             f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
                         )
 
-                low, high = get_tile_bounds(
-                    tile_index, tile_sample.shape
-                )  # TODO: this only works for non-dynamic tile shapes
-                trimmed_subslice_index = subslice_index.trim(low)
+                    low, high = get_tile_bounds(
+                        tile_index, tile_sample.shape
+                    )  # TODO: this only works for non-dynamic tile shapes
 
-                # TODO: maybe this should be a different function? lots of stuff going on here:
+                    trimmed_subslice_index = subslice_index.trim(low)
+                else:
+                    trimmed_subslice_index = subslice_index
+
                 subslice_tile_sample = trimmed_subslice_index.apply(
                     [tile_sample], include_first_value=True
                 )[0]

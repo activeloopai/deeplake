@@ -2,7 +2,6 @@ import numpy as np
 
 import hub
 from hub.constants import ENCODING_DTYPE
-from hub.core.index.index import Index
 from hub.util.tiles import ceildiv
 from hub.core.storage.cachable import Cachable
 
