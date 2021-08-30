@@ -202,7 +202,7 @@ class GCSProvider(StorageProvider):
         client = storage.Client(credentials=self.scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
-    def reinitialize_provider(self):
+    def _reinitialize_provider(self):
         client = storage.Client(credentials=self.scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
