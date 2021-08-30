@@ -8,7 +8,7 @@ enabled_datasets = pytest.mark.parametrize(
 )
 
 enabled_non_gcs_datasets = pytest.mark.parametrize(
-    "non_gcs_ds",
+    "ds",
     ["memory_ds", "local_ds", "s3_ds"],
     indirect=True,
 )
