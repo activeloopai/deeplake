@@ -1,7 +1,18 @@
+from typing import Optional
 from hub.util.exceptions import CannotInferTilesError
 import pytest
 import numpy as np
 from hub.constants import KB
+
+
+def _assert_num_chunks(
+    actual_num_chunks: int, expected_num_chunks: int, compression: Optional[str]
+):
+    if compression is None:
+        assert actual_num_chunks == expected_num_chunks
+    else:
+        # TODO: better way to get the number of chunks with compression for tests
+        assert actual_num_chunks < expected_num_chunks
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
@@ -48,6 +59,8 @@ def test_initialize_large_image(local_ds_generator, compression):
     ds.tensor.append(np.ones((10, 10, 3), dtype="int32"))  # small
     ds.tensor.extend_empty((5, 10, 10, 3))  # small
 
+    _assert_num_chunks(ds.tensor.num_chunks, 51, compression)
+
     ds = local_ds_generator()
     assert ds.tensor.shape == (8, None, None, 3)
     np.testing.assert_array_equal(ds.tensor[0].numpy(), np.zeros((10, 10, 3)))
@@ -73,10 +86,7 @@ def test_initialize_large_image(local_ds_generator, compression):
     expected[:, :, 2] *= 3
     np.testing.assert_array_equal(ds.tensor[1, 50:100, 50:100, :].numpy(), expected)
 
-    if compression is None:
-        assert ds.tensor.num_chunks == 40
-    else:
-        assert ds.tensor.num_chunks < 40
+    _assert_num_chunks(ds.tensor.num_chunks, 51, compression)
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
@@ -93,25 +103,22 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     ds.large.append_empty((500, 500))  # 1MB, ~63 chunks (uncompressed)
 
     assert ds.large.shape == (1, 500, 500)
+    _assert_num_chunks(ds.large.num_chunks, 64, compression)
 
     # update large sample in 50x50 patches
     with ds:
         patch_count = 0
         last_x = 0
         last_y = 0
-        for x in range(0, 500, 50):
-            for y in range(0, 500, 50):
+        for x in range(50, 500, 50):
+            for y in range(50, 500, 50):
                 patch = np.ones((50, 50), dtype="int32") * patch_count
                 ds.large[0, last_x:x, last_y:y] = patch
                 last_y = y
             last_x = x
 
     ds = local_ds_generator()
-
-    if compression is None:
-        assert ds.large.num_chunks == 64
-    else:
-        assert ds.large.num_chunks < 63
+    _assert_num_chunks(ds.large.num_chunks, 64, compression)
 
     # check data
     patch_count = 0
@@ -137,10 +144,12 @@ def test_populate_full_large_sample(local_ds_generator, compression):
 def test_failures(memory_ds):
     memory_ds.create_tensor("tensor")
 
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
     with pytest.raises(CannotInferTilesError):
         # dtype must be pre-defined before an empty sample can be created (otherwise we can't infer the num chunks)
         memory_ds.tensor.append_empty((10000, 10000))
     assert memory_ds.tensor.shape == (0,)
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
 
     # fix
     memory_ds.tensor.set_dtype("uint8")

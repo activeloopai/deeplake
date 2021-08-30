@@ -516,7 +516,7 @@ class Index:
             if dim is None:
                 output_shape[i] = shape[i]
 
-        return tuple(output_shape)
+        return tuple(output_shape)  # type: ignore
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.

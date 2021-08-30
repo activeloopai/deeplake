@@ -457,7 +457,8 @@ class ChunkEngine:
                 self.cache.maybe_flush()
 
             else:
-                self.append(np.zeros(sample_shape, dtype=tensor_meta.dtype))
+                empty_array = np.zeros(sample_shape, dtype=tensor_meta.dtype)
+                self.append(empty_array)
 
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         """Update data at `index` with `samples`."""
@@ -540,6 +541,7 @@ class ChunkEngine:
 
                     new_sample = tile_sample
 
+                # TODO: handle updating multiple tiles at once
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
                 tile.update_sample(local_sample_index, buffer, shape)
 
