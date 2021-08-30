@@ -22,116 +22,39 @@ def _add_dummy_mnist(ds, images_compression: str = None):
     return ds
 
 
-def _make_update_assert_equal(
-    ds_generator: Callable,
-    tensor_name: str,
-    index,
-    value,
-    check_persistence: bool = True,
-):
-    """Updates a tensor and checks that the data is as expected.
-
-    Example update:
-        >>> ds.tensor[0:5] = [1, 2, 3, 4, 5]
-
-    Args:
-        ds_generator (Callable): Function that returns a new dataset object with each call.
-        tensor_name (str): Name of the tensor to be updated.
-        index (Any): Any value that can be used as an index for updating (`ds.tensor[index] = value`).
-        value (Any): Any value that can be used as a value for updating (`ds.tensor[index] = value`).
-        check_persistence (bool): If True, the update will be tested to make sure it can be serialized/deserialized.
-    """
-
-    ds = ds_generator()
-    assert len(ds) == 10
-
-    tensor = ds[tensor_name]
-    expected = tensor.numpy(aslist=True)
-
-    # this is necessary because `expected` uses `aslist=True` to handle dynamic cases.
-    # with `aslist=False`, this wouldn't be necessary.
-    expected_value = value
-    if hasattr(value, "__len__"):
-        if len(value) == 1:
-            expected_value = value[0]
-
-    # make updates
-    tensor[index] = value
-    expected[index] = expected_value
-
-    # non-persistence check
-    actual = tensor.numpy(aslist=True)
-    assert_array_lists_equal(actual, expected)
-    assert len(ds) == 10
-
-    if check_persistence:
-        ds = ds_generator()
-        tensor = ds[tensor_name]
-        actual = tensor.numpy(aslist=True)
-        assert_array_lists_equal(actual, expected)
-
-        # make sure no new values are recorded
-        ds = ds_generator()
-        assert len(ds) == 10
-
-
 @pytest.mark.parametrize("images_compression", [None, "png"])
 def test(local_ds_generator, images_compression):
-    gen = local_ds_generator
+    ds = local_ds_generator()
+    ds.create_tensor("images", htype="image", sample_compression=images_compression)
+    ds.images.extend(np.zeros((10, 28, 28), dtype=np.uint8))
+    
+    ds = local_ds_generator()
+    ds.images[0] = np.ones((25, 30), dtype=np.uint8)
+    ds.images[1] = np.ones((3, 4), dtype=np.uint8)
 
-    _add_dummy_mnist(gen(), images_compression=images_compression)
+    ds.images[2:5] = np.ones((3, 5, 5), dtype=np.uint8)
+    ds.images[6:8, 10:20, 0] = np.ones((2, 10), dtype=np.uint8) * 5
 
-    # update single sample
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
-    )  # same shape (with 1)
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
-    )  # same shape
-    _make_update_assert_equal(
-        gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
-    )  # new shape
-    _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
-    )  # new shape (with 1)
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((0, 0), dtype="uint8")
-    )  # empty sample (new shape)
-    _make_update_assert_equal(gen, "labels", -5, np.uint8(99))
-    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))
+    ds = local_ds_generator()
+    ds.images[9] = np.ones((0, 10), dtype=np.uint8)
 
-    # update a range of samples
-    x = np.arange(3 * 28 * 28).reshape((3, 28, 28)).astype("uint8")
-    _make_update_assert_equal(gen, "images", slice(0, 3), x)  # same shapes
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype="uint8")
-    )  # new shapes
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int).tolist()
-    )  # test downcasting python scalars
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=np.ubyte).tolist()
-    )  # test upcasting
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype="uint8")
-    )  # empty samples (new shape)
-    _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
+    ds = local_ds_generator()
 
-    # update a range of samples with dynamic samples
-    _make_update_assert_equal(
-        gen,
-        "images",
-        slice(7, 10),
-        [
-            np.ones((28, 50), dtype="uint8") * 5,
-            np.ones((0, 5), dtype="uint8"),
-            np.ones((1, 1), dtype="uint8") * 10,
-        ],
-    )
+    expected = list(np.zeros((10, 28, 28), dtype="uint8"))
+    expected[0] = np.ones((25, 30), dtype="uint8")
+    expected[1] = np.ones((3, 4), dtype="uint8")
+    expected[2:5] = np.ones((3, 5, 5), dtype="uint8")
+    
+    expected[6][10:20, 0] = np.ones((10), dtype="uint8") * 5
+    expected[7][10:20, 0] = np.ones((10), dtype="uint8") * 5
+    expected[8][10:20, 0] = np.ones((10), dtype="uint8") * 5
 
-    ds = gen()
-    assert ds.images.shape_interval.lower == (10, 0, 0)
-    assert ds.images.shape_interval.upper == (10, 32, 50)
+    expected[9] = np.ones((0, 10), dtype="uint8")
+
+    assert_array_lists_equal(ds.images.numpy(aslist=True), expected)
+
+    assert ds.images.shape_interval.lower == (10, 0, 4)
+    assert ds.images.shape_interval.upper == (10, 28, 30)
 
 
 @pytest.mark.parametrize("images_compression", [None, "png"])

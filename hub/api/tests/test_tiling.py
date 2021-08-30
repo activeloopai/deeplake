@@ -127,6 +127,17 @@ def test_populate_full_large_sample(local_ds_generator, compression):
 
     assert ds.large.shape == (1, 500, 500)
 
+    # replace tiled sample with a non-tiled sample
+    with pytest.raises(NotImplementedError):
+        ds.large[0] = np.ones((5, 5), dtype="int32") * 4
+
+    # TODO: uncomment after replacing tiled samples is implemented
+    # ds = local_ds_generator()
+    # np.testing.assert_array_equal(ds.large.numpy(), np.ones((5, 5), dtype="int32") * 4)
+    # assert ds.large.shape == (1, 5, 5)
+    # assert ds.large.num_chunks == 1
+    
+
 
 def test_failures(memory_ds):
     memory_ds.create_tensor("tensor")
