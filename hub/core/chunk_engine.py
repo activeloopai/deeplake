@@ -482,7 +482,7 @@ class ChunkEngine:
         is_full_sample_replacement = index.is_single_dim_effective()
 
         # update one sample at a time
-        iterator = value0_index.values[0].indices(index_length)
+        iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
             
