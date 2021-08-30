@@ -80,7 +80,6 @@ def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
 @pytest.fixture
 def ds(request):
     """Used with parametrize to use all enabled dataset fixtures."""
-    print(request.param)
     return request.getfixturevalue(request.param)
 
 
