@@ -479,10 +479,13 @@ class ChunkEngine:
         index_length: int = value0_index.shape[0]  # type: ignore
         samples = _make_sequence(samples, index_length)
 
+        is_full_sample_replacement = index.is_single_dim_effective()
+
         # update one sample at a time
         iterator = value0_index.values[0].indices(index_length)
         for i, global_sample_index in enumerate(iterator):
             sample = samples[i]
+            
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
             )
@@ -492,38 +495,53 @@ class ChunkEngine:
             )
 
             is_tiled = tiles.size > 1
-            # if is_tiled:
+
+            # TODO: re-tile if necessary!
+            if is_full_sample_replacement and is_tiled:
+                raise NotImplementedError("Replacing tiles without a subslice is not yet supported!")
+
             for tile_index, tile in np.ndenumerate(tiles):
                 if tile is None:
                     continue
 
-                tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
-                tile_sample = np.array(tile_sample)
+                if is_full_sample_replacement:
+                    # no need to read the sample, just purely replace
+                    new_sample = sample
 
-                if is_tiled:
-                    # sanity check
-                    tile_shape = tile_shape_mask[tile_index]
-                    if tile_sample.shape != tile_shape:
-                        raise CorruptedSampleError(
-                            f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
-                        )
-
-                    low, high = get_tile_bounds(
-                        tile_index, tile_sample.shape
-                    )  # TODO: this only works for non-dynamic tile shapes
-
-                    trimmed_subslice_index = subslice_index.trim(low)
                 else:
-                    trimmed_subslice_index = subslice_index
 
-                subslice_tile_sample = trimmed_subslice_index.apply(
-                    [tile_sample], include_first_value=True
-                )[0]
+                    tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+                    tile_sample = np.array(tile_sample)  # memcopy necessary to support inplace updates using numpy slicing
 
-                subslice_tile_sample[:] = sample
+                    if is_tiled:
+                        # sanity check
+                        tile_shape = tile_shape_mask[tile_index]
+                        if tile_sample.shape != tile_shape:
+                            raise CorruptedSampleError(
+                                f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
+                            )
 
-                buffer, shape = serialize_input_sample(tile_sample, tensor_meta)
+                        low, high = get_tile_bounds(
+                            tile_index, tile_sample.shape
+                        )  # TODO: this only works for non-dynamic tile shapes
+
+                        trimmed_subslice_index = subslice_index.trim(low)
+                    else:
+                        trimmed_subslice_index = subslice_index
+
+                    subslice_tile_sample = trimmed_subslice_index.apply(
+                        [tile_sample], include_first_value=True
+                    )[0]
+
+                    subslice_tile_sample[:] = sample
+
+                    new_sample = tile_sample
+
+                buffer, shape = serialize_input_sample(new_sample, tensor_meta)
                 tile.update_sample(local_sample_index, buffer, shape)
+
+                # TODO: update tensor meta?
+
             # else:
             # raise NotImplementedError("Cannot update non-tiled samples yet.")
 
