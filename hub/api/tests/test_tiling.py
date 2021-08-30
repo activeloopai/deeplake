@@ -63,9 +63,9 @@ def test_initialize_large_image(local_ds_generator, compression):
 
     # update large sample (only filling in 10KB of data)
     ds = local_ds_generator()
-    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50, 1), dtype="int32")
-    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50, 1), dtype="int32") * 2
-    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50, 1), dtype="int32") * 3
+    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50), dtype="int32")
+    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50), dtype="int32") * 2
+    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50), dtype="int32") * 3
 
     ds = local_ds_generator()
     expected = np.ones((50, 50, 3), dtype="int32")
