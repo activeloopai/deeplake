@@ -46,7 +46,7 @@ def storage_provider_from_path(
             path, key, secret, session_token, endpoint_url, region, token=token
         )
     elif path.startswith("gcp://") or path.startswith("gcs://"):
-        storage = GCSProvider(path, creds)
+        storage = GCSProvider(path, creds)  # type: ignore
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):

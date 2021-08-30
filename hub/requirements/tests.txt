@@ -3,7 +3,7 @@ pytest-cases
 pytest-benchmark
 pytest-cov
 mypy
-typing_extensions
 black
 darglint
 kaggle
+typing_extensions
