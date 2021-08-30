@@ -148,7 +148,6 @@ def test_failures(memory_ds):
     assert memory_ds.tensor.shape == (1, 10000, 10000)
     assert memory_ds.tensor[0:5, 0:5].numpy().dtype == np.dtype("uint8")
 
-
     # TODO: replace tiled sample with a non-tiled sample
     with pytest.raises(NotImplementedError):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4

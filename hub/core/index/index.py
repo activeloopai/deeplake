@@ -486,6 +486,10 @@ class Index:
         """Returns the max shape this index can create.
         For trivial slices (ex: array[:]), their shape element is `None`.
 
+        Note:
+            If you need this to return only numeric values (not `None` values), you should
+            use `shape_if_applied_to` instead.
+
         Examples:
             >>> a = np.ones((100, 100))
             >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
@@ -502,6 +506,17 @@ class Index:
                 l = value.length(9999999999)
                 shape.append(l)  # TODO: better way to do this
         return tuple(shape)
+
+    def shape_if_applied_to(self, shape: Tuple[int, ...]) -> Tuple[int, ...]:
+        # TODO: docstring
+
+        output_shape = list(self.shape)
+
+        for i, dim in enumerate(output_shape):
+            if dim is None:
+                output_shape[i] = shape[i]
+
+        return tuple(output_shape)
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.

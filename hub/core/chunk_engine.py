@@ -142,11 +142,6 @@ class ChunkEngine:
         self.tensor_meta.max_chunk_size = self.max_chunk_size
         self.tensor_meta.min_chunk_size = self.min_chunk_size
 
-    def is_last_chunk_a_tile(self) -> bool:
-        # TODO: explain
-
-        return self.tensor_meta.length - 1 in self.tile_encoder
-
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -325,7 +320,9 @@ class ChunkEngine:
             return False
 
         # can never append new samples to a tile chunk
-        if self.is_last_chunk_a_tile():
+        # -2 because we increment tensor meta length before this function is called
+        is_last_sample_tiled = self.tensor_meta.length - 2 in self.tile_encoder
+        if is_last_sample_tiled:
             return False
 
         incoming_num_bytes = len(buffer)
@@ -428,6 +425,7 @@ class ChunkEngine:
         sample_shape = shape[1:]
         for _ in range(shape[0]):
             nbytes = approximate_num_bytes(sample_shape, tensor_meta)
+
             if self._needs_multiple_chunks(nbytes):
                 tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
                 num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
@@ -646,13 +644,18 @@ class ChunkEngine:
     ) -> np.ndarray:
         # TODO: docstring
 
+        # TODO: break into smaller methods
+
         is_tiled = tiles.size > 1
 
         if not is_tiled:
             sample = self.read_sample_from_chunk(global_sample_index, tiles[0])
             return subslice_index.apply([sample], include_first_value=True)[0]
 
-        sample_shape = subslice_index.shape
+        tile_encoder = self.tile_encoder
+        full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
+        sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
+
         sample = np.zeros(sample_shape, dtype=dtype)
 
         for tile_index, tile in np.ndenumerate(tiles):
@@ -668,9 +671,21 @@ class ChunkEngine:
             # get tile index
             tile_slices = []
             for low_dim, subslice_value in zip(low, subslice_index.values):
-                tile_low_dim = subslice_value.low_bound - low_dim
-                tile_high_dim = subslice_value.high_bound - low_dim
+                low_bound = subslice_value.low_bound
+                high_bound = subslice_value.high_bound
+
+                if low_bound is None:
+                    tile_low_dim = None
+                else:
+                    tile_low_dim = low_bound - low_dim
+
+                if high_bound is None:
+                    tile_high_dim = None
+                else:
+                    tile_high_dim = high_bound - low_dim
+
                 tile_slices.append(slice(tile_low_dim, tile_high_dim))
+
             tile_slices = tuple(tile_slices)  # type: ignore
 
             sample[:] = tile_sample[tile_slices]
