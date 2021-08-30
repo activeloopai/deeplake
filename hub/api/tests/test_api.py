@@ -17,6 +17,7 @@ from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
+    enabled_non_gcs_datasets,
 )
 
 
@@ -142,7 +143,7 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
@@ -150,7 +151,7 @@ def test_compute_fixed_tensor(ds):
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
 
@@ -213,7 +214,7 @@ def test_empty_samples(ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_safe_downcasting(ds: Dataset):
     int_tensor = ds.create_tensor("int", dtype="uint8")
     int_tensor.append(0)
