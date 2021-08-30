@@ -529,7 +529,9 @@ class ChunkEngine:
                             tile_index, tile_sample.shape
                         )  # TODO: this only works for non-dynamic tile shapes
 
-                        trimmed_subslice_index = subslice_index.trim(low)
+                        bias = [-x for x in low]
+                        trimmed_subslice_index = subslice_index.apply_bias(bias)
+
                     else:
                         trimmed_subslice_index = subslice_index
 
