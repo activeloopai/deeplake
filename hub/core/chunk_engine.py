@@ -539,11 +539,16 @@ class ChunkEngine:
                         [tile_sample], include_first_value=True
                     )[0]
 
+                    if subslice_tile_sample.shape != sample.shape:
+                        # TODO: handle cross-tile updates
+                        raise NotImplementedError(
+                            "Cross-tile updates not yet supported!"
+                        )
+
                     subslice_tile_sample[:] = sample
 
                     new_sample = tile_sample
 
-                # TODO: handle updating multiple tiles at once
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
                 tile.update_sample(local_sample_index, buffer, shape)
 
