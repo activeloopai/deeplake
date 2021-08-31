@@ -50,14 +50,14 @@ def test_initialize_large_image(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
-    ds.create_tensor("tensor", dtype="int32", sample_compression=compression)
+    ds.create_tensor("tensor", dtype="uint8", sample_compression=compression)
 
     ds.tensor.append_empty((10, 10, 3))  # small
     ds.tensor.append_empty((10000, 10000, 3))  # large (1.2GB) w/ channel dim
-    ds.tensor.append(np.ones((10, 10, 3), dtype="int32"))  # small
+    ds.tensor.append(np.ones((10, 10, 3), dtype="uint8"))  # small
     ds.tensor.extend_empty((5, 10, 10, 3))  # small
 
-    _assert_num_chunks(ds.tensor.num_chunks, 50, compression)
+    _assert_num_chunks(ds.tensor.num_chunks, 17, compression)
 
     ds = local_ds_generator()
     assert ds.tensor.shape == (8, None, None, 3)
@@ -74,17 +74,17 @@ def test_initialize_large_image(local_ds_generator, compression):
 
     # update large sample (only filling in 10KB of data)
     ds = local_ds_generator()
-    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50), dtype="int32")
-    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50), dtype="int32") * 2
-    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50), dtype="int32") * 3
+    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50), dtype="uint8")
+    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50), dtype="uint8") * 2
+    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50), dtype="uint8") * 3
 
     ds = local_ds_generator()
-    expected = np.ones((50, 50, 3), dtype="int32")
+    expected = np.ones((50, 50, 3), dtype="uint8")
     expected[:, :, 1] *= 2
     expected[:, :, 2] *= 3
     np.testing.assert_array_equal(ds.tensor[1, 50:100, 50:100, :].numpy(), expected)
 
-    _assert_num_chunks(ds.tensor.num_chunks, 50, compression)
+    _assert_num_chunks(ds.tensor.num_chunks, 17, compression)
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
