@@ -7,7 +7,7 @@ from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets
-from hub.util.exceptions import InvalidOutputDatasetError
+from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
 
@@ -154,7 +154,7 @@ def test_chain_transform_list_small(ds, scheduler):
 
 @all_schedulers
 @enabled_datasets
-@pytest.mark.xfail(raises=NotImplementedError, strict=False)
+@pytest.mark.xfail(raises=TransformError, strict=False)
 def test_chain_transform_list_big(ds, scheduler):
     ls = [i for i in range(2)]
     ds_out = ds
