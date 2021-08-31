@@ -261,11 +261,11 @@ class GCSProvider(StorageProvider):
 
     def __iter__(self):
         """Iterating over the structure"""
-        yield from [f for f in self._list_keys() if not f.endswith("/")]
+        yield from [f for f in self._all_keys() if not f.endswith("/")]
 
     def __len__(self):
         """Returns length of the structure"""
-        return len(self._list_keys())
+        return len(self._all_keys())
 
     def __delitem__(self, key):
         """Remove key"""
