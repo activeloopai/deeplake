@@ -103,14 +103,16 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     assert ds.large.shape == (1, 500, 500)
     _assert_num_chunks(ds.large.num_chunks, 64, compression)
 
-    # update large sample in 50x50 patches
+    # if patch size is equal to the tile shape on all dimensions, then no cross-tile updates are made
+    patch_size = 50
+
     with ds:
         patch_count = 0
         last_x = 0
         last_y = 0
-        for x in range(50, 500, 50):
-            for y in range(50, 500, 50):
-                patch = np.ones((50, 50), dtype="int32") * patch_count
+        for x in range(patch_size, 500, patch_size):
+            for y in range(patch_size, 500, patch_size):
+                patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
                 ds.large[0, last_x:x, last_y:y] = patch
                 last_y = y
             last_x = x
@@ -122,9 +124,9 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     patch_count = 0
     last_x = 0
     last_y = 0
-    for x in range(0, 500, 50):
-        for y in range(0, 500, 50):
-            expected_patch = np.ones((50, 50), dtype="int32") * patch_count
+    for x in range(patch_size, 500, patch_size):
+        for y in range(patch_size, 500, patch_size):
+            expected_patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
             actual_patch = ds.large[0, last_x:x, last_y:y].numpy()
             np.testing.assert_array_equal(expected_patch, actual_patch)
             last_y = y
