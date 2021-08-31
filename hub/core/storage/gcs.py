@@ -26,7 +26,7 @@ class GCloudCredentials:
         self.tokens: Dict[str, Dict] = {}
         self.connect(method=token)
 
-    def load_tokens(self):
+    def _load_tokens(self):
         """Get "browser" tokens from disc"""
         try:
             with open(".gcs_token", "rb") as f:
@@ -39,6 +39,14 @@ class GCloudCredentials:
             pickle.dump(token, f, 2)
 
     def _connect_google_default(self):
+        """Attempts to get credentials from google default configurations:
+            environment variable GOOGLE_APPLICATION_CREDENTIALS, Google Cloud SDK default credentials or default project.
+            For more details see: https://google-auth.readthedocs.io/en/master/reference/google.auth.html#google.auth.default
+
+        Raises:
+            ValueError: If the name of the default project doesn't match the GCSProvider project name.
+            DefaultCredentialsError: If no credentials are found.
+        """
         credentials, project = gauth.default(scopes=[self.scope])
         if self.project and self.project != project:
             raise ValueError(
@@ -48,13 +56,14 @@ class GCloudCredentials:
         self.credentials = credentials
 
     def _connect_cache(self):
-        credentials = self.load_tokens()
+        """Load token stored after using _connect_browser() method."""
+        credentials = self._load_tokens()
         if credentials:
             self.credentials = credentials
 
     def _dict_to_credentials(self, token: Dict):
         """
-        Convert old dict-style token.
+        Convert dict-style token.
         Does not preserve access token itself, assumes refresh required.
 
         Args:
@@ -106,6 +115,13 @@ class GCloudCredentials:
         self.credentials = credentials
 
     def _connect_browser(self):
+        """Create and store new credentials using OAuth authentication method.
+            Requires having default client configuration file in ~/.config/gcloud/application_default_credentials.json
+            (default location after initializing gcloud).
+
+        Raises:
+            GCSDefaultCredsNotFoundError: if application deafault credentials can't be found.
+        """
         try:
             with open(
                 posixpath.expanduser(
@@ -130,6 +146,7 @@ class GCloudCredentials:
         self.credentials = credentials
 
     def _connect_anon(self):
+        """Use provider without specific credentials. Applicable for public projects/buckets."""
         self.credentials = None
 
     def connect(self, method: Union[str, Dict] = None):
@@ -202,10 +219,6 @@ class GCSProvider(StorageProvider):
         client = storage.Client(credentials=self.scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
-    def _reinitialize_provider(self):
-        client = storage.Client(credentials=self.scoped_credentials.credentials)
-        self.client_bucket = client.get_bucket(self.bucket)
-
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
         self.bucket = root.split("/")[0]
@@ -216,9 +229,9 @@ class GCSProvider(StorageProvider):
     def _get_path_from_key(self, key):
         return posixpath.join(self.path, key)
 
-    def _list_keys(self):
+    def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return [obj.name for obj in self._blob_objects]
+        return {obj.name for obj in self._blob_objects}
 
     def clear(self):
         """Remove all keys below root - empties out mapping"""
@@ -239,10 +252,11 @@ class GCSProvider(StorageProvider):
         """Store value in key"""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
-        if isinstance(value, memoryview):
-            value = value.tobytes()
-        elif isinstance(value, bytearray):
-            value = bytes(value)
+        if isinstance(value, memoryview) and (
+            value.strides == (1,) and value.shape == (len(value.obj),)
+        ):
+            value = value.obj
+        value = bytes(value)
         blob.upload_from_string(value, retry=self.retry)
 
     def __iter__(self):

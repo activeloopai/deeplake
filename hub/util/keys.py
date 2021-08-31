@@ -42,7 +42,7 @@ def dataset_exists(storage: StorageProvider) -> bool:
     try:
         storage[get_dataset_meta_key()]
         return True
-    except (KeyError, FileNotFoundError):
+    except KeyError:
         return False
 
 

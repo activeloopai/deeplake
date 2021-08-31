@@ -1,7 +1,6 @@
 import hub
 import pytest
 import numpy as np
-import multiprocessing
 from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
