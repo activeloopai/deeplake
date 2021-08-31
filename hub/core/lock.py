@@ -110,6 +110,10 @@ class Lock(object):
         with self._thread_lock:
             terminate_thread(self._thread)
             self._acquired = False
+        try:
+            del self.storage[hub.constants.DATASET_LOCK_FILENAME]
+        except Exception:
+            pass
 
 
 _LOCKS: Dict[str, Lock] = {}

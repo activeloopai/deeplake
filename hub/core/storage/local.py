@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
@@ -23,6 +24,7 @@ class LocalProvider(StorageProvider):
         if os.path.isfile(root):
             raise FileAtPathException(root)
         self.root = root
+        self.files: Optional[Set[str]] = None
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
@@ -50,8 +52,6 @@ class LocalProvider(StorageProvider):
             raise
         except FileNotFoundError:
             raise KeyError
-        except Exception:
-            raise
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
@@ -70,17 +70,16 @@ class LocalProvider(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
-        try:
-            full_path = self._check_is_file(path)
-            directory = os.path.dirname(full_path)
-            if os.path.isfile(directory):
-                raise FileAtPathException(directory)
-            if not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            file = open(full_path, "wb")
-            file.write(value)
-        except Exception:
-            raise
+        full_path = self._check_is_file(path)
+        directory = os.path.dirname(full_path)
+        if os.path.isfile(directory):
+            raise FileAtPathException(directory)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        file = open(full_path, "wb")
+        file.write(value)
+        if self.files is not None:
+            self.files.add(path)
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -102,12 +101,12 @@ class LocalProvider(StorageProvider):
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
+            if self.files is not None:
+                self.files.discard(path)
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
             raise KeyError
-        except Exception:
-            raise
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
@@ -120,7 +119,7 @@ class LocalProvider(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self._list_keys()
+        yield from self._all_keys()
 
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
@@ -132,19 +131,24 @@ class LocalProvider(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self._list_keys())
+        return len(self._all_keys())
 
-    def _list_keys(self):
-        """Helper function that lists all the objects present at the root of the Provider.
+    def _all_keys(self):
+        """Lists all the objects present at the root of the Provider.
 
         Returns:
-            list: list of all the objects found at the root of the Provider.
+            set: set of all the objects found at the root of the Provider.
         """
-        ls = []
-        for root, dirs, files in os.walk(self.root):
-            for file in files:
-                ls.append(os.path.relpath(os.path.join(root, file), self.root))
-        return ls
+        if self.files is None:
+            full_path = os.path.expanduser(self.root)
+            key_set = set()
+            for root, dirs, files in os.walk(full_path):
+                for file in files:
+                    key_set.add(
+                        os.path.relpath(os.path.join(full_path, file), full_path)
+                    )
+            self.files = key_set
+        return self.files
 
     def _check_is_file(self, path: str):
         """Checks if the path is a file. Returns the full_path to file if True.
@@ -167,5 +171,7 @@ class LocalProvider(StorageProvider):
     def clear(self):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
         self.check_readonly()
-        if os.path.exists(self.root):
-            shutil.rmtree(self.root)
+        self.files = set()
+        full_path = os.path.expanduser(self.root)
+        if os.path.exists(full_path):
+            shutil.rmtree(full_path)

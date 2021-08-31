@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from hub.core.storage.cachable import Cachable
-from typing import Optional
+from typing import Optional, Set
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
@@ -109,6 +109,14 @@ class StorageProvider(ABC, MutableMapping):
 
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
+        """
+
+    @abstractmethod
+    def _all_keys(self) -> Set[str]:
+        """Generator function that iterates over the keys of the provider.
+
+        Returns:
+            set: set of all keys present at the root of the provider.
         """
 
     @abstractmethod

@@ -9,7 +9,7 @@ from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.constants import HASHES_TENSOR_FOLDER
-from hub.util.casting import get_incompatible_dtype
+from hub.util.casting import get_incompatible_dtype, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.util.hash import generate_hashes
 from hub.util.exceptions import (
@@ -62,7 +62,7 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
 
-def add_missing_meta_attributes(
+def _add_missing_meta_attributes(
     key: str, storage: StorageProvider, tensor_meta: TensorMeta
 ):
     """Adds attributes to tensor meta if missing.
@@ -94,6 +94,18 @@ def add_missing_meta_attributes(
     if "hash_samples" not in tensor_meta.__dict__:
         tensor_meta._required_meta_keys += ("hash_samples",)
         tensor_meta.hash_samples = False  # Default value
+
+
+def _inplace_op(f):
+    op = f.__name__
+
+    def inner(tensor, other):
+        tensor.chunk_engine.update(tensor.index, other, op)
+        if not tensor.index.is_trivial():
+            tensor._skip_next_setitem = True
+        return tensor
+
+    return inner
 
 
 class Tensor:
@@ -130,10 +142,12 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
 
-        add_missing_meta_attributes(self.key, self.storage, self.meta)
+        _add_missing_meta_attributes(self.key, self.storage, self.meta)
 
         if HASHES_TENSOR_FOLDER in self.meta.linked_tensors:
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
+        # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
+        self._skip_next_setitem = False
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -333,7 +347,7 @@ class Tensor:
             raise TypeError(f"Cannot infer numpy dtype for {val}")
 
     def __setitem__(self, item: Union[int, slice], value: Any):
-        """Update samples with new values. Sub-slice updates are not supported yet.
+        """Update samples with new values.
 
         Example:
             >>> tensor.append(np.zeros((10, 10)))
@@ -343,10 +357,15 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
-
+        # Appending to linked tensor is not allowed
         if self.meta.is_linked_tensor:
             raise LinkedTensorError
 
+        if isinstance(value, Tensor):
+            if value._skip_next_setitem:
+                value._skip_next_setitem = False
+                return
+            value = value.numpy(aslist=True)
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
@@ -388,41 +407,50 @@ class Tensor:
     def __array__(self) -> np.ndarray:
         return self.numpy()
 
-    __repr__ = __str__
-
-    # TODO: Inplace operations
+    @_inplace_op
     def __iadd__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __isub__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __imul__(self, other):
-        raise NotImplementedError
+        pass
 
-    def __idiv__(self, other):
-        raise NotImplementedError
+    @_inplace_op
+    def __itruediv__(self, other):
+        pass
 
+    @_inplace_op
     def __ifloordiv__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __imod__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ipow__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ilshift__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __irshift__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __iand__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ixor__(self, other):
-        raise NotImplementedError
+        pass
 
+    @_inplace_op
     def __ior__(self, other):
-        raise NotImplementedError
+        pass

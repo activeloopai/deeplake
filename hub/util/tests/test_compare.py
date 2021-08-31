@@ -12,7 +12,7 @@ from hub.util.exceptions import (
 from hub.tests.common import get_dummy_data_path
 import hub, pytest
 import numpy as np
-from hub.core.tensor import Tensor, add_missing_meta_attributes
+from hub.core.tensor import Tensor, _add_missing_meta_attributes
 from hub.tests.common import TENSOR_KEY
 from hub.constants import HASHES_TENSOR_FOLDER
 from hub.tests.dataset_fixtures import enabled_datasets
@@ -133,7 +133,7 @@ def test_missing_meta_attributes():
 
     ds = hub.dataset(get_dummy_data_path("tests_compare/dataset_with_old_meta/"))
 
-    add_missing_meta_attributes(
+    _add_missing_meta_attributes(
         ds["images"].key, ds["images"].storage, ds["images"].meta
     )
 
@@ -142,6 +142,6 @@ def test_missing_meta_attributes():
     assert ds.images.meta.hash_samples == False
 
     with pytest.raises(TensorDoesNotExistError):
-        add_missing_meta_attributes(
+        _add_missing_meta_attributes(
             ds["no_image"].key, ds["no_image"].storage, ds["no_image"].meta
         )
