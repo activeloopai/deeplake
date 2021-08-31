@@ -57,7 +57,7 @@ def test_initialize_large_image(local_ds_generator, compression):
     ds.tensor.append(np.ones((10, 10, 3), dtype="uint8"))  # small
     ds.tensor.extend_empty((5, 10, 10, 3))  # small
 
-    _assert_num_chunks(ds.tensor.num_chunks, 17, compression)
+    _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
 
     ds = local_ds_generator()
     assert ds.tensor.shape == (8, None, None, 3)
@@ -84,7 +84,7 @@ def test_initialize_large_image(local_ds_generator, compression):
     expected[:, :, 2] *= 3
     np.testing.assert_array_equal(ds.tensor[1, 50:100, 50:100, :].numpy(), expected)
 
-    _assert_num_chunks(ds.tensor.num_chunks, 17, compression)
+    _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
 
 
 @pytest.mark.parametrize("compression", [None, "png"])

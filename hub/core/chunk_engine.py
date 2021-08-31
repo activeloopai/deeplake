@@ -565,6 +565,10 @@ class ChunkEngine:
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
             self._synchronize_cache()
             self.cache.maybe_flush()
+        else:
+            empty_sample = np.zeros(sample_shape, dtype=tensor_meta.dtype)
+            self.append(empty_sample)
+
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
