@@ -1,15 +1,15 @@
 from hub.core.compute.provider import ComputeProvider
-from pathos.pools import ProcessPool  # type: ignore
+from ray.util.multiprocessing import Pool
 
 
-class ProcessProvider(ComputeProvider):
+class RayProvider(ComputeProvider):
     def __init__(self, workers):
         self.workers = workers
-        self.pool = ProcessPool(nodes=workers)
-        self.pool.restart()
+        self.pool = Pool(processes=workers)
 
     def map(self, func, iterable):
         return self.pool.map(func, iterable)
 
     def close(self):
         self.pool.close()
+        self.pool.join()

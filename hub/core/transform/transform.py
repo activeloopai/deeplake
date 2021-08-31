@@ -113,8 +113,14 @@ class Pipeline:
 
         compute_provider = get_compute_provider(scheduler, num_workers)
 
-        self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        try:
+            self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        except Exception:
+            compute_provider.close()
+            raise
+
         ds_out.storage.autoflush = initial_autoflush
+        compute_provider.close()
 
     def run(
         self,
