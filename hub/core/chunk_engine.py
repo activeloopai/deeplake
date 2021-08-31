@@ -264,7 +264,9 @@ class ChunkEngine:
 
         if self._needs_multiple_chunks(len(buffer)):
             # TODO
-            raise NotImplementedError("Appending samples too large for a single chunk not yet supported!")
+            raise NotImplementedError(
+                "Appending samples too large for a single chunk not yet supported!"
+            )
 
         # num samples is always 1 when appending
         num_samples = 1
@@ -550,12 +552,8 @@ class ChunkEngine:
                 tile_chunk = self._create_new_chunk()
                 empty_buffer = memoryview(bytes())
 
-                tile_chunk.append_sample(
-                    empty_buffer, self.max_chunk_size, tile_shape
-                )
-                chunk_id_encoder.register_samples(
-                    1 if i == 0 else 0
-                )  # TODO: explain
+                tile_chunk.append_sample(empty_buffer, self.max_chunk_size, tile_shape)
+                chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
 
                 # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
                 tile_encoder.register_sample(idx, sample_shape, tile_shape)
@@ -568,7 +566,6 @@ class ChunkEngine:
         else:
             empty_sample = np.zeros(sample_shape, dtype=tensor_meta.dtype)
             self.append(empty_sample)
-
 
     def sample_from_tiles(
         self, global_sample_index: int, subslice_index: Index, dtype: np.dtype

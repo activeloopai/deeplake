@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple, Iterable, Optional, TypeVar
+from typing import Sequence, Union, List, Tuple, Iterable, Optional, TypeVar
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int, ...]]
@@ -284,7 +284,8 @@ class IndexEntry:
         if isinstance(self.value, int):
             return self.value
         elif isinstance(self.value, slice):
-            return self.value.start or self.value.stop
+            return self.value.start
+
         raise NotImplementedError
 
     @property
@@ -295,6 +296,7 @@ class IndexEntry:
             return self.value
         elif isinstance(self.value, slice):
             return self.value.stop
+
         raise NotImplementedError
 
     def apply_bias(self, amount: int) -> "IndexEntry":
@@ -601,7 +603,7 @@ class Index:
 
         return value0_index, subslice_index
 
-    def apply_bias(self, amount_per_dimension: Tuple[int, ...]) -> "Index":
+    def apply_bias(self, amount_per_dimension: Sequence[int]) -> "Index":
         # TODO: docstring
 
         new_values = []

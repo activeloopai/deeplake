@@ -153,7 +153,7 @@ def test_failures(memory_ds):
     memory_ds.tensor.set_dtype("uint8")
     memory_ds.tensor.append_empty((10000, 10000))
     assert memory_ds.tensor.shape == (1, 10000, 10000)
-    assert memory_ds.tensor[0:5, 0:5].numpy().dtype == np.dtype("uint8")
+    assert memory_ds.tensor[0, 0:5, 0:5].numpy().dtype == np.dtype("uint8")
 
     # TODO: replace tiled sample with a non-tiled sample
     with pytest.raises(NotImplementedError):
