@@ -223,7 +223,10 @@ def test_safe_downcasting(ds: Dataset):
     int_tensor.extend([5, 6, np.uint8(7)])
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(-8)
-    assert len(int_tensor) == 8
+    int_tensor.append(np.array([1]))
+    assert len(int_tensor) == 9
+    with pytest.raises(TensorDtypeMismatchError):
+        int_tensor.append(np.array([1.0]))
 
     float_tensor = ds.create_tensor("float", dtype="float32")
     float_tensor.append(0)
@@ -232,7 +235,9 @@ def test_safe_downcasting(ds: Dataset):
     float_tensor.extend([5.0, 6.0, np.float32(7.0)])
     with pytest.raises(TensorDtypeMismatchError):
         float_tensor.append(float(np.finfo(np.float32).max + 1))
-    assert len(float_tensor) == 8
+    float_tensor.append(np.array([1]))
+    float_tensor.append(np.array([1.0]))
+    assert len(float_tensor) == 10
 
 
 @enabled_datasets

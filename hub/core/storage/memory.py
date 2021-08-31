@@ -93,6 +93,14 @@ class MemoryProvider(StorageProvider):
         """
         return len(self.dict)
 
+    def _all_keys(self):
+        """Lists all the objects present at the root of the Provider.
+
+        Returns:
+            set: set of all the objects found at the root of the Provider.
+        """
+        return set(self.dict.keys())
+
     def clear(self):
         """Clears the provider."""
         self.check_readonly()

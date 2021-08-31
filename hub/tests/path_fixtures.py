@@ -25,12 +25,52 @@ from hub.tests.common import (
     is_opt_true,
 )
 import pytest
+import requests
+import shutil
+import tempfile
+
 
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
+
+
+def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
+    paths = {e: [] for e in ext}
+    corrupt_file_keys = [
+        "broken",
+        "_dos",
+        "truncated",
+        "chunk_no_fctl",
+        "syntax_num_frames_zero",
+    ]
+    cwd = os.getcwd()
+    os.chdir(tempdir)
+    try:
+        os.system("git clone https://www.github.com/python-pillow/Pillow.git")
+        dirs = [
+            "Pillow/Tests/images",
+            "Pillow/Tests/images/apng",
+            "Pillow/Tests/images/imagedraw",
+        ]
+        for d in dirs:
+            for f in os.listdir(d):
+                brk = False
+                for k in corrupt_file_keys:
+                    if k in f:
+                        brk = True
+                        break
+                if brk:
+                    continue
+                for e in ext:
+                    if f.lower().endswith(e):
+                        paths[e].append(os.path.join(tempdir, d, f))
+                        break
+        return paths
+    finally:
+        os.chdir(cwd)
 
 
 def _get_path_composition_configs(request):
@@ -189,7 +229,7 @@ def flower_path():
     return os.path.join(path, "flower.png")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def compressed_image_paths():
     paths = {
         "webp": "beach.webp",
@@ -213,7 +253,18 @@ def compressed_image_paths():
     for k in paths:
         paths[k] = os.path.join(parent, paths[k])
 
-    return paths
+    # Since we implement our own meta data reading for jpegs and pngs,
+    # we test against images from PIL repo to cover all edge cases.
+    paths = {k: [v] for k, v in paths.items()}
+    tmpdir = tempfile.mkdtemp()
+    pil_image_paths = _download_pil_test_images(tmpdir)
+    paths["jpeg"] += pil_image_paths[".jpg"]
+    paths["png"] += pil_image_paths[".png"]
+    yield paths
+    try:
+        shutil.rmtree(tmpdir)
+    except PermissionError:
+        pass
 
 
 @pytest.fixture
