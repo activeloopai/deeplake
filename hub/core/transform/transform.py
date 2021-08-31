@@ -1,6 +1,3 @@
-from hub.core.storage.lru_cache import LRUCache
-from hub.core import storage
-from hub.core.storage.gcs import GCSProvider
 import hub
 import math
 from typing import List
@@ -115,10 +112,6 @@ class Pipeline:
             ds_out[tensor].chunk_engine.chunk_id_encoder
 
         compute_provider = get_compute_provider(scheduler, num_workers)
-        if isinstance(ds_out.storage, LRUCache) and isinstance(
-            ds_out.storage.next_storage, GCSProvider
-        ):
-            ds_out.storage.next_storage._reinitialize_provider()
         self.run(data_in, ds_out, tensors, compute_provider, num_workers)
         ds_out.storage.autoflush = initial_autoflush
 
