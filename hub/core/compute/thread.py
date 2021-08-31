@@ -6,7 +6,7 @@ class ThreadProvider(ComputeProvider):
     def __init__(self, workers):
         self.workers = workers
         self.pool = ThreadPool(nodes=workers)
-        self.pool.restart()
+        self.pool.restart(force=True)
 
     def map(self, func, iterable):
         return self.pool.map(func, iterable)
