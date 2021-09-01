@@ -11,4 +11,6 @@ class ThreadProvider(ComputeProvider):
         return self.pool.map(func, iterable)
 
     def close(self):
-        return
+        self.pool.close()
+        self.pool.join()
+        self.pool.clear()
