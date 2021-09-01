@@ -486,12 +486,12 @@ class Index:
         else:
             return samples[0]
         
-    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...], normalize: bool=False) -> np.ndarray:
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], normalize: bool=False) -> np.ndarray:
         # TODO: docstring
 
         biased_values = []
         for i, value in enumerate(self.values):
-            biased_entry = value.with_bias(-bias[i])# .clamp_upper(upper_bound[i])
+            biased_entry = value.with_bias(-bias[i])
             biased_value = biased_entry.value
 
             if normalize:

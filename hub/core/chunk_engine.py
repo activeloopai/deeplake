@@ -505,12 +505,12 @@ class ChunkEngine:
 
                     # get tile view (apply subslice_index to the entire sample (cumulative tiles))
                     # but restrict view to the current tile
-                    tile_view = subslice_index.apply_restricted(tile, bias=low, upper_bound=low)
+                    tile_view = subslice_index.apply_restricted(tile, bias=low)
 
                     # get sample view (apply subslice_index to the entire sample (cumulative tiles))
                     # but restrict view to the incoming sample
                     sv_bias = [-dim for dim in subslice_index.low_bound]
-                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, bias=sv_bias, upper_bound=low, normalize=True)
+                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, bias=sv_bias, normalize=True)
 
                     print("tile view shape:", tile_view.shape)
                     print("incoming sample view shape:", incoming_sample_view.shape)
