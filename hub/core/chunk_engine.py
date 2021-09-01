@@ -2,6 +2,7 @@ from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import optimize_tile_shape
 from hub.util.tiles import (
     approximate_num_bytes,
+    get_sample_subslice,
     get_tile_bounds,
     get_tile_mask,
     num_tiles_for_sample,
@@ -503,13 +504,12 @@ class ChunkEngine:
                     )[0]
 
                     if subslice_tile_sample.shape != sample.shape:
-                        # TODO: handle cross-tile updates
-                        raise NotImplementedError(
-                            "Cross-tile updates not yet supported!"
-                        )
+                        sample_subslice = get_sample_subslice(sample, tile_index, tile_shape_mask, subslice_index)
+                        
+                    else:
+                        sample_subslice = sample
 
-                    subslice_tile_sample[:] = sample
-
+                    subslice_tile_sample[:] = sample_subslice
                     new_sample = tile_sample
 
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)

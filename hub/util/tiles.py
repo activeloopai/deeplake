@@ -1,5 +1,5 @@
 from hub.core.compression import get_compression_factor
-from hub.core.index.index import Index
+from hub.core.index.index import Index, IndexEntry
 from math import ceil
 from hub.core.meta.tensor_meta import TensorMeta
 from typing import Tuple
@@ -73,3 +73,45 @@ def get_tile_mask(
             mask[tile_index] = True
 
     return mask
+
+
+def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_shape_mask: np.ndarray, subslice_index: Index):
+    """Get the subslice of a sample that is contained within the tile at `tile_index`.
+
+    # TODO: examples
+
+    Args:
+        sample (np.ndarray): The full sample to get the subslice of.
+        tile_index (Tuple[int, ...]): Index of the tile to get the subslice of.
+        tile_shape_mask (np.ndarray): A mask of the shape of each tile.
+
+    Returns:
+        np.ndarray: The subslice of the sample.
+    """
+
+    # TODO: can remove this check (maybe move it higher up in the stack)
+    if not np.all(tile_shape_mask):
+        # sanity check
+        raise NotImplementedError("Cannot handle dynamic tile shapes yet!")
+
+    # get tile-coordinates of where the sample belongs on the tile
+    sample_coordinates_low = subslice_index.low_bound
+    sample_coordinates_high = subslice_index.high_bound
+
+    # get tile bounds
+    tile_shape = tile_shape_mask[tile_index]
+    tile_low_bound, tile_high_bound = get_tile_bounds(tile_index, tile_shape)
+    
+    # get sample-coordinates for the overlap with tile-coordinates
+    low_corner = np.maximum(sample_coordinates_low, tile_low_bound)
+    high_corner = np.minimum(sample_coordinates_high, tile_high_bound)
+    delta = high_corner - low_corner
+
+    # get the subslice of the sample for the overlap
+    entries = []
+    for dim in delta:
+        entries.append(IndexEntry(slice(0, dim)))
+    sample_subslice_index = Index(entries)
+    sample_subslice = sample_subslice_index.apply([sample], include_first_value=True)[0]  # TODO: refac
+
+    return sample_subslice
