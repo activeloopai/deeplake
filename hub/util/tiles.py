@@ -75,22 +75,25 @@ def get_tile_mask(
     return mask
 
 
-def modified_space_subslice(array: np.ndarray, subslice_index: Index, bias: Tuple[int, ...], min_bound: Tuple[int, ...], max_bound: Tuple[int, ...]):
+def modified_space_subslice(array: np.ndarray, subslice_index: Index, min_bound: Tuple[int, ...], max_bound: Tuple[int, ...]):
     # TODO: docstring/rename method
 
     # return a view of the array where the coordinate system may be broader or narrower than the actual array's shape
 
     # TODO: make arguments optional?
 
+    subslice_min = subslice_index.low_bound  # TODO rename to min/max
+    subslice_max = subslice_index.high_bound
+
     # sanity checks
-    if len(array.shape) != len(bias) or len(bias) != len(max_bound):
+    if len(array.shape) != len(subslice_min) or len(subslice_min) != len(max_bound):
         raise Exception()  # TODO: exceptions 
 
-    bias_shape = np.array(array.shape) + bias
+    bias_shape = np.array(array.shape) + subslice_min
     
     # get sample-coordinates for the overlap with tile-coordinates
-    low_corner = np.maximum(bias, min_bound)
-    high_corner = np.minimum(bias_shape, max_bound)
+    low_corner = np.maximum(subslice_min, min_bound)
+    high_corner = np.minimum(subslice_max, max_bound)
     delta = high_corner - low_corner
 
     # get the subslice of the sample for the overlap
@@ -122,12 +125,8 @@ def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_sh
         # sanity check
         raise NotImplementedError("Cannot handle dynamic tile shapes yet!")
 
-    # get tile-coordinates of where the sample belongs on the tile
-    sample_coordinates_low = subslice_index.low_bound
-    sample_coordinates_high = subslice_index.high_bound
-
     # get tile bounds
     tile_shape = tile_shape_mask[tile_index]
     tile_low_bound, tile_high_bound = get_tile_bounds(tile_index, tile_shape)
 
-    return modified_space_subslice(sample, subslice_index, sample_coordinates_low, tile_low_bound, tile_high_bound)
+    return modified_space_subslice(sample, subslice_index, tile_low_bound, tile_high_bound)
