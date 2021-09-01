@@ -1,13 +1,11 @@
 from typing import Any, List, Tuple, Union
 
-from numpy.testing._private.utils import jiffies
-from hub.util.chunks import chunk_name_from_id, random_chunk_id
+from hub.util.chunks import chunk_name_from_id, random_chunk_id, derive_tile_chunk_id
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 from hub.core.storage.cachable import Cachable
 import numpy as np
-from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 
 
@@ -42,15 +40,27 @@ class ChunkIdEncoder(Encoder, Cachable):
             return 0
         return len(self._encoded)
 
-    def generate_chunk_id(self) -> ENCODING_DTYPE:
+    def generate_tile_chunk_id(self, root_chunk_id: ENCODING_DTYPE, tile_shape: Tuple[int, ...]) -> ENCODING_DTYPE:
+        """Generates a 64bit chunk ID using uuid5. Uses the last generated chunk ID as the namespace
+        and the `tile_shape` as the name."""
+
+        tile_chunk_id = derive_tile_chunk_id(root_chunk_id, str(tile_shape))
+        return self.generate_chunk_id(id=tile_chunk_id)
+
+
+    def generate_chunk_id(self, id: ENCODING_DTYPE=None) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
+
+        Args:
+            id (ENCODING_DTYPE): If None, a random chunk ID will be generated.
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
         """
 
-        id = random_chunk_id()
+        if id is None:
+            id = random_chunk_id()
 
         if self.num_samples == 0:
             self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)

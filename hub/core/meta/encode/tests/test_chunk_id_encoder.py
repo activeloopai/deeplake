@@ -1,4 +1,4 @@
-from hub.util.chunks import chunk_id_from_name, chunk_name_from_id
+from hub.util.chunks import chunk_id_from_name, chunk_name_from_id, derive_tile_shape, is_tile_chunk_id, random_chunk_id
 from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 import pytest
@@ -125,3 +125,46 @@ def test_ids():
     out_id = chunk_id_from_name(name)
 
     assert id == out_id
+
+
+def test_tile_ids():
+    enc = ChunkIdEncoder()
+
+    # generate 2 tile chunks
+    root_id = random_chunk_id()
+    tile_id0 = enc.generate_tile_chunk_id(root_id, (1, 2, 3))
+    enc.register_samples(1)
+    tile_id1 = enc.generate_tile_chunk_id(root_id, (4, 5, 6, 7))
+    enc.register_samples(0)
+
+    assert enc[0] == [tile_id0, tile_id1]
+
+    assert not is_tile_chunk_id(root_id)
+    assert is_tile_chunk_id(tile_id0)
+    assert is_tile_chunk_id(tile_id1)
+
+    assert derive_tile_shape(tile_id0) == (1, 2, 3)
+    assert derive_tile_shape(tile_id1) == (4, 5, 6, 7)
+
+    # cannot add more samples to a tile chunk
+    with pytest.raises(NotImplementedError):    # TODO: exceptions.py
+        enc.register_samples(0)
+    with pytest.raises(NotImplementedError):    # TODO: exceptions.py
+        enc.register_samples(1)
+
+    assert enc.num_samples == 1
+    assert enc.num_chunks == 2
+
+    # generate some normal chunks
+    id2 = enc.generate_chunk_id()
+    enc.register_samples(10)
+
+    id3 = enc.generate_chunk_id()
+    enc.register_samples(1)
+
+    assert enc.num_samples == 12
+    assert enc.num_chunks == 4
+
+    assert enc[0] == [tile_id0, tile_id1]
+    assert enc[1] == id2
+    assert enc[2] == id3

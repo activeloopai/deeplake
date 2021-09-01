@@ -350,6 +350,30 @@ class IndexEntry:
         raise NotImplementedError
 
 
+    def clamp_upper(self, max_value: int) -> "IndexEntry":
+        if isinstance(self.value, int):
+            return IndexEntry(min(self.value, max_value))
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, max_value)
+            elif s.start is None:
+                raise NotImplementedError
+                # new_slice = slice(None, s.stop, s.step)  <-- this might be it?
+            else:
+                if s.start < 0 or s.stop < 0:
+                    raise Exception()  # TODO
+
+                new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
+
+            return IndexEntry(new_slice)
+
+
+        raise NotImplementedError
+
+
 class Index:
     def __init__(
         self,
@@ -486,12 +510,17 @@ class Index:
         else:
             return samples[0]
         
-    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], normalize: bool=False) -> np.ndarray:
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
         # TODO: docstring
 
         biased_values = []
         for i, value in enumerate(self.values):
-            biased_entry = value.with_bias(-bias[i])
+            biased_entry = value
+
+            if upper_bound is not None:
+                biased_entry = biased_entry.clamp_upper(upper_bound[i])
+
+            biased_entry = biased_entry.with_bias(-bias[i])
             biased_value = biased_entry.value
 
             if normalize:
