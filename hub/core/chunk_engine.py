@@ -2,7 +2,6 @@ from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import optimize_tile_shape
 from hub.util.tiles import (
     approximate_num_bytes,
-    get_sample_subslice,
     get_tile_bounds,
     get_tile_mask,
     num_tiles_for_sample,
@@ -507,12 +506,14 @@ class ChunkEngine:
                     # get tile view (apply subslice_index to the entire sample (cumulative tiles))
                     # but restrict view to the current tile
                     tile_view = subslice_index.apply_restricted(tile, bias=low, upper_bound=low)
-                    print(tile_view.shape)
-                    exit()
 
                     # get sample view (apply subslice_index to the entire sample (cumulative tiles))
                     # but restrict view to the incoming sample
-                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, upper_bound=low)
+                    sv_bias = [-dim for dim in subslice_index.low_bound]
+                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, bias=sv_bias, upper_bound=low, normalize=True)
+
+                    print("tile view shape:", tile_view.shape)
+                    print("incoming sample view shape:", incoming_sample_view.shape)
 
                     tile_view[:] = incoming_sample_view
                     new_sample = tile

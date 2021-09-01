@@ -299,26 +299,6 @@ class IndexEntry:
 
         raise NotImplementedError
 
-    def min(self, max_value: int) -> "IndexEntry":
-        # TODO: docstring
-
-        if isinstance(self.value, int):
-            return IndexEntry(min(self.value, max_value))
-
-        if isinstance(self.value, slice):
-            s = self.value
-
-            if is_trivial_slice(s):
-                new_slice = slice(None, None)
-            elif s.start is None:
-                new_slice = slice(None, min(s.stop, max_value), s.step)
-            else:
-                new_slice = slice(s.start, min(s.stop, max_value), s.step)
-
-            return IndexEntry(new_slice)
-
-
-        raise NotImplementedError
 
     def with_bias(self, amount: int) -> "IndexEntry":
         # TODO: docstring
@@ -345,6 +325,27 @@ class IndexEntry:
                 new_slice = slice(s.start + amount, s.stop + amount, s.step)
 
             return IndexEntry(new_slice)
+
+        raise NotImplementedError
+
+    def normalize(self) -> "IndexEntry":
+        if isinstance(self.value, int):
+            return IndexEntry(0)
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, None)
+            elif s.start is None:
+                raise NotImplementedError
+                # new_slice = slice(None, s.stop, s.step)  <-- this might be it?
+            else:
+                delta = abs(s.stop - s.start)
+                new_slice = slice(0, delta, s.step)
+
+            return IndexEntry(new_slice)
+
 
         raise NotImplementedError
 
@@ -485,14 +486,20 @@ class Index:
         else:
             return samples[0]
         
-    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]) -> np.ndarray:
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...], normalize: bool=False) -> np.ndarray:
         # TODO: docstring
-
-        assert len(sample.shape) == len(bias)  # TODO: remove this assert
 
         biased_values = []
         for i, value in enumerate(self.values):
-            biased_value = value.with_bias(-bias[i]).min(upper_bound[i]).value
+            biased_entry = value.with_bias(-bias[i])# .clamp_upper(upper_bound[i])
+            biased_value = biased_entry.value
+
+            if normalize:
+                biased_entry = biased_entry.normalize()
+                biased_value = biased_entry.value
+                if biased_value == 0:
+                    continue
+
             biased_values.append(biased_value)
 
         return sample[tuple(biased_values)]
