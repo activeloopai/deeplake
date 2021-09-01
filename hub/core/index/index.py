@@ -299,10 +299,36 @@ class IndexEntry:
 
         raise NotImplementedError
 
-    def apply_bias(self, amount: int) -> "IndexEntry":
+    def min(self, max_value: int) -> "IndexEntry":
         # TODO: docstring
 
         if isinstance(self.value, int):
+            return IndexEntry(min(self.value, max_value))
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, None)
+            elif s.start is None:
+                new_slice = slice(None, min(s.stop, max_value), s.step)
+            else:
+                new_slice = slice(s.start, min(s.stop, max_value), s.step)
+
+            return IndexEntry(new_slice)
+
+
+        raise NotImplementedError
+
+    def with_bias(self, amount: int) -> "IndexEntry":
+        # TODO: docstring
+
+        def _validate(v):
+            if v + amount < 0:
+                raise Exception()  # TODO
+
+        if isinstance(self.value, int):
+            _validate(self.value)
             return IndexEntry(self.value + amount)
 
         if isinstance(self.value, slice):
@@ -311,8 +337,11 @@ class IndexEntry:
             if is_trivial_slice(s):
                 new_slice = slice(None, None)
             elif s.start is None:
+                _validate(s.stop)
                 new_slice = slice(None, s.stop + amount, s.step)
             else:
+                _validate(s.start)
+                _validate(s.stop)
                 new_slice = slice(s.start + amount, s.stop + amount, s.step)
 
             return IndexEntry(new_slice)
@@ -455,6 +484,18 @@ class Index:
             return samples
         else:
             return samples[0]
+        
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]) -> np.ndarray:
+        # TODO: docstring
+
+        assert len(sample.shape) == len(bias)  # TODO: remove this assert
+
+        biased_values = []
+        for i, value in enumerate(self.values):
+            biased_value = value.with_bias(-bias[i]).min(upper_bound[i]).value
+            biased_values.append(biased_value)
+
+        return sample[tuple(biased_values)]
 
     def is_trivial(self) -> bool:
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
@@ -602,15 +643,6 @@ class Index:
             subslice_index = Index()
 
         return value0_index, subslice_index
-
-    def apply_bias(self, amount_per_dimension: Sequence[int]) -> "Index":
-        # TODO: docstring
-
-        new_values = []
-        for value, amount in zip(self.values, amount_per_dimension):
-            new_values.append(value.apply_bias(amount))
-
-        return Index(new_values)
 
     def __str__(self):
         values = [entry.value for entry in self.values]

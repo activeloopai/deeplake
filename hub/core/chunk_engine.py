@@ -424,7 +424,7 @@ class ChunkEngine:
         for _ in range(shape[0]):
             self.create_tiles(sample_shape)
 
-    def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+    def update(self, index: Index, incoming_samples: Union[Sequence[SampleValue], SampleValue]):
         """Update data at `index` with `samples`."""
 
         # TODO: break into smaller functions
@@ -441,14 +441,14 @@ class ChunkEngine:
         value0_index, subslice_index = index.split_subslice()
 
         index_length: int = value0_index.shape[0]  # type: ignore
-        samples = _make_sequence(samples, index_length)
+        incoming_samples = _make_sequence(incoming_samples, index_length)
 
         is_full_sample_replacement = index.is_single_dim_effective()
 
         # update one sample at a time
         iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
-            sample = samples[i]
+            incoming_sample = incoming_samples[i]
 
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
@@ -466,54 +466,59 @@ class ChunkEngine:
                     "Replacing tiles without a subslice is not yet supported!"
                 )
 
-            for tile_index, tile in np.ndenumerate(tiles):
-                if tile is None:
+            for tile_index, tile_object in np.ndenumerate(tiles):
+                if tile_object is None:
                     continue
 
                 if is_full_sample_replacement:
                     # no need to read the sample, just purely replace
-                    new_sample = sample
+                    new_sample = incoming_sample
 
                 else:
 
-                    tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
-                    tile_sample = np.array(
-                        tile_sample
+                    tile = self.read_sample_from_chunk(global_sample_index, tile_object)
+                    tile = np.array(
+                        tile
                     )  # memcopy necessary to support inplace updates using numpy slicing
 
                     if is_tiled:
                         # sanity check
                         tile_shape = tile_shape_mask[tile_index]
-                        if tile_sample.shape != tile_shape:
+                        if tile.shape != tile_shape:
                             raise CorruptedSampleError(
-                                f"Tile encoder has the incorrect tile shape. Tile sample shape: {tile_sample.shape}, tile encoder shape: {tile_shape}"
+                                f"Tile encoder has the incorrect tile shape. Tile shape: {tile.shape}, tile encoder shape: {tile_shape}"
                             )
 
-                        low, high = get_tile_bounds(
-                            tile_index, tile_sample.shape
-                        )  # TODO: this only works for non-dynamic tile shapes
+                    # TODO: align tile with incoming sample, w.r.t subslice
 
-                        bias = [-x for x in low]
-                        trimmed_subslice_index = subslice_index.apply_bias(bias)
+                    low, high = get_tile_bounds(
+                        tile_index, tile.shape
+                    )
 
-                    else:
-                        trimmed_subslice_index = subslice_index
+                    print()
+                    print("-------------")
+                    print("global index:", global_sample_index)
+                    print("subslice:", subslice_index)
+                    print("tile bounds:", low, high)
+                    print("incoming sample shape:", incoming_sample.shape)
+                    print("tile shape:", tile.shape)
+                    print()
 
-                    subslice_tile_sample = trimmed_subslice_index.apply(
-                        [tile_sample], include_first_value=True
-                    )[0]
+                    # get tile view (apply subslice_index to the entire sample (cumulative tiles))
+                    # but restrict view to the current tile
+                    tile_view = subslice_index.apply_restricted(tile, bias=low, upper_bound=low)
+                    print(tile_view.shape)
+                    exit()
 
-                    if subslice_tile_sample.shape != sample.shape:
-                        sample_subslice = get_sample_subslice(sample, tile_index, tile_shape_mask, subslice_index)
-                        
-                    else:
-                        sample_subslice = sample
+                    # get sample view (apply subslice_index to the entire sample (cumulative tiles))
+                    # but restrict view to the incoming sample
+                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, upper_bound=low)
 
-                    subslice_tile_sample[:] = sample_subslice
-                    new_sample = tile_sample
+                    tile_view[:] = incoming_sample_view
+                    new_sample = tile
 
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
-                tile.update_sample(local_sample_index, buffer, shape)
+                tile_object.update_sample(local_sample_index, buffer, shape)
 
                 if is_full_sample_replacement:
                     self._update_tensor_meta(shape, 0)
