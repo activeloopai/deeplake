@@ -497,6 +497,7 @@ class ChunkEngine:
                     print()
                     print("-------------")
                     print("global index:", global_sample_index)
+                    print("tile index:", tile_index)
                     print("subslice:", subslice_index)
                     print("tile bounds:", low, high)
                     print("incoming sample shape:", incoming_sample.shape)

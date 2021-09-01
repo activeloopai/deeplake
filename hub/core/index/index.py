@@ -300,16 +300,17 @@ class IndexEntry:
         raise NotImplementedError
 
 
-    def with_bias(self, amount: int) -> "IndexEntry":
+    def with_bias(self, amount: int, keep_positive: bool=True) -> "IndexEntry":
         # TODO: docstring
 
-        def _validate(v):
-            if v + amount < 0:
-                raise Exception()  # TODO
+        def _bias(v: int):
+            o = v + amount
+            if keep_positive:
+                return max(0, o)
+            return o
 
         if isinstance(self.value, int):
-            _validate(self.value)
-            return IndexEntry(self.value + amount)
+            return IndexEntry(_bias(self.value))
 
         if isinstance(self.value, slice):
             s = self.value
@@ -317,12 +318,9 @@ class IndexEntry:
             if is_trivial_slice(s):
                 new_slice = slice(None, None)
             elif s.start is None:
-                _validate(s.stop)
-                new_slice = slice(None, s.stop + amount, s.step)
+                new_slice = slice(None, _bias(s.stop), s.step)
             else:
-                _validate(s.start)
-                _validate(s.stop)
-                new_slice = slice(s.start + amount, s.stop + amount, s.step)
+                new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
 
             return IndexEntry(new_slice)
 
