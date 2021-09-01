@@ -75,6 +75,34 @@ def get_tile_mask(
     return mask
 
 
+def modified_space_subslice(array: np.ndarray, subslice_index: Index, bias: Tuple[int, ...], min_bound: Tuple[int, ...], max_bound: Tuple[int, ...]):
+    # TODO: docstring/rename method
+
+    # return a view of the array where the coordinate system may be broader or narrower than the actual array's shape
+
+    # TODO: make arguments optional?
+
+    # sanity checks
+    if len(array.shape) != len(bias) or len(bias) != len(max_bound):
+        raise Exception()  # TODO: exceptions 
+
+    bias_shape = np.array(array.shape) + bias
+    
+    # get sample-coordinates for the overlap with tile-coordinates
+    low_corner = np.maximum(bias, min_bound)
+    high_corner = np.minimum(bias_shape, max_bound)
+    delta = high_corner - low_corner
+
+    # get the subslice of the sample for the overlap
+    entries = []
+    for dim in delta:
+        entries.append(IndexEntry(slice(0, dim)))
+    array_subslice_index = Index(entries)
+    array_subslice = array_subslice_index.apply([array], include_first_value=True)[0]  # TODO: refac
+
+    return array_subslice
+
+
 def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_shape_mask: np.ndarray, subslice_index: Index):
     """Get the subslice of a sample that is contained within the tile at `tile_index`.
 
@@ -101,17 +129,5 @@ def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_sh
     # get tile bounds
     tile_shape = tile_shape_mask[tile_index]
     tile_low_bound, tile_high_bound = get_tile_bounds(tile_index, tile_shape)
-    
-    # get sample-coordinates for the overlap with tile-coordinates
-    low_corner = np.maximum(sample_coordinates_low, tile_low_bound)
-    high_corner = np.minimum(sample_coordinates_high, tile_high_bound)
-    delta = high_corner - low_corner
 
-    # get the subslice of the sample for the overlap
-    entries = []
-    for dim in delta:
-        entries.append(IndexEntry(slice(0, dim)))
-    sample_subslice_index = Index(entries)
-    sample_subslice = sample_subslice_index.apply([sample], include_first_value=True)[0]  # TODO: refac
-
-    return sample_subslice
+    return modified_space_subslice(sample, subslice_index, sample_coordinates_low, tile_low_bound, tile_high_bound)
