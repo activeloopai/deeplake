@@ -13,3 +13,4 @@ class ThreadProvider(ComputeProvider):
 
     def close(self):
         self.pool.close()
+        self.pool.join()
