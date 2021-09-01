@@ -27,6 +27,7 @@ from hub.util.exceptions import (
     TensorGroupAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
+    InvalidTensorGroupNameError,
     LockedException,
 )
 from hub.client.client import HubBackendClient
@@ -54,7 +55,7 @@ class Dataset:
         Args:
             storage (StorageProvider): The storage provider used to access the dataset.
             index (Index, optional): The Index object restricting the view of this dataset's tensors.
-            group_index (str): TODO
+            group_index (str): Name of the group this dataset instance represents.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             public (bool, optional): Applied only if storage is Hub cloud storage and a new Dataset is being created. Defines if the dataset will have public access.
@@ -220,10 +221,18 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
 
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        if name in dir(self):
+        if name in self._groups:
+            raise TensorGroupAlreadyExistsError(name)
+
+        if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
         if self.is_group():
@@ -510,6 +519,7 @@ class Dataset:
 
     @property
     def _ungrouped_tensors(self) -> Dict[str, Tensor]:
+        """Top level tensors in this group that do not belong to any sub groups"""
         return {
             posixpath.basename(k): v
             for k, v in self._tensors.items()
@@ -518,6 +528,7 @@ class Dataset:
 
     @property
     def _all_tensors_filtered(self) -> List[str]:
+        """Names of all tensors belonging to this group, including those within sub groups"""
         return [
             posixpath.relpath(t, self.group_index)
             for t in self._tensors
@@ -526,15 +537,18 @@ class Dataset:
 
     @property
     def tensors(self) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups"""
         return {t: self[t] for t in self._all_tensors_filtered}
 
     @property
-    def _groups(self):
+    def _groups(self) -> List[str]:
+        """Names of all groups in the root dataset"""
         meta_key = get_dataset_meta_key()
         return self.storage.get_cachable(meta_key, DatasetMeta).groups
 
     @property
     def _groups_filtered(self) -> List[str]:
+        """Names of all sub groups in this group"""
         groups_filtered = []
         for g in self._groups:
             dirname, basename = posixpath.split(g)
@@ -544,6 +558,7 @@ class Dataset:
 
     @property
     def groups(self) -> Dict[str, "Dataset"]:
+        """All sub groups in this group"""
         return {g: self[g] for g in self._groups_filtered}
 
     def is_group(self) -> bool:
@@ -579,6 +594,8 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         groups = self._groups
+        if not name or name in dir(self):
+            raise InvalidTensorGroupNameError(name)
         ret = name
         while name:
             if name in self._tensors:
@@ -594,6 +611,9 @@ class Dataset:
     def create_group(self, name: str) -> "Dataset":
         if self.is_group():
             return self.root.create_group(posixpath.join(self.group_index, name))
+        name = name.strip("/")
+        while "//" in name:
+            name = name.replace("//", "/")
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
