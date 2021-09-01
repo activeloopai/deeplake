@@ -57,3 +57,11 @@ def test_dataset_empty_load():
         ds_overwrite_empty = hub.load(path, overwrite=True)
         assert len(ds_overwrite_empty) == 0
         assert len(ds_overwrite_empty.tensors) == 0
+
+
+def test_public(hub_cloud_ds):
+    assert hub_cloud_ds.public
+    hub_cloud_ds.public = False
+    assert not hub_cloud_ds.public
+    ds = hub.load(hub_cloud_ds.path)
+    assert not ds.public
