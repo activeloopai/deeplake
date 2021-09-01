@@ -63,5 +63,5 @@ def test_public(hub_cloud_ds):
     assert hub_cloud_ds.public
     hub_cloud_ds.public = False
     assert not hub_cloud_ds.public
-    ds = hub.load(hub_cloud_ds.path)
-    assert not ds.public
+    with pytest.raises(hub.util.exceptions.AuthorizationException):
+        hub.load(hub_cloud_ds.path)
