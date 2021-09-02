@@ -128,7 +128,7 @@ def test_populate_full_large_sample(local_ds_generator, compression):
         for y in range(patch_size, 500, patch_size):
             expected_patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
             actual_patch = ds.large[0, last_x:x, last_y:y].numpy()
-            np.testing.assert_array_equal(expected_patch, actual_patch)
+            np.testing.assert_array_equal(expected_patch, actual_patch, f"x={last_x}:{x}, y={last_y}:{y}")
             last_y = y
         last_x = x
 

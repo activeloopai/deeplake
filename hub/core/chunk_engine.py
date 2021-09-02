@@ -16,7 +16,7 @@ import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
 from math import ceil
-from typing import Any, Optional, Sequence, Union, Tuple, List, Set
+from typing import Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CannotInferTilesError,
     CorruptedMetaError,
