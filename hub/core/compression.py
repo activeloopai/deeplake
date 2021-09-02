@@ -1,3 +1,4 @@
+import warnings
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import SUPPORTED_COMPRESSIONS
 from hub.util.exceptions import (
@@ -182,7 +183,13 @@ def get_compression_factor(tensor_meta: TensorMeta) -> float:
     # check sample compression first. we don't support compressing both sample + chunk-wise at the same time, but in case we
     # do support this in the future, try both.
     sc = tensor_meta.sample_compression
+
     if sc is not None:
+        if sc not in COMPRESSION_FACTORS:
+            # TODO: this should ideally never happen
+            warnings.warn(f"Warning: the provided compression \"{sc}\" has no approximate factor yet, so you should expect tiles to be inefficient!")
+            return factor
+
         factor *= COMPRESSION_FACTORS[sc]
 
     # TODO: UNCOMMENT AFTER CHUNK-WISE COMPRESSION IS MERGED!
