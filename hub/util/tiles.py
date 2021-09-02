@@ -132,8 +132,13 @@ def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_sh
     return modified_space_subslice(sample, subslice_index, tile_low_bound, tile_high_bound)
 
 
-def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]):
+
+def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]=None):
     # TODO: docstring
+
+    # tile index should be `None` if the sample is not tiled
+    if tile_index is None:
+        tile_index = (0,) * len(tile.shape)
 
     low, high = get_tile_bounds(
         tile_index, tile.shape

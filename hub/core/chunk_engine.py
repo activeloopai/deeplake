@@ -488,6 +488,10 @@ class ChunkEngine:
                             raise CorruptedSampleError(
                                 f"Tile encoder has the incorrect tile shape. Tile shape: {tile.shape}, tile encoder shape: {tile_shape}"
                             )
+                    else:
+                        tile_index = None
+
+                    tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
 
                     # TODO: align tile with incoming sample, w.r.t subslice
                     
@@ -496,12 +500,10 @@ class ChunkEngine:
                     # print("global index:", global_sample_index)
                     # print("tile index:", tile_index)
                     # print("subslice:", subslice_index)
-                    # print("tile bounds:", low, high)
+                    # # print("tile bounds:", low, high)
                     # print("incoming sample shape:", incoming_sample.shape)
                     # print("tile shape:", tile.shape)
                     # print()
-
-                    tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
 
                     tile_view[:] = incoming_sample_view
                     new_sample = tile
