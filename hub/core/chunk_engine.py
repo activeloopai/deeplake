@@ -244,14 +244,19 @@ class ChunkEngine:
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
     def _needs_multiple_chunks(self, nbytes: int) -> bool:
-        """If last_chunk exists, check if nbytes can fit inside of it. Otherwise, checks if nbytes can fit inside a single chunk."""
+        """Checks if the last chunk (if it exists) has room for `nbytes`. If not, 
+        check if it can fit in a single chunk or multiple."""
 
         if self.last_chunk is None:
             return nbytes > self.max_chunk_size
 
-        # TODO: FIX THIS BEFORE MERGING: this may cause suboptimal chunks in the case where nbytes is too large for the last chunk, but smaller than max chunk size.
+        last_has_space = self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
+        if not last_has_space:
+            if nbytes < self.max_chunk_size:
+                return False
+            return True
 
-        return not self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
+        return False
 
     def _append_bytes(self, buffer: Buffer, shape: Tuple[int, ...]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
