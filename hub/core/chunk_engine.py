@@ -403,9 +403,8 @@ class ChunkEngine:
             self._update_tensor_meta(shape, 1)
 
             if self._needs_multiple_chunks(len(buffer)):
-                # TODO: optimize tiling for append/extend
-
-                self.create_tiles(shape)
+                # TODO: optimize tiling for append/extend (sample gets serialized twice!)
+                self.create_tiles(shape, increment_length=False)
 
                 update_index = Index([IndexEntry(-1)])
 
@@ -527,7 +526,7 @@ class ChunkEngine:
             self.cache.maybe_flush()
             self.meta_cache.maybe_flush()
 
-    def create_tiles(self, sample_shape: Tuple[int, ...]):
+    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True):
         # TODO: docstring
 
         self.cache.check_readonly()
@@ -562,7 +561,8 @@ class ChunkEngine:
                 # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
                 tile_encoder.register_sample(idx, sample_shape, tile_shape)
 
-            self._update_tensor_meta(sample_shape, 1)
+            if increment_length:
+                self._update_tensor_meta(sample_shape, 1)
 
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
             self._synchronize_cache()
