@@ -358,7 +358,6 @@ class IndexEntry:
                 new_slice = slice(None, max_value)
             elif s.start is None:
                 raise NotImplementedError
-                # new_slice = slice(None, s.stop, s.step)  <-- this might be it?
             else:
                 if s.start < 0 or s.stop < 0:
                     raise Exception()  # TODO
@@ -366,7 +365,6 @@ class IndexEntry:
                 new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
 
             return IndexEntry(new_slice)
-
 
         raise NotImplementedError
 

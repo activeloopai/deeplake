@@ -1,5 +1,5 @@
-from hub.util.chunks import chunk_name_from_id, random_chunk_id
-from hub.core.tiling.optimize import optimize_tile_shape
+from hub.util.chunks import chunk_name_from_id
+from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
     align_sample_and_tile,
     approximate_num_bytes,
@@ -24,7 +24,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.index.index import Index
+from hub.core.index.index import Index, IndexEntry
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
@@ -136,12 +136,7 @@ class ChunkEngine:
         self.cache = cache
         self._meta_cache = meta_cache
 
-        # store min/max chunk sizes for tiling purposes
-        # we do not want to store min chunk size in the tensor meta file
-        # in case later we want to change it
-        # however, max chunk size *should* be stored in the tensor meta file
-        self.tensor_meta.max_chunk_size = self.max_chunk_size
-        self.tensor_meta.min_chunk_size = self.min_chunk_size
+        self.tile_optimizer = TileOptimizer(self.min_chunk_size, self.max_chunk_size, self.tensor_meta)
 
     @property
     def max_chunk_size(self):
@@ -267,12 +262,6 @@ class ChunkEngine:
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
         """
-
-        if self._needs_multiple_chunks(len(buffer)):
-            # TODO
-            raise NotImplementedError(
-                "Appending samples too large for a single chunk not yet supported!"
-            )
 
         # num samples is always 1 when appending
         num_samples = 1
@@ -412,7 +401,20 @@ class ChunkEngine:
 
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
             self._update_tensor_meta(shape, 1)
-            self._append_bytes(buffer, shape)
+
+            if self._needs_multiple_chunks(len(buffer)):
+                # TODO: optimize tiling for append/extend
+
+                self.create_tiles(shape)
+
+                update_index = Index([IndexEntry(-1)])
+
+                # use retile=False so we can pass in a sigle-dim effective index 
+                # TODO: implement re-tiling
+                self.update(update_index, [sample], retile=False)
+
+            else:
+                self._append_bytes(buffer, shape)
 
         self.cache.maybe_flush()
 
@@ -429,8 +431,9 @@ class ChunkEngine:
         for _ in range(shape[0]):
             self.create_tiles(sample_shape)
 
-    def update(self, index: Index, incoming_samples: Union[Sequence[SampleValue], SampleValue]):
+    def update(self, index: Index, incoming_samples: Union[Sequence[SampleValue], SampleValue], retile: bool=True):
         """Update data at `index` with `samples`."""
+        # TODO: docstring
 
         # TODO: break into smaller functions
 
@@ -465,10 +468,10 @@ class ChunkEngine:
 
             is_tiled = tiles.size > 1
 
-            # TODO: re-tile if necessary!
-            if is_full_sample_replacement and is_tiled:
+            if retile and is_full_sample_replacement and is_tiled:
+                # TODO: implement sample re-tiling
                 raise NotImplementedError(
-                    "Replacing tiles without a subslice is not yet supported!"
+                    "Re-tiling samples is not yet supported!"
                 )
 
             for tile_index, tile_object in np.ndenumerate(tiles):
@@ -541,7 +544,7 @@ class ChunkEngine:
         nbytes = approximate_num_bytes(sample_shape, tensor_meta)
 
         if self._needs_multiple_chunks(nbytes):
-            tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
+            tile_shape = self.tile_optimizer.optimize(sample_shape)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
 
             idx = self.num_samples
