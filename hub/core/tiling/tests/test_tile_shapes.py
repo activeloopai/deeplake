@@ -1,8 +1,8 @@
 import numpy as np
-from hub.constants import MB
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, MB
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.tiling.optimize import optimize_tile_shape
+from hub.core.tiling.optimize import TileOptimizer
 import pytest
 
 
@@ -14,13 +14,18 @@ np.random.seed(1)
 # https://gist.github.com/mccrearyd/d4a9506813fe64d42c63b090997d9145
 
 
+
 def _get_tensor_meta(sample_compression: str) -> TensorMeta:
     tensor_meta = TensorMeta(
         "generic", sample_compression=sample_compression, dtype="int32"
     )
-    tensor_meta.max_chunk_size = 32 * MB
-    tensor_meta.min_chunk_size = 16 * MB  # type: ignore
     return tensor_meta
+
+
+def _get_optimizer(sample_compression: str) -> TileOptimizer:
+    tensor_meta = _get_tensor_meta(sample_compression)
+    optimizer = TileOptimizer(DEFAULT_MAX_CHUNK_SIZE // 2, DEFAULT_MAX_CHUNK_SIZE, tensor_meta)
+    return optimizer
 
 
 # sample_shape, sample_compression, expected_num_tiles
@@ -44,17 +49,18 @@ def _get_tensor_meta(sample_compression: str) -> TensorMeta:
 def test_simple(config):
     # for simple cases, the shape optimization should find the global minimum energy state
     sample_shape, sample_compression, expected_num_tiles = config
-    tensor_meta = _get_tensor_meta(sample_compression)
 
-    actual_tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
+    optimizer = _get_optimizer(sample_compression)
+
+    actual_tile_shape = optimizer.optimize(sample_shape)
     actual_num_tiles = num_tiles_for_sample(actual_tile_shape, sample_shape)
-    actual_num_bytes_per_tile = approximate_num_bytes(actual_tile_shape, tensor_meta)
+    actual_num_bytes_per_tile = approximate_num_bytes(actual_tile_shape, optimizer.tensor_meta)
 
     msg = f"tile_shape={actual_tile_shape}, num_tiles={actual_num_tiles}, num_bytes={actual_num_bytes_per_tile}"
 
     assert expected_num_tiles == actual_num_tiles, msg
-    assert actual_num_bytes_per_tile >= tensor_meta.min_chunk_size, msg
-    assert actual_num_bytes_per_tile <= tensor_meta.max_chunk_size, msg
+    assert actual_num_bytes_per_tile >= optimizer.min_chunk_size, msg
+    assert actual_num_bytes_per_tile <= optimizer.max_chunk_size, msg
 
 
 @pytest.mark.parametrize(
@@ -68,10 +74,11 @@ def test_simple(config):
 @pytest.mark.parametrize("sample_compression", [None, "png"])
 def test_complex(sample_shape, sample_compression):
     # for complex cases, the shape optimization should find an energy state good enough
-    tensor_meta = _get_tensor_meta(sample_compression)
+    
+    optimizer = _get_optimizer(sample_compression)
 
-    actual_tile_shape = optimize_tile_shape(sample_shape, tensor_meta)
-    actual_num_bytes_per_tile = approximate_num_bytes(actual_tile_shape, tensor_meta)
+    actual_tile_shape = optimizer.optimize(sample_shape)
+    actual_num_bytes_per_tile = approximate_num_bytes(actual_tile_shape, optimizer.tensor_meta)
 
-    assert actual_num_bytes_per_tile <= tensor_meta.max_chunk_size
-    assert actual_num_bytes_per_tile >= tensor_meta.min_chunk_size
+    assert actual_num_bytes_per_tile <= optimizer.max_chunk_size
+    assert actual_num_bytes_per_tile >= optimizer.min_chunk_size
