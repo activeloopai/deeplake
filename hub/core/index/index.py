@@ -336,8 +336,7 @@ class IndexEntry:
             if is_trivial_slice(s):
                 new_slice = slice(None, None)
             elif s.start is None:
-                raise NotImplementedError
-                # new_slice = slice(None, s.stop, s.step)  <-- this might be it?
+                new_slice = s
             else:
                 delta = abs(s.stop - s.start)
                 new_slice = slice(0, delta, s.step)

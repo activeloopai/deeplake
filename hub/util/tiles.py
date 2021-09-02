@@ -130,3 +130,22 @@ def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_sh
     tile_low_bound, tile_high_bound = get_tile_bounds(tile_index, tile_shape)
 
     return modified_space_subslice(sample, subslice_index, tile_low_bound, tile_high_bound)
+
+
+def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]):
+    # TODO: docstring
+
+    low, high = get_tile_bounds(
+        tile_index, tile.shape
+    )
+
+    tile_view = subslice_index.apply_restricted(tile, bias=low)
+
+    # get sample view (apply subslice_index to the entire sample (cumulative tiles))
+    # but restrict view to the incoming sample
+    incoming_sample_view = subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+
+    # print("tile view shape:", tile_view.shape)
+    # print("incoming sample view shape:", incoming_sample_view.shape)
+
+    return tile_view, incoming_sample_view

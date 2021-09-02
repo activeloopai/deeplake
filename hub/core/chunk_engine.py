@@ -1,6 +1,7 @@
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import optimize_tile_shape
 from hub.util.tiles import (
+    align_sample_and_tile,
     approximate_num_bytes,
     get_tile_bounds,
     get_tile_mask,
@@ -489,32 +490,18 @@ class ChunkEngine:
                             )
 
                     # TODO: align tile with incoming sample, w.r.t subslice
+                    
+                    # print()
+                    # print("-------------")
+                    # print("global index:", global_sample_index)
+                    # print("tile index:", tile_index)
+                    # print("subslice:", subslice_index)
+                    # print("tile bounds:", low, high)
+                    # print("incoming sample shape:", incoming_sample.shape)
+                    # print("tile shape:", tile.shape)
+                    # print()
 
-                    low, high = get_tile_bounds(
-                        tile_index, tile.shape
-                    )
-
-                    print()
-                    print("-------------")
-                    print("global index:", global_sample_index)
-                    print("tile index:", tile_index)
-                    print("subslice:", subslice_index)
-                    print("tile bounds:", low, high)
-                    print("incoming sample shape:", incoming_sample.shape)
-                    print("tile shape:", tile.shape)
-                    print()
-
-                    # get tile view (apply subslice_index to the entire sample (cumulative tiles))
-                    # but restrict view to the current tile
-                    tile_view = subslice_index.apply_restricted(tile, bias=low)
-
-                    # get sample view (apply subslice_index to the entire sample (cumulative tiles))
-                    # but restrict view to the incoming sample
-                    sv_bias = [-dim for dim in subslice_index.low_bound]
-                    incoming_sample_view = subslice_index.apply_restricted(incoming_sample, bias=low, upper_bound=high, normalize=True)
-
-                    print("tile view shape:", tile_view.shape)
-                    print("incoming sample view shape:", incoming_sample_view.shape)
+                    tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
 
                     tile_view[:] = incoming_sample_view
                     new_sample = tile
@@ -681,37 +668,42 @@ class ChunkEngine:
 
         sample = np.zeros(sample_shape, dtype=dtype)
 
-        for tile_index, tile in np.ndenumerate(tiles):
-            if tile is None:
+        for tile_index, tile_obj in np.ndenumerate(tiles):
+            if tile_obj is None:
                 continue
 
             tile_shape = tile_shape_mask[tile_index]
             low, _ = get_tile_bounds(tile_index, tile_shape)
-            tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+            tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
             # TODO: this indexing might be broken for negative / slice indexes with "skip" components
 
             # get tile index
-            tile_slices = []
-            for low_dim, subslice_value in zip(low, subslice_index.values):
-                low_bound = subslice_value.low_bound
-                high_bound = subslice_value.high_bound
+            # tile_slices = []
+            # for low_dim, subslice_value in zip(low, subslice_index.values):
+            #     low_bound = subslice_value.low_bound
+            #     high_bound = subslice_value.high_bound
 
-                if low_bound is None:
-                    tile_low_dim = None
-                else:
-                    tile_low_dim = low_bound - low_dim
+            #     if low_bound is None:
+            #         tile_low_dim = None
+            #     else:
+            #         tile_low_dim = low_bound - low_dim
 
-                if high_bound is None:
-                    tile_high_dim = None
-                else:
-                    tile_high_dim = high_bound - low_dim
+            #     if high_bound is None:
+            #         tile_high_dim = None
+            #     else:
+            #         tile_high_dim = high_bound - low_dim
 
-                tile_slices.append(slice(tile_low_dim, tile_high_dim))
+            #     tile_slices.append(slice(tile_low_dim, tile_high_dim))
 
-            tile_slices = tuple(tile_slices)  # type: ignore
+            # tile_slices = tuple(tile_slices)  # type: ignore
 
-            sample[:] = tile_sample[tile_slices]
+            # print(sample.shape, tile_sample.shape)
+            # sample[:] = tile_sample[tile_slices]
+
+            tile_view, sample_view = align_sample_and_tile(sample, tile, subslice_index, tile_index)
+
+            sample_view[:] = tile_view
 
         return sample
 
