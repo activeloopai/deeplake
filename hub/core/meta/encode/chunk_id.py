@@ -1,6 +1,6 @@
 from typing import Any, List, Tuple, Union
 
-from hub.util.chunks import chunk_name_from_id, random_chunk_id, derive_tile_chunk_id
+from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
@@ -39,13 +39,6 @@ class ChunkIdEncoder(Encoder, Cachable):
         if self.num_samples == 0:
             return 0
         return len(self._encoded)
-
-    def generate_tile_chunk_id(self, root_chunk_id: ENCODING_DTYPE, tile_shape: Tuple[int, ...]) -> ENCODING_DTYPE:
-        """Generates a 64bit chunk ID using uuid5. Uses the last generated chunk ID as the namespace
-        and the `tile_shape` as the name."""
-
-        tile_chunk_id = derive_tile_chunk_id(root_chunk_id, str(tile_shape))
-        return self.generate_chunk_id(id=tile_chunk_id)
 
 
     def generate_chunk_id(self, id: ENCODING_DTYPE=None) -> ENCODING_DTYPE:
