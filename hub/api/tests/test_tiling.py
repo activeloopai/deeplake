@@ -112,7 +112,6 @@ def test_populate_full_large_sample(local_ds_generator, compression):
         last_y = 0
         for x in range(patch_size, 500 + patch_size, patch_size):
             for y in range(patch_size, 500 + patch_size, patch_size):
-                print(last_x, x, last_y, y)
                 patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
                 ds.large[0, last_x:x, last_y:y] = patch
                 last_y = y
@@ -128,7 +127,6 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     last_y = 0
     for x in range(patch_size, 500 + patch_size, patch_size):
         for y in range(patch_size, 500 + patch_size, patch_size):
-            print(last_x, x, last_y, y)
             expected_patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
             actual_patch = ds.large[0, last_x:x, last_y:y].numpy()
             np.testing.assert_array_equal(expected_patch, actual_patch, f"x={last_x}:{x}, y={last_y}:{y}")
