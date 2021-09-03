@@ -219,10 +219,6 @@ class GCSProvider(StorageProvider):
         client = storage.Client(credentials=self.scoped_credentials.credentials)
         self.client_bucket = client.get_bucket(self.bucket)
 
-    def reinitialize_provider(self):
-        client = storage.Client(credentials=self.scoped_credentials.credentials)
-        self.client_bucket = client.get_bucket(self.bucket)
-
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
         self.bucket = root.split("/")[0]

@@ -106,8 +106,9 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              brew install zlib libjpeg webp      
-              sudo launchctl limit maxfiles 65536 300000               	
+              brew install zlib libjpeg webp     
+              sudo sysctl -w kern.maxfiles=300000 
+              sudo sysctl -w kern.maxfilesperproc=300000             	
               sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
   info:
     steps:

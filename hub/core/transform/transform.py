@@ -2,7 +2,6 @@ import hub
 import math
 from typing import List
 from itertools import repeat
-from hub.core.storage.gcs import GCSProvider
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
@@ -113,8 +112,6 @@ class Pipeline:
             ds_out[tensor].chunk_engine.chunk_id_encoder
 
         compute_provider = get_compute_provider(scheduler, num_workers)
-        if isinstance(ds_out.storage.next_storage, GCSProvider):
-            ds_out.storage.next_storage.reinitialize_provider()
         self.run(data_in, ds_out, tensors, compute_provider, num_workers)
         ds_out.storage.autoflush = initial_autoflush
 
