@@ -166,12 +166,12 @@ def test_failures(memory_ds):
 
 @pytest.mark.parametrize("compression", [None, "png"])
 def test_append_extend(memory_ds, compression):
-    memory_ds.create_tensor("image", sample_compression=compression)
-    memory_ds.image.extend(np.ones((2, 4096, 4096)))
-    memory_ds.image.append(np.ones((4096, 4096)))
+    memory_ds.create_tensor("image", dtype="uint8", sample_compression=compression)
+    memory_ds.image.extend(np.ones((2, 8192, 8192), dtype="uint8"))
+    memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
 
     assert len(memory_ds) == 3
-    assert memory_ds.image.shape == (3, 4096, 4096)
-    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((3, 4096, 4096)))
-    _assert_num_chunks(memory_ds.image.num_chunks, 27, compression)
+    assert memory_ds.image.shape == (3, 8192, 8192)
+    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((3, 8192, 8192), dtype="uint8"))
+    _assert_num_chunks(memory_ds.image.num_chunks, 12, compression)
 
