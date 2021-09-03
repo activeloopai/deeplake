@@ -61,6 +61,9 @@ def _transition_probability(
 class TileOptimizer:
 
     def __init__(self, min_chunk_size: int, max_chunk_size: int, tensor_meta: TensorMeta):
+        """Uses simulated annealing to find the best tile shape for a sample of a specific shape
+        with respect to the tensor meta properties."""
+        
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta
