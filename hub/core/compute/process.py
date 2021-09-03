@@ -8,5 +8,4 @@ class ProcessProvider(ComputeProvider):
         self.pool = ProcessPool(nodes=workers)
 
     def map(self, func, iterable):
-        with self.pool as p:
-            return p.map(func, iterable)
+        return self.pool.map(func, iterable)
