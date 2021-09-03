@@ -2,6 +2,7 @@ import hub
 import numpy as np
 import pickle
 import pytest
+from copy import deepcopy
 
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
@@ -257,7 +258,9 @@ def test_custom_tensor_order(ds):
         ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
     )
     for dl in [dl_new, dl_old]:
-        for i, batch in enumerate(dl):
+        for i, batch_i in enumerate(dl):
+            batch = deepcopy(batch_i)
+            del batch_i
             c1, d1, a1 = batch
             a2 = batch["a"]
             c2 = batch["c"]
@@ -282,7 +285,9 @@ def test_custom_tensor_order(ds):
             np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
     dls = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
-    for i, batch in enumerate(dls):
+    for i, batch_i in enumerate(dls):
+        batch = deepcopy(batch_i)
+        del batch_i
         c1, d1, a1 = batch
         a2 = batch["a"]
         c2 = batch["c"]
@@ -320,29 +325,29 @@ def test_readonly(local_ds):
         pass
 
 
-# @requires_torch
-# def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-#     if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
-#         with pytest.raises(DatasetUnsupportedPytorch):
-#             dl = local_ds.pytorch(num_workers=2)
-#         return
-#     img_good = hub.read(compressed_image_paths["jpeg"][0])
-#     img_bad = hub.read(corrupt_image_paths["jpeg"])
-#     with local_ds:
-#         local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
-#         for i in range(3):
-#             for i in range(10):
-#                 local_ds.image.append(img_good)
-#             local_ds.image.append(img_bad)
-#     num_samples = 0
-#     num_batches = 0
-#     with pytest.warns(UserWarning):
-#         dl = local_ds.pytorch(num_workers=2, batch_size=2)
-#         for (batch,) in dl:
-#             num_batches += 1
-#             num_samples += len(batch)
-#     assert num_samples == 30
-#     assert num_batches == 15
+@requires_torch
+def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
+    if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            dl = local_ds.pytorch(num_workers=2)
+        return
+    img_good = hub.read(compressed_image_paths["jpeg"][0])
+    img_bad = hub.read(corrupt_image_paths["jpeg"])
+    with local_ds:
+        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        for i in range(3):
+            for i in range(10):
+                local_ds.image.append(img_good)
+            local_ds.image.append(img_bad)
+    num_samples = 0
+    num_batches = 0
+    with pytest.warns(UserWarning):
+        dl = local_ds.pytorch(num_workers=2, batch_size=2)
+        for (batch,) in dl:
+            num_batches += 1
+            num_samples += len(batch)
+    assert num_samples == 30
+    assert num_batches == 15
 
 
 @requires_torch
