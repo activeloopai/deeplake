@@ -3,6 +3,8 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.thread import ThreadProvider
+from hub.core.compute.process import ProcessProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -139,6 +141,8 @@ class Pipeline:
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
+        if isinstance(compute, (ThreadProvider, ProcessProvider):
+            compute.pool.close() 
 
 
 def compose(functions: List[TransformFunction]):
