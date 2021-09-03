@@ -320,29 +320,29 @@ def test_readonly(local_ds):
         pass
 
 
-@requires_torch
-def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
-        with pytest.raises(DatasetUnsupportedPytorch):
-            dl = local_ds.pytorch(num_workers=2)
-        return
-    img_good = hub.read(compressed_image_paths["jpeg"][0])
-    img_bad = hub.read(corrupt_image_paths["jpeg"])
-    with local_ds:
-        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
-        for i in range(3):
-            for i in range(10):
-                local_ds.image.append(img_good)
-            local_ds.image.append(img_bad)
-    num_samples = 0
-    num_batches = 0
-    with pytest.warns(UserWarning):
-        dl = local_ds.pytorch(num_workers=2, batch_size=2)
-        for (batch,) in dl:
-            num_batches += 1
-            num_samples += len(batch)
-    assert num_samples == 30
-    assert num_batches == 15
+# @requires_torch
+# def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
+#     if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
+#         with pytest.raises(DatasetUnsupportedPytorch):
+#             dl = local_ds.pytorch(num_workers=2)
+#         return
+#     img_good = hub.read(compressed_image_paths["jpeg"][0])
+#     img_bad = hub.read(corrupt_image_paths["jpeg"])
+#     with local_ds:
+#         local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+#         for i in range(3):
+#             for i in range(10):
+#                 local_ds.image.append(img_good)
+#             local_ds.image.append(img_bad)
+#     num_samples = 0
+#     num_batches = 0
+#     with pytest.warns(UserWarning):
+#         dl = local_ds.pytorch(num_workers=2, batch_size=2)
+#         for (batch,) in dl:
+#             num_batches += 1
+#             num_samples += len(batch)
+#     assert num_samples == 30
+#     assert num_batches == 15
 
 
 @requires_torch
