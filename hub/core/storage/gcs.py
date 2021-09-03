@@ -252,11 +252,15 @@ class GCSProvider(StorageProvider):
         """Store value in key"""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
-        if isinstance(value, memoryview) and (
-            value.strides == (1,) and value.shape == (len(value.obj),)
-        ):
-            value = value.obj
-        value = bytes(value)
+        if isinstance(value, memoryview):
+            value = value.tobytes()
+        elif isinstance(value, bytearray):
+            value = bytes(value)
+        # if isinstance(value, memoryview) and (
+        #     value.strides == (1,) and value.shape == (len(value.obj),)
+        # ):
+        #     value = value.obj
+        # value = bytes(value)
         blob.upload_from_string(value, retry=self.retry)
 
     def __iter__(self):
