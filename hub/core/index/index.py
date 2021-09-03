@@ -584,7 +584,7 @@ class Index:
     def shape_if_applied_to(self, shape: Tuple[int, ...]) -> Tuple[int, ...]:
         # TODO: docstring
 
-        output_shape = list(self.shape)
+        output_shape = list(shape)
 
         for i, dim in enumerate(output_shape):
             if dim is None:
