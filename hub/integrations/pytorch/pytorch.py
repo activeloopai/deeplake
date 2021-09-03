@@ -15,6 +15,9 @@ from .common import convert_fn as default_convert_fn, collate_fn as default_coll
 pytorch_installed = True
 try:
     import torch
+    import torch.multiprocessing
+
+    torch.multiprocessing.set_sharing_strategy("file_system")
 except ModuleNotFoundError:
     pytorch_installed = False
 
