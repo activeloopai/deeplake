@@ -584,13 +584,18 @@ class Index:
     def shape_if_applied_to(self, shape: Tuple[int, ...]) -> Tuple[int, ...]:
         # TODO: docstring
 
-        output_shape = list(shape)
+        output_shape = np.zeros(len(shape), dtype=int)
+        self_shape = self.shape
 
-        for i, dim in enumerate(output_shape):
-            if dim is None:
+        for i in range(len(shape)):
+            if i >= len(self_shape) or self_shape[i] is None:
+                # trivial shape should default to the shape being applied to
                 output_shape[i] = shape[i]
+            else:
+                output_shape[i] = min(self_shape[i], shape[i])
 
-        return tuple(output_shape)  # type: ignore
+        return tuple(output_shape)
+
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.

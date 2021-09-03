@@ -162,3 +162,16 @@ def test_failures(memory_ds):
     # TODO: replace tiled sample with a non-tiled sample
     with pytest.raises(NotImplementedError):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4
+
+
+@pytest.mark.parametrize("compression", [None, "png"])
+def test_append_extend(memory_ds, compression):
+    memory_ds.create_tensor("image", sample_compression=compression)
+    memory_ds.image.extend(np.ones((2, 4096, 4096)))
+    memory_ds.image.append(np.ones((4096, 4096)))
+
+    assert len(memory_ds) == 3
+    assert memory_ds.image.shape == (3, 4096, 4096)
+    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((3, 4096, 4096)))
+    _assert_num_chunks(memory_ds.image.num_chunks, 27, compression)
+
