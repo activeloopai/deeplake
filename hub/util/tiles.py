@@ -145,12 +145,6 @@ def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: 
     )
 
     tile_view = subslice_index.apply_restricted(tile, bias=low)
-
-    # get sample view (apply subslice_index to the entire sample (cumulative tiles))
-    # but restrict view to the incoming sample
     incoming_sample_view = subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
-
-    # print("tile view shape:", tile_view.shape)
-    # print("incoming sample view shape:", incoming_sample_view.shape)
 
     return tile_view, incoming_sample_view

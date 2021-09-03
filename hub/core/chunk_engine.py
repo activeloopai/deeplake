@@ -410,7 +410,7 @@ class ChunkEngine:
 
                 # use retile=False so we can pass in a sigle-dim effective index 
                 # TODO: implement re-tiling
-                self.update(update_index, [sample], retile=False)
+                self.update(update_index, sample, retile=False)
 
             else:
                 self._append_bytes(buffer, shape)
@@ -461,7 +461,7 @@ class ChunkEngine:
                 global_sample_index
             )
 
-            tiles, tile_shape_mask = self.download_required_tiles(
+            tiles = self.download_required_tiles(
                 global_sample_index, subslice_index
             )
 
@@ -489,6 +489,8 @@ class ChunkEngine:
                     )  # memcopy necessary to support inplace updates using numpy slicing
 
                     if is_tiled:
+                        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, tiles)
+
                         # sanity check
                         tile_shape = tile_shape_mask[tile_index]
                         if tile.shape != tile_shape:
@@ -499,19 +501,6 @@ class ChunkEngine:
                         tile_index = None
 
                     tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
-
-                    # TODO: align tile with incoming sample, w.r.t subslice
-                    
-                    # print()
-                    # print("-------------")
-                    # print("global index:", global_sample_index)
-                    # print("tile index:", tile_index)
-                    # print("subslice:", subslice_index)
-                    # # print("tile bounds:", low, high)
-                    # print("incoming sample shape:", incoming_sample.shape)
-                    # print("tile shape:", tile.shape)
-                    # print()
-
                     tile_view[:] = incoming_sample_view
                     new_sample = tile
 
@@ -576,11 +565,11 @@ class ChunkEngine:
     ) -> np.ndarray:
         # TODO: docstring
 
-        tiles, tile_shape_mask = self.download_required_tiles(
+        tiles = self.download_required_tiles(
             global_sample_index, subslice_index
         )
         sample = self.coalesce_sample(
-            global_sample_index, tiles, tile_shape_mask, subslice_index, dtype
+            global_sample_index, tiles, subslice_index, dtype
         )
 
         return sample
@@ -594,7 +583,7 @@ class ChunkEngine:
 
     def download_required_tiles(
         self, global_sample_index: int, subslice_index: Index
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> np.ndarray:
         # TODO: docstring
 
         chunk_id_encoder = self.chunk_id_encoder
@@ -603,14 +592,13 @@ class ChunkEngine:
         tile_ids = chunk_id_encoder[global_sample_index]
 
         ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)  # type: ignore
-
         tile_shape_mask = tile_encoder.get_tile_shape_mask(
             global_sample_index, ordered_tile_ids
         )
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
 
-        return tiles, tile_shape_mask
+        return tiles
 
     def download_tiles(
         self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray
@@ -658,7 +646,6 @@ class ChunkEngine:
         self,
         global_sample_index: int,
         tiles: np.ndarray,
-        tile_shape_mask: np.ndarray,
         subslice_index: Index,
         dtype: np.dtype,
     ) -> np.ndarray:
@@ -675,44 +662,13 @@ class ChunkEngine:
         tile_encoder = self.tile_encoder
         full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
         sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
-
         sample = np.zeros(sample_shape, dtype=dtype)
 
         for tile_index, tile_obj in np.ndenumerate(tiles):
             if tile_obj is None:
                 continue
-
-            tile_shape = tile_shape_mask[tile_index]
-            low, _ = get_tile_bounds(tile_index, tile_shape)
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
-
-            # TODO: this indexing might be broken for negative / slice indexes with "skip" components
-
-            # get tile index
-            # tile_slices = []
-            # for low_dim, subslice_value in zip(low, subslice_index.values):
-            #     low_bound = subslice_value.low_bound
-            #     high_bound = subslice_value.high_bound
-
-            #     if low_bound is None:
-            #         tile_low_dim = None
-            #     else:
-            #         tile_low_dim = low_bound - low_dim
-
-            #     if high_bound is None:
-            #         tile_high_dim = None
-            #     else:
-            #         tile_high_dim = high_bound - low_dim
-
-            #     tile_slices.append(slice(tile_low_dim, tile_high_dim))
-
-            # tile_slices = tuple(tile_slices)  # type: ignore
-
-            # print(sample.shape, tile_sample.shape)
-            # sample[:] = tile_sample[tile_slices]
-
             tile_view, sample_view = align_sample_and_tile(sample, tile, subslice_index, tile_index)
-
             sample_view[:] = tile_view
 
         return sample
