@@ -141,8 +141,8 @@ class Pipeline:
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
-        if isinstance(compute, (ThreadProvider, ProcessProvider):
-            compute.pool.close() 
+        if isinstance(compute, (ThreadProvider, ProcessProvider)):
+            compute.pool.close()
 
 
 def compose(functions: List[TransformFunction]):
