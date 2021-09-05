@@ -2,7 +2,12 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype, intelligent_cast
 from hub.core.compression import decompress_array
-from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+)
 from math import ceil
 from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
@@ -118,15 +123,23 @@ class ChunkEngine:
         self._meta_cache = meta_cache
 
         if self.tensor_meta.chunk_compression:
-            # Cache samples in the last chunk in uncompressed form.
-            self._last_chunk_uncompressed: List[np.ndarray] = (
-                self.last_chunk.decompressed_samples(
-                    compression=self.tensor_meta.chunk_compression,
-                    dtype=self.tensor_meta.dtype,
+            if (
+                get_compression_type(self.tensor_meta.chunk_compression)
+                == VIDEO_COMPRESSION
+            ):
+                # Store paths for videos as ffmpeg requires file paths
+                self._last_chunk_video_paths = []
+                # TODO: edge chunk can be suboptimal
+            else:
+                # Cache samples in the last chunk in uncompressed form.
+                self._last_chunk_uncompressed: List[np.ndarray] = (
+                    self.last_chunk.decompressed_samples(
+                        compression=self.tensor_meta.chunk_compression,
+                        dtype=self.tensor_meta.dtype,
+                    )
+                    if self.last_chunk
+                    else []
                 )
-                if self.last_chunk
-                else []
-            )
 
     @property
     def max_chunk_size(self):
@@ -265,6 +278,30 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
+
+    def _append_video_to_compressed_chunk(self, sample: Sample):
+        chunk_compression = self.tensor_meta.chunk_compression
+        video_paths = self._last_chunk_video_paths
+        # Append incoming buffer to last chunk and compress:
+        video_paths.append(sample.path)
+        compressed_bytes = compress_multiple(video_paths, chunk_compression)
+
+        # Check if last chunk can hold new compressed buffer.
+        if self._can_set_to_last_chunk(len(compressed_bytes)):
+            chunk = self.last_chunk
+        else:
+            # Last chunk full, create new chunk
+            chunk = self._create_new_chunk()
+
+            # All samples except the last one are already in the previous chunk, so remove them from cache and compress:
+            del video_paths[:-1]
+            compressed_bytes = pack_videos(video_paths, chunk_compression)
+
+        # Set chunk data
+        chunk._data = compressed_bytes  # type: ignore
+
+        # Byte positions are not relevant for video compressions, so incoming_num_bytes=None.
+        chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=sample.shape)  # type: ignore
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -427,13 +464,24 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
+        chunk_compression = self.tensor_meta.chunk_compression
+
+        if (
+            chunk_compression
+            and get_compression_type(chunk_compression) == VIDEO_COMPRESSION
+        ):
+            for sample in samples:
+                self._append_video_to_compressed_chunk(sample)
+                tensor_meta.update_shape_interval(sample.shape)
+            return
+
         buff, nbytes, shapes = serialize_input_samples(
             samples, tensor_meta, self.min_chunk_size
         )
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
-        if tensor_meta.chunk_compression:
+        if chunk_compression:
             for nb, shape in zip(nbytes, shapes):
                 self._append_bytes(buff[:nb], shape[:])  # type: ignore
                 buff = buff[nb:]

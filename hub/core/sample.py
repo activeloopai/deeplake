@@ -5,6 +5,7 @@ from hub.core.compression import (
     read_meta_from_compressed_file,
     get_compression,
 )
+from hub.compression import get_compression_type
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union

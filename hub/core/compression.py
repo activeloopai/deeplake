@@ -5,7 +5,12 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.compression import get_compression_type
+from hub.compression import (
+    get_compression_type,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    BYTE_COMPRESSION,
+)
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
@@ -16,6 +21,18 @@ import struct
 import sys
 import re
 import lz4.frame  # type: ignore
+import tempfile
+import os
+
+
+def _import_moviepy():
+    global moviepy
+    global VideoFileClip
+    global concatenate_videoclips
+    global crop_video
+    import moviepy
+    from moviepy.editor import VideoFileClip, concatenate_videoclips
+    from moviepy.video.fx.all import crop as crop_video
 
 
 if sys.byteorder == "little":
@@ -46,6 +63,7 @@ _JPEG_SOFS = [
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
+_STRUCT_F = struct.Struct("f")
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -102,8 +120,14 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     if compression is None:
         return array.tobytes()
 
-    if get_compression_type(compression) == "byte":
+    compr_typ = get_compression_type(compression)
+
+    if compr_typ == BYTE_COMPRESSION:
         return compress_bytes(array.tobytes(), compression)
+    elif compr_typ == VIDEO_COMPRESSION:
+        raise NotImplementedError(
+            "Compressing numpy arrays to videos is not yet supported"
+        )
 
     try:
         img = to_image(array)
@@ -123,8 +147,20 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise SampleCompressionError(array.shape, compression, str(e))
 
 
+def _decompress_mp4(file: Union[bytes, memoryview, str]) -> np.ndarray:
+    if isinstance(file, str):
+        return np.concatenate([frame for frame in VideoFileClip(f.name).iter_frames()])
+    else:
+        buffer = file
+        with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
+            f.write(buffer)
+            return np.concatenate(
+                [frame for frame in VideoFileClip(f.name).iter_frames()]
+            )
+
+
 def decompress_array(
-    buffer: Union[bytes, memoryview],
+    buffer: Union[bytes, memoryview, str],
     shape: Optional[Tuple[int]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
@@ -136,7 +172,7 @@ def decompress_array(
         `compress_array` may be used to get the `buffer` input.
 
     Args:
-        buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
+        buffer (bytes, memoryview, str): Buffer (or file) to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for byte compressions
         shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
@@ -149,16 +185,29 @@ def decompress_array(
     Returns:
         np.ndarray: Array from the decompressed buffer.
     """
-    if compression and get_compression_type(compression) == "byte":
+    if compression and get_compression_type(compression) == BYTE_COMPRESSION:
         if dtype is None or shape is None:
             raise ValueError("dtype and shape must be specified for byte compressions.")
+        if isinstance(buffer, str):
+            with open(buffer, "rb") as f:
+                buffer = f.read()
         try:
             decompressed_bytes = decompress_bytes(buffer, compression)
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
+    if not compression and _is_mp4(buffer):
+        compression = "mp4"
+    if compression == "mp4":
+        _import_moviepy()
+        try:
+            return _decompress_mp4(buffer)
+        except Exception:
+            raise SampleDecompressionError()
     try:
-        img = Image.open(BytesIO(buffer))
+        if not isinstance(buffer, str):
+            buffer = BytesIO(buffer)
+        img = Image.open(buffer)
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)
@@ -178,9 +227,14 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int, int, int]:
     return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape  # type: ignore
 
 
-def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
+def compress_multiple(
+    samples: Sequence[Union[np.ndarray, str]], compression: str
+) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
+    if get_compression_type(compression) == VIDEO_COMPRESSION:
+        return _pack_videos(samples)
+    arrays = samples
     dtype = arrays[0].dtype
     for arr in arrays:
         if arr.dtype != dtype:
@@ -208,7 +262,10 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
-    if compression and get_compression_type(compression) == "byte":
+    compr_typ = get_compression_type(compression) if compression else None
+    if compr_typ == VIDEO_COMPRESSION:
+        return _unpack_videos(buffer)
+    elif compr_typ == BYTE_COMPRESSION:
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
         itemsize = np.dtype(dtype).itemsize
@@ -228,6 +285,64 @@ def decompress_multiple(
     return arrays
 
 
+def _pack_videos(paths: Sequence[str]) -> memoryview:
+    with tempfile.TemporaryFile(suffix=".mp4") as f:
+        fname = f.name
+    clips = [VideoFileClip(path) for path in paths]
+    sizes = [clip.size for clip in clips]
+    lengths = [clip.duration for clip in clips]
+    try:
+        concatenate_videoclips(clips).write_videofile(fname)
+        with open(fname, "rb") as f:
+            byts = f.read()
+    finally:
+        os.remove(fname)
+    header_size = 2 + 2 * 2 * len(clips) + 4 * len(clips)
+    ba = bytearray(header_size + len(byts))
+    ba[:2] = len(clips).to_bytes(2, "big")
+    offset = 2
+    for size, length in zip(sizes, liengths):
+        ba[offset : offset + 4] = _STRUCT_II.pack(size)
+        offset += 4
+        ba[offset : offset + 4] = _STRUCT_F.pack(length)
+        offset += 4
+    ba[offset:] = byts
+    return memoryview(ba)
+
+
+def _unpack_videos(buffer) -> List[np.ndarray]:
+    buffer = memoryview(buffer)
+    nclips = int.from_bytes(buffer[:2], "big")
+    offset = 2
+    sizes = []
+    lengths = []
+    for i in range(nclips):
+        size = _STRUCT_II.unpack(buffer[offset : offset + 4])
+        offset += 4
+        length = _STRUCT_F.unpack(buff[offset : offset + 4])
+        offset += 4
+        sizes.append(size)
+        lengths.append(length)
+    subclips = []
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
+        f.write(buffer[offset:])
+        clip = VideoFileClip(f.name)
+        x_c = clip.w // 2
+        y_c = clip.h // 2
+        offset = 0
+        for size, length in zip(sizes, lengths):
+            subclip = clip.subclip(offset, length)
+            offset += length
+            subclip = crop_video(
+                subclip, x_center=x_c, y_center=y_c, width=size[0], height=size[1]
+            )
+            subclips.append(subclip)
+    return [
+        np.concatenate([frame for frame in subclip.iter_frames()])
+        for subclip in subclips
+    ]
+
+
 def verify_compressed_file(
     file: Union[str, BinaryIO, bytes], compression: str
 ) -> Tuple[Tuple[int, ...], str]:
@@ -237,28 +352,64 @@ def verify_compressed_file(
         compression (str): Expected compression of the image file
     """
     if isinstance(file, str):
-        file = open(file, "rb")
+        f = open(file, "rb")
         close = True
     elif hasattr(file, "read"):
+        f = file
         close = False
         file.seek(0)  # type: ignore
     else:
+        f = file
         close = False
     try:
         if compression == "png":
-            return _verify_png(file)
+            return _verify_png(f)
         elif compression == "jpeg":
-            return _verify_jpeg(file), "|u1"
+            return _verify_jpeg(f), "|u1"
+        elif compression == "mp4":
+            return _read_mp4_shape(file), "|u1"
         else:
-            return _fast_decompress(file)
+            return _fast_decompress(f)
     except Exception as e:
         raise CorruptedSampleError(compression)
     finally:
         if close:
-            file.close()  # type: ignore
+            f.close()  # type: ignore
 
 
-def get_compression(header):
+_MP4_CHUNK_SUBTYPES = [
+    "avc1",
+    "iso2",
+    "isom",
+    "mmp4",
+    "mp41",
+    "mp42",
+    "mp71",
+    "msnv",
+    "ndas",
+    "ndsc",
+    "ndsh",
+    "ndsm",
+    "ndsp",
+    "ndss",
+    "ndxc",
+    "ndxh",
+    "ndxm",
+    "ndxp",
+    "ndxs",
+]
+
+_MP4_CHUNK_SUBTYPES = [typ.encode("ascii") for typ in _MP4_CHUNK_SUBTYPES]
+
+
+def _is_mp4(header: bytes) -> bool:
+    header = memoryview(header)
+    return header[4:8] == b"ftyp" and header[8:12] in _MP4_CHUNK_SUBTYPES
+
+
+def get_compression(header: bytes) -> str:
+    if _is_mp4(header):
+        return "mp4"
     if not Image.OPEN:
         Image.init()
     for fmt in Image.OPEN:
@@ -398,6 +549,12 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
+        elif compression == "mp4":
+            _import_moviepy()
+            try:
+                shape, typestr = _read_mp4_shape(file), "|u1"
+            except Exception:
+                raise CorruptedSampleError("mp4")
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -481,3 +638,10 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
             nlayers = 4
     shape = size if nlayers is None else size + (nlayers,)
     return shape, typstr  # type: ignore
+
+
+def _read_mp4_shape(f) -> Tuple[int, int, int, int]:
+    assert isinstance(f, str), f"Required mp4 file path as str, received {type(f)}"
+    clip = VideoFileClip(f)
+    nframes = clip.reader.nframes
+    return (nframes,) + next(clip.iter_frames()).shape  # TODO: avoid decompression here
