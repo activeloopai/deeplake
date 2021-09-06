@@ -30,26 +30,16 @@ def _add_dummy_mnist(ds, **kwargs):
 @pytest.mark.parametrize(
     "compression",
     [
-        {
-            "image_compression": {"sample_compression": None},
-        },
-        {
-            "image_compression": {"sample_compression": None},
-            "label_compression": {"sample_compression": "lz4"},
-        },
-        {
-            "image_compression": {"sample_compression": None},
-            "label_compression": {"chunk_compression": "lz4"},
-        },
-        {"image_compression": {"sample_compression": "png"}},
-        {"image_compression": {"chunk_compression": "png"}},
-        {"image_compression": {"sample_compression": "lz4"}},
-        {"image_compression": {"chunk_compression": "lz4"}},
+        {"sample_compression": None},
+        {"sample_compression": "lz4"},
+        {"chunk_compression": "lz4"},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
     ],
-))
+)
 def test(local_ds_generator, compression):
     ds = local_ds_generator()
-    ds.create_tensor("images", htype="image", *compression)
+    ds.create_tensor("images", **compression)
     ds.images.extend(np.zeros((10, 28, 28), dtype=np.uint8))
 
     ds = local_ds_generator()

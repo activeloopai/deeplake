@@ -151,6 +151,10 @@ def decompress_array(
     Returns:
         np.ndarray: Array from the decompressed buffer.
     """
+
+    if len(buffer) <= 0:
+        return np.zeros(shape, dtype=dtype)
+
     if compression and get_compression_type(compression) == "byte":
         if dtype is None or shape is None:
             raise ValueError("dtype and shape must be specified for byte compressions.")
