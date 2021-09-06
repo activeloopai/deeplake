@@ -46,6 +46,16 @@ parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
 parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
 parametrize_num_batches = pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
 parametrize_num_workers = pytest.mark.parametrize(NUM_WORKERS_PARAM, NUM_WORKERS)
+compressions = pytest.mark.parametrize(
+    "compression",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "lz4"},
+        {"chunk_compression": "lz4"},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
 
 
 def current_test_name() -> str:

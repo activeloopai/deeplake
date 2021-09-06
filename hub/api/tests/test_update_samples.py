@@ -10,6 +10,7 @@ from typing import Callable
 from hub.tests.common import assert_array_lists_equal
 import numpy as np
 import hub
+from hub.tests.common import compressions
 
 
 def _add_dummy_mnist(ds, **kwargs):
@@ -27,16 +28,7 @@ def _add_dummy_mnist(ds, **kwargs):
     return ds
 
 
-@pytest.mark.parametrize(
-    "compression",
-    [
-        {"sample_compression": None},
-        {"sample_compression": "lz4"},
-        {"chunk_compression": "lz4"},
-        {"sample_compression": "png"},
-        {"chunk_compression": "png"},
-    ],
-)
+@compressions
 def test(local_ds_generator, compression):
     ds = local_ds_generator()
     ds.create_tensor("images", **compression)

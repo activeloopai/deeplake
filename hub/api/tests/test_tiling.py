@@ -3,24 +3,31 @@ from hub.util.exceptions import CannotInferTilesError
 import pytest
 import numpy as np
 from hub.constants import KB
+from hub.tests.common import compressions
 
 
 def _assert_num_chunks(
-    actual_num_chunks: int, expected_num_chunks: int, compression: Optional[str]
+    actual_num_chunks: int, expected_num_chunks: int, compression: dict
 ):
     if compression is None:
-        assert actual_num_chunks == expected_num_chunks
+        is_compressed = False
     else:
+        is_compressed = list(compression.values())[0] is not None
+        assert len(compression.values()) == 1
+
+    if is_compressed:
         # TODO: better way to get the number of chunks with compression for tests
         assert actual_num_chunks < expected_num_chunks
+    else:
+        assert actual_num_chunks == expected_num_chunks
 
 
-@pytest.mark.parametrize("compression", [None, "png"])
+@compressions
 def test_initialize_large_tensor(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
-    ds.create_tensor("tensor", dtype="int32", sample_compression=compression)
+    ds.create_tensor("tensor", dtype="int32", **compression)
 
     ds.tensor.append_empty((10000, 10000))  # 400MB
     _assert_num_chunks(ds.tensor.num_chunks, 16, compression)
@@ -45,12 +52,12 @@ def test_initialize_large_tensor(local_ds_generator, compression):
     _assert_num_chunks(ds.tensor.num_chunks, 16, compression)
 
 
-@pytest.mark.parametrize("compression", [None, "png"])
+@compressions
 def test_initialize_large_image(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
-    ds.create_tensor("tensor", dtype="uint8", sample_compression=compression)
+    ds.create_tensor("tensor", dtype="uint8", **compression)
 
     ds.tensor.append_empty((10, 10, 3))  # small
     ds.tensor.append_empty((10000, 10000, 3))  # large (1.2GB) w/ channel dim
@@ -87,14 +94,14 @@ def test_initialize_large_image(local_ds_generator, compression):
     _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
 
 
-@pytest.mark.parametrize("compression", [None, "png"])
+@compressions
 def test_populate_full_large_sample(local_ds_generator, compression):
     ds = local_ds_generator()
 
     ds.create_tensor(
         "large",
         dtype="int32",
-        sample_compression=compression,
+        **compression,
         max_chunk_size=16 * KB,
     )
 
@@ -164,14 +171,14 @@ def test_failures(memory_ds):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4
 
 
-@pytest.mark.parametrize("compression", [None, "png"])
+@compressions
 def test_append_extend(memory_ds, compression):
-    memory_ds.create_tensor("image", dtype="uint8", sample_compression=compression)
+    memory_ds.create_tensor("image", dtype="uint8", **compression)
     memory_ds.image.extend(np.ones((2, 8192, 8192), dtype="uint8"))
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
 
     assert len(memory_ds) == 3
     assert memory_ds.image.shape == (3, 8192, 8192)
     np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((3, 8192, 8192), dtype="uint8"))
-    _assert_num_chunks(memory_ds.image.num_chunks, 12, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 12, *compression)
 
