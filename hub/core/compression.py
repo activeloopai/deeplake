@@ -19,6 +19,16 @@ import sys
 import re
 import lz4.frame  # type: ignore
 
+# this maps a compressor to the average compression ratio it achieves assuming the data is natural
+# for example, if compressor X on average removes 50% of the data, the compression factor would be 2.0.
+# TODO: for every compressor we have, we should have an accurate number here!
+# NOTE: these may need to be tuned, possibly even determined based on htype or user dataset metrics
+COMPRESSION_FACTORS = {
+    "png": 2.0,
+    "mp4": 100.0,
+    "lz4": 2,  # TODO: this is random
+}
+
 
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
@@ -69,6 +79,9 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+    if len(buffer) <= 0:
+        return bytes()
+
     if compression == "lz4":
         return lz4.frame.decompress(buffer)
     else:
@@ -220,10 +233,16 @@ def decompress_multiple(
         itemsize = np.dtype(dtype).itemsize
         for shape in shapes:
             nbytes = int(np.prod(shape) * itemsize)
-            arrays.append(
-                np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
-            )
+
+            if len(buffer) <= 0:
+                # empty array (maybe a tiled sample)
+                array = np.zeros(shape, dtype=dtype)
+            else:
+                array = np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
+
+            arrays.append(array)
             decompressed_buffer = decompressed_buffer[nbytes:]
+
         return arrays
     canvas = decompress_array(buffer)
     arrays = []
@@ -368,14 +387,6 @@ def _fast_decompress(buf):
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
 
-
-# this maps a compressor to the average compression ratio it achieves assuming the data is natural
-# for example, if compressor X on average removes 50% of the data, the compression factor would be 2.0.
-# TODO: for every compressor we have, we should have an accurate number here!
-COMPRESSION_FACTORS = {
-    "png": 2.0,
-    "mp4": 100.0,
-}
 
 
 def get_compression_factor(tensor_meta: TensorMeta) -> float:
