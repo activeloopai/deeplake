@@ -279,24 +279,22 @@ class ChunkEngine:
             if buffer:
                 chunk = new_chunk()
 
-    def _append_video_to_compressed_chunk(self, sample: Sample):
+    def _append_video_to_compressed_chunk(self, video: Sample):
         chunk_compression = self.tensor_meta.chunk_compression
         video_paths = self._last_chunk_video_paths
-        # Append incoming buffer to last chunk and compress:
-        video_paths.append(sample.path)
-        compressed_bytes = compress_multiple(video_paths, chunk_compression)
 
-        # Check if last chunk can hold new compressed buffer.
-        if self._can_set_to_last_chunk(len(compressed_bytes)):
+        incoming_num_bytes = video.filesize
+        if self._can_append_to_last_chunk(incoming_num_bytes):
             chunk = self.last_chunk
+            video_paths.append(video.path)
+            compressed_bytes = compress_multiple(video_paths, chunk_compression)
+        elif incoming_num_bytes > self.max_chunk_size:
+            # TODO tiling
+            raise NotImplementedError()
         else:
-            # Last chunk full, create new chunk
-            chunk = self._create_new_chunk()
-
-            # All samples except the last one are already in the previous chunk, so remove them from cache and compress:
+            # All samples except the last one are already in the previous chunk, so remove them from cache.
             del video_paths[:-1]
-            compressed_bytes = pack_videos(video_paths, chunk_compression)
-
+            compressed_bytes = sample.compressed_bytes(chunk_compression)
         # Set chunk data
         chunk._data = compressed_bytes  # type: ignore
 
@@ -365,6 +363,12 @@ class ChunkEngine:
         if last_chunk is None:
             return False
         return nbytes <= self.min_chunk_size
+
+    def _can_append_to_last_chunk(self, nbytes: int) -> bool:
+        last_chunk = self.last_chunk
+        if last_chunk is None:
+            return False
+        return len(last_chunk._data) + nbytes <= self.min_chunk_size
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
         """Synchronizes cachables with the cache.
@@ -471,6 +475,8 @@ class ChunkEngine:
             and get_compression_type(chunk_compression) == VIDEO_COMPRESSION
         ):
             for sample in samples:
+                if not isinstance(sample, hub.core.Sample):
+                    raise TypeError("Use hub.read to read video files.")
                 self._append_video_to_compressed_chunk(sample)
                 tensor_meta.update_shape_interval(sample.shape)
             return

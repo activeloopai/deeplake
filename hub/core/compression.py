@@ -11,12 +11,13 @@ from hub.compression import (
     VIDEO_COMPRESSION,
     BYTE_COMPRESSION,
 )
-from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
+from typing import Union, Tuple, Sequence, List, Optional, BinaryIO, Iterator
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
+import math
 import struct
 import sys
 import re
@@ -286,6 +287,7 @@ def decompress_multiple(
 
 
 def _pack_videos(paths: Sequence[str]) -> memoryview:
+    _import_moviepy()
     with tempfile.TemporaryFile(suffix=".mp4") as f:
         fname = f.name
     clips = [VideoFileClip(path) for path in paths]
@@ -311,6 +313,7 @@ def _pack_videos(paths: Sequence[str]) -> memoryview:
 
 
 def _unpack_videos(buffer) -> List[np.ndarray]:
+    _import_moviepy()
     buffer = memoryview(buffer)
     nclips = int.from_bytes(buffer[:2], "big")
     offset = 2
@@ -405,6 +408,31 @@ _MP4_CHUNK_SUBTYPES = [typ.encode("ascii") for typ in _MP4_CHUNK_SUBTYPES]
 def _is_mp4(header: bytes) -> bool:
     header = memoryview(header)
     return header[4:8] == b"ftyp" and header[8:12] in _MP4_CHUNK_SUBTYPES
+
+
+def split_video(path: str, chunk_size: int) -> Iterator[bytes]:
+    _import_moviepy()
+    clip = VideoFileClip(path)
+    clip_nbytes = os.path.getsize(path)
+    if clip_nbytes <= chunk_size:
+        with open(path, "rb") as f:
+            return f.read()
+    subclip_length = clip.duration * chunk_size / clip_nbytes
+    nsubclips = math.ceil(clip_nbytes / chunk_size)
+    subclips = [
+        clip.subclip(i * subclip_length, min(clip.end, (i + 1) * subclip_length))
+        for i in range(nsubclips)
+    ]
+    ext = os.path.splitext(path)[-1]
+    with tempfile.NamedTemporaryFile(suffix=ext) as f:
+        fname = f.name
+    try:
+        for subclip in subclips:
+            subclip.write_videofile(fname)
+            with open(fname, "rb") as f:
+                yield f.read()
+    finally:
+        os.remove(fname)
 
 
 def get_compression(header: bytes) -> str:

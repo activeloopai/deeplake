@@ -62,4 +62,4 @@ for c in VIDEO_COMPRESSIONS:
 
 
 def get_compression_type(c):
-    return _compression_types[c]
+    return _compression_types.get(c)

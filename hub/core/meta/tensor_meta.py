@@ -15,7 +15,7 @@ from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from hub.compression import COMPRESSION_ALIASES, get_compression_type
+from hub.compression import COMPRESSION_ALIASES, get_compression_type, IMAGE_COMPRESSION
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
 )
@@ -149,14 +149,27 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
+    sample_compression = htype_overwrite["sample_compression"]
+    chunk_compression = htype_overwrite["chunk_compression"]
+
     if (
-        htype == "image"
-        and htype_overwrite["chunk_compression"] == UNSPECIFIED
-        and htype_overwrite["sample_compression"] == UNSPECIFIED
+        htype in ("image", "video")
+        and sample_compression == UNSPECIFIED
+        and chunk_compression == UNSPECIFIED
     ):
         raise TensorMetaMissingRequiredValue(
             htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
+    if htype == "video":
+        msg = "Image compression can not be used for video htype."
+        if sample_compression == IMAGE_COMPRESSION:
+            raise TensorMetaInvalidHtypeOverwriteValue(
+                "sample_compression", sample_compression, msg
+            )
+        elif chunk_compression == IMAGE_COMPRESSION:
+            raise TensorMetaInvalidHtypeOverwriteValue(
+                "chunk_compression", chunk_compression, msg
+            )
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):

@@ -12,6 +12,7 @@ from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 from io import BytesIO
+import os
 
 
 class Sample:
@@ -75,6 +76,11 @@ class Sample:
     def compression(self):
         self._read_meta()
         return self._compression
+
+    @property
+    def filesize(self):
+        if self.path:
+            return os.path.getsize(self.path)
 
     def _read_meta(self, f=None):
         if self._shape is not None:

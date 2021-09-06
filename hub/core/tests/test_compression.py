@@ -14,8 +14,7 @@ from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
-compressions = hub.compression.SUPPORTED_COMPRESSIONS[:]
-compressions.remove(None)  # type: ignore
+compressions = hub.compression.IMAGE_COMPRESSIONS + hub.compression.BYTE_COMPRESSIONS
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
 image_compressions = hub.compression.IMAGE_COMPRESSIONS[:]
