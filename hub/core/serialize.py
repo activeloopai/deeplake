@@ -3,7 +3,7 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array
-from typing import List, Optional, Sequence, Union, Tuple, Iterable
+from typing import List, Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
@@ -329,8 +329,8 @@ def serialize_input_samples(
         nbytes = []
         shapes = []
         for sample in samples:
-            byts, shape = _serialize_input_sample(
-                sample, sample_compression, dtype, htype
+            byts, shape = serialize_input_sample(
+                sample, meta
             )
             buff += byts
             nbytes.append(len(byts))

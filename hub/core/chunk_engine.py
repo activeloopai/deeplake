@@ -530,18 +530,22 @@ class ChunkEngine:
         #         self._append_bytes(buffer, shape)
 
         # INCOMING
-        # buff, nbytes, shapes = serialize_input_samples(
-        #     samples, tensor_meta, self.min_chunk_size
-        # )
-        # for shape in shapes:
-        #     tensor_meta.update_shape_interval(shape)
-        # tensor_meta.length += len(samples)
-        # if tensor_meta.chunk_compression:
-        #     for nb, shape in zip(nbytes, shapes):
-        #         self._append_bytes(buff[:nb], shape[:])  # type: ignore
-        #         buff = buff[nb:]
-        # else:
-        #     self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+        buff, nbytes, shapes = serialize_input_samples(
+            samples, tensor_meta, self.min_chunk_size
+        )
+        for shape in shapes:
+            tensor_meta.update_shape_interval(shape)
+        tensor_meta.length += len(samples)
+        if tensor_meta.chunk_compression:
+            for nb, shape in zip(nbytes, shapes):
+                if self._needs_multiple_chunks(nb):
+                    # TODO: plug in tiling logic
+                    raise NotImplementedError
+
+                self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                buff = buff[nb:]
+        else:
+            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
         self._synchronize_cache()
         self.cache.maybe_flush()
 
@@ -625,55 +629,56 @@ class ChunkEngine:
         #     buffer = buffer[nb:]
         #     updated_chunks.add(chunk)
 
-            is_tiled = tiles.size > 1
+        # TODO: uncomment this logic (no merge changes i don't think):
+        #     is_tiled = tiles.size > 1
 
-            if retile and is_full_sample_replacement and is_tiled:
-                # TODO: implement sample re-tiling
-                raise NotImplementedError(
-                    "Re-tiling samples is not yet supported!"
-                )
+        #     if retile and is_full_sample_replacement and is_tiled:
+        #         # TODO: implement sample re-tiling
+        #         raise NotImplementedError(
+        #             "Re-tiling samples is not yet supported!"
+        #         )
 
-            for tile_index, tile_object in np.ndenumerate(tiles):
-                if tile_object is None:
-                    continue
+        #     for tile_index, tile_object in np.ndenumerate(tiles):
+        #         if tile_object is None:
+        #             continue
 
-                if is_full_sample_replacement:
-                    # no need to read the sample, just purely replace
-                    new_sample = incoming_sample
+        #         if is_full_sample_replacement:
+        #             # no need to read the sample, just purely replace
+        #             new_sample = incoming_sample
 
-                else:
+        #         else:
 
-                    tile = self.read_sample_from_chunk(global_sample_index, tile_object)
-                    tile = np.array(
-                        tile
-                    )  # memcopy necessary to support inplace updates using numpy slicing
+        #             tile = self.read_sample_from_chunk(global_sample_index, tile_object)
+        #             tile = np.array(
+        #                 tile
+        #             )  # memcopy necessary to support inplace updates using numpy slicing
 
-                    if is_tiled:
-                        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, tiles)
+        #             if is_tiled:
+        #                 tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, tiles)
 
-                        # sanity check
-                        tile_shape = tile_shape_mask[tile_index]
-                        if tile.shape != tile_shape:
-                            raise CorruptedSampleError(
-                                f"Tile encoder has the incorrect tile shape. Tile shape: {tile.shape}, tile encoder shape: {tile_shape}"
-                            )
-                    else:
-                        tile_index = None
+        #                 # sanity check
+        #                 tile_shape = tile_shape_mask[tile_index]
+        #                 if tile.shape != tile_shape:
+        #                     raise CorruptedSampleError(
+        #                         f"Tile encoder has the incorrect tile shape. Tile shape: {tile.shape}, tile encoder shape: {tile_shape}"
+        #                     )
+        #             else:
+        #                 tile_index = None
 
-                    tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
-                    tile_view[:] = incoming_sample_view
-                    new_sample = tile
+        #             tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
+        #             tile_view[:] = incoming_sample_view
+        #             new_sample = tile
 
-                buffer, shape = serialize_input_sample(new_sample, tensor_meta)
-                tile_object.update_sample(local_sample_index, buffer, shape)
+        #         buffer, shape = serialize_input_sample(new_sample, tensor_meta)
+        #         tile_object.update_sample(local_sample_index, buffer, shape)
 
-                if is_full_sample_replacement:
-                    self._update_tensor_meta(shape, 0)
+        #         if is_full_sample_replacement:
+        #             self._update_tensor_meta(shape, 0)
 
-            self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
-            self._sync_tiles(tiles)
-            self.cache.maybe_flush()
-            self.meta_cache.maybe_flush()
+        #     self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
+        #     self._sync_tiles(tiles)
+        #     self.cache.maybe_flush()
+        #     self.meta_cache.maybe_flush()
 
     def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True):
         # TODO: docstring
