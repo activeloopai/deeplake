@@ -3,10 +3,10 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array
-from typing import List, Optional, Sequence, Union, Tuple
-
+from typing import List, Optional, Sequence, Union, Tuple, Iterable
 import hub
 import numpy as np
+import struct
 
 
 def infer_chunk_num_bytes(
@@ -67,7 +67,7 @@ def write_version(version, buffer) -> int:
     """Writes version info to the buffer, returns offset."""
     len_version = len(version)
     buffer[0] = len_version
-    buffer[1 : 1 + len_version] = list(map(ord, version))
+    buffer[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
     return offset
 
@@ -77,8 +77,7 @@ def write_shape_info(shape_info, buffer, offset) -> int:
     if shape_info.ndim == 1:
         offset += 8
     else:
-        buffer[offset : offset + 4] = shape_info.shape[0].to_bytes(4, "little")
-        buffer[offset + 4 : offset + 8] = shape_info.shape[1].to_bytes(4, "little")
+        buffer[offset : offset + 8] = struct.pack("<ii", *shape_info.shape)
         offset += 8
 
         buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
@@ -109,12 +108,13 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def deserialize_chunk(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, memoryview], copy: bool = True
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk.
+        copy: (bool) If true, this function copies the byts while deserializing incase byts was a memoryview.
 
     Returns:
         Tuple of:
@@ -123,49 +123,52 @@ def deserialize_chunk(
         encoded byte positions as numpy array,
         chunk data as memoryview.
     """
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    incoming_mview = isinstance(byts, memoryview)
+    byts = memoryview(byts)
 
-    buff = np.frombuffer(byts, dtype=np.byte)
+    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    itemsize = enc_dtype.itemsize
 
     # Read version
-    len_version = buff[0]
-    version = "".join(map(chr, buff[1 : 1 + len_version]))
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
 
     # Read shape info
-    shape_info_shape = buff[offset : offset + 8].view(np.int32)
+    shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
     offset += 8
-    shape_info_nbytes = np.prod(shape_info_shape) * enc_dtype.itemsize
+    shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
         shape_info = (
-            buff[offset : offset + shape_info_nbytes]
-            .view(enc_dtype)
-            .reshape(shape_info_shape)
+            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            .reshape(shape_info_nrows, shape_info_ncols)
             .copy()
         )
         offset += shape_info_nbytes
 
     # Read byte positions
-    byte_positions_rows = buff[offset : offset + 4].view(np.int32)[0]
+    byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
     offset += 4
-    byte_positions_nbytes = byte_positions_rows * 3 * enc_dtype.itemsize
+    byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
         byte_positions = (
-            buff[offset : offset + byte_positions_nbytes]
-            .view(enc_dtype)
+            np.frombuffer(
+                byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+            )
             .reshape(byte_positions_rows, 3)
             .copy()
         )
         offset += byte_positions_nbytes
 
     # Read data
-    data = memoryview(buff[offset:].tobytes())
-
-    return version, shape_info, byte_positions, data
+    data = byts[offset:]
+    if incoming_mview and copy:
+        data = memoryview(bytes(data))
+    return version, shape_info, byte_positions, data  # type: ignore
 
 
 def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
@@ -179,20 +182,20 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
         Serialized chunk ids as memoryview.
     """
     len_version = len(version)
-    flatbuff = np.zeros(1 + len_version + sum([x.nbytes for x in ids]), dtype=np.byte)
+    flatbuff = bytearray(1 + len_version + sum([x.nbytes for x in ids]))
 
     # Write version
     len_version = len(version)
     flatbuff[0] = len_version
-    flatbuff[1 : 1 + len_version] = list(map(ord, version))
+    flatbuff[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
 
     # Write ids
     for arr in ids:
-        flatbuff[offset : offset + arr.nbytes] = arr.view(np.byte).reshape(-1)
+        flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
         offset += arr.nbytes
 
-    return memoryview(flatbuff.tobytes())
+    return memoryview(flatbuff)
 
 
 def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
@@ -206,18 +209,16 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         hub version used to create the chunk,
         encoded chunk ids as memoryview.
     """
+    byts = memoryview(byts)
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
-    buff = np.frombuffer(byts, dtype=np.byte)
-
     # Read version
-    len_version = buff[0]
-    version = "".join(map(chr, buff[1 : 1 + len_version]))
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
 
     # Read chunk ids
-    ids = buff[offset:].view(enc_dtype).reshape(-1, 2).copy()
-
+    ids = np.frombuffer(byts[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
     return version, ids
 
 
@@ -238,6 +239,13 @@ def serialize_input_sample(
     expected_dimensionality = len(tensor_meta.min_shape)
 
     if isinstance(sample, Sample):
+        if (
+            sample_compression
+            and hub.compression.get_compression_type(sample_compression) == "byte"
+        ):
+            # Byte compressions don't store dtype info, so have to cast incoming samples to expected dtype
+            arr = intelligent_cast(sample.array, expected_dtype, htype)
+            sample = Sample(array=arr)
         buffer = sample.compressed_bytes(sample_compression)
         shape = sample.shape
     else:
@@ -262,3 +270,94 @@ def _check_shape(shape: Tuple[int], expected_dimensionality: int):
     # check that all samples have the same dimensionality
     if len(shape) != expected_dimensionality and expected_dimensionality > 0:
         raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+
+
+def _check_input_samples_are_valid(
+    num_bytes: List[int],
+    shapes: List[Tuple[int]],
+    min_chunk_size: int,
+    sample_compression: Optional[str],
+):
+    """Iterates through all buffers/shapes and raises appropriate errors."""
+
+    expected_dimensionality = None
+    for nbytes, shape in zip(num_bytes, shapes):
+        # check that all samples have the same dimensionality
+        if expected_dimensionality is None:
+            expected_dimensionality = len(shape)
+
+        if nbytes > min_chunk_size:
+            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {nbytes} bytes."
+            if sample_compression is None:
+                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
+            raise NotImplementedError(msg)
+
+        if len(shape) != expected_dimensionality:
+            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+
+
+def serialize_input_samples(
+    samples: Union[Sequence[SampleValue], np.ndarray],
+    meta: TensorMeta,
+    min_chunk_size: int,
+) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int]]]:
+    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
+
+    Args:
+        samples (Union[Sequence[SampleValue], np.ndarray]): Ssequence of samples.
+        meta (TensorMeta): Tensor meta. Will not be modified.
+        min_chunk_size (int): Used to validate that all samples are appropriately sized.
+
+    Raises:
+        ValueError: Tensor meta should have it's dtype set.
+        NotImplementedError: When extending tensors with Sample insatances.
+        TypeError: When sample type is not understood.
+
+    Returns:
+        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
+    """
+
+    if meta.dtype is None:
+        raise ValueError("Dtype must be set before input samples can be serialized.")
+
+    sample_compression = meta.sample_compression
+    dtype = np.dtype(meta.dtype)
+    htype = meta.htype
+
+    if sample_compression or not hasattr(samples, "dtype"):
+        buff = bytearray()
+        nbytes = []
+        shapes = []
+        for sample in samples:
+            byts, shape = _serialize_input_sample(
+                sample, sample_compression, dtype, htype
+            )
+            buff += byts
+            nbytes.append(len(byts))
+            shapes.append(shape)
+    elif (
+        isinstance(samples, np.ndarray)
+        or np.isscalar(samples)
+        or isinstance(samples, Sequence)
+    ):
+        samples = intelligent_cast(samples, dtype, htype)
+        buff = memoryview(samples.tobytes())  # type: ignore
+        if len(samples):
+            shape = samples[0].shape
+            nb = samples[0].nbytes
+            if not shape:
+                shape = (1,)
+        else:
+            shape = ()  # type: ignore
+            nb = 0
+        nbytes = [nb] * len(samples)
+        shapes = [shape] * len(samples)
+    elif isinstance(samples, Sample):
+        # TODO
+        raise NotImplementedError(
+            "Extending with `Sample` instance is not supported yet."
+        )
+    else:
+        raise TypeError(f"Cannot serialize samples of type {type(samples)}")
+    _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
+    return buff, nbytes, shapes

@@ -70,8 +70,8 @@ class Dataset:
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
-        if index is None and isinstance(
-            base_storage, S3Provider
+        if (
+            not read_only and index is None and isinstance(base_storage, S3Provider)
         ):  # Dataset locking only for S3 datasets
             try:
                 lock(base_storage, callback=lambda: self._lock_lost_handler)
@@ -174,6 +174,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -187,6 +188,7 @@ class Dataset:
                 May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
+            chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -227,6 +229,7 @@ class Dataset:
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
@@ -331,9 +334,12 @@ class Dataset:
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
         batch_size: Optional[int] = 1,
-        drop_last: Optional[bool] = False,
+        drop_last: bool = False,
         collate_fn: Optional[Callable] = None,
-        pin_memory: Optional[bool] = False,
+        pin_memory: bool = False,
+        shuffle: bool = False,
+        buffer_size: int = 10 * 1000,
+        use_local_cache: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -346,13 +352,16 @@ class Dataset:
             tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int, optional): Number of samples per batch to load. Default value is 1.
-            drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
+            drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
                 If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             collate_fn (Callable, optional): merges a list of samples to form a mini-batch of Tensor(s). Used when using batched loading from a map-style dataset.
                 Read torch.utils.data.DataLoader docs for more details.
-            pin_memory (bool, optional): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
+            pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
+            use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -368,6 +377,9 @@ class Dataset:
             drop_last=drop_last,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
+            shuffle=shuffle,
+            buffer_size=buffer_size,
+            use_local_cache=use_local_cache,
         )
 
     def _get_total_meta(self):
@@ -449,30 +461,6 @@ class Dataset:
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
             logger.info(f"Hub Dataset {self.path} successfully deleted.")
-
-    @staticmethod
-    def from_path(path: str):
-        """Creates a hub dataset from unstructured data.
-
-        Note:
-            This copies the data into hub format.
-            Be careful when using this with large datasets.
-
-        Args:
-            path (str): Path to the data to be converted
-
-        Returns:
-            A Dataset instance whose path points to the hub formatted
-            copy of the data.
-
-        Raises:
-            NotImplementedError: TODO.
-        """
-
-        raise NotImplementedError(
-            "Automatic dataset ingestion is not yet supported."
-        )  # TODO: hub.auto
-        return None
 
     def __str__(self):
         path_str = ""

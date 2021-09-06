@@ -12,9 +12,14 @@ import numpy as np
 import hub
 
 
-def _add_dummy_mnist(ds, images_compression: str = None):
-    ds.create_tensor("images", htype="image", sample_compression=images_compression)
-    ds.create_tensor("labels", htype="class_label")
+def _add_dummy_mnist(ds, **kwargs):
+    compression = kwargs.get(
+        "compression", {"image_compression": {"sample_compression": None}}
+    )
+    ds.create_tensor("images", htype="image", **compression["image_compression"])
+    ds.create_tensor(
+        "labels", htype="class_label", **compression.get("label_compression", {})
+    )
 
     ds.images.extend(np.ones((10, 28, 28), dtype=np.uint8))
     ds.labels.extend(np.ones(10, dtype=np.uint8))
@@ -22,10 +27,29 @@ def _add_dummy_mnist(ds, images_compression: str = None):
     return ds
 
 
-@pytest.mark.parametrize("images_compression", [None, "png"])
-def test(local_ds_generator, images_compression):
+@pytest.mark.parametrize(
+    "compression",
+    [
+        {
+            "image_compression": {"sample_compression": None},
+        },
+        {
+            "image_compression": {"sample_compression": None},
+            "label_compression": {"sample_compression": "lz4"},
+        },
+        {
+            "image_compression": {"sample_compression": None},
+            "label_compression": {"chunk_compression": "lz4"},
+        },
+        {"image_compression": {"sample_compression": "png"}},
+        {"image_compression": {"chunk_compression": "png"}},
+        {"image_compression": {"sample_compression": "lz4"}},
+        {"image_compression": {"chunk_compression": "lz4"}},
+    ],
+))
+def test(local_ds_generator, compression):
     ds = local_ds_generator()
-    ds.create_tensor("images", htype="image", sample_compression=images_compression)
+    ds.create_tensor("images", htype="image", *compression)
     ds.images.extend(np.zeros((10, 28, 28), dtype=np.uint8))
 
     ds = local_ds_generator()
@@ -56,7 +80,6 @@ def test(local_ds_generator, images_compression):
     assert ds.images.shape_interval.upper == (10, 28, 30)
 
 
-@pytest.mark.parametrize("images_compression", [None, "png"])
 def test_subslice(local_ds_generator, images_compression):
     ds = local_ds_generator()
 
@@ -69,6 +92,7 @@ def test_subslice(local_ds_generator, images_compression):
     # TODO: implement and uncomment check when negative indexing is implemented
     with pytest.raises(NotImplementedError):
         ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
+        
     # np.testing.assert_array_equal(
     #     ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8")
     # )
@@ -145,10 +169,6 @@ def test_failures(memory_ds):
     with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
-    # inplace operators
-    with pytest.raises(NotImplementedError):
-        memory_ds.labels[0:5] += 1
-
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
@@ -212,3 +232,43 @@ def test_warnings(memory_ds):
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):
         tensor[:] = np.zeros((10, 32, 31), dtype="int32")
+
+
+@pytest.mark.parametrize(
+    "compression",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
+def test_inplace_updates(memory_ds, compression):
+    ds = memory_ds
+    ds.create_tensor("x", **compression)
+    ds.x.extend(np.zeros((5, 32, 32, 3), dtype="uint8"))
+    ds.x += 1
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)))
+    ds.x += ds.x
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 2)
+    ds.x *= np.zeros(3, dtype="uint8")
+    np.testing.assert_array_equal(ds.x.numpy(), np.zeros((5, 32, 32, 3)))
+    ds.x += 6
+    ds.x //= 2
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 3)
+    ds.x[:3] *= 0
+    np.testing.assert_array_equal(
+        ds.x.numpy(),
+        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+    )
+
+    # Different shape
+    ds.x.append(np.zeros((100, 50, 3), dtype="uint8"))
+    ds.x[5] += 1
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+    np.testing.assert_array_equal(
+        ds.x[:5].numpy(),
+        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+    )
+    ds.x[:5] *= 0
+    np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
+    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))

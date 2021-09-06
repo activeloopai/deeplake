@@ -1,3 +1,4 @@
+import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
@@ -6,12 +7,17 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
     TensorMetaMissingRequiredValue,
+    TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
 )
 from hub.constants import (
-    SUPPORTED_COMPRESSIONS,
-    COMPRESSION_ALIASES,
+    REQUIRE_USER_SPECIFICATION,
+    UNSPECIFIED,
+)
+from hub.compression import COMPRESSION_ALIASES, get_compression_type
+from hub.htype import (
+    HTYPE_CONFIGURATIONS,
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
@@ -24,6 +30,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
+    chunk_compression: str
     max_chunk_size: int
 
     def __init__(
@@ -95,6 +102,8 @@ class TensorMeta(Meta):
         return d
 
     def __setstate__(self, state: Dict[str, Any]):
+        if "chunk_compression" not in state:
+            state["chunk_compression"] = None  # Backward compatibility
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
 
@@ -137,6 +146,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
+    if (
+        htype == "image"
+        and htype_overwrite["chunk_compression"] == UNSPECIFIED
+        and htype_overwrite["sample_compression"] == UNSPECIFIED
+    ):
+        raise TensorMetaMissingRequiredValue(
+            htype, ["chunk_compression", "sample_compression"]  # type: ignore
+        )
+
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
     """Replaces `UNSPECIFIED` values in `htype_overwrite` with the `htype`'s defaults."""
@@ -153,8 +171,18 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
 
     sample_compression = htype_overwrite["sample_compression"]
     sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
-    if sample_compression not in SUPPORTED_COMPRESSIONS:
+    if sample_compression not in hub.compressions:
         raise UnsupportedCompressionError(sample_compression)
+
+    chunk_compression = htype_overwrite["chunk_compression"]
+    chunk_compression = COMPRESSION_ALIASES.get(chunk_compression, chunk_compression)
+    if chunk_compression not in hub.compressions:
+        raise UnsupportedCompressionError(chunk_compression)
+
+    if sample_compression and chunk_compression:
+        raise TensorMetaMutuallyExclusiveKeysError(
+            custom_message="Specifying both sample-wise and chunk-wise compressions for the same tensor is not yet supported."
+        )
 
     if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
@@ -174,6 +202,8 @@ def _format_values(htype_overwrite: dict):
     for key, value in COMPRESSION_ALIASES.items():
         if htype_overwrite.get("sample_compression") == key:
             htype_overwrite["sample_compression"] = value
+        if htype_overwrite.get("chunk_compression") == key:
+            htype_overwrite["chunk_compression"] = value
 
 
 def _validate_htype_exists(htype: str):

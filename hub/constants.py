@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image  # type: ignore
+
 
 BYTE_PADDING = b"\0"
 
@@ -9,39 +9,13 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
-SUPPORTED_COMPRESSIONS = [
-    "bmp",
-    "dib",
-    "pcx",
-    "gif",
-    "png",
-    "jpeg2000",
-    "ico",
-    "tiff",
-    "jpeg",
-    "ppm",
-    "sgi",
-    "tga",
-    "webp",
-    "wmf",
-    "xbm",
-]
-# Pillow plugins for some formats might not be installed:
-if not Image.SAVE:
-    Image.init()
-SUPPORTED_COMPRESSIONS = [
-    c
-    for c in SUPPORTED_COMPRESSIONS
-    if c.upper() in Image.SAVE and c.upper() in Image.OPEN
-]
-SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
+DEFAULT_HTYPE = "generic"
 
-COMPRESSION_ALIASES = {"jpg": "jpeg"}
+# used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
+REQUIRE_USER_SPECIFICATION = "require_user_specification"
 
-
-# If `True`  compression format has to be the same between samples in the same tensor.
-# If `False` compression format can   be different between samples in the same tensor.
-USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
+# used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
+UNSPECIFIED = "unspecified"
 
 SUPPORTED_MODES = ["r", "a"]
 
@@ -104,3 +78,10 @@ HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
 KAGGLE_OPT = "--kaggle"
+
+
+EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
+LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
+
+# when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
+INTELLIGENT_SHUFFLING_THRESHOLD = 0.8

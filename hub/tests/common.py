@@ -62,7 +62,6 @@ def get_dummy_data_path(subpath: str = ""):
 
 def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
-
     try:
         bio = BytesIO(buffer)
         img = Image.open(bio)
@@ -74,7 +73,7 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
 
 def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
     """Assert that two lists of numpy arrays are equal"""
-    assert len(l1) == len(l2)
+    assert len(l1) == len(l2), (len(l1), len(l2))
     for idx, (a1, a2) in enumerate(zip(l1, l2)):
         np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
 
@@ -82,3 +81,11 @@ def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
 def is_opt_true(request, opt) -> bool:
     """Returns if the pytest option `opt` is True. Assumes `opt` is a boolean value."""
     return request.config.getoption(opt)
+
+
+def assert_images_close(img1: np.ndarray, img2: np.ndarray, eps=0.5):
+    """Helpful for testing images after lossy compression"""
+    assert img1.shape == img2.shape, (img1.shape, img2.shape)
+    err = np.sum((img1.astype(np.float32) - img2.astype(np.float32)) ** 2)
+    err /= np.prod(img1.shape) * 256
+    assert err < eps, err

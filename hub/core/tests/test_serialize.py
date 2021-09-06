@@ -5,8 +5,8 @@ from hub.core.serialize import (
     deserialize_chunkids,
 )
 import numpy as np
-import ctypes
 import hub
+import time
 
 
 def test_chunk_serialize():
@@ -17,10 +17,17 @@ def test_chunk_serialize():
     byte_positions = np.cast[hub.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(31, 3))
     )
-    data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
+    data = [b"x" * 8 * 1024 * 1024] * 2  # 16 MB chunk
     encoded = bytes(serialize_chunk(version, shape_info, byte_positions, data))
 
-    decoded = deserialize_chunk(encoded)
+    # Deserialize
+    start = time.time()
+    for _ in range(10000):
+        decoded = deserialize_chunk(encoded)
+    end = time.time()
+
+    assert end - start < 0.5
+
     version2, shape_info2, byte_positions2, data2 = decoded
     assert version2 == version
     np.testing.assert_array_equal(shape_info, shape_info2)

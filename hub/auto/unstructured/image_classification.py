@@ -3,10 +3,14 @@ import numpy as np
 from pathlib import Path
 import os
 import glob
+import PIL  # type: ignore
 from typing import Dict, List, Sequence, Tuple, Union
 
 from hub.util.auto import ingestion_summary
-from hub.util.exceptions import InvalidPathException, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    InvalidPathException,
+    TensorInvalidSampleShapeError,
+)
 from hub.core.dataset import Dataset
 
 from tqdm import tqdm  # type: ignore
@@ -139,8 +143,16 @@ class ImageClassification(UnstructuredDataset):
 
         with ds, iterator:
             for file_path in iterator:
-                ingested_file_count = 0
-                image = hub.read(file_path)
+                try:
+                    image = hub.read(file_path)
+                except PIL.Image.UnidentifiedImageError:
+                    skipped_files.append(file_path.name)
+                    iterator.set_description(
+                        'Ingesting "%s" (%i files skipped)'
+                        % (self.source.name, len(skipped_files))
+                    )
+                    continue
+
                 class_name = _class_name_from_path(file_path)
 
                 label = np.uint32(self.class_names.index(class_name))
@@ -165,9 +177,8 @@ class ImageClassification(UnstructuredDataset):
                     )
                     continue
 
-                ingested_file_count += 1
                 ds[labels_tensor_map[set_name]].append(label)
 
             if generate_summary:
-                ingestion_summary(str(self.source), skipped_files, ingested_file_count)
+                ingestion_summary(str(self.source), skipped_files)
             return ds
