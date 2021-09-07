@@ -227,6 +227,13 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
+
+    if len(buffer) <= 0:
+        arrays = []
+        for shape in shapes:
+            arrays.append(np.zeros(shape, dtype=dtype))
+        return arrays
+
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
@@ -244,6 +251,7 @@ def decompress_multiple(
             decompressed_buffer = decompressed_buffer[nbytes:]
 
         return arrays
+
     canvas = decompress_array(buffer)
     arrays = []
     next_x = 0

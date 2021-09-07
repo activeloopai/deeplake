@@ -326,13 +326,20 @@ class ChunkEngine:
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
-        chunk_compression = self.tensor_meta.chunk_compression
+
+        tensor_meta = self.tensor_meta
+
+        chunk_compression = tensor_meta.chunk_compression
         last_chunk_uncompressed = self._last_chunk_uncompressed
+        
+        dtype = tensor_meta.dtype
+        if len(buffer) > 0:
+            array = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+        else:
+            array = np.zeros(shape, dtype=dtype)
 
         # Append incoming buffer to last chunk and compress:
-        last_chunk_uncompressed.append(
-            np.frombuffer(buffer, dtype=self.tensor_meta.dtype).reshape(shape)
-        )
+        last_chunk_uncompressed.append(array)
         compressed_bytes = compress_multiple(last_chunk_uncompressed, chunk_compression)
 
         # Check if last chunk can hold new compressed buffer.
@@ -358,7 +365,7 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int], num_samples: int=1):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -367,9 +374,6 @@ class ChunkEngine:
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
         """
-
-        # num samples is always 1 when appending
-        num_samples = 1
 
         if self.tensor_meta.chunk_compression:
             self._append_bytes_to_compressed_chunk(buffer, shape)
@@ -385,6 +389,12 @@ class ChunkEngine:
         last_chunk = self.last_chunk
         if last_chunk is None:
             return False
+
+        if self._is_last_chunk_a_tile():
+            print('last is a tile')
+            exit()
+            return False
+
         return nbytes <= self.min_chunk_size
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
@@ -416,6 +426,10 @@ class ChunkEngine:
         tile_encoder_key = get_tile_encoder_key(self.key)
         self.meta_cache[tile_encoder_key] = self.tile_encoder
 
+    def _is_last_chunk_a_tile(self):
+        # -2 because we increment tensor meta length before this function is called
+        return self.tensor_meta.length - 2 in self.tile_encoder
+
     def _try_appending_to_last_chunk(
         self, buffer: Buffer, shape: Tuple[int, ...]
     ) -> bool:
@@ -435,9 +449,7 @@ class ChunkEngine:
             return False
 
         # can never append new samples to a tile chunk
-        # -2 because we increment tensor meta length before this function is called
-        is_last_sample_tiled = self.tensor_meta.length - 2 in self.tile_encoder
-        if is_last_sample_tiled:
+        if self._is_last_chunk_a_tile():
             return False
 
         incoming_num_bytes = len(buffer)
@@ -719,12 +731,11 @@ class ChunkEngine:
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta
-        if tensor_meta.dtype is None:
+        dtype = tensor_meta.dtype
+        if dtype is None:
             raise CannotInferTilesError(
                 "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
             )
-
-        tensor_meta = self.tensor_meta
 
         nbytes = approximate_num_bytes(sample_shape, tensor_meta)
 
@@ -734,21 +745,21 @@ class ChunkEngine:
 
             idx = self.num_samples
             tile_encoder = self.tile_encoder
-            chunk_id_encoder = self.chunk_id_encoder
 
-            # initialize our N empty chunks including headers + register with tile encoder
-            for i in range(num_tiles):
-                tile_chunk = self._create_new_chunk()
-                empty_buffer = memoryview(bytes())
-
-                tile_chunk.append_sample(empty_buffer, self.max_chunk_size, tile_shape)
-                chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
-
-                # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
-                tile_encoder.register_sample(idx, sample_shape, tile_shape)
+            tile_encoder.register_sample(idx, sample_shape, tile_shape)
 
             if increment_length:
                 self._update_tensor_meta(sample_shape, 1)
+
+            # initialize our N empty chunks including headers
+            for i in range(num_tiles):
+                self._create_new_chunk()
+                empty_buffer = memoryview(bytes())
+
+                # TODO: explain
+                self._append_bytes(empty_buffer, tile_shape, num_samples=0 if i > 0 else 1)
+
+            # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
 
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
             self._synchronize_cache()
@@ -957,7 +968,14 @@ class ChunkEngine:
             if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
-                return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
+                buffer = decompressed[sb:eb]
+
+                if len(buffer) > 0:
+                    array = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+                else:
+                    array = np.zeros(shape, dtype=dtype)
+                
+                return array
             else:
                 return chunk.decompressed_samples()[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
