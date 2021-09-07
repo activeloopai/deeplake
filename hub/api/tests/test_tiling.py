@@ -60,10 +60,14 @@ def test_initialize_large_image(local_ds_generator, compression):
     ds.create_tensor("tensor", dtype="uint8", **compression)
 
     ds.tensor.append_empty((10, 10, 3))  # small
-    ds.tensor.append_empty((10000, 10000, 3))  # large (1.2GB) w/ channel dim
-    ds.tensor.append(np.ones((10, 10, 3), dtype="uint8"))  # small
-    ds.tensor.extend_empty((5, 10, 10, 3))  # small
+    _assert_num_chunks(ds.tensor.num_chunks, 1, compression)
 
+    ds.tensor.append_empty((10000, 10000, 3))  # large (300MB) w/ channel dim
+    _assert_num_chunks(ds.tensor.num_chunks, 17, compression)
+
+    ds.tensor.append(np.ones((10, 10, 3), dtype="uint8"))  # small
+    _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
+    ds.tensor.extend_empty((5, 10, 10, 3))  # small
     _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
 
     ds = local_ds_generator()
