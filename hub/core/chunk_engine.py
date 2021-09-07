@@ -541,6 +541,7 @@ class ChunkEngine:
             for nb, shape in zip(nbytes, shapes):
                 if self._needs_multiple_chunks(nb):
                     # TODO: plug in tiling logic
+                    # TODO: write test for tiling w/ chunk-wise compression
                     raise NotImplementedError
 
                 self._append_bytes(buff[:nb], shape[:])  # type: ignore
@@ -582,6 +583,9 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         tile_encoder = self.tile_encoder
         chunk_id_encoder = self.chunk_id_encoder
+
+        chunk_compression = tensor_meta.chunk_compression
+        dtype = tensor_meta.dtype
 
         ffw_chunk_id_encoder(self.chunk_id_encoder)
         ffw_tensor_meta(tensor_meta)
@@ -674,7 +678,7 @@ class ChunkEngine:
                     new_sample = tile
 
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
-                tile_object.update_sample(local_sample_index, buffer, shape)
+                tile_object.update_sample(local_sample_index, buffer, shape, chunk_compression=chunk_compression, dtype=dtype)
 
                 if is_full_sample_replacement:
                     self._update_tensor_meta(shape, 0)
