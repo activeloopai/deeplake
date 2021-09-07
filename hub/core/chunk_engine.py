@@ -605,6 +605,8 @@ class ChunkEngine:
         # TODO: fix logic after merge
         # CURRENT:
 
+        chunks_nbytes_after_updates = []
+
         # update one sample at a time
         iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
@@ -675,6 +677,7 @@ class ChunkEngine:
 
                     if is_tiled:
                         tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, tiles)
+                        full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
 
                         # sanity check
                         tile_shape = tile_shape_mask[tile_index]
@@ -684,9 +687,9 @@ class ChunkEngine:
                             )
                     else:
                         tile_index = None
-                        tile_shape = tile.shape
+                        full_sample_shape = tile.shape
                     
-                    expected_subslice_shape = subslice_index.shape_if_applied_to(tile_shape, squeeze=True)
+                    expected_subslice_shape = subslice_index.shape_if_applied_to(full_sample_shape, squeeze=True)
                     if expected_subslice_shape != incoming_sample.shape:
                         raise InvalidSubsliceUpdateShapeError(incoming_sample.shape, expected_subslice_shape)
 
@@ -699,6 +702,10 @@ class ChunkEngine:
 
                 if is_full_sample_replacement:
                     self._update_tensor_meta(shape, 0)
+
+                chunks_nbytes_after_updates.append(len(tile_object._data))
+
+            _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size, is_tiled)
 
             self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
             self._sync_tiles(tiles)
@@ -1083,16 +1090,30 @@ def _make_sequence(
     return samples
 
 
-# TODO: make sure to call this!!! (BEFORE MERGING)
 def _warn_if_suboptimal_chunks(
-    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
+    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int, is_tiled: bool
 ):
     upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
     lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
 
     for nbytes in chunks_nbytes_after_updates:
-        if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
+        too_large = nbytes > upper_warn_threshold
+
+        # TODO: tiled samples need custom policy for warning when the chunk size is lower than
+        # min chunk size. this is because they are initialized as all zeros.
+        too_small = False
+        if not is_tiled:
+            too_small = nbytes < lower_warn_threshold
+
+        if too_large or too_small:
+            reason = ""
+            
+            if too_large:
+                reason = f"too large, {nbytes} > {upper_warn_threshold}"
+            else:
+                reason = f"too small, {nbytes} < {lower_warn_threshold}"
+
             warnings.warn(
-                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
+                f"After update, some chunks were suboptimal ({reason}). Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
             )
             break

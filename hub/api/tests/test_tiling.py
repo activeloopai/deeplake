@@ -182,3 +182,20 @@ def test_append_extend(memory_ds, compression):
     np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((3, 8192, 8192), dtype="uint8"))
     _assert_num_chunks(memory_ds.image.num_chunks, 12, *compression)
 
+
+
+def test_warnings(memory_ds):
+    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB, dtype="uint8", sample_compression="png")
+    tensor.append_empty((1000, 1000, 3))
+
+    # random data will definitely be too large with png
+    x = np.random.randint(0, 256, size=(100, 100, 3), dtype="uint8")
+
+    # TODO: add a warning for small suboptimal chunks (this requires custom logic)
+    # this update makes (small) suboptimal chunks
+    # with pytest.warns(UserWarning):
+        # pass
+
+    # this update makes (large) suboptimal chunks
+    with pytest.warns(UserWarning):
+        tensor[0, 100:200, 200:300, :] = x
