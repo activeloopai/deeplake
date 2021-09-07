@@ -1,5 +1,5 @@
 import numpy as np
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, MB
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, MB, UNSPECIFIED
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.tiling.optimize import TileOptimizer
@@ -16,8 +16,9 @@ np.random.seed(1)
 
 
 def _get_tensor_meta(sample_compression: str) -> TensorMeta:
+    # TODO: test with chunk-wise compression
     tensor_meta = TensorMeta(
-        "generic", sample_compression=sample_compression, dtype="int32"
+        "generic", sample_compression=sample_compression, chunk_compression=UNSPECIFIED, dtype="int32"
     )
     return tensor_meta
 

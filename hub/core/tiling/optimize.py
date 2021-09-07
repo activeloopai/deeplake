@@ -38,12 +38,12 @@ def _perturbate_tile_shape(
         A new numpy array representing the perturbated tile shape.
     """
 
-    num_unfrozen_dims = len(unfrozen_dim_mask.shape)
-
     new_tile_shape = tile_shape.copy()
-    new_tile_shape[unfrozen_dim_mask] += (
-        np.random.uniform(-max_magnitude, max_magnitude + 1, size=num_unfrozen_dims)
-    ).astype(INTERM_DTYPE)
+
+    # all dims should have the same delta
+    delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
+    delta[:] = np.random.uniform(-max_magnitude, max_magnitude + 1)
+    new_tile_shape[unfrozen_dim_mask] += delta[unfrozen_dim_mask]
 
     return _clamp(new_tile_shape, sample_shape)
 

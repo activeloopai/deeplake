@@ -286,12 +286,6 @@ def _check_input_samples_are_valid(
         if expected_dimensionality is None:
             expected_dimensionality = len(shape)
 
-        if nbytes > min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {nbytes} bytes."
-            if sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-            raise NotImplementedError(msg)
-
         if len(shape) != expected_dimensionality:
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 

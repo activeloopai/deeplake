@@ -17,7 +17,7 @@ def _assert_num_chunks(
 
     if is_compressed:
         # TODO: better way to get the number of chunks with compression for tests
-        assert actual_num_chunks < expected_num_chunks
+        assert actual_num_chunks <= expected_num_chunks
     else:
         assert actual_num_chunks == expected_num_chunks
 
@@ -27,29 +27,29 @@ def test_initialize_large_tensor(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
-    ds.create_tensor("tensor", dtype="int32", **compression)
+    ds.create_tensor("tensor", dtype="uint8", **compression)
 
-    ds.tensor.append_empty((10000, 10000))  # 400MB
-    _assert_num_chunks(ds.tensor.num_chunks, 16, compression)
+    ds.tensor.append_empty((10000, 10000))  # 100MB uncompressed
+    _assert_num_chunks(ds.tensor.num_chunks, 4, compression)
 
     ds = local_ds_generator()
     assert ds.tensor.shape == (1, 10000, 10000)
     np.testing.assert_array_equal(
-        ds.tensor[0, 5500:5510, 5500:5510].numpy(), np.zeros((10, 10), dtype="int32")
+        ds.tensor[0, 5500:5510, 5500:5510].numpy(), np.zeros((10, 10), dtype="uint8")
     )
 
     # fill in some data
-    ds.tensor[0, 9050:9055, 9050:9055] = np.ones((5, 5), dtype="int32")
+    ds.tensor[0, 9050:9055, 9050:9055] = np.ones((5, 5), dtype="uint8")
 
     ds = local_ds_generator()
     actual = ds.tensor[0, 9050:9060, 9050:9060].numpy()
-    expected = np.zeros((10, 10), dtype="int32")
+    expected = np.zeros((10, 10), dtype="uint8")
     expected[0:5, 0:5] = 1
     np.testing.assert_array_equal(actual, expected)
 
     assert ds.tensor.shape == (1, 10000, 10000)
 
-    _assert_num_chunks(ds.tensor.num_chunks, 16, compression)
+    _assert_num_chunks(ds.tensor.num_chunks, 4, compression)
 
 
 @compressions
