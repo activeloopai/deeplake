@@ -311,3 +311,7 @@ class Chunk(Cachable):
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
+
+
+    def __str__(self) -> str:
+        return f"Chunk(version={self.version}, num_bytes={len(self._data)}, num_samples={self.shapes_encoder.num_samples})"
