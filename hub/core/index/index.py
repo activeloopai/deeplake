@@ -360,7 +360,8 @@ class IndexEntry:
                 raise NotImplementedError
             else:
                 if s.start < 0 or s.stop < 0:
-                    raise Exception()  # TODO
+                    # TODO: negative subslices
+                    raise NotImplementedError("Subslices with negatives is not yet supported!")
 
                 new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
 
@@ -581,7 +582,7 @@ class Index:
                 shape.append(l)  # TODO: better way to do this
         return tuple(shape)
 
-    def shape_if_applied_to(self, shape: Tuple[int, ...]) -> Tuple[int, ...]:
+    def shape_if_applied_to(self, shape: Tuple[int, ...], squeeze: bool=False) -> Tuple[int, ...]:
         # TODO: docstring
 
         output_shape = np.zeros(len(shape), dtype=int)
@@ -594,7 +595,13 @@ class Index:
             else:
                 output_shape[i] = min(self_shape[i], shape[i])
 
+        output_shape = output_shape.tolist()
+
+        if squeeze:
+            output_shape = [x for x in output_shape if x != 1]
+
         return tuple(output_shape)
+
 
 
     def length(self, parent_length: int):

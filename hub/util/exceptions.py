@@ -561,15 +561,6 @@ class UpdateSampleError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-
-# TODO: remove this exception?
-class MultiSampleSubsliceUpdateError(UpdateSampleError):
-    def __init__(self, index_shape):
-        super().__init__(
-            f"Can only subslice update a single sample at a time! Got index shape: {index_shape}"
-        )
-
-
 class InvalidSubsliceUpdateShapeError(UpdateSampleError):
     def __init__(self, samples_shape, index_shape):
         super().__init__(

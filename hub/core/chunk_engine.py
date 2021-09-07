@@ -24,6 +24,7 @@ from hub.util.exceptions import (
     CorruptedMetaError,
     CorruptedSampleError,
     DynamicTensorNumpyError,
+    InvalidSubsliceUpdateShapeError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index, IndexEntry
@@ -592,18 +593,29 @@ class ChunkEngine:
         ffw_tile_encoder(tile_encoder)
 
         value0_index, subslice_index = index.split_subslice()
+        is_full_sample_replacement = index.is_single_dim_effective()
 
+        # TODO: refac this
         index_length: int = value0_index.shape[0]  # type: ignore
+        if index_length is None:
+            index_length = tensor_meta.length
+
         incoming_samples = _make_sequence(incoming_samples, index_length)
 
         # TODO: fix logic after merge
         # CURRENT:
-        is_full_sample_replacement = index.is_single_dim_effective()
 
         # update one sample at a time
         iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
             incoming_sample = incoming_samples[i]
+
+            if isinstance(incoming_sample, Sample):
+                incoming_sample = incoming_sample.array
+
+            if not isinstance(incoming_sample, np.ndarray):
+                incoming_sample = np.asarray(incoming_sample).astype(dtype)
+                # raise TypeError(f"Updates can only be executed with numpy arrays. Got {type(incoming_sample)} at incoming index {i}. Full sample: {incoming_sample}")
 
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
@@ -672,6 +684,11 @@ class ChunkEngine:
                             )
                     else:
                         tile_index = None
+                        tile_shape = tile.shape
+                    
+                    expected_subslice_shape = subslice_index.shape_if_applied_to(tile_shape, squeeze=True)
+                    if expected_subslice_shape != incoming_sample.shape:
+                        raise InvalidSubsliceUpdateShapeError(incoming_sample.shape, expected_subslice_shape)
 
                     tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
                     tile_view[:] = incoming_sample_view
