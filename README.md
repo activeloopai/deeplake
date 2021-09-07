@@ -1,8 +1,8 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
-    <h2 align="center">Dataset management for deep learning applications
- </h2>
+    <h1 align="center">Dataset Format for AI
+ </h1>
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -34,19 +34,18 @@ Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 ## Features 
 ### Current Release
 
-* Easy dataset creation and hosting on Activeloop Cloud or S3
+* Easy dataset creation and hosting on Activeloop Cloud, S3, or Google Cloud
 * Rapid dataset streaming to any machine
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
+* Dataset version control
+* Rapid data processing using transformations on distributed compute
+* Data pipelines
 
 ### Coming Soon
 
-* Datasets hosting on Google Cloud and Azure
-* Dataset version control
+* Datasets hosting on Azure
 * Dataset query using text-based query language
-* Loading of data in random order without having to download the entire dataset
 * Dataset query using custom filter functions without having to download the entire dataset
-* Rapid data processing using transforms on distributed compute
-* Data pipelines
 * Rapid visualization of image datasets via integration with Activeloop Platform
  <p align="center">
     <br>
@@ -56,7 +55,7 @@ Visualization of a dataset uploaded to Hub
 
 ## How does Hub work?
 
-Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using data such as images, videos, and text. Hub is a Data 2.0 solution that stores datasets as chunked compressed arrays, which significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
+Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using data such as images, videos, and text. By storing data as chunked compressed arrays, Hub significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
 
 Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
 
