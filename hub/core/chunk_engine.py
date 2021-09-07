@@ -276,7 +276,7 @@ class ChunkEngine:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
-        num_samples = len(nbytes)
+            
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
         if chunk is None:
@@ -284,7 +284,7 @@ class ChunkEngine:
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
-            chunk = self._create_new_chunk()
+            chunk = new_chunk()
 
         max_chunk_size = self.max_chunk_size
         min_chunk_size = self.min_chunk_size
@@ -391,8 +391,6 @@ class ChunkEngine:
             return False
 
         if self._is_last_chunk_a_tile():
-            print('last is a tile')
-            exit()
             return False
 
         return nbytes <= self.min_chunk_size
@@ -549,7 +547,9 @@ class ChunkEngine:
         )
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
+
         tensor_meta.length += len(samples)
+        
         if tensor_meta.chunk_compression:
             for nb, shape in zip(nbytes, shapes):
                 if self._needs_multiple_chunks(nb):
@@ -561,6 +561,7 @@ class ChunkEngine:
                 buff = buff[nb:]
         else:
             self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+
         self._synchronize_cache()
         self.cache.maybe_flush()
 
@@ -742,6 +743,8 @@ class ChunkEngine:
         if self._needs_multiple_chunks(nbytes):
             tile_shape = self.tile_optimizer.optimize(sample_shape)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+
+            print(tile_shape)
 
             idx = self.num_samples
             tile_encoder = self.tile_encoder
