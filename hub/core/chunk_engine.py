@@ -716,7 +716,13 @@ class ChunkEngine:
                 if is_full_sample_replacement:
                     self._update_tensor_meta(shape, 0)
 
-                chunks_nbytes_after_updates.append(len(tile_object._data))
+                # we only care about warning regarding updates for non-finalized chunks
+                if is_tiled:
+                    check_bytes = global_sample_index != tensor_meta.length - 1
+                else:
+                    check_bytes = self.last_chunk_key != tile_object.key
+                if check_bytes:
+                    chunks_nbytes_after_updates.append(tile_object.nbytes)
 
             _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size, is_tiled)
 
