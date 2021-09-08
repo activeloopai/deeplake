@@ -145,11 +145,13 @@ def test_append(memory_ds, compression):
     memory_ds.create_tensor("image", dtype="uint8", **compression)
 
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    assert memory_ds.image.num_chunks == 4
     memory_ds.image.append(np.ones((100, 100), dtype="uint8"))
+    assert memory_ds.image.num_chunks == 5
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    assert memory_ds.image.num_chunks == 9
 
     assert len(memory_ds) == 3
-    assert memory_ds.image.num_chunks == 11
 
     np.testing.assert_array_equal(memory_ds.image[0, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
     np.testing.assert_array_equal(memory_ds.image[0, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))
@@ -169,8 +171,8 @@ def test_extend(memory_ds, compression):
         np.ones((10, 10), dtype="uint8"),
     ])
 
-    assert len(memory_ds) == 7
-    assert memory_ds.image.num_chunks == 7
+    assert len(memory_ds) == 6
+    assert memory_ds.image.num_chunks == 6
 
     expected_first_smalls = [
         np.ones((10, 10), dtype="uint8"),
