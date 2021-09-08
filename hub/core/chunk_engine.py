@@ -279,7 +279,8 @@ class ChunkEngine:
             
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
-        if chunk is None:
+
+        if chunk is None or self._is_last_chunk_a_tile():
             chunk = new_chunk()
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
@@ -545,18 +546,19 @@ class ChunkEngine:
         buff, nbytes, shapes = serialize_input_samples(
             samples, tensor_meta
         )
+        
+        for nb in nbytes:
+            if self._needs_multiple_chunks(nb):
+                # TODO: allow append/extend to tile samples
+                # if any samples are larger than a chunk, `extend_empty` needs to be called
+                raise NotImplementedError(f"One or more samples provided exceed {self.max_chunk_size} bytes. In order to add a larger sample, you currently have to use `append_empty` or `extend_empty` and then update the samples like `array[0, :, :, ...] = ...`.")
+
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
-
         tensor_meta.length += len(samples)
         
         if tensor_meta.chunk_compression:
             for nb, shape in zip(nbytes, shapes):
-                if self._needs_multiple_chunks(nb):
-                    # TODO: plug in tiling logic
-                    # TODO: write test for tiling w/ chunk-wise compression
-                    raise NotImplementedError
-
                 self._append_bytes(buff[:nb], shape[:])  # type: ignore
                 buff = buff[nb:]
         else:
@@ -749,8 +751,6 @@ class ChunkEngine:
         if self._needs_multiple_chunks(nbytes):
             tile_shape = self.tile_optimizer.optimize(sample_shape)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
-
-            print(tile_shape)
 
             idx = self.num_samples
             tile_encoder = self.tile_encoder
