@@ -377,6 +377,8 @@ def _verify_jpeg_file(f):
 
 
 def _fast_decompress(buf):
+    """Slightly faster than `np.array(Image.open(...))`."""
+
     if not hasattr(buf, "read"):
         buf = BytesIO(buf)
     img = Image.open(buf)
@@ -396,7 +398,7 @@ def _fast_decompress(buf):
             break
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
-
+    return Image._conv_type_shape(img)
 
 
 def get_compression_factor(tensor_meta: TensorMeta) -> float:
