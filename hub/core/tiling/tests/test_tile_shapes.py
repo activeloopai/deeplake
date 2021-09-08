@@ -97,16 +97,16 @@ def test_complex(sample_shape, compression):
     _assert_valid(optimizer, sample_shape)
 
 @tile_test_compressions
-def test_exact_nbytes(compression):
+def test_explicit_factor(compression):
     sample_shape = (5000, 5000, 3)
 
     optimizer = _get_optimizer(compression)
 
     nbytes_uncompressed = 512 * MB
-    nbytes_compressed = 32 * MB
+    nbytes_compressed = 128 * MB
     factor = nbytes_uncompressed // nbytes_compressed
 
     optimizer.optimize(sample_shape, compression_factor=factor, validate=True)
 
-    # no matter the compression, it should always be consistent since nbytes is determined
-    _assert_valid(optimizer, sample_shape, expected_num_tiles=16, compression_factor=factor)
+    # no matter the compression, it should always be consistent since compression factor is determined
+    _assert_valid(optimizer, sample_shape, expected_num_tiles=4, compression_factor=factor)
