@@ -719,10 +719,7 @@ class ChunkEngine:
                     self._update_tensor_meta(shape, 0)
 
                 # we only care about warning regarding updates for non-finalized chunks
-                if is_tiled:
-                    check_bytes = global_sample_index != tensor_meta.length - 1
-                else:
-                    check_bytes = self.last_chunk_key != tile_object.key
+                check_bytes = global_sample_index != tensor_meta.length - 1 and not is_tiled
                 if check_bytes:
                     chunks_nbytes_after_updates.append(tile_object.nbytes)
 
