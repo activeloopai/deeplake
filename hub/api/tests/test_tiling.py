@@ -106,13 +106,13 @@ def test_populate_full_large_sample(local_ds_generator, compression):
         "large",
         dtype="int32",
         **compression,
-        max_chunk_size=16 * KB,
+        max_chunk_size=200 * KB,
     )
 
-    ds.large.append_empty((500, 500))  # 1MB, ~63 chunks (uncompressed)
+    ds.large.append_empty((500, 500))  # 1MB
 
     assert ds.large.shape == (1, 500, 500)
-    _assert_num_chunks(ds.large.num_chunks, 64, compression)
+    _assert_num_chunks(ds.large.num_chunks, 9, compression)
 
     # if patch size is equal to the tile shape on all dimensions, then no cross-tile updates are made
     patch_size = 50
@@ -130,7 +130,7 @@ def test_populate_full_large_sample(local_ds_generator, compression):
             last_y = 0
 
     ds = local_ds_generator()
-    _assert_num_chunks(ds.large.num_chunks, 64, compression)
+    _assert_num_chunks(ds.large.num_chunks, 9, compression)
 
     # check data
     patch_count = 0
