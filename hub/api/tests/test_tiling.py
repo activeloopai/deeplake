@@ -140,14 +140,15 @@ def test_failures(memory_ds):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4
 
 
-def test_append_extend(memory_ds):
-    memory_ds.create_tensor("image", dtype="uint8")
+@compressions
+def test_append_extend(memory_ds, compression):
+    memory_ds.create_tensor("image", dtype="uint8", **compression)
 
-    # TODO: implement append/extend compatible tiling
-    with pytest.raises(NotImplementedError):
-        memory_ds.image.extend(np.ones((2, 8192, 8192), dtype="uint8"))
-    with pytest.raises(NotImplementedError):
-        memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    memory_ds.image.extend(np.ones((2, 8192, 8192), dtype="uint8"))
+    memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
 
-    assert len(memory_ds.image) == 0
-    assert memory_ds.image.num_chunks == 0
+    assert len(memory_ds) == 3
+    assert memory_ds.image.num_chunks == 4
+
+    np.testing.assert_array_equal(memory_ds.image[0, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
+    np.testing.assert_array_equal(memory_ds.image[0, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))
