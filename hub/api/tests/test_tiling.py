@@ -149,7 +149,7 @@ def test_append(memory_ds, compression):
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
 
     assert len(memory_ds) == 3
-    assert memory_ds.image.num_chunks == 4
+    assert memory_ds.image.num_chunks == 11
 
     np.testing.assert_array_equal(memory_ds.image[0, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
     np.testing.assert_array_equal(memory_ds.image[0, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))

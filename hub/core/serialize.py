@@ -364,13 +364,14 @@ def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[
     for tile_index, _ in np.ndenumerate(tile_buffers):
         if sample_array is None:
             tile_buffers[tile_index] = memoryview(bytes())
+            shape = tile_shape
+
         else:
             tile_array = view_sample_as_tile(sample_array, tile_shape, tile_index)
             buffer, shape = serialize_input_sample(tile_array, tensor_meta)
-
             assert tile_array.shape == shape
-
             tile_buffers[tile_index] = memoryview(buffer)
-            tile_shapes[tile_index] = shape
+        
+        tile_shapes[tile_index] = shape
 
     return tile_buffers, tile_shapes
