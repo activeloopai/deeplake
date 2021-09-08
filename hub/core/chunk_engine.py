@@ -297,6 +297,8 @@ class ChunkEngine:
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
             for nb in nbytes:  # len(nbytes) = samples remaining to be added to a chunk
+                if self._needs_multiple_chunks(nb):
+                    raise NotImplementedError
 
                 # Size of the current chunk if this sample is added to it
                 chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
@@ -309,6 +311,7 @@ class ChunkEngine:
                     chunk_future_size > min_chunk_size
                 ):  # Try to keep chunk size close to min_chunk_size
                     break
+
             chunk.extend_samples(  # type: ignore
                 buffer[:nbytes_to_current_chunk],
                 max_chunk_size,
@@ -548,12 +551,6 @@ class ChunkEngine:
         buff, nbytes, shapes = serialize_input_samples(
             samples, tensor_meta
         )
-        
-        for nb in nbytes:
-            if self._needs_multiple_chunks(nb):
-                # TODO: allow append/extend to tile samples
-                # if any samples are larger than a chunk, `extend_empty` needs to be called
-                raise NotImplementedError(f"One or more samples provided exceed {self.max_chunk_size} bytes. In order to add a larger sample, you currently have to use `append_empty` or `extend_empty` and then update the samples like `array[0, :, :, ...] = ...`.")
 
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
@@ -561,7 +558,16 @@ class ChunkEngine:
         
         if tensor_meta.chunk_compression:
             for nb, shape in zip(nbytes, shapes):
-                self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                current_buffer = buff[:nb]
+                current_shape = shape[:]
+
+                if self._needs_multiple_chunks(len(current_buffer)):
+                    raise NotImplementedError  # TODO
+                    tiled_buffers = None
+                    self.create_tiles(current_shape, increment_length=False, buffers=tiled_buffers)
+                else:
+                    self._append_bytes(current_buffer, current_shape)  # type: ignore
+
                 buff = buff[nb:]
         else:
             self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
@@ -735,6 +741,7 @@ class ChunkEngine:
             self._sync_tiles(tiles)
             self.cache.maybe_flush()
             self.meta_cache.maybe_flush()
+
 
     def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None):
         # TODO: docstring (mention buffer should be compressed)
