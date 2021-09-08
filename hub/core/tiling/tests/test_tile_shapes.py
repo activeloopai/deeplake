@@ -42,9 +42,9 @@ def _get_optimizer(sample_compression: str) -> TileOptimizer:
         # png
         [(5_000, 5_000), "png", 4],
         [(10_000, 10_000), "png", 9],
-        [(10_000, 10_000, 5), "png", 36],
+        [(10_000, 10_000, 5), "png", 25],
         [(10_000, 5_000), "png", 6],
-        [(100_000_000,), "png", 7],
+        [(100_000_000,), "png", 5],
     ],
 )
 def test_simple(config):
