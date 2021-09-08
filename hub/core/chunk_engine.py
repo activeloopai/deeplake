@@ -296,9 +296,17 @@ class ChunkEngine:
         while nbytes:  # len(nbytes) is initially same as number of incoming samples.
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
+            need_to_tile = False
+
             for nb in nbytes:  # len(nbytes) = samples remaining to be added to a chunk
                 if self._needs_multiple_chunks(nb):
-                    raise NotImplementedError
+                    if num_samples_to_current_chunk > 0:
+                        break
+
+                    need_to_tile = True
+                    num_samples_to_current_chunk += 1
+                    nbytes_to_current_chunk += nb
+                    break
 
                 # Size of the current chunk if this sample is added to it
                 chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
@@ -312,13 +320,21 @@ class ChunkEngine:
                 ):  # Try to keep chunk size close to min_chunk_size
                     break
 
-            chunk.extend_samples(  # type: ignore
-                buffer[:nbytes_to_current_chunk],
-                max_chunk_size,
-                shapes[:num_samples_to_current_chunk],
-                nbytes[:num_samples_to_current_chunk],
-            )
-            enc.register_samples(num_samples_to_current_chunk)
+            current_buffer = buffer[:nbytes_to_current_chunk]
+            current_shapes = shapes[:num_samples_to_current_chunk]
+            current_nbytes = nbytes[:num_samples_to_current_chunk]
+            
+            if need_to_tile:
+                # TODO: create tiles with buffers
+                raise NotImplementedError
+            else:
+                chunk.extend_samples(  # type: ignore
+                    current_buffer,
+                    max_chunk_size,
+                    current_shapes,
+                    current_nbytes,
+                )
+                enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
             buffer = buffer[nbytes_to_current_chunk:]
@@ -625,9 +641,6 @@ class ChunkEngine:
 
         incoming_samples = _make_sequence(incoming_samples, index_length)
 
-        # TODO: fix logic after merge
-        # CURRENT:
-
         chunks_nbytes_after_updates = []
 
         # update one sample at a time
@@ -640,7 +653,6 @@ class ChunkEngine:
 
             if not isinstance(incoming_sample, np.ndarray):
                 incoming_sample = np.asarray(incoming_sample).astype(dtype)
-                # raise TypeError(f"Updates can only be executed with numpy arrays. Got {type(incoming_sample)} at incoming index {i}. Full sample: {incoming_sample}")
 
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
@@ -650,31 +662,6 @@ class ChunkEngine:
                 global_sample_index, subslice_index
             )
 
-        # NEW FOR INCOMING:
-        # serialized_input_samples = serialize_input_samples(incoming_samples, tensor_meta, self.min_chunk_size)
-
-        # INCOMING:
-        # chunks_nbytes_after_updates = []
-        # global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        # buffer, nbytes, shapes = serialized_input_samples
-        # for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
-        #     global_sample_index = global_sample_indices[i]  # TODO!
-        #     chunk = self.get_chunk_for_sample(global_sample_index, enc)
-        #     local_sample_index = enc.translate_index_relative_to_chunks(
-        #         global_sample_index
-        #     )
-        #     tensor_meta.update_shape_interval(shape)
-        #     chunk.update_sample(
-        #         local_sample_index,
-        #         buffer[:nb],  # type: ignore
-        #         shape,
-        #         chunk_compression=self.tensor_meta.chunk_compression,
-        #         dtype=self.tensor_meta.dtype,
-        #     )
-        #     buffer = buffer[nb:]
-        #     updated_chunks.add(chunk)
-
-        # TODO: uncomment this logic (no merge changes i don't think):
             is_tiled = tiles.size > 1
 
             if retile and is_full_sample_replacement and is_tiled:
@@ -776,6 +763,10 @@ class ChunkEngine:
 
             if increment_length:
                 self._update_tensor_meta(sample_shape, 1)
+
+            # tile_layout = np.empty(tile_encoder.get_tile_layout_shape(idx))
+            # for tile_index, _ in np.ndenumerate(tile_layout):
+            #     print(tile_index)
 
             # initialize our N empty chunks including headers
             for i in range(num_tiles):
