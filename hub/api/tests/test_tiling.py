@@ -141,10 +141,11 @@ def test_failures(memory_ds):
 
 
 @compressions
-def test_append_extend(memory_ds, compression):
+def test_append(memory_ds, compression):
     memory_ds.create_tensor("image", dtype="uint8", **compression)
 
-    memory_ds.image.extend(np.ones((2, 8192, 8192), dtype="uint8"))
+    memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    memory_ds.image.append(np.ones((100, 100), dtype="uint8"))
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
 
     assert len(memory_ds) == 3
@@ -152,3 +153,24 @@ def test_append_extend(memory_ds, compression):
 
     np.testing.assert_array_equal(memory_ds.image[0, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
     np.testing.assert_array_equal(memory_ds.image[0, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))
+
+
+@compressions
+def test_extend(memory_ds, compression):
+    memory_ds.create_tensor("image", dtype="uint8", **compression)
+
+    memory_ds.image.extend([
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((8192, 8192), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+    ])
+
+    assert len(memory_ds) == 7
+    assert memory_ds.image.num_chunks == 10
+
+    np.testing.assert_array_equal(memory_ds.image[4, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
+    np.testing.assert_array_equal(memory_ds.image[4, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))
