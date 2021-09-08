@@ -24,9 +24,11 @@ import lz4.frame  # type: ignore
 # TODO: for every compressor we have, we should have an accurate number here!
 # NOTE: these may need to be tuned, possibly even determined based on htype or user dataset metrics
 COMPRESSION_FACTORS = {
-    "png": 2.0,
-    "mp4": 100.0,
-    "lz4": 2,  # TODO: this is random
+    "png": 2.6,
+    "jpeg": 18,
+    "jpeg2000": 2.3,
+    "lz4": 1.3,
+    "webp": 26,
 }
 
 
