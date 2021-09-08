@@ -171,7 +171,7 @@ def test_extend(memory_ds, compression):
         np.ones((10, 10), dtype="uint8"),
     ])
 
-    assert len(memory_ds) == 6
+    assert len(memory_ds) == 7
     assert memory_ds.image.num_chunks == 6
 
     expected_first_smalls = [
