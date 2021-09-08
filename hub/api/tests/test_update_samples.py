@@ -197,7 +197,7 @@ def test_subslice_failure(memory_ds):
     np.testing.assert_array_equal(memory_ds.tensor[3].numpy(), np.ones((28, 35, 3)))
 
 
-def test_warnings(memory_ds):
+def test_small_warning(memory_ds):
     tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
@@ -205,6 +205,12 @@ def test_warnings(memory_ds):
     # this update makes (small) suboptimal chunks
     with pytest.warns(UserWarning):
         tensor[0:5] = np.zeros((5, 0, 0), dtype="int32")
+
+
+def test_large_warning(memory_ds):
+    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
+
+    tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):

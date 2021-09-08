@@ -1,4 +1,3 @@
-from typing import Optional
 from hub.util.exceptions import CannotInferTilesError
 import pytest
 import numpy as np
@@ -16,7 +15,6 @@ def _assert_num_chunks(
         assert len(compression.values()) == 1
 
     if is_compressed:
-        # TODO: better way to get the number of chunks with compression for tests
         assert actual_num_chunks <= expected_num_chunks
     else:
         assert actual_num_chunks == expected_num_chunks
@@ -53,7 +51,7 @@ def test_initialize_large_tensor(local_ds_generator, compression):
 
 
 @compressions
-def test_initialize_large_image(local_ds_generator, compression):
+def test_num_chunks(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
@@ -68,33 +66,6 @@ def test_initialize_large_image(local_ds_generator, compression):
     ds.tensor.append(np.ones((10, 10, 3), dtype="uint8"))  # small
     _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
     ds.tensor.extend_empty((5, 10, 10, 3))  # small
-    _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
-
-    ds = local_ds_generator()
-    assert ds.tensor.shape == (8, None, None, 3)
-    np.testing.assert_array_equal(ds.tensor[0].numpy(), np.zeros((10, 10, 3)))
-    np.testing.assert_array_equal(
-        ds.tensor[1, 50:100, 50:100, :].numpy(), np.zeros((50, 50, 3))
-    )
-    np.testing.assert_array_equal(
-        ds.tensor[1, -100:-50, -100:-50, :].numpy(), np.zeros((50, 50, 3))
-    )
-    np.testing.assert_array_equal(
-        ds.tensor[1, -100:-50, -100:-50, :].numpy(), np.zeros((50, 50, 3))
-    )
-
-    # update large sample (only filling in 10KB of data)
-    ds = local_ds_generator()
-    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50), dtype="uint8")
-    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50), dtype="uint8") * 2
-    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50), dtype="uint8") * 3
-
-    ds = local_ds_generator()
-    expected = np.ones((50, 50, 3), dtype="uint8")
-    expected[:, :, 1] *= 2
-    expected[:, :, 2] *= 3
-    np.testing.assert_array_equal(ds.tensor[1, 50:100, 50:100, :].numpy(), expected)
-
     _assert_num_chunks(ds.tensor.num_chunks, 18, compression)
 
 
@@ -147,12 +118,6 @@ def test_populate_full_large_sample(local_ds_generator, compression):
 
     assert ds.large.shape == (1, 500, 500)
 
-    # TODO: uncomment after replacing tiled samples is implemented
-    # ds = local_ds_generator()
-    # np.testing.assert_array_equal(ds.large.numpy(), np.ones((5, 5), dtype="int32") * 4)
-    # assert ds.large.shape == (1, 5, 5)
-    # assert ds.large.num_chunks == 1
-
 
 def test_failures(memory_ds):
     memory_ds.create_tensor("tensor")
@@ -170,7 +135,7 @@ def test_failures(memory_ds):
     assert memory_ds.tensor.shape == (1, 10000, 10000)
     assert memory_ds.tensor[0, 0:5, 0:5].numpy().dtype == np.dtype("uint8")
 
-    # TODO: replace tiled sample with a non-tiled sample
+    # TODO: implement re-tiling
     with pytest.raises(NotImplementedError):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4
 

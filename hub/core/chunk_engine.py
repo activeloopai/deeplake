@@ -157,6 +157,8 @@ class ChunkEngine:
                 else []
             )
 
+        self._warned_about_suboptimal_chunks = False
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -723,7 +725,11 @@ class ChunkEngine:
                 if check_bytes:
                     chunks_nbytes_after_updates.append(tile_object.nbytes)
 
-            _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size, is_tiled)
+            # don't spam warnings
+            if not self._warned_about_suboptimal_chunks:
+                warned = _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size, is_tiled)
+                if warned:
+                    self._warned_about_suboptimal_chunks = warned
 
             self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
             self._sync_tiles(tiles)
@@ -1116,7 +1122,9 @@ def _make_sequence(
 
 def _warn_if_suboptimal_chunks(
     chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int, is_tiled: bool
-):
+) -> bool:
+    """Returns True if warning executed."""
+
     upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
     lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
 
@@ -1140,4 +1148,5 @@ def _warn_if_suboptimal_chunks(
             warnings.warn(
                 f"After update, some chunks were suboptimal ({reason}). Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
             )
-            break
+            return True
+    return False
