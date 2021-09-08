@@ -1,10 +1,10 @@
+from random import sample
 import hub
 from hub.util.chunks import chunk_name_from_id
 from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
     align_sample_and_tile,
     approximate_num_bytes,
-    break_into_tiles,
     get_tile_mask,
     num_bytes_without_compression,
     num_tiles_for_sample,
@@ -32,7 +32,7 @@ from hub.core.index.index import Index, IndexEntry
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.serialize import serialize_input_samples
+from hub.core.serialize import serialize_input_samples, serialize_input_tiles
 from hub.core.compression import compress_multiple, decompress_multiple
 
 from hub.util.keys import (
@@ -273,6 +273,7 @@ class ChunkEngine:
         buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
+        decompressed_samples: SampleValue,
     ):
         """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
@@ -294,6 +295,7 @@ class ChunkEngine:
         min_chunk_size = self.min_chunk_size
         enc = self.chunk_id_encoder
 
+        sample_idx = 0
         while nbytes:  # len(nbytes) is initially same as number of incoming samples.
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
@@ -333,10 +335,16 @@ class ChunkEngine:
 
                 current_shape = current_shapes[0]
                 current_nbyte = current_nbytes[0]
+                current_sample_array = decompressed_samples[sample_idx]
+
+                if not isinstance(current_sample_array, np.ndarray):
+                    raise ValueError(f"Expected current sample array to be a numpy array, got {type(current_sample_array)}")
 
                 assert len(current_buffer) == current_nbyte
 
-                self.create_tiles(current_shape, increment_length=False, buffer=current_buffer)
+                assert current_shape == current_sample_array.shape
+
+                self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
                 raise NotImplementedError
             else:
                 chunk.extend_samples(  # type: ignore
@@ -356,6 +364,8 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
+
+            sample_idx += num_samples_to_current_chunk
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int, ...]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -552,29 +562,6 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        # TODO: fix logic after merge conflicts
-        # CURRENT:
-        # for sample in samples:
-        #     buffer, shape = serialize_input_sample(sample, tensor_meta)
-        #     # TODO: if buffer exceeds a single chunk, use `extend_empty`!
-
-        #     # update tensor meta length first because erroneous meta information is better than un-accounted for data.
-        #     self._update_tensor_meta(shape, 1)
-
-        #     if self._needs_multiple_chunks(len(buffer)):
-        #         # TODO: optimize tiling for append/extend (sample gets serialized twice!)
-        #         self.create_tiles(shape, increment_length=False)
-
-        #         update_index = Index([IndexEntry(-1)])
-
-        #         # use retile=False so we can pass in a sigle-dim effective index 
-        #         # TODO: implement re-tiling
-        #         self.update(update_index, sample, retile=False)
-
-        #     else:
-        #         self._append_bytes(buffer, shape)
-
-        # INCOMING
         buff, nbytes, shapes = serialize_input_samples(
             samples, tensor_meta
         )
@@ -597,7 +584,7 @@ class ChunkEngine:
 
                 buff = buff[nb:]
         else:
-            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+            self._extend_bytes(buff, nbytes, shapes[:], samples)  # type: ignore
 
         self._synchronize_cache()
         self.cache.maybe_flush()
@@ -741,8 +728,11 @@ class ChunkEngine:
             self.meta_cache.maybe_flush()
 
 
-    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None):
+    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None, array: np.ndarray=None):
         # TODO: docstring (mention buffer should be compressed and represent only a single sample)
+
+        if buffer is None != array is None:
+            raise ValueError("Buffer and array must be both provided or both not provided.")
 
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -779,8 +769,8 @@ class ChunkEngine:
             tile_layout_shape = tile_encoder.get_tile_layout_shape(idx)
             assert num_tiles == np.prod(tile_layout_shape)  # sanity check TODO exception (or remove num_tiles definition)
 
-            # tiled_buffers will be a numpy array of empty buffers if `buffer` is None
-            tiled_buffers = break_into_tiles(sample_shape, tile_shape, tile_layout_shape, buffer)
+            # tiled_buffers will be a numpy array of empty buffers if `array` is None
+            tiled_buffers = serialize_input_tiles(tile_shape, tile_layout_shape, array, tensor_meta)
 
             i = 0
             for _, tile_buffer in np.ndenumerate(tiled_buffers):

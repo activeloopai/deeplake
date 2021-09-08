@@ -352,3 +352,21 @@ def serialize_input_samples(
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
     _check_input_samples_are_valid(nbytes, shapes)  # type: ignore
     return buff, nbytes, shapes
+
+
+def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[int, ...], sample_array: Optional[np.ndarray], tensor_meta: TensorMeta) -> np.ndarray:
+    # TODO: docstring
+
+    tile_buffers = np.empty(tile_layout_shape, dtype=object)
+
+    for tile_index, _ in np.ndenumerate(tile_buffers):
+        if sample_array is None:
+            tile_buffers[tile_index] = memoryview(bytes())
+        else:
+            raise NotImplementedError
+            tile_array = None  # TODO
+            serialized_input_tile = serialize_input_sample(tile_array, tensor_meta)
+            tile_buffers[tile_index] = memoryview(serialized_input_tile)
+
+
+    return tile_buffers
