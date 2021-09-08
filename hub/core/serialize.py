@@ -275,8 +275,6 @@ def _check_shape(shape: Tuple[int], expected_dimensionality: int):
 def _check_input_samples_are_valid(
     num_bytes: List[int],
     shapes: List[Tuple[int]],
-    min_chunk_size: int,
-    sample_compression: Optional[str],
 ):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
@@ -293,8 +291,7 @@ def _check_input_samples_are_valid(
 def serialize_input_samples(
     samples: Union[Sequence[SampleValue], np.ndarray],
     meta: TensorMeta,
-    min_chunk_size: int,
-) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int]]]:
+) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int, ...]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
     Args:
@@ -353,5 +350,5 @@ def serialize_input_samples(
         )
     else:
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
-    _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
+    _check_input_samples_are_valid(nbytes, shapes)  # type: ignore
     return buff, nbytes, shapes

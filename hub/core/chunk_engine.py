@@ -324,7 +324,7 @@ class ChunkEngine:
             if buffer:
                 chunk = new_chunk()
 
-    def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int, ...]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
 
         tensor_meta = self.tensor_meta
@@ -365,7 +365,7 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int], num_samples: int=1):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...], num_samples: int=1):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -543,7 +543,7 @@ class ChunkEngine:
 
         # INCOMING
         buff, nbytes, shapes = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size
+            samples, tensor_meta
         )
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)

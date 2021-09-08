@@ -593,7 +593,7 @@ class Index:
                 # trivial shape should default to the shape being applied to
                 output_shape[i] = shape[i]
             else:
-                output_shape[i] = min(self_shape[i], shape[i])
+                output_shape[i] = min(self_shape[i], shape[i])  # type: ignore
 
         output_shape = output_shape.tolist()
 

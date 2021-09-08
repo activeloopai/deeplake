@@ -156,7 +156,7 @@ class Chunk(Cachable):
         for nb, shape in zip(nbytes, shapes):
             self.register_sample_to_headers(nb, shape)
 
-    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]):
+    def append_sample(self, buffer: Buffer, max_data_bytes: int, shape: Tuple[int, ...]):
         """Store `buffer` in this chunk.
 
         Args:

@@ -418,7 +418,6 @@ def get_compression_factor(tensor_meta: TensorMeta) -> float:
     #     factor *= COMPRESSION_FACTORS[cc]
 
     return factor
-    return Image._conv_type_shape(img)
 
 
 def read_meta_from_compressed_file(
