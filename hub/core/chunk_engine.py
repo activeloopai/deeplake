@@ -326,6 +326,16 @@ class ChunkEngine:
             
             if need_to_tile:
                 # TODO: create tiles with buffers
+
+                # sanity check (TODO: exception)
+                assert num_samples_to_current_chunk == 1 and len(current_shapes) == 1 and len(current_nbytes) == 1
+
+                current_shape = current_shapes[0]
+                current_nbyte = current_nbytes[0]
+
+                assert len(current_buffer) == current_nbyte
+
+                self.create_tiles(current_shape, increment_length=False, buffer=current_buffer)
                 raise NotImplementedError
             else:
                 chunk.extend_samples(  # type: ignore
@@ -742,12 +752,13 @@ class ChunkEngine:
             raise CannotInferTilesError(
                 "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
             )
+        dtype = np.dtype(dtype)
 
         # TODO: functionize this
         if buffer is None:
             # for `append_empty`, we can only approximate
             compression_factor = get_compression_factor(tensor_meta)
-            nbytes = approximate_num_bytes(sample_shape, tensor_meta.dtype, compression_factor)
+            nbytes = approximate_num_bytes(sample_shape, dtype, compression_factor)
         else:
             nbytes = len(buffer)
             compression_factor = num_bytes_without_compression(sample_shape, dtype) // nbytes
