@@ -2,7 +2,7 @@ from hub.util.exceptions import CannotInferTilesError
 import pytest
 import numpy as np
 from hub.constants import KB
-from hub.tests.common import compressions
+from hub.tests.common import assert_array_lists_equal, compressions
 
 
 def _assert_num_chunks(
@@ -170,7 +170,16 @@ def test_extend(memory_ds, compression):
     ])
 
     assert len(memory_ds) == 7
-    assert memory_ds.image.num_chunks == 10
+    assert memory_ds.image.num_chunks == 7
 
-    np.testing.assert_array_equal(memory_ds.image[4, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
-    np.testing.assert_array_equal(memory_ds.image[4, -500:, -500:].numpy(), np.ones((500, 500), dtype="uint8"))
+    expected_first_smalls = [
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+        np.ones((10, 10), dtype="uint8"),
+    ]
+
+    assert_array_lists_equal(expected_first_smalls, memory_ds.image[0:4].numpy())
+
+    # TODO: check the rest
+    assert False

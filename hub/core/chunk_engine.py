@@ -345,7 +345,6 @@ class ChunkEngine:
                 assert current_shape == current_sample_array.shape
 
                 self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
-                raise NotImplementedError
             else:
                 chunk.extend_samples(  # type: ignore
                     current_buffer,
@@ -770,12 +769,14 @@ class ChunkEngine:
             assert num_tiles == np.prod(tile_layout_shape)  # sanity check TODO exception (or remove num_tiles definition)
 
             # tiled_buffers will be a numpy array of empty buffers if `array` is None
-            tiled_buffers = serialize_input_tiles(tile_shape, tile_layout_shape, array, tensor_meta)
+            tiled_buffers, tiled_shapes = serialize_input_tiles(tile_shape, tile_layout_shape, array, tensor_meta)
 
             i = 0
-            for _, tile_buffer in np.ndenumerate(tiled_buffers):
+            for tile_idx, tile_buffer in np.ndenumerate(tiled_buffers):
+                actual_tile_shape = tiled_shapes[tile_idx]
+
                 self._create_new_chunk()
-                self._append_bytes(tile_buffer, tile_shape, num_samples=0 if i > 0 else 1)
+                self._append_bytes(tile_buffer, actual_tile_shape, num_samples=0 if i > 0 else 1)
                 i += 1
 
             # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!

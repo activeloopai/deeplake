@@ -73,62 +73,17 @@ def get_tile_mask(
     return mask
 
 
-def modified_space_subslice(array: np.ndarray, subslice_index: Index, min_bound: Tuple[int, ...], max_bound: Tuple[int, ...]):
-    # TODO: docstring/rename method
+def view_sample_as_tile(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
+    # TODO: docstring
 
-    # return a view of the array where the coordinate system may be broader or narrower than the actual array's shape
+    low, high = get_tile_bounds(tile_index, tile_shape)
 
-    # TODO: make arguments optional?
+    slices = []
+    for low_dim, high_dim in zip(low, high):
+        slices.append(slice(low_dim, high_dim))
+    slices = tuple(slices)
 
-    subslice_min = subslice_index.low_bound  # TODO rename to min/max
-    subslice_max = subslice_index.high_bound
-
-    # sanity checks
-    if len(array.shape) != len(subslice_min) or len(subslice_min) != len(max_bound):
-        raise Exception()  # TODO: exceptions 
-
-    bias_shape = np.array(array.shape) + subslice_min
-    
-    # get sample-coordinates for the overlap with tile-coordinates
-    low_corner = np.maximum(subslice_min, min_bound)
-    high_corner = np.minimum(subslice_max, max_bound)
-    delta = high_corner - low_corner
-
-    # get the subslice of the sample for the overlap
-    entries = []
-    for dim in delta:
-        entries.append(IndexEntry(slice(0, dim)))
-    array_subslice_index = Index(entries)
-    array_subslice = array_subslice_index.apply([array], include_first_value=True)[0]  # TODO: refac
-
-    return array_subslice
-
-
-def get_sample_subslice(sample: np.ndarray, tile_index: Tuple[int, ...], tile_shape_mask: np.ndarray, subslice_index: Index):
-    """Get the subslice of a sample that is contained within the tile at `tile_index`.
-
-    # TODO: examples
-
-    Args:
-        sample (np.ndarray): The full sample to get the subslice of.
-        tile_index (Tuple[int, ...]): Index of the tile to get the subslice of.
-        tile_shape_mask (np.ndarray): A mask of the shape of each tile.
-
-    Returns:
-        np.ndarray: The subslice of the sample.
-    """
-
-    # TODO: can remove this check (maybe move it higher up in the stack)
-    if not np.all(tile_shape_mask):
-        # sanity check
-        raise NotImplementedError("Cannot handle dynamic tile shapes yet!")
-
-    # get tile bounds
-    tile_shape = tile_shape_mask[tile_index]
-    tile_low_bound, tile_high_bound = get_tile_bounds(tile_index, tile_shape)
-
-    return modified_space_subslice(sample, subslice_index, tile_low_bound, tile_high_bound)
-
+    return sample[slices]
 
 
 def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]=None):
