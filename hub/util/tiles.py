@@ -6,16 +6,16 @@ from typing import Tuple
 import numpy as np
 
 
-def _num_bytes_without_compression(shape: Tuple[int, ...], dtype: np.dtype) -> int:
+def num_bytes_without_compression(shape: Tuple[int, ...], dtype: np.dtype) -> int:
     return dtype.itemsize * np.prod(shape)
 
 
-def approximate_num_bytes(shape, tensor_meta: TensorMeta) -> int:
+def approximate_num_bytes(shape, dtype, compression_factor: float) -> int:
     """Calculate the number of bytes required to store raw data with the given shape. If no compression is used, this will be an exact
     number of bytes. If compressed, it will be approximated assuming the data is natural."""
 
-    num_bytes = _num_bytes_without_compression(shape, np.dtype(tensor_meta.dtype))
-    factor = get_compression_factor(tensor_meta)
+    num_bytes = num_bytes_without_compression(shape, np.dtype(dtype))
+    factor = compression_factor
     return int(num_bytes // factor)
 
 

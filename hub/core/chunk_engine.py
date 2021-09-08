@@ -4,8 +4,8 @@ from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
     align_sample_and_tile,
     approximate_num_bytes,
-    get_tile_bounds,
     get_tile_mask,
+    num_bytes_without_compression,
     num_tiles_for_sample,
 )
 from hub.core.fast_forwarding import (
@@ -15,7 +15,7 @@ from hub.core.fast_forwarding import (
 )
 import warnings
 from hub.util.casting import get_dtype, intelligent_cast
-from hub.core.compression import decompress_array
+from hub.core.compression import decompress_array, get_compression_factor
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple, List, Set
@@ -736,8 +736,8 @@ class ChunkEngine:
             self.cache.maybe_flush()
             self.meta_cache.maybe_flush()
 
-    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True):
-        # TODO: docstring
+    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None):
+        # TODO: docstring (mention buffer should be compressed)
 
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -749,10 +749,17 @@ class ChunkEngine:
                 "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
             )
 
-        nbytes = approximate_num_bytes(sample_shape, tensor_meta)
+        # TODO: functionize this
+        if buffer is None:
+            # for `append_empty`, we can only approximate
+            compression_factor = get_compression_factor(tensor_meta)
+            nbytes = approximate_num_bytes(sample_shape, tensor_meta.dtype, compression_factor)
+        else:
+            nbytes = len(buffer)
+            compression_factor = num_bytes_without_compression(sample_shape, dtype) // nbytes
 
         if self._needs_multiple_chunks(nbytes):
-            tile_shape = self.tile_optimizer.optimize(sample_shape)
+            tile_shape = self.tile_optimizer.optimize(sample_shape, compression_factor)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
 
             idx = self.num_samples
@@ -777,6 +784,9 @@ class ChunkEngine:
             self._synchronize_cache()
             self.cache.maybe_flush()
         else:
+            if buffer is not None:
+                raise NotImplementedError("Calling `create_tiles` can't be done with a buffer when the sample fits in a single chunk.")
+
             empty_sample = np.zeros(sample_shape, dtype=tensor_meta.dtype)
             self.append(empty_sample)
 

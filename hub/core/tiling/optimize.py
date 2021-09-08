@@ -1,6 +1,6 @@
+from hub.core.compression import get_compression_factor
 from hub.util.exceptions import TileOptimizerError
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
-from hub.core.compression import get_compression_factor
 from hub.core.meta.tensor_meta import TensorMeta
 from typing import Dict, List, Tuple
 import numpy as np
@@ -69,7 +69,13 @@ class TileOptimizer:
         self.tensor_meta = tensor_meta
         self.dtype = np.dtype(tensor_meta.dtype)
 
-        self.compression_factor = get_compression_factor(self.tensor_meta)
+        # state
+        self.compression_factor = None
+        self.last_tile_shape = None
+        self.last_hisory = None
+
+    def average_num_bytes_per_tile(self, tile_shape: Tuple[int, ...]) -> int:
+        return approximate_num_bytes(tile_shape, self.tensor_meta.dtype, self.compression_factor)
 
     def _energy(
         self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...]
@@ -81,7 +87,7 @@ class TileOptimizer:
         """
 
         num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
-        num_bytes_per_tile = approximate_num_bytes(tile_shape, self.tensor_meta)
+        num_bytes_per_tile = self.average_num_bytes_per_tile(tile_shape)
 
         distance = abs(num_bytes_per_tile - self.max_chunk_size)
         if (
@@ -177,17 +183,20 @@ class TileOptimizer:
         """
 
         tile_shape_arr = np.array(tile_shape)
-        average_num_bytes_per_tile = approximate_num_bytes(tile_shape_arr, self.tensor_meta)
+        num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+        num_bytes_per_tile = self.average_num_bytes_per_tile(tile_shape)
 
         failure_reason = None
-        if not np.all(tile_shape_arr <= sample_shape):
+        if num_tiles <= 1:
+            failure_reason = f"Number of tiles should be > 1. Got {num_tiles}"
+        elif not np.all(tile_shape_arr <= sample_shape):
             failure_reason = "Tile shape must not be > sample shape on any dimension"
         elif np.any(tile_shape_arr <= 0):
             failure_reason = "Tile shape must not be <= 0 on any dimension"
-        elif average_num_bytes_per_tile > self.max_chunk_size:
-            failure_reason = f"Number of bytes per tile ({average_num_bytes_per_tile}) is larger than what is allowed ({self.max_chunk_size})"
-        elif average_num_bytes_per_tile < self.min_chunk_size:
-            failure_reason = f"Number of bytes per tile ({average_num_bytes_per_tile}) is smaller than what is allowed ({self.min_chunk_size})"
+        elif num_bytes_per_tile > self.max_chunk_size:
+            failure_reason = f"Number of bytes per tile ({num_bytes_per_tile}) is larger than what is allowed ({self.max_chunk_size})"
+        elif num_bytes_per_tile < self.min_chunk_size:
+            failure_reason = f"Number of bytes per tile ({num_bytes_per_tile}) is smaller than what is allowed ({self.min_chunk_size})"
 
         if failure_reason is not None:
             raise TileOptimizerError(failure_reason, tile_shape, sample_shape)
@@ -196,6 +205,7 @@ class TileOptimizer:
     def optimize(
         self,
         sample_shape: Tuple[int, ...],
+        compression_factor: int=None,
         validate: bool = True,
         return_history: bool = False,
     ) -> Tuple[int, ...]:
@@ -209,11 +219,17 @@ class TileOptimizer:
         Returns:
             The tile shape found by simulated annealing.
         """
+
+        self.compression_factor = compression_factor or get_compression_factor(self.tensor_meta)
     
         tile_shape, history = self._anneal_tile_shape(sample_shape)
     
         if validate:
             self._validate_tile_shape(tile_shape, sample_shape)
+
+        self.compression_factor = None
+        self.last_tile_shape = tile_shape
+        self.last_hisory = history
     
         if return_history:
             return tile_shape, history  # type: ignore
