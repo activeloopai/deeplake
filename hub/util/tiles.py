@@ -1,8 +1,9 @@
+from hub.core.chunk import Buffer
 from hub.core.compression import get_compression_factor
 from hub.core.index.index import Index, IndexEntry
 from math import ceil
 from hub.core.meta.tensor_meta import TensorMeta
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 
 
@@ -148,3 +149,24 @@ def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: 
     incoming_sample_view = subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
     return tile_view, incoming_sample_view
+
+
+def break_into_tiles(sample_shape: Tuple[int, ...], tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[int, ...], sample_buffer: Optional[Buffer]) -> np.ndarray:
+    """Breaks the `buffer` into buffers where the underlying data array is of shape `tile_shape`.
+    For corner tiles, this shape may be smaller than `tile_shape` but never larger.
+    
+    Returns:
+        np.ndarray: Object array where each value is a bytes object. If the input `buffer` is None,
+            the bytes objects will all be empty."""
+
+    tile_buffers = np.empty(tile_layout_shape, dtype=object)
+
+    # TODO
+    if sample_buffer is not None:
+        raise NotImplementedError
+
+    for tile_index, _ in np.ndenumerate(tile_buffers):
+        if sample_buffer is None:
+            tile_buffers[tile_index] = memoryview(bytes())
+
+    return tile_buffers

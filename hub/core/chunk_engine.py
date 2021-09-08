@@ -4,6 +4,7 @@ from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
     align_sample_and_tile,
     approximate_num_bytes,
+    break_into_tiles,
     get_tile_mask,
     num_bytes_without_compression,
     num_tiles_for_sample,
@@ -741,7 +742,7 @@ class ChunkEngine:
 
 
     def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None):
-        # TODO: docstring (mention buffer should be compressed)
+        # TODO: docstring (mention buffer should be compressed and represent only a single sample)
 
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -774,18 +775,18 @@ class ChunkEngine:
 
             if increment_length:
                 self._update_tensor_meta(sample_shape, 1)
+            
+            tile_layout_shape = tile_encoder.get_tile_layout_shape(idx)
+            assert num_tiles == np.prod(tile_layout_shape)  # sanity check TODO exception (or remove num_tiles definition)
 
-            # tile_layout = np.empty(tile_encoder.get_tile_layout_shape(idx))
-            # for tile_index, _ in np.ndenumerate(tile_layout):
-            #     print(tile_index)
+            # tiled_buffers will be a numpy array of empty buffers if `buffer` is None
+            tiled_buffers = break_into_tiles(sample_shape, tile_shape, tile_layout_shape, buffer)
 
-            # initialize our N empty chunks including headers
-            for i in range(num_tiles):
+            i = 0
+            for _, tile_buffer in np.ndenumerate(tiled_buffers):
                 self._create_new_chunk()
-                empty_buffer = memoryview(bytes())
-
-                # TODO: explain
-                self._append_bytes(empty_buffer, tile_shape, num_samples=0 if i > 0 else 1)
+                self._append_bytes(tile_buffer, tile_shape, num_samples=0 if i > 0 else 1)
+                i += 1
 
             # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
 
