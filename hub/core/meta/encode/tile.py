@@ -8,22 +8,6 @@ from hub.core.storage.cachable import Cachable
 from typing import Any, Dict, List, Tuple
 
 
-def get_tile_layout_shape(
-    tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]
-) -> Tuple[int, ...]:
-    # TODO: docstring
-
-    assert len(tile_shape) == len(
-        sample_shape
-    ), "need same dimensionality"  # TODO: exception (sanity check)
-
-    layout = []
-    for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape):
-        layout.append(ceildiv(sample_shape_dim, tile_shape_dim))
-
-    return tuple(layout)
-
-
 # TODO: do we want to make this a BaseEncoder subclass?
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
@@ -41,18 +25,6 @@ class TileEncoder(Cachable):
             "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
         }
 
-    def translate_index_relative_to_tiles(
-        self,
-        element_index: Tuple[int, ...],
-        tile_shape: Tuple[int, ...],
-        sample_shape: Tuple[int, ...],
-    ) -> int:
-        """Takes in an N-dimensional element-index and returns a 1d index to be used for a flat tile-ordered list of chunks"""
-
-        # TODO: remove this method?
-
-        raise NotImplementedError
-
     def __getitem__(self, global_sample_index: int):
         return self.entries[str(global_sample_index)]
 
@@ -66,52 +38,29 @@ class TileEncoder(Cachable):
     def get_sample_shape(self, global_sample_index: int):
         return tuple(self[global_sample_index]["sample_shape"])
 
-    # def prune_chunks(self, tile_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index) -> List[ENCODING_DTYPE]:
-    #     """This method handles the main tile logic, given a subslice_index it replaces the chunk IDs that
-    #     are not needed to be downloaded with `None`, returning a new (pruned) list.
+    def get_tile_layout_shape(self, global_sample_index: int) -> Tuple[int, ...]:
+        """If you were to lay the tiles out in a grid, the tile layout shape would be the shape
+        of the grid. 
+        
+        Example:
+            Sample shape:               (1000, 500)
+            Tile shape:                 (10, 10)
+            Output tile layout shape:   (100, 50)
+        """
 
-    #     Args:
-    #         tile_ids (List[ENCODING_DTYPE]): All tile chunk IDs that correspond with this sample in tile-order.
-    #         global_sample_index (int): Primary index for the tensor.
-    #             Example: `tensor[0, 10:50, 50:100]` -- the first slice component would be the `global_sample_index`.
-    #         subslice_index (Index): Subslice index of a tensor.
-    #             Example: `tensor[0, 10:50, 50:100]` -- the last 2 slice components would be the `subslice_index`.
+        tile_meta = self[global_sample_index]
+        tile_shape = tile_meta["tile_shape"]
+        sample_shape = tile_meta["sample_shape"]
 
-    #     Raises:
-    #         IndexError: Must first call `register_sample`.
+        assert len(tile_shape) == len(
+            sample_shape
+        ), "need same dimensionality"  # TODO: exception (sanity check)
 
-    #     Returns:
-    #         List[ENCODING_DTYPE]: New list same length & ordering, except the chunks that aren't requird for `subslice_index` are
-    #             `None` values.
-    #     """
+        layout = []
+        for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape):
+            layout.append(ceildiv(sample_shape_dim, tile_shape_dim))
 
-    #     if global_sample_index not in self.entries:
-    #         raise IndexError(f"Global sample index {global_sample_index} does not exist in tile encoder.")
-
-    #     # TODO: return a new list of the same length with only needed chunks (otherwise they're None)
-    #     # TODO: add a sanity check for len(tile_ids) (make sure it's rootable)
-
-    #     tile_meta = self.entries[global_sample_index]
-    #     tile_shape = tile_meta["tile_shape"]
-    #     sample_shape = tile_meta["sample_shape"]
-    #     num_tiles = len(tile_ids)
-
-    #     pruned_tile_ids = []
-    #     for tile_index_1d, tile_id in enumerate(tile_ids):
-    #         tile_origin_element_index = self.first_element_index_of_tile(tile_shape, num_tiles, tile_index_1d)
-    #         tile_inside_subslice = self.is_element_index_inside_subslice(tile_origin_element_index, subslice_index)
-
-    #         if tile_inside_subslice:
-    #             pruned_tile_ids.append(tile_id)
-    #         else:
-    #             pruned_tile_ids.append(None)
-    #
-    #     return tile_ids
-
-    # def first_element_index_of_tile(self, tile_shape: Tuple[int, ...], num_tiles: int, tile_index_1d: int) -> Tuple[int, ...]:
-    #     # TODO: docstring
-
-    #     raise NotImplementedError
+        return tuple(layout)
 
     def order_tiles(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
@@ -135,11 +84,7 @@ class TileEncoder(Cachable):
         if len(chunk_ids) == 1:
             return np.array(chunk_ids)
 
-        tile_meta = self[global_sample_index]
-        tile_shape = tile_meta["tile_shape"]
-        sample_shape = tile_meta["sample_shape"]
-
-        tile_layout_shape = get_tile_layout_shape(tile_shape, sample_shape)
+        tile_layout_shape = self.get_tile_layout_shape(global_sample_index)
 
         ordered_tiles = np.array(chunk_ids, dtype=ENCODING_DTYPE)
         ordered_tiles = np.reshape(ordered_tiles, tile_layout_shape)
