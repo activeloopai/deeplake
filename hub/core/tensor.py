@@ -1,5 +1,6 @@
+from hub.util.version_control import checkout, generate_hash
 import numpy as np
-from typing import List, Sequence, Union, Optional, Tuple, Any
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
@@ -24,6 +25,7 @@ def create_tensor(
     htype: str,
     sample_compression: str,
     chunk_compression: str,
+    version_state,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -41,10 +43,10 @@ def create_tensor(
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
     """
 
-    if tensor_exists(key, storage):
+    if tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorAlreadyExistsError(key)
 
-    meta_key = get_tensor_meta_key(key)
+    meta_key = get_tensor_meta_key(key, version_state["commit_id"])
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
@@ -72,6 +74,7 @@ class Tensor:
         key: str,
         storage: LRUCache,
         index: Optional[Index] = None,
+        version_state: Dict[str, Any] = None,
     ):
         """Initializes a new tensor.
 
@@ -92,13 +95,19 @@ class Tensor:
         self.key = key
         self.storage = storage
         self.index = index or Index()
+        self.version_state = version_state
 
-        if not tensor_exists(self.key, self.storage):
+        if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(self.key, self.storage)
+        self.chunk_engine = ChunkEngine(
+            self.key, self.storage, version_state=self.version_state
+        )
         self.index.validate(self.num_samples)
-        self.info = load_info(get_tensor_info_key(self.key), self.storage)
+        self.info = load_info(
+            get_tensor_info_key(self.key, version_state["commit_id"]),
+            self.storage,
+        )
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
@@ -260,7 +269,12 @@ class Tensor:
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
-        return Tensor(self.key, self.storage, index=self.index[item])
+        return Tensor(
+            self.key,
+            self.storage,
+            index=self.index[item],
+            version_state=self.version_state,
+        )
 
     def _get_bigger_dtype(self, d1, d2):
         if np.can_cast(d1, d2):
@@ -302,6 +316,11 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        # TODO: fix readonly case
+        if self.version_state["commit_node"].children:
+            checkout(
+                self.version_state, self.storage, f"auto_branch_{generate_hash()}", True
+            )
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False

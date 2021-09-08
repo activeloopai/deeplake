@@ -1,4 +1,8 @@
+from hub.core.version_control.version_node import VersionNode
+from hub.util.version_control import checkout, commit
+from hub.constants import VERSION_CONTROL_FILE
 import hub
+import pickle
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
@@ -32,7 +36,7 @@ from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.core.fast_forwarding import ffw_dataset_meta
+from hub.core.fast_forwarding import ffw_dataset_meta, version_compare
 import warnings
 
 
@@ -45,6 +49,8 @@ class Dataset:
         public: Optional[bool] = True,
         token: Optional[str] = None,
         verbose: bool = True,
+        # commit_id: Optional[str] = None,
+        # branch: Optional[str] = None,
     ):
         """Initializes a new or existing dataset.
 
@@ -201,7 +207,7 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
 
-        if tensor_exists(name, self.storage):
+        if tensor_exists(name, self.storage, self.version_state["commit_id"]):
             raise TensorAlreadyExistsError(name)
         if name in vars(self):
             raise InvalidTensorNameError(name)
@@ -230,12 +236,13 @@ class Dataset:
             dtype=dtype,
             sample_compression=sample_compression,
             chunk_compression=chunk_compression,
+            version_state=self.version_state,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
         ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
-        tensor = Tensor(name, self.storage)  # type: ignore
+        tensor = Tensor(name, self.storage, version_state=self.version_state)  # type: ignore
 
         self.tensors[name] = tensor
 
@@ -285,8 +292,63 @@ class Dataset:
         for i in range(len(self)):
             yield self[i]
 
+    def _load_version_info(self):
+        # try loading version file, otherwise assume it doesn't exist and load all empty
+        self.version_state = {}
+        self.version_state["branch"] = "main"
+        try:
+            version_info = pickle.loads(self.storage[VERSION_CONTROL_FILE])
+            self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
+            self.version_state["commit_node_map"] = version_info["commit_node_map"]
+            self.version_state["commit_id"] = self.version_state["branch_commit_map"][
+                self.version_state["branch"]
+            ]
+            self.version_state["commit_node"] = self.version_state["commit_node_map"][
+                self.version_state["commit_id"]
+            ]
+        except Exception:
+            self.version_state["branch_commit_map"] = {}
+            self.version_state["commit_node_map"] = {}
+            # used to identify that this is the first commit and it's data will not be in similar directory structure to the rest
+            self.version_state["commit_id"] = "first"
+            self.version_state["commit_node"] = VersionNode(
+                self.version_state["branch"], self.version_state["commit_id"]
+            )
+            self.version_state["branch_commit_map"][
+                self.version_state["branch"]
+            ] = self.version_state["commit_id"]
+            self.version_state["commit_node_map"][
+                self.version_state["commit_id"]
+            ] = self.version_state["commit_node"]
+
+        self.version_state["tensors"] = self.tensors
+
+    def commit(self, message: str = None) -> None:
+        commit_id = self.version_state["commit_id"]
+        commit(self.version_state, self.storage, message)
+        return commit_id
+
+    def checkout(self, address: str, create: bool = False) -> None:
+        checkout(self.version_state, self.storage, address, create)
+        if not create:
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        return self.version_state["commit_id"]
+
+    def log(self):
+        # TODO: use logger.info instead of prints
+        last_committed_node = (
+            self.version_state["commit_node"].parent
+            if not self.version_state["commit_node"].children
+            else self.version_state["commit_node"]
+        )
+        print(f"\n Current Branch: {self.version_state['branch']}")
+        while last_committed_node:
+            print(last_committed_node)
+            last_committed_node = last_committed_node.parent
+
     def _load_meta(self):
-        meta_key = get_dataset_meta_key()
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
 
         if dataset_exists(self.storage):
             if self.verbose:
@@ -294,7 +356,9 @@ class Dataset:
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
 
             for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+                self.tensors[tensor_name] = Tensor(
+                    tensor_name, self.storage, version_state=self.version_state
+                )
 
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
@@ -398,8 +462,10 @@ class Dataset:
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
+        self._load_version_info()
+
         self._load_meta()  # TODO: use the same scheme as `load_info`
-        self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
+        self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 
     @hub_reporter.record_call

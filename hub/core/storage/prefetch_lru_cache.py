@@ -73,7 +73,10 @@ class PrefetchLRUCache(LRUCache):
         # map from each index to a dictionary having tensors as keys and chunk_names as values
         self.index_chunk_names_map: Dict[int, Dict[str, List[str]]] = {}
 
-        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
+        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines(
+            dataset.version_state
+        )
+        self.commit_id = dataset.version_state["commit_id"]
 
         # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
         self.required_chunks: Set[tuple] = set()
@@ -253,11 +256,14 @@ class PrefetchLRUCache(LRUCache):
             chunk_names[key] = names
         return chunk_names
 
-    def _load_all_chunk_engines(self):
+    def _load_all_chunk_engines(self, version_state):
         """Loads chunk engine for all tensors."""
         # creating a cache around base storage to pass to ChunkEngine
         cache = LRUCache(MemoryProvider(), self.storage, 32 * MB)
-        return {key: ChunkEngine(key, cache) for key in self.tensor_keys}
+        return {
+            key: ChunkEngine(key, cache, version_state=version_state)
+            for key in self.tensor_keys
+        }
 
     def _numpy_from_chunks(self, index: int, key: str, chunks: List[Chunk]):
         """Takes a list of chunks and returns a numpy array from it"""
@@ -413,11 +419,13 @@ class PrefetchLRUCache(LRUCache):
         if isinstance(storage, S3Provider):
             storage = self.storage_state_tuple
 
+        commit_id = self.commit_id
         all_chunk_sizes: List[Dict[str, int]] = self.map(
             read_and_store_chunk_group,
             chunk_groups,
             shared_memory_groups,
             repeat(storage),
+            repeat(commit_id),
         )
         combined_chunk_sizes_dict: Dict[str, int] = {}
         for chunk_sizes in all_chunk_sizes:

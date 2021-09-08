@@ -1,7 +1,6 @@
 import os
 import pickle
 import warnings
-import math
 import hub
 from typing import Callable, Union, Optional, Dict, Tuple, Sequence
 from hub.core.storage import MemoryProvider, LRUCache
@@ -119,7 +118,7 @@ class TorchDataset:
             # creating a new cache for each process
             cache_size = 32 * MB * len(self.tensor_keys)
             cached_storage = LRUCache(MemoryProvider(), storage, cache_size)
-            self.dataset = hub.core.dataset.Dataset(
+            self.dataset = hub.Dataset(
                 storage=cached_storage, index=self.index, verbose=False
             )
 

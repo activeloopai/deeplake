@@ -1,3 +1,5 @@
+from hub.core.version_control.version_node import VersionNode
+from hub.core.version_control.version_chunk_list import VersionChunkList
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype, intelligent_cast
@@ -21,6 +23,7 @@ from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
+    get_tensor_version_chunk_list_key,
 )
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
@@ -56,6 +59,7 @@ class ChunkEngine:
         key: str,
         cache: LRUCache,
         meta_cache: LRUCache = None,
+        version_state=None,  # fix in transforms too
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 
@@ -116,6 +120,7 @@ class ChunkEngine:
         self.key = key
         self.cache = cache
         self._meta_cache = meta_cache
+        self.version_state = version_state
 
         if self.tensor_meta.chunk_compression:
             # Cache samples in the last chunk in uncompressed form.
@@ -156,7 +161,7 @@ class ChunkEngine:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
                 and their corresponding chunks.
         """
-        key = get_chunk_id_encoder_key(self.key)
+        key = get_chunk_id_encoder_key(self.key, self.version_state["commit_id"])
         if not self.chunk_id_encoder_exists:
             enc = ChunkIdEncoder()
             self.meta_cache[key] = enc
@@ -166,9 +171,33 @@ class ChunkEngine:
         return enc
 
     @property
+    def version_chunk_list(self) -> VersionChunkList:
+        key = get_tensor_version_chunk_list_key(
+            self.key, self.version_state["commit_id"]
+        )
+        if not self.version_chunk_list_exists:
+            enc = VersionChunkList()
+            self.meta_cache[key] = enc
+            return enc
+
+        enc = self.meta_cache.get_cachable(key, VersionChunkList)
+        return enc
+
+    @property
+    def version_chunk_list_exists(self) -> bool:
+        try:
+            key = get_tensor_version_chunk_list_key(
+                self.key, self.version_state["commit_id"]
+            )
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
+
+    @property
     def chunk_id_encoder_exists(self) -> bool:
         try:
-            key = get_chunk_id_encoder_key(self.key)
+            key = get_chunk_id_encoder_key(self.key, self.version_state["commit_id"])
             self.meta_cache[key]
             return True
         except KeyError:
@@ -196,15 +225,32 @@ class ChunkEngine:
     def get_chunk(self, chunk_key: str) -> Chunk:
         return self.cache.get_cachable(chunk_key, Chunk)
 
+    def get_chunk_commit(self, chunk_name):
+        """Returns the commit that contains the chunk_name"""
+        cur_node: VersionNode = self.version_state["commit_node"]
+        while cur_node is not None:
+            commit_id = cur_node.commit_id
+            chunk_list_key = get_tensor_version_chunk_list_key(self.key, commit_id)
+            try:
+                chunk_list = self.cache[chunk_list_key].chunks_in_commit
+            except:
+                chunk_list = []
+            if chunk_name in chunk_list:
+                return commit_id
+            cur_node = cur_node.parent
+        return None
+
     @property
     def last_chunk_key(self) -> str:
         last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
-        return last_chunk_key
+        commit_id = self.get_chunk_commit(last_chunk_name)
+        if commit_id is None:
+            commit_id = self.version_state["commit_id"]
+        return get_chunk_key(self.key, last_chunk_name, commit_id)
 
     @property
     def tensor_meta(self):
-        tensor_meta_key = get_tensor_meta_key(self.key)
+        tensor_meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
     def _extend_bytes(
@@ -347,12 +393,20 @@ class ChunkEngine:
             self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
 
         # synchronize tensor meta
-        tensor_meta_key = get_tensor_meta_key(self.key)
+        tensor_meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
         self.meta_cache[tensor_meta_key] = self.tensor_meta
 
         # synchronize chunk ID encoder
-        chunk_id_key = get_chunk_id_encoder_key(self.key)
+        chunk_id_key = get_chunk_id_encoder_key(
+            self.key, self.version_state["commit_id"]
+        )
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
+
+        # synchronize current chunk list, all older ones are immutable
+        version_chunk_list_key = get_tensor_version_chunk_list_key(
+            self.key, self.version_state["commit_id"]
+        )
+        self.meta_cache[version_chunk_list_key] = self.version_chunk_list
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -413,7 +467,8 @@ class ChunkEngine:
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
+        self.version_chunk_list.append(chunk_name)
         self.cache[chunk_key] = chunk
         return chunk
 
@@ -475,7 +530,7 @@ class ChunkEngine:
         buffer, nbytes, shapes = serialized_input_samples
         for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
             global_sample_index = global_sample_indices[i]  # TODO!
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
+            chunk = self.get_chunk_for_sample(global_sample_index, enc, copy=True)
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
@@ -561,7 +616,7 @@ class ChunkEngine:
         return _format_read_samples(samples, index, aslist)
 
     def get_chunk_for_sample(
-        self, global_sample_index: int, enc: ChunkIdEncoder
+        self, global_sample_index: int, enc: ChunkIdEncoder, copy=False
     ) -> Chunk:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
@@ -574,10 +629,20 @@ class ChunkEngine:
 
         chunk_id = enc[global_sample_index]
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name)
+        commit_id = self.get_chunk_commit(chunk_name)
+        if commit_id is None:
+            commit_id = self.version_state["commit_id"]
+        chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
-
+        if commit_id != self.version_state["commit_id"] and copy:
+            new_chunk_key = get_chunk_key(
+                self.key, chunk_name, self.version_state["commit_id"]
+            )
+            chunk = chunk.copy()
+            chunk.key = new_chunk_key
+            self.cache[new_chunk_key] = chunk
+            self.version_chunk_list.append(chunk_name)
         return chunk
 
     def read_sample_from_chunk(
@@ -670,8 +735,8 @@ class ChunkEngine:
             self.chunk_id_encoder.num_samples if self.chunk_id_encoder_exists else 0
         )
         if tensor_meta_length != chunk_id_num_samples:
-            tkey = get_tensor_meta_key(self.key)
-            ikey = get_chunk_id_encoder_key(self.key)
+            tkey = get_tensor_meta_key(self.key, self.version_state["commit_id"])
+            ikey = get_chunk_id_encoder_key(self.key, self.version_state["commit_id"])
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )

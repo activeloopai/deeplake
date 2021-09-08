@@ -9,16 +9,17 @@ from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 
 def merge_all_tensor_metas(
     all_workers_tensor_metas: List[Dict[str, TensorMeta]],
-    ds_out: hub.core.dataset.Dataset,
+    ds_out: hub.Dataset,
 ) -> None:
     """Merges tensor metas from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
+    commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
         tensor_meta = ds_out[tensor].meta
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
             combine_metas(tensor_meta, current_meta)
-        meta_key = get_tensor_meta_key(tensor)
+        meta_key = get_tensor_meta_key(tensor, commit_id)
         ds_out[tensor].chunk_engine.cache[meta_key] = tensor_meta
     ds_out.flush()
 
@@ -45,17 +46,18 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
 
 def merge_all_chunk_id_encoders(
     all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]],
-    ds_out: hub.core.dataset.Dataset,
+    ds_out: hub.Dataset,
 ) -> None:
     """Merges chunk_id_encoders from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
+    commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
         chunk_id_encoder = ds_out[tensor].chunk_engine.chunk_id_encoder
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
             combine_chunk_id_encoders(chunk_id_encoder, current_chunk_id_encoder)
 
-        chunk_id_key = get_chunk_id_encoder_key(tensor)
+        chunk_id_key = get_chunk_id_encoder_key(tensor, commit_id)
         ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
     ds_out.flush()
 
