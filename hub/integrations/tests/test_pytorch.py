@@ -2,7 +2,6 @@ import hub
 import numpy as np
 import pickle
 import pytest
-from copy import deepcopy
 
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
@@ -258,9 +257,7 @@ def test_custom_tensor_order(ds):
         ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
     )
     for dl in [dl_new, dl_old]:
-        for i, batch_i in enumerate(dl):
-            batch = deepcopy(batch_i)
-            del batch_i
+        for i, batch in enumerate(dl):
             c1, d1, a1 = batch
             a2 = batch["a"]
             c2 = batch["c"]
@@ -285,9 +282,7 @@ def test_custom_tensor_order(ds):
             np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
     dls = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
-    for i, batch_i in enumerate(dls):
-        batch = deepcopy(batch_i)
-        del batch_i
+    for i, batch in enumerate(dls):
         c1, d1, a1 = batch
         a2 = batch["a"]
         c2 = batch["c"]
