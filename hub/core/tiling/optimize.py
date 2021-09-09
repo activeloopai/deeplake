@@ -10,6 +10,16 @@ import numpy as np
 INTERM_DTYPE = np.dtype(np.int32)
 
 
+# this is the percentage of max steps that will allow a single dimension to be perturbated.
+# if the number of iterations is less than this, then all dimensions will be perturbated at once,
+# if the number of iterations is greater than this, then only a single dimension will be perturbated at a time.
+# the reason is to allow better and smoother exploration of more nuanced tile shapes.
+SINGLE_DIM_MIN_ITERATION_PERCENTAGE = 0.8
+assert SINGLE_DIM_MIN_ITERATION_PERCENTAGE > 0 and SINGLE_DIM_MIN_ITERATION_PERCENTAGE < 1
+CHANCE_FOR_SINGLE_DIM_ONLY = 0.1
+assert CHANCE_FOR_SINGLE_DIM_ONLY > 0 and CHANCE_FOR_SINGLE_DIM_ONLY < 1
+
+
 
 def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
     """Clamps `tile_shape` on each dimension inclusively between 1 and sample_shape for the corresponding dimension."""
@@ -23,6 +33,7 @@ def _perturbate_tile_shape(
     tile_shape: np.ndarray,
     sample_shape: Tuple[int, ...],
     unfrozen_dim_mask: np.ndarray,
+    allow_single_dim_only: bool,
     max_magnitude: int = 100,
 ) -> np.ndarray:
     """Pertubrate the tile shape in a random direction, only where `unfrozen_dim_mask` is True.
@@ -43,6 +54,14 @@ def _perturbate_tile_shape(
     # all dims should have the same delta
     delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
     delta[:] = np.random.uniform(-max_magnitude, max_magnitude + 1)
+
+    # isolate a single dimension to perturbate
+    if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
+        i = np.random.choice(range(delta.size))
+        temp = delta[i]
+        delta *= 0
+        delta[i] = temp
+
     new_tile_shape[unfrozen_dim_mask] += delta[unfrozen_dim_mask]
 
     return _clamp(new_tile_shape, sample_shape)
@@ -119,7 +138,7 @@ class TileOptimizer:
 
 
     def _anneal_tile_shape(
-        self, sample_shape: Tuple[int, ...], max_steps: int = 1000
+        self, sample_shape: Tuple[int, ...], max_iterations: int = 1000
     ) -> Tuple[Tuple[int, ...], List[Dict]]:
         """Use simulated annealing to find a tile shape that is between the min / max chunk size of `tensor_meta`.
 
@@ -129,25 +148,29 @@ class TileOptimizer:
 
         Args:
             sample_shape (Tuple[int]): Shape of the sample that is being tiled.
-            max_steps (int): Maximum number of simulated annealing steps.
+            max_iterations (int): Maximum number of simulated annealing steps.
 
         Returns:
             Tuple[Tuple[int], List[Dict]]: Tile shape and history of simulated annealing.
         """
 
+        min_single_dim_iterations = int(SINGLE_DIM_MIN_ITERATION_PERCENTAGE * max_iterations)
+
         tile_shape = self._initial_tile_shape(sample_shape)
         unfrozen_dim_mask = tile_shape != sample_shape
 
-        try_count = 0
+        self.current_iteration = 0
         best_shape = None
         lowest_energy = float("inf")
         history = []
 
         # minimize energy with respect to tile shape
-        while try_count < max_steps:
-            temperature = 1 - ((try_count) / max_steps) ** 2
+        while self.current_iteration < max_iterations:
+            allow_single_dim_only = self.current_iteration > min_single_dim_iterations
+
+            temperature = 1 - ((self.current_iteration) / max_iterations) ** 2
             new_tile_shape = _perturbate_tile_shape(
-                tile_shape, sample_shape, unfrozen_dim_mask
+                tile_shape, sample_shape, unfrozen_dim_mask, allow_single_dim_only
             )
 
             energy = self._energy(tile_shape, sample_shape)
@@ -163,7 +186,7 @@ class TileOptimizer:
                     lowest_energy = new_energy
                 history.append({"energy": new_energy})
 
-            try_count += 1
+            self.current_iteration += 1
 
         return tuple(best_shape.tolist()), history  # type: ignore
 
