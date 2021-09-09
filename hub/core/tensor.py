@@ -73,8 +73,8 @@ class Tensor:
         self,
         key: str,
         storage: LRUCache,
+        version_state: Dict[str, Any],
         index: Optional[Index] = None,
-        version_state: Dict[str, Any] = None,
     ):
         """Initializes a new tensor.
 
@@ -85,6 +85,7 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             storage (LRUCache): The storage provider for the parent dataset.
+            version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
@@ -270,8 +271,8 @@ class Tensor:
         return Tensor(
             self.key,
             self.storage,
+            self.version_state,
             index=self.index[item],
-            version_state=self.version_state,
         )
 
     def _get_bigger_dtype(self, d1, d2):

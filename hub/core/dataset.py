@@ -52,8 +52,6 @@ class Dataset:
         public: Optional[bool] = True,
         token: Optional[str] = None,
         verbose: bool = True,
-        # commit_id: Optional[str] = None,
-        # branch: Optional[str] = None,
     ):
         """Initializes a new or existing dataset.
 
@@ -245,7 +243,7 @@ class Dataset:
         self.meta.tensors.append(name)
         ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
-        tensor = Tensor(name, self.storage, version_state=self.version_state)  # type: ignore
+        tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.tensors[name] = tensor
 
@@ -354,7 +352,7 @@ class Dataset:
 
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(
-                    tensor_name, self.storage, version_state=self.version_state
+                    tensor_name, self.storage, self.version_state
                 )
 
         elif not self.storage.empty():
