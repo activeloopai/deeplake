@@ -590,7 +590,7 @@ class ChunkEngine:
 
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
-        tensor_meta.length += len(samples)
+            tensor_meta.length += 1
         
         if tensor_meta.chunk_compression:
             for i, (nb, shape) in enumerate(zip(nbytes, shapes)):

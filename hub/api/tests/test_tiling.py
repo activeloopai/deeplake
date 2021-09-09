@@ -177,8 +177,8 @@ def test_append(local_ds, compression, tatevik):
 def test_extend(local_ds, compression, davit):
     local_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
 
-    small1 = _get_random_image((10, 10, 1))
-    small2 = _get_random_image((5, 20, 1))
+    small1 = _get_random_image((10, 10, 3))
+    small2 = _get_random_image((5, 20, 3))
     large = _get_random_image((100, 100, 3))
 
     local_ds.image.extend([
@@ -192,7 +192,7 @@ def test_extend(local_ds, compression, davit):
     ])
     _assert_num_chunks(local_ds.image.num_chunks, 23, compression)
 
-    assert local_ds.image.shape_interval.lower == (7, 5, 10, 1)
+    assert local_ds.image.shape_interval.lower == (7, 5, 10, 3)
     assert local_ds.image.shape_interval.upper == (7, 200, 200, 3)
 
     expected = [small1, small2, hub.read(davit).array, small2, large, small2, small1]
