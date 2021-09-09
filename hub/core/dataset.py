@@ -309,7 +309,7 @@ class Dataset:
         except Exception:
             self.version_state["branch_commit_map"] = {}
             self.version_state["commit_node_map"] = {}
-            # used to identify that this is the first commit and it's data will not be in similar directory structure to the rest
+            # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
             self.version_state["commit_id"] = FIRST_COMMIT_ID
             self.version_state["commit_node"] = VersionNode(
                 self.version_state["branch"], self.version_state["commit_id"]
