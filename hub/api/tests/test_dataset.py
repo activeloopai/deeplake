@@ -59,9 +59,9 @@ def test_dataset_empty_load():
         assert len(ds_overwrite_empty.tensors) == 0
 
 
-def test_public(hub_cloud_ds):
+def test_update_privacy(hub_cloud_ds):
     assert hub_cloud_ds.public
-    hub_cloud_ds.public = False
+    hub_cloud_ds.make_private()
     assert not hub_cloud_ds.public
     with pytest.raises(hub.util.exceptions.AuthorizationException):
         hub.load(hub_cloud_ds.path)

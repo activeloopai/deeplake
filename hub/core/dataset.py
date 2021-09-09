@@ -84,7 +84,7 @@ class Dataset:
         self.index: Index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
-        self._public = public
+        self.public = public
         self.verbose = verbose
 
         self._set_derived_attributes()
@@ -327,15 +327,15 @@ class Dataset:
             self.storage.disable_readonly()
         self._read_only = value
 
-    @property
-    def public(self):
-        return self._public
+    def make_public(self):
+        if not self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=True)
+            self.public = True
 
-    @public.setter
-    def public(self, value: bool):
-        if self._public != value:
-            self.client.update_privacy(self.org_id, self.ds_name, public=value)
-            self._public = value
+    def make_private(self):
+        if self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=False)
+            self.public = False
 
     @hub_reporter.record_call
     def pytorch(
