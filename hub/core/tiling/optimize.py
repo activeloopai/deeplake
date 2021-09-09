@@ -29,42 +29,7 @@ def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
 
 
 
-def _perturbate_tile_shape(
-    tile_shape: np.ndarray,
-    sample_shape: Tuple[int, ...],
-    unfrozen_dim_mask: np.ndarray,
-    allow_single_dim_only: bool,
-    max_magnitude: int = 100,
-) -> np.ndarray:
-    """Pertubrate the tile shape in a random direction, only where `unfrozen_dim_mask` is True.
 
-    Args:
-        tile_shape (np.ndarray): Tile shape to perturbate.
-        sample_shape (Tuple[int]): Shape of the sample that is being tiled.
-        unfrozen_dim_mask (np.ndarray): Boolean mask of dimensions that are not frozen.
-        max_magnitude (int): No dimension will be perturbated by more than this value
-            in the negative or positive direction.
-
-    Returns:
-        A new numpy array representing the perturbated tile shape.
-    """
-
-    new_tile_shape = tile_shape.copy()
-
-    # all dims should have the same delta
-    delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
-    delta[:] = np.random.uniform(-max_magnitude, max_magnitude + 1)
-
-    # isolate a single dimension to perturbate
-    if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
-        i = np.random.choice(range(delta.size))
-        temp = delta[i]
-        delta *= 0
-        delta[i] = temp
-
-    new_tile_shape[unfrozen_dim_mask] += delta[unfrozen_dim_mask]
-
-    return _clamp(new_tile_shape, sample_shape)
 
 
 def _transition_probability(
@@ -91,7 +56,7 @@ class TileOptimizer:
         # state
         self.compression_factor = None
         self.last_tile_shape = None
-        self.last_hisory = None
+        self.last_history = None
 
     def average_num_bytes_per_tile(self, tile_shape: Tuple[int, ...]) -> int:
         return approximate_num_bytes(tile_shape, self.tensor_meta.dtype, self.compression_factor)
@@ -136,6 +101,45 @@ class TileOptimizer:
         proposal = np.array(tile_shape, dtype=INTERM_DTYPE)
         return _clamp(proposal, sample_shape)
 
+    
+    def _perturbate_tile_shape(
+        self,
+        tile_shape: np.ndarray,
+        sample_shape: Tuple[int, ...],
+        unfrozen_dim_mask: np.ndarray,
+        allow_single_dim_only: bool,
+        max_magnitude: int = 100,
+    ) -> np.ndarray:
+        """Pertubrate the tile shape in a random direction, only where `unfrozen_dim_mask` is True.
+
+        Args:
+            tile_shape (np.ndarray): Tile shape to perturbate.
+            sample_shape (Tuple[int]): Shape of the sample that is being tiled.
+            unfrozen_dim_mask (np.ndarray): Boolean mask of dimensions that are not frozen.
+            max_magnitude (int): No dimension will be perturbated by more than this value
+                in the negative or positive direction.
+
+        Returns:
+            A new numpy array representing the perturbated tile shape.
+        """
+
+        new_tile_shape = tile_shape.copy()
+
+        delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
+
+        if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
+            # isolate a single dimension to perturbate, do so with a magnitude of 1
+            i = np.random.choice(range(delta.size))
+            delta[i] = np.random.randint(-1, 2)
+
+        else:
+            # all dims should have the same delta
+            delta[:] = np.random.uniform(-max_magnitude, max_magnitude + 1)
+
+        new_tile_shape[unfrozen_dim_mask] += delta[unfrozen_dim_mask]
+
+        return _clamp(new_tile_shape, sample_shape)
+
 
     def _anneal_tile_shape(
         self, sample_shape: Tuple[int, ...], max_iterations: int = 1000
@@ -168,15 +172,15 @@ class TileOptimizer:
         while self.current_iteration < max_iterations:
             allow_single_dim_only = self.current_iteration > min_single_dim_iterations
 
-            temperature = 1 - ((self.current_iteration) / max_iterations) ** 2
-            new_tile_shape = _perturbate_tile_shape(
+            self.temperature = 1 - ((self.current_iteration) / max_iterations) ** 2
+            new_tile_shape = self._perturbate_tile_shape(
                 tile_shape, sample_shape, unfrozen_dim_mask, allow_single_dim_only
             )
 
             energy = self._energy(tile_shape, sample_shape)
             new_energy = self._energy(new_tile_shape, sample_shape)
 
-            p = _transition_probability(energy, new_energy, temperature)
+            p = _transition_probability(energy, new_energy, self.temperature)
             r = np.random.uniform()
 
             if p > r:
@@ -184,7 +188,8 @@ class TileOptimizer:
                 if new_energy < lowest_energy:
                     best_shape = new_tile_shape.copy()
                     lowest_energy = new_energy
-                history.append({"energy": new_energy})
+
+            history.append({"old_energy": energy, "new_energy": new_energy, "old_shape": tile_shape, "new_shape": new_tile_shape})
 
             self.current_iteration += 1
 
@@ -222,6 +227,12 @@ class TileOptimizer:
             failure_reason = f"Number of bytes per tile ({num_bytes_per_tile}) is smaller than what is allowed ({self.min_chunk_size})"
 
         if failure_reason is not None:
+            failure_reason += f"\nHistory:"
+
+            # add history to failure reason
+            for step in self.last_history[-50:]:
+                failure_reason += f"\n{step}"
+
             raise TileOptimizerError(failure_reason, tile_shape, sample_shape)
 
 
@@ -247,12 +258,13 @@ class TileOptimizer:
     
         tile_shape, history = self._anneal_tile_shape(sample_shape)
     
+        self.last_tile_shape = tile_shape
+        self.last_history = history
+
         if validate:
             self._validate_tile_shape(tile_shape, sample_shape)
 
         self.compression_factor = None
-        self.last_tile_shape = tile_shape
-        self.last_hisory = history
     
         if return_history:
             return tile_shape, history  # type: ignore
