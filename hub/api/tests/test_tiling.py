@@ -146,12 +146,12 @@ def test_failures(memory_ds):
 
 
 @compressions
-def test_append(memory_ds, compression, davit):
+def test_append(memory_ds, compression, tatevik):
     large1 = _get_random_image((90, 100, 3))
     large2 = _get_random_image((100, 90, 3))
     small = _get_random_image((10, 10, 1))
 
-    memory_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
+    memory_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=20 * KB)
 
     memory_ds.image.append(large1.copy())
     _assert_num_chunks(memory_ds.image.num_chunks, 4, compression)
@@ -159,11 +159,11 @@ def test_append(memory_ds, compression, davit):
     _assert_num_chunks(memory_ds.image.num_chunks, 5, compression)
     memory_ds.image.append(large2.copy())
     _assert_num_chunks(memory_ds.image.num_chunks, 9, compression)
-    memory_ds.image.append(hub.read(davit))
-    _assert_num_chunks(memory_ds.image.num_chunks, 18, compression)
+    memory_ds.image.append(hub.read(tatevik))  # 56 chunks
+    _assert_num_chunks(memory_ds.image.num_chunks, 65, compression)
 
     assert memory_ds.image.shape_interval.lower == (4, 10, 10, 1)
-    assert memory_ds.image.shape_interval.upper == (4, 200, 200, 3)
+    assert memory_ds.image.shape_interval.upper == (4, 496, 498, 4)
 
     expected = [large1, small, large2]
     assert_array_lists_equal(expected, memory_ds.image.numpy(aslist=True))
@@ -180,16 +180,16 @@ def test_extend(memory_ds, compression, davit):
     memory_ds.image.extend([
         small1.copy(),
         small2.copy(),
-        hub.read(davit),  # 12 chunks
+        hub.read(davit),  # 16 chunks
         small2.copy(),
         large.copy(),
         small2.copy(),
         small1.copy(),
     ])
-    _assert_num_chunks(memory_ds.image.num_chunks, 18, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 23, compression)
 
-    assert memory_ds.image.shape_interval.lower == (7, 5, 10)
-    assert memory_ds.image.shape_interval.upper == (7, 200, 200)
+    assert memory_ds.image.shape_interval.lower == (7, 5, 10, 1)
+    assert memory_ds.image.shape_interval.upper == (7, 200, 200, 3)
 
     expected = [small1, small2, hub.read(davit).array, small2, large, small2, small1]
     assert_array_lists_equal(expected, memory_ds.image.numpy(aslist=True))
