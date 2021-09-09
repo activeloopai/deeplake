@@ -16,7 +16,7 @@ INTERM_DTYPE = np.dtype(np.int32)
 # the reason is to allow better and smoother exploration of more nuanced tile shapes.
 SINGLE_DIM_MIN_ITERATION_PERCENTAGE = 0.8
 assert SINGLE_DIM_MIN_ITERATION_PERCENTAGE > 0 and SINGLE_DIM_MIN_ITERATION_PERCENTAGE < 1
-CHANCE_FOR_SINGLE_DIM_ONLY = 0.2
+CHANCE_FOR_SINGLE_DIM_ONLY = 0.3
 assert CHANCE_FOR_SINGLE_DIM_ONLY > 0 and CHANCE_FOR_SINGLE_DIM_ONLY < 1
 
 
@@ -78,6 +78,8 @@ class TileOptimizer:
             num_bytes_per_tile < self.min_chunk_size  # type: ignore
             or num_bytes_per_tile > self.max_chunk_size
         ):
+            # TODO: make smoother?
+            distance += 100
             distance = distance * distance
 
         return num_tiles * distance
@@ -230,13 +232,19 @@ class TileOptimizer:
             failure_reason = f"Number of bytes per tile ({num_bytes_per_tile}) is smaller than what is allowed ({self.min_chunk_size})"
 
         if failure_reason is not None:
-            failure_reason += f"\nHistory:"
-
-            # add history to failure reason
-            for step in self.last_history[-50:]:
-                failure_reason += f"\n{step}"
+            failure_reason += self.history_subset_str()
 
             raise TileOptimizerError(failure_reason, tile_shape, sample_shape)
+
+    
+    def history_subset_str(self):
+        s = f"\nHistory:"
+
+        # add history to failure reason
+        for step in self.last_history[-50:]:
+            s += f"\n{step}"
+
+        return s
 
 
     def optimize(
