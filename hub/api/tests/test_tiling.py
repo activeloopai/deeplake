@@ -129,7 +129,7 @@ def test_failures(memory_ds):
     assert memory_ds.tensor.shape == (0,)
     _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
 
-    # fix
+    # fix for failure
     memory_ds.tensor.set_dtype("uint8")
     memory_ds.tensor.append_empty((10000, 10000))
     assert memory_ds.tensor.shape == (1, 10000, 10000)
@@ -142,6 +142,7 @@ def test_failures(memory_ds):
 
 @compressions
 def test_append(memory_ds, compression):
+    # TODO: reduce testing data size (reduce chunk size)
     memory_ds.create_tensor("image", dtype="uint8", **compression)
 
     memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
@@ -165,7 +166,7 @@ def test_extend(memory_ds, compression):
         np.ones((10, 10), dtype="uint8"),
         np.ones((10, 10), dtype="uint8"),
         np.ones((10, 10), dtype="uint8"),
-        np.ones((8192, 8192), dtype="uint8"),
+        np.ones((8192, 8192), dtype="uint8") * 5,
         np.ones((10, 10), dtype="uint8"),
         np.ones((10, 10), dtype="uint8"),
     ])
@@ -179,8 +180,10 @@ def test_extend(memory_ds, compression):
         np.ones((10, 10), dtype="uint8"),
         np.ones((10, 10), dtype="uint8"),
     ]
-
     assert_array_lists_equal(expected_first_smalls, memory_ds.image[0:4].numpy())
+
+    expected_large = np.ones((8192, 8192), dtype="uint8") * 5
+    np.testing.assert_array_equal(expected_large, memory_ds.image[4].numpy())
 
     # TODO: check the rest
     assert False

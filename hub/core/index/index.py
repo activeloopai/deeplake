@@ -305,7 +305,7 @@ class IndexEntry:
 
         def _bias(v: int):
             if v is None:
-                return None
+                v = 0
             o = v + amount
             if keep_positive:
                 return max(0, o)

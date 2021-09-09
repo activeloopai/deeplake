@@ -575,14 +575,13 @@ class ChunkEngine:
         tensor_meta.length += len(samples)
         
         if tensor_meta.chunk_compression:
-            for nb, shape in zip(nbytes, shapes):
+            for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
                 current_buffer = buff[:nb]
                 current_shape = shape[:]
+                current_sample_array = samples[i]
 
                 if self._needs_multiple_chunks(len(current_buffer)):
-                    raise NotImplementedError  # TODO
-                    tiled_buffers = None
-                    self.create_tiles(current_shape, increment_length=False, buffers=tiled_buffers)
+                    self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
                 else:
                     self._append_bytes(current_buffer, current_shape)  # type: ignore
 
