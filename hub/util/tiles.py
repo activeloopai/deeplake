@@ -13,8 +13,7 @@ def approximate_num_bytes(shape, dtype, compression_factor: float) -> int:
     number of bytes. If compressed, it will be approximated assuming the data is natural."""
 
     num_bytes = num_bytes_without_compression(shape, np.dtype(dtype))
-    factor = compression_factor
-    return int(num_bytes // factor)
+    return int(num_bytes // compression_factor)
 
 
 def ceildiv(a: int, b: int) -> int:

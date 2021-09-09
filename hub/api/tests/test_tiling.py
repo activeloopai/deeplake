@@ -6,6 +6,10 @@ from hub.constants import B, KB
 from hub.tests.common import assert_array_lists_equal, compressions
 
 
+# consistent tile shape predictions
+np.random.seed(1)
+
+
 def _get_random_image(shape):
     return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
 
@@ -154,13 +158,13 @@ def test_append(memory_ds, compression, tatevik):
     memory_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=20 * KB)
 
     memory_ds.image.append(large1.copy())
-    _assert_num_chunks(memory_ds.image.num_chunks, 4, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 2, compression)
     memory_ds.image.append(small.copy())
-    _assert_num_chunks(memory_ds.image.num_chunks, 5, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 3, compression)
     memory_ds.image.append(large2.copy())
-    _assert_num_chunks(memory_ds.image.num_chunks, 9, compression)
-    memory_ds.image.append(hub.read(tatevik))  # 56 chunks
-    _assert_num_chunks(memory_ds.image.num_chunks, 65, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 5, compression)
+    memory_ds.image.append(hub.read(tatevik))
+    _assert_num_chunks(memory_ds.image.num_chunks, 61, compression)
 
     assert memory_ds.image.shape_interval.lower == (4, 10, 10, 1)
     assert memory_ds.image.shape_interval.upper == (4, 496, 498, 4)
@@ -180,13 +184,13 @@ def test_extend(memory_ds, compression, davit):
     memory_ds.image.extend([
         small1.copy(),
         small2.copy(),
-        hub.read(davit),  # 16 chunks
+        hub.read(davit),
         small2.copy(),
         large.copy(),
         small2.copy(),
         small1.copy(),
     ])
-    _assert_num_chunks(memory_ds.image.num_chunks, 23, compression)
+    _assert_num_chunks(memory_ds.image.num_chunks, 24, compression)
 
     assert memory_ds.image.shape_interval.lower == (7, 5, 10, 1)
     assert memory_ds.image.shape_interval.upper == (7, 200, 200, 3)
