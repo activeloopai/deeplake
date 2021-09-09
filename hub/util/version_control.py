@@ -1,7 +1,11 @@
 import time
 import hashlib
 import pickle
+from typing import Any, Dict
 
+from hub.core.version_control.version_node import VersionNode
+from hub.core.storage import StorageProvider
+from hub.util.exceptions import CheckoutError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -10,17 +14,18 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_version_control_info_key,
 )
-from hub.core.version_control.version_node import VersionNode
-from hub.util.exceptions import CheckoutError
 
 
-def generate_hash():
+def generate_hash() -> str:
     hsh = hashlib.sha1()
     hsh.update(str(time.time()).encode("utf-8"))
     return hsh.hexdigest()
 
 
-def commit(version_state, storage, message: str = None) -> None:
+def commit(
+    version_state: Dict[str, Any], storage: StorageProvider, message: str = None
+) -> None:
+
     # if not the head node, checkout to an auto branch that is newly created
     if version_state["commit_node"].children:
         checkout(version_state, storage, f"auto_branch_{generate_hash()}", True)
@@ -41,7 +46,12 @@ def commit(version_state, storage, message: str = None) -> None:
     )
 
 
-def checkout(version_state, storage, address: str, create: bool = False) -> None:
+def checkout(
+    version_state: Dict[str, Any],
+    storage: StorageProvider,
+    address: str,
+    create: bool = False,
+) -> None:
     if address in version_state["branch_commit_map"].keys():
         if create:
             raise CheckoutError(
@@ -93,7 +103,9 @@ def checkout(version_state, storage, address: str, create: bool = False) -> None
         )
 
 
-def copy_metas(src_commit_id: str, dest_commit_id: str, storage, tensors):
+def copy_metas(
+    src_commit_id: str, dest_commit_id: str, storage: StorageProvider, tensors: Dict
+) -> None:
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     storage[dest_dataset_meta_key] = storage[src_dataset_meta_key].copy()
@@ -131,7 +143,7 @@ def copy_metas(src_commit_id: str, dest_commit_id: str, storage, tensors):
     storage.flush()
 
 
-def save_version_info(version_state, storage):
+def save_version_info(version_state: Dict[str, Any], storage: StorageProvider) -> None:
     version_info = {
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
