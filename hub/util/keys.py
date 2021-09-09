@@ -1,76 +1,85 @@
 from hub.core.storage.provider import StorageProvider
 import posixpath
 
-from hub import constants
+from hub.constants import (
+    CHUNKS_FOLDER,
+    DATASET_INFO_FILENAME,
+    DATASET_LOCK_FILENAME,
+    ENCODED_CHUNK_NAMES_FILENAME,
+    ENCODED_CHUNK_NAMES_FOLDER,
+    FIRST_COMMIT_ID,
+    DATASET_META_FILENAME,
+    TENSOR_INFO_FILENAME,
+    TENSOR_META_FILENAME,
+    TENSOR_VERSION_CHUNK_LIST_FILENAME,
+)
 
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
-    if commit_id == "first":
-        return posixpath.join(key, constants.CHUNKS_FOLDER, f"{chunk_name}")
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, CHUNKS_FOLDER, f"{chunk_name}")
 
-    return posixpath.join(
-        "versions", commit_id, key, constants.CHUNKS_FOLDER, f"{chunk_name}"
-    )
+    return posixpath.join("versions", commit_id, key, CHUNKS_FOLDER, f"{chunk_name}")
 
 
 def get_dataset_meta_key(commit_id: str) -> str:
     # dataset meta is always relative to the `StorageProvider`'s root
-    if commit_id == "first":
-        return constants.DATASET_META_FILENAME
+    if commit_id == FIRST_COMMIT_ID:
+        return DATASET_META_FILENAME
 
-    return posixpath.join("versions", commit_id, constants.DATASET_META_FILENAME)
+    return posixpath.join("versions", commit_id, DATASET_META_FILENAME)
 
 
 def get_dataset_info_key(commit_id: str) -> str:
     # dataset info is always relative to the `StorageProvider`'s root
-    if commit_id == "first":
-        return constants.DATASET_INFO_FILENAME
-    return posixpath.join("versions", commit_id, constants.DATASET_INFO_FILENAME)
+    if commit_id == FIRST_COMMIT_ID:
+        return DATASET_INFO_FILENAME
+    return posixpath.join("versions", commit_id, DATASET_INFO_FILENAME)
 
 
 def get_dataset_lock_key() -> str:
-    return constants.DATASET_LOCK_FILENAME
+    return DATASET_LOCK_FILENAME
 
 
 def get_tensor_meta_key(key: str, commit_id: str) -> str:
-    if commit_id == "first":
-        return posixpath.join(key, constants.TENSOR_META_FILENAME)
-    return posixpath.join("versions", commit_id, key, constants.TENSOR_META_FILENAME)
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_META_FILENAME)
+    return posixpath.join("versions", commit_id, key, TENSOR_META_FILENAME)
 
 
 def get_tensor_info_key(key: str, commit_id: str) -> str:
-    if commit_id == "first":
-        return posixpath.join(key, constants.TENSOR_INFO_FILENAME)
-    return posixpath.join("versions", commit_id, key, constants.TENSOR_INFO_FILENAME)
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_INFO_FILENAME)
+    return posixpath.join("versions", commit_id, key, TENSOR_INFO_FILENAME)
 
 
 def get_tensor_version_chunk_list_key(key: str, commit_id: str) -> str:
-    if commit_id == "first":
-        return posixpath.join(key, constants.TENSOR_VERSION_CHUNK_LIST_FILENAME)
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_VERSION_CHUNK_LIST_FILENAME)
     return posixpath.join(
-        "versions", commit_id, key, constants.TENSOR_VERSION_CHUNK_LIST_FILENAME
+        "versions", commit_id, key, TENSOR_VERSION_CHUNK_LIST_FILENAME
     )
 
 
 def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
-    if commit_id == "first":
+    if commit_id == FIRST_COMMIT_ID:
         return posixpath.join(
             key,
-            constants.ENCODED_CHUNK_NAMES_FOLDER,
-            constants.ENCODED_CHUNK_NAMES_FILENAME,
+            ENCODED_CHUNK_NAMES_FOLDER,
+            ENCODED_CHUNK_NAMES_FILENAME,
         )
     return posixpath.join(
         "versions",
         commit_id,
         key,
-        constants.ENCODED_CHUNK_NAMES_FOLDER,
-        constants.ENCODED_CHUNK_NAMES_FILENAME,
+        ENCODED_CHUNK_NAMES_FOLDER,
+        ENCODED_CHUNK_NAMES_FILENAME,
     )
 
 
 def dataset_exists(storage: StorageProvider) -> bool:
     try:
-        storage[get_dataset_meta_key("first")]
+        storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
         return True
     except KeyError:
         return False

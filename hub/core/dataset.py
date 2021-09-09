@@ -1,6 +1,6 @@
 from hub.core.version_control.version_node import VersionNode
 from hub.util.version_control import checkout, commit
-from hub.constants import VERSION_CONTROL_FILE
+from hub.constants import FIRST_COMMIT_ID, VERSION_CONTROL_FILE
 import hub
 import pickle
 from hub.api.info import load_info
@@ -310,7 +310,7 @@ class Dataset:
             self.version_state["branch_commit_map"] = {}
             self.version_state["commit_node_map"] = {}
             # used to identify that this is the first commit and it's data will not be in similar directory structure to the rest
-            self.version_state["commit_id"] = "first"
+            self.version_state["commit_id"] = FIRST_COMMIT_ID
             self.version_state["commit_node"] = VersionNode(
                 self.version_state["branch"], self.version_state["commit_id"]
             )
