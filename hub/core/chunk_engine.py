@@ -232,7 +232,7 @@ class ChunkEngine:
             commit_id = cur_node.commit_id
             chunk_list_key = get_tensor_version_chunk_list_key(self.key, commit_id)
             try:
-                chunk_list = self.cache[chunk_list_key].chunks_in_commit
+                chunk_list = self.cache[chunk_list_key].chunks
             except Exception:
                 chunk_list = []
             if chunk_name in chunk_list:
