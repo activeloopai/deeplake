@@ -268,6 +268,28 @@ class ChunkEngine:
 
         return False
 
+    def get_tile_shape(self, index: Index):
+        if not index.is_single_dim_effective():
+            raise IndexError("Cannot get the tile shape for a subsliced sample.")
+
+        tile_encoder = self.tile_encoder
+        
+        tile_shapes = []
+        for global_sample_index in index.values[0].indices(self.num_samples):
+
+            if global_sample_index in tile_encoder:
+                tile_shape = tile_encoder.get_tile_shape(global_sample_index)
+            else:
+                tile_shape = None
+
+            tile_shapes.append(tile_shape)
+
+        if len(tile_shapes) == 1:
+            return tile_shapes[0]
+        
+        return tile_shapes
+
+
     def _extend_bytes(
         self,
         buffer: memoryview,

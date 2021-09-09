@@ -397,6 +397,10 @@ class Tensor:
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
+    @property
+    def tile_shape(self):
+        return self.chunk_engine.get_tile_shape(self.index)
+
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
