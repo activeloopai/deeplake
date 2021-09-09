@@ -197,6 +197,14 @@ def flower_path():
     return os.path.join(path, "flower.png")
 
 
+@pytest.fixture
+def davit():
+    """Path to a davit image in the dummy data folder. Expected shape: (200, 200, 3)"""
+
+    path = get_dummy_data_path("compressed_images")
+    return os.path.join(path, "davit.jpeg")
+
+
 @pytest.fixture(scope="session")
 def compressed_image_paths():
     paths = {
