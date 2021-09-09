@@ -187,3 +187,5 @@ def test_extend(memory_ds, compression):
 
     # TODO: check the rest
     assert False
+
+# TODO: add hub.read tests for append/extend/update
