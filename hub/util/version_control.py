@@ -8,8 +8,8 @@ from hub.util.keys import (
     get_dataset_meta_key,
     get_tensor_info_key,
     get_tensor_meta_key,
+    get_version_control_info_key,
 )
-from hub.constants import VERSION_CONTROL_FILE
 from hub.core.version_control.version_node import VersionNode
 from hub.util.exceptions import CheckoutError
 
@@ -136,4 +136,4 @@ def save_version_info(version_state, storage):
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
     }
-    storage[VERSION_CONTROL_FILE] = pickle.dumps(version_info)
+    storage[get_version_control_info_key()] = pickle.dumps(version_info)

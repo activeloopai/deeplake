@@ -84,8 +84,8 @@ EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
 LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
 
 # used to identify the first commit so its data will not be in similar directory structure to the rest
-VERSION_CONTROL_FILE = "version_control.pkl"
 FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
+VERSION_CONTROL_INFO_FILENAME = "version_control.pkl"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8

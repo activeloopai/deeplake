@@ -1,24 +1,30 @@
-from hub.core.version_control.version_node import VersionNode
-from hub.util.version_control import checkout, commit
-from hub.constants import FIRST_COMMIT_ID, VERSION_CONTROL_FILE
 import hub
 import pickle
+import warnings
+import numpy as np
+from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
+
 from hub.api.info import load_info
+from hub.client.log import logger
+from hub.client.client import HubBackendClient
+from hub.constants import FIRST_COMMIT_ID
+from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
+from hub.integrations import dataset_to_tensorflow
+
+from hub.core.index import Index
+from hub.core.lock import lock, unlock
+from hub.core.fast_forwarding import ffw_dataset_meta
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
 from hub.core.tensor import create_tensor, Tensor
-from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
-import numpy as np
+from hub.core.version_control.version_node import VersionNode
 
-from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.index import Index
-from hub.core.lock import lock, unlock
-from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_version_control_info_key,
     tensor_exists,
 )
 from hub.util.bugout_reporter import hub_reporter
@@ -32,12 +38,9 @@ from hub.util.exceptions import (
     InvalidTensorNameError,
     LockedException,
 )
-from hub.client.client import HubBackendClient
-from hub.client.log import logger
+from hub.util.version_control import checkout, commit
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.core.fast_forwarding import ffw_dataset_meta, version_compare
-import warnings
 
 
 class Dataset:
@@ -293,35 +296,28 @@ class Dataset:
             yield self[i]
 
     def _load_version_info(self):
-        # try loading version file, otherwise assume it doesn't exist and load all empty
-        self.version_state = {}
-        self.version_state["branch"] = "main"
+        """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
+        branch = "main"
+        version_state = {"branch": branch}
         try:
-            version_info = pickle.loads(self.storage[VERSION_CONTROL_FILE])
-            self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
-            self.version_state["commit_node_map"] = version_info["commit_node_map"]
-            self.version_state["commit_id"] = self.version_state["branch_commit_map"][
-                self.version_state["branch"]
-            ]
-            self.version_state["commit_node"] = self.version_state["commit_node_map"][
-                self.version_state["commit_id"]
-            ]
+            version_info = pickle.loads(self.storage[get_version_control_info_key()])
+            version_state["branch_commit_map"] = version_info["branch_commit_map"]
+            version_state["commit_node_map"] = version_info["commit_node_map"]
+            commit_id = version_state["branch_commit_map"][branch]
+            version_state["commit_id"] = commit_id
+            version_state["commit_node"] = version_state["commit_node_map"][commit_id]
         except Exception:
-            self.version_state["branch_commit_map"] = {}
-            self.version_state["commit_node_map"] = {}
+            version_state["branch_commit_map"] = {}
+            version_state["commit_node_map"] = {}
             # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
-            self.version_state["commit_id"] = FIRST_COMMIT_ID
-            self.version_state["commit_node"] = VersionNode(
-                self.version_state["branch"], self.version_state["commit_id"]
-            )
-            self.version_state["branch_commit_map"][
-                self.version_state["branch"]
-            ] = self.version_state["commit_id"]
-            self.version_state["commit_node_map"][
-                self.version_state["commit_id"]
-            ] = self.version_state["commit_node"]
-
-        self.version_state["tensors"] = self.tensors
+            commit_id = FIRST_COMMIT_ID
+            commit_node = VersionNode(branch, commit_id)
+            version_state["commit_id"] = commit_id
+            version_state["commit_node"] = commit_node
+            version_state["branch_commit_map"][branch] = commit_id
+            version_state["commit_node_map"][commit_id] = commit_node
+        version_state["tensors"] = self.tensors
+        self.version_state = version_state
 
     def commit(self, message: str = None) -> None:
         commit_id = self.version_state["commit_id"]
