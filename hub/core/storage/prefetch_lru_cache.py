@@ -260,10 +260,7 @@ class PrefetchLRUCache(LRUCache):
         """Loads chunk engine for all tensors."""
         # creating a cache around base storage to pass to ChunkEngine
         cache = LRUCache(MemoryProvider(), self.storage, 32 * MB)
-        return {
-            key: ChunkEngine(key, cache, version_state=version_state)
-            for key in self.tensor_keys
-        }
+        return {key: ChunkEngine(key, cache, version_state) for key in self.tensor_keys}
 
     def _numpy_from_chunks(self, index: int, key: str, chunks: List[Chunk]):
         """Takes a list of chunks and returns a numpy array from it"""

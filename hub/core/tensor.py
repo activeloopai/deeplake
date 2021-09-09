@@ -100,9 +100,7 @@ class Tensor:
         if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(
-            self.key, self.storage, version_state=self.version_state
-        )
+        self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
         self.index.validate(self.num_samples)
         self.info = load_info(
             get_tensor_info_key(self.key, version_state["commit_id"]),

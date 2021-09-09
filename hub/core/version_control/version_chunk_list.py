@@ -18,10 +18,10 @@ class VersionChunkList(Cachable):
         return instance
 
     @property
-    def nbytes(self):
+    def nbytes(self) -> int:
         if not self.chunks:
             return 0
         return 8 + ((len(self.chunks) - 1) * 9)
 
-    def append(self, item):
-        self.chunks.append(item)
+    def append(self, chunk_name: str) -> None:
+        self.chunks.append(chunk_name)

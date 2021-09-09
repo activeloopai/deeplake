@@ -134,9 +134,7 @@ def create_worker_chunk_engines(
         storage_cache.autoflush = False
 
         # this chunk engine is used to retrieve actual tensor meta and chunk_size
-        storage_chunk_engine = ChunkEngine(
-            tensor, storage_cache, version_state=version_state
-        )
+        storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
         existing_meta = storage_chunk_engine.tensor_meta
         chunk_size = storage_chunk_engine.max_chunk_size
         new_tensor_meta = TensorMeta(
@@ -150,7 +148,7 @@ def create_worker_chunk_engines(
         memory_cache[meta_key] = new_tensor_meta  # type: ignore
         storage_cache.clear_cache()
         storage_chunk_engine = ChunkEngine(
-            tensor, storage_cache, memory_cache, version_state=version_state
+            tensor, storage_cache, version_state, memory_cache
         )
         all_chunk_engines[tensor] = storage_chunk_engine
     return all_chunk_engines
