@@ -511,6 +511,14 @@ class Index:
     def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
         # TODO: docstring
 
+        dim_values = self.values
+
+        dims_left = len(sample.shape) - len(dim_values)
+        if dims_left < 0:
+            raise Exception
+        for _ in range(dims_left):
+            dim_values.append(IndexEntry(slice(None)))
+
         biased_values = []
         for i, value in enumerate(self.values):
             biased_entry = value
