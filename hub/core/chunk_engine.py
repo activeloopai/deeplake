@@ -282,14 +282,14 @@ class ChunkEngine:
             )
             
         chunk = self.last_chunk
-        new_chunk = self._create_new_chunk
 
+        need_new_chunk = False
         if chunk is None or self._is_last_chunk_a_tile():
-            chunk = new_chunk()
+            need_new_chunk = True
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
-        if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
-            chunk = new_chunk()
+        elif nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
+            need_new_chunk = True
 
         max_chunk_size = self.max_chunk_size
         min_chunk_size = self.min_chunk_size
@@ -307,9 +307,14 @@ class ChunkEngine:
                         break
 
                     need_to_tile = True
+                    need_new_chunk = False
                     num_samples_to_current_chunk += 1
                     nbytes_to_current_chunk += nb
                     break
+
+                if need_new_chunk:
+                    chunk = self._create_new_chunk()
+                    need_new_chunk = False
 
                 # Size of the current chunk if this sample is added to it
                 chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
@@ -362,7 +367,7 @@ class ChunkEngine:
             del shapes[:num_samples_to_current_chunk]
 
             if buffer:
-                chunk = new_chunk()
+                need_new_chunk = True
 
             sample_idx += num_samples_to_current_chunk
 

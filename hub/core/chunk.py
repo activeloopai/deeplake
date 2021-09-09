@@ -1,5 +1,6 @@
 from hub.core.fast_forwarding import ffw_chunk
 from hub.util.exceptions import (
+    CorruptedMetaError,
     FullChunkError,
     TensorInvalidSampleShapeError,
     SampleDecompressionError,
@@ -68,6 +69,16 @@ class Chunk(Cachable):
         # These caches are only used when chunk-wise compression is specified.
         self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
         self._decompressed_data_cache: Optional[memoryview] = None
+
+    @property
+    def num_samples(self) -> int:
+        sns = self.shapes_encoder.num_samples
+        bns = self.byte_positions_encoder.num_samples
+
+        if sns != bns:
+            raise CorruptedMetaError(f"Expected shapes encoder and byte positions encoder to have the same num samples. Got {sns} and {bns} respectively.")
+
+        return sns
 
     def decompressed_samples(
         self,
@@ -314,4 +325,4 @@ class Chunk(Cachable):
 
 
     def __str__(self) -> str:
-        return f"Chunk(version={self.version}, num_bytes={len(self._data)}, num_samples={self.shapes_encoder.num_samples})"
+        return f"Chunk(version={self.version}, num_bytes={len(self._data)}, num_samples={self.num_samples})"
