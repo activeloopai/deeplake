@@ -16,7 +16,7 @@ INTERM_DTYPE = np.dtype(np.int32)
 # the reason is to allow better and smoother exploration of more nuanced tile shapes.
 SINGLE_DIM_MIN_ITERATION_PERCENTAGE = 0.8
 assert SINGLE_DIM_MIN_ITERATION_PERCENTAGE > 0 and SINGLE_DIM_MIN_ITERATION_PERCENTAGE < 1
-CHANCE_FOR_SINGLE_DIM_ONLY = 0.1
+CHANCE_FOR_SINGLE_DIM_ONLY = 0.2
 assert CHANCE_FOR_SINGLE_DIM_ONLY > 0 and CHANCE_FOR_SINGLE_DIM_ONLY < 1
 
 
@@ -130,11 +130,14 @@ class TileOptimizer:
         if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
             # isolate a single dimension to perturbate, do so with a magnitude of 1
             i = np.random.choice(range(delta.size))
-            delta[i] = np.random.randint(-1, 2)
+            delta[i] = np.random.choice([-1, 1])
 
         else:
             # all dims should have the same delta
-            delta[:] = np.random.uniform(-max_magnitude, max_magnitude + 1)
+            x = np.random.uniform(-max_magnitude, max_magnitude + 1)
+            if x == 0:
+                x = 1
+            delta[:] = x
 
         new_tile_shape[unfrozen_dim_mask] += delta[unfrozen_dim_mask]
 
