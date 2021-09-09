@@ -1,5 +1,7 @@
+import time
 import hashlib
-from hub.core.storage.cachable import Cachable
+import pickle
+
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -8,9 +10,8 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.constants import VERSION_CONTROL_FILE
-import pickle
 from hub.core.version_control.version_node import VersionNode
-import time
+from hub.util.exceptions import CheckoutError
 
 
 def generate_hash():
@@ -43,7 +44,9 @@ def commit(version_state, storage, message: str = None) -> None:
 def checkout(version_state, storage, address: str, create: bool = False) -> None:
     if address in version_state["branch_commit_map"].keys():
         if create:
-            raise Exception("Branch already exists")  # TODO: better exception
+            raise CheckoutError(
+                f"Can't create a new branch. Branch '{address}' already exists."
+            )
         version_state["branch"] = address
         version_state["commit_id"] = version_state["branch_commit_map"][address]
         version_state["commit_node"] = version_state["commit_node_map"][
@@ -51,7 +54,9 @@ def checkout(version_state, storage, address: str, create: bool = False) -> None
         ]
     elif address in version_state["commit_node_map"].keys():
         if create:
-            raise Exception("Commit already exists")  # TODO: better exception
+            raise CheckoutError(
+                f"Can't create a new branch. Commit '{address}' already exists."
+            )
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
@@ -83,8 +88,9 @@ def checkout(version_state, storage, address: str, create: bool = False) -> None
             version_state["tensors"],
         )
     else:
-        # raise AddressNotFound(address)
-        raise Exception  # TODO: better exception
+        raise CheckoutError(
+            f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
+        )
 
 
 def copy_metas(src_commit_id: str, dest_commit_id: str, storage, tensors):
@@ -96,7 +102,7 @@ def copy_metas(src_commit_id: str, dest_commit_id: str, storage, tensors):
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         storage[dest_dataset_info_key] = storage[src_dataset_info_key].copy()
-    except:
+    except Exception:
         pass
 
     tensor_list = list(tensors.keys())
@@ -112,14 +118,14 @@ def copy_metas(src_commit_id: str, dest_commit_id: str, storage, tensors):
             storage[dest_chunk_id_encoder_key] = storage[
                 src_chunk_id_encoder_key
             ].copy()
-        except:
+        except Exception:
             pass
 
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
-        except:
+        except Exception:
             pass
 
     storage.flush()

@@ -330,6 +330,7 @@ class Dataset:
 
     def checkout(self, address: str, create: bool = False) -> None:
         checkout(self.version_state, self.storage, address, create)
+        # if loading from another commit/branch, dataset meta will be different and needs to be loaded
         if not create:
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)

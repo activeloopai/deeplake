@@ -555,3 +555,11 @@ class MemoryDatasetCanNotBePickledError(Exception):
 class CorruptedSampleError(Exception):
     def __init__(self, compression):
         super().__init__(f"Invalid {compression} file.")
+
+
+class VersionControlError(Exception):
+    pass
+
+
+class CheckoutError(VersionControlError):
+    pass
