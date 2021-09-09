@@ -431,7 +431,7 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...], num_samples: int=1):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...], num_samples: int=1, use_last_tile: bool=False):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -444,7 +444,7 @@ class ChunkEngine:
         if self.tensor_meta.chunk_compression:
             self._append_bytes_to_compressed_chunk(buffer, shape)
         else:
-            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
+            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape, allow_tile=use_last_tile)
             if not buffer_consumed:
                 self._append_to_new_chunk(buffer, shape)
 
@@ -495,7 +495,7 @@ class ChunkEngine:
         return self.tensor_meta.length - 2 in self.tile_encoder
 
     def _try_appending_to_last_chunk(
-        self, buffer: Buffer, shape: Tuple[int, ...]
+        self, buffer: Buffer, shape: Tuple[int, ...], allow_tile: bool=False
     ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
@@ -512,8 +512,7 @@ class ChunkEngine:
         if last_chunk is None:
             return False
 
-        # can never append new samples to a tile chunk
-        if self._is_last_chunk_a_tile():
+        if not allow_tile and self._is_last_chunk_a_tile():
             return False
 
         incoming_num_bytes = len(buffer)
@@ -799,7 +798,7 @@ class ChunkEngine:
                 actual_tile_shape = tiled_shapes[tile_idx]
 
                 self._create_new_chunk()
-                self._append_bytes(tile_buffer, actual_tile_shape, num_samples=0 if i > 0 else 1)
+                self._append_bytes(tile_buffer, actual_tile_shape, num_samples=0 if i > 0 else 1, use_last_tile=True)
                 i += 1
 
             # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
