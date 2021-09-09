@@ -304,6 +304,8 @@ class IndexEntry:
         # TODO: docstring
 
         def _bias(v: int):
+            if v is None:
+                return None
             o = v + amount
             if keep_positive:
                 return max(0, o)
@@ -355,9 +357,9 @@ class IndexEntry:
             s = self.value
 
             if is_trivial_slice(s):
-                new_slice = slice(None, max_value)
+                new_slice = slice(None, max_value, s.step)
             elif s.start is None:
-                raise NotImplementedError
+                new_slice = slice(None, min(max_value, s.stop), s.step)
             else:
                 if s.start < 0 or s.stop < 0:
                     # TODO: negative subslices
@@ -602,8 +604,6 @@ class Index:
 
         return tuple(output_shape)
 
-
-
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
         See: IndexEntry.length"""
@@ -624,11 +624,13 @@ class Index:
         for in_low_dim, in_high_dim, index_entry in zip(
             low_bound, high_bound, self.values
         ):
-            if index_entry.is_trivial():
+            entry_low = index_entry.low_bound
+            entry_high = index_entry.high_bound
+            if index_entry.is_trivial() or entry_low is None or entry_high is None:
                 continue
-            if in_high_dim < index_entry.low_bound:
+            if in_high_dim < entry_low:
                 return False
-            if in_low_dim > index_entry.high_bound:
+            if in_low_dim > entry_high:
                 return False
 
         # all trivial indexes intersect
