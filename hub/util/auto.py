@@ -66,7 +66,7 @@ def ingestion_summary(local_path: str, skipped_files: list):
     print("\n")
 
     if not skipped_files:
-        print("Ingesiton Complete. No files were skipped.")
+        print("Ingestion Complete. No files were skipped.")
         print("\n")
         return
 

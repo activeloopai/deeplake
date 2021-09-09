@@ -26,7 +26,7 @@ def test_ingestion_summary_clean():
     sys.stdout = sys.__stdout__
     output = ingest_summary_clean.getvalue()
 
-    assert output == "\n\nIngesiton Complete. No files were skipped.\n\n\n"
+    assert output == "\n\nIngestion Complete. No files were skipped.\n\n\n"
 
 
 def test_ingestion_summary_skipped():
