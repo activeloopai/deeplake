@@ -167,7 +167,7 @@ class TileOptimizer:
         min_single_dim_iterations = int(SINGLE_DIM_MIN_ITERATION_PERCENTAGE * max_iterations)
 
         tile_shape = self._initial_tile_shape(sample_shape)
-        unfrozen_dim_mask = np.ones(len(tile_shape), dtype=bool) # tile_shape != sample_shape
+        unfrozen_dim_mask = tile_shape != sample_shape
 
         self.current_iteration = 0
         best_shape = tile_shape
