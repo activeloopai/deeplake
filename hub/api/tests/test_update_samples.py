@@ -4,7 +4,6 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
 )
 import pytest
-from typing import Callable
 from hub.tests.common import assert_array_lists_equal
 import numpy as np
 import hub
@@ -58,6 +57,7 @@ def test(local_ds_generator, compression):
 
     assert ds.images.shape_interval.lower == (10, 0, 4)
     assert ds.images.shape_interval.upper == (10, 28, 30)
+    assert ds.images.num_chunks == 1
 
 
 @compressions
@@ -73,6 +73,7 @@ def test_subslice(local_ds_generator, compression):
     # TODO: implement and uncomment check when negative indexing is implemented
     with pytest.raises(NotImplementedError):
         ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
+    assert ds.image.num_chunks == 1
         
     # np.testing.assert_array_equal(
     #     ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8")
@@ -104,6 +105,7 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     assert ds.images.shape_interval.upper == (10, 900, 900, 4)
 
     assert len(ds.images) == 10
+    assert ds.images.num_chunks == 1
 
 
 def test_pre_indexed_tensor(memory_ds):
@@ -255,3 +257,5 @@ def test_inplace_updates(memory_ds, compression):
     ds.x[:5] *= 0
     np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
     np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+
+    assert ds.x.num_chunks == 1
