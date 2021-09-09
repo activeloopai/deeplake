@@ -262,7 +262,7 @@ class ChunkEngine:
 
         last_has_space = self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
         if not last_has_space:
-            if nbytes < self.max_chunk_size:
+            if nbytes <= self.max_chunk_size:
                 return False
             return True
 
@@ -340,10 +340,7 @@ class ChunkEngine:
 
                 current_shape = current_shapes[0]
                 current_nbyte = current_nbytes[0]
-                current_sample_array = decompressed_samples[sample_idx]
-
-                if not isinstance(current_sample_array, np.ndarray):
-                    raise ValueError(f"Expected current sample array to be a numpy array, got {type(current_sample_array)}")
+                current_sample_array = _get_sample_array(decompressed_samples[sample_idx])
 
                 assert len(current_buffer) == current_nbyte
 
@@ -578,7 +575,7 @@ class ChunkEngine:
             for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
                 current_buffer = buff[:nb]
                 current_shape = shape[:]
-                current_sample_array = samples[i]
+                current_sample_array = _get_sample_array(samples[i])
 
                 if self._needs_multiple_chunks(len(current_buffer)):
                     self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
@@ -1165,3 +1162,11 @@ def _warn_if_suboptimal_chunks(
             )
             return True
     return False
+
+
+def _get_sample_array(sample: SampleValue) -> np.ndarray:
+    if isinstance(sample, Sample):
+        return sample.array
+    elif not isinstance(sample, np.ndarray):
+        raise ValueError(f"Expected current sample array to be a numpy array, got {type(current_sample_array)}")
+    return sample

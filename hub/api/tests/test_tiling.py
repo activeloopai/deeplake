@@ -1,8 +1,13 @@
+import hub
 from hub.util.exceptions import CannotInferTilesError
 import pytest
 import numpy as np
-from hub.constants import KB
+from hub.constants import B, KB
 from hub.tests.common import assert_array_lists_equal, compressions
+
+
+def _get_random_image(shape):
+    return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
 
 
 def _assert_num_chunks(
@@ -141,51 +146,50 @@ def test_failures(memory_ds):
 
 
 @compressions
-def test_append(memory_ds, compression):
-    # TODO: reduce testing data size (reduce chunk size)
-    memory_ds.create_tensor("image", dtype="uint8", **compression)
+def test_append(memory_ds, compression, davit):
+    large1 = _get_random_image((90, 100, 3))
+    large2 = _get_random_image((100, 90, 3))
+    small = _get_random_image((10, 10, 1))
 
-    memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    memory_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
+
+    memory_ds.image.append(large1.copy())
     _assert_num_chunks(memory_ds.image.num_chunks, 4, compression)
-    memory_ds.image.append(np.ones((100, 100), dtype="uint8"))
+    memory_ds.image.append(small.copy())
     _assert_num_chunks(memory_ds.image.num_chunks, 5, compression)
-    memory_ds.image.append(np.ones((8192, 8192), dtype="uint8"))
+    memory_ds.image.append(large2.copy())
     _assert_num_chunks(memory_ds.image.num_chunks, 9, compression)
+    memory_ds.image.append(hub.read(davit))
+    _assert_num_chunks(memory_ds.image.num_chunks, 18, compression)
 
-    assert len(memory_ds) == 3
+    assert memory_ds.image.shape_interval.lower == (4, 10, 10, 1)
+    assert memory_ds.image.shape_interval.upper == (4, 200, 200, 3)
 
-    np.testing.assert_array_equal(memory_ds.image[0, :500, :500].numpy(), np.ones((500, 500), dtype="uint8"))
+    expected = [large1, small, large2]
+    assert_array_lists_equal(expected, memory_ds.image.numpy(aslist=True))
 
 
 @compressions
-def test_extend(memory_ds, compression):
-    memory_ds.create_tensor("image", dtype="uint8", **compression)
+def test_extend(memory_ds, compression, davit):
+    memory_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
+
+    small1 = _get_random_image((10, 10, 1))
+    small2 = _get_random_image((5, 20, 1))
+    large = _get_random_image((100, 100, 3))
 
     memory_ds.image.extend([
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((8192, 8192), dtype="uint8") * 5,
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
+        small1.copy(),
+        small2.copy(),
+        hub.read(davit),  # 12 chunks
+        small2.copy(),
+        large.copy(),
+        small2.copy(),
+        small1.copy(),
     ])
+    _assert_num_chunks(memory_ds.image.num_chunks, 18, compression)
 
-    assert len(memory_ds) == 7
-    _assert_num_chunks(memory_ds.image.num_chunks, 6, compression)
+    assert memory_ds.image.shape_interval.lower == (7, 5, 10)
+    assert memory_ds.image.shape_interval.upper == (7, 200, 200)
 
-    expected_first_smalls = [
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-        np.ones((10, 10), dtype="uint8"),
-    ]
-    assert_array_lists_equal(expected_first_smalls, memory_ds.image[0:4].numpy())
-
-    expected_large = np.ones((8192, 8192), dtype="uint8") * 5
-    np.testing.assert_array_equal(expected_large, memory_ds.image[4].numpy())
-
-    # TODO: check the rest
-    assert False
-
-# TODO: add hub.read tests for append/extend/update
+    expected = [small1, small2, hub.read(davit).array, small2, large, small2, small1]
+    assert_array_lists_equal(expected, memory_ds.image.numpy(aslist=True))
