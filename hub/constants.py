@@ -41,7 +41,7 @@ DATASET_INFO_FILENAME = "dataset_info.json"
 TENSOR_INFO_FILENAME = "tensor_info.json"
 
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
-TENSOR_VERSION_CHUNK_LIST_FILENAME = "chunk_list"
+TENSOR_VERSION_CHUNK_LIST_FILENAME = "chunk_list.json"
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
 DATASET_LOCK_VALIDITY = 300  # seconds
@@ -85,7 +85,7 @@ LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
 
 # used to identify the first commit so its data will not be in similar directory structure to the rest
 FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
-VERSION_CONTROL_INFO_FILENAME = "version_control.pkl"
+VERSION_CONTROL_INFO_FILENAME = "version_control_info"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
