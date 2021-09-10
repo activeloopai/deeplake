@@ -118,6 +118,9 @@ class Info(CachableCallback):
         try:
             return object.__getattribute__(self, key)
         except AttributeError:
+            if key == "_info":
+                self._info = {}
+                return self._info
             return self[key]
 
 
