@@ -1191,6 +1191,8 @@ def _warn_if_suboptimal_chunks(
 def _get_sample_array(sample: SampleValue) -> np.ndarray:
     if isinstance(sample, Sample):
         return sample.array
+    elif isinstance(sample, list):
+        return np.asarray(sample)
     elif not isinstance(sample, np.ndarray):
-        raise ValueError(f"Expected current sample array to be a numpy array, got {type(current_sample_array)}")
+        raise ValueError(f"Expected current sample array to be a numpy array, got {type(sample)}")
     return sample

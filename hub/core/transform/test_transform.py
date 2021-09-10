@@ -119,7 +119,6 @@ def test_chain_transform_list_small(ds):
 
 
 @enabled_datasets
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_chain_transform_list_big(ds):
     ls = [i for i in range(2)]
     ds_out = ds
