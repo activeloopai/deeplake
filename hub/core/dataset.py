@@ -332,15 +332,13 @@ class Dataset:
 
     def log(self):
         # TODO: use logger.info instead of prints
-        last_committed_node = (
-            self.version_state["commit_node"].parent
-            if not self.version_state["commit_node"].children
-            else self.version_state["commit_node"]
-        )
-        print(f"\n Current Branch: {self.version_state['branch']}")
-        while last_committed_node:
-            print(last_committed_node)
-            last_committed_node = last_committed_node.parent
+        commit_node = self.version_state["commit_node"]
+        print("---------------\nHub Version Log\n---------------\n")
+        print(f"Current Branch: {self.version_state['branch']}\n")
+        while commit_node:
+            if commit_node.commit_time is not None:
+                print(f"{commit_node}\n")
+            commit_node = commit_node.parent
 
     def _load_meta(self):
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])

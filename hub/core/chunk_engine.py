@@ -1,16 +1,15 @@
+import hub
+import warnings
+import numpy as np
+from math import ceil
+from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
+
+from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from hub.core.version_control.version_node import VersionNode
 from hub.core.version_control.version_chunk_list import VersionChunkList
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-import warnings
-from hub.util.casting import get_dtype, intelligent_cast
 from hub.core.compression import decompress_array
-from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
-from math import ceil
-from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
-from hub.util.exceptions import (
-    CorruptedMetaError,
-    DynamicTensorNumpyError,
-)
+from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
 from hub.core.storage.lru_cache import LRUCache
@@ -25,12 +24,13 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_tensor_version_chunk_list_key,
 )
-from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.util.exceptions import (
+    CorruptedMetaError,
+    DynamicTensorNumpyError,
+)
+from hub.util.casting import get_dtype, intelligent_cast
+from hub.util.version_control import auto_checkout
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
-import hub
-from itertools import repeat
-
-import numpy as np
 
 
 def is_uniform_sequence(samples):
@@ -477,6 +477,9 @@ class ChunkEngine:
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         self.cache.check_readonly()
+        self.version_state["commit_node"].has_data = True
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta
@@ -514,6 +517,9 @@ class ChunkEngine:
             return self._update_with_operator(index, samples, operator)
 
         self.cache.check_readonly()
+        self.version_state["commit_node"].has_data = True
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta

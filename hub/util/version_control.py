@@ -27,10 +27,7 @@ def commit(
 ) -> None:
 
     # if not the head node, checkout to an auto branch that is newly created
-    if version_state["commit_node"].children:
-        checkout(version_state, storage, f"auto_branch_{generate_hash()}", True)
-        commit(version_state, storage, message)
-        return
+    auto_checkout(version_state, storage)
     stored_commit_id = version_state["commit_id"]
     version_state["commit_id"] = generate_hash()
     new_node = VersionNode(version_state["branch"], version_state["commit_id"])
@@ -71,9 +68,14 @@ def checkout(
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
     elif create:
-        # if the commit is head of the branch and has no children, create a new commit and checkout from the previous commit to this one
-        if not version_state["commit_node"].children:
+        commit_node = version_state["commit_node"]
+        # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
+        if not commit_node.children and commit_node.has_data:
             original_commit_id = version_state["commit_id"]
+            current_branch = version_state["branch"]
+            print(
+                f"Automatically commiting to branch '{current_branch}' as currently at the head node with uncommitted changes."
+            )
             commit(
                 version_state,
                 storage,
@@ -84,6 +86,7 @@ def checkout(
         version_state["branch"] = address
         new_commit_id = generate_hash()
         new_node = VersionNode(version_state["branch"], new_commit_id)
+        new_node.parent = version_state["commit_node"]
         version_state["commit_node"] = new_node
         version_state["commit_id"] = new_commit_id
         version_state["commit_node_map"][version_state["commit_id"]] = new_node
@@ -149,3 +152,13 @@ def save_version_info(version_state: Dict[str, Any], storage: StorageProvider) -
         "branch_commit_map": version_state["branch_commit_map"],
     }
     storage[get_version_control_info_key()] = pickle.dumps(version_info)
+
+
+def auto_checkout(version_state, storage) -> None:
+    if version_state["commit_node"].children:
+        current_branch = version_state["branch"]
+        auto_branch = f"auto_{generate_hash()}"
+        print(
+            f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
+        )
+        checkout(version_state, storage, auto_branch, True)

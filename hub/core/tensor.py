@@ -315,11 +315,6 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
-        # TODO: fix readonly case
-        if self.version_state["commit_node"].children:
-            checkout(
-                self.version_state, self.storage, f"auto_branch_{generate_hash()}", True
-            )
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False

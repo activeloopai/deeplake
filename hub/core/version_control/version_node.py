@@ -11,6 +11,7 @@ class VersionNode:
         self.commit_message = None
         self.commit_time = None
         self.commit_user_name = None
+        self.has_data = False
 
     def add_child(self, node: "VersionNode"):
         """Adds a child to the node, used for branching."""
@@ -27,6 +28,6 @@ class VersionNode:
         self.commit_time = datetime.now()
 
     def __repr__(self) -> str:
-        return f'commit {self.commit_id} ({self.branch}) \nAuthor: {self.commit_user_name}\nCommit Time:  {str(self.commit_time)[:-7]}\nMessage: "{self.commit_message}"'
+        return f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"
 
     __str__ = __repr__
