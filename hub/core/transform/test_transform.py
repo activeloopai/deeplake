@@ -127,7 +127,7 @@ def test_chain_transform_list_big(ds):
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(ls, ds_out, num_workers=3)
-    assert len(ds_out) == 8
+    assert len(ds_out) == 12
     for i in range(2):
         for index in range(4 * i, 4 * i + 4):
             np.testing.assert_array_equal(
