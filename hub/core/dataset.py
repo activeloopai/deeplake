@@ -41,7 +41,7 @@ from hub.util.version_control import checkout, commit
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 
-
+# TODO: Add branch and commit id as properties
 class Dataset:
     def __init__(
         self,
@@ -322,20 +322,41 @@ class Dataset:
         version_state["tensors"] = self.tensors
         self.version_state = version_state
 
-    def commit(self, message: str = None) -> None:
+    def commit(self, message: Optional[str] = None) -> None:
+        """Stores a snapshot of the current state of the dataset.
+        Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
+        This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
+
+        Args:
+            message (str, optional): Used to describe the commit.
+
+        Returns:
+            str: the commit id of the stored commit that can be used to access the snapshot.
+        """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
         return commit_id
 
-    def checkout(self, address: str, create: bool = False) -> None:
+    def checkout(self, address: str, create: bool = False) -> str:
+        """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
+        Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
+
+        Args:
+            address (str): The commit_id or branch to checkout to.
+            create (bool, optional): If True, creates a new branch with name as address.
+
+        Returns:
+            str: The commit_id of the dataset after checkout.
+        """
         checkout(self.version_state, self.storage, address, create)
-        # if loading from another commit/branch, dataset meta will be different and needs to be loaded
         if not create:
+            # loading from another commit/branch, dataset meta will be different and needs to be loaded
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
         return self.version_state["commit_id"]
 
     def log(self):
+        """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
         commit_node = self.version_state["commit_node"]
         print("---------------\nHub Version Log\n---------------\n")

@@ -1,3 +1,4 @@
+import random
 import time
 import hashlib
 import pickle
@@ -17,16 +18,18 @@ from hub.util.keys import (
     get_version_control_info_key,
 )
 
-
+# TODO: replace prints with logging
 def generate_hash() -> str:
     hsh = hashlib.sha1()
     hsh.update(str(time.time()).encode("utf-8"))
+    hsh.update(random.randrange(0, 1000000).to_bytes(4, "big"))
     return hsh.hexdigest()
 
 
 def commit(
     version_state: Dict[str, Any], storage: LRUCache, message: str = None
 ) -> None:
+    """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
 
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(version_state, storage)
@@ -52,6 +55,7 @@ def checkout(
     address: str,
     create: bool = False,
 ) -> None:
+    """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     if address in version_state["branch_commit_map"].keys():
         if create:
             raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
@@ -69,20 +73,8 @@ def checkout(
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
     elif create:
-        commit_node = version_state["commit_node"]
         # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
-        if not commit_node.children and commit_has_data(version_state, storage):
-            original_commit_id = version_state["commit_id"]
-            current_branch = version_state["branch"]
-            print(
-                f"Automatically commiting to branch '{current_branch}' as currently at the head node with uncommitted changes."
-            )
-            commit(
-                version_state,
-                storage,
-                f"auto commit before checkout to {address}",
-            )
-            checkout(version_state, storage, original_commit_id, False)
+        auto_commit(version_state, storage, address)
         original_commit_id = version_state["commit_id"]
         new_commit_id = generate_hash()
         new_node = VersionNode(address, new_commit_id)
@@ -109,6 +101,7 @@ def checkout(
 def copy_metas(
     src_commit_id: str, dest_commit_id: str, storage: LRUCache, tensors: Dict
 ) -> None:
+    """Copies meta data from one commit to another."""
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     storage[dest_dataset_meta_key] = storage[src_dataset_meta_key].copy()
@@ -145,6 +138,7 @@ def copy_metas(
 
 
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
+    """Saves the current version info to the storage."""
     version_info = {
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
@@ -153,6 +147,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
+    """Automatically checks out if current node is not the head node of the branch. This may happen either during commit or during setitem."""
     if version_state["commit_node"].children:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
@@ -162,7 +157,25 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
         checkout(version_state, storage, auto_branch, True)
 
 
+def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) -> None:
+    """Automatically commits to the current branch before a checkout to a new branch if the current node is the head node and has uncommitted data."""
+    commit_node = version_state["commit_node"]
+    if not commit_node.children and commit_has_data(version_state, storage):
+        original_commit_id = version_state["commit_id"]
+        branch = version_state["branch"]
+        print(
+            f"Auto commiting to branch '{branch}' as currently at head node with uncommitted changes."
+        )
+        commit(
+            version_state,
+            storage,
+            f"auto commit before checkout to {address}",
+        )
+        checkout(version_state, storage, original_commit_id, False)
+
+
 def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
+    """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
     for tensor in version_state["tensors"].keys():
         key = get_tensor_version_chunk_list_key(tensor, commit_id)
@@ -176,6 +189,7 @@ def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
 def version_chunk_list_exists(
     version_state: Dict[str, Any], storage: LRUCache, tensor: str
 ) -> bool:
+    """Checks if the version chunk list exists for the given tensor in the current commit."""
     try:
         commit_id = version_state["commit_id"]
         key = get_tensor_version_chunk_list_key(tensor, commit_id)
