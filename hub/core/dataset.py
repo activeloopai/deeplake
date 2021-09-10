@@ -143,6 +143,7 @@ class Dataset:
             "storage": self.storage,
             "_token": self.token,
             "verbose": self.verbose,
+            "version_state": self.version_state,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
