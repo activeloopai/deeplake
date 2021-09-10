@@ -29,7 +29,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.util.casting import get_dtype, intelligent_cast
-from hub.util.version_control import auto_checkout
+from hub.util.version_control import auto_checkout, version_chunk_list_exists
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 
@@ -186,13 +186,7 @@ class ChunkEngine:
 
     @property
     def version_chunk_list_exists(self) -> bool:
-        try:
-            commit_id = self.version_state["commit_id"]
-            key = get_tensor_version_chunk_list_key(self.key, commit_id)
-            self.meta_cache[key]
-            return True
-        except KeyError:
-            return False
+        version_chunk_list_exists(self.version_state, self.meta_cache, self.key)
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
@@ -477,7 +471,6 @@ class ChunkEngine:
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         self.cache.check_readonly()
-        self.version_state["commit_node"].has_data = True
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -517,7 +510,6 @@ class ChunkEngine:
             return self._update_with_operator(index, samples, operator)
 
         self.cache.check_readonly()
-        self.version_state["commit_node"].has_data = True
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)

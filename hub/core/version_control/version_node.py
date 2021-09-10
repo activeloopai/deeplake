@@ -11,7 +11,6 @@ class VersionNode:
         self.commit_message: Optional[str] = None
         self.commit_time: Optional[datetime] = None
         self.commit_user_name: Optional[str] = None
-        self.has_data = False
 
     def add_child(self, node: "VersionNode"):
         """Adds a child to the node, used for branching."""

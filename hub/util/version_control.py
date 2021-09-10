@@ -1,9 +1,11 @@
+from hub.core.storage.lru_cache import LRUCache
 import time
 import hashlib
 import pickle
 from typing import Any, Dict
 
 from hub.core.version_control.version_node import VersionNode  # type: ignore
+from hub.core.version_control.version_chunk_list import VersionChunkList # type: ignore
 from hub.core.storage import StorageProvider
 from hub.util.exceptions import CheckoutError
 from hub.util.keys import (
@@ -12,6 +14,7 @@ from hub.util.keys import (
     get_dataset_meta_key,
     get_tensor_info_key,
     get_tensor_meta_key,
+    get_tensor_version_chunk_list_key,
     get_version_control_info_key,
 )
 
@@ -23,7 +26,7 @@ def generate_hash() -> str:
 
 
 def commit(
-    version_state: Dict[str, Any], storage: StorageProvider, message: str = None
+    version_state: Dict[str, Any], storage: LRUCache, message: str = None
 ) -> None:
 
     # if not the head node, checkout to an auto branch that is newly created
@@ -45,7 +48,7 @@ def commit(
 
 def checkout(
     version_state: Dict[str, Any],
-    storage: StorageProvider,
+    storage: LRUCache,
     address: str,
     create: bool = False,
 ) -> None:
@@ -68,7 +71,7 @@ def checkout(
     elif create:
         commit_node = version_state["commit_node"]
         # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
-        if not commit_node.children and commit_node.has_data:
+        if not commit_node.children and commit_has_data(version_state, storage):
             original_commit_id = version_state["commit_id"]
             current_branch = version_state["branch"]
             print(
@@ -103,7 +106,7 @@ def checkout(
 
 
 def copy_metas(
-    src_commit_id: str, dest_commit_id: str, storage: StorageProvider, tensors: Dict
+    src_commit_id: str, dest_commit_id: str, storage: LRUCache, tensors: Dict
 ) -> None:
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
@@ -142,7 +145,7 @@ def copy_metas(
     storage.flush()
 
 
-def save_version_info(version_state: Dict[str, Any], storage: StorageProvider) -> None:
+def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     version_info = {
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
@@ -150,7 +153,7 @@ def save_version_info(version_state: Dict[str, Any], storage: StorageProvider) -
     storage[get_version_control_info_key()] = pickle.dumps(version_info)
 
 
-def auto_checkout(version_state, storage) -> None:
+def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
     if version_state["commit_node"].children:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
@@ -158,3 +161,22 @@ def auto_checkout(version_state, storage) -> None:
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
         checkout(version_state, storage, auto_branch, True)
+
+def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
+    commit_id = version_state["commit_id"]
+    for tensor in version_state["tensors"].keys():
+        key = get_tensor_version_chunk_list_key(tensor, commit_id)
+        if version_chunk_list_exists(version_state, storage, tensor):
+            enc = storage.get_cachable(key, VersionChunkList)
+            if enc.chunks:
+                return True
+    return False
+
+def version_chunk_list_exists(version_state: Dict[str, Any], storage: LRUCache, tensor: str) -> bool:
+    try:
+        commit_id = version_state["commit_id"]
+        key = get_tensor_version_chunk_list_key(tensor, commit_id)
+        storage[key]
+        return True
+    except KeyError:
+        return False
