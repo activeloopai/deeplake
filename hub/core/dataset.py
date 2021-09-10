@@ -119,7 +119,7 @@ class Dataset:
 
     def __len__(self):
         """Returns the length of the smallest tensor"""
-        tensor_lengths = [len(tensor[self.index]) for tensor in self._tensors.values()]
+        tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
