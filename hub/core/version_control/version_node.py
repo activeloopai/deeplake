@@ -8,9 +8,9 @@ class VersionNode:
         self.branch = branch
         self.children: List["VersionNode"] = []
         self.parent: Optional["VersionNode"] = None
-        self.commit_message = None
-        self.commit_time = None
-        self.commit_user_name = None
+        self.commit_message: Optional[str] = None
+        self.commit_time: Optional[datetime] = None
+        self.commit_user_name: Optional[str] = None
         self.has_data = False
 
     def add_child(self, node: "VersionNode"):

@@ -7,12 +7,12 @@ class VersionChunkList(Cachable):
         self.chunks: List[str] = []
 
     def tobytes(self) -> bytes:
-        """Dump self.chunks in csv format"""
+        """Dumps self.chunks in csv format."""
         return bytes(",".join(self.chunks), "utf-8")
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        """Load a VersionChunkList from a buffer"""
+        """Loads a VersionChunkList from a buffer."""
         instance = cls()
         instance.chunks = buffer.decode("utf-8").split(",")
         return instance
@@ -24,4 +24,5 @@ class VersionChunkList(Cachable):
         return 8 + ((len(self.chunks) - 1) * 9)
 
     def append(self, chunk_name: str) -> None:
+        """Adds a new chunk name to the VersionChunkList."""
         self.chunks.append(chunk_name)

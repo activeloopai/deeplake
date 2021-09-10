@@ -5,8 +5,8 @@ from math import ceil
 from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
 
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
-from hub.core.version_control.version_node import VersionNode
-from hub.core.version_control.version_chunk_list import VersionChunkList
+from hub.core.version_control.version_node import VersionNode  # type: ignore
+from hub.core.version_control.version_chunk_list import VersionChunkList  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.compression import decompress_array
 from hub.core.sample import Sample, SampleValue  # type: ignore

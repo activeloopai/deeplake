@@ -15,10 +15,9 @@ from hub.core.index import Index
 from hub.core.lock import lock, unlock
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage.provider import StorageProvider
-from hub.core.storage.s3 import S3Provider
+from hub.core.storage import S3Provider, LRUCache
 from hub.core.tensor import create_tensor, Tensor
-from hub.core.version_control.version_node import VersionNode
+from hub.core.version_control.version_node import VersionNode  # type: ignore
 
 from hub.util.keys import (
     dataset_exists,
@@ -46,7 +45,7 @@ from hub.util.remove_cache import get_base_storage
 class Dataset:
     def __init__(
         self,
-        storage: StorageProvider,
+        storage: LRUCache,
         index: Index = None,
         read_only: bool = False,
         public: Optional[bool] = True,
@@ -56,7 +55,7 @@ class Dataset:
         """Initializes a new or existing dataset.
 
         Args:
-            storage (StorageProvider): The storage provider used to access the dataset.
+            storage (LRUCache): The cache containing a chain of storage providers used to access the dataset.
             index (Index): The Index object restricting the view of this dataset's tensors.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.

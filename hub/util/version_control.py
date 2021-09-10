@@ -3,7 +3,7 @@ import hashlib
 import pickle
 from typing import Any, Dict
 
-from hub.core.version_control.version_node import VersionNode
+from hub.core.version_control.version_node import VersionNode  # type: ignore
 from hub.core.storage import StorageProvider
 from hub.util.exceptions import CheckoutError
 from hub.util.keys import (

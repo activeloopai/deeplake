@@ -25,7 +25,7 @@ def create_tensor(
     htype: str,
     sample_compression: str,
     chunk_compression: str,
-    version_state,
+    version_state: Dict[str, Any],
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -36,6 +36,7 @@ def create_tensor(
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
+        version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
