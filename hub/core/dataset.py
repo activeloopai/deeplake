@@ -553,7 +553,7 @@ class Dataset:
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
         meta_key = get_dataset_meta_key()
-        return self.storage.get_cachable(meta_key, DatasetMeta).groups
+        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:

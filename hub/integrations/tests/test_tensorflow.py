@@ -53,3 +53,23 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
         for batch in tds:
             num_samples += 1  # batch_size = 1
     assert num_samples == 30
+
+
+@requires_tensorflow
+def test_groups(local_ds, compressed_image_paths):
+    img1 = hub.read(compressed_image_paths["jpeg"][0])
+    img2 = hub.read(compressed_image_paths["png"][0])
+    with local_ds:
+        local_ds.create_tensor(
+            "images/jpegs/cats", htype="image", sample_compression="jpeg"
+        )
+        local_ds.create_tensor(
+            "images/pngs/flowers", htype="image", sample_compression="png"
+        )
+        for _ in range(10):
+            local_ds.images.jpegs.cats.append(img1)
+            local_ds.images.pngs.flowers.append(img2)
+    tds = local_ds.tensorflow()
+    for batch in tds:
+        np.testing.assert_array_equal(batch["images/jpegs/cats"].numpy(), img1.array)
+        np.testing.assert_array_equal(batch["images/pngs/flowers"].numpy(), img2.array)
