@@ -215,7 +215,7 @@ class PrefetchLRUCache(LRUCache):
             tensor_keys = list(tensor_keys)
 
         # Get full path in case of groups
-        tensor_keys = [dataset.tensors[k].key for key in tensor_keys]
+        tensor_keys = [dataset.tensors[k].key for k in tensor_keys]
         return tensor_keys
 
     def _extract_indexes_from_dataset(self, dataset):
