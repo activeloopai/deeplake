@@ -25,11 +25,17 @@
 ## Why use Hub?
 **Data scientists spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. Hub streamlines these tasks so that users can focus on building amazing machine learning models 💻.**
 
-Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and we are currently adding powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
+Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and is has powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
 
 Hub is best suited for unstructured datasets such as images, videos, point clouds, or text. It works locally or on any cloud.
 
 Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
+
+## How does Hub work?
+
+Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using images, videos, and text. By storing data as chunked compressed arrays, Hub significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
+
+Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
 
 ## Features 
 ### Current Release
@@ -44,20 +50,13 @@ Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 ### Coming Soon
 
 * Datasets hosting on Azure
-* Dataset query using text-based query language
-* Dataset query using custom filter functions without having to download the entire dataset
+* Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
  <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
     </br>
 Visualization of a dataset uploaded to Hub
-
-## How does Hub work?
-
-Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using data such as images, videos, and text. By storing data as chunked compressed arrays, Hub significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
-
-Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
 
 ## Getting Started with Hub
 Hub is written in 100% python and can be quickly installed using pip.
@@ -75,11 +74,32 @@ To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
 import hub
 
-my_dataset = hub.load("s3://bucket_name/dataset_folder")
-my_dataloader = my_dataset.pytorch(batch_size = 16, num_workers = 4)
+ds = hub.load("s3://bucket_name/dataset_folder")
+data_loader = ds.pytorch(batch_size = 16, num_workers = 4)
 
-for batch in my_dataloader:
+for batch in data_loader:
     print(batch)
+
+## Training Loop Here ##
+```
+To upload your own dataset to Hub:
+```python
+import hub
+
+fns = my_images #List of image files in dataset
+
+# Define empty dataset
+ds = hub.empty("gcp://bucket_name/dataset_folder")
+
+# Create tensors
+ds.create_tensor('images', htype = 'image', sample_compression = 'jpg')
+ds.create_tensor('labels', htype = 'class_label')
+
+# Upload data
+with ds:
+    for fn in fns:
+        ds.images.append(hub.read(fn))
+        ds.labels.append(#parse label)
 
 ## Training Loop Here ##
 ```
