@@ -73,3 +73,19 @@ def test_groups(local_ds, compressed_image_paths):
     for batch in tds:
         np.testing.assert_array_equal(batch["images/jpegs/cats"].numpy(), img1.array)
         np.testing.assert_array_equal(batch["images/pngs/flowers"].numpy(), img2.array)
+
+    with local_ds:
+        local_ds.create_tensor(
+            "arrays/x",
+        )
+        local_ds.create_tensor(
+            "arrays/y",
+        )
+        for _ in range(10):
+            local_ds.arrays.x.append(np.random.random((2, 3)))
+            local_ds.arrays.y.append(np.random.random((4, 5)))
+
+    tds = local_ds.images.tensorflow()
+    for batch in tds:
+        np.testing.assert_array_equal(batch["jpegs/cats"].numpy(), img1.array)
+        np.testing.assert_array_equal(batch["pngs/flowers"].numpy(), img2.array)

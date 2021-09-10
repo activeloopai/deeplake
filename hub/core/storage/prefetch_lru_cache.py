@@ -213,6 +213,9 @@ class PrefetchLRUCache(LRUCache):
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
             tensor_keys = list(tensor_keys)
+
+        # Get full path in case of groups
+        tensor_keys = [dataset.tensors[k].key for key in tensor_keys]
         return tensor_keys
 
     def _extract_indexes_from_dataset(self, dataset):
