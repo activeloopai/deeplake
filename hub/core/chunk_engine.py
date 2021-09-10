@@ -1067,10 +1067,13 @@ class ChunkEngine:
         return chunk_names
 
     def get_chunk_names_for_index(self, sample_index):
-        # TODO: fix this once we support multiple chunk names per sample
-        chunk_id = self.chunk_id_encoder[sample_index]
-        chunk = self.chunk_id_encoder.name_from_id(chunk_id)
-        return [chunk]
+        chunk_ids = self.chunk_id_encoder[sample_index]
+
+        names = []
+        for id in chunk_ids:
+            names.append(chunk_name_from_id(id))
+            
+        return names
 
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.

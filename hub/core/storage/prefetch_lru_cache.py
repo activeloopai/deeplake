@@ -20,6 +20,8 @@ from hub.util.exceptions import (
     SampleDecompressionError,
     TensorDoesNotExistError,
 )
+
+from hub.util.chunks import chunk_name_from_id
 from hub.util.remove_cache import get_base_storage
 from hub.util.prefetch_cache import read_and_store_chunk_group
 from hub.util.iterable_ordered_dict import IterableOrderedDict
@@ -190,7 +192,7 @@ class PrefetchLRUCache(LRUCache):
             start_index = 0
             for item in array:
                 chunk_id = item[0]
-                chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)
+                chunk_name = chunk_name_from_id(chunk_id)
                 end_index = item[1]
                 current_tensor_mapping[chunk_name] = (start_index, end_index)
                 start_index = end_index + 1
