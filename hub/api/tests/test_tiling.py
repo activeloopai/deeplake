@@ -196,4 +196,8 @@ def test_extend(local_ds, compression, davit):
     assert local_ds.image.shape_interval.upper == (7, 200, 200, 3)
 
     expected = [small1, small2, hub.read(davit).array, small2, large, small2, small1]
+
+    assert local_ds.image[4, 100:120, 100:120, :].numpy().size == 0
+    assert local_ds.image[4, 90:120, 90:120, :].numpy().shape == (10, 10, 3)
+
     assert_array_lists_equal(expected, local_ds.image.numpy(aslist=True))
