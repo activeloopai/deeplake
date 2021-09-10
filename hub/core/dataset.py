@@ -236,7 +236,7 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
-        if self.is_group():
+        if not self._is_root():
             return self.root.create_tensor(
                 posixpath.join(self.group_index, name),
                 htype,
@@ -571,12 +571,12 @@ class Dataset:
         """All sub groups in this group"""
         return {g: self[g] for g in self._groups_filtered}
 
-    def is_group(self) -> bool:
-        return bool(self.group_index)
+    def _is_root(self) -> bool:
+        return not self.group_index
 
     @property
     def parent(self):
-        if not self.is_group():
+        if self._is_root():
             return None
         return Dataset(
             self.storage,
@@ -590,7 +590,7 @@ class Dataset:
 
     @property
     def root(self):
-        if not self.is_group():
+        if self._is_root():
             return self
         return Dataset(
             self.storage,
@@ -619,7 +619,7 @@ class Dataset:
         return self[ret]
 
     def create_group(self, name: str) -> "Dataset":
-        if self.is_group():
+        if not self._is_root():
             return self.root.create_group(posixpath.join(self.group_index, name))
         name = name.strip("/")
         while "//" in name:

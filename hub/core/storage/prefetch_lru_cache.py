@@ -221,6 +221,7 @@ class PrefetchLRUCache(LRUCache):
     def _extract_indexes_from_dataset(self, dataset):
         """Returns a list of all the indexes in the dataset."""
         tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
+        assert dataset._is_root()
         length = min(tensor_lengths, default=0)
         return list(dataset.index.values[0].indices(length))
 
