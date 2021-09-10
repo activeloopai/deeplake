@@ -3,8 +3,10 @@ import hub
 from hub.util.chunks import chunk_name_from_id
 from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
+    align_sample_and_tile,
     approximate_num_bytes,
     get_input_sample_view,
+    get_tile_view_on_sample,
     get_input_tile_view,
     get_output_sample_view,
     get_output_tile_view,
@@ -725,10 +727,10 @@ class ChunkEngine:
                     if expected_subslice_shape != input_sample.shape:
                         raise InvalidSubsliceUpdateShapeError(input_sample.shape, expected_subslice_shape)
 
-                    tile_view = get_input_tile_view(tile, subslice_index, tile_index)
-                    incoming_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index)
+                    tile_view = get_input_tile_view(tile, subslice_index, tile_index, tile_shape)
+                    input_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index, tile_shape)
 
-                    tile_view[:] = incoming_sample_view
+                    tile_view[:] = input_sample_view
                     new_sample = tile
 
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
@@ -927,9 +929,9 @@ class ChunkEngine:
                 continue
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
-
-            tile_view = get_output_tile_view(tile, subslice_index, tile_index)
-            sample_view = get_output_sample_view(sample, subslice_index, tile_index)
+            # tile_view = get_output_tile_view(tile, subslice_index, tile_index)
+            # sample_view = get_output_sample_view(sample, subslice_index, tile_index)
+            tile_view, sample_view = align_sample_and_tile(sample, tile, subslice_index, tile_index)
 
             sample_view[:] = tile_view
 
