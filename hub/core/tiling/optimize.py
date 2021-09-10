@@ -44,9 +44,6 @@ class TileOptimizer:
         self.last_tile_shape = None
         self.last_history = None
 
-        # hyperparameters
-        self.max_magnitude = 1000
-
     def average_num_bytes_per_tile(self, tile_shape: Tuple[int, ...]) -> int:
         return approximate_num_bytes(tile_shape, self.tensor_meta.dtype, self.compression_factor)
 
@@ -62,15 +59,14 @@ class TileOptimizer:
         num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
         num_bytes_per_tile = self.average_num_bytes_per_tile(tile_shape)
 
-        distance = abs(num_bytes_per_tile - self.max_chunk_size)
-        if (
-            num_bytes_per_tile < self.min_chunk_size  # type: ignore
-            or num_bytes_per_tile > self.max_chunk_size
-        ):
-            # TODO: make smoother?
-            distance = distance * distance * 100
+        distance = ((np.average([self.min_chunk_size, self.max_chunk_size])) - (num_bytes_per_tile * num_tiles))
 
-        return num_tiles * distance
+        if num_bytes_per_tile < self.min_chunk_size:
+            distance = distance * distance
+        elif num_bytes_per_tile > self.max_chunk_size:
+            distance = distance * distance
+
+        return distance
 
 
     def _initial_tile_shape(
@@ -92,15 +88,73 @@ class TileOptimizer:
         return _clamp(proposal, sample_shape)
 
 
-    def _random_delta(self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> int:
+    def _random_delta(self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...], use_temperature: bool=True) -> int:
         # TODO: docstring
+
+        assert self.num_unfrozen_dims > 0
+
+        mask = self.unfrozen_dim_mask
 
         assert len(tile_shape) == len(sample_shape)
 
         delta = np.zeros(self.num_unfrozen_dims, dtype=INTERM_DTYPE)
 
-        # TODO
+        i = 0
+        for tile_shape_dim in np.nditer(tile_shape):
+            # don't perturbate frozen dims
+            if not mask[i]:
+                continue
 
+            sample_shape_dim = sample_shape[i]
+
+            can_perturbate_negative = tile_shape_dim > 1
+            can_perturbate_positive = tile_shape_dim < sample_shape_dim
+
+            if not can_perturbate_negative and not can_perturbate_positive:
+                raise Exception
+
+            low_diff = tile_shape_dim - 1
+            high_diff = sample_shape_dim - tile_shape_dim
+
+            if use_temperature:
+                low_diff = int(max(1, low_diff * self.temperature)) + 1
+                high_diff = int(max(1, low_diff * self.temperature)) + 1
+        
+            # TODO: can inject a gradient here with `p=` to bias towards low energy
+            sign = np.random.choice([-1, 1])
+
+            if can_perturbate_negative and can_perturbate_positive:
+                if sign == -1:
+                    delta[i] = -np.random.randint(1, low_diff)
+                else:
+                    delta[i] = np.random.randint(1, high_diff)
+            elif can_perturbate_negative:
+                delta[i] = -np.random.randint(1, low_diff)
+            else:
+                delta[i] = np.random.randint(1, high_diff)
+
+            i += 1
+
+        # p is a hyperparameter (can even be predicted by a model)
+        # 0=non-uniform, 1=uniform, 2=isolate
+        action = np.random.choice([0, 1, 2], p=[0.1, 0.5, 0.4])
+
+        if action == 0:
+            # all dimensions may be non-uniform
+            pass
+        elif action == 1:
+            # all dimensions are a uniform value
+            value = np.random.choice(delta)
+            delta[:] = value
+        elif action == 2:
+            # only a single dimension has a non-zero delta
+            i = np.random.choice(range(delta.size))
+            temp = delta[i]
+            delta[:] = 0
+            delta[i] = temp
+
+        print(delta)
+            
         return delta
 
     
@@ -123,7 +177,8 @@ class TileOptimizer:
 
         new_tile_shape = tile_shape.copy()
 
-        delta = self._random_delta(tile_shape, sample_shape)
+        delta = self._random_delta(tile_shape, sample_shape, use_temperature=True)
+        print(delta)
         new_tile_shape[mask] += delta
         new_tile_shape = _clamp(new_tile_shape, sample_shape)
 
