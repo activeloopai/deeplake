@@ -61,8 +61,8 @@ def check_response_status(response: requests.Response):
 
     if code == 400:
         if message != " ":
-            sys.exit(f"Error: {message}")
-        raise BadRequestException(message)
+            raise BadRequestException(message)
+        raise BadRequestException
     elif response.status_code == 401:
         raise AuthenticationException
     elif response.status_code == 403:
