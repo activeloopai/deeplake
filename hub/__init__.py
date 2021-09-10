@@ -1,4 +1,3 @@
-from .core.dataset import Dataset
 import numpy as np
 
 __pdoc__ = {
@@ -22,6 +21,7 @@ from .api.dataset import dataset
 from .api.read import read
 from .core.transform import compute, compose
 from .core.dataset import Dataset
+from .core.tensor import Tensor
 from .util.bugout_reporter import hub_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
@@ -36,9 +36,11 @@ list = dataset.list
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
+tensor = Tensor
 
 __all__ = [
     "dataset",
+    "tensor",
     "read",
     "__version__",
     "load",
@@ -54,7 +56,7 @@ __all__ = [
     "htypes",
 ]
 
-__version__ = "2.0.7"
+__version__ = "2.0.10"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")

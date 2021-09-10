@@ -75,7 +75,9 @@ def get_incompatible_dtype(
     Raises:
         TypeError: if samples is of unexepcted type.
     """
-    if isinstance(samples, (int, float, bool, str)) or hasattr(samples, "dtype"):
+    if isinstance(samples, np.ndarray) and samples.size == 1:
+        samples = samples.reshape(1).tolist()[0]
+    if isinstance(samples, (int, float, bool)) or hasattr(samples, "dtype"):
         return (
             None
             if np.can_cast(samples, dtype)

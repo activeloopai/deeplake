@@ -29,7 +29,7 @@ def test_array(compression, compressed_image_paths):
     if compression_type == BYTE_COMPRESSION:
         array = np.random.randint(0, 10, (32, 32))
     elif compression_type == IMAGE_COMPRESSION:
-        array = np.array(hub.read(compressed_image_paths[compression]))
+        array = np.array(hub.read(compressed_image_paths[compression][0]))
     shape = array.shape
     compressed_buffer = compress_array(array, compression)
     if compression_type == BYTE_COMPRESSION:
@@ -49,7 +49,7 @@ def test_array(compression, compressed_image_paths):
 def test_multi_array(compression, compressed_image_paths):
     compression_type = get_compression_type(compression)
     if compression_type == IMAGE_COMPRESSION:
-        img = Image.open(compressed_image_paths[compression])
+        img = Image.open(compressed_image_paths[compression][0])
         img2 = img.resize((img.size[0] // 2, img.size[1] // 2))
         img3 = img.resize((img.size[0] // 3, img.size[1] // 3))
         arrays = list(map(np.array, [img, img2, img3]))
@@ -73,14 +73,27 @@ def test_multi_array(compression, compressed_image_paths):
 
 @pytest.mark.parametrize("compression", image_compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
-    path = compressed_image_paths[compression]
-    sample = hub.read(path, verify=True)
-    sample.compressed_bytes(compression)
-    verify_compressed_file(path, compression)
-    with open(path, "rb") as f:
-        verify_compressed_file(f, compression)
-    with open(path, "rb") as f:
-        verify_compressed_file(f.read(), compression)
+    for path in compressed_image_paths[compression]:
+        sample = hub.read(path)
+        sample_loaded = hub.read(path)
+        sample_loaded.compressed_bytes(compression)
+        sample_verified_and_loaded = hub.read(path, verify=True)
+        sample_verified_and_loaded.compressed_bytes(compression)
+        pil_image_shape = np.array(Image.open(path)).shape
+        assert (
+            sample.shape
+            == sample_loaded.shape
+            == sample_verified_and_loaded.shape
+            == pil_image_shape
+        ), (
+            sample.shape,
+            sample_loaded.shape,
+            sample_verified_and_loaded.shape,
+            pil_image_shape,
+        )
+        verify_compressed_file(path, compression)
+        with open(path, "rb") as f:
+            verify_compressed_file(f, compression)
     if compression in corrupt_image_paths:
         path = corrupt_image_paths[compression]
         sample = hub.read(path)

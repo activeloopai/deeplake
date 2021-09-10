@@ -1,3 +1,4 @@
+from hub.constants import LOCAL_CACHE_PREFIX
 from typing import List, Optional
 from uuid import uuid1
 
@@ -74,7 +75,9 @@ def generate_chain(
     size_list.append(memory_cache_size)
 
     if local_cache_size > 0:
-        storage_list.append(LocalProvider(f"~/.activeloop/cache/{cached_dataset_name}"))
+        storage_list.append(
+            LocalProvider(f"{LOCAL_CACHE_PREFIX}/{cached_dataset_name}")
+        )
         size_list.append(local_cache_size)
     storage_list.append(base_storage)
     return get_cache_chain(storage_list, size_list)
