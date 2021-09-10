@@ -102,10 +102,10 @@ def get_input_tile_view(
 
 
 def get_output_tile_view(
-    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
 ) -> np.ndarray:
 
-    low, high = get_tile_bounds(tile_index, tile.shape)
+    low, high = get_tile_bounds(tile_index, tile_shape)
     return subslice_index.apply_restricted(tile, bias=low)
 
 
@@ -117,15 +117,17 @@ def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index:
 
 
 def get_output_sample_view(
-    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
 ) -> np.ndarray:
 
-    low, high = get_tile_bounds(tile_index, sample.shape)
+    low, high = get_tile_bounds(tile_index, tile_shape)
     return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
 
 def get_tile_view_on_sample(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
     # TODO: docstring (used for breaking sample into tiles)
+
+    # TODO: maybe this method is duplicate logic?
 
     low, high = get_tile_bounds(tile_index, tile_shape)
 

@@ -3,10 +3,8 @@ import hub
 from hub.util.chunks import chunk_name_from_id
 from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
-    align_sample_and_tile,
     approximate_num_bytes,
     get_input_sample_view,
-    get_tile_view_on_sample,
     get_input_tile_view,
     get_output_sample_view,
     get_output_tile_view,
@@ -920,6 +918,8 @@ class ChunkEngine:
             return subslice_index.apply([sample], include_first_value=True)[0]
 
         tile_encoder = self.tile_encoder
+        tile_shape = tile_encoder.get_tile_shape(global_sample_index)
+
         full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
         sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
         sample = np.zeros(sample_shape, dtype=dtype)
@@ -929,9 +929,8 @@ class ChunkEngine:
                 continue
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
-            # tile_view = get_output_tile_view(tile, subslice_index, tile_index)
-            # sample_view = get_output_sample_view(sample, subslice_index, tile_index)
-            tile_view, sample_view = align_sample_and_tile(sample, tile, subslice_index, tile_index)
+            tile_view = get_output_tile_view(tile, subslice_index, tile_index, tile_shape)
+            sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape)
 
             sample_view[:] = tile_view
 
