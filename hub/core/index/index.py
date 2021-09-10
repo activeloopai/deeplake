@@ -317,10 +317,8 @@ class IndexEntry:
         if isinstance(self.value, slice):
             s = self.value
 
-            if is_trivial_slice(s):
-                new_slice = slice(None, None)
-            elif s.start is None:
-                new_slice = slice(None, _bias(s.stop), s.step)
+            if is_trivial_slice(self.value):
+                new_slice = slice(_bias(s.start), None, s.step)
             else:
                 new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
 
@@ -344,7 +342,6 @@ class IndexEntry:
                 new_slice = slice(0, delta, s.step)
 
             return IndexEntry(new_slice)
-
 
         raise NotImplementedError
 
@@ -514,10 +511,9 @@ class Index:
         dim_values = self.values
 
         dims_left = len(sample.shape) - len(dim_values)
-        if dims_left < 0:
-            raise Exception
-        for _ in range(dims_left):
-            dim_values.append(IndexEntry(slice(None)))
+        if dims_left > 0:
+            for _ in range(dims_left):
+                dim_values.append(IndexEntry(slice(None)))
 
         biased_values = []
         for i, value in enumerate(self.values):
@@ -537,7 +533,7 @@ class Index:
 
             biased_values.append(biased_value)
 
-        return sample[tuple(biased_values)]
+        return np.squeeze(sample[tuple(biased_values)])
 
     def is_trivial(self) -> bool:
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
