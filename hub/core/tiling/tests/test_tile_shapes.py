@@ -2,7 +2,7 @@ from hub.core.compression import get_compression_factor
 import hub
 from re import A
 import numpy as np
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, MB, UNSPECIFIED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, KB, MB, UNSPECIFIED
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.tiling.optimize import TileOptimizer
@@ -43,7 +43,7 @@ def _assert_valid(optimizer, sample_shape, expected_num_tiles=None, compression_
     compression_factor = compression_factor or get_compression_factor(tensor_meta)
     nbytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta.dtype, compression_factor)
 
-    msg = f"tile_shape={tile_shape}, num_tiles={actual_num_tiles}, num_bytes_per_tile={nbytes_per_tile}"
+    msg = f"tile_shape={tile_shape}, num_tiles={actual_num_tiles}, num_bytes_per_tile={nbytes_per_tile}, sample_shape={sample_shape}"
 
     if expected_num_tiles is not None:
         assert actual_num_tiles == expected_num_tiles, msg
@@ -96,17 +96,22 @@ def test_complex(sample_shape, compression):
     optimizer.optimize(sample_shape)
     _assert_valid(optimizer, sample_shape)
 
-@tile_test_compressions
-def test_explicit_factor(compression):
-    sample_shape = (5000, 5000, 3)
+
+# sample_shape, sample_compression, compression_factor, expected_num_tiles
+@pytest.mark.parametrize(
+    "config",
+    [
+        [(90, 100, 3), None, 1, 9],
+    ]
+)
+def test_explicit_factor(config):
+    sample_shape, compression, compression_factor, expected_num_tiles = config
 
     optimizer = _get_optimizer(compression)
 
-    nbytes_uncompressed = 512 * MB
-    nbytes_compressed = 128 * MB
-    factor = nbytes_uncompressed // nbytes_compressed
-
-    optimizer.optimize(sample_shape, compression_factor=factor, validate=True)
+    optimizer.min_chunk_size = 10 * KB
+    optimizer.max_chunk_size = 20 * KB
+    optimizer.optimize(sample_shape, compression_factor=compression_factor, validate=True)
 
     # no matter the compression, it should always be consistent since compression factor is determined
-    _assert_valid(optimizer, sample_shape, expected_num_tiles=4, compression_factor=factor)
+    _assert_valid(optimizer, sample_shape, expected_num_tiles=expected_num_tiles, compression_factor=compression_factor)

@@ -6,9 +6,6 @@ from hub.constants import B, KB
 from hub.tests.common import assert_array_lists_equal, compressions
 
 
-# consistent tile shape predictions
-np.random.seed(1)
-
 
 def _get_random_image(shape):
     return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
@@ -164,7 +161,7 @@ def test_append(local_ds, compression, tatevik):
     local_ds.image.append(large2.copy())
     _assert_num_chunks(local_ds.image.num_chunks, 9, compression)
     local_ds.image.append(hub.read(tatevik))
-    _assert_num_chunks(local_ds.image.num_chunks, 73, compression)
+    _assert_num_chunks(local_ds.image.num_chunks, 65, compression)
 
     assert local_ds.image.shape_interval.lower == (4, 10, 10, 1)
     assert local_ds.image.shape_interval.upper == (4, 496, 498, 4)
