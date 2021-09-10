@@ -43,6 +43,7 @@ def commit(
     copy_metas(
         stored_commit_id, version_state["commit_id"], storage, version_state["tensors"]
     )
+    storage.flush()
 
 
 def checkout(
@@ -98,6 +99,7 @@ def checkout(
             storage,
             version_state["tensors"],
         )
+        storage.flush()
     else:
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
@@ -140,8 +142,6 @@ def copy_metas(
             storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
         except Exception:
             pass
-
-    storage.flush()
 
 
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
