@@ -41,6 +41,9 @@ def get_tile_bounds(
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     # TODO: docstring
 
+    if tile_index is None:
+        tile_index = (0,) * len(tile_shape)
+
     # TODO: note: this ONLY works when tile_shapes are uniform for a sample!
     low, high = [], []
 
@@ -72,19 +75,6 @@ def get_tile_mask(
     return mask
 
 
-def view_sample_as_tile(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
-    # TODO: docstring
-
-    low, high = get_tile_bounds(tile_index, tile_shape)
-
-    slices = []
-    for low_dim, high_dim in zip(low, high):
-        slices.append(slice(low_dim, high_dim))
-    slices = tuple(slices)
-
-    return sample[slices]
-
-
 def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]=None):
     # TODO: docstring
 
@@ -102,19 +92,36 @@ def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: 
     return tile_view, incoming_sample_view
 
 
-def get_tile_view(
+def get_input_tile_view(
     tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
 ) -> np.ndarray:
-    raise NotImplementedError
+
+    low = get_tile_bounds(tile_index, tile.shape)
+    return subslice_index.apply_restricted(tile, bias=low)
 
 
-def get_input_sample_view(
-    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+def get_output_tile_view(
+    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
 ) -> np.ndarray:
+
     raise NotImplementedError
+
+
+def get_input_sample_view(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
+    # TODO: docstring
+
+    low, high = get_tile_bounds(tile_index, tile_shape)
+
+    slices = []
+    for low_dim, high_dim in zip(low, high):
+        slices.append(slice(low_dim, high_dim))
+    slices = tuple(slices)
+
+    return sample[slices]
 
 
 def get_output_sample_view(
     sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
 ) -> np.ndarray:
+
     raise NotImplementedError

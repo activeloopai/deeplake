@@ -5,9 +5,10 @@ from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
     approximate_num_bytes,
     get_input_sample_view,
+    get_input_tile_view,
     get_output_sample_view,
+    get_output_tile_view,
     get_tile_mask,
-    get_tile_view,
     num_bytes_without_compression,
     num_tiles_for_sample,
 )
@@ -724,8 +725,8 @@ class ChunkEngine:
                     if expected_subslice_shape != input_sample.shape:
                         raise InvalidSubsliceUpdateShapeError(input_sample.shape, expected_subslice_shape)
 
-                    tile_view = get_tile_view(tile, tile_index, subslice_index)
-                    incoming_sample_view = get_input_sample_view(input_sample, tile_index, subslice_index)
+                    tile_view = get_input_tile_view(tile, subslice_index, tile_index)
+                    incoming_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index)
 
                     tile_view[:] = incoming_sample_view
                     new_sample = tile
@@ -927,8 +928,8 @@ class ChunkEngine:
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
 
-            tile_view = get_tile_view(tile, tile_index, subslice_index)
-            sample_view = get_output_sample_view(sample, tile_index, subslice_index)
+            tile_view = get_output_tile_view(tile, subslice_index, tile_index)
+            sample_view = get_output_sample_view(sample, subslice_index, tile_index)
 
             sample_view[:] = tile_view
 

@@ -1,4 +1,4 @@
-from hub.util.tiles import view_sample_as_tile
+from hub.util.tiles import get_input_sample_view
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -367,7 +367,7 @@ def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[
             shape = tile_shape
 
         else:
-            tile_array = view_sample_as_tile(sample_array, tile_shape, tile_index)
+            tile_array = get_input_sample_view(sample_array, tile_shape, tile_index)
             buffer, shape = serialize_input_sample(tile_array, tensor_meta)
             assert tile_array.shape == shape
             tile_buffers[tile_index] = memoryview(buffer)
