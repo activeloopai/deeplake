@@ -1,12 +1,11 @@
-from hub.core.storage.lru_cache import LRUCache
 import time
 import hashlib
 import pickle
 from typing import Any, Dict
 
 from hub.core.version_control.version_node import VersionNode  # type: ignore
-from hub.core.version_control.version_chunk_list import VersionChunkList # type: ignore
-from hub.core.storage import StorageProvider
+from hub.core.version_control.version_chunk_list import VersionChunkList  # type: ignore
+from hub.core.storage import LRUCache
 from hub.util.exceptions import CheckoutError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -162,6 +161,7 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
         )
         checkout(version_state, storage, auto_branch, True)
 
+
 def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     commit_id = version_state["commit_id"]
     for tensor in version_state["tensors"].keys():
@@ -172,7 +172,10 @@ def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
                 return True
     return False
 
-def version_chunk_list_exists(version_state: Dict[str, Any], storage: LRUCache, tensor: str) -> bool:
+
+def version_chunk_list_exists(
+    version_state: Dict[str, Any], storage: LRUCache, tensor: str
+) -> bool:
     try:
         commit_id = version_state["commit_id"]
         key = get_tensor_version_chunk_list_key(tensor, commit_id)

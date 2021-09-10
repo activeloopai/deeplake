@@ -186,7 +186,7 @@ class ChunkEngine:
 
     @property
     def version_chunk_list_exists(self) -> bool:
-        version_chunk_list_exists(self.version_state, self.meta_cache, self.key)
+        return version_chunk_list_exists(self.version_state, self.meta_cache, self.key)
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
