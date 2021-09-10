@@ -74,6 +74,7 @@ def test_multi_array(compression, compressed_image_paths):
 @pytest.mark.parametrize("compression", image_compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     for path in compressed_image_paths[compression]:
+        print(path)
         sample = hub.read(path)
         sample_loaded = hub.read(path)
         sample_loaded.compressed_bytes(compression)
