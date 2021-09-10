@@ -100,3 +100,21 @@ def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: 
     incoming_sample_view = subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
     return tile_view, incoming_sample_view
+
+
+def get_tile_view(
+    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+) -> np.ndarray:
+    raise NotImplementedError
+
+
+def get_input_sample_view(
+    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+) -> np.ndarray:
+    raise NotImplementedError
+
+
+def get_output_sample_view(
+    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]
+) -> np.ndarray:
+    raise NotImplementedError

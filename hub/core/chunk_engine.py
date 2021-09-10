@@ -3,9 +3,11 @@ import hub
 from hub.util.chunks import chunk_name_from_id
 from hub.core.tiling.optimize import TileOptimizer
 from hub.util.tiles import (
-    align_sample_and_tile,
     approximate_num_bytes,
+    get_input_sample_view,
+    get_output_sample_view,
     get_tile_mask,
+    get_tile_view,
     num_bytes_without_compression,
     num_tiles_for_sample,
 )
@@ -665,13 +667,13 @@ class ChunkEngine:
         # update one sample at a time
         iterator = value0_index.values[0].indices(self.num_samples)
         for i, global_sample_index in enumerate(iterator):
-            incoming_sample = incoming_samples[i]
+            input_sample = incoming_samples[i]
 
-            if isinstance(incoming_sample, Sample):
-                incoming_sample = incoming_sample.array
+            if isinstance(input_sample, Sample):
+                input_sample = input_sample.array
 
-            if not isinstance(incoming_sample, np.ndarray):
-                incoming_sample = np.asarray(incoming_sample).astype(dtype)
+            if not isinstance(input_sample, np.ndarray):
+                input_sample = np.asarray(input_sample).astype(dtype)
 
             local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
                 global_sample_index
@@ -695,7 +697,7 @@ class ChunkEngine:
 
                 if is_full_sample_replacement:
                     # no need to read the sample, just purely replace
-                    new_sample = incoming_sample
+                    new_sample = input_sample
 
                 else:
 
@@ -719,10 +721,12 @@ class ChunkEngine:
                         full_sample_shape = tile.shape
                     
                     expected_subslice_shape = subslice_index.shape_if_applied_to(full_sample_shape, squeeze=True)
-                    if expected_subslice_shape != incoming_sample.shape:
-                        raise InvalidSubsliceUpdateShapeError(incoming_sample.shape, expected_subslice_shape)
+                    if expected_subslice_shape != input_sample.shape:
+                        raise InvalidSubsliceUpdateShapeError(input_sample.shape, expected_subslice_shape)
 
-                    tile_view, incoming_sample_view = align_sample_and_tile(incoming_sample, tile, subslice_index, tile_index)
+                    tile_view = get_tile_view(tile, tile_index, subslice_index)
+                    incoming_sample_view = get_input_sample_view(input_sample, tile_index, subslice_index)
+
                     tile_view[:] = incoming_sample_view
                     new_sample = tile
 
@@ -921,7 +925,11 @@ class ChunkEngine:
             if tile_obj is None:
                 continue
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
-            tile_view, sample_view = align_sample_and_tile(sample, tile, subslice_index, tile_index)
+
+
+            tile_view = get_tile_view(tile, tile_index, subslice_index)
+            sample_view = get_output_sample_view(sample, tile_index, subslice_index)
+
             sample_view[:] = tile_view
 
         return sample

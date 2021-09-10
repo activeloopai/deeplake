@@ -169,7 +169,10 @@ def test_append(local_ds, compression, tatevik):
     assert local_ds.image.shape_interval.lower == (4, 10, 10, 1)
     assert local_ds.image.shape_interval.upper == (4, 496, 498, 4)
 
-    expected = [large1, small, large2]
+    np.testing.assert_array_equal(small, local_ds.image[1].numpy())
+    np.testing.assert_array_equal(large1, local_ds.image[0, 0:90, 0:100, 0:3].numpy())
+
+    expected = [large1, small, large2, hub.read(tatevik).array]
     assert_array_lists_equal(expected, local_ds.image.numpy(aslist=True))
 
 
