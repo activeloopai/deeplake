@@ -51,9 +51,7 @@ def checkout(
 ) -> None:
     if address in version_state["branch_commit_map"].keys():
         if create:
-            raise CheckoutError(
-                f"Can't create a new branch. Branch '{address}' already exists."
-            )
+            raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
         version_state["branch"] = address
         version_state["commit_id"] = version_state["branch_commit_map"][address]
         version_state["commit_node"] = version_state["commit_node_map"][
@@ -62,7 +60,7 @@ def checkout(
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
-                f"Can't create a new branch. Commit '{address}' already exists."
+                f"Can't create new branch, commit '{address}' already exists."
             )
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
@@ -83,20 +81,18 @@ def checkout(
             )
             checkout(version_state, storage, original_commit_id, False)
         original_commit_id = version_state["commit_id"]
-        version_state["branch"] = address
         new_commit_id = generate_hash()
-        new_node = VersionNode(version_state["branch"], new_commit_id)
+        new_node = VersionNode(address, new_commit_id)
         new_node.parent = version_state["commit_node"]
-        version_state["commit_node"] = new_node
         version_state["commit_id"] = new_commit_id
-        version_state["commit_node_map"][version_state["commit_id"]] = new_node
-        version_state["branch_commit_map"][version_state["branch"]] = version_state[
-            "commit_id"
-        ]
+        version_state["commit_node"] = new_node
+        version_state["branch"] = address
+        version_state["commit_node_map"][new_commit_id] = new_node
+        version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
         copy_metas(
             original_commit_id,
-            version_state["commit_id"],
+            new_commit_id,
             storage,
             version_state["tensors"],
         )
