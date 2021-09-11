@@ -720,6 +720,7 @@ class ChunkEngine:
                     else:
                         tile_index = None
                         full_sample_shape = tile.shape
+                        tile_shape = tile.shape
                     
                     expected_subslice_shape = subslice_index.shape_if_applied_to(full_sample_shape, squeeze=True)
                     if expected_subslice_shape != input_sample.shape:
