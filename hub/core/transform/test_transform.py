@@ -67,6 +67,7 @@ def test_single_transform_hub_dataset(ds, scheduler):
     ):
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+        data_in.delete()
         return
 
     fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
@@ -107,6 +108,7 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
             fn2(copy=1, mul=2).eval(
                 data_in, ds_out, num_workers=num_workers, scheduler=scheduler
             )
+        data_in.delete()
         return
     fn2(copy=1, mul=2).eval(
         data_in, ds_out, num_workers=num_workers, scheduler=scheduler

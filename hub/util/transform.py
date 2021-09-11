@@ -183,7 +183,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             "serial",
             "threaded",
         ]:
-            raise InvalidOutputDatasetError(
+            raise InvalidInputDataError(
                 f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
             )
 
