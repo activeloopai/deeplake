@@ -98,39 +98,13 @@ class TileOptimizer:
         return _clamp(proposal, sample_shape)
 
     
-    def _random_delta(self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...], use_temperature: bool=True) -> int:
-        # TODO: docstring
-
-        assert self.num_unfrozen_dims > 0
-
-        mask = self.unfrozen_dim_mask
-
-        assert len(tile_shape) == len(sample_shape)
-
-        delta = np.zeros(self.num_unfrozen_dims, dtype=INTERM_DTYPE)
-
-        # TODO change this and optimize number of iterations
-        max_magnitude = 1
-        # if use_temperature:
-            # max_magnitude = int(max(1, max_magnitude * self.temperature))
-
-        action = np.random.choice([0, 1])
-        if action == 0:
-            delta += np.random.randint(-max_magnitude, max_magnitude + 1)
-        else:
-            i = np.random.choice(range(self.num_unfrozen_dims))
-            delta[i] += np.random.randint(-max_magnitude, max_magnitude + 1)
-
-        delta[delta == 0] = np.random.choice([-1, 1])
-
-        return delta
-
-    
     def _perturbate_tile_shape(
         self,
         tile_shape: np.ndarray,
         sample_shape: Tuple[int, ...],
-        use_temperature: bool=True
+        unfrozen_dim_mask: np.ndarray,
+        allow_single_dim_only: bool,
+        max_magnitude: int = 1000,
     ) -> np.ndarray:
         """Pertubrate the tile shape in a random direction, only where `unfrozen_dim_mask` is True.
         Args:
@@ -145,39 +119,33 @@ class TileOptimizer:
 
         new_tile_shape = tile_shape.copy()
 
-        # delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
-        # delta_view = delta[unfrozen_dim_mask]
+        delta = np.zeros(new_tile_shape.shape, dtype=INTERM_DTYPE)
+        delta_view = delta[unfrozen_dim_mask]
 
-        # random_magnitude = np.random.uniform(-max_magnitude, max_magnitude + 1)
-        # if random_magnitude == 0:
-        #     random_magnitude = 1
-        # if use_temperature:
-        #     random_magnitude *= self.temperature
+        random_magnitude = np.random.uniform(-max_magnitude, max_magnitude + 1)
+        if random_magnitude == 0:
+            random_magnitude = 1
 
-        # if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
-        #     # isolate a single dimension to perturbate, do so with a magnitude of 1
-        #     i = np.random.choice(range(delta_view.size))
-        #     random_magnitude = abs(random_magnitude)
-        #     delta_view[i] = np.random.choice([-random_magnitude, random_magnitude])
-        # else:
-        #     # all dims should have the same delta
-        #     delta_view[:] = random_magnitude
+        if allow_single_dim_only and np.random.uniform() < CHANCE_FOR_SINGLE_DIM_ONLY:
+            # isolate a single dimension to perturbate, do so with a magnitude of 1
+            i = np.random.choice(range(delta_view.size))
+            random_magnitude = abs(random_magnitude * self.temperature)
+            delta_view[i] = np.random.choice([-random_magnitude, random_magnitude])
+        else:
+            # all dims should have the same delta
+            delta_view[:] = random_magnitude
 
-        # new_tile_shape[unfrozen_dim_mask] += delta_view
-        
-
-        delta = self._random_delta(tile_shape, sample_shape, use_temperature=use_temperature)
-        new_tile_shape[self.unfrozen_dim_mask] += delta
+        new_tile_shape[unfrozen_dim_mask] += delta_view
+        new_tile_shape = _clamp(new_tile_shape, sample_shape)
 
         if np.all(new_tile_shape == tile_shape):
-            return self._perturbate_tile_shape(tile_shape, sample_shape, use_temperature=use_temperature)
+            return self._perturbate_tile_shape(tile_shape, sample_shape, unfrozen_dim_mask, allow_single_dim_only, max_magnitude=max_magnitude)
 
-        new_tile_shape = _clamp(new_tile_shape, sample_shape)
         return new_tile_shape
 
 
     def _anneal_tile_shape(
-        self, sample_shape: Tuple[int, ...], max_iterations: int = 5000
+        self, sample_shape: Tuple[int, ...], max_iterations: int = 2000
     ) -> Tuple[Tuple[int, ...], List[Dict]]:
         """Use simulated annealing to find a tile shape that is between the min / max chunk size of `tensor_meta`.
         Simulated Annealing:
@@ -190,10 +158,10 @@ class TileOptimizer:
             Tuple[Tuple[int], List[Dict]]: Tile shape and history of simulated annealing.
         """
 
+        min_single_dim_iterations = int(SINGLE_DIM_MIN_ITERATION_PERCENTAGE * max_iterations)
+
         tile_shape = self._initial_tile_shape(sample_shape)
-        self.unfrozen_dim_mask = tile_shape != sample_shape
-        self.num_unfrozen_dims = np.sum(self.unfrozen_dim_mask)
-        assert self.num_unfrozen_dims != 0, f"All dimensions shouldn't be frozen. This is probably because the sample shape is too small for the min/max chunk size. tile_shape={tile_shape}, sample_shape={sample_shape}"
+        unfrozen_dim_mask = tile_shape != sample_shape
 
         self.current_iteration = 0
         best_shape = tile_shape
@@ -202,9 +170,11 @@ class TileOptimizer:
 
         # minimize energy with respect to tile shape
         while self.current_iteration < max_iterations:
+            allow_single_dim_only = self.current_iteration > min_single_dim_iterations
+
             self.temperature = 1 - ((self.current_iteration) / max_iterations) ** 2
             new_tile_shape = self._perturbate_tile_shape(
-                tile_shape, sample_shape
+                tile_shape, sample_shape, unfrozen_dim_mask, allow_single_dim_only
             )
 
             energy = self._energy(tile_shape, sample_shape)
