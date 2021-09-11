@@ -51,7 +51,7 @@ def crop_image(sample_in, samples_out, copy=1):
 @all_schedulers
 @enabled_datasets
 def test_single_transform_hub_dataset(ds, scheduler):
-    data_in = hub.dataset("./test/transform_hub_in_generic", overwrite=True)
+    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
@@ -89,7 +89,7 @@ def test_single_transform_hub_dataset(ds, scheduler):
 @enabled_datasets
 @parametrize_num_workers
 def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
-    data_in = hub.dataset("./test/transform_hub_in_htypes", overwrite=True)
+    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
