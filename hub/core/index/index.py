@@ -318,7 +318,6 @@ class IndexEntry:
             s = self.value
 
             if is_trivial_slice(self.value):
-                print(s.start, amount)
                 new_slice = slice(_bias(s.start), None, s.step)
             else:
                 new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
@@ -327,17 +326,17 @@ class IndexEntry:
 
         raise NotImplementedError
 
-    def normalize(self) -> "IndexEntry":
+    def normalize(self, low_value: int=0) -> "IndexEntry":
         # TODO: docstring
 
         if isinstance(self.value, int):
-            return IndexEntry(0)
+            return IndexEntry(low_value)
 
         if isinstance(self.value, slice):
             s = self.value
 
             if is_trivial_slice(s):
-                new_slice = slice(None, None)
+                new_slice = slice(low_value, None)
             elif s.start is None:
                 new_slice = s
             else:
@@ -345,7 +344,7 @@ class IndexEntry:
                     delta = s.start
                 else:
                     delta = abs(s.stop - s.start)
-                new_slice = slice(0, delta, s.step)
+                new_slice = slice(low_value, delta + low_value, s.step)
 
             return IndexEntry(new_slice)
 
@@ -524,7 +523,7 @@ class Index:
         # TODO: docstring
 
         self.add_trivials(len(sample.shape))
-        
+
         biased_values = []
         for i, value in enumerate(self.values):
             biased_entry = value
