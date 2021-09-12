@@ -99,7 +99,14 @@ def get_input_tile_view(
 
     low, high = get_tile_bounds(tile_index, tile_shape)
 
-    return subslice_index.apply_restricted(tile, bias=low)
+    # return subslice_index.apply_restricted(tile, bias=low)
+    subslice_index.add_trivials(len(tile.shape))
+
+    values = []
+    for i, entry in enumerate(subslice_index.values):
+        values.append(entry.with_bias(-low[i]).value)
+
+    return tile[tuple(values)]
 
 
 def get_output_tile_view(
