@@ -41,22 +41,17 @@ _JPEG_SOFS = [
     b"\xff\xce",
     b"\xff\xcf",
     b"\xff\xde",
-
     # Skip:
     b"\xff\xcc",
     b"\xff\xdc",
     b"\xff\xdd",
     b"\xff\xdf",
-
     # App: (0xFFE0 - 0xFFEF):
     *map(lambda x: x.to_bytes(2, "big"), range(0xFFE0, 0xFFF0)),
-
     # DQT:
     b"\xff\xdb",
-
     # COM:
     b"\xff\xfe",
-
     # Start of scan
     b"\xff\xda",
 ]
@@ -317,7 +312,7 @@ def _verify_jpeg_buffer(buf: bytes):
         if marker == _JPEG_SOFS[-1]:
             break
         elif marker in _JPEG_SKIP_MARKERS:
-            offset += int.from_bytes(buf[idx + 2: idx + 4], "big")
+            offset += int.from_bytes(buf[idx + 2 : idx + 4], "big")
         else:
             sof_idx = idx
             offset = idx + 2
@@ -461,9 +456,11 @@ def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
         return _read_jpeg_shape_from_file(f)
     return _read_jpeg_shape_from_buffer(f)  # type: ignore
 
+
 def _re_find_first(pattern, string):
     for match in re.finditer(pattern, string):
         return match
+
 
 def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
@@ -516,7 +513,7 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
         if marker == _JPEG_SOFS[-1]:
             break
         elif marker in _JPEG_SKIP_MARKERS:
-            offset += int.from_bytes(buf[idx + 2: idx + 4], "big")
+            offset += int.from_bytes(buf[idx + 2 : idx + 4], "big")
         else:
             sof_idx = idx
             offset = idx + 2
