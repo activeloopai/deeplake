@@ -737,7 +737,7 @@ def test_hierarchical_tensors(local_ds_generator):
 
     ds = local_ds_generator()
     c = ds.y.z.a.b.c
-    assert c.parent.group_index == ds.y.z.a.b.group_index
+    assert b.parent.group_index == ds.y.z.a.group_index
     np.testing.assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
     assert "d" in ds.y.z.a.b.groups
     e = ds.y.z.a.b.d.e
