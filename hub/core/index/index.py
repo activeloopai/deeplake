@@ -307,8 +307,8 @@ class IndexEntry:
             if v is None:
                 v = 0
             o = v + amount
-            if keep_positive and v < 0:
-                raise NotImplementedError()
+            if keep_positive and o < 0:
+                o = 0
             return o
 
         if isinstance(self.value, int):
