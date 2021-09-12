@@ -106,7 +106,8 @@ def get_input_tile_view(
     for i, entry in enumerate(subslice_index.values):
         values.append(entry.with_bias(-low[i]).value)
 
-    return tile[tuple(values)]
+    view = tile[tuple(values)]
+    return view
 
 
 def get_output_tile_view(
@@ -128,9 +129,13 @@ def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index:
 
     values = []
     for i, entry in enumerate(subslice_index.values):
-        values.append(entry.with_bias(low[i]).normalize().value)
+        new_entry = entry.with_bias(low[i])
+        new_entry = new_entry.clamp_upper(high[i])
+        new_entry = new_entry.normalize()
+        values.append(new_entry.value)
     
-    return sample[tuple(values)]
+    view = sample[tuple(values)]
+    return view
     
 
 
