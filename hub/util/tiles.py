@@ -135,14 +135,13 @@ def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index:
 
     values = []
     for i, entry in enumerate(subslice_index.values):
-        new_entry = entry.with_bias(-low[i])
-        new_entry = new_entry.clamp_upper(high[i])
+        new_entry = entry.clamp_upper(high[i])
+        new_entry = new_entry.with_bias(-low[i])
         new_entry = new_entry.normalize()
         values.append(new_entry.value)
     
     view = sample[tuple(values)]
     return view
-    
 
 
 def get_output_sample_view(
