@@ -152,21 +152,19 @@ def get_output_sample_view(
     to the user. Tile data has it's view restricted and then all the tiles data are gathered into `sample`."""
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    bias = np.asarray(low)
-    return subslice_index.apply_restricted(sample, bias=bias, upper_bound=high, normalize=True)
+    # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
     subslice_index.add_trivials(len(sample.shape))
+
+    values = []
+    for i, entry in enumerate(subslice_index.values):
+        new_entry = entry.clamp_upper(high[i])
+        new_entry = new_entry.with_bias(-low[i])
+        new_entry = new_entry.normalize()
+        values.append(new_entry.value)
     
-    low, high = get_tile_bounds(tile_index, tile_shape)
-
-    slices = []
-    for low_dim, high_dim in zip(low, high):
-        slices.append(slice(low_dim, high_dim))
-    slices = tuple(slices)
-
-    print(slices)
-
-    return sample[slices]
+    view = sample[tuple(values)]
+    return view
 
 
 def get_tile_view_on_sample(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
