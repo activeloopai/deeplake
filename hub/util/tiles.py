@@ -117,10 +117,18 @@ def get_input_tile_view(
 def get_output_tile_view(
     tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
 ) -> np.ndarray:
-
     low, high = get_tile_bounds(tile_index, tile_shape)
-    bias = np.asarray(low)
-    return subslice_index.apply_restricted(tile, bias=bias)
+
+    # return subslice_index.apply_restricted(tile, bias=low)
+    subslice_index.add_trivials(len(tile.shape))
+
+    values = []
+    for i, entry in enumerate(subslice_index.values):
+        new_entry = entry.with_bias(-low[i])
+        values.append(new_entry.value)
+
+    view = tile[tuple(values)]
+    return view
 
 
 def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
