@@ -115,7 +115,16 @@ def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index:
 ) -> np.ndarray:
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+    # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+
+    subslice_index.add_trivials(len(sample.shape))
+
+    values = []
+    for i, entry in enumerate(subslice_index.values):
+        values.append(entry.with_bias(low[i]).normalize().value)
+    
+    return sample[tuple(values)]
+    
 
 
 def get_output_sample_view(
