@@ -122,7 +122,7 @@ def transform_data_slice_and_append(
         result_resolved = {
             posixpath.join(group_index, k): result[k] for k in result.tensors
         }
-        result = result_resolved
+        result = result_resolved  # type: ignore
         if set(result.keys()) != set(tensors):
             raise TensorMismatchError(list(tensors), list(result.keys()))
         for tensor in result:
