@@ -173,7 +173,7 @@ def add_cache_to_dataset_slice(
     dataset_slice = hub.core.dataset.Dataset(
         cached_store,
         index=dataset_slice.index,
-        group_index=dataset_slice.group_index,
+        group_index=dataset_slice.group_index,  # type: ignore
         read_only=dataset_slice.read_only,
         verbose=False,
     )

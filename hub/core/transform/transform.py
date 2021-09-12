@@ -137,7 +137,7 @@ class Pipeline:
             store_data_slice,
             zip(
                 slices,
-                repeat((output_base_storage, ds_out.group_index)),
+                repeat((output_base_storage, ds_out.group_index)),  # type: ignore
                 repeat(tensors),
                 repeat(self),
             ),
