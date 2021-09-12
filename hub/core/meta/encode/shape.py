@@ -13,7 +13,7 @@ class ShapeEncoder(Encoder):
     def dimensionality(self) -> int:
         return len(self[0])
 
-    def _validate_incoming_item(self, shape: Tuple[int], _):
+    def _validate_incoming_item(self, shape: Tuple[int, ...], _):
         if self.num_samples > 0:
             last_shape = self[-1]  # TODO: optimize this
 
@@ -25,7 +25,7 @@ class ShapeEncoder(Encoder):
         super()._validate_incoming_item(shape, _)
 
     def _combine_condition(
-        self, shape: Tuple[int], compare_row_index: int = -1
+        self, shape: Tuple[int, ...], compare_row_index: int = -1
     ) -> bool:
         last_shape = self._derive_value(self._encoded[compare_row_index])
         return shape == last_shape

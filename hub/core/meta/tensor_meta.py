@@ -70,13 +70,10 @@ class TensorMeta(Meta):
         """Should only be called once."""
         ffw_tensor_meta(self)
 
-        if self.dtype is not None:
-            raise ValueError(
-                f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}."
-            )
-
         if self.length > 0:
-            raise ValueError("Dtype was None, but length was > 0.")
+            raise ValueError(
+                f"Cannot set the dtype for a tensor with a length > 0. Length: {self.length}."
+            )
 
         self.dtype = dtype.name
 

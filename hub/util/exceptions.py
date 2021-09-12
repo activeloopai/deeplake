@@ -555,3 +555,35 @@ class MemoryDatasetCanNotBePickledError(Exception):
 class CorruptedSampleError(Exception):
     def __init__(self, compression):
         super().__init__(f"Invalid {compression} file.")
+
+
+class UpdateSampleError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+class InvalidSubsliceUpdateShapeError(UpdateSampleError):
+    def __init__(self, samples_shape, index_shape):
+        super().__init__(
+            f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples_shape} Expected shape: {index_shape}"
+        )
+
+
+class TilingError(Exception):
+    pass
+
+
+class TileOptimizerError(TilingError):
+    def __init__(
+        self,
+        reason: str,
+        found_tile_shape: Tuple[int, ...],
+        overall_sample_shape: Tuple[int, ...],
+    ):
+        super().__init__(
+            f"{reason}. found_tile_shape={found_tile_shape}, overall_sample_shape={overall_sample_shape}"
+        )
+
+
+class CannotInferTilesError(TilingError):
+    def __init__(self, reason):
+        super().__init__(reason)

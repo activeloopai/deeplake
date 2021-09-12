@@ -72,6 +72,11 @@ def ffw_dataset_meta(dataset_meta, version):
 
 
 @ffw
+def ffw_tile_encoder(tile_encoder, version):
+    pass
+
+
+@ffw
 def ffw_tensor_meta(tensor_meta, version):
     if version in ("2.0.2", "2.0.3", "2.0.4", "2.0.5"):
         # these versions allowed tensors to have a dimensionality of 0

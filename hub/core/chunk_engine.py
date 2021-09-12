@@ -1,7 +1,25 @@
-from hub.core.fast_forwarding import ffw_chunk_id_encoder
+from random import sample
+import hub
+from hub.util.chunks import chunk_name_from_id
+from hub.core.tiling.optimize import TileOptimizer
+from hub.util.tiles import (
+    approximate_num_bytes,
+    get_input_sample_view,
+    get_input_tile_view,
+    get_output_sample_view,
+    get_output_tile_view,
+    get_tile_mask,
+    num_bytes_without_compression,
+    num_tiles_for_sample,
+)
+from hub.core.fast_forwarding import (
+    ffw_chunk_id_encoder,
+    ffw_tensor_meta,
+    ffw_tile_encoder,
+)
 import warnings
 from hub.util.casting import get_dtype, intelligent_cast
-from hub.core.compression import decompress_array
+from hub.core.compression import decompress_array, get_compression_factor, split_video
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
@@ -9,30 +27,44 @@ from hub.compression import (
     VIDEO_COMPRESSION,
 )
 from math import ceil
-from typing import Any, Optional, Sequence, Union, Tuple, List, Set
+from typing import Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
+    CannotInferTilesError,
     CorruptedMetaError,
+    CorruptedSampleError,
     DynamicTensorNumpyError,
+    InvalidSubsliceUpdateShapeError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.index.index import Index
+from hub.core.index.index import Index, IndexEntry
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.serialize import serialize_input_samples
+from hub.core.serialize import serialize_input_samples, serialize_input_tiles
 from hub.core.compression import compress_multiple, decompress_multiple
 
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
+    get_tile_encoder_key,
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE
-import hub
-from itertools import repeat
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, ENCODING_DTYPE
 
 import numpy as np
+
+from hub.core.storage.lru_cache import LRUCache
+
+from hub.core.chunk import Buffer, Chunk
+
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.meta.encode.tile import TileEncoder
+
+from hub.core.serialize import serialize_input_sample
+
+
+SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
 def is_uniform_sequence(samples):
@@ -121,6 +153,7 @@ class ChunkEngine:
         self.key = key
         self.cache = cache
         self._meta_cache = meta_cache
+        self.tile_optimizer = TileOptimizer(self.min_chunk_size, self.max_chunk_size, self.tensor_meta)
 
         if self.tensor_meta.chunk_compression:
             if (
@@ -140,6 +173,8 @@ class ChunkEngine:
                     if self.last_chunk
                     else []
                 )
+
+        self._warned_about_suboptimal_chunks = False
 
     @property
     def max_chunk_size(self):
@@ -169,6 +204,7 @@ class ChunkEngine:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
                 and their corresponding chunks.
         """
+
         key = get_chunk_id_encoder_key(self.key)
         if not self.chunk_id_encoder_exists:
             enc = ChunkIdEncoder()
@@ -186,6 +222,19 @@ class ChunkEngine:
             return True
         except KeyError:
             return False
+
+    @property
+    def tile_encoder(self) -> TileEncoder:
+        """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
+
+        key = get_tile_encoder_key(self.key)
+        if not key in self.meta_cache:
+            enc = TileEncoder()
+            self.meta_cache[key] = enc
+            return enc
+
+        enc = self.meta_cache.get_cachable(key, TileEncoder)
+        return enc
 
     @property
     def num_chunks(self) -> int:
@@ -220,35 +269,90 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
+    def _needs_multiple_chunks(self, nbytes: int) -> bool:
+        """Checks if the last chunk (if it exists) has room for `nbytes`. If not, 
+        check if it can fit in a single chunk or multiple."""
+
+        if self.last_chunk is None:
+            return nbytes > self.max_chunk_size
+
+        last_has_space = self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
+        if not last_has_space:
+            if nbytes <= self.max_chunk_size:
+                return False
+            return True
+
+        return False
+
+    def get_tile_shape(self, index: Index):
+        if not index.is_single_dim_effective():
+            raise IndexError("Cannot get the tile shape for a subsliced sample.")
+
+        tile_encoder = self.tile_encoder
+        
+        tile_shapes = []
+        for global_sample_index in index.values[0].indices(self.num_samples):
+
+            if global_sample_index in tile_encoder:
+                tile_shape = tile_encoder.get_tile_shape(global_sample_index)
+            else:
+                tile_shape = None
+
+            tile_shapes.append(tile_shape)
+
+        if len(tile_shapes) == 1:
+            return tile_shapes[0]
+        
+        return tile_shapes
+
+
     def _extend_bytes(
         self,
         buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
+        decompressed_samples: SampleValue,
     ):
         """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
-        num_samples = len(nbytes)
+            
         chunk = self.last_chunk
-        new_chunk = self._create_new_chunk
-        if chunk is None:
-            chunk = new_chunk()
+
+        need_new_chunk = False
+        if chunk is None or self._is_last_chunk_a_tile():
+            need_new_chunk = True
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
-        if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
-            chunk = self._create_new_chunk()
+        elif nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
+            need_new_chunk = True
 
         max_chunk_size = self.max_chunk_size
         min_chunk_size = self.min_chunk_size
         enc = self.chunk_id_encoder
 
+        sample_idx = 0
         while nbytes:  # len(nbytes) is initially same as number of incoming samples.
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
+            need_to_tile = False
+
             for nb in nbytes:  # len(nbytes) = samples remaining to be added to a chunk
+                if self._needs_multiple_chunks(nb):
+                    if num_samples_to_current_chunk > 0:
+                        break
+
+                    need_to_tile = True
+                    need_new_chunk = False
+                    num_samples_to_current_chunk += 1
+                    nbytes_to_current_chunk += nb
+                    break
+
+                if need_new_chunk:
+                    chunk = self._create_new_chunk()
+                    need_new_chunk = False
 
                 # Size of the current chunk if this sample is added to it
                 chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
@@ -261,13 +365,34 @@ class ChunkEngine:
                     chunk_future_size > min_chunk_size
                 ):  # Try to keep chunk size close to min_chunk_size
                     break
-            chunk.extend_samples(  # type: ignore
-                buffer[:nbytes_to_current_chunk],
-                max_chunk_size,
-                shapes[:num_samples_to_current_chunk],
-                nbytes[:num_samples_to_current_chunk],
-            )
-            enc.register_samples(num_samples_to_current_chunk)
+
+            current_buffer = buffer[:nbytes_to_current_chunk]
+            current_shapes = shapes[:num_samples_to_current_chunk]
+            current_nbytes = nbytes[:num_samples_to_current_chunk]
+            
+            if need_to_tile:
+                # TODO: create tiles with buffers
+
+                # sanity check (TODO: exception)
+                assert num_samples_to_current_chunk == 1 and len(current_shapes) == 1 and len(current_nbytes) == 1
+
+                current_shape = current_shapes[0]
+                current_nbyte = current_nbytes[0]
+                current_sample_array = _get_sample_array(decompressed_samples[sample_idx])
+
+                assert len(current_buffer) == current_nbyte
+
+                assert current_shape == current_sample_array.shape
+
+                self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
+            else:
+                chunk.extend_samples(  # type: ignore
+                    current_buffer,
+                    max_chunk_size,
+                    current_shapes,
+                    current_nbytes,
+                )
+                enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
             buffer = buffer[nbytes_to_current_chunk:]
@@ -277,39 +402,76 @@ class ChunkEngine:
             del shapes[:num_samples_to_current_chunk]
 
             if buffer:
-                chunk = new_chunk()
+                need_new_chunk = True
 
-    def _append_video_to_compressed_chunk(self, video: Sample):
+            sample_idx += num_samples_to_current_chunk
+
+    def _create_video_tiles(self, video: Sample):
+        tile_encoder = self.tile_encoder
+        chunk = self._create_new_chunk()
+        chunk_id_encoder.register_samples(1)
+        for buff, shape in split_video(video.path, self.min_chunk_size, return_shapes=True):
+            chunk._data = memoryview(tile)
+            chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)
+            tile_encoder.register_sample(idx, video.shape, shape)
+
+    def _append_video_samplewise_compression(self, video: Sample):
+        incoming_num_bytes = video.filesize
+        if incoming_num_bytes > self.min_chunk_size:
+            self._create_video_tiles(video)
+        else:
+            chunk_id_encoder = self.chunk_id_encoder
+            buff = video.compressed_bytes[self.tensor_meta.sample_compression]
+            if self._can_append_to_last_chunk(incoming_num_bytes):
+                chunk = self.last_chunk
+            else:
+                chunk = self._create_new_chunk()
+            chunk._make_data_bytearray()
+            chunk_data += buff
+            chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)
+            chunk_id_encoder.register_samples(1)
+
+    def _append_video_chunkwise_compression(self, video: Sample):
         chunk_compression = self.tensor_meta.chunk_compression
         video_paths = self._last_chunk_video_paths
-
         incoming_num_bytes = video.filesize
+        chunk_id_encoder = self.chunk_id_encoder
         if self._can_append_to_last_chunk(incoming_num_bytes):
             chunk = self.last_chunk
             video_paths.append(video.path)
             compressed_bytes = compress_multiple(video_paths, chunk_compression)
-        elif incoming_num_bytes > self.max_chunk_size:
-            # TODO tiling
-            raise NotImplementedError()
+        elif incoming_num_bytes > self.min_chunk_size:
+            self._create_video_tiles(video)
+            video_paths.clear()
+            return
         else:
+            chunk = self._create_new_chunk()
             # All samples except the last one are already in the previous chunk, so remove them from cache.
             del video_paths[:-1]
-            compressed_bytes = sample.compressed_bytes(chunk_compression)
+            compressed_bytes = video.compressed_bytes(chunk_compression)
         # Set chunk data
         chunk._data = compressed_bytes  # type: ignore
 
         # Byte positions are not relevant for video compressions, so incoming_num_bytes=None.
-        chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=sample.shape)  # type: ignore
+        chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=video.shape)  # type: ignore
+        chunk_id_encoder.register_samples(1)
 
-    def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int, ...]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
-        chunk_compression = self.tensor_meta.chunk_compression
+
+        tensor_meta = self.tensor_meta
+
+        chunk_compression = tensor_meta.chunk_compression
         last_chunk_uncompressed = self._last_chunk_uncompressed
+        
+        dtype = tensor_meta.dtype
+        if len(buffer) > 0:
+            array = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+        else:
+            array = np.zeros(shape, dtype=dtype)
 
         # Append incoming buffer to last chunk and compress:
-        last_chunk_uncompressed.append(
-            np.frombuffer(buffer, dtype=self.tensor_meta.dtype).reshape(shape)
-        )
+        last_chunk_uncompressed.append(array)
         compressed_bytes = compress_multiple(last_chunk_uncompressed, chunk_compression)
 
         # Check if last chunk can hold new compressed buffer.
@@ -335,23 +497,20 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int, ...], num_samples: int=1, use_last_tile: bool=False):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample. Can have a
+            buffer (Buffer): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
         """
-
-        # num samples is always 1 when appending
-        num_samples = 1
 
         if self.tensor_meta.chunk_compression:
             self._append_bytes_to_compressed_chunk(buffer, shape)
         else:
-            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
+            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape, allow_tile=use_last_tile)
             if not buffer_consumed:
                 self._append_to_new_chunk(buffer, shape)
 
@@ -362,11 +521,17 @@ class ChunkEngine:
         last_chunk = self.last_chunk
         if last_chunk is None:
             return False
+
+        if self._is_last_chunk_a_tile():
+            return False
+
         return nbytes <= self.min_chunk_size
 
     def _can_append_to_last_chunk(self, nbytes: int) -> bool:
         last_chunk = self.last_chunk
         if last_chunk is None:
+            return False
+        if self._is_last_chunk_a_tile():
             return False
         return len(last_chunk._data) + nbytes <= self.min_chunk_size
 
@@ -395,15 +560,23 @@ class ChunkEngine:
         chunk_id_key = get_chunk_id_encoder_key(self.key)
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
 
+        # synchronize tile encoder
+        tile_encoder_key = get_tile_encoder_key(self.key)
+        self.meta_cache[tile_encoder_key] = self.tile_encoder
+
+    def _is_last_chunk_a_tile(self):
+        # -2 because we increment tensor meta length before this function is called
+        return self.tensor_meta.length - 2 in self.tile_encoder
+
     def _try_appending_to_last_chunk(
-        self, buffer: memoryview, shape: Tuple[int]
+        self, buffer: Buffer, shape: Tuple[int, ...], allow_tile: bool=False
     ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
         Args:
-            buffer (memoryview): Data to store. This can represent any number of samples.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            buffer (Buffer): Data to store. This can represent any number of samples.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Returns:
             bool: True if `buffer` was successfully written to the last chunk, otherwise False.
@@ -411,6 +584,9 @@ class ChunkEngine:
 
         last_chunk = self.last_chunk
         if last_chunk is None:
+            return False
+
+        if not allow_tile and self._is_last_chunk_a_tile():
             return False
 
         incoming_num_bytes = len(buffer)
@@ -435,28 +611,42 @@ class ChunkEngine:
 
         return False
 
-    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_to_new_chunk(self, buffer: Buffer, shape: Tuple[int, ...]) -> Chunk:
         """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
         This should be called if `buffer` could not be added to the last chunk.
 
         Args:
-            buffer (memoryview): Data to store. This can represent any number of samples.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            buffer (Buffer): Data to store. This can represent any number of samples.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            Chunk: The newly created chunk instance.
         """
 
         # check if `last_chunk_extended` to handle empty samples
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
+        return new_chunk
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
+
+        # TODO: make these actual properties of the Chunk class
+        chunk.name = chunk_name
+        chunk.id = chunk_id
+
         return chunk
+
+    def _update_tensor_meta(self, shape: Tuple[int, ...], num_new_samples: int):
+        tensor_meta = self.tensor_meta
+        tensor_meta.update_shape_interval(shape)
+        tensor_meta.length += num_new_samples
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
@@ -469,95 +659,371 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
 
         chunk_compression = self.tensor_meta.chunk_compression
-
+        sample_compression = self.tensor_meta.sample_compression
         if (
-            chunk_compression
-            and get_compression_type(chunk_compression) == VIDEO_COMPRESSION
+            get_compression_type(chunk_compression) == VIDEO_COMPRESSION
         ):
             for sample in samples:
                 if not isinstance(sample, hub.core.Sample):
                     raise TypeError("Use hub.read to read video files.")
-                self._append_video_to_compressed_chunk(sample)
+                self._append_video_chunkwise_compression(sample)
                 tensor_meta.update_shape_interval(sample.shape)
-            return
+        elif get_compression_type(sample_compression) == VIDEO_COMPRESSION:
+            for sample in samples:
+                if not isinstance(sample, hub.core.Sample):
+                    raise TypeError("Use hub.read to read video files.")
+                self._append_video_samplewise_compression(sample)
+                tensor_meta.update_shape_interval(sample.shape)       
 
-        buff, nbytes, shapes = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size
-        )
-        for shape in shapes:
-            tensor_meta.update_shape_interval(shape)
-        tensor_meta.length += len(samples)
-        if chunk_compression:
-            for nb, shape in zip(nbytes, shapes):
-                self._append_bytes(buff[:nb], shape[:])  # type: ignore
-                buff = buff[nb:]
         else:
-            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+            buff, nbytes, shapes = serialize_input_samples(
+                samples, tensor_meta
+            )
+            for shape in shapes:
+                tensor_meta.update_shape_interval(shape)
+            tensor_meta.length += len(samples)
+            
+            if tensor_meta.chunk_compression:
+                for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
+                    current_buffer = buff[:nb]
+                    current_shape = shape[:]
+                    current_sample_array = _get_sample_array(samples[i])
+
+                    if self._needs_multiple_chunks(len(current_buffer)):
+                        self.create_tiles(current_shape, increment_length=False, buffer=current_buffer, array=current_sample_array)
+                    else:
+                        self._append_bytes(current_buffer, current_shape)  # type: ignore
+
+                    buff = buff[nb:]
+            else:
+                self._extend_bytes(buff, nbytes, shapes[:], samples)  # type: ignore
+
         self._synchronize_cache()
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
+
         self.extend([sample])
+
+    def extend_empty(self, shape: Tuple[int, ...]):
+        """Create an empty sample with `shape`. If `shape` exceeds a single chunk, a set of tiled placeholder chunks will be created.
+        These placeholder tile chunks can be filled with actual data later by updating."""
+
+        sample_shape = shape[1:]
+        for _ in range(shape[0]):
+            self.create_tiles(sample_shape)
 
     def update(
         self,
         index: Index,
-        samples: Union[Sequence[SampleValue], SampleValue],
+        incoming_samples: Union[Sequence[SampleValue], SampleValue],
         operator: Optional[str] = None,
+        retile: bool=True,
     ):
         """Update data at `index` with `samples`."""
+        # TODO: docstring
+
+        # TODO: break into smaller functions
 
         if operator is not None:
-            return self._update_with_operator(index, samples, operator)
+            return self._update_with_operator(index, incoming_samples, operator)
+
+        self.cache.check_readonly()
+        tensor_meta = self.tensor_meta
+        tile_encoder = self.tile_encoder
+        chunk_id_encoder = self.chunk_id_encoder
+
+        chunk_compression = tensor_meta.chunk_compression
+        dtype = tensor_meta.dtype
+
+        ffw_chunk_id_encoder(self.chunk_id_encoder)
+        ffw_tensor_meta(tensor_meta)
+        ffw_tile_encoder(tile_encoder)
+
+        value0_index, subslice_index = index.split_subslice()
+        is_full_sample_replacement = index.is_single_dim_effective()
+
+        # TODO: refac this
+        index_length: int = value0_index.shape[0]  # type: ignore
+        if index_length is None:
+            index_length = tensor_meta.length
+
+        incoming_samples = _make_sequence(incoming_samples, index_length)
+
+        chunks_nbytes_after_updates = []
+
+        # update one sample at a time
+        iterator = value0_index.values[0].indices(self.num_samples)
+        for i, global_sample_index in enumerate(iterator):
+            input_sample = incoming_samples[i]
+
+            if isinstance(input_sample, Sample):
+                input_sample = input_sample.array
+
+            if not isinstance(input_sample, np.ndarray):
+                input_sample = np.asarray(input_sample).astype(dtype)
+
+            local_sample_index = chunk_id_encoder.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+
+            tiles = self.download_required_tiles(
+                global_sample_index, subslice_index
+            )
+
+            is_tiled = tiles.size > 1
+
+            if retile and is_full_sample_replacement and is_tiled:
+                # TODO: implement sample re-tiling
+                raise NotImplementedError(
+                    "Re-tiling samples is not yet supported!"
+                )
+
+            for tile_index, tile_object in np.ndenumerate(tiles):
+                if tile_object is None:
+                    continue
+
+                if is_full_sample_replacement:
+                    # no need to read the sample, just purely replace
+                    new_sample = input_sample
+
+                else:
+
+                    tile = self.read_sample_from_chunk(global_sample_index, tile_object)
+                    tile = np.array(
+                        tile
+                    )  # memcopy necessary to support inplace updates using numpy slicing
+
+                    if is_tiled:
+                        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, tiles)
+                        full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
+
+                        # sanity check
+                        tile_shape = tile_shape_mask[tile_index]
+                        if tile.shape != tile_shape:
+                            raise CorruptedSampleError(
+                                f"Tile encoder has the incorrect tile shape. Tile shape: {tile.shape}, tile encoder shape: {tile_shape}"
+                            )
+                    else:
+                        tile_index = None
+                        full_sample_shape = tile.shape
+                        tile_shape = tile.shape
+                    
+                    expected_subslice_shape = subslice_index.shape_if_applied_to(full_sample_shape, squeeze=True)
+                    if expected_subslice_shape != input_sample.shape:
+                        raise InvalidSubsliceUpdateShapeError(input_sample.shape, expected_subslice_shape)
+
+                    tile_view = get_input_tile_view(tile, subslice_index, tile_index, tile_shape)
+                    input_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index, tile_shape)
+
+                    tile_view[:] = input_sample_view
+                    new_sample = tile
+
+                buffer, shape = serialize_input_sample(new_sample, tensor_meta)
+                tile_object.update_sample(local_sample_index, buffer, shape, chunk_compression=chunk_compression, dtype=dtype)
+
+                if is_full_sample_replacement:
+                    self._update_tensor_meta(shape, 0)
+
+                # we only care about warning regarding updates for non-finalized chunks
+                check_bytes = global_sample_index != tensor_meta.length - 1 and not is_tiled
+                if check_bytes:
+                    chunks_nbytes_after_updates.append(tile_object.nbytes)
+
+            # don't spam warnings
+            if not self._warned_about_suboptimal_chunks:
+                warned = _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size, is_tiled)
+                if warned:
+                    self._warned_about_suboptimal_chunks = warned
+
+            self._synchronize_cache()  # TODO: refac, sync metas + sync tiles separately
+            self._sync_tiles(tiles)
+            self.cache.maybe_flush()
+            self.meta_cache.maybe_flush()
+
+
+    def create_tiles(self, sample_shape: Tuple[int, ...], increment_length: bool=True, buffer: Buffer=None, array: np.ndarray=None):
+        # TODO: docstring (mention buffer should be compressed and represent only a single sample)
+
+        if buffer is None != array is None:
+            raise ValueError("Buffer and array must be both provided or both not provided.")
 
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta
-        enc = self.chunk_id_encoder
-        updated_chunks = set()
+        dtype = tensor_meta.dtype
+        if dtype is None:
+            raise CannotInferTilesError(
+                "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
+            )
+        dtype = np.dtype(dtype)
 
-        index_length = index.length(self.num_samples)
-        samples = _make_sequence(samples, index_length)
-        serialized_input_samples = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size
+        # TODO: functionize this
+        if buffer is None:
+            # for `append_empty`, we can only approximate
+            compression_factor = get_compression_factor(tensor_meta)
+            nbytes = approximate_num_bytes(sample_shape, dtype, compression_factor)
+        else:
+            nbytes = len(buffer)
+            compression_factor = num_bytes_without_compression(sample_shape, dtype) // nbytes
+
+        if self._needs_multiple_chunks(nbytes):
+            tile_shape = self.tile_optimizer.optimize(sample_shape, compression_factor)
+            num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
+
+            idx = self.num_samples
+            tile_encoder = self.tile_encoder
+
+            tile_encoder.register_sample(idx, sample_shape, tile_shape)
+
+            if increment_length:
+                self._update_tensor_meta(sample_shape, 1)
+            
+            tile_layout_shape = tile_encoder.get_tile_layout_shape(idx)
+            assert num_tiles == np.prod(tile_layout_shape)  # sanity check TODO exception (or remove num_tiles definition)
+
+            # tiled_buffers will be a numpy array of empty buffers if `array` is None
+            tiled_buffers, tiled_shapes = serialize_input_tiles(tile_shape, tile_layout_shape, array, tensor_meta)
+
+            i = 0
+            for tile_idx, tile_buffer in np.ndenumerate(tiled_buffers):
+                actual_tile_shape = tiled_shapes[tile_idx]
+
+                self._create_new_chunk()
+                self._append_bytes(tile_buffer, actual_tile_shape, num_samples=0 if i > 0 else 1, use_last_tile=True)
+                i += 1
+
+            # TODO: can probably get rid of tile encoder meta if we can store `tile_shape` inside of the chunk's ID!
+
+            # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method!!!!
+            self._synchronize_cache()
+            self.cache.maybe_flush()
+        else:
+            if buffer is not None:
+                raise NotImplementedError("Calling `create_tiles` can't be done with a buffer when the sample fits in a single chunk.")
+
+            empty_sample = np.zeros(sample_shape, dtype=tensor_meta.dtype)
+            self.append(empty_sample)
+
+    def sample_from_tiles(
+        self, global_sample_index: int, subslice_index: Index, dtype: np.dtype
+    ) -> np.ndarray:
+        # TODO: docstring
+
+        tiles = self.download_required_tiles(
+            global_sample_index, subslice_index
+        )
+        sample = self.coalesce_sample(
+            global_sample_index, tiles, subslice_index, dtype
         )
 
-        chunks_nbytes_after_updates = []
-        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        buffer, nbytes, shapes = serialized_input_samples
-        for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
-            global_sample_index = global_sample_indices[i]  # TODO!
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
-            tensor_meta.update_shape_interval(shape)
-            chunk.update_sample(
-                local_sample_index,
-                buffer[:nb],  # type: ignore
-                shape,
-                chunk_compression=self.tensor_meta.chunk_compression,
-                dtype=self.tensor_meta.dtype,
-            )
-            buffer = buffer[nb:]
-            updated_chunks.add(chunk)
+        return sample
 
-            # only care about deltas if it isn't the last chunk
-            if chunk.key != self.last_chunk_key:  # type: ignore
-                chunks_nbytes_after_updates.append(chunk.nbytes)
+    def _sync_tiles(self, tiles: np.ndarray):
+        # TODO: docstring
 
-        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
-        for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk  # type: ignore
+        for _, tile in np.ndenumerate(tiles):
+            if tile is not None:
+                self.cache[tile.key] = tile
 
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
+    def download_required_tiles(
+        self, global_sample_index: int, subslice_index: Index
+    ) -> np.ndarray:
+        # TODO: docstring
 
-        _warn_if_suboptimal_chunks(
-            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
+        chunk_id_encoder = self.chunk_id_encoder
+        tile_encoder = self.tile_encoder
+
+        tile_ids = chunk_id_encoder[global_sample_index]
+
+        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)  # type: ignore
+        tile_shape_mask = tile_encoder.get_tile_shape_mask(
+            global_sample_index, ordered_tile_ids
         )
+        tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
+        tiles = self.download_tiles(ordered_tile_ids, tile_mask)
+
+        return tiles
+
+    def download_tiles(
+        self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray
+    ) -> np.ndarray:
+        """Downloads the tiles and returns a numpy array of Chunk objects with the same shape.
+
+        Args:
+            ordered_tile_ids (np.ndarray): Array of tile (chunk) IDs with their shape in tile-order.
+            download_mask (np.ndarray): Boolean array with the same shape of `ordered_tile_ids`.
+                If the corresponding element is `True`, the chunk with it's ID will be downloaded.
+
+        Raises:
+            ValueError: If the shape of `ordered_tile_ids` and `download_mask` do not match.
+
+        Returns:
+            # TODO
+        """
+
+        if ordered_tile_ids.shape != download_mask.shape:
+            raise ValueError(
+                f"Tiles {ordered_tile_ids.shape} and the download mask {download_mask.shape} should be the same shape."
+            )
+
+        chunks = np.empty(ordered_tile_ids.shape, dtype=object)
+
+        for tile_index, tile_id in np.ndenumerate(ordered_tile_ids):
+            need_tile = download_mask[tile_index]
+
+            if need_tile:
+                tile = self.download_tile(tile_id)
+                chunks[tile_index] = tile
+
+        return chunks
+
+    def download_tile(self, tile_id: ENCODING_DTYPE) -> Chunk:
+        # TODO: docstring
+
+        chunk_name = chunk_name_from_id(tile_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
+        return chunk
+
+    def coalesce_sample(
+        self,
+        global_sample_index: int,
+        tiles: np.ndarray,
+        subslice_index: Index,
+        dtype: np.dtype,
+    ) -> np.ndarray:
+        # TODO: docstring
+
+        # TODO: break into smaller methods
+
+        is_tiled = tiles.size > 1
+
+        if not is_tiled:
+            sample = self.read_sample_from_chunk(global_sample_index, tiles[0])
+            return subslice_index.apply([sample], include_first_value=True)[0]
+
+        tile_encoder = self.tile_encoder
+        tile_shape = tile_encoder.get_tile_shape(global_sample_index)
+
+        full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
+        sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
+        sample = np.zeros(sample_shape, dtype=dtype)
+
+        for tile_index, tile_obj in np.ndenumerate(tiles):
+            if tile_obj is None:
+                continue
+            tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
+
+            tile_view = get_output_tile_view(tile, subslice_index, tile_index, tile_shape)
+            sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape)
+
+            sample_view[:] = tile_view
+
+        return sample
 
     def _update_with_operator(
         self,
@@ -596,13 +1062,16 @@ class ChunkEngine:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         length = self.num_samples
-        enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
-        for global_sample_index in index.values[0].indices(length):
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            sample = self.read_sample_from_chunk(global_sample_index, chunk)
+        tensor_meta = self.tensor_meta
+        dtype = tensor_meta.dtype
+
+        value0_index, subslice_index = index.split_subslice()
+
+        for global_sample_index in value0_index.values[0].indices(length):
+            sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
             shape = sample.shape
 
             if not aslist and last_shape is not None:
@@ -614,24 +1083,11 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
-    def get_chunk_for_sample(
-        self, global_sample_index: int, enc: ChunkIdEncoder
-    ) -> Chunk:
-        """Retrives the `Chunk` object corresponding to `global_sample_index`.
-        Args:
-            global_sample_index (int): Index relative to the entire tensor representing the sample.
-            enc (ChunkIdEncoder): Chunk ID encoder. This is an argument because right now it is
-                sub-optimal to use `self.chunk_id_encoder` due to posixpath joins.
-        Returns:
-            Chunk: Chunk object that contains `global_sample_index`.
-        """
-
-        chunk_id = enc[global_sample_index]
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+    def get_chunk_from_id(self, chunk_id: ENCODING_DTYPE):
+        chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
-
         return chunk
 
     def read_sample_from_chunk(
@@ -656,7 +1112,14 @@ class ChunkEngine:
             if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
-                return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
+                buffer = decompressed[sb:eb]
+
+                if len(buffer) > 0:
+                    array = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+                else:
+                    array = np.zeros(shape, dtype=dtype)
+                
+                return array
             else:
                 return chunk.decompressed_samples()[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
@@ -696,17 +1159,20 @@ class ChunkEngine:
         chunk_names: Set[str] = set()
         while len(chunk_names) < target_chunk_count and sample_index < last_index:
             chunk_id = self.chunk_id_encoder[sample_index]
-            chunk = self.chunk_id_encoder.name_from_id(chunk_id)
+            chunk = chunk_name_from_id(chunk_id)
             # todo, change to chunk_names.update once chunks returns sequence instead of single string
             chunk_names.add(chunk)
             sample_index += 1
         return chunk_names
 
     def get_chunk_names_for_index(self, sample_index):
-        # TODO: fix this once we support multiple chunk names per sample
-        chunk_id = self.chunk_id_encoder[sample_index]
-        chunk = self.chunk_id_encoder.name_from_id(chunk_id)
-        return [chunk]
+        chunk_ids = self.chunk_id_encoder[sample_index]
+
+        names = []
+        for id in chunk_ids:
+            names.append(chunk_name_from_id(id))
+            
+        return names
 
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
@@ -735,8 +1201,6 @@ def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
-
-    samples = index.apply(samples)  # type: ignore
 
     if aslist and all(map(np.isscalar, samples)):
         samples = list(arr.item() for arr in samples)
@@ -792,14 +1256,42 @@ def _make_sequence(
 
 
 def _warn_if_suboptimal_chunks(
-    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
-):
+    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int, is_tiled: bool
+) -> bool:
+    """Returns True if warning executed."""
+
     upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
     lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
 
     for nbytes in chunks_nbytes_after_updates:
-        if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
+        too_large = nbytes > upper_warn_threshold
+
+        # TODO: tiled samples need custom policy for warning when the chunk size is lower than
+        # min chunk size. this is because they are initialized as all zeros.
+        too_small = False
+        if not is_tiled:
+            too_small = nbytes < lower_warn_threshold
+
+        if too_large or too_small:
+            reason = ""
+            
+            if too_large:
+                reason = f"too large, {nbytes} > {upper_warn_threshold}"
+            else:
+                reason = f"too small, {nbytes} < {lower_warn_threshold}"
+
             warnings.warn(
-                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
+                f"After update, some chunks were suboptimal ({reason}). Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
             )
-            break
+            return True
+    return False
+
+
+def _get_sample_array(sample: SampleValue) -> np.ndarray:
+    if isinstance(sample, Sample):
+        return sample.array
+    elif isinstance(sample, list):
+        return np.asarray(sample)
+    elif not isinstance(sample, np.ndarray):
+        raise ValueError(f"Expected current sample array to be a numpy array, got {type(sample)}")
+    return sample

@@ -148,7 +148,7 @@ class Dataset:
     def __getitem__(
         self,
         item: Union[
-            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int, ...]]], Index
         ],
     ):
         if isinstance(item, str):

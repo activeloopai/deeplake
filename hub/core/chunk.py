@@ -1,5 +1,6 @@
 from hub.core.fast_forwarding import ffw_chunk
 from hub.util.exceptions import (
+    CorruptedMetaError,
     FullChunkError,
     TensorInvalidSampleShapeError,
     SampleDecompressionError,
@@ -20,6 +21,9 @@ from hub.core.compression import (
     decompress_bytes,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
+
+
+Buffer = Union[bytes, memoryview]
 
 
 class Chunk(Cachable):
@@ -65,6 +69,16 @@ class Chunk(Cachable):
         # These caches are only used when chunk-wise compression is specified.
         self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
         self._decompressed_data_cache: Optional[memoryview] = None
+
+    @property
+    def num_samples(self) -> int:
+        sns = self.shapes_encoder.num_samples
+        bns = self.byte_positions_encoder.num_samples
+
+        if sns != bns:
+            raise CorruptedMetaError(f"Expected shapes encoder and byte positions encoder to have the same num samples. Got {sns} and {bns} respectively.")
+
+        return sns
 
     def decompressed_samples(
         self,
@@ -153,13 +167,13 @@ class Chunk(Cachable):
         for nb, shape in zip(nbytes, shapes):
             self.register_sample_to_headers(nb, shape)
 
-    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]):
+    def append_sample(self, buffer: Buffer, max_data_bytes: int, shape: Tuple[int, ...]):
         """Store `buffer` in this chunk.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample.
+            buffer (Buffer): Buffer that represents a single sample.
             max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            shape (Tuple[int, ...]): Shape for the sample that `buffer` represents.
 
         Raises:
             FullChunkError: If `buffer` is too large.
@@ -184,13 +198,13 @@ class Chunk(Cachable):
         self._decompressed_data_cache = None
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int, ...]
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
         Args:
             incoming_num_bytes (int): The length of the buffer that was used to
-            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+            sample_shape (Tuple[int, ...]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
 
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
@@ -308,3 +322,7 @@ class Chunk(Cachable):
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
+
+
+    def __str__(self) -> str:
+        return f"Chunk(version={self.version}, num_bytes={len(self._data)}, num_samples={self.num_samples})"

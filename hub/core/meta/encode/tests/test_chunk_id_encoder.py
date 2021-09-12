@@ -1,3 +1,4 @@
+from hub.util.chunks import chunk_id_from_name, chunk_name_from_id
 from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 import pytest
@@ -56,6 +57,45 @@ def test_trivial():
     assert enc.translate_index_relative_to_chunks(35) == 4
 
 
+def test_tiles():
+    enc = ChunkIdEncoder()
+
+    assert enc.num_chunks == 0
+
+    id0 = enc.generate_chunk_id()
+    enc.register_samples(1)
+
+    assert id0 == enc[0]
+
+    id1 = enc.generate_chunk_id()
+    enc.register_samples(1)
+
+    assert id1 == enc[1]
+
+    id2 = enc.generate_chunk_id()
+    enc.register_samples(0)
+
+    assert [id1, id2] == enc[1]
+
+    id3 = enc.generate_chunk_id()
+    enc.register_samples(0)
+
+    assert [id1, id2, id3] == enc[1]
+
+    with pytest.raises(IndexError):
+        enc[2]
+
+    id4 = enc.generate_chunk_id()
+    enc.register_samples(1)
+
+    assert id0 == enc[0]
+    assert [id1, id2, id3] == enc[1]
+    assert id4 == enc[2]
+
+    assert enc.num_chunks == 5
+    assert enc.num_samples == 3
+
+
 def test_failures():
     enc = ChunkIdEncoder()
 
@@ -64,10 +104,6 @@ def test_failures():
         enc.register_samples(0)
 
     enc.generate_chunk_id()
-
-    with pytest.raises(ChunkIdEncoderError):
-        # fails because cannot register 0 samples when there is no last chunk
-        enc.register_samples(0)
 
     enc.register_samples(1)
 
@@ -85,7 +121,7 @@ def test_ids():
 
     id = enc.generate_chunk_id()
     assert id.itemsize == ENCODING_DTYPE(1).itemsize
-    name = ChunkIdEncoder.name_from_id(id)
-    out_id = ChunkIdEncoder.id_from_name(name)
+    name = chunk_name_from_id(id)
+    out_id = chunk_id_from_name(name)
 
     assert id == out_id

@@ -6,7 +6,7 @@ import hub
 from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 
 
-def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
+def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int, ...]):
     assert ds.read_only
 
     with pytest.raises(ReadOnlyModeError):

@@ -1,10 +1,13 @@
 from hub.constants import KB
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    InvalidSubsliceUpdateShapeError,
+    TensorInvalidSampleShapeError,
+)
 import pytest
-from typing import Callable
 from hub.tests.common import assert_array_lists_equal
 import numpy as np
 import hub
+from hub.tests.common import compressions
 
 
 def _add_dummy_mnist(ds, **kwargs):
@@ -22,135 +25,60 @@ def _add_dummy_mnist(ds, **kwargs):
     return ds
 
 
-def _make_update_assert_equal(
-    ds_generator: Callable,
-    tensor_name: str,
-    index,
-    value,
-    check_persistence: bool = True,
-):
-    """Updates a tensor and checks that the data is as expected.
-
-    Example update:
-        >>> ds.tensor[0:5] = [1, 2, 3, 4, 5]
-
-    Args:
-        ds_generator (Callable): Function that returns a new dataset object with each call.
-        tensor_name (str): Name of the tensor to be updated.
-        index (Any): Any value that can be used as an index for updating (`ds.tensor[index] = value`).
-        value (Any): Any value that can be used as a value for updating (`ds.tensor[index] = value`).
-        check_persistence (bool): If True, the update will be tested to make sure it can be serialized/deserialized.
-    """
-
-    ds = ds_generator()
-    assert len(ds) == 10
-
-    tensor = ds[tensor_name]
-    expected = tensor.numpy(aslist=True)
-
-    # this is necessary because `expected` uses `aslist=True` to handle dynamic cases.
-    # with `aslist=False`, this wouldn't be necessary.
-    expected_value = value
-    if hasattr(value, "__len__"):
-        if len(value) == 1:
-            expected_value = value[0]
-
-    # make updates
-    tensor[index] = value
-    expected[index] = expected_value
-
-    # non-persistence check
-    actual = tensor.numpy(aslist=True)
-    assert_array_lists_equal(actual, expected)
-    assert len(ds) == 10
-
-    if check_persistence:
-        ds = ds_generator()
-        tensor = ds[tensor_name]
-        actual = tensor.numpy(aslist=True)
-        assert_array_lists_equal(actual, expected)
-
-        # make sure no new values are recorded
-        ds = ds_generator()
-        assert len(ds) == 10
-
-
-@pytest.mark.parametrize(
-    "compression",
-    [
-        {
-            "image_compression": {"sample_compression": None},
-        },
-        {
-            "image_compression": {"sample_compression": None},
-            "label_compression": {"sample_compression": "lz4"},
-        },
-        {
-            "image_compression": {"sample_compression": None},
-            "label_compression": {"chunk_compression": "lz4"},
-        },
-        {"image_compression": {"sample_compression": "png"}},
-        {"image_compression": {"chunk_compression": "png"}},
-        {"image_compression": {"sample_compression": "lz4"}},
-        {"image_compression": {"chunk_compression": "lz4"}},
-    ],
-)
+@compressions
 def test(local_ds_generator, compression):
-    gen = local_ds_generator
+    ds = local_ds_generator()
+    ds.create_tensor("images", **compression)
+    ds.images.extend(np.zeros((10, 28, 28), dtype=np.uint8))
 
-    _add_dummy_mnist(gen(), **compression)
+    ds = local_ds_generator()
+    ds.images[0] = np.ones((25, 30), dtype=np.uint8)
+    ds.images[1] = np.ones((3, 4), dtype=np.uint8)
 
-    # update single sample
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
-    )  # same shape (with 1)
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
-    )  # same shape
-    _make_update_assert_equal(
-        gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
-    )  # new shape
-    _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
-    )  # new shape (with 1)
-    _make_update_assert_equal(
-        gen, "images", -1, np.ones((0, 0), dtype="uint8")
-    )  # empty sample (new shape)
-    _make_update_assert_equal(gen, "labels", -5, np.uint8(99))
-    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))
+    ds.images[2:5] = np.ones((3, 5, 5), dtype=np.uint8)
+    ds.images[6:8, 10:20, 0] = np.ones((2, 10), dtype=np.uint8) * 5
 
-    # update a range of samples
-    x = np.arange(3 * 28 * 28).reshape((3, 28, 28)).astype("uint8")
-    _make_update_assert_equal(gen, "images", slice(0, 3), x)  # same shapes
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype="uint8")
-    )  # new shapes
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int).tolist()
-    )  # test downcasting python scalars
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=np.ubyte).tolist()
-    )  # test upcasting
-    _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype="uint8")
-    )  # empty samples (new shape)
-    _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
+    ds = local_ds_generator()
+    ds.images[9] = np.ones((0, 10), dtype=np.uint8)
 
-    # update a range of samples with dynamic samples
-    _make_update_assert_equal(
-        gen,
-        "images",
-        slice(7, 10),
-        [
-            np.ones((28, 50), dtype="uint8") * 5,
-            np.ones((0, 5), dtype="uint8"),
-            np.ones((1, 1), dtype="uint8") * 10,
-        ],
-    )
+    ds = local_ds_generator()
 
-    ds = gen()
-    assert ds.images.shape_interval.lower == (10, 0, 0)
-    assert ds.images.shape_interval.upper == (10, 32, 50)
+    expected = list(np.zeros((10, 28, 28), dtype="uint8"))
+    expected[0] = np.ones((25, 30), dtype="uint8")
+    expected[1] = np.ones((3, 4), dtype="uint8")
+    expected[2:5] = np.ones((3, 5, 5), dtype="uint8")
+
+    expected[6][10:20, 0] = np.ones((10), dtype="uint8") * 5
+    expected[7][10:20, 0] = np.ones((10), dtype="uint8") * 5
+
+    expected[9] = np.ones((0, 10), dtype="uint8")
+
+    assert_array_lists_equal(ds.images.numpy(aslist=True), expected)
+
+    assert ds.images.shape_interval.lower == (10, 0, 4)
+    assert ds.images.shape_interval.upper == (10, 28, 30)
+    assert ds.images.num_chunks == 1
+
+
+@compressions
+def test_subslice(local_ds_generator, compression):
+    ds = local_ds_generator()
+
+    expected_0 = np.ones((10, 10, 3), dtype="uint8")
+    expected_0[1:5, -5:-1, 1] = np.zeros((4, 4), dtype="uint8")
+
+    ds.create_tensor("image", htype="image", **compression)
+    ds.image.extend(np.ones((10, 10, 10, 3), dtype="uint8"))
+
+    # TODO: implement and uncomment check when negative indexing is implemented
+    with pytest.raises(NotImplementedError):
+        ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
+    assert ds.image.num_chunks == 1
+        
+    # np.testing.assert_array_equal(
+    #     ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8")
+    # )
+    # np.testing.assert_array_equal(ds.image[0].numpy(), expected_0)
 
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
@@ -177,6 +105,7 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     assert ds.images.shape_interval.upper == (10, 900, 900, 4)
 
     assert len(ds.images) == 10
+    assert ds.images.num_chunks == 1
 
 
 def test_pre_indexed_tensor(memory_ds):
@@ -236,7 +165,41 @@ def test_failures(memory_ds):
     assert memory_ds.labels.shape == (10, 1)
 
 
-def test_warnings(memory_ds):
+def test_subslice_failure(memory_ds):
+    memory_ds.create_tensor("tensor")
+    memory_ds.tensor.extend(np.ones((3, 28, 28, 3)))
+    memory_ds.tensor.append(np.ones((28, 35, 3)))
+
+    # when updating a sample's subslice, the shape MUST match the subslicing.
+    # this is different than updating samples entirely, where the new sample
+    # may have a larger/smaller shape.
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((2, 10, 5, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((0, 10, 5, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 20, 5, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 9, 5, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 6, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 4, 3))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 1))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
+
+    assert memory_ds.tensor.shape_interval.lower == (4, 28, 28, 3)
+    assert memory_ds.tensor.shape_interval.upper == (4, 28, 35, 3)
+
+    np.testing.assert_array_equal(memory_ds.tensor[:3].numpy(), np.ones((3, 28, 28, 3)))
+    np.testing.assert_array_equal(memory_ds.tensor[3].numpy(), np.ones((28, 35, 3)))
+
+
+def test_small_warning(memory_ds):
     tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
@@ -244,6 +207,12 @@ def test_warnings(memory_ds):
     # this update makes (small) suboptimal chunks
     with pytest.warns(UserWarning):
         tensor[0:5] = np.zeros((5, 0, 0), dtype="int32")
+
+
+def test_large_warning(memory_ds):
+    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
+
+    tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):
@@ -288,3 +257,5 @@ def test_inplace_updates(memory_ds, compression):
     ds.x[:5] *= 0
     np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
     np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+
+    assert ds.x.num_chunks == 1

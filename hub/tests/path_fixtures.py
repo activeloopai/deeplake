@@ -197,6 +197,22 @@ def flower_path():
     return os.path.join(path, "flower.png")
 
 
+@pytest.fixture
+def davit():
+    """Path to an image of davit (:P) in the dummy data folder. Expected shape: (200, 200, 3)"""
+
+    path = get_dummy_data_path("compressed_images")
+    return os.path.join(path, "davit.jpeg")
+
+
+@pytest.fixture
+def tatevik():
+    """Path to an image of tatevik (<3) in the dummy data folder. Expected shape: (498, 496, 3)"""
+
+    path = get_dummy_data_path("compressed_images")
+    return os.path.join(path, "tatevik.png")
+
+
 @pytest.fixture(scope="session")
 def compressed_image_paths():
     paths = {
@@ -243,4 +259,13 @@ def corrupt_image_paths():
     for k in paths:
         paths[k] = os.path.join(parent, paths[k])
 
+    return paths
+
+
+@pytest.fixture
+def video_paths():
+    paths = {"mp4": "sample_mp4.mp4"}
+    parent = get_dummy_data_path("compressed_images")
+    for k in paths:
+        paths[k] = [os.path.join(parent, paths[k])]
     return paths

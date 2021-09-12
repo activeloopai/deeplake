@@ -8,10 +8,13 @@ from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
     verify_compressed_file,
+    split_video
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
+
+from moviepy.editor import VideoFileClip
 
 
 compressions = hub.compression.IMAGE_COMPRESSIONS + hub.compression.BYTE_COMPRESSIONS
@@ -109,3 +112,23 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
         with pytest.raises(CorruptedSampleError):
             with open(path, "rb") as f:
                 verify_compressed_file(f.read(), compression)
+
+
+@pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+def test_video_utils(compression, video_paths):
+    for path in video_paths[compression]:
+        sample = hub.read(path)
+        clip = VideoFileClip(path)
+        assert sample.shape == (clip.reader.nframes, ) + tuple(clip.size)[::-1] + (3,)
+        video_chunks, shapes = zip(*(split_video(path, sample.filesize / 5, return_shapes=True)))
+        assert len(video_chunks) == 5
+        arrays = map(decompress_array, video_chunks)
+        total_length = sum(a.shape[0] for a in arrays)
+
+        # 1 frame gained before and after each chunk, except at the beginnning of first chunk:
+        assert total_length - clip.reader.nframes == 9  # (5 * 2 - 1)
+
+        concated_video = compress_multiple([path] * 5, compression=compression)
+        arrays = decompress_multiple(concated_video, compression=compression)
+        assert len(arrays) == 5
+        assert list(set(a.shape for a in arrays)) == [sample.shape]

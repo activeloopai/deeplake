@@ -1,7 +1,32 @@
-from typing import Union, List, Tuple, Iterable, Optional, TypeVar
+from typing import Sequence, Union, List, Tuple, Iterable, Optional, TypeVar
 import numpy as np
 
-IndexValue = Union[int, slice, Tuple[int]]
+IndexValue = Union[int, slice, Tuple[int, ...]]
+
+
+def slice_has_step(s: slice):
+    return (s.step or 1) != 1
+
+
+def is_trivial_slice(s: slice):
+    return not s.start and s.stop == None and not slice_has_step(s)
+
+
+def is_value_within_slice(s: slice, value: int):
+    # TODO: docstring
+
+    if slice_has_step(s):
+        # TODO
+        raise NotImplementedError
+
+    if is_trivial_slice(s):
+        return True
+
+    if s.start is None:
+        # needs to be strictly less than
+        return value < s.stop
+
+    return (s.start <= value) and (value < s.stop)
 
 
 def has_negatives(s: slice) -> bool:
@@ -110,7 +135,7 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
-def tuple_length(t: Tuple[int], l: int) -> int:
+def tuple_length(t: Tuple[int, ...], l: int) -> int:
     """Returns the length of a tuple of indexes given the length of its parent."""
     return len(t)
 
@@ -186,12 +211,11 @@ class IndexEntry:
 
     def is_trivial(self):
         """Checks if an IndexEntry represents the entire slice"""
-        return (
-            isinstance(self.value, slice)
-            and not self.value.start
-            and self.value.stop == None
-            and ((self.value.step or 1) == 1)
-        )
+
+        if not isinstance(self.value, slice):
+            return False
+
+        return is_trivial_slice(self.value)
 
     def length(self, parent_length: int) -> int:
         """Returns the length of an IndexEntry given the length of the parent it is indexing.
@@ -227,6 +251,7 @@ class IndexEntry:
 
     def validate(self, parent_length: int):
         """Checks that the index is not accessing values outside the range of the parent."""
+
         # Slices are okay, as an out-of-range slice will just yield no samples
         # Check each index of a tuple
         if isinstance(self.value, tuple):
@@ -239,6 +264,109 @@ class IndexEntry:
                 raise ValueError(
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
+
+    def intersects(self, low_dim: int, high_dim: int):
+        if isinstance(self.value, slice):
+            # check if low_dim or high_dim are between start + stop
+            low_dim_in_slice = is_value_within_slice(self.value, low_dim)
+            high_dim_in_slice = is_value_within_slice(self.value, high_dim)
+            return low_dim_in_slice or high_dim_in_slice
+
+        if isinstance(self.value, int):
+            return low_dim <= self.value and self.value < high_dim
+
+        raise NotImplementedError
+
+    @property
+    def low_bound(self) -> int:
+        # TODO: docstring
+
+        if isinstance(self.value, int):
+            return self.value
+        elif isinstance(self.value, slice):
+            return self.value.start
+
+        raise NotImplementedError
+
+    @property
+    def high_bound(self) -> int:
+        # TODO: docstring
+
+        if isinstance(self.value, int):
+            return self.value
+        elif isinstance(self.value, slice):
+            return self.value.stop
+
+        raise NotImplementedError
+
+
+    def with_bias(self, amount: int, keep_positive: bool=True) -> "IndexEntry":
+        # TODO: docstring
+
+        def _bias(v: int):
+            if v is None:
+                v = 0
+            o = v + amount
+            if keep_positive:
+                return max(0, o)
+            return o
+
+        if isinstance(self.value, int):
+            return IndexEntry(_bias(self.value))
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(self.value):
+                new_slice = slice(_bias(s.start), None, s.step)
+            else:
+                new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
+
+            return IndexEntry(new_slice)
+
+        raise NotImplementedError
+
+    def normalize(self) -> "IndexEntry":
+        if isinstance(self.value, int):
+            return IndexEntry(0)
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, None)
+            elif s.start is None:
+                new_slice = s
+            else:
+                delta = abs(s.stop - s.start)
+                new_slice = slice(0, delta, s.step)
+
+            return IndexEntry(new_slice)
+
+        raise NotImplementedError
+
+
+    def clamp_upper(self, max_value: int) -> "IndexEntry":
+        if isinstance(self.value, int):
+            return IndexEntry(min(self.value, max_value))
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s):
+                new_slice = slice(None, max_value, s.step)
+            elif s.start is None:
+                new_slice = slice(None, min(max_value, s.stop), s.step)
+            else:
+                if s.start < 0 or s.stop < 0:
+                    # TODO: negative subslices
+                    raise NotImplementedError("Subslices with negatives is not yet supported!")
+
+                new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
+
+            return IndexEntry(new_slice)
+
+        raise NotImplementedError
 
 
 class Index:
@@ -350,16 +478,21 @@ class Index:
                 value = index.value
                 if isinstance(value, tuple):
                     value = (value,)  # type: ignore
-                base = base[value]
+                base = base[value]  # type: ignore
             return base
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, samples: List[np.ndarray]):
+    def apply(self, samples: List[np.ndarray], include_first_value: bool = False):
         """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
-        index_values = tuple(item.value for item in self.values[1:])
+
+        if include_first_value:
+            index_values = tuple(item.value for item in self.values)
+        else:
+            index_values = tuple(item.value for item in self.values[1:])
+
         samples = list(arr[index_values] for arr in samples)
         return samples
 
@@ -371,10 +504,109 @@ class Index:
             return samples
         else:
             return samples[0]
+        
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
+        # TODO: docstring
 
-    def is_trivial(self):
+        dim_values = self.values
+
+        dims_left = len(sample.shape) - len(dim_values)
+        if dims_left > 0:
+            for _ in range(dims_left):
+                dim_values.append(IndexEntry(slice(None)))
+
+        biased_values = []
+        for i, value in enumerate(self.values):
+            biased_entry = value
+
+            if upper_bound is not None:
+                biased_entry = biased_entry.clamp_upper(upper_bound[i])
+
+            biased_entry = biased_entry.with_bias(-bias[i])
+            biased_value = biased_entry.value
+
+            if normalize:
+                biased_entry = biased_entry.normalize()
+                biased_value = biased_entry.value
+                if biased_value == 0:
+                    continue
+
+            biased_values.append(biased_value)
+
+        return np.squeeze(sample[tuple(biased_values)])
+
+    def is_trivial(self) -> bool:
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
+
+    def is_single_dim_effective(self) -> bool:
+        """Checks if an Index is only modifying the first dimension.
+
+        Examples:
+            array[1] - True
+            array[:] - False
+            array[1, 1] - False
+            array[1, :, 1] - False
+            array[:, :, :] - False
+            array[:, 1] - False
+            array[100:120, :, :, :] - True
+            array[0, :, :] - True
+        """
+
+        if len(self.values) == 1:
+            return True
+
+        for value in self.values[1:]:
+            if not value.is_trivial():
+                return False
+
+        return True
+
+    @property
+    def shape(self) -> Tuple[Optional[int], ...]:
+        """Returns the max shape this index can create.
+        For trivial slices (ex: array[:]), their shape element is `None`.
+
+        Note:
+            If you need this to return only numeric values (not `None` values), you should
+            use `shape_if_applied_to` instead.
+
+        Examples:
+            >>> a = np.ones((100, 100))
+            >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
+            (1, 5)
+            >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
+            (1, None, 1)
+        """
+
+        shape: List[Optional[int]] = []
+        for value in self.values:
+            if value.is_trivial():
+                shape.append(None)
+            else:
+                l = value.length(9999999999)
+                shape.append(l)  # TODO: better way to do this
+        return tuple(shape)
+
+    def shape_if_applied_to(self, shape: Tuple[int, ...], squeeze: bool=False) -> Tuple[int, ...]:
+        # TODO: docstring
+
+        output_shape = np.zeros(len(shape), dtype=int)
+        self_shape = self.shape
+
+        for i in range(len(shape)):
+            if i >= len(self_shape) or self_shape[i] is None:
+                # trivial shape should default to the shape being applied to
+                output_shape[i] = shape[i]
+            else:
+                output_shape[i] = min(self_shape[i], shape[i])  # type: ignore
+
+        output_shape = output_shape.tolist()
+
+        if squeeze:
+            output_shape = [x for x in output_shape if x != 1]
+
+        return tuple(output_shape)
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
@@ -384,6 +616,82 @@ class Index:
     def validate(self, parent_length):
         """Checks that the index is not accessing values outside the range of the parent."""
         self.values[0].validate(parent_length)
+
+    def intersects(
+        self, low_bound: Tuple[int, ...], high_bound: Tuple[int, ...]
+    ) -> bool:
+        """Checks if the incoming n-dimensional rectangle is intersected by this index object.
+        This is useful for tiling, when trying to determine if a tile should be downloaded or not
+        (if it exists on this index)."""
+
+        # check if this index overlaps the incoming n dimensional rectangle
+        for in_low_dim, in_high_dim, index_entry in zip(
+            low_bound, high_bound, self.values
+        ):
+            entry_low = index_entry.low_bound
+            entry_high = index_entry.high_bound
+            if index_entry.is_trivial() or entry_low is None or entry_high is None:
+                continue
+            if in_high_dim < entry_low:
+                return False
+            if in_low_dim > entry_high:
+                return False
+
+        # all trivial indexes intersect
+        return True
+
+    @property
+    def low_bound(self) -> Tuple[int, ...]:
+        """Get the low-bound of this index.
+
+        Example:
+            indexing like: array[0:5, 500:505, :]
+            returns: (0, 500, None)
+        """
+
+        low = []
+        for value in self.values:
+            low.append(value.low_bound)
+
+        return tuple(low)
+
+    @property
+    def high_bound(self) -> Tuple[int, ...]:
+        """Get the high-bound of this index.
+
+        Example:
+            indexing like: array[0:5, 500:505, :]
+            returns: (5, 505, None)
+        """
+
+        high = []
+        for value in self.values:
+            high.append(value.high_bound)
+
+        return tuple(high)
+
+    def split_subslice(self) -> Tuple["Index", "Index"]:
+        """Splits the primary axis index from the sample subslice index.
+
+        Examples:
+            array[0:5, 10, 5:10]
+                - primary:  [0:5]
+                - subslice: [10, 5:10]
+            array[0]
+                - primary:  [0]
+                - subslice: [:]
+
+        Returns:
+            Tuple[Index, Index]: value0_index, subslice_index
+        """
+
+        value0_index = Index([self.values[0]])
+        if len(self.values) > 1:
+            subslice_index = Index(self.values[1:])
+        else:
+            subslice_index = Index()
+
+        return value0_index, subslice_index
 
     def __str__(self):
         values = [entry.value for entry in self.values]

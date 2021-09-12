@@ -1,10 +1,10 @@
+from hub.util.tiles import get_tile_view_on_sample
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array
-from typing import List, Optional, Sequence, Union, Tuple, Iterable
-from itertools import repeat
+from typing import List, Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
@@ -223,13 +223,21 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def _serialize_input_sample(
+def serialize_input_sample(
     sample: SampleValue,
-    sample_compression: Optional[str],
-    expected_dtype: np.dtype,
-    htype: str,
-) -> Tuple[bytes, Tuple[int]]:
+    tensor_meta: TensorMeta,
+) -> Tuple[bytes, Tuple[int, ...]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
+
+    expected_dtype = tensor_meta.dtype
+    if expected_dtype is None:
+        raise ValueError(
+            "Cannot serialize an input sample unless tensor meta dtype is specified."
+        )
+
+    sample_compression = tensor_meta.sample_compression
+    htype = tensor_meta.htype
+    expected_dimensionality = len(tensor_meta.min_shape)
 
     if isinstance(sample, Sample):
         if (
@@ -253,14 +261,21 @@ def _serialize_input_sample(
     if len(shape) == 0:
         shape = (1,)
 
+    _check_shape(shape, expected_dimensionality)
     return buffer, shape
+
+
+def _check_shape(shape: Tuple[int], expected_dimensionality: int):
+    """Iterates through all buffers/shapes and raises appropriate errors."""
+
+    # check that all samples have the same dimensionality
+    if len(shape) != expected_dimensionality and expected_dimensionality > 0:
+        raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
 
 def _check_input_samples_are_valid(
     num_bytes: List[int],
     shapes: List[Tuple[int]],
-    min_chunk_size: int,
-    sample_compression: Optional[str],
 ):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
@@ -270,12 +285,6 @@ def _check_input_samples_are_valid(
         if expected_dimensionality is None:
             expected_dimensionality = len(shape)
 
-        if nbytes > min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {nbytes} bytes."
-            if sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-            raise NotImplementedError(msg)
-
         if len(shape) != expected_dimensionality:
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
@@ -283,8 +292,7 @@ def _check_input_samples_are_valid(
 def serialize_input_samples(
     samples: Union[Sequence[SampleValue], np.ndarray],
     meta: TensorMeta,
-    min_chunk_size: int,
-) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int]]]:
+) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int, ...]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
     Args:
@@ -313,8 +321,8 @@ def serialize_input_samples(
         nbytes = []
         shapes = []
         for sample in samples:
-            byts, shape = _serialize_input_sample(
-                sample, sample_compression, dtype, htype
+            byts, shape = serialize_input_sample(
+                sample, meta
             )
             buff += byts
             nbytes.append(len(byts))
@@ -343,5 +351,27 @@ def serialize_input_samples(
         )
     else:
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
-    _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
+    _check_input_samples_are_valid(nbytes, shapes)  # type: ignore
     return buff, nbytes, shapes
+
+
+def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[int, ...], sample_array: Optional[np.ndarray], tensor_meta: TensorMeta) -> np.ndarray:
+    # TODO: docstring
+
+    tile_buffers = np.empty(tile_layout_shape, dtype=object)
+    tile_shapes = np.empty(tile_layout_shape, dtype=object)
+
+    for tile_index, _ in np.ndenumerate(tile_buffers):
+        if sample_array is None:
+            tile_buffers[tile_index] = memoryview(bytes())
+            shape = tile_shape
+
+        else:
+            tile_array = get_tile_view_on_sample(sample_array, tile_shape, tile_index)
+            buffer, shape = serialize_input_sample(tile_array, tensor_meta)
+            assert tile_array.shape == shape
+            tile_buffers[tile_index] = memoryview(buffer)
+        
+        tile_shapes[tile_index] = shape
+
+    return tile_buffers, tile_shapes

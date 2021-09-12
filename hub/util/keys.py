@@ -38,6 +38,14 @@ def get_chunk_id_encoder_key(key: str) -> str:
     )
 
 
+def get_tile_encoder_key(key: str) -> str:
+    return posixpath.join(
+        key,
+        constants.ENCODED_TILE_NAMES_FOLDER,
+        constants.ENCODED_CHUNK_NAMES_FILENAME,
+    )
+
+
 def dataset_exists(storage: StorageProvider) -> bool:
     try:
         storage[get_dataset_meta_key()]

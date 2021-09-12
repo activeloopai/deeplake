@@ -84,7 +84,11 @@ def get_incompatible_dtype(
             else getattr(samples, "dtype", np.array(samples).dtype)
         )
     elif isinstance(samples, Sequence):
-        return all(map(lambda x: get_incompatible_dtype(x, dtype), samples))
+        for sample in samples:
+            err_dtype = get_incompatible_dtype(sample, dtype)
+            if err_dtype:
+                return err_dtype
+        return None
     else:
         raise TypeError(
             f"Unexpected object {samples}. Expected np.ndarray, int, float, bool, str or Sequence."
