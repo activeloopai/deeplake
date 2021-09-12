@@ -5,7 +5,7 @@ from hub.core.compression import (
     read_meta_from_compressed_file,
     get_compression,
 )
-from hub.compression import get_compression_type
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
@@ -123,13 +123,18 @@ class Sample:
                     compressed_bytes = f.read()
                 self._compression = get_compression(compressed_bytes[:32])
                 if self._compression == compression:
+                    f = (
+                        self.path
+                        if get_compression_type(compression) == VIDEO_COMPRESSION
+                        else compressed_bytes
+                    )
                     if self._verify:
                         self._shape, self._typestr = verify_compressed_file(
-                            compressed_bytes, self._compression
+                            f, self._compression
                         )
                     else:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
-                            compressed_bytes, compression=self._compression
+                            f, compression=self._compression
                         )
                 else:
                     img = Image.open(BytesIO(compressed_bytes))

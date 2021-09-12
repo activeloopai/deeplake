@@ -89,6 +89,8 @@ class Dataset:
 
         self._set_derived_attributes()
 
+        self._tensor_cache = {}  # required for chunk-wise video compression for now
+
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
@@ -152,10 +154,14 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
+            if item in self._tensor_cache:
+                return self._tensor_cache[item]
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
-                return self.tensors[item][self.index]
+                tensor = self.tensors[item][self.index]
+                self._tensor_cache[item] = tensor
+                return tensor
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,

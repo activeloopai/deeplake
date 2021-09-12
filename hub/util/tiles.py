@@ -75,25 +75,33 @@ def get_tile_mask(
     return mask
 
 
-def align_sample_and_tile(sample: np.ndarray, tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...]=None):
+def align_sample_and_tile(
+    sample: np.ndarray,
+    tile: np.ndarray,
+    subslice_index: Index,
+    tile_index: Tuple[int, ...] = None,
+):
     # TODO: docstring
 
     # tile index should be `None` if the sample is not tiled
     if tile_index is None:
         tile_index = (0,) * len(tile.shape)
 
-    low, high = get_tile_bounds(
-        tile_index, tile.shape
-    )
+    low, high = get_tile_bounds(tile_index, tile.shape)
 
     tile_view = subslice_index.apply_restricted(tile, bias=low)
-    incoming_sample_view = subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+    incoming_sample_view = subslice_index.apply_restricted(
+        sample, bias=low, upper_bound=high, normalize=True
+    )
 
     return tile_view, incoming_sample_view
 
 
 def get_input_tile_view(
-    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
+    tile: np.ndarray,
+    subslice_index: Index,
+    tile_index: Tuple[int, ...],
+    tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
     # TODO: docstring (mention why tile_shape is not the same as tile.shape sometimes)
 
@@ -102,29 +110,45 @@ def get_input_tile_view(
 
 
 def get_output_tile_view(
-    tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
+    tile: np.ndarray,
+    subslice_index: Index,
+    tile_index: Tuple[int, ...],
+    tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
 
     low, high = get_tile_bounds(tile_index, tile_shape)
     return subslice_index.apply_restricted(tile, bias=low)
 
 
-def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
+def get_input_sample_view(
+    sample: np.ndarray,
+    subslice_index: Index,
+    tile_index: Tuple[int, ...],
+    tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+    return subslice_index.apply_restricted(
+        sample, bias=low, upper_bound=high, normalize=True
+    )
 
 
 def get_output_sample_view(
-    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
+    sample: np.ndarray,
+    subslice_index: Index,
+    tile_index: Tuple[int, ...],
+    tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
+    return subslice_index.apply_restricted(
+        sample, bias=low, upper_bound=high, normalize=True
+    )
 
 
-def get_tile_view_on_sample(sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]) -> np.ndarray:
+def get_tile_view_on_sample(
+    sample: np.ndarray, tile_shape: Tuple[int, ...], tile_index: Tuple[int, ...]
+) -> np.ndarray:
     # TODO: docstring (used for breaking sample into tiles)
 
     # TODO: maybe this method is duplicate logic?

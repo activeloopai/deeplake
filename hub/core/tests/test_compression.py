@@ -8,7 +8,7 @@ from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
     verify_compressed_file,
-    split_video
+    split_video,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
@@ -119,8 +119,10 @@ def test_video_utils(compression, video_paths):
     for path in video_paths[compression]:
         sample = hub.read(path)
         clip = VideoFileClip(path)
-        assert sample.shape == (clip.reader.nframes, ) + tuple(clip.size)[::-1] + (3,)
-        video_chunks, shapes = zip(*(split_video(path, sample.filesize / 5, return_shapes=True)))
+        assert sample.shape == (clip.reader.nframes,) + tuple(clip.size)[::-1] + (3,)
+        video_chunks, shapes = zip(
+            *(split_video(path, sample.filesize / 5, return_shapes=True))
+        )
         assert len(video_chunks) == 5
         arrays = map(decompress_array, video_chunks)
         total_length = sum(a.shape[0] for a in arrays)

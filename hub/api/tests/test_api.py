@@ -683,3 +683,26 @@ def test_htypes_list():
         "binary_mask",
         "segment_mask",
     ]
+
+
+@pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+def test_video(memory_ds, video_paths, compression):
+    ds = memory_ds
+    path = video_paths[compression][0]
+    ds.create_tensor("video_cwc", chunk_compression=compression)
+    with ds:
+        for _ in range(2):
+            ds.video_cwc.append(hub.read(path))
+    assert ds.video_cwc.numpy().shape == (2,) + hub.read(path).shape
+
+    ds.create_tensor("video_swc", sample_compression=compression)
+    with ds:
+        for _ in range(2):
+            ds.video_swc.append(hub.read(path))
+    assert ds.video_swc.numpy().shape == (2,) + hub.read(path).shape
+
+    ds.create_tensor("video_nc", sample_compression=compression)
+    with ds:
+        for _ in range(2):
+            ds.video_nc.append(hub.read(path))
+    assert ds.video_nc.numpy().shape == (2,) + hub.read(path).shape

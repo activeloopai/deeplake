@@ -299,8 +299,7 @@ class IndexEntry:
 
         raise NotImplementedError
 
-
-    def with_bias(self, amount: int, keep_positive: bool=True) -> "IndexEntry":
+    def with_bias(self, amount: int, keep_positive: bool = True) -> "IndexEntry":
         # TODO: docstring
 
         def _bias(v: int):
@@ -345,7 +344,6 @@ class IndexEntry:
 
         raise NotImplementedError
 
-
     def clamp_upper(self, max_value: int) -> "IndexEntry":
         if isinstance(self.value, int):
             return IndexEntry(min(self.value, max_value))
@@ -360,9 +358,13 @@ class IndexEntry:
             else:
                 if s.start < 0 or s.stop < 0:
                     # TODO: negative subslices
-                    raise NotImplementedError("Subslices with negatives is not yet supported!")
+                    raise NotImplementedError(
+                        "Subslices with negatives is not yet supported!"
+                    )
 
-                new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
+                new_slice = slice(
+                    min(s.start, max_value), min(s.stop, max_value), s.step
+                )
 
             return IndexEntry(new_slice)
 
@@ -504,8 +506,14 @@ class Index:
             return samples
         else:
             return samples[0]
-        
-    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
+
+    def apply_restricted(
+        self,
+        sample: np.ndarray,
+        bias: Tuple[int, ...],
+        upper_bound: Tuple[int, ...] = None,
+        normalize: bool = False,
+    ) -> np.ndarray:
         # TODO: docstring
 
         dim_values = self.values
@@ -588,7 +596,9 @@ class Index:
                 shape.append(l)  # TODO: better way to do this
         return tuple(shape)
 
-    def shape_if_applied_to(self, shape: Tuple[int, ...], squeeze: bool=False) -> Tuple[int, ...]:
+    def shape_if_applied_to(
+        self, shape: Tuple[int, ...], squeeze: bool = False
+    ) -> Tuple[int, ...]:
         # TODO: docstring
 
         output_shape = np.zeros(len(shape), dtype=int)

@@ -37,6 +37,7 @@ def _import_moviepy():
     from moviepy.editor import VideoFileClip, concatenate_videoclips
     from moviepy.video.fx.all import crop as crop_video
 
+
 # this maps a compressor to the average compression ratio it achieves assuming the data is natural
 # for example, if compressor X on average removes 50% of the data, the compression factor would be 2.0.
 # TODO: for every compressor we have, we should have an accurate number here!
@@ -178,9 +179,7 @@ def _decompress_mp4(file: Union[bytes, memoryview, str]) -> np.ndarray:
         with open(f.name, "wb") as fw:
             fw.write(buffer)
             clip = VideoFileClip(f.name)
-            arr = np.stack(
-                [frame for frame in clip.iter_frames()]
-            )
+            arr = np.stack([frame for frame in clip.iter_frames()])
             clip.close()
             return arr
 
@@ -292,7 +291,7 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
-    
+
     compr_typ = get_compression_type(compression)
     if compr_typ == VIDEO_COMPRESSION:
         return _unpack_videos(buffer)
@@ -307,7 +306,9 @@ def decompress_multiple(
                 # empty array (maybe a tiled sample)
                 array = np.zeros(shape, dtype=dtype)
             else:
-                array = np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
+                array = np.frombuffer(
+                    decompressed_buffer[:nbytes], dtype=dtype
+                ).reshape(shape)
 
             arrays.append(array)
             decompressed_buffer = decompressed_buffer[nbytes:]
@@ -330,6 +331,12 @@ def decompress_multiple(
 
 
 def _pack_videos(paths: Sequence[str]) -> memoryview:
+    if len(paths) == 0:
+        return memoryview(b"")
+    if len(paths) == 1:
+        with open(paths[0], "rb") as f:
+            return (1).to_bytes(2, "big") + f.read()
+
     _import_moviepy()
     with tempfile.TemporaryFile(suffix=".mp4") as f:
         fname = f.name
@@ -362,22 +369,25 @@ def _unpack_videos(buffer) -> List[np.ndarray]:
     buffer = memoryview(buffer)
     nclips = int.from_bytes(buffer[:2], "big")
     offset = 2
-    sizes = []
-    lengths = []
-    for i in range(nclips):
-        size = _STRUCT_II.unpack(buffer[offset : offset + 8])
-        offset += 8
-        length = _STRUCT_F.unpack(buffer[offset : offset + 4])[0]
-        offset += 4
-        sizes.append(size)
-        lengths.append(length)
-    subclips = []
+    if nclips > 1:
+        sizes = []
+        lengths = []
+        for i in range(nclips):
+            size = _STRUCT_II.unpack(buffer[offset : offset + 8])
+            offset += 8
+            length = _STRUCT_F.unpack(buffer[offset : offset + 4])[0]
+            offset += 4
+            sizes.append(size)
+            lengths.append(length)
+        subclips = []
     with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
         fname = f.name
     try:
         with open(fname, "wb") as f:
             f.write(buffer[offset:])
         clip = VideoFileClip(f.name)
+        if nclips == 1:
+            return [np.stack([frame for frame in clip.iter_frames()])]
         x_c = clip.w // 2
         y_c = clip.h // 2
         offset = 0
@@ -390,13 +400,13 @@ def _unpack_videos(buffer) -> List[np.ndarray]:
             subclips.append(subclip)
 
         return [
-            np.stack([frame for frame in subclip.iter_frames()])
-            for subclip in subclips
+            np.stack([frame for frame in subclip.iter_frames()]) for subclip in subclips
         ]
     finally:
         clip.close()
         if os.path.isfile(fname):
             os.remove(fname)
+
 
 def verify_compressed_file(
     file: Union[str, BinaryIO, bytes], compression: str
@@ -462,14 +472,21 @@ def _is_mp4(header: bytes) -> bool:
     return header[4:8] == b"ftyp" and header[8:12] in _MP4_CHUNK_SUBTYPES
 
 
-def split_video(path: str, chunk_size: int, return_shapes: bool = False) -> Iterator[bytes]:
+def split_video(
+    path: str, chunk_size: int, return_shapes: bool = False
+) -> Iterator[bytes]:
     _import_moviepy()
     clip = VideoFileClip(path)
     clip_nbytes = os.path.getsize(path)
     if clip_nbytes <= chunk_size:
         with open(path, "rb") as f:
             if return_shapes:
-                yield (f.read(), (math.ceil(clip.duration * clip.fps), ) + tuple(clip.size)[::-1] + (3,))
+                yield (
+                    f.read(),
+                    (math.ceil(clip.duration * clip.fps),)
+                    + tuple(clip.size)[::-1]
+                    + (3,),
+                )
             else:
                 yield f.read()
             clip.close()
@@ -488,7 +505,12 @@ def split_video(path: str, chunk_size: int, return_shapes: bool = False) -> Iter
             subclip.write_videofile(fname)
             with open(fname, "rb") as f:
                 if return_shapes:
-                    yield (f.read(), (math.ceil(subclip.duration * subclip.fps), ) + tuple(subclip.size)[::-1] + (3,))
+                    yield (
+                        f.read(),
+                        (math.ceil(subclip.duration * subclip.fps),)
+                        + tuple(subclip.size)[::-1]
+                        + (3,),
+                    )
                 else:
                     yield f.read()
     finally:
@@ -617,7 +639,9 @@ def get_compression_factor(tensor_meta: TensorMeta) -> float:
     if sc is not None:
         if sc not in COMPRESSION_FACTORS:
             # TODO: this should ideally never happen
-            warnings.warn(f"Warning: the provided compression \"{sc}\" has no approximate factor yet, so you should expect tiles to be inefficient!")
+            warnings.warn(
+                f'Warning: the provided compression "{sc}" has no approximate factor yet, so you should expect tiles to be inefficient!'
+            )
             return factor
 
         factor *= COMPRESSION_FACTORS[sc]

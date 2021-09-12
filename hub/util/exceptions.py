@@ -561,6 +561,7 @@ class UpdateSampleError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+
 class InvalidSubsliceUpdateShapeError(UpdateSampleError):
     def __init__(self, samples_shape, index_shape):
         super().__init__(
