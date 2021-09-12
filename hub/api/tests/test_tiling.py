@@ -150,6 +150,26 @@ def test_failures(memory_ds):
 
 
 @compressions
+def test_trivial_indexing(memory_ds, compression):
+    memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB, **compression)
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
+
+    memory_ds.tensor.append_empty((100, 100))
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 16, None)
+
+    x = np.arange(100*100, dtype="uint8").reshape((100, 100))
+
+    memory_ds.tensor[0, 0:100, 0:100] = x.copy()
+    np.testing.assert_array_equal(memory_ds.tensor[0].numpy(), x)
+
+    y = x + 5
+
+    memory_ds.tensor.append(y.copy())
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 32, None)
+    np.testing.assert_array_equal(memory_ds.tensor[1].numpy(), y)
+
+
+@compressions
 def test_append(local_ds, compression, tatevik):
     large1 = _get_random_image((90, 100, 4))
     large2 = _get_random_image((100, 90, 4))
