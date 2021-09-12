@@ -166,7 +166,8 @@ def test_trivial_indexing(memory_ds, compression):
 
     memory_ds.tensor.append(y.copy())
     _assert_num_chunks(memory_ds.tensor.num_chunks, 32, None)
-    np.testing.assert_array_equal(memory_ds.tensor[1].numpy(), y)
+    expected = [x, y]
+    assert_array_lists_equal(memory_ds.tensor.numpy(), expected)
 
 
 @compressions
