@@ -66,11 +66,11 @@ def test_single_transform_hub_dataset(ds, scheduler):
         and scheduler != "threaded"
     ):
         with pytest.raises(InvalidOutputDatasetError):
-            fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+            fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         data_in.delete()
         return
 
-    fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+    fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
@@ -195,10 +195,10 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
         and scheduler != "threaded"
     ):
         with pytest.raises(InvalidOutputDatasetError):
-            read_image().eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+            read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         return
 
-    read_image().eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+    read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
     assert len(ds_out) == 10
     for i in range(10):
         assert ds_out.image[i].numpy().shape == (900, 900, 3)
@@ -218,9 +218,9 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
         and scheduler != "threaded"
     ):
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+            pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         return
-    pipeline.eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+    pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image[i].numpy().shape == (100, 100, 3)
@@ -244,10 +244,10 @@ def test_hub_like(ds, scheduler="threaded"):
         ):
             with pytest.raises(InvalidOutputDatasetError):
                 fn2(copy=1, mul=2).eval(
-                    data_in, ds_out, num_workers=5, scheduler=scheduler
+                    data_in, ds_out, num_workers=4, scheduler=scheduler
                 )
             return
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5, scheduler=scheduler)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
