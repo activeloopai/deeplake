@@ -106,6 +106,7 @@ def get_input_tile_view(
     # TODO: docstring (mention why tile_shape is not the same as tile.shape sometimes)
 
     low, high = get_tile_bounds(tile_index, tile_shape)
+
     return subslice_index.apply_restricted(tile, bias=low)
 
 
@@ -117,7 +118,8 @@ def get_output_tile_view(
 ) -> np.ndarray:
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    return subslice_index.apply_restricted(tile, bias=low)
+    bias = np.asarray(low)
+    return subslice_index.apply_restricted(tile, bias=bias)
 
 
 def get_input_sample_view(
@@ -139,11 +141,26 @@ def get_output_sample_view(
     tile_index: Tuple[int, ...],
     tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
+    """When reading a subslice from a tiled sample, this method restricts the view on `sample` 
+    (so it can be populated with data from a tile) where `sample` is the array that will be returned 
+    to the user. Tile data has it's view restricted and then all the tiles data are gathered into `sample`."""
 
     low, high = get_tile_bounds(tile_index, tile_shape)
-    return subslice_index.apply_restricted(
-        sample, bias=low, upper_bound=high, normalize=True
-    )
+    bias = np.asarray(low)
+    return subslice_index.apply_restricted(sample, bias=bias, upper_bound=high, normalize=True)
+
+    subslice_index.add_trivials(len(sample.shape))
+    
+    low, high = get_tile_bounds(tile_index, tile_shape)
+
+    slices = []
+    for low_dim, high_dim in zip(low, high):
+        slices.append(slice(low_dim, high_dim))
+    slices = tuple(slices)
+
+    print(slices)
+
+    return sample[slices]
 
 
 def get_tile_view_on_sample(

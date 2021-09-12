@@ -1,4 +1,4 @@
-from typing import Sequence, Union, List, Tuple, Iterable, Optional, TypeVar
+from typing import Union, List, Tuple, Iterable, Optional, TypeVar
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int, ...]]
@@ -306,8 +306,8 @@ class IndexEntry:
             if v is None:
                 v = 0
             o = v + amount
-            if keep_positive:
-                return max(0, o)
+            if keep_positive and v < 0:
+                raise NotImplementedError()
             return o
 
         if isinstance(self.value, int):
@@ -317,6 +317,7 @@ class IndexEntry:
             s = self.value
 
             if is_trivial_slice(self.value):
+                print(s.start, amount)
                 new_slice = slice(_bias(s.start), None, s.step)
             else:
                 new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
@@ -326,6 +327,8 @@ class IndexEntry:
         raise NotImplementedError
 
     def normalize(self) -> "IndexEntry":
+        # TODO: docstring
+
         if isinstance(self.value, int):
             return IndexEntry(0)
 
@@ -337,7 +340,10 @@ class IndexEntry:
             elif s.start is None:
                 new_slice = s
             else:
-                delta = abs(s.stop - s.start)
+                if s.stop is None:
+                    delta = s.start
+                else:
+                    delta = abs(s.stop - s.start)
                 new_slice = slice(0, delta, s.step)
 
             return IndexEntry(new_slice)
@@ -507,22 +513,20 @@ class Index:
         else:
             return samples[0]
 
-    def apply_restricted(
-        self,
-        sample: np.ndarray,
-        bias: Tuple[int, ...],
-        upper_bound: Tuple[int, ...] = None,
-        normalize: bool = False,
-    ) -> np.ndarray:
-        # TODO: docstring
-
+    def add_trivials(self, target_dimensionality: int) -> "Index":
         dim_values = self.values
 
-        dims_left = len(sample.shape) - len(dim_values)
+        dims_left = target_dimensionality - len(dim_values)
         if dims_left > 0:
             for _ in range(dims_left):
                 dim_values.append(IndexEntry(slice(None)))
 
+        
+    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
+        # TODO: docstring
+
+        self.add_trivials(len(sample.shape))
+        
         biased_values = []
         for i, value in enumerate(self.values):
             biased_entry = value
