@@ -132,9 +132,15 @@ class Pipeline:
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
+        tensors = [ds_out.tensors[t].key for t in tensors]
         metas_and_encoders = compute.map(
             store_data_slice,
-            zip(slices, repeat(output_base_storage), repeat(tensors), repeat(self)),
+            zip(
+                slices,
+                repeat((output_base_storage, ds_out.group_index)),
+                repeat(tensors),
+                repeat(self),
+            ),
         )
 
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)

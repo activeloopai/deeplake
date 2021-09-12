@@ -516,7 +516,11 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
+        group_index_str = (
+            f"group_index='{self.group_index}', " if self.group_index else ""
+        )
+
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.meta.tensors})"
 
     __repr__ = __str__
 
@@ -576,6 +580,7 @@ class Dataset:
 
     @property
     def parent(self):
+        """Returns the parent of this group. Returns None if this is the root dataset"""
         if self._is_root():
             return None
         return Dataset(
@@ -603,6 +608,7 @@ class Dataset:
         )
 
     def _create_group(self, name: str) -> "Dataset":
+        """Internal method used by `create_group` and `create_tensor`."""
         groups = self._groups
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
@@ -619,6 +625,7 @@ class Dataset:
         return self[ret]
 
     def create_group(self, name: str) -> "Dataset":
+        """Creates a tensor group. Intermediate groups in the path are also created."""
         if not self._is_root():
             return self.root.create_group(posixpath.join(self.group_index, name))
         name = name.strip("/")
