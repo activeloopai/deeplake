@@ -6,6 +6,7 @@ import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.util.check_installation import requires_torch
+from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
@@ -361,6 +362,8 @@ def test_pytorch_local_cache(ds):
             dl = ds.pytorch(num_workers=2)
         return
 
+    local_cache = get_pytorch_local_storage(ds)
+
     for buffer_size in [0, 0.001, 0.002, 0.003, 0.004, 1]:
         dl = ds.pytorch(
             num_workers=2, batch_size=1, buffer_size=buffer_size, use_local_cache=True
@@ -373,6 +376,8 @@ def test_pytorch_local_cache(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
+        local_cache.clear()
+
         dls = ds.pytorch(
             num_workers=2,
             batch_size=1,
@@ -381,3 +386,4 @@ def test_pytorch_local_cache(ds):
             use_local_cache=True,
         )
         pytorch_small_shuffle_helper(0, 16, dls)
+        local_cache.clear()
