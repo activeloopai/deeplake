@@ -41,8 +41,22 @@ _JPEG_SOFS = [
     b"\xff\xce",
     b"\xff\xcf",
     b"\xff\xde",
+    # Skip:
+    b"\xff\xcc",
+    b"\xff\xdc",
+    b"\xff\xdd",
+    b"\xff\xdf",
+    # App: (0xFFE0 - 0xFFEF):
+    *map(lambda x: x.to_bytes(2, "big"), range(0xFFE0, 0xFFF0)),
+    # DQT:
+    b"\xff\xdb",
+    # COM:
+    b"\xff\xfe",
+    # Start of scan
+    b"\xff\xda",
 ]
 
+_JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
@@ -288,8 +302,20 @@ def _verify_jpeg_buffer(buf: bytes):
     assert buf.startswith(b"\xff\xd8")
     # Look for Start of Frame
     sof_idx = -1
-    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
-        sof_idx = sof_match.start(0)
+    offset = 0
+    while True:
+        match = _re_find_first(_JPEG_SOFS_RE, mview[offset:])
+        if match is None:
+            break
+        idx = match.start(0) + offset
+        marker = buf[idx : idx + 2]
+        if marker == _JPEG_SOFS[-1]:
+            break
+        elif marker in _JPEG_SKIP_MARKERS:
+            offset += int.from_bytes(buf[idx + 2 : idx + 4], "big")
+        else:
+            sof_idx = idx
+            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
 
@@ -309,6 +335,7 @@ def _verify_jpeg_buffer(buf: bytes):
 def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    mv = memoryview(mm)
     try:
         soi = f.read(2)
         # Start of Image
@@ -316,8 +343,23 @@ def _verify_jpeg_file(f):
 
         # Look for Start of Frame
         sof_idx = -1
-        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):
-            sof_idx = sof_match.start(0)
+        offset = 0
+        while True:
+            view = mv[offset:]
+            match = _re_find_first(_JPEG_SOFS_RE, view)
+            view.release()
+            if match is None:
+                break
+            idx = match.start(0) + offset
+            marker = mm[idx : idx + 2]
+            if marker == _JPEG_SOFS[-1]:
+                break
+            elif marker in _JPEG_SKIP_MARKERS:
+                f.seek(idx + 2)
+                offset += int.from_bytes(f.read(2), "big")
+            else:
+                sof_idx = idx
+                offset = idx + 2
         if sof_idx == -1:
             raise Exception()  # Caught by verify_compressed_file()
 
@@ -338,6 +380,7 @@ def _verify_jpeg_file(f):
             shape = shape[:-1]
         return shape
     finally:
+        mv.release()
         mm.close()
 
 
@@ -414,14 +457,35 @@ def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
     return _read_jpeg_shape_from_buffer(f)  # type: ignore
 
 
+def _re_find_first(pattern, string):
+    for match in re.finditer(pattern, string):
+        return match
+
+
 def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
+    mv = memoryview(mm)
     try:
         # Look for Start of Frame
         sof_idx = -1
-        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):  # type: ignore
-            sof_idx = sof_match.start(0)
+        offset = 0
+        while True:
+            view = mv[offset:]
+            match = _re_find_first(_JPEG_SOFS_RE, view)
+            view.release()
+            if match is None:
+                break
+            idx = match.start(0) + offset
+            marker = mm[idx : idx + 2]
+            if marker == _JPEG_SOFS[-1]:
+                break
+            elif marker in _JPEG_SKIP_MARKERS:
+                f.seek(idx + 2)
+                offset += int.from_bytes(f.read(2), "big")
+            else:
+                sof_idx = idx
+                offset = idx + 2
         if sof_idx == -1:
             raise Exception()
         f.seek(sof_idx + 5)
@@ -430,16 +494,29 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
             shape = shape[:-1]
         return shape
     finally:
-        pass
+        mv.release()
         mm.close()
 
 
 def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     """Gets shape of a jpeg file from its contents"""
     # Look for Start of Frame
+    mv = memoryview(buf)
     sof_idx = -1
-    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
-        sof_idx = sof_match.start(0)
+    offset = 0
+    while True:
+        match = _re_find_first(_JPEG_SOFS_RE, mv[offset:])
+        if match is None:
+            break
+        idx = match.start(0) + offset
+        marker = buf[idx : idx + 2]
+        if marker == _JPEG_SOFS[-1]:
+            break
+        elif marker in _JPEG_SKIP_MARKERS:
+            offset += int.from_bytes(buf[idx + 2 : idx + 4], "big")
+        else:
+            sof_idx = idx
+            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
     shape = _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
