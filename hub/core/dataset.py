@@ -368,6 +368,16 @@ class Dataset:
             self.storage.disable_readonly()
         self._read_only = value
 
+    def make_public(self):
+        if not self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=True)
+            self.public = True
+
+    def make_private(self):
+        if self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=False)
+            self.public = False
+
     @hub_reporter.record_call
     def pytorch(
         self,
