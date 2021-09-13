@@ -32,6 +32,7 @@ def get_dataset_with_zero_size_cache(ds):
     return hub.core.dataset.Dataset(
         storage=zero_cache_storage,
         index=ds.index,
+        group_index=ds.group_index,
         read_only=ds.read_only,
         verbose=False,
     )

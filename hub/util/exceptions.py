@@ -80,11 +80,31 @@ class TensorAlreadyExistsError(Exception):
         )
 
 
+class TensorGroupAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__(
+            f"Tensor group '{key}' already exists. A tensor group is created when a tensor has a '/' in its name, or using 'ds.create_group'."
+        )
+
+
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
-        super().__init__(
-            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
-        )
+        if name:
+            msg = (
+                f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+            )
+        else:
+            msg = f"Tensor name cannot be empty."
+        super().__init__(msg)
+
+
+class InvalidTensorGroupNameError(Exception):
+    def __init__(self, name: str):
+        if name:
+            msg = f"The use of a reserved attribute '{name}' as a tensor group name is invalid."
+        else:
+            msg = f"Tensor group name cannot be empty."
+        super().__init__(msg)
 
 
 class DynamicTensorNumpyError(Exception):

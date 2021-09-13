@@ -72,6 +72,37 @@ def test_single_transform_hub_dataset(ds):
 
 
 @enabled_datasets
+def test_groups(ds):
+    with CliRunner().isolated_filesystem():
+        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+            data_in.create_tensor("data/image")
+            data_in.create_tensor("data/label")
+            for i in range(1, 100):
+                data_in.data.image.append(i * np.ones((i, i)))
+                data_in.data.label.append(i * np.ones((1,)))
+        data_in = hub.dataset("./test/transform_hub_in_generic")
+        ds_out = ds
+        ds_out.create_tensor("stuff/image")
+        ds_out.create_tensor("stuff/label")
+
+        data_in = data_in.data
+        ds_out = ds_out.stuff
+
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            )
+
+        assert ds_out.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+
+
+@enabled_datasets
 @parametrize_num_workers
 def test_single_transform_hub_dataset_htypes(ds, num_workers):
     with CliRunner().isolated_filesystem():
