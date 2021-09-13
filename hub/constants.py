@@ -62,17 +62,20 @@ HUB_CLOUD_DEV_USERNAME = "testingacc"
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
+PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = f"hub://{HUB_CLOUD_DEV_USERNAME}/"
 
 # environment variables
 ENV_HUB_DEV_PASSWORD = "ACTIVELOOP_HUB_PASSWORD"
 ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
+ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
 
 # pytest options
 MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
 S3_OPT = "--s3"
+GCS_OPT = "--gcs"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"

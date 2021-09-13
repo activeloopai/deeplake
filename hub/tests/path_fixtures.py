@@ -1,3 +1,4 @@
+from hub.core.storage.gcs import GCSProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
@@ -8,10 +9,13 @@ from hub.constants import (
     KEEP_STORAGE_OPT,
     LOCAL_OPT,
     MEMORY_OPT,
+    PYTEST_GCS_PROVIDER_BASE_ROOT,
     PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
+    GCS_OPT,
+    ENV_GOOGLE_APPLICATION_CREDENTIALS,
 )
 import posixpath
 from hub.tests.common import (
@@ -29,6 +33,7 @@ import tempfile
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
+GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
 
@@ -85,6 +90,12 @@ def _get_path_composition_configs(request):
         },
         S3: {
             "base_root": request.config.getoption(S3_PATH_OPT),
+            "use_id": True,
+            "is_id_prefix": True,
+            "use_underscores": False,
+        },
+        GCS: {
+            "base_root": PYTEST_GCS_PROVIDER_BASE_ROOT,
             "use_id": True,
             "is_id_prefix": True,
             "use_underscores": False,
@@ -163,6 +174,27 @@ def s3_path(request):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         S3Provider(path).clear()
+
+
+@pytest.fixture(scope="session")
+def gcs_creds():
+    return os.environ[ENV_GOOGLE_APPLICATION_CREDENTIALS]
+
+
+@pytest.fixture
+def gcs_path(request, gcs_creds):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
+
+    path = _get_storage_path(request, GCS)
+    GCSProvider(path, token=gcs_creds).clear()
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        GCSProvider(path, token=gcs_creds).clear()
 
 
 @pytest.fixture

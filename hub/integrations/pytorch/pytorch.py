@@ -19,6 +19,10 @@ except ModuleNotFoundError:
     pytorch_installed = False
 
 
+def set_worker_sharing_strategy(worker_id: int) -> None:
+    torch.multiprocessing.set_sharing_strategy("file_system")
+
+
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
@@ -101,4 +105,5 @@ def dataset_to_pytorch(
         drop_last=drop_last,
         collate_fn=collate_fn,
         pin_memory=pin_memory,
+        worker_init_fn=set_worker_sharing_strategy,
     )

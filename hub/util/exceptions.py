@@ -575,3 +575,11 @@ class MemoryDatasetCanNotBePickledError(Exception):
 class CorruptedSampleError(Exception):
     def __init__(self, compression):
         super().__init__(f"Invalid {compression} file.")
+
+
+class GCSDefaultCredsNotFoundError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
+            "Please make sure you initialized gcloud service earlier."
+        )
