@@ -118,11 +118,11 @@ class Pipeline:
         try:
             self.run(data_in, ds_out, tensors, compute_provider, num_workers)
         except Exception as e:
-            compute_provider.close()
             raise TransformError(e)
+        finally:
+            compute_provider.close()
 
         ds_out.storage.autoflush = initial_autoflush
-        compute_provider.close()
 
     def run(
         self,
