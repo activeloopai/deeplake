@@ -3,7 +3,6 @@ import pickle
 import json
 import os
 import tempfile
-import platform
 from typing import Dict, Union
 
 from google.cloud import storage  # type: ignore
@@ -124,7 +123,7 @@ class GCloudCredentials:
             GCSDefaultCredsNotFoundError: if application deafault credentials can't be found.
         """
         try:
-            if platform.system() == "Windows":
+            if os.name == "nt":
                 path = os.path.join(
                     os.getenv("APPDATA"), "gcloud/application_default_credentials.json"
                 )
