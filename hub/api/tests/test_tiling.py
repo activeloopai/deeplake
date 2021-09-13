@@ -150,6 +150,22 @@ def test_failures(memory_ds):
 
 
 @compressions
+def test_read_accross_boundaries(memory_ds, compression):
+    tensor = memory_ds.create_tensor("tensor", dtype="uint8", **compression, max_chunk_size=1 * KB)
+    
+    x = _get_random_image((150, 150))
+    tensor.append_empty((150, 150))
+    tensor[0, 0:150, 0:150] = x.copy()
+    assert tensor[0].num_chunks == 25
+
+    assert_array_lists_equal(tensor[0, 10:12, 1:5].numpy(), x[10:12, 1:5])
+    assert_array_lists_equal(tensor[0, 10:50, 1:50].numpy(), x[10:50, 1:50])
+
+    # read accross multiple tile boundaries
+    assert_array_lists_equal(tensor[0, 10:130, 1:100].numpy(), x[10:130, 1:100])
+
+
+@compressions
 def test_trivial_indexing(memory_ds, compression):
     memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB, **compression)
     _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
