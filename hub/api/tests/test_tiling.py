@@ -156,7 +156,7 @@ def test_read_accross_boundaries(memory_ds, compression):
     x = _get_random_image((150, 150))
     tensor.append_empty((150, 150))
     tensor[0, 0:150, 0:150] = x.copy()
-    assert tensor[0].num_chunks == 25
+    _assert_num_chunks(tensor.num_chunks, 25, compression)
 
     assert_array_lists_equal(tensor[0, 10:12, 1:5].numpy(), x[10:12, 1:5])
     assert_array_lists_equal(tensor[0, 10:50, 1:50].numpy(), x[10:50, 1:50])
@@ -168,10 +168,10 @@ def test_read_accross_boundaries(memory_ds, compression):
 @compressions
 def test_trivial_indexing(memory_ds, compression):
     memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB, **compression)
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, None)
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, compression)
 
     memory_ds.tensor.append_empty((100, 100))
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 16, None)
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 16, compression)
 
     x = np.arange(100*100, dtype="uint8").reshape((100, 100))
 
@@ -181,7 +181,7 @@ def test_trivial_indexing(memory_ds, compression):
     y = x + 5
 
     memory_ds.tensor.append(y.copy())
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 32, None)
+    _assert_num_chunks(memory_ds.tensor.num_chunks, 32, compression)
     expected = [x, y]
     assert_array_lists_equal(memory_ds.tensor.numpy(), expected)
 
