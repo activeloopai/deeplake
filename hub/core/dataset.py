@@ -125,6 +125,11 @@ class Dataset:
         """Returns a dictionary of tensors in the dataset."""
         return self.version_state["tensors"]
 
+    @property
+    def meta(self) -> DatasetMeta:
+        """Returns the metadata of the dataset."""
+        return self.version_state["meta"]
+
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [
