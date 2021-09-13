@@ -60,7 +60,7 @@ def test_image_classification_sets(memory_ds: Dataset):
         overwrite=False,
     )
 
-    assert list(ds.tensors.keys()) == [
+    assert list(ds.tensors) == [
         "test/images",
         "test/labels",
         "train/images",

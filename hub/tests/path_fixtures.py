@@ -235,7 +235,7 @@ def compressed_image_paths():
         "webp": "beach.webp",
         "gif": "boat.gif",
         "bmp": "car.bmp",
-        "jpeg": "cat.jpeg",
+        "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
         "tiff": "field.tiff",
@@ -249,13 +249,14 @@ def compressed_image_paths():
         "xbm": "sample_xbm.xbm",
     }
 
+    paths = {k: ([v] if isinstance(v, str) else v) for k, v in paths.items()}
+
     parent = get_dummy_data_path("compressed_images")
     for k in paths:
-        paths[k] = os.path.join(parent, paths[k])
+        paths[k] = [os.path.join(parent, p) for p in paths[k]]
 
     # Since we implement our own meta data reading for jpegs and pngs,
     # we test against images from PIL repo to cover all edge cases.
-    paths = {k: [v] for k, v in paths.items()}
     tmpdir = tempfile.mkdtemp()
     pil_image_paths = _download_pil_test_images(tmpdir)
     paths["jpeg"] += pil_image_paths[".jpg"]

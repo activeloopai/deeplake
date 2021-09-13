@@ -3,9 +3,12 @@ import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
+from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorAlreadyExistsError,
+    TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
@@ -697,3 +700,46 @@ def test_htypes_list():
         "binary_mask",
         "segment_mask",
     ]
+
+
+def test_groups(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.create_tensor("x/y")
+    ds.create_tensor("y/x")
+    with pytest.raises(TensorGroupAlreadyExistsError):
+        ds.create_tensor("y")
+    assert isinstance(ds.y, Dataset)
+    assert isinstance(ds.x, Tensor)
+    assert isinstance(ds.y.x, Tensor)
+
+    assert "x" in ds._ungrouped_tensors
+
+    ds.create_tensor("/z")
+    assert "z" in ds.tensors
+    assert "" not in ds.groups
+    assert "" not in ds.tensors
+    assert isinstance(ds.z, Tensor)
+
+    assert list(ds.groups) == ["y"]
+    assert set(ds.tensors) == set(["x", "z", "y/x"])
+    assert list(ds.y.tensors) == ["x"]
+    z = ds.y.create_group("z")
+    assert "z" in ds.y.groups
+
+    c = z.create_tensor("a/b/c")
+    d = z.a.b.create_group("d")
+
+    c.append(np.zeros((3, 2)))
+
+    e = ds.create_tensor("/y/z//a/b////d/e/")
+    e.append(np.ones((4, 3)))
+
+    ds = local_ds_generator()
+    c = ds.y.z.a.b.c
+    assert ds.y.z.a.b.parent.group_index == ds.y.z.a.group_index
+    np.testing.assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
+    assert "d" in ds.y.z.a.b.groups
+    e = ds.y.z.a.b.d.e
+    np.testing.assert_array_equal(e[0].numpy(), np.ones((4, 3)))
