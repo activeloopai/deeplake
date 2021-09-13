@@ -13,3 +13,7 @@ class ComputeProvider(ABC):
         """Apply 'func' to each element in 'iterable', collecting the results
         in a list that is returned.
         """
+
+    @abstractmethod
+    def close(self):
+        """Closes the provider."""
