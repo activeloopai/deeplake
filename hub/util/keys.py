@@ -61,9 +61,7 @@ def get_tensor_info_key(key: str, commit_id: str) -> str:
 def get_tensor_commit_chunk_list_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return posixpath.join(key, TENSOR_COMMIT_CHUNK_LIST_FILENAME)
-    return posixpath.join(
-        "versions", commit_id, key, TENSOR_COMMIT_CHUNK_LIST_FILENAME
-    )
+    return posixpath.join("versions", commit_id, key, TENSOR_COMMIT_CHUNK_LIST_FILENAME)
 
 
 def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
