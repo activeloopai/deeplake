@@ -567,6 +567,8 @@ class Dataset:
         return f"Dataset({path_str}{mode_str}{index_str}tensors={self.version_state['meta'].tensors})"
 
     __repr__ = __str__
+    tf = tensorflow
+    pt = pytorch
 
     @property
     def token(self):
