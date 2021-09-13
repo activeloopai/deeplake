@@ -11,7 +11,7 @@ from hub.constants import (
     DATASET_META_FILENAME,
     TENSOR_INFO_FILENAME,
     TENSOR_META_FILENAME,
-    TENSOR_VERSION_CHUNK_LIST_FILENAME,
+    TENSOR_COMMIT_CHUNK_LIST_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
 )
 
@@ -58,11 +58,11 @@ def get_tensor_info_key(key: str, commit_id: str) -> str:
     return posixpath.join("versions", commit_id, key, TENSOR_INFO_FILENAME)
 
 
-def get_tensor_version_chunk_list_key(key: str, commit_id: str) -> str:
+def get_tensor_commit_chunk_list_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return posixpath.join(key, TENSOR_VERSION_CHUNK_LIST_FILENAME)
+        return posixpath.join(key, TENSOR_COMMIT_CHUNK_LIST_FILENAME)
     return posixpath.join(
-        "versions", commit_id, key, TENSOR_VERSION_CHUNK_LIST_FILENAME
+        "versions", commit_id, key, TENSOR_COMMIT_CHUNK_LIST_FILENAME
     )
 
 

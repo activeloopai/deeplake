@@ -5,8 +5,8 @@ from math import ceil
 from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
 
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
-from hub.core.version_control.version_node import VersionNode  # type: ignore
-from hub.core.version_control.version_chunk_list import VersionChunkList  # type: ignore
+from hub.core.version_control.commit_node import CommitNode  # type: ignore
+from hub.core.version_control.commit_chunk_list import CommitChunkList  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.compression import decompress_array
 from hub.core.sample import Sample, SampleValue  # type: ignore
@@ -22,14 +22,14 @@ from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
-    get_tensor_version_chunk_list_key,
+    get_tensor_commit_chunk_list_key,
 )
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
 )
 from hub.util.casting import get_dtype, intelligent_cast
-from hub.util.version_control import auto_checkout, version_chunk_list_exists
+from hub.util.version_control import auto_checkout, commit_chunk_list_exists
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 
@@ -173,20 +173,20 @@ class ChunkEngine:
         return enc
 
     @property
-    def version_chunk_list(self) -> VersionChunkList:
+    def commit_chunk_list(self) -> CommitChunkList:
         commit_id = self.version_state["commit_id"]
-        key = get_tensor_version_chunk_list_key(self.key, commit_id)
-        if not self.version_chunk_list_exists:
-            enc = VersionChunkList()
+        key = get_tensor_commit_chunk_list_key(self.key, commit_id)
+        if not self.commit_chunk_list_exists:
+            enc = CommitChunkList()
             self.meta_cache[key] = enc
             return enc
 
-        enc = self.meta_cache.get_cachable(key, VersionChunkList)
+        enc = self.meta_cache.get_cachable(key, CommitChunkList)
         return enc
 
     @property
-    def version_chunk_list_exists(self) -> bool:
-        return version_chunk_list_exists(self.version_state, self.meta_cache, self.key)
+    def commit_chunk_list_exists(self) -> bool:
+        return commit_chunk_list_exists(self.version_state, self.meta_cache, self.key)
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
@@ -222,10 +222,10 @@ class ChunkEngine:
 
     def get_chunk_commit(self, chunk_name):
         """Returns the commit that contains the chunk_name"""
-        cur_node: VersionNode = self.version_state["commit_node"]
+        cur_node: CommitNode = self.version_state["commit_node"]
         while cur_node is not None:
             commit_id = cur_node.commit_id
-            chunk_list_key = get_tensor_version_chunk_list_key(self.key, commit_id)
+            chunk_list_key = get_tensor_commit_chunk_list_key(self.key, commit_id)
             try:
                 chunk_list = self.cache[chunk_list_key].chunks
             except Exception:
@@ -398,10 +398,10 @@ class ChunkEngine:
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
 
         # synchronize current chunk list, all older ones are immutable
-        version_chunk_list_key = get_tensor_version_chunk_list_key(
+        commit_chunk_list_key = get_tensor_commit_chunk_list_key(
             self.key, self.version_state["commit_id"]
         )
-        self.meta_cache[version_chunk_list_key] = self.version_chunk_list
+        self.meta_cache[commit_chunk_list_key] = self.commit_chunk_list
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -463,7 +463,7 @@ class ChunkEngine:
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
-        self.version_chunk_list.append(chunk_name)
+        self.commit_chunk_list.append(chunk_name)
         self.cache[chunk_key] = chunk
         return chunk
 
@@ -641,7 +641,7 @@ class ChunkEngine:
             chunk = chunk.copy()
             chunk.key = new_chunk_key
             self.cache[new_chunk_key] = chunk
-            self.version_chunk_list.append(chunk_name)
+            self.commit_chunk_list.append(chunk_name)
         return chunk
 
     def read_sample_from_chunk(

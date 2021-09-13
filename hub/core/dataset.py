@@ -17,7 +17,7 @@ from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import S3Provider, LRUCache
 from hub.core.tensor import create_tensor, Tensor
-from hub.core.version_control.version_node import VersionNode  # type: ignore
+from hub.core.version_control.commit_node import CommitNode  # type: ignore
 
 from hub.util.keys import (
     dataset_exists,
@@ -325,7 +325,7 @@ class Dataset:
             version_state["commit_node_map"] = {}
             # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
             commit_id = FIRST_COMMIT_ID
-            commit_node = VersionNode(branch, commit_id)
+            commit_node = CommitNode(branch, commit_id)
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = commit_node
             version_state["branch_commit_map"][branch] = commit_id

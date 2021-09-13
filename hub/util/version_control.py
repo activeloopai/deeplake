@@ -5,8 +5,8 @@ import hashlib
 import pickle
 from typing import Any, Dict
 
-from hub.core.version_control.version_node import VersionNode  # type: ignore
-from hub.core.version_control.version_chunk_list import VersionChunkList  # type: ignore
+from hub.core.version_control.commit_node import CommitNode  # type: ignore
+from hub.core.version_control.commit_chunk_list import CommitChunkList  # type: ignore
 from hub.core.storage import LRUCache
 from hub.util.exceptions import CallbackInitializationError, CheckoutError
 from hub.util.keys import (
@@ -15,7 +15,7 @@ from hub.util.keys import (
     get_dataset_meta_key,
     get_tensor_info_key,
     get_tensor_meta_key,
-    get_tensor_version_chunk_list_key,
+    get_tensor_commit_chunk_list_key,
     get_version_control_info_key,
 )
 
@@ -36,7 +36,7 @@ def commit(
     auto_checkout(version_state, storage)
     stored_commit_id = version_state["commit_id"]
     version_state["commit_id"] = generate_hash()
-    new_node = VersionNode(version_state["branch"], version_state["commit_id"])
+    new_node = CommitNode(version_state["branch"], version_state["commit_id"])
     version_state["commit_node"].add_successor(new_node, message)
     version_state["commit_node"] = new_node
     version_state["branch_commit_map"][version_state["branch"]] = version_state[
@@ -79,7 +79,7 @@ def checkout(
         auto_commit(version_state, storage, address)
         original_commit_id = version_state["commit_id"]
         new_commit_id = generate_hash()
-        new_node = VersionNode(address, new_commit_id)
+        new_node = CommitNode(address, new_commit_id)
         new_node.parent = version_state["commit_node"]
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
@@ -181,21 +181,21 @@ def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
     for tensor in version_state["tensors"].keys():
-        key = get_tensor_version_chunk_list_key(tensor, commit_id)
-        if version_chunk_list_exists(version_state, storage, tensor):
-            enc = storage.get_cachable(key, VersionChunkList)
+        key = get_tensor_commit_chunk_list_key(tensor, commit_id)
+        if commit_chunk_list_exists(version_state, storage, tensor):
+            enc = storage.get_cachable(key, CommitChunkList)
             if enc.chunks:
                 return True
     return False
 
 
-def version_chunk_list_exists(
+def commit_chunk_list_exists(
     version_state: Dict[str, Any], storage: LRUCache, tensor: str
 ) -> bool:
-    """Checks if the version chunk list exists for the given tensor in the current commit."""
+    """Checks if the commit chunk list exists for the given tensor in the current commit."""
     try:
         commit_id = version_state["commit_id"]
-        key = get_tensor_version_chunk_list_key(tensor, commit_id)
+        key = get_tensor_commit_chunk_list_key(tensor, commit_id)
         storage[key]
         return True
     except KeyError:

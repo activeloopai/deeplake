@@ -2,7 +2,8 @@ from typing import List
 from hub.core.storage.cachable import Cachable
 
 
-class VersionChunkList(Cachable):
+class CommitChunkList(Cachable):
+    """Stores list of chunks stored for a particular tensor in a commit."""
     def __init__(self) -> None:
         self.chunks: List[str] = []
 
