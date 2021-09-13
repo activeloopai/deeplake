@@ -37,7 +37,7 @@ from hub.util.exceptions import (
     InvalidTensorNameError,
     LockedException,
 )
-from hub.util.version_control import checkout, commit
+from hub.util.version_control import auto_checkout, checkout, commit, load_meta
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 
@@ -91,7 +91,6 @@ class Dataset:
                 )
 
         self.index: Index = index or Index()
-        self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -119,11 +118,18 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, self.tensors.values()), default=0)
+        return min(map(len, self.version_state["tensors"].values()), default=0)
+
+    @property
+    def tensors(self) -> Dict[str, Tensor]:
+        """Returns a dictionary of tensors in the dataset."""
+        return self.version_state["tensors"]
 
     def __len__(self):
         """Returns the length of the smallest tensor"""
-        tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
+        tensor_lengths = [
+            len(tensor[self.index]) for tensor in self.version_state["tensors"].values()
+        ]
         return min(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -153,7 +159,6 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
-        self.tensors = {}
         self._set_derived_attributes()
 
     def __getitem__(
@@ -163,10 +168,10 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-            if item not in self.tensors:
+            if item not in self.version_state["tensors"]:
                 raise TensorDoesNotExistError(item)
             else:
-                return self.tensors[item][self.index]
+                return self.version_state["tensors"][item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,
@@ -212,7 +217,8 @@ class Dataset:
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
         """
-
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(self.version_state, self.storage)
         if tensor_exists(name, self.storage, self.version_state["commit_id"]):
             raise TensorAlreadyExistsError(name)
         if name in vars(self):
@@ -245,12 +251,12 @@ class Dataset:
             version_state=self.version_state,
             **meta_kwargs,
         )
-        self.meta.tensors.append(name)
-        ffw_dataset_meta(self.meta)
+        self.version_state["meta"].tensors.append(name)
+        ffw_dataset_meta(self.version_state["meta"])
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
-        self.tensors[name] = tensor
+        self.version_state["tensors"][name] = tensor
 
         tensor.info.update(info_kwargs)
 
@@ -319,7 +325,7 @@ class Dataset:
             version_state["commit_node"] = commit_node
             version_state["branch_commit_map"][branch] = commit_id
             version_state["commit_node_map"][commit_id] = commit_node
-        version_state["tensors"] = self.tensors
+        version_state["tensors"] = {}
         self.version_state = version_state
 
     def commit(self, message: Optional[str] = None) -> None:
@@ -349,10 +355,6 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
-        if not create:
-            # loading from another commit/branch, dataset meta will be different and needs to be loaded
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
         return self.version_state["commit_id"]
 
     def log(self):
@@ -366,18 +368,13 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    def _load_meta(self):
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+    def _populate_meta(self):
+        """Populates the meta information for the dataset."""
 
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
-            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-
-            for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(
-                    tensor_name, self.storage, self.version_state
-                )
+            load_meta(self.storage, self.version_state)
 
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
@@ -387,14 +384,15 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            self.meta = DatasetMeta()
-            self.storage[meta_key] = self.meta
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.version_state["meta"] = DatasetMeta()
+            self.storage[meta_key] = self.version_state["meta"]
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
                     self.org_id,
                     self.ds_name,
-                    self.meta.__getstate__(),
+                    self.version_state["meta"].__getstate__(),
                     public=self.public,
                 )
 
@@ -469,7 +467,7 @@ class Dataset:
         """Returns tensor metas all together"""
         return {
             tensor_key: tensor_value.meta
-            for tensor_key, tensor_value in self.tensors.items()
+            for tensor_key, tensor_value in self.version_state["tensors"].items()
         }
 
     def _set_derived_attributes(self):
@@ -484,7 +482,7 @@ class Dataset:
         if self.version_state is None:
             self._load_version_info()
 
-        self._load_meta()  # TODO: use the same scheme as `load_info`
+        self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 
@@ -522,7 +520,7 @@ class Dataset:
         """Estimates the size in bytes of the dataset.
         Includes only content, so will generally return an under-estimate.
         """
-        tensors = self.tensors.values()
+        tensors = self.version_state["tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
         return size
@@ -561,7 +559,7 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.version_state['meta'].tensors})"
 
     __repr__ = __str__
 

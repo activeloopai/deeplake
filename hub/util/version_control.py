@@ -1,3 +1,4 @@
+from hub.core.meta.dataset_meta import DatasetMeta
 import random
 import time
 import hashlib
@@ -7,7 +8,7 @@ from typing import Any, Dict
 from hub.core.version_control.version_node import VersionNode  # type: ignore
 from hub.core.version_control.version_chunk_list import VersionChunkList  # type: ignore
 from hub.core.storage import LRUCache
-from hub.util.exceptions import CheckoutError
+from hub.util.exceptions import CallbackInitializationError, CheckoutError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -47,6 +48,7 @@ def commit(
         stored_commit_id, version_state["commit_id"], storage, version_state["tensors"]
     )
     storage.flush()
+    load_meta(storage, version_state)
 
 
 def checkout(
@@ -96,6 +98,7 @@ def checkout(
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
         )
+    load_meta(storage, version_state)
 
 
 def copy_metas(
@@ -110,7 +113,7 @@ def copy_metas(
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         storage[dest_dataset_info_key] = storage[src_dataset_info_key].copy()
-    except Exception:
+    except (KeyError, CallbackInitializationError):
         pass
 
     tensor_list = list(tensors.keys())
@@ -126,14 +129,14 @@ def copy_metas(
             storage[dest_chunk_id_encoder_key] = storage[
                 src_chunk_id_encoder_key
             ].copy()
-        except Exception:
+        except (KeyError, CallbackInitializationError):
             pass
 
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
-        except Exception:
+        except (KeyError, CallbackInitializationError):
             pass
 
 
@@ -197,3 +200,17 @@ def version_chunk_list_exists(
         return True
     except KeyError:
         return False
+
+
+def load_meta(storage, version_state):
+    """Loads the meta info for the version state."""
+    from hub.core.tensor import Tensor
+
+    meta_key = get_dataset_meta_key(version_state["commit_id"])
+    meta = storage.get_cachable(meta_key, DatasetMeta)
+    version_state["meta"] = meta
+    tensors = version_state["tensors"]
+    tensors.clear()
+
+    for tensor_name in meta.tensors:
+        tensors[tensor_name] = Tensor(tensor_name, storage, version_state)

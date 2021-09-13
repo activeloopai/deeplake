@@ -30,8 +30,7 @@ class Cachable(ABC):
         return bytes(json.dumps(self.__getstate__()), "utf-8")
 
     def copy(self):
-        data_type = type(self)
-        return data_type.frombuffer(self.tobytes())
+        return self.frombuffer(self.tobytes())
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

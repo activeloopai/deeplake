@@ -201,3 +201,66 @@ def test_dynamic(ds):
 
     for i in range(10):
         assert (ds.img[i].numpy() == 2 * i * np.ones((150, 150, 3))).all()
+
+
+@enabled_datasets
+def test_different_lengths(ds):
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("abc")
+        ds.img.extend(np.ones((5, 50, 50)))
+        ds.abc.extend(np.ones((2, 10, 10)))
+        first = ds.commit("stored 5 images, 2 abc")
+        ds.img.extend(np.ones((3, 50, 50)))
+        second = ds.commit("stored 3 more images")
+        assert len(ds.tensors) == 2
+        assert len(ds.img) == 8
+        assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+        assert len(ds.abc) == 2
+        assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+        ds.checkout(first)
+        assert len(ds.tensors) == 2
+        assert len(ds.img) == 5
+        assert (ds.img.numpy() == np.ones((5, 50, 50))).all()
+        assert len(ds.abc) == 2
+        assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+
+        # will autocheckout to new branch
+        ds.create_tensor("ghi")
+        ds.ghi.extend(np.ones((2, 10, 10)))
+        ds.img.extend(np.ones((2, 50, 50)))
+        ds.abc.extend(np.ones((3, 10, 10)))
+        assert len(ds.tensors) == 3
+        assert len(ds.img) == 7
+        assert (ds.img.numpy() == np.ones((7, 50, 50))).all()
+        assert len(ds.abc) == 5
+        assert (ds.abc.numpy() == np.ones((5, 10, 10))).all()
+        assert len(ds.ghi) == 2
+        assert (ds.ghi.numpy() == np.ones((2, 10, 10))).all()
+        third = ds.commit(
+            "stored 2 more images, 3 more abc in other branch, created ghi"
+        )
+        ds.checkout(first)
+        assert len(ds.tensors) == 2
+        assert len(ds.img) == 5
+        assert (ds.img.numpy() == np.ones((5, 50, 50))).all()
+        assert len(ds.abc) == 2
+        assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+        ds.checkout(second)
+        assert len(ds.tensors) == 2
+        assert len(ds.img) == 8
+        assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+        assert len(ds.abc) == 2
+        assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+        ds.checkout(third)
+        assert len(ds.tensors) == 3
+        assert len(ds.img) == 7
+        assert (ds.img.numpy() == np.ones((7, 50, 50))).all()
+        assert len(ds.abc) == 5
+        assert (ds.abc.numpy() == np.ones((5, 10, 10))).all()
+        ds.checkout("main")
+        assert len(ds.tensors) == 2
+        assert len(ds.img) == 8
+        assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+        assert len(ds.abc) == 2
+        assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
