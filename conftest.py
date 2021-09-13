@@ -7,7 +7,7 @@ import logging
 os.environ["BUGGER_OFF"] = "true"
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-logging.basicConfig(level=logging.ERROR)
+logging.disable(logging.INFO)
 
 from hub.constants import *
 from hub.tests.common import SESSION_ID
