@@ -61,7 +61,7 @@ def merge_all_chunk_id_encoders(
     ds_out.flush()
 
 
-def merge_all_tile_encoders(all_workers_tile_encoders: List[Dict[str, hub.core.tile.TileEncoder]], ds_out: hub.core.dataset.Dataset) -> None:
+def merge_all_tile_encoders(all_workers_tile_encoders: List[Dict[str, TileEncoder]], ds_out: hub.core.dataset.Dataset) -> None:
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         chunk_engine = ds_out[tensor].chunk_engine
