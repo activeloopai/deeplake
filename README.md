@@ -23,7 +23,7 @@
  </h3>
 
 ## Why use Hub?
-**Data scientists spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. The Hub format + API simplifies these tasks so that users can focus on building amazing machine learning models 💻.**
+**ML engineers spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. The Hub format + API simplifies these tasks so that users can focus on building amazing machine learning models 💻.**
 
 Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and is has powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
 
@@ -39,16 +39,14 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 
 ## Features 
 ### Current Release
-
 * Easy dataset creation and hosting on Activeloop Cloud, S3, or Google Cloud
 * Rapid dataset streaming to any machine
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
-* Dataset version control
 * Rapid data processing using transformations on distributed compute
 * Data pipelines
 
 ### Coming Soon
-
+* Dataset version control
 * Datasets hosting on Azure
 * Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
