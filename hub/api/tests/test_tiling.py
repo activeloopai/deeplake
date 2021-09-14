@@ -151,7 +151,7 @@ def test_failures(memory_ds):
 
 
 @compressions
-def test_read_accross_boundaries(memory_ds, compression):
+def test_tile_boundaries(memory_ds, compression):
     tensor = memory_ds.create_tensor("tensor", dtype="uint8", **compression, max_chunk_size=1 * KB)
     
     x = _get_arange_image((150, 150))
@@ -159,33 +159,34 @@ def test_read_accross_boundaries(memory_ds, compression):
     tensor[0, 0:150, 0:150] = x.copy()
     _assert_num_chunks(tensor.num_chunks, 25, compression)
 
+    # TODO: more indexing tests (negative, out of bounds, etc)
+
+    # top left tile
+    assert_array_lists_equal(tensor[0, 0:12, 0:5].numpy(), x[0:12, 0:5])
+
+    # top left tile + offset
     assert_array_lists_equal(tensor[0, 10:12, 1:5].numpy(), x[10:12, 1:5])
+
+    # a middle tile
+    assert_array_lists_equal(tensor[0, 62:80, 32:40].numpy(), x[62:80, 32:40])
+
+    # a middle tile + offset
+    assert_array_lists_equal(tensor[0, 69:80, 38:40].numpy(), x[69:80, 38:40])
+
+    # top left 4 tiles
     assert_array_lists_equal(tensor[0, 0:50, 0:50].numpy(), x[0:50, 0:50])
+
+    # top left 4 tiles + offset
     assert_array_lists_equal(tensor[0, 10:50, 1:50].numpy(), x[10:50, 1:50])
 
-    # read accross multiple tile boundaries
+    # left side + offset (20 tiles)
     assert_array_lists_equal(tensor[0, 10:130, 1:100].numpy(), x[10:130, 1:100])
 
+    # all tiles
+    assert_array_lists_equal(tensor[0].numpy(), x)
 
-@compressions
-def test_trivial_indexing(memory_ds, compression):
-    memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB, **compression)
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 0, compression)
-
-    memory_ds.tensor.append_empty((100, 100))
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 16, compression)
-
-    x = np.arange(100*100, dtype="uint8").reshape((100, 100))
-
-    memory_ds.tensor[0, 0:100, 0:100] = x.copy()
-    np.testing.assert_array_equal(memory_ds.tensor[0].numpy(), x)
-
-    y = x + 5
-
-    memory_ds.tensor.append(y.copy())
-    _assert_num_chunks(memory_ds.tensor.num_chunks, 32, compression)
-    expected = [x, y]
-    assert_array_lists_equal(memory_ds.tensor.numpy(), expected)
+    # all tiles + offset
+    assert_array_lists_equal(tensor[0, 3:, 4:].numpy(), x[3:, 4:])
 
 
 @compressions
