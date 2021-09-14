@@ -639,14 +639,14 @@ class Index:
         ):
             entry_low = index_entry.low_bound
             entry_high = index_entry.high_bound
+            
             if index_entry.is_trivial() or entry_low is None or entry_high is None:
                 continue
-            if in_high_dim < entry_low:
+            if in_high_dim <= entry_low:
                 return False
             if in_low_dim > entry_high:
                 return False
 
-        # all trivial indexes intersect
         return True
 
     @property
