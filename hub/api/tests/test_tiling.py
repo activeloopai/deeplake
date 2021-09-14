@@ -150,14 +150,14 @@ def test_failures(memory_ds):
         memory_ds.tensor[0] = np.ones((5, 5), dtype="int32") * 4
 
 
-@compressions
-def test_tile_boundaries(memory_ds, compression):
-    tensor = memory_ds.create_tensor("tensor", dtype="uint8", **compression, max_chunk_size=1 * KB)
+def test_tile_boundaries(memory_ds):
+    tensor = memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB)
     
     x = _get_arange_image((150, 150))
     tensor.append_empty((150, 150))
     tensor[0, 0:150, 0:150] = x.copy()
-    _assert_num_chunks(tensor.num_chunks, 25, compression)
+    assert tensor.num_chunks == 25
+    assert tensor[0].tile_shape == (31, 31)
 
     # TODO: more indexing tests (negative, out of bounds, etc)
 
@@ -168,7 +168,7 @@ def test_tile_boundaries(memory_ds, compression):
     assert_array_lists_equal(tensor[0, 10:12, 1:5].numpy(), x[10:12, 1:5])
 
     # a middle tile
-    assert_array_lists_equal(tensor[0, 62:80, 32:40].numpy(), x[62:80, 32:40])
+    assert_array_lists_equal(tensor[0, 62:80, 31:40].numpy(), x[62:80, 31:40])
 
     # a middle tile + offset
     assert_array_lists_equal(tensor[0, 69:80, 38:40].numpy(), x[69:80, 38:40])
