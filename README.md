@@ -1,8 +1,8 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
-    <h2 align="center">Dataset management for deep learning applications
- </h2>
+    <h1 align="center">Dataset Format for AI
+ </h1>
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -23,30 +23,32 @@
  </h3>
 
 ## Why use Hub?
-**Data scientists spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. Hub streamlines these tasks so that users can focus on building amazing machine learning models 💻.**
+**ML engineers spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. The Hub format + API simplifies these tasks so that users can focus on building amazing machine learning models 💻.**
 
-Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and we are currently adding powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
+Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and it has powerful tools for dataset version control, building ML pipelines, and running distributed workloads.
 
 Hub is best suited for unstructured datasets such as images, videos, point clouds, or text. It works locally or on any cloud.
 
 Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 
+## How does Hub work?
+
+Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using images, videos, and text. By storing data as chunked compressed arrays, Hub significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
+
+Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
+
 ## Features 
 ### Current Release
-
-* Easy dataset creation and hosting on Activeloop Cloud or S3
+* Easy dataset creation and hosting on Activeloop Cloud, S3, or Google Cloud
 * Rapid dataset streaming to any machine
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
+* Rapid data processing using transformations on distributed compute
+* Data pipelines
 
 ### Coming Soon
-
-* Datasets hosting on Google Cloud and Azure
 * Dataset version control
-* Dataset query using text-based query language
-* Loading of data in random order without having to download the entire dataset
-* Dataset query using custom filter functions without having to download the entire dataset
-* Rapid data processing using transforms on distributed compute
-* Data pipelines
+* Dataset hosting on Azure
+* Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
  <p align="center">
     <br>
@@ -54,35 +56,53 @@ Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
     </br>
 Visualization of a dataset uploaded to Hub
 
-## How does Hub work?
-
-Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using data such as images, videos, and text. Hub is a Data 2.0 solution that stores datasets as chunked compressed arrays, which significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
-
-Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
-
 ## Getting Started with Hub
+### Installation
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
 pip3 install hub
 ```
-Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
+### Loading Datasets
+Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron) in the numpy array format:
 ```python
 import hub
 
-mnist = hub.load("hub://activeloop/mnist-train")
-mnist_np = mnist.images[0].numpy()
+ds = hub.load('hub://activeloop/objectron_bike_train')
+image_arr = ds.image[0].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
 import hub
 
-my_dataset = hub.load("s3://bucket_name/dataset_folder")
-my_dataloader = my_dataset.pytorch(batch_size = 16, num_workers = 4)
+ds = hub.load("s3://bucket_name/dataset_folder")
+data_loader = ds.pytorch(batch_size = 16, num_workers = 4)
 
-for batch in my_dataloader:
+for batch in data_loader:
     print(batch)
 
 ## Training Loop Here ##
+```
+### Creating Datasets
+To upload your own dataset to Hub:
+```python
+import hub
+
+fns = my_images # List of image files in dataset
+
+# Define empty dataset
+ds = hub.empty("gcp://bucket_name/dataset_folder")
+
+# Upload data
+with ds:
+
+    # Create tensors
+    ds.create_tensor('images', htype = 'image', sample_compression = 'jpg')
+    ds.create_tensor('labels', htype = 'class_label')
+    
+    # Append data
+    for fn in fns:
+        ds.images.append(hub.read(fn))
+        ds.labels.append(my_label_parser(fn))
 ```
 
 ## Documentation
