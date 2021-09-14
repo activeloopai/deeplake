@@ -9,10 +9,6 @@ from hub.core.tiling.optimize import TileOptimizer
 import pytest
 
 
-# consistent simulated annealing
-np.random.seed(1)
-
-
 # for debugging, you can use this visualization script:
 # https://gist.github.com/mccrearyd/d4a9506813fe64d42c63b090997d9145
 

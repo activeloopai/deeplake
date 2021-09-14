@@ -54,4 +54,10 @@ def print_session_id():
     print("----------------------------------------------------------")
 
 
+@pytest.fixture(scope="function", autouse=True)
+def set_seed():
+    # set seed for reproducibility
+    np.random.seed(1)
+
+
 print_session_id()
