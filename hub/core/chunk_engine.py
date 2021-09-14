@@ -729,7 +729,11 @@ class ChunkEngine:
                     tile_view = get_input_tile_view(tile, subslice_index, tile_index, tile_shape)
                     input_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index, tile_shape)
 
+                    # TODO: remove before merge
+                    assert tile_view.sum() == 0
+
                     tile_view[:] = input_sample_view
+
                     new_sample = tile
 
                 buffer, shape = serialize_input_sample(new_sample, tensor_meta)
@@ -925,50 +929,18 @@ class ChunkEngine:
         sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
         sample = np.zeros(sample_shape, dtype=dtype)
 
-        print("*********************")
-        print("subslice index", subslice_index)
-
-        # TODO: remove this before merging!
-        cumsum = 0
-
-        # TODO: rename var
-        shape_sum = np.zeros(len(full_sample_shape), dtype=int)
-
         for tile_index, tile_obj in np.ndenumerate(tiles):
             if tile_obj is None:
                 continue
-
-            print(f"___________tile index={tile_index}")
 
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
             tile_view = get_output_tile_view(tile, subslice_index, tile_index, tile_shape)
 
-            # bias = np.asarray(tile_index) * tile_view.shape
-            bias = shape_sum
-            print("bias", bias)
-
             # TODO: need to input a bias term here that acts as a sliding window origin
-            sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape, bias)
-
-            
-            print(f"tile_shape={tile.shape} (view={tile_view.shape})")
-            print(f"sample_shape={sample.shape} (view={sample_view.shape})")
-
-            # TODO: remove this before merging!
-            if not sample_view.sum() == 0:
-                print(sample)
-                print(sample_view)
-                assert False
-            cumsum += tile_view.sum()
-
-            # print(tile_index, tile_view.shape)
+            sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape)
 
             sample_view[:] = tile_view
-            assert cumsum == sample.sum(), f"{cumsum}, {sample.sum()}"
-            shape_sum += sample_view.shape * np.asarray(tile_index)
-
-            # print(sample_view)
 
         return sample
 

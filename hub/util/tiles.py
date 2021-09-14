@@ -153,7 +153,7 @@ def get_input_sample_view(sample: np.ndarray, subslice_index: Index, tile_index:
 
 
 def get_output_sample_view(
-    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...], bias: np.ndarray,
+    sample: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...],
 ) -> np.ndarray:
     """When reading a subslice from a tiled sample, this method restricts the view on `sample` 
     (so it can be populated with data from a tile) where `sample` is the array that will be returned 
@@ -165,24 +165,18 @@ def get_output_sample_view(
     subslice_index.add_trivials(len(sample.shape))
 
     offset = subslice_index.low_bound
-    print("low bound", offset)
 
     values = []
     for i, entry in enumerate(subslice_index.values):
         dim_offset = offset[i] * tile_index[i]
-        print(dim_offset, "dim offset")
 
         new_entry = entry.clamp_upper(high[i])
         new_entry = new_entry.with_bias(-low[i])
         new_entry = new_entry.normalize(tile_index[i] * tile_shape[i] - dim_offset)
+        # new_entry = new_entry.normalize()
         values.append(new_entry.value)
     
-    print("------")
-    print("applying values", values)
-    print("to sample", sample.shape)
     view = sample[tuple(values)]
-    print("got view shape", view.shape)
-    print("------")
     return view
 
 
