@@ -225,8 +225,8 @@ class ChunkEngine:
     def get_chunk(self, chunk_key: str) -> Chunk:
         return self.cache.get_cachable(chunk_key, Chunk)
 
-    def get_chunk_commit(self, chunk_name):
-        """Returns the commit that contains the chunk_name"""
+    def get_chunk_commit(self, chunk_name) -> str:
+        """Returns the commit id that contains the chunk_name."""
         cur_node: CommitNode = self.version_state["commit_node"]
         while cur_node is not None:
             commit_id = cur_node.commit_id
@@ -240,14 +240,12 @@ class ChunkEngine:
             if chunk_name in chunk_list:
                 return commit_id
             cur_node = cur_node.parent
-        return None
+        return self.version_state["commit_id"]
 
     @property
     def last_chunk_key(self) -> str:
         last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
         commit_id = self.get_chunk_commit(last_chunk_name)
-        if commit_id is None:
-            commit_id = self.version_state["commit_id"]
         return get_chunk_key(self.key, last_chunk_name, commit_id)
 
     @property
@@ -638,8 +636,6 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         current_commit_id = self.version_state["commit_id"]
-        if chunk_commit_id is None:
-            chunk_commit_id = current_commit_id
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
