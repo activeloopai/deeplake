@@ -59,10 +59,12 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 Visualization of a dataset uploaded to Hub
 
 ## Getting Started with Hub
+### Installation
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
 pip3 install hub
 ```
+### Loading Datasets
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
 import hub
@@ -82,26 +84,27 @@ for batch in data_loader:
 
 ## Training Loop Here ##
 ```
+### Creating Datasets
 To upload your own dataset to Hub:
 ```python
 import hub
 
-fns = my_images #List of image files in dataset
+fns = my_images # List of image files in dataset
 
 # Define empty dataset
 ds = hub.empty("gcp://bucket_name/dataset_folder")
 
-# Create tensors
-ds.create_tensor('images', htype = 'image', sample_compression = 'jpg')
-ds.create_tensor('labels', htype = 'class_label')
-
 # Upload data
 with ds:
+
+    # Create tensors
+    ds.create_tensor('images', htype = 'image', sample_compression = 'jpg')
+    ds.create_tensor('labels', htype = 'class_label')
+    
+    # Append data
     for fn in fns:
         ds.images.append(hub.read(fn))
-        ds.labels.append(#parse label)
-
-## Training Loop Here ##
+        ds.labels.append(my_label_parser(fn))
 ```
 
 ## Documentation
