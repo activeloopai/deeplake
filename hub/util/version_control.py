@@ -80,7 +80,7 @@ def checkout(
         original_commit_id = version_state["commit_id"]
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
-        new_node.parent = version_state["commit_node"]
+        version_state["commit_node"].add_child(new_node)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address

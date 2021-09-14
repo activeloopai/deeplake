@@ -1,7 +1,8 @@
-from hub.util.exceptions import CheckoutError, ReadOnlyModeError
-import numpy as np
+import hub
 import pytest
+import numpy as np
 from hub.tests.dataset_fixtures import enabled_datasets
+from hub.util.exceptions import CheckoutError, ReadOnlyModeError
 
 
 @enabled_datasets
@@ -264,3 +265,40 @@ def test_different_lengths(ds):
         assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
         assert len(ds.abc) == 2
         assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+
+    path = ds.path
+    if path.startswith("mem://"):
+        # memory datasets are not persistent
+        return
+
+    # reloading the dataset to check persistence
+    ds = hub.dataset(path)
+    assert len(ds.tensors) == 2
+    assert len(ds.img) == 8
+    assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+    assert len(ds.abc) == 2
+    assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+    ds.checkout(first)
+    assert len(ds.tensors) == 2
+    assert len(ds.img) == 5
+    assert (ds.img.numpy() == np.ones((5, 50, 50))).all()
+    assert len(ds.abc) == 2
+    assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+    ds.checkout(second)
+    assert len(ds.tensors) == 2
+    assert len(ds.img) == 8
+    assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+    assert len(ds.abc) == 2
+    assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()
+    ds.checkout(third)
+    assert len(ds.tensors) == 3
+    assert len(ds.img) == 7
+    assert (ds.img.numpy() == np.ones((7, 50, 50))).all()
+    assert len(ds.abc) == 5
+    assert (ds.abc.numpy() == np.ones((5, 10, 10))).all()
+    ds.checkout("main")
+    assert len(ds.tensors) == 2
+    assert len(ds.img) == 8
+    assert (ds.img.numpy() == np.ones((8, 50, 50))).all()
+    assert len(ds.abc) == 2
+    assert (ds.abc.numpy() == np.ones((2, 10, 10))).all()

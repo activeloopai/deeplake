@@ -174,15 +174,20 @@ class ChunkEngine:
 
     @property
     def commit_chunk_list(self) -> CommitChunkList:
+        """Gets the commit chunk list from cache, if one is not found it creates a blank one.
+
+        Returns:
+            CommitChunkList: The commit chunk list keeps track of all the chunks present in the current commit.
+        """
         commit_id = self.version_state["commit_id"]
         key = get_tensor_commit_chunk_list_key(self.key, commit_id)
         if not self.commit_chunk_list_exists:
-            enc = CommitChunkList()
-            self.meta_cache[key] = enc
-            return enc
+            clist = CommitChunkList()
+            self.meta_cache[key] = clist
+            return clist
 
-        enc = self.meta_cache.get_cachable(key, CommitChunkList)
-        return enc
+        clist = self.meta_cache.get_cachable(key, CommitChunkList)
+        return clist
 
     @property
     def commit_chunk_list_exists(self) -> bool:
@@ -227,7 +232,9 @@ class ChunkEngine:
             commit_id = cur_node.commit_id
             chunk_list_key = get_tensor_commit_chunk_list_key(self.key, commit_id)
             try:
-                chunk_list = self.cache[chunk_list_key].chunks
+                chunk_list = self.meta_cache.get_cachable(
+                    chunk_list_key, CommitChunkList
+                ).chunks
             except Exception:
                 chunk_list = []
             if chunk_name in chunk_list:
