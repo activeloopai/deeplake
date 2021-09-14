@@ -7,8 +7,9 @@ from hub.tests.common import assert_array_lists_equal, compressions
 
 
 
-def _get_random_image(shape):
-    return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
+def _get_arange_image(shape):
+    return np.arange(np.prod(shape), dtype="uint8").reshape(shape)
+    # return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
 
 
 def _assert_num_chunks(
@@ -153,12 +154,13 @@ def test_failures(memory_ds):
 def test_read_accross_boundaries(memory_ds, compression):
     tensor = memory_ds.create_tensor("tensor", dtype="uint8", **compression, max_chunk_size=1 * KB)
     
-    x = _get_random_image((150, 150))
+    x = _get_arange_image((150, 150))
     tensor.append_empty((150, 150))
     tensor[0, 0:150, 0:150] = x.copy()
     _assert_num_chunks(tensor.num_chunks, 25, compression)
 
     assert_array_lists_equal(tensor[0, 10:12, 1:5].numpy(), x[10:12, 1:5])
+    assert_array_lists_equal(tensor[0, 0:50, 0:50].numpy(), x[0:50, 0:50])
     assert_array_lists_equal(tensor[0, 10:50, 1:50].numpy(), x[10:50, 1:50])
 
     # read accross multiple tile boundaries
@@ -188,9 +190,9 @@ def test_trivial_indexing(memory_ds, compression):
 
 @compressions
 def test_append(local_ds, compression, tatevik):
-    large1 = _get_random_image((90, 100, 4))
-    large2 = _get_random_image((100, 90, 4))
-    small = _get_random_image((10, 10, 4))
+    large1 = _get_arange_image((90, 100, 4))
+    large2 = _get_arange_image((100, 90, 4))
+    small = _get_arange_image((10, 10, 4))
 
     local_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=20 * KB)
 
@@ -217,9 +219,9 @@ def test_append(local_ds, compression, tatevik):
 def test_extend(local_ds, compression, davit):
     local_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
 
-    small1 = _get_random_image((10, 10, 3))
-    small2 = _get_random_image((5, 20, 3))
-    large = _get_random_image((100, 100, 3))
+    small1 = _get_arange_image((10, 10, 3))
+    small2 = _get_arange_image((5, 20, 3))
+    large = _get_arange_image((100, 100, 3))
 
     local_ds.image.extend([
         small1.copy(),
