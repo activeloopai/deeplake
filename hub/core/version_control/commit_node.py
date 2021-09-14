@@ -1,4 +1,5 @@
 from datetime import datetime
+from hub.client.utils import get_user_name
 from typing import List, Optional
 
 
@@ -24,8 +25,7 @@ class CommitNode:
         node.parent = self
         self.children.append(node)
         self.commit_message = message
-        user_name = "public"  # TODO: fetch username
-        self.commit_user_name = "None" if user_name == "public" else user_name
+        self.commit_user_name = get_user_name()
         self.commit_time = datetime.now()
 
     def __repr__(self) -> str:

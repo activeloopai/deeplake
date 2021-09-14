@@ -1,10 +1,14 @@
 import os
-import sys
+import json
+import requests
 from pathlib import Path
 
-import requests
 
-from hub.client.config import TOKEN_FILE_PATH, HUB_AUTH_TOKEN
+from hub.client.config import (
+    REPORTING_CONFIG_FILE_PATH,
+    TOKEN_FILE_PATH,
+    HUB_AUTH_TOKEN,
+)
 from hub.util.exceptions import (
     AuthenticationException,
     AuthorizationException,
@@ -82,3 +86,14 @@ def check_response_status(response: requests.Response):
     else:
         message = f"An error occurred. Server response: {response.status_code}"
         raise UnexpectedStatusCodeException(message)
+
+
+def get_user_name() -> str:
+    """Returns the name of the user currently logged into Hub."""
+    path = REPORTING_CONFIG_FILE_PATH
+    try:
+        with open(path, "r") as f:
+            d = json.load(f)
+            return d["username"]
+    except (FileNotFoundError, KeyError):
+        return "public"
