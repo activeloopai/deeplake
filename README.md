@@ -47,7 +47,7 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 
 ### Coming Soon
 * Dataset version control
-* Datasets hosting on Azure
+* Dataset hosting on Azure
 * Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
  <p align="center">
