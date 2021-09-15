@@ -8,7 +8,6 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB
-from hub import Dataset
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -99,7 +98,7 @@ def store_data_slice(
         tensors, output_storage, version_state
     )
 
-    if isinstance(data_slice, Dataset):
+    if isinstance(data_slice, hub.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice)
 
     transform_data_slice_and_append(
@@ -173,14 +172,14 @@ def create_worker_chunk_engines(
 
 
 def add_cache_to_dataset_slice(
-    dataset_slice: Dataset,
-) -> Dataset:
+    dataset_slice: hub.Dataset,
+) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
     cache_size = 64 * len(dataset_slice.tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-    dataset_slice = Dataset(
+    dataset_slice = hub.Dataset(
         cached_store,
         index=dataset_slice.index,
         group_index=dataset_slice.group_index,  # type: ignore
@@ -200,7 +199,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
         raise InvalidInputDataError(
             f"The data_in to transform is invalid. It should support __len__ operation."
         )
-    if isinstance(data_in, Dataset):
+    if isinstance(data_in, hub.Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
             "serial",
@@ -211,7 +210,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: Dataset, scheduler: str) -> None:
+def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError
