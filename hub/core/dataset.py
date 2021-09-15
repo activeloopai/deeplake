@@ -101,9 +101,7 @@ class Dataset:
         self._token = token
         self.public = public
         self.verbose = verbose
-        self.version_state: Dict[str, Any] = (
-            {} if version_state is None else version_state
-        )
+        self.version_state: Dict[str, Any] = version_state or {}
 
         self._set_derived_attributes()
 
