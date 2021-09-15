@@ -235,7 +235,7 @@ def compressed_image_paths():
         "webp": "beach.webp",
         "gif": "boat.gif",
         "bmp": "car.bmp",
-        "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg"],
+        "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
         "tiff": "field.tiff",
