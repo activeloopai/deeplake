@@ -5,14 +5,17 @@ import os
 import tempfile
 from typing import Dict, Union
 
-from google.cloud import storage  # type: ignore
-from google.api_core import retry  # type: ignore
-from google.oauth2 import service_account  # type: ignore
-import google.auth as gauth  # type: ignore
-import google.auth.compute_engine  # type: ignore
-import google.auth.credentials  # type: ignore
-import google.auth.exceptions  # type: ignore
-from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+try:
+    from google.cloud import storage  # type: ignore
+    from google.api_core import retry  # type: ignore
+    from google.oauth2 import service_account  # type: ignore
+    import google.auth as gauth  # type: ignore
+    import google.auth.compute_engine  # type: ignore
+    import google.auth.credentials  # type: ignore
+    import google.auth.exceptions  # type: ignore
+    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+except:
+    pass
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
