@@ -94,6 +94,7 @@ class TorchDataset:
             )
         self.pickled_storage = pickle.dumps(base_storage)
         self.index = dataset.index
+        self.group_index = dataset.group_index
         self.length = len(dataset)
         self.transform = transform
         if tensors is None:
@@ -119,7 +120,10 @@ class TorchDataset:
             cache_size = 32 * MB * len(self.tensor_keys)
             cached_storage = LRUCache(MemoryProvider(), storage, cache_size)
             self.dataset = hub.Dataset(
-                storage=cached_storage, index=self.index, verbose=False
+                storage=cached_storage,
+                index=self.index,
+                group_index=self.group_index,
+                verbose=False,
             )
 
     def __len__(self):

@@ -1,6 +1,7 @@
 import hub
 import pickle
 import warnings
+import posixpath
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 
@@ -33,20 +34,24 @@ from hub.util.exceptions import (
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
     TensorAlreadyExistsError,
+    TensorGroupAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
+    InvalidTensorGroupNameError,
     LockedException,
 )
 from hub.util.version_control import auto_checkout, checkout, commit, load_meta
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 
+
 # TODO: Add branch and commit id as properties
 class Dataset:
     def __init__(
         self,
         storage: LRUCache,
-        index: Index = None,
+        index: Optional[Index] = None,
+        group_index: str = "",
         read_only: bool = False,
         public: Optional[bool] = True,
         token: Optional[str] = None,
@@ -56,8 +61,9 @@ class Dataset:
         """Initializes a new or existing dataset.
 
         Args:
-            storage (LRUCache): The cache containing a chain of storage providers used to access the dataset.
-            index (Index): The Index object restricting the view of this dataset's tensors.
+            storage (LRUCache): The storage provider used to access the dataset.
+            index (Index, optional): The Index object restricting the view of this dataset's tensors.
+            group_index (str): Name of the group this dataset instance represents.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             public (bool, optional): Applied only if storage is Hub cloud storage and a new Dataset is being created. Defines if the dataset will have public access.
@@ -91,6 +97,7 @@ class Dataset:
                 )
 
         self.index: Index = index or Index()
+        self.group_index = group_index
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -118,12 +125,7 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, self.version_state["tensors"].values()), default=0)
-
-    @property
-    def tensors(self) -> Dict[str, Tensor]:
-        """Returns a dictionary of tensors in the dataset."""
-        return self.version_state["tensors"]
+        return min(map(len, self.tensors.values()), default=0)
 
     @property
     def meta(self) -> DatasetMeta:
@@ -132,9 +134,7 @@ class Dataset:
 
     def __len__(self):
         """Returns the length of the smallest tensor"""
-        tensor_lengths = [
-            len(tensor[self.index]) for tensor in self.version_state["tensors"].values()
-        ]
+        tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -150,6 +150,7 @@ class Dataset:
             "path": self.path,
             "_read_only": self.read_only,
             "index": self.index,
+            "group_index": self.group_index,
             "public": self.public,
             "storage": self.storage,
             "_token": self.token,
@@ -173,14 +174,27 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-            if item not in self.version_state["tensors"]:
-                raise TensorDoesNotExistError(item)
+            if item in self._all_tensors_filtered:
+                return self.version_state["_tensors"][posixpath.join(self.group_index, item)][self.index]
+            elif item in self._groups_filtered:
+                return Dataset(
+                    storage=self.storage,
+                    index=self.index,
+                    group_index=posixpath.join(self.group_index, item),
+                    read_only=self.read_only,
+                    token=self._token,
+                    verbose=False,
+                )
+            elif "/" in item:
+                splt = posixpath.split(item)
+                return self[splt[0]][splt[1]]
             else:
-                return self.version_state["tensors"][item][self.index]
+                raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,
                 index=self.index[item],
+                group_index=self.group_index,
                 read_only=self.read_only,
                 token=self._token,
                 verbose=False,
@@ -219,15 +233,36 @@ class Dataset:
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.storage)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
         if tensor_exists(name, self.storage, self.version_state["commit_id"]):
             raise TensorAlreadyExistsError(name)
-        if name in vars(self):
+
+        if name in self._groups:
+            raise TensorGroupAlreadyExistsError(name)
+
+        if not name or name in dir(self):
             raise InvalidTensorNameError(name)
+
+        if not self._is_root():
+            return self.root.create_tensor(
+                posixpath.join(self.group_index, name),
+                htype,
+                dtype,
+                sample_compression,
+                chunk_compression,
+            )
+
+        if "/" in name:
+            self._create_group(posixpath.split(name)[0])
 
         # Seperate meta and info
 
@@ -261,10 +296,8 @@ class Dataset:
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
-        self.version_state["tensors"][name] = tensor
-
+        self.version_state["_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
-
         return tensor
 
     @hub_reporter.record_call
@@ -330,7 +363,7 @@ class Dataset:
             version_state["commit_node"] = commit_node
             version_state["branch_commit_map"][branch] = commit_id
             version_state["commit_node_map"][commit_id] = commit_node
-        version_state["tensors"] = {}
+        version_state["_tensors"] = {}
         self.version_state = version_state
 
     def commit(self, message: Optional[str] = None) -> None:
@@ -413,6 +446,16 @@ class Dataset:
             self.storage.disable_readonly()
         self._read_only = value
 
+    def make_public(self):
+        if not self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=True)
+            self.public = True
+
+    def make_private(self):
+        if self.public:
+            self.client.update_privacy(self.org_id, self.ds_name, public=False)
+            self.public = False
+
     @hub_reporter.record_call
     def pytorch(
         self,
@@ -472,7 +515,7 @@ class Dataset:
         """Returns tensor metas all together"""
         return {
             tensor_key: tensor_value.meta
-            for tensor_key, tensor_value in self.version_state["tensors"].items()
+            for tensor_key, tensor_value in self.version_state["_tensors"].items()
         }
 
     def _set_derived_attributes(self):
@@ -525,7 +568,7 @@ class Dataset:
         """Estimates the size in bytes of the dataset.
         Includes only content, so will generally return an under-estimate.
         """
-        tensors = self.version_state["tensors"].values()
+        tensors = self.version_state["_tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
         return size
@@ -564,7 +607,11 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.version_state['meta'].tensors})"
+        group_index_str = (
+            f"group_index='{self.group_index}', " if self.group_index else ""
+        )
+
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
 
     __repr__ = __str__
 
@@ -574,3 +621,107 @@ class Dataset:
         if self._token is None and self.path.startswith("hub://"):
             self._token = self.client.get_token()
         return self._token
+
+    @property
+    def _ungrouped_tensors(self) -> Dict[str, Tensor]:
+        """Top level tensors in this group that do not belong to any sub groups"""
+        return {
+            posixpath.basename(k): v
+            for k, v in self.version_state["_tensors"].items()
+            if posixpath.dirname(k) == self.group_index
+        }
+
+    @property
+    def _all_tensors_filtered(self) -> List[str]:
+        """Names of all tensors belonging to this group, including those within sub groups"""
+        return [
+            posixpath.relpath(t, self.group_index)
+            for t in self.version_state["_tensors"]
+            if not self.group_index or t.startswith(self.group_index + "/")
+        ]
+
+    @property
+    def tensors(self) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups"""
+        return {t: self[t] for t in self._all_tensors_filtered}
+
+    @property
+    def _groups(self) -> List[str]:
+        """Names of all groups in the root dataset"""
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
+
+    @property
+    def _groups_filtered(self) -> List[str]:
+        """Names of all sub groups in this group"""
+        groups_filtered = []
+        for g in self._groups:
+            dirname, basename = posixpath.split(g)
+            if dirname == self.group_index:
+                groups_filtered.append(basename)
+        return groups_filtered
+
+    @property
+    def groups(self) -> Dict[str, "Dataset"]:
+        """All sub groups in this group"""
+        return {g: self[g] for g in self._groups_filtered}
+
+    def _is_root(self) -> bool:
+        return not self.group_index
+
+    @property
+    def parent(self):
+        """Returns the parent of this group. Returns None if this is the root dataset"""
+        if self._is_root():
+            return None
+        return Dataset(
+            self.storage,
+            self.index,
+            posixpath.dirname(self.group_index),
+            self.read_only,
+            self.public,
+            self._token,
+            self.verbose,
+        )
+
+    @property
+    def root(self):
+        if self._is_root():
+            return self
+        return Dataset(
+            self.storage,
+            self.index,
+            "",
+            self.read_only,
+            self.public,
+            self._token,
+            self.verbose,
+        )
+
+    def _create_group(self, name: str) -> "Dataset":
+        """Internal method used by `create_group` and `create_tensor`."""
+        groups = self._groups
+        if not name or name in dir(self):
+            raise InvalidTensorGroupNameError(name)
+        ret = name
+        while name:
+            if name in self.version_state["_tensors"]:
+                raise TensorAlreadyExistsError(name)
+            groups.append(name)
+            name, _ = posixpath.split(name)
+        unique = set(groups)
+        groups.clear()
+        groups += unique
+        self.storage.maybe_flush()
+        return self[ret]
+
+    def create_group(self, name: str) -> "Dataset":
+        """Creates a tensor group. Intermediate groups in the path are also created."""
+        if not self._is_root():
+            return self.root.create_group(posixpath.join(self.group_index, name))
+        name = name.strip("/")
+        while "//" in name:
+            name = name.replace("//", "/")
+        if name in self._groups:
+            raise TensorGroupAlreadyExistsError(name)
+        return self._create_group(name)

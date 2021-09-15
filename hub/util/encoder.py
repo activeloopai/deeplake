@@ -5,6 +5,7 @@ from typing import Dict, List
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
+import posixpath
 
 
 def merge_all_tensor_metas(
@@ -15,12 +16,13 @@ def merge_all_tensor_metas(
     tensors = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
-        tensor_meta = ds_out[tensor].meta
+        rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
+        tensor_meta = ds_out[rel_path].meta  # type: ignore
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
             combine_metas(tensor_meta, current_meta)
         meta_key = get_tensor_meta_key(tensor, commit_id)
-        ds_out[tensor].chunk_engine.cache[meta_key] = tensor_meta
+        ds_out[rel_path].chunk_engine.cache[meta_key] = tensor_meta  # type: ignore
     ds_out.flush()
 
 
@@ -52,13 +54,14 @@ def merge_all_chunk_id_encoders(
     tensors = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
-        chunk_id_encoder = ds_out[tensor].chunk_engine.chunk_id_encoder
+        rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
+        chunk_id_encoder = ds_out[rel_path].chunk_engine.chunk_id_encoder  # type: ignore
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
             combine_chunk_id_encoders(chunk_id_encoder, current_chunk_id_encoder)
 
         chunk_id_key = get_chunk_id_encoder_key(tensor, commit_id)
-        ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
+        ds_out[rel_path].chunk_engine.cache[chunk_id_key] = chunk_id_encoder  # type: ignore
     ds_out.flush()
 
 

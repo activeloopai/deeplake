@@ -44,8 +44,8 @@ class PrefetchLRUCache(LRUCache):
         super().__init__(cache_storage, next_storage, cache_size)
         self.mode = mode
         self.transform = transform
-        self.all_indexes = self._extract_indexes_from_dataset(dataset)
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
+        self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
         self.map = ProcessPool(nodes=num_workers).map
 
@@ -216,11 +216,14 @@ class PrefetchLRUCache(LRUCache):
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
             tensor_keys = list(tensor_keys)
+
+        # Get full path in case of groups
+        tensor_keys = [dataset.tensors[k].key for k in tensor_keys]
         return tensor_keys
 
-    def _extract_indexes_from_dataset(self, dataset):
+    def _extract_indexes_from_dataset(self, dataset, tensors):
         """Returns a list of all the indexes in the dataset."""
-        tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
+        tensor_lengths = [len(dataset._tensors[tensor]) for tensor in tensors]
         length = min(tensor_lengths, default=0)
         return list(dataset.index.values[0].indices(length))
 

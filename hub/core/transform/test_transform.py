@@ -5,7 +5,7 @@ from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
 from hub.tests.common import parametrize_num_workers
-from hub.tests.dataset_fixtures import enabled_datasets
+from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.exceptions import InvalidOutputDatasetError
 
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
@@ -43,7 +43,7 @@ def crop_image(sample_in, samples_out, copy=1):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_single_transform_hub_dataset(ds):
     with CliRunner().isolated_filesystem():
         with hub.dataset("./test/transform_hub_in_generic") as data_in:
@@ -56,6 +56,37 @@ def test_single_transform_hub_dataset(ds):
         ds_out = ds
         ds_out.create_tensor("image")
         ds_out.create_tensor("label")
+
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            )
+
+        assert ds_out.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+
+
+@enabled_datasets
+def test_groups(ds):
+    with CliRunner().isolated_filesystem():
+        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+            data_in.create_tensor("data/image")
+            data_in.create_tensor("data/label")
+            for i in range(1, 100):
+                data_in.data.image.append(i * np.ones((i, i)))
+                data_in.data.label.append(i * np.ones((1,)))
+        data_in = hub.dataset("./test/transform_hub_in_generic")
+        ds_out = ds
+        ds_out.create_tensor("stuff/image")
+        ds_out.create_tensor("stuff/label")
+
+        data_in = data_in.data
+        ds_out = ds_out.stuff
 
         fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
         assert len(ds_out) == 99
@@ -118,7 +149,7 @@ def test_chain_transform_list_small(ds):
             )
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_chain_transform_list_big(ds):
     ls = [i for i in range(2)]
@@ -163,7 +194,7 @@ def test_chain_transform_list_small_processed(ds):
 
 
 @all_compressions
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_transform_hub_read(ds, cat_path, sample_compression):
     data_in = [cat_path] * 10
     ds_out = ds
@@ -177,7 +208,7 @@ def test_transform_hub_read(ds, cat_path, sample_compression):
 
 
 @all_compressions
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
     data_in = [cat_path] * 10
     ds_out = ds
@@ -190,7 +221,7 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
         np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_hub_like(ds):
     with CliRunner().isolated_filesystem():
         data_in = ds

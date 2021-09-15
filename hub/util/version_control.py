@@ -1,3 +1,4 @@
+from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 import random
 import time
@@ -45,7 +46,7 @@ def commit(
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     save_version_info(version_state, storage)
     copy_metas(
-        stored_commit_id, version_state["commit_id"], storage, version_state["tensors"]
+        stored_commit_id, version_state["commit_id"], storage, version_state["_tensors"]
     )
     storage.flush()
     load_meta(storage, version_state)
@@ -91,7 +92,7 @@ def checkout(
             original_commit_id,
             new_commit_id,
             storage,
-            version_state["tensors"],
+            version_state["_tensors"],
         )
         storage.flush()
     else:
@@ -180,7 +181,7 @@ def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) 
 def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
-    for tensor in version_state["tensors"].keys():
+    for tensor in version_state["_tensors"].keys():
         key = get_tensor_commit_chunk_list_key(tensor, commit_id)
         if commit_chunk_list_exists(version_state, storage, tensor):
             enc = storage.get_cachable(key, CommitChunkList)
@@ -208,9 +209,10 @@ def load_meta(storage, version_state):
 
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_cachable(meta_key, DatasetMeta)
+    ffw_dataset_meta(meta)
     version_state["meta"] = meta
-    tensors = version_state["tensors"]
-    tensors.clear()
+    _tensors = version_state["_tensors"]
+    _tensors.clear()
 
     for tensor_name in meta.tensors:
-        tensors[tensor_name] = Tensor(tensor_name, storage, version_state)
+        _tensors[tensor_name] = Tensor(tensor_name, storage, version_state)

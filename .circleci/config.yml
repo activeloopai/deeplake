@@ -106,7 +106,7 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              brew install zlib libjpeg webp       	
+              brew install zlib libjpeg webp
               sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
               sudo launchctl limit maxfiles 65536 200000
   info:
@@ -177,7 +177,8 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle --ignore-glob=buH/*
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --gcs --hub-cloud --kaggle --ignore-glob=buH/*
+                no_output_timeout: 30m
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -187,9 +188,10 @@ commands:
                   BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle --ignore-glob=buH/*
-                  
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --gcs --hub-cloud --kaggle --ignore-glob=buH/*
+                no_output_timeout: 30m
           parallelism: 10
+
   run-backwards-compatibility-tests:
     steps:
       - run:
