@@ -931,7 +931,6 @@ class ChunkEngine:
 
         origin_tile_index = None
 
-        i = 0
         for tile_index, tile_obj in np.ndenumerate(tiles):
             if tile_obj is None:
                 continue
@@ -942,17 +941,9 @@ class ChunkEngine:
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
             tile_view = get_output_tile_view(tile, subslice_index, tile_index, tile_shape)
-
-            # TODO: need to input a bias term here that acts as a sliding window origin
             sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape, origin_tile_index)
 
             sample_view[:] = tile_view
-
-            i += 1
-
-            # TODO: remove before merging
-            if i >= 2:
-                break
 
         return sample
 
