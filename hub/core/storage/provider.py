@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from hub.core.storage.cachable import Cachable
 from typing import Optional, Set
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
 from hub.util.exceptions import ReadOnlyModeError
-from hub.constants import DATASET_LOCK_FILENAME
+from hub.util.keys import get_dataset_lock_key
 
 
 class StorageProvider(ABC, MutableMapping):
@@ -145,6 +144,9 @@ class StorageProvider(ABC, MutableMapping):
         """Disables read-only mode for the provider."""
         self.read_only = False
 
+    def __contains__(self, key: str) -> bool:
+        return key in self._all_keys()
+
     def check_readonly(self):
         """Raises an exception if the provider is in read-only mode."""
         if self.read_only:
@@ -168,4 +170,5 @@ class StorageProvider(ABC, MutableMapping):
         """Delete the contents of the provider."""
 
     def empty(self) -> bool:
-        return len(self) - int(DATASET_LOCK_FILENAME in self) <= 0
+        lock_key = get_dataset_lock_key()
+        return len(self) - int(lock_key in self) <= 0

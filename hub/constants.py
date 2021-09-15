@@ -41,7 +41,7 @@ DATASET_INFO_FILENAME = "dataset_info.json"
 TENSOR_INFO_FILENAME = "tensor_info.json"
 
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
-TENSOR_COMMIT_CHUNK_LIST_FILENAME = "chunk_list.json"
+TENSOR_COMMIT_CHUNK_LIST_FILENAME = "chunk_list"
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
 DATASET_LOCK_VALIDITY = 300  # seconds
