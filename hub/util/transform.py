@@ -88,7 +88,13 @@ def store_data_slice(
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
-    data_slice, (output_storage, group_index), tensors, pipeline, version_state = transform_input
+    (
+        data_slice,
+        (output_storage, group_index),
+        tensors,
+        pipeline,
+        version_state,
+    ) = transform_input
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )

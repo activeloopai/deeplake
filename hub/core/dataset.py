@@ -175,7 +175,9 @@ class Dataset:
     ):
         if isinstance(item, str):
             if item in self._all_tensors_filtered:
-                return self.version_state["_tensors"][posixpath.join(self.group_index, item)][self.index]
+                return self.version_state["_tensors"][
+                    posixpath.join(self.group_index, item)
+                ][self.index]
             elif item in self._groups_filtered:
                 return Dataset(
                     storage=self.storage,
