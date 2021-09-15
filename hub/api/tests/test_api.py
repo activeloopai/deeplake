@@ -346,6 +346,8 @@ def test_compute_slices(memory_ds):
     ds.create_tensor("data")
     ds.data.extend(data)
 
+    # TODO: check all these operations with tiling as well as non-tiling (just change max chunk size in the tensor creation)
+
     _check_tensor(ds.data[:], data[:])
     _check_tensor(ds.data[10:20], data[10:20])
     _check_tensor(ds.data[5], data[5])
