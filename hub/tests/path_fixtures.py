@@ -178,7 +178,7 @@ def s3_path(request):
 
 @pytest.fixture(scope="session")
 def gcs_creds():
-    return os.environ[ENV_GOOGLE_APPLICATION_CREDENTIALS]
+    return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
 
 
 @pytest.fixture
