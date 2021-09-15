@@ -101,7 +101,7 @@ class Dataset:
         self._token = token
         self.public = public
         self.verbose = verbose
-        self.version_state = version_state
+        self.version_state = {} if version_state is None else version_state
 
         self._set_derived_attributes()
 
@@ -389,7 +389,7 @@ class Dataset:
 
         Args:
             address (str): The commit_id or branch to checkout to.
-            create (bool, optional): If True, creates a new branch with name as address.
+            create (bool): If True, creates a new branch with name as address.
 
         Returns:
             str: The commit_id of the dataset after checkout.
@@ -529,7 +529,7 @@ class Dataset:
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
-        if self.version_state is None:
+        if not self.version_state:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
