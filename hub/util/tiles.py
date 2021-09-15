@@ -169,10 +169,13 @@ def get_output_sample_view(
 
     values = []
     for i, entry in enumerate(subslice_index.values):
+        delta = tile_index_origin_delta[i]
+        lower_bound = delta * low[i]
+
         new_entry = entry
         new_entry = new_entry.normalize()
         new_entry = new_entry.clamp_upper(low[i] + tile_shape[i])
-        new_entry = new_entry.clamp_lower(tile_index_origin_delta[i] * low[i])
+        new_entry = new_entry.clamp_lower(lower_bound)
         values.append(new_entry.value)
 
     print()
