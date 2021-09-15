@@ -374,6 +374,27 @@ class IndexEntry:
         raise NotImplementedError
 
 
+    def clamp_lower(self, min_value: int) -> "IndexEntry":
+        if isinstance(self.value, int):
+            return IndexEntry(max(self.value, min_value))
+
+        if isinstance(self.value, slice):
+            s = self.value
+
+            if is_trivial_slice(s) or s.start is None:
+                new_slice = slice(min_value, s.stop, s.step)
+            else:
+                if s.start < 0 or s.stop < 0:
+                    # TODO: negative subslices
+                    raise NotImplementedError("Subslices with negatives is not yet supported!")
+
+                new_slice = slice(max(s.start, min_value), s.stop, s.step)
+
+            return IndexEntry(new_slice)
+
+        raise NotImplementedError
+
+
 class Index:
     def __init__(
         self,
