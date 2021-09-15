@@ -3,6 +3,8 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.thread import ThreadProvider
+from hub.core.compute.process import ProcessProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -85,6 +87,7 @@ class Pipeline:
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
+            Exception: If any other exception is raised during the transform.
         """
         num_workers = max(num_workers, 0)
         if num_workers == 0:
@@ -113,8 +116,14 @@ class Pipeline:
 
         compute_provider = get_compute_provider(scheduler, num_workers)
 
-        self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        try:
+            self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        except Exception:
+            compute_provider.close()
+            raise
+
         ds_out.storage.autoflush = initial_autoflush
+        compute_provider.close()
 
     def run(
         self,
@@ -132,9 +141,15 @@ class Pipeline:
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
+        tensors = [ds_out.tensors[t].key for t in tensors]
         metas_and_encoders = compute.map(
             store_data_slice,
-            zip(slices, repeat(output_base_storage), repeat(tensors), repeat(self)),
+            zip(
+                slices,
+                repeat((output_base_storage, ds_out.group_index)),  # type: ignore
+                repeat(tensors),
+                repeat(self),
+            ),
         )
 
         all_tensor_metas, all_chunk_id_encoders, all_tile_encoders = zip(*metas_and_encoders)

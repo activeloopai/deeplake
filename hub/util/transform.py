@@ -18,6 +18,8 @@ from hub.util.exceptions import (
     TensorMismatchError,
 )
 
+import posixpath
+
 
 def transform_sample(
     sample: Any,
@@ -86,13 +88,15 @@ def store_data_slice(
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
-    data_slice, output_storage, tensors, pipeline = transform_input
+    data_slice, (output_storage, group_index), tensors, pipeline = transform_input
     all_chunk_engines = create_worker_chunk_engines(tensors, output_storage)
 
     if isinstance(data_slice, hub.core.dataset.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice)
 
-    transform_data_slice_and_append(data_slice, pipeline, tensors, all_chunk_engines)
+    transform_data_slice_and_append(
+        data_slice, pipeline, tensors, all_chunk_engines, group_index
+    )
 
     # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
@@ -108,14 +112,22 @@ def store_data_slice(
 
 
 def transform_data_slice_and_append(
-    data_slice, pipeline, tensors: List[str], all_chunk_engines: Dict[str, ChunkEngine]
+    data_slice,
+    pipeline,
+    tensors: List[str],
+    all_chunk_engines: Dict[str, ChunkEngine],
+    group_index: str,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
     for sample in data_slice:
         result = transform_sample(sample, pipeline)
-        if set(result.tensors.keys()) != set(tensors):
-            raise TensorMismatchError(list(tensors), list(result.tensors.keys()))
-        for tensor in result.tensors:
+        result_resolved = {
+            posixpath.join(group_index, k): result[k] for k in result.tensors
+        }
+        result = result_resolved  # type: ignore
+        if set(result.keys()) != set(tensors):
+            raise TensorMismatchError(list(tensors), list(result.keys()))
+        for tensor in result:
             all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
 
 
@@ -163,6 +175,7 @@ def add_cache_to_dataset_slice(
     dataset_slice = hub.core.dataset.Dataset(
         cached_store,
         index=dataset_slice.index,
+        group_index=dataset_slice.group_index,  # type: ignore
         read_only=dataset_slice.read_only,
         verbose=False,
     )

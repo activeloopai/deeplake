@@ -1,3 +1,4 @@
+from hub.core.storage.gcs import GCSProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
@@ -7,13 +8,13 @@ import pytest
 
 enabled_storages = pytest.mark.parametrize(
     "storage",
-    ["memory_storage", "local_storage", "s3_storage"],
+    ["memory_storage", "local_storage", "s3_storage", "gcs_storage"],
     indirect=True,
 )
 
 enabled_persistent_storages = pytest.mark.parametrize(
     "storage",
-    ["local_storage", "s3_storage"],
+    ["local_storage", "s3_storage", "gcs_storage"],
     indirect=True,
 )
 
@@ -31,6 +32,11 @@ def local_storage(local_path):
 @pytest.fixture
 def s3_storage(s3_path):
     return S3Provider(s3_path)
+
+
+@pytest.fixture
+def gcs_storage(gcs_path):
+    return GCSProvider(gcs_path)
 
 
 @pytest.fixture
