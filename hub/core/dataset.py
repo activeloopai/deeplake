@@ -125,7 +125,7 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, self.version_state["_tensors"].values()), default=0)
+        return min(map(len, self.version_state["full_tensors"].values()), default=0)
 
     @property
     def meta(self) -> DatasetMeta:
@@ -175,7 +175,7 @@ class Dataset:
     ):
         if isinstance(item, str):
             if item in self._all_tensors_filtered:
-                return self.version_state["_tensors"][
+                return self.version_state["full_tensors"][
                     posixpath.join(self.group_index, item)
                 ][self.index]
             elif item in self._groups_filtered:
@@ -298,7 +298,7 @@ class Dataset:
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
-        self.version_state["_tensors"][name] = tensor
+        self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
 
@@ -365,7 +365,7 @@ class Dataset:
             version_state["commit_node"] = commit_node
             version_state["branch_commit_map"][branch] = commit_id
             version_state["commit_node_map"][commit_id] = commit_node
-        version_state["_tensors"] = {}
+        version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
     def commit(self, message: Optional[str] = None) -> None:
@@ -517,7 +517,7 @@ class Dataset:
         """Returns tensor metas all together"""
         return {
             tensor_key: tensor_value.meta
-            for tensor_key, tensor_value in self.version_state["_tensors"].items()
+            for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
     def _set_derived_attributes(self):
@@ -570,7 +570,7 @@ class Dataset:
         """Estimates the size in bytes of the dataset.
         Includes only content, so will generally return an under-estimate.
         """
-        tensors = self.version_state["_tensors"].values()
+        tensors = self.version_state["full_tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
         return size
@@ -629,7 +629,7 @@ class Dataset:
         """Top level tensors in this group that do not belong to any sub groups"""
         return {
             posixpath.basename(k): v
-            for k, v in self.version_state["_tensors"].items()
+            for k, v in self.version_state["full_tensors"].items()
             if posixpath.dirname(k) == self.group_index
         }
 
@@ -638,7 +638,7 @@ class Dataset:
         """Names of all tensors belonging to this group, including those within sub groups"""
         return [
             posixpath.relpath(t, self.group_index)
-            for t in self.version_state["_tensors"]
+            for t in self.version_state["full_tensors"]
             if not self.group_index or t.startswith(self.group_index + "/")
         ]
 
@@ -707,7 +707,7 @@ class Dataset:
             raise InvalidTensorGroupNameError(name)
         ret = name
         while name:
-            if name in self.version_state["_tensors"]:
+            if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
             groups.append(name)
             name, _ = posixpath.split(name)
