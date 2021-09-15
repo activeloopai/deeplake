@@ -1,4 +1,3 @@
-from hub.core.storage.provider import StorageProvider
 import posixpath
 
 from hub.constants import (
@@ -80,7 +79,7 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
     )
 
 
-def dataset_exists(storage: StorageProvider) -> bool:
+def dataset_exists(storage) -> bool:
     try:
         storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
         return True
@@ -88,7 +87,7 @@ def dataset_exists(storage: StorageProvider) -> bool:
         return False
 
 
-def tensor_exists(key: str, storage: StorageProvider, commit_id: str) -> bool:
+def tensor_exists(key: str, storage, commit_id: str) -> bool:
     try:
         storage[get_tensor_meta_key(key, commit_id)]
         return True

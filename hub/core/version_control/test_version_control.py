@@ -22,6 +22,10 @@ def test_commit(ds):
         assert ds.abc[0].numpy() == 2
         ds.checkout(c)
         assert ds.abc[0].numpy() == 3
+        with pytest.raises(CheckoutError):
+            ds.checkout("main", create=True)
+        with pytest.raises(CheckoutError):
+            ds.checkout(a, create=True)
 
 
 @enabled_datasets
