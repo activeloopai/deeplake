@@ -144,9 +144,6 @@ class StorageProvider(ABC, MutableMapping):
         """Disables read-only mode for the provider."""
         self.read_only = False
 
-    def __contains__(self, key: str) -> bool:
-        return key in self._all_keys()
-
     def check_readonly(self):
         """Raises an exception if the provider is in read-only mode."""
         if self.read_only:
