@@ -479,10 +479,10 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
             idx = match.start(0) + offset
             marker = mm[idx : idx + 2]
             if marker == _JPEG_SOFS[-1]:
-                offset += 2
+                break
             elif marker in _JPEG_SKIP_MARKERS:
                 f.seek(idx + 2)
-                offset += int.from_bytes(f.read(2), "big")
+                offset = idx + int.from_bytes(f.read(2), "big")
             else:
                 sof_idx = idx
                 offset = idx + 2
@@ -511,9 +511,9 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
         idx = match.start(0) + offset
         marker = buf[idx : idx + 2]
         if marker == _JPEG_SOFS[-1]:
-            offset += 2
+            break
         elif marker in _JPEG_SKIP_MARKERS:
-            offset += int.from_bytes(buf[idx + 2 : idx + 4], "big")
+            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
         else:
             sof_idx = idx
             offset = idx + 2
