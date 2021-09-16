@@ -85,7 +85,6 @@ def test_single_transform_hub_dataset(ds, scheduler):
     data_in.delete()
 
 
-@all_schedulers
 @enabled_datasets
 def test_groups(ds):
     with CliRunner().isolated_filesystem():
