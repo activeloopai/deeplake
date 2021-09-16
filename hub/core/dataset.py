@@ -668,6 +668,16 @@ class Dataset:
         """All sub groups in this group"""
         return {g: self[g] for g in self._groups_filtered}
 
+    @property
+    def commit_id(self) -> str:
+        """The current commit_id of the dataset."""
+        return self.version_state["commit_id"]
+
+    @property
+    def branch(self) -> str:
+        """The current branch of the dataset"""
+        return self.version_state["branch"]
+
     def _is_root(self) -> bool:
         return not self.group_index
 

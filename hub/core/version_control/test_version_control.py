@@ -15,10 +15,14 @@ def test_commit(local_ds):
         c = local_ds.commit("third")
         assert local_ds.abc[0].numpy() == 3
         local_ds.checkout(a)
+        assert local_ds.commit_id == a
         assert local_ds.abc[0].numpy() == 1
         local_ds.checkout(b)
+        assert local_ds.commit_id == b
         assert local_ds.abc[0].numpy() == 2
         local_ds.checkout(c)
+        assert local_ds.commit_id == c
+        assert local_ds.branch == "main"
         assert local_ds.abc[0].numpy() == 3
         with pytest.raises(CheckoutError):
             local_ds.checkout("main", create=True)
@@ -44,6 +48,7 @@ def test_commit_checkout(local_ds):
             assert (local_ds.img[i].numpy() == np.ones((100, 100, 3))).all()
 
         local_ds.checkout("alternate", create=True)
+        assert local_ds.branch == "alternate"
 
         for i in range(5):
             local_ds.img[i] *= 3
@@ -53,8 +58,10 @@ def test_commit_checkout(local_ds):
             assert (local_ds.img[i].numpy() == 3 * np.ones((100, 100, 3))).all()
 
         local_ds.checkout(second_commit_id)  # first 5 images are 2s, rest are 1s now
+        assert local_ds.commit_id == second_commit_id
+        assert local_ds.branch == "main"
 
-        # we are not at the head of master but rather at the last commit, so we automatically get checkouted out to a new branch here
+        # we are not at the head of master but rather at the last commit, so we automatically get checked out to a new branch here
         for i in range(5, 10):
             local_ds.img[i] *= 2
         local_ds.commit("multiplied value of remaining images by 2")
