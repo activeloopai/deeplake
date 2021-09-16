@@ -14,7 +14,7 @@ class CommitChunkList(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        """Loads a VersionChunkList from a buffer."""
+        """Loads a CommitChunkList from a buffer."""
         instance = cls()
         instance.chunks = buffer.decode("utf-8").split(",")
         return instance
@@ -26,5 +26,5 @@ class CommitChunkList(Cachable):
         return 8 + ((len(self.chunks) - 1) * 9)
 
     def append(self, chunk_name: str) -> None:
-        """Adds a new chunk name to the VersionChunkList."""
+        """Adds a new chunk name to the CommitChunkList."""
         self.chunks.append(chunk_name)

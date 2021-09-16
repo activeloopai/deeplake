@@ -1,11 +1,12 @@
-from hub.core.fast_forwarding import ffw_dataset_meta
-from hub.core.meta.dataset_meta import DatasetMeta
 import random
 import time
 import hashlib
 import pickle
 from typing import Any, Dict
 
+from hub.constants import FIRST_COMMIT_ID
+from hub.core.fast_forwarding import ffw_dataset_meta
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_list import CommitChunkList  # type: ignore
 from hub.core.storage import LRUCache
@@ -32,7 +33,7 @@ def commit(
     version_state: Dict[str, Any], storage: LRUCache, message: str = None
 ) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
-
+    storage.check_readonly()
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(version_state, storage)
     stored_commit_id = version_state["commit_id"]
@@ -79,6 +80,7 @@ def checkout(
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
     elif create:
+        storage.check_readonly()
         # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
         original_commit_id = version_state["commit_id"]
@@ -185,6 +187,9 @@ def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
     for tensor in version_state["full_tensors"].keys():
+        if commit_id == FIRST_COMMIT_ID:
+            # if the first commit has even a single tensor i.e. it entered the for loop, it has data
+            return True
         key = get_tensor_commit_chunk_list_key(tensor, commit_id)
         if commit_chunk_list_exists(version_state, storage, tensor):
             enc = storage.get_cachable(key, CommitChunkList)

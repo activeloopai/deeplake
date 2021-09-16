@@ -17,6 +17,8 @@ from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.serialize import serialize_input_samples
 from hub.core.compression import compress_multiple, decompress_multiple
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID
+
 
 from hub.util.keys import (
     get_chunk_key,
@@ -29,8 +31,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.util.casting import get_dtype, intelligent_cast
-from hub.util.version_control import auto_checkout, commit_chunk_list_exists
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE
+from hub.util.version_control import auto_checkout, commit, commit_chunk_list_exists
 
 
 def is_uniform_sequence(samples):
@@ -180,6 +181,9 @@ class ChunkEngine:
             CommitChunkList: The commit chunk list keeps track of all the chunks present in the current commit.
         """
         commit_id = self.version_state["commit_id"]
+        if commit_id == FIRST_COMMIT_ID:
+            # the first commit doesn't need a commit chunk list
+            return None
         key = get_tensor_commit_chunk_list_key(self.key, commit_id)
         if not self.commit_chunk_list_exists:
             clist = CommitChunkList()
@@ -240,7 +244,8 @@ class ChunkEngine:
             if chunk_name in chunk_list:
                 return commit_id
             cur_node = cur_node.parent
-        return self.version_state["commit_id"]
+        # the first commit doesn't have a commit chunk list, so any chunk that wasn't found belongs to the first commit
+        return FIRST_COMMIT_ID
 
     @property
     def last_chunk_key(self) -> str:
@@ -392,21 +397,23 @@ class ChunkEngine:
             chunk = self.get_chunk(chunk_key)
             self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
 
+        commit_id = self.version_state["commit_id"]
+
         # synchronize tensor meta
-        tensor_meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
+        tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
         self.meta_cache[tensor_meta_key] = self.tensor_meta
 
         # synchronize chunk ID encoder
-        chunk_id_key = get_chunk_id_encoder_key(
-            self.key, self.version_state["commit_id"]
-        )
+        chunk_id_key = get_chunk_id_encoder_key(self.key, commit_id)
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
 
-        # synchronize current chunk list, all older ones are immutable
-        commit_chunk_list_key = get_tensor_commit_chunk_list_key(
-            self.key, self.version_state["commit_id"]
-        )
-        self.meta_cache[commit_chunk_list_key] = self.commit_chunk_list
+        # first commit doesn't have commit chunk list
+        if commit_id != FIRST_COMMIT_ID:
+            # synchronize current chunk list, all older ones are immutable
+            commit_chunk_list_key = get_tensor_commit_chunk_list_key(
+                self.key, commit_id
+            )
+            self.meta_cache[commit_chunk_list_key] = self.commit_chunk_list
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -468,7 +475,8 @@ class ChunkEngine:
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
-        self.commit_chunk_list.append(chunk_name)
+        if self.commit_chunk_list is not None:
+            self.commit_chunk_list.append(chunk_name)
         self.cache[chunk_key] = chunk
         return chunk
 
@@ -644,7 +652,8 @@ class ChunkEngine:
             chunk = chunk.copy()
             chunk.key = new_chunk_key
             self.cache[new_chunk_key] = chunk
-            self.commit_chunk_list.append(chunk_name)
+            if self.commit_chunk_list is not None:
+                self.commit_chunk_list.append(chunk_name)
         return chunk
 
     def read_sample_from_chunk(
