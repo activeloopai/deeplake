@@ -1,7 +1,8 @@
 import hub
 import pytest
 import numpy as np
-from hub.util.exceptions import CheckoutError
+from hub.util.remove_cache import get_base_storage
+from hub.util.exceptions import CheckoutError, ReadOnlyModeError
 
 
 def test_commit(local_ds):
@@ -172,16 +173,14 @@ def test_auto_checkout_bug(local_ds):
     assert local_ds.abc[0].numpy() == 3
 
 
-# @enabled_datasets
-# def test_read_mode(ds):
-#     ds.create_tensor("abc")
-#     ds.checkout("second", create=True)
-#     with pytest.raises(ReadOnlyModeError):
-#         ds.commit("first")
-#     with pytest.raises(ReadOnlyModeError):
-#         ds.checkout("third", create=True)
-#     with pytest.raises(ReadOnlyModeError):
-#         ds.abc.append(10)
+def test_read_mode(local_ds):
+    base_storage = get_base_storage(local_ds.storage)
+    base_storage.enable_readonly()
+    ds = hub.Dataset(storage=local_ds.storage, read_only=True, verbose=False)
+    with pytest.raises(ReadOnlyModeError):
+        ds.commit("first")
+    with pytest.raises(ReadOnlyModeError):
+        ds.checkout("third", create=True)
 
 
 def test_checkout_address_not_found(local_ds):
