@@ -116,8 +116,9 @@ def test_groups(ds):
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 @parametrize_num_workers
+@all_schedulers
 def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
     data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
     with data_in:
@@ -158,7 +159,7 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
 
 
 @all_schedulers
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_chain_transform_list_small(ds, scheduler):
     ls = [i for i in range(100)]
     ds_out = ds
