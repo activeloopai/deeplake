@@ -224,8 +224,7 @@ class GCSProvider(StorageProvider):
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
-        self.bucket = root.split("/")[0]
-        self.path = "/".join(root.split("/")[1:])
+        self.bucket, self.path = root.split("/", 1)
         if not self.path.endswith("/"):
             self.path += "/"
 
