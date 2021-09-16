@@ -69,7 +69,8 @@ class Info(CachableCallback):
 
         """
         self._cache.check_readonly()
-        auto_checkout(self._version_state, self._cache)
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         self._info.update(*args, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
@@ -94,7 +95,8 @@ class Info(CachableCallback):
     def delete(self, key: Optional[Union[Sequence[str], str]] = None):
         """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
         self._cache.check_readonly()
-        auto_checkout(self._version_state, self._cache)
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         if key is None:
             self._info.clear()
         elif isinstance(key, str):
@@ -108,7 +110,8 @@ class Info(CachableCallback):
     @use_callback()
     def __setitem__(self, key: str, value):
         self._cache.check_readonly()
-        auto_checkout(self._version_state, self._cache)
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         self._info[key] = value
 
     def __setattr__(self, key: str, value):

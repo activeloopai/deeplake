@@ -231,7 +231,7 @@ class ChunkEngine:
             last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
             new_chunk_key = get_chunk_key(self.key, last_chunk_name, current_commit_id)
             last_chunk = last_chunk.copy()
-            last_chunk.key = new_chunk_key
+            last_chunk.key = new_chunk_key  # type: ignore
             self.cache[new_chunk_key] = last_chunk
             if self.commit_chunk_list is not None:
                 self.commit_chunk_list.append(last_chunk_name)
