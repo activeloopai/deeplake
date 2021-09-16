@@ -45,7 +45,6 @@ from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 
 
-# TODO: Add branch and commit id as properties
 class Dataset:
     def __init__(
         self,
@@ -401,11 +400,11 @@ class Dataset:
         """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
         commit_node = self.version_state["commit_node"]
-        print("---------------\nHub Version Log\n---------------\n")
-        print(f"Current Branch: {self.version_state['branch']}\n")
+        logger.info("---------------\nHub Version Log\n---------------\n")
+        logger.info(f"Current Branch: {self.version_state['branch']}\n")
         while commit_node:
             if commit_node.commit_time is not None:
-                print(f"{commit_node}\n")
+                logger.info(f"{commit_node}\n")
             commit_node = commit_node.parent
 
     def _populate_meta(self):

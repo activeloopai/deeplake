@@ -4,6 +4,7 @@ import hashlib
 import pickle
 from typing import Any, Dict
 
+from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
@@ -160,7 +161,7 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
     if version_state["commit_node"].children:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
-        print(
+        logger.info(
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
         checkout(version_state, storage, auto_branch, True)
@@ -172,7 +173,7 @@ def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) 
     if not commit_node.children and commit_has_data(version_state, storage):
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
-        print(
+        logger.info(
             f"Auto commiting to branch '{branch}' as currently at head node with uncommitted changes."
         )
         commit(
