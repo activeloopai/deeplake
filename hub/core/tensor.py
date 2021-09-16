@@ -107,6 +107,7 @@ class Tensor:
         self.info = load_info(
             get_tensor_info_key(self.key, version_state["commit_id"]),
             self.storage,
+            version_state,
         )
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:

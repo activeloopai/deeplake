@@ -223,8 +223,20 @@ class ChunkEngine:
     def last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
             return None
+        chunk_commit_id = self.get_chunk_commit(self.last_chunk_key)
+        current_commit_id = self.version_state["commit_id"]
 
-        return self.get_chunk(self.last_chunk_key)
+        last_chunk = self.get_chunk(self.last_chunk_key)
+        if chunk_commit_id != self.version_state["commit_id"]:
+            last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+            new_chunk_key = get_chunk_key(self.key, last_chunk_name, current_commit_id)
+            last_chunk = last_chunk.copy()
+            last_chunk.key = new_chunk_key
+            self.cache[new_chunk_key] = last_chunk
+            if self.commit_chunk_list is not None:
+                self.commit_chunk_list.append(last_chunk_name)
+
+        return last_chunk
 
     def get_chunk(self, chunk_key: str) -> Chunk:
         return self.cache.get_cachable(chunk_key, Chunk)

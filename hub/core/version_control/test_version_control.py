@@ -304,3 +304,60 @@ def test_different_lengths(local_ds):
     assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
     assert len(local_ds.abc) == 2
     assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+
+
+def test_auto_checkout(local_ds):
+    # auto checkout happens when write operations are performed on non head commits
+    local_ds.create_tensor("abc")
+    first = local_ds.commit("created abc")
+
+    local_ds.checkout(first)
+    assert local_ds.branch == "main"
+    local_ds.create_tensor("def")
+    assert local_ds.branch != "main"
+
+    local_ds.checkout(first)
+    assert local_ds.branch == "main"
+    local_ds.abc.append(1)
+    assert local_ds.branch != "main"
+
+    local_ds.checkout(first)
+    assert local_ds.branch == "main"
+    local_ds.abc.extend([1])
+    assert local_ds.branch != "main"
+
+    local_ds.checkout(first)
+    assert local_ds.branch == "main"
+    local_ds.info[5] = 5
+    assert local_ds.branch != "main"
+
+    local_ds.checkout(first)
+    assert local_ds.branch == "main"
+    local_ds.info.update(list=[1, 2, "apple"])
+    assert local_ds.branch != "main"
+
+
+def test_auto_commit(local_ds):
+    initial_commit_id = local_ds.commit_id
+    local_ds.checkout("pqr", create=True)
+    local_ds.checkout("main")
+    # no auto commit as there was no data
+    assert local_ds.commit_id == initial_commit_id
+    local_ds.create_tensor("abc")
+    local_ds.abc.append(1)
+    # auto commit as there was data
+    local_ds.checkout("xyz", create=True)
+    local_ds.checkout("main")
+
+    assert local_ds.commit_id != initial_commit_id
+
+    with local_ds:
+        local_ds.abc.append(1)
+
+    current_commit_id = local_ds.commit_id
+
+    # auto commit as there was data
+    local_ds.checkout("tuv", create=True)
+    local_ds.checkout("main")
+
+    assert local_ds.commit_id != current_commit_id

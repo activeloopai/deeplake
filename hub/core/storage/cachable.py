@@ -93,12 +93,13 @@ class CachableCallback(Cachable):
         cache_exists = self._cache is not None
         return key_exists and cache_exists
 
-    def initialize_callback_location(self, key, cache):
+    def initialize_callback_location(self, key, cache, version_state=None):
         """Must be called once before any other method calls.
 
         Args:
             key: The key for where in `cache` bytes are serialized with each callback call.
             cache: The cache for where bytes are serialized with each callback call.
+            version_state: The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
 
         Raises:
             CallbackInitializationError: Cannot re-initialize.
@@ -111,6 +112,7 @@ class CachableCallback(Cachable):
 
         self._key = key
         self._cache = cache
+        self._version_state = version_state
 
     def callback(self):
         self._cache[self._key] = self
