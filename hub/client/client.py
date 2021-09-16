@@ -15,6 +15,7 @@ from hub.client.config import (
     DATASET_SUFFIX,
     LIST_DATASETS,
     GET_USER_PROFILE,
+    UPDATE_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -263,3 +264,7 @@ class HubBackendClient:
             ).json()
             res_datasets = public_datasets + user_datasets
         return [ds["_id"] for ds in res_datasets]
+
+    def update_privacy(self, username: str, dataset_name: str, public: bool):
+        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})

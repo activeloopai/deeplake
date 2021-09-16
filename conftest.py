@@ -7,7 +7,7 @@ import logging
 os.environ["BUGGER_OFF"] = "true"
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-logging.basicConfig(level=logging.ERROR)
+logging.disable(logging.INFO)
 
 from hub.constants import *
 from hub.tests.common import SESSION_ID
@@ -28,6 +28,9 @@ def pytest_addoption(parser):
         LOCAL_OPT, action="store_true", help="Local tests will run if enabled."
     )
     parser.addoption(S3_OPT, action="store_true", help="S3 tests will run if enabled.")
+    parser.addoption(
+        GCS_OPT, action="store_true", help="GCS tests will run if enabled."
+    )
     parser.addoption(
         HUB_CLOUD_OPT, action="store_true", help="Hub cloud tests will run if enabled."
     )

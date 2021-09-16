@@ -325,10 +325,6 @@ def test_readonly(local_ds):
 
 @requires_torch
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
-        with pytest.raises(DatasetUnsupportedPytorch):
-            dl = local_ds.pytorch(num_workers=2)
-        return
     img_good = hub.read(compressed_image_paths["jpeg"][0])
     img_bad = hub.read(corrupt_image_paths["jpeg"])
     with local_ds:
@@ -387,3 +383,39 @@ def test_pytorch_local_cache(ds):
         )
         pytorch_small_shuffle_helper(0, 16, dls)
         local_cache.clear()
+
+
+@requires_torch
+def test_groups(local_ds, compressed_image_paths):
+    img1 = hub.read(compressed_image_paths["jpeg"][0])
+    img2 = hub.read(compressed_image_paths["png"][0])
+    with local_ds:
+        local_ds.create_tensor(
+            "images/jpegs/cats", htype="image", sample_compression="jpeg"
+        )
+        local_ds.create_tensor(
+            "images/pngs/flowers", htype="image", sample_compression="png"
+        )
+        for _ in range(10):
+            local_ds.images.jpegs.cats.append(img1)
+            local_ds.images.pngs.flowers.append(img2)
+    dl = local_ds.pytorch()
+    for cat, flower in dl:
+        np.testing.assert_array_equal(cat[0], img1.array)
+        np.testing.assert_array_equal(flower[0], img2.array)
+
+    with local_ds:
+        local_ds.create_tensor(
+            "arrays/x",
+        )
+        local_ds.create_tensor(
+            "arrays/y",
+        )
+        for _ in range(10):
+            local_ds.arrays.x.append(np.random.random((2, 3)))
+            local_ds.arrays.y.append(np.random.random((4, 5)))
+
+    dl = local_ds.images.pytorch()
+    for cat, flower in dl:
+        np.testing.assert_array_equal(cat[0], img1.array)
+        np.testing.assert_array_equal(flower[0], img2.array)

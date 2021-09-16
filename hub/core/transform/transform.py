@@ -3,6 +3,8 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.thread import ThreadProvider
+from hub.core.compute.process import ProcessProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -140,11 +142,16 @@ class Pipeline:
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
+        tensors = [ds_out.tensors[t].key for t in tensors]
         metas_and_encoders = compute.map(
             store_data_slice,
-            zip(slices, repeat(output_base_storage), repeat(tensors), repeat(self)),
+            zip(
+                slices,
+                repeat((output_base_storage, ds_out.group_index)),  # type: ignore
+                repeat(tensors),
+                repeat(self),
+            ),
         )
-
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
