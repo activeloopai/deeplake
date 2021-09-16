@@ -115,7 +115,7 @@ class Info(CachableCallback):
         self._info[key] = value
 
     def __setattr__(self, key: str, value):
-        if key in ("_key", "_cache", "_info", "_version_state"):
+        if key in {"_key", "_cache", "_info", "_version_state"}:
             object.__setattr__(self, key, value)
         else:
             self[key] = value

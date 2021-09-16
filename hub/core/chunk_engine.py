@@ -224,17 +224,10 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return None
         chunk_commit_id = self.get_chunk_commit(self.last_chunk_key)
-        current_commit_id = self.version_state["commit_id"]
-
         last_chunk = self.get_chunk(self.last_chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-            new_chunk_key = get_chunk_key(self.key, last_chunk_name, current_commit_id)
-            last_chunk = last_chunk.copy()
-            last_chunk.key = new_chunk_key  # type: ignore
-            self.cache[new_chunk_key] = last_chunk
-            if self.commit_chunk_list is not None:
-                self.commit_chunk_list.append(last_chunk_name)
+            last_chunk = self.copy_chunk_to_new_commit(last_chunk, last_chunk_name)
 
         return last_chunk
 
@@ -660,12 +653,7 @@ class ChunkEngine:
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
         if chunk_commit_id != current_commit_id and copy:
-            new_chunk_key = get_chunk_key(self.key, chunk_name, current_commit_id)
-            chunk = chunk.copy()
-            chunk.key = new_chunk_key
-            self.cache[new_chunk_key] = chunk
-            if self.commit_chunk_list is not None:
-                self.commit_chunk_list.append(chunk_name)
+            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
 
     def read_sample_from_chunk(
@@ -768,6 +756,21 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+    def copy_chunk_to_new_commit(self, chunk, chunk_name):
+        """Copies the chunk to the current commit.
+
+        Returns the copied chunk.
+        """
+        new_chunk_key = get_chunk_key(
+            self.key, chunk_name, self.version_state["commit_id"]
+        )
+        chunk = chunk.copy()
+        chunk.key = new_chunk_key
+        self.cache[new_chunk_key] = chunk
+        if self.commit_chunk_list is not None:
+            self.commit_chunk_list.append(chunk_name)
+        return chunk
 
 
 def _format_read_samples(
