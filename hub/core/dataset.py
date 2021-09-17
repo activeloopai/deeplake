@@ -244,10 +244,13 @@ class Dataset:
 
         while "//" in name:
             name = name.replace("//", "/")
-        if tensor_exists(name, self.storage, self.version_state["commit_id"]):
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
             raise TensorAlreadyExistsError(name)
 
-        if name in self._groups:
+        if full_path in self._groups:
             raise TensorGroupAlreadyExistsError(name)
 
         if not name or name in dir(self):
@@ -255,11 +258,7 @@ class Dataset:
 
         if not self._is_root():
             return self.root.create_tensor(
-                posixpath.join(self.group_index, name),
-                htype,
-                dtype,
-                sample_compression,
-                chunk_compression,
+                full_path, htype, dtype, sample_compression, chunk_compression, **kwargs
             )
 
         if "/" in name:
