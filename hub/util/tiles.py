@@ -113,6 +113,34 @@ def get_input_tile_view(
     view = tile[tuple(values)]
     return view
 
+def merge_tiles_into_sample_array(sample_shape: Tuple[int, ...], dtype, tiles) -> np.ndarray:
+    """Merges tiles (array of chunks) into single sample array"""
+    
+    sample = np.zeros(sample_shape, dtype=dtype)
+    for tile_index, tile_obj in np.ndenumerate(tiles):
+        if tile_obj is None:
+            continue
+        
+        sample_view = []
+        tile_view = []
+        
+        for dim, index in enumerate(tile_index):
+            # list indices for each previous tile
+            indices = [list(tile_index) for el in range(index)]
+            for i, ind in enumerate(indices):
+                indices[i][dim] = i
+                
+            # sum previous shapes of each dimension
+            sum_shapes = sum([tiles[tuple(el)].shape[dim] for el in indices if tiles[tuple(el)] is not None])
+
+            # compute the next tile position and append to sample view 
+            sample_view.append(slice(sum_shapes, min(sum_shapes+tile_obj.shape[dim], sample.shape[dim])))
+            
+            # clamp tile view in case it goes out of borders
+            tile_view.append(slice(0, min(tile_obj.shape[dim], sample.shape[dim]-sum_shapes))) 
+
+        sample[tuple(sample_view)] = tile_obj[tuple(tile_view)]
+    return sample
 
 def get_output_tile_view(
     tile: np.ndarray, subslice_index: Index, tile_index: Tuple[int, ...], tile_shape: Tuple[int, ...]
@@ -121,12 +149,12 @@ def get_output_tile_view(
 
     # return subslice_index.apply_restricted(tile, bias=low)
     subslice_index.add_trivials(len(tile.shape))
-
+    
     values = []
     for i, entry in enumerate(subslice_index.values):
         new_entry = entry.with_bias(-low[i])
         values.append(new_entry.value)
-
+    
     view = tile[tuple(values)]
     return view
 
@@ -161,6 +189,13 @@ def get_output_sample_view(
     to the user. Tile data has it's view restricted and then all the tiles data are gathered into `sample`."""
 
     low, high = get_tile_bounds(tile_index, tile_shape)
+    
+    print("~~~~~~ Davit ~~~~~")
+    print(low, high, [v.value for v in subslice_index.values])
+    print(tile_index, tile_shape)
+    print(origin_tile_index)
+    
+    
     # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
     subslice_index.add_trivials(len(sample.shape))
@@ -170,7 +205,7 @@ def get_output_sample_view(
     values = []
     for i, entry in enumerate(subslice_index.values):
         delta = tile_index_origin_delta[i]
-        lower_bound = delta * low[i]
+        lower_bound = delta * tile_shape[i]
 
         new_entry = entry
         new_entry = new_entry.normalize()

@@ -8,6 +8,7 @@ from hub.util.tiles import (
     get_input_tile_view,
     get_output_sample_view,
     get_output_tile_view,
+    merge_tiles_into_sample_array,
     get_tile_mask,
     num_bytes_without_compression,
     num_tiles_for_sample,
@@ -728,7 +729,7 @@ class ChunkEngine:
 
                     tile_view = get_input_tile_view(tile, subslice_index, tile_index, tile_shape)
                     input_sample_view = get_input_sample_view(input_sample, subslice_index, tile_index, tile_shape)
-
+                    
                     # TODO: remove before merge
                     assert tile_view.sum() == 0
 
@@ -927,10 +928,9 @@ class ChunkEngine:
 
         full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
         sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
-        sample = np.zeros(sample_shape, dtype=dtype)
-
+        
         origin_tile_index = None
-
+        
         for tile_index, tile_obj in np.ndenumerate(tiles):
             if tile_obj is None:
                 continue
@@ -939,12 +939,14 @@ class ChunkEngine:
                 origin_tile_index = tile_index
 
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
-
+            
             tile_view = get_output_tile_view(tile, subslice_index, tile_index, tile_shape)
-            sample_view = get_output_sample_view(sample, subslice_index, tile_index, tile_shape, origin_tile_index)
-
-            sample_view[:] = tile_view
-
+            # print(tile_view, tiles[tile_index], tile_index)
+            tiles[tile_index] = tile_view   
+            print("tile shape", tile.shape, tile_view.shape, subslice_index)
+        
+        sample = merge_tiles_into_sample_array(sample_shape, dtype, tiles)
+        
         return sample
 
     def _update_with_operator(

@@ -9,7 +9,7 @@ def slice_has_step(s: slice):
 
 
 def is_trivial_slice(s: slice):
-    return not s.start and s.stop == None and not slice_has_step(s)
+    return not s.start and s.stop is None and not slice_has_step(s)
 
 
 def is_value_within_slice(s: slice, value: int):
@@ -316,11 +316,9 @@ class IndexEntry:
 
         if isinstance(self.value, slice):
             s = self.value
-
-            if is_trivial_slice(self.value):
-                new_slice = slice(_bias(s.start), None, s.step)
-            else:
-                new_slice = slice(_bias(s.start), _bias(s.stop), s.step)
+            new_slice = slice(_bias(s.start) if s.start is not None else None, 
+                              _bias(s.stop) if s.stop is not None else None, 
+                              s.step)
 
             return IndexEntry(new_slice)
 

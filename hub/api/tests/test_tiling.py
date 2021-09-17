@@ -186,7 +186,12 @@ def test_tile_boundaries(memory_ds):
     assert_array_lists_equal(tensor[0].numpy(), x)
 
     # all tiles + offset
+    assert_array_lists_equal(tensor[0, :50, :].numpy(), x[:50, :])
+    
+    # all tiles + offset
     assert_array_lists_equal(tensor[0, 3:, 4:].numpy(), x[3:, 4:])
+    
+    
 
 
 @compressions
