@@ -321,9 +321,7 @@ def serialize_input_samples(
         nbytes = []
         shapes = []
         for sample in samples:
-            byts, shape = serialize_input_sample(
-                sample, meta
-            )
+            byts, shape = serialize_input_sample(sample, meta)
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)
@@ -355,7 +353,12 @@ def serialize_input_samples(
     return buff, nbytes, shapes
 
 
-def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[int, ...], sample_array: Optional[np.ndarray], tensor_meta: TensorMeta) -> np.ndarray:
+def serialize_input_tiles(
+    tile_shape: Tuple[int, ...],
+    tile_layout_shape: Tuple[int, ...],
+    sample_array: Optional[np.ndarray],
+    tensor_meta: TensorMeta,
+) -> np.ndarray:
     # TODO: docstring
 
     tile_buffers = np.empty(tile_layout_shape, dtype=object)
@@ -371,7 +374,7 @@ def serialize_input_tiles(tile_shape: Tuple[int, ...], tile_layout_shape: Tuple[
             buffer, shape = serialize_input_sample(tile_array, tensor_meta)
             assert tile_array.shape == shape
             tile_buffers[tile_index] = memoryview(buffer)
-        
+
         tile_shapes[tile_index] = shape
 
     return tile_buffers, tile_shapes

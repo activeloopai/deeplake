@@ -74,7 +74,7 @@ def test_subslice(local_ds_generator, compression):
     with pytest.raises(NotImplementedError):
         ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
     assert ds.image.num_chunks == 1
-        
+
     # np.testing.assert_array_equal(
     #     ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8")
     # )

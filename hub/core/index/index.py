@@ -299,8 +299,7 @@ class IndexEntry:
 
         raise NotImplementedError
 
-
-    def with_bias(self, amount: int, keep_positive: bool=True) -> "IndexEntry":
+    def with_bias(self, amount: int, keep_positive: bool = True) -> "IndexEntry":
         # TODO: docstring
 
         def _bias(v: int):
@@ -316,15 +315,17 @@ class IndexEntry:
 
         if isinstance(self.value, slice):
             s = self.value
-            new_slice = slice(_bias(s.start) if s.start is not None else None, 
-                              _bias(s.stop) if s.stop is not None else None, 
-                              s.step)
+            new_slice = slice(
+                _bias(s.start) if s.start is not None else None,
+                _bias(s.stop) if s.stop is not None else None,
+                s.step,
+            )
 
             return IndexEntry(new_slice)
 
         raise NotImplementedError
 
-    def normalize(self, low_value: int=0) -> "IndexEntry":
+    def normalize(self, low_value: int = 0) -> "IndexEntry":
         # TODO: docstring
 
         if isinstance(self.value, int):
@@ -348,7 +349,6 @@ class IndexEntry:
 
         raise NotImplementedError
 
-
     def clamp_upper(self, max_value: int) -> "IndexEntry":
         if isinstance(self.value, int):
             return IndexEntry(min(self.value, max_value))
@@ -363,14 +363,17 @@ class IndexEntry:
             else:
                 if s.start < 0 or s.stop < 0:
                     # TODO: negative subslices
-                    raise NotImplementedError("Subslices with negatives is not yet supported!")
+                    raise NotImplementedError(
+                        "Subslices with negatives is not yet supported!"
+                    )
 
-                new_slice = slice(min(s.start, max_value), min(s.stop, max_value), s.step)
+                new_slice = slice(
+                    min(s.start, max_value), min(s.stop, max_value), s.step
+                )
 
             return IndexEntry(new_slice)
 
         raise NotImplementedError
-
 
     def clamp_lower(self, min_value: int) -> "IndexEntry":
         if isinstance(self.value, int):
@@ -384,7 +387,9 @@ class IndexEntry:
             else:
                 if s.start < 0 or s.stop < 0:
                     # TODO: negative subslices
-                    raise NotImplementedError("Subslices with negatives is not yet supported!")
+                    raise NotImplementedError(
+                        "Subslices with negatives is not yet supported!"
+                    )
 
                 new_slice = slice(max(s.start, min_value), s.stop, s.step)
 
@@ -537,8 +542,13 @@ class Index:
             for _ in range(dims_left):
                 dim_values.append(IndexEntry(slice(None)))
 
-        
-    def apply_restricted(self, sample: np.ndarray, bias: Tuple[int, ...], upper_bound: Tuple[int, ...]=None, normalize: bool=False) -> np.ndarray:
+    def apply_restricted(
+        self,
+        sample: np.ndarray,
+        bias: Tuple[int, ...],
+        upper_bound: Tuple[int, ...] = None,
+        normalize: bool = False,
+    ) -> np.ndarray:
         # TODO: docstring
 
         self.add_trivials(len(sample.shape))
@@ -616,7 +626,9 @@ class Index:
                 shape.append(l)  # TODO: better way to do this
         return tuple(shape)
 
-    def shape_if_applied_to(self, shape: Tuple[int, ...], squeeze: bool=False) -> Tuple[int, ...]:
+    def shape_if_applied_to(
+        self, shape: Tuple[int, ...], squeeze: bool = False
+    ) -> Tuple[int, ...]:
         # TODO: docstring
 
         output_shape = np.zeros(len(shape), dtype=int)
@@ -658,7 +670,7 @@ class Index:
         ):
             entry_low = index_entry.low_bound
             entry_high = index_entry.high_bound
-            
+
             if index_entry.is_trivial() or entry_low is None or entry_high is None:
                 continue
             if in_high_dim <= entry_low:

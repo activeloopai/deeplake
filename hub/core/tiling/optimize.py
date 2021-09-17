@@ -15,10 +15,11 @@ INTERM_DTYPE = np.dtype(np.int32)
 # if the number of iterations is greater than this, then only a single dimension will be perturbated at a time.
 # the reason is to allow better and smoother exploration of more nuanced tile shapes.
 SINGLE_DIM_MIN_ITERATION_PERCENTAGE = 0.8
-assert SINGLE_DIM_MIN_ITERATION_PERCENTAGE > 0 and SINGLE_DIM_MIN_ITERATION_PERCENTAGE < 1
+assert (
+    SINGLE_DIM_MIN_ITERATION_PERCENTAGE > 0 and SINGLE_DIM_MIN_ITERATION_PERCENTAGE < 1
+)
 CHANCE_FOR_SINGLE_DIM_ONLY = 0.3
 assert CHANCE_FOR_SINGLE_DIM_ONLY > 0 and CHANCE_FOR_SINGLE_DIM_ONLY < 1
-
 
 
 def _clamp(tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> np.ndarray:
@@ -38,12 +39,14 @@ def _transition_probability(
 
     return np.exp(-(energy_new - energy_old) / temperature)
 
-class TileOptimizer:
 
-    def __init__(self, min_chunk_size: int, max_chunk_size: int, tensor_meta: TensorMeta):
+class TileOptimizer:
+    def __init__(
+        self, min_chunk_size: int, max_chunk_size: int, tensor_meta: TensorMeta
+    ):
         """Uses simulated annealing to find the best tile shape for a sample of a specific shape
         with respect to the tensor meta properties."""
-        
+
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta
@@ -55,11 +58,11 @@ class TileOptimizer:
         self.last_history = None
 
     def average_num_bytes_per_tile(self, tile_shape: Tuple[int, ...]) -> int:
-        return approximate_num_bytes(tile_shape, self.tensor_meta.dtype, self.compression_factor)
+        return approximate_num_bytes(
+            tile_shape, self.tensor_meta.dtype, self.compression_factor
+        )
 
-    def _energy(
-        self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...]
-    ) -> float:
+    def _energy(self, tile_shape: np.ndarray, sample_shape: Tuple[int, ...]) -> float:
         """Function to be minimized during simulated annealing. The energy of a state is the
         cumulative waste that a tile shape has. The target tile size is `tensor_meta.max_chunk_size`.
         The distance is squared when it is not between min / max chunk size.
@@ -78,10 +81,7 @@ class TileOptimizer:
 
         return num_tiles * distance
 
-
-    def _initial_tile_shape(
-        self, sample_shape: Tuple[int, ...]
-    ) -> np.ndarray:
+    def _initial_tile_shape(self, sample_shape: Tuple[int, ...]) -> np.ndarray:
         """Calculates the initial tile shape for simulated annealing."""
 
         dtype_num_bytes = self.dtype.itemsize
@@ -97,7 +97,6 @@ class TileOptimizer:
         proposal = np.array(tile_shape, dtype=INTERM_DTYPE)
         return _clamp(proposal, sample_shape)
 
-    
     def _perturbate_tile_shape(
         self,
         tile_shape: np.ndarray,
@@ -139,10 +138,15 @@ class TileOptimizer:
         new_tile_shape = _clamp(new_tile_shape, sample_shape)
 
         if np.all(new_tile_shape == tile_shape):
-            return self._perturbate_tile_shape(tile_shape, sample_shape, unfrozen_dim_mask, allow_single_dim_only, max_magnitude=max_magnitude)
+            return self._perturbate_tile_shape(
+                tile_shape,
+                sample_shape,
+                unfrozen_dim_mask,
+                allow_single_dim_only,
+                max_magnitude=max_magnitude,
+            )
 
         return new_tile_shape
-
 
     def _anneal_tile_shape(
         self, sample_shape: Tuple[int, ...], max_iterations: int = 2000
@@ -158,7 +162,9 @@ class TileOptimizer:
             Tuple[Tuple[int], List[Dict]]: Tile shape and history of simulated annealing.
         """
 
-        min_single_dim_iterations = int(SINGLE_DIM_MIN_ITERATION_PERCENTAGE * max_iterations)
+        min_single_dim_iterations = int(
+            SINGLE_DIM_MIN_ITERATION_PERCENTAGE * max_iterations
+        )
 
         tile_shape = self._initial_tile_shape(sample_shape)
         unfrozen_dim_mask = tile_shape != sample_shape
@@ -189,12 +195,18 @@ class TileOptimizer:
                     best_shape = new_tile_shape.copy()
                     lowest_energy = new_energy
 
-            history.append({"old_energy": energy, "new_energy": new_energy, "old_shape": tile_shape, "new_shape": new_tile_shape})
+            history.append(
+                {
+                    "old_energy": energy,
+                    "new_energy": new_energy,
+                    "old_shape": tile_shape,
+                    "new_shape": new_tile_shape,
+                }
+            )
 
             self.current_iteration += 1
 
         return tuple(best_shape.tolist()), history  # type: ignore
-
 
     def _validate_tile_shape(
         self, tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]
@@ -229,7 +241,6 @@ class TileOptimizer:
 
             raise TileOptimizerError(failure_reason, tile_shape, sample_shape)
 
-    
     def history_subset_str(self):
         s = f"\nHistory:"
 
@@ -239,29 +250,30 @@ class TileOptimizer:
 
         return s
 
-
     def optimize(
         self,
         sample_shape: Tuple[int, ...],
-        compression_factor: int=None,
+        compression_factor: int = None,
         validate: bool = True,
         return_history: bool = False,
     ) -> Tuple[int, ...]:
         """Find a tile shape using simulated annealing.
-    
+
         Args:
             sample_shape (Tuple[int]): Shape of the sample that is being tiled.
             validate (bool): Whether to validate the tile shape.
             return_history (bool): Whether to return the history of the simulated annealing. Useful for debugging.
-    
+
         Returns:
             The tile shape found by simulated annealing.
         """
 
-        self.compression_factor = compression_factor or get_compression_factor(self.tensor_meta)
-    
+        self.compression_factor = compression_factor or get_compression_factor(
+            self.tensor_meta
+        )
+
         tile_shape, history = self._anneal_tile_shape(sample_shape)
-    
+
         self.last_tile_shape = tile_shape
         self.last_history = history
 
@@ -269,8 +281,8 @@ class TileOptimizer:
             self._validate_tile_shape(tile_shape, sample_shape)
 
         self.compression_factor = None
-    
+
         if return_history:
             return tile_shape, history  # type: ignore
-    
+
         return tile_shape

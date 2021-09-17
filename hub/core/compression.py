@@ -261,7 +261,9 @@ def decompress_multiple(
                 # empty array (maybe a tiled sample)
                 array = np.zeros(shape, dtype=dtype)
             else:
-                array = np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
+                array = np.frombuffer(
+                    decompressed_buffer[:nbytes], dtype=dtype
+                ).reshape(shape)
 
             arrays.append(array)
             decompressed_buffer = decompressed_buffer[nbytes:]
@@ -454,7 +456,9 @@ def get_compression_factor(tensor_meta: TensorMeta) -> float:
     if sc is not None:
         if sc not in COMPRESSION_FACTORS:
             # TODO: this should ideally never happen
-            warnings.warn(f"Warning: the provided compression \"{sc}\" has no approximate factor yet, so you should expect tiles to be inefficient!")
+            warnings.warn(
+                f'Warning: the provided compression "{sc}" has no approximate factor yet, so you should expect tiles to be inefficient!'
+            )
             return factor
 
         factor *= COMPRESSION_FACTORS[sc]

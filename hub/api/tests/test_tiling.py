@@ -6,7 +6,6 @@ from hub.constants import B, KB
 from hub.tests.common import assert_array_lists_equal, compressions
 
 
-
 def _get_arange_image(shape):
     return np.arange(np.prod(shape), dtype="uint8").reshape(shape)
     # return np.random.randint(low=0, high=256, size=np.prod(shape), dtype="uint8").reshape(shape)
@@ -119,9 +118,13 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     last_y = 0
     for x in range(patch_size, 500 + patch_size, patch_size):
         for y in range(patch_size, 500 + patch_size, patch_size):
-            expected_patch = np.ones((patch_size, patch_size), dtype="int32") * patch_count
+            expected_patch = (
+                np.ones((patch_size, patch_size), dtype="int32") * patch_count
+            )
             actual_patch = ds.large[0, last_x:x, last_y:y].numpy()
-            np.testing.assert_array_equal(expected_patch, actual_patch, f"x={last_x}:{x}, y={last_y}:{y}")
+            np.testing.assert_array_equal(
+                expected_patch, actual_patch, f"x={last_x}:{x}, y={last_y}:{y}"
+            )
             last_y = y
         last_x = x
         last_y = 0
@@ -152,7 +155,7 @@ def test_failures(memory_ds):
 
 def test_tile_boundaries(memory_ds):
     tensor = memory_ds.create_tensor("tensor", dtype="uint8", max_chunk_size=1 * KB)
-    
+
     x = _get_arange_image((150, 150))
     tensor.append_empty((150, 150))
     tensor[0, 0:150, 0:150] = x.copy()
@@ -187,11 +190,9 @@ def test_tile_boundaries(memory_ds):
 
     # all tiles + offset
     assert_array_lists_equal(tensor[0, :50, :].numpy(), x[:50, :])
-    
+
     # all tiles + offset
     assert_array_lists_equal(tensor[0, 3:, 4:].numpy(), x[3:, 4:])
-    
-    
 
 
 @compressions
@@ -200,7 +201,9 @@ def test_append(local_ds, compression, tatevik):
     large2 = _get_arange_image((100, 90, 4))
     small = _get_arange_image((10, 10, 4))
 
-    local_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=20 * KB)
+    local_ds.create_tensor(
+        "image", dtype="uint8", **compression, max_chunk_size=20 * KB
+    )
 
     local_ds.image.append(large1.copy())
     _assert_num_chunks(local_ds.image.num_chunks, 4, compression)
@@ -223,21 +226,25 @@ def test_append(local_ds, compression, tatevik):
 
 @compressions
 def test_extend(local_ds, compression, davit):
-    local_ds.create_tensor("image", dtype="uint8", **compression, max_chunk_size=10 * KB)
+    local_ds.create_tensor(
+        "image", dtype="uint8", **compression, max_chunk_size=10 * KB
+    )
 
     small1 = _get_arange_image((10, 10, 3))
     small2 = _get_arange_image((5, 20, 3))
     large = _get_arange_image((100, 100, 3))
 
-    local_ds.image.extend([
-        small1.copy(),
-        small2.copy(),
-        hub.read(davit),
-        small2.copy(),
-        large.copy(),
-        small2.copy(),
-        small1.copy(),
-    ])
+    local_ds.image.extend(
+        [
+            small1.copy(),
+            small2.copy(),
+            hub.read(davit),
+            small2.copy(),
+            large.copy(),
+            small2.copy(),
+            small1.copy(),
+        ]
+    )
     _assert_num_chunks(local_ds.image.num_chunks, 23, compression)
 
     assert local_ds.image.shape_interval.lower == (7, 5, 10, 3)
