@@ -190,12 +190,6 @@ def get_output_sample_view(
 
     low, high = get_tile_bounds(tile_index, tile_shape)
     
-    print("~~~~~~ Davit ~~~~~")
-    print(low, high, [v.value for v in subslice_index.values])
-    print(tile_index, tile_shape)
-    print(origin_tile_index)
-    
-    
     # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
     subslice_index.add_trivials(len(sample.shape))
