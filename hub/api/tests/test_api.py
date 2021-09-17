@@ -741,3 +741,6 @@ def test_groups(local_ds_generator):
     assert "d" in ds.y.z.a.b.groups
     e = ds.y.z.a.b.d.e
     np.testing.assert_array_equal(e[0].numpy(), np.ones((4, 3)))
+
+    ds.create_group("g")
+    ds.g.create_tensor("g")
