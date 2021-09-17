@@ -1,29 +1,23 @@
-from hub.util.exceptions import (
-    DatasetHandlerError,
-    InvalidPathException,
-    KaggleDatasetAlreadyDownloadedError,
-    SamePathException,
-)
-from hub.util.storage import get_storage_and_cache_chain
-import hub
 import os
+import hub
 from typing import Optional, Union
 
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.client.log import logger
-from hub.util.keys import dataset_exists
-from hub.util.auto import get_most_common_extension
-from hub.util.bugout_reporter import hub_reporter, feature_report_path
-from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
+from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
+from hub.core.dataset import Dataset
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.util.auto import get_most_common_extension
+from hub.util.bugout_reporter import feature_report_path
+from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
     DatasetHandlerError,
     AutoCompressionError,
     InvalidFileExtension,
+    InvalidPathException,
+    SamePathException,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
-from hub.core.dataset import Dataset
 
 
 class dataset:
@@ -263,7 +257,7 @@ class dataset:
         if isinstance(source, str):
             source_ds = dataset.load(source)
 
-        for tensor_name in source_ds.meta.tensors:  # type: ignore
+        for tensor_name in source_ds.version_state["meta"].tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore

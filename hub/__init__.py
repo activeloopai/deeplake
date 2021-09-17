@@ -19,8 +19,8 @@ __pdoc__ = {
 
 from .api.dataset import dataset
 from .api.read import read
-from .core.transform import compute, compose
 from .core.dataset import Dataset
+from .core.transform import compute, compose
 from .core.tensor import Tensor
 from .util.bugout_reporter import hub_reporter
 from .compression import SUPPORTED_COMPRESSIONS

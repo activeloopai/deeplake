@@ -577,6 +577,14 @@ class CorruptedSampleError(Exception):
         super().__init__(f"Invalid {compression} file.")
 
 
+class VersionControlError(Exception):
+    pass
+
+
+class CheckoutError(VersionControlError):
+    pass
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(
