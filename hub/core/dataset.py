@@ -101,7 +101,6 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
-
         self._set_derived_attributes()
 
     def _lock_lost_handler(self):
@@ -642,7 +641,7 @@ class Dataset:
 
     @property
     def tensors(self) -> Dict[str, Tensor]:
-        """All tensors belonging to this group, including those within sub groups"""
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {t: self[t] for t in self._all_tensors_filtered}
 
     @property

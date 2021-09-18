@@ -1,12 +1,12 @@
-from typing import List
+from typing import Set
 from hub.core.storage.cachable import Cachable
 
 
-class CommitChunkList(Cachable):
-    """Stores list of chunks stored for a particular tensor in a commit."""
+class CommitChunkSet(Cachable):
+    """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:
-        self.chunks: List[str] = []
+        self.chunks: Set[str] = set()
 
     def tobytes(self) -> bytes:
         """Dumps self.chunks in csv format."""
@@ -14,9 +14,9 @@ class CommitChunkList(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        """Loads a CommitChunkList from a buffer."""
+        """Loads a CommitChunkSet from a buffer."""
         instance = cls()
-        instance.chunks = buffer.decode("utf-8").split(",")
+        instance.chunks = set(buffer.decode("utf-8").split(","))
         return instance
 
     @property
@@ -25,6 +25,6 @@ class CommitChunkList(Cachable):
             return 0
         return 8 + ((len(self.chunks) - 1) * 9)
 
-    def append(self, chunk_name: str) -> None:
-        """Adds a new chunk name to the CommitChunkList."""
-        self.chunks.append(chunk_name)
+    def add(self, chunk_name: str) -> None:
+        """Adds a new chunk name to the CommitChunkSet."""
+        self.chunks.add(chunk_name)
