@@ -185,6 +185,9 @@ def discard_old_metas(
 
     for key in all_src_keys:
         storage.dirty_keys.discard(key)
+        if key in storage.lru_sizes:
+            size = storage.lru_sizes.pop(key)
+            storage.cache_used -= size
         try:
             del storage.cache_storage[key]
         except (KeyError, CallbackInitializationError):
