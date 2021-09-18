@@ -73,14 +73,7 @@ def checkout(
         if original_commit_id == new_commit_id:
             return
         version_state["commit_id"] = new_commit_id
-        version_state["commit_node"] = version_state["commit_node_map"][
-            version_state["commit_id"]
-        ]
-        discard_metas(
-            original_commit_id,
-            storage,
-            version_state["full_tensors"],
-        )
+        version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
@@ -91,11 +84,6 @@ def checkout(
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
-        discard_metas(
-            original_commit_id,
-            storage,
-            version_state["full_tensors"],
-        )
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
@@ -119,6 +107,12 @@ def checkout(
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
         )
+
+    discard_old_metas(
+        original_commit_id,
+        storage,
+        version_state["full_tensors"],
+    )
     load_meta(storage, version_state)
 
 
@@ -170,35 +164,31 @@ def copy_metas(
 
     storage.flush()
 
-    discard_metas(src_commit_id, storage, tensors, all_src_keys)
 
-
-def discard_metas(
+def discard_old_metas(
     src_commit_id: str,
     storage: LRUCache,
     tensors: Dict,
-    all_src_keys: Optional[List[str]] = None,
 ):
     """Discards the metas of the previous commit from cache, during checkout or when a new commit is made."""
-    if all_src_keys is None:
-        all_src_keys = []
-        src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
-        all_src_keys.append(src_dataset_meta_key)
+    all_src_keys = []
+    src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
+    all_src_keys.append(src_dataset_meta_key)
 
-        src_dataset_info_key = get_dataset_info_key(src_commit_id)
-        all_src_keys.append(src_dataset_info_key)
+    src_dataset_info_key = get_dataset_info_key(src_commit_id)
+    all_src_keys.append(src_dataset_info_key)
 
-        tensor_list = list(tensors.keys())
+    tensor_list = list(tensors.keys())
 
-        for tensor in tensor_list:
-            src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
-            all_src_keys.append(src_tensor_meta_key)
+    for tensor in tensor_list:
+        src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
+        all_src_keys.append(src_tensor_meta_key)
 
-            src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
-            all_src_keys.append(src_chunk_id_encoder_key)
+        src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
+        all_src_keys.append(src_chunk_id_encoder_key)
 
-            src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
-            all_src_keys.append(src_tensor_info_key)
+        src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
+        all_src_keys.append(src_tensor_info_key)
 
     for key in all_src_keys:
         storage.dirty_keys.discard(key)
