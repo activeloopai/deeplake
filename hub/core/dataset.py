@@ -382,6 +382,7 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
+        self._tensors = None
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
