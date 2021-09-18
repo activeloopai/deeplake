@@ -101,9 +101,6 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
-        # caches the sliced tensors to prevent repeated slicing
-        self._tensors: Optional[Dict[str, Tensor]] = None
-
         self._set_derived_attributes()
 
     def _lock_lost_handler(self):
@@ -157,7 +154,6 @@ class Dataset:
             "_token": self.token,
             "verbose": self.verbose,
             "version_state": self.version_state,
-            "_tensors": None,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -177,7 +173,9 @@ class Dataset:
     ):
         if isinstance(item, str):
             if item in self._all_tensors_filtered:
-                return self.tensors[posixpath.join(self.group_index, item)]
+                return self.version_state["full_tensors"][
+                    posixpath.join(self.group_index, item)
+                ][self.index]
             elif item in self._groups_filtered:
                 return Dataset(
                     storage=self.storage,
@@ -298,8 +296,6 @@ class Dataset:
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.version_state["full_tensors"][name] = tensor
-        if self._tensors is not None:
-            self._tensors[name] = tensor[self.index]
         tensor.info.update(info_kwargs)
         return tensor
 
@@ -382,7 +378,6 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
-        self._tensors = None
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -397,7 +392,6 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
-        self._tensors = None
         return self.version_state["commit_id"]
 
     def log(self):
@@ -648,14 +642,7 @@ class Dataset:
     @property
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        if self._tensors is None:
-            self._tensors = {}
-            for t in self._all_tensors_filtered:
-                tensor = self.version_state["full_tensors"][
-                    posixpath.join(self.group_index, t)
-                ][self.index]
-                self._tensors[t] = tensor
-        return self._tensors
+        return {t: self[t] for t in self._all_tensors_filtered}
 
     @property
     def _groups(self) -> List[str]:
