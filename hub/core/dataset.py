@@ -298,7 +298,7 @@ class Dataset:
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.version_state["full_tensors"][name] = tensor
-        if self._tensors:
+        if self._tensors is not None:
             self._tensors[name] = tensor[self.index]
         tensor.info.update(info_kwargs)
         return tensor
@@ -396,6 +396,7 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
+        self._tensors = None
         return self.version_state["commit_id"]
 
     def log(self):
