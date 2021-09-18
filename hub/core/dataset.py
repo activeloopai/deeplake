@@ -101,6 +101,7 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
+        self._tensors = None  # caches the sliced tensors to prevent repeated slicing
 
         self._set_derived_attributes()
 
@@ -155,6 +156,7 @@ class Dataset:
             "_token": self.token,
             "verbose": self.verbose,
             "version_state": self.version_state,
+            "_tensors": None,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -174,9 +176,7 @@ class Dataset:
     ):
         if isinstance(item, str):
             if item in self._all_tensors_filtered:
-                return self.version_state["full_tensors"][
-                    posixpath.join(self.group_index, item)
-                ][self.index]
+                return self.tensors[posixpath.join(self.group_index, item)]
             elif item in self._groups_filtered:
                 return Dataset(
                     storage=self.storage,
@@ -297,6 +297,8 @@ class Dataset:
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.version_state["full_tensors"][name] = tensor
+        if self._tensors:
+            self._tensors[name] = tensor[self.index]
         tensor.info.update(info_kwargs)
         return tensor
 
@@ -642,8 +644,15 @@ class Dataset:
 
     @property
     def tensors(self) -> Dict[str, Tensor]:
-        """All tensors belonging to this group, including those within sub groups"""
-        return {t: self[t] for t in self._all_tensors_filtered}
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        if self._tensors is None:
+            self._tensors = {}
+            for t in self._all_tensors_filtered:
+                tensor = self.version_state["full_tensors"][
+                    posixpath.join(self.group_index, t)
+                ][self.index]
+                self._tensors[t] = tensor
+        return self._tensors
 
     @property
     def _groups(self) -> List[str]:
