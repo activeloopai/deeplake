@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -53,7 +53,6 @@ def commit(
         storage,
         version_state["full_tensors"],
     )
-    storage.flush()
     load_meta(storage, version_state)
 
 
@@ -64,27 +63,43 @@ def checkout(
     create: bool = False,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
+    original_commit_id = version_state["commit_id"]
+
     if address in version_state["branch_commit_map"].keys():
         if create:
             raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
         version_state["branch"] = address
-        version_state["commit_id"] = version_state["branch_commit_map"][address]
+        new_commit_id = version_state["branch_commit_map"][address]
+        if original_commit_id == new_commit_id:
+            return
+        version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = version_state["commit_node_map"][
             version_state["commit_id"]
         ]
+        discard_metas(
+            original_commit_id,
+            storage,
+            version_state["full_tensors"],
+        )
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
                 f"Can't create new branch, commit '{address}' already exists."
             )
+        if address == original_commit_id:
+            return
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
+        discard_metas(
+            original_commit_id,
+            storage,
+            version_state["full_tensors"],
+        )
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
-        original_commit_id = version_state["commit_id"]
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
         version_state["commit_node"].add_child(new_node)
@@ -100,7 +115,6 @@ def checkout(
             storage,
             version_state["full_tensors"],
         )
-        storage.flush()
     else:
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
@@ -111,13 +125,18 @@ def checkout(
 def copy_metas(
     src_commit_id: str, dest_commit_id: str, storage: LRUCache, tensors: Dict
 ) -> None:
-    """Copies meta data from one commit to another."""
+    """Copies meta data from one commit to another. Discards the original metas from LRUCache dirty keys."""
+
+    all_src_keys = []
+
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
+    all_src_keys.append(src_dataset_meta_key)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     storage[dest_dataset_meta_key] = storage[src_dataset_meta_key].copy()
 
     try:
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
+        all_src_keys.append(src_dataset_info_key)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         storage[dest_dataset_info_key] = storage[src_dataset_info_key].copy()
     except (KeyError, CallbackInitializationError):
@@ -127,11 +146,13 @@ def copy_metas(
 
     for tensor in tensor_list:
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
+        all_src_keys.append(src_tensor_meta_key)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
         storage[dest_tensor_meta_key] = storage[src_tensor_meta_key].copy()
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
+            all_src_keys.append(src_chunk_id_encoder_key)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
             storage[dest_chunk_id_encoder_key] = storage[
                 src_chunk_id_encoder_key
@@ -141,8 +162,48 @@ def copy_metas(
 
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
+            all_src_keys.append(src_tensor_info_key)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
+        except (KeyError, CallbackInitializationError):
+            pass
+
+    storage.flush()
+
+    discard_metas(src_commit_id, storage, tensors, all_src_keys)
+
+
+def discard_metas(
+    src_commit_id: str,
+    storage: LRUCache,
+    tensors: Dict,
+    all_src_keys: Optional[List[str]] = None,
+):
+    """Discards the metas of the previous commit from cache, during checkout or when a new commit is made."""
+    if all_src_keys is None:
+        all_src_keys = []
+        src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
+        all_src_keys.append(src_dataset_meta_key)
+
+        src_dataset_info_key = get_dataset_info_key(src_commit_id)
+        all_src_keys.append(src_dataset_info_key)
+
+        tensor_list = list(tensors.keys())
+
+        for tensor in tensor_list:
+            src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
+            all_src_keys.append(src_tensor_meta_key)
+
+            src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
+            all_src_keys.append(src_chunk_id_encoder_key)
+
+            src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
+            all_src_keys.append(src_tensor_info_key)
+
+    for key in all_src_keys:
+        storage.dirty_keys.discard(key)
+        try:
+            del storage.cache_storage[key]
         except (KeyError, CallbackInitializationError):
             pass
 
