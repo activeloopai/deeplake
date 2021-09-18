@@ -101,7 +101,8 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
-        self._tensors = None  # caches the sliced tensors to prevent repeated slicing
+        # caches the sliced tensors to prevent repeated slicing
+        self._tensors: Optional[Dict[str, Tensor]] = None
 
         self._set_derived_attributes()
 
