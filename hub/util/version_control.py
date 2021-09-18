@@ -119,18 +119,14 @@ def checkout(
 def copy_metas(
     src_commit_id: str, dest_commit_id: str, storage: LRUCache, tensors: Dict
 ) -> None:
-    """Copies meta data from one commit to another. Discards the original metas from LRUCache dirty keys."""
-
-    all_src_keys = []
+    """Copies meta data from one commit to another."""
 
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
-    all_src_keys.append(src_dataset_meta_key)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     storage[dest_dataset_meta_key] = storage[src_dataset_meta_key].copy()
 
     try:
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
-        all_src_keys.append(src_dataset_info_key)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         storage[dest_dataset_info_key] = storage[src_dataset_info_key].copy()
     except (KeyError, CallbackInitializationError):
@@ -140,13 +136,11 @@ def copy_metas(
 
     for tensor in tensor_list:
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
-        all_src_keys.append(src_tensor_meta_key)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
         storage[dest_tensor_meta_key] = storage[src_tensor_meta_key].copy()
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
-            all_src_keys.append(src_chunk_id_encoder_key)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
             storage[dest_chunk_id_encoder_key] = storage[
                 src_chunk_id_encoder_key
@@ -156,7 +150,6 @@ def copy_metas(
 
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
-            all_src_keys.append(src_tensor_info_key)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
         except (KeyError, CallbackInitializationError):
