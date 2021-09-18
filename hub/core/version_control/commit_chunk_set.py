@@ -16,7 +16,7 @@ class CommitChunkSet(Cachable):
     def frombuffer(cls, buffer: bytes):
         """Loads a CommitChunkSet from a buffer."""
         instance = cls()
-        instance.chunks = buffer.decode("utf-8").split(",")
+        instance.chunks = set(buffer.decode("utf-8").split(","))
         return instance
 
     @property
@@ -25,6 +25,6 @@ class CommitChunkSet(Cachable):
             return 0
         return 8 + ((len(self.chunks) - 1) * 9)
 
-    def append(self, chunk_name: str) -> None:
+    def add(self, chunk_name: str) -> None:
         """Adds a new chunk name to the CommitChunkSet."""
         self.chunks.add(chunk_name)

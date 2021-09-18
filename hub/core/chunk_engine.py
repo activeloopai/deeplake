@@ -223,13 +223,13 @@ class ChunkEngine:
     def last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
             return None
-        chunk_commit_id = self.get_chunk_commit(self.last_chunk_key)
-        last_chunk = self.get_chunk(self.last_chunk_key)
+        chunk_name = self.last_chunk_name
+        chunk_commit_id = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+        chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
-            last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-            last_chunk = self.copy_chunk_to_new_commit(last_chunk, last_chunk_name)
-
-        return last_chunk
+            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        return chunk
 
     def get_chunk(self, chunk_key: str) -> Chunk:
         return self.cache.get_cachable(chunk_key, Chunk)
@@ -258,9 +258,13 @@ class ChunkEngine:
 
     @property
     def last_chunk_key(self) -> str:
-        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+        last_chunk_name = self.last_chunk_name
         commit_id = self.get_chunk_commit(last_chunk_name)
         return get_chunk_key(self.key, last_chunk_name, commit_id)
+
+    @property
+    def last_chunk_name(self) -> str:
+        return self.chunk_id_encoder.get_name_for_chunk(-1)
 
     @property
     def tensor_meta(self):
@@ -483,7 +487,7 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
         if self.commit_chunk_set is not None:
-            self.commit_chunk_set.append(chunk_name)
+            self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
         return chunk
 
@@ -771,7 +775,7 @@ class ChunkEngine:
         chunk.key = new_chunk_key
         self.cache[new_chunk_key] = chunk
         if self.commit_chunk_set is not None:
-            self.commit_chunk_set.append(chunk_name)
+            self.commit_chunk_set.add(chunk_name)
         return chunk
 
 
