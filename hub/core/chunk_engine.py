@@ -989,25 +989,23 @@ class ChunkEngine:
         tile_shape = tile_encoder.get_tile_shape(global_sample_index)
 
         full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
+        
+        # make all indexes uniform (same number of dimensions, and fill in upper values)
+        subslice_index.add_trivials(len(tile_shape))
+        subslice_index = subslice_index.fill_upper(full_sample_shape)
         sample_shape = subslice_index.shape_if_applied_to(full_sample_shape)
-
-        origin_tile_index = None
 
         for tile_index, tile_obj in np.ndenumerate(tiles):
             if tile_obj is None:
                 continue
-
-            if origin_tile_index is None:
-                origin_tile_index = tile_index
 
             tile = self.read_sample_from_chunk(global_sample_index, tile_obj)
 
             tile_view = get_output_tile_view(
                 tile, subslice_index, tile_index, tile_shape
             )
-            # print(tile_view, tiles[tile_index], tile_index)
+
             tiles[tile_index] = tile_view
-            print("tile shape", tile.shape, tile_view.shape, subslice_index)
 
         sample = merge_tiles_into_sample_array(sample_shape, dtype, tiles)
 

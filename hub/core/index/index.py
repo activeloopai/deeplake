@@ -695,6 +695,25 @@ class Index:
 
         return tuple(low)
 
+
+    def fill_upper(self, upper_bound: Tuple[int, ...]) -> "Index":
+        new_values = []
+
+        for entry, bound in zip(self.values, upper_bound):
+            value = entry.value
+            new_value = value
+
+            if isinstance(value, slice):
+                stop = value.stop
+                if stop is None:
+                    stop = bound
+                new_value = slice(value.start, stop, value.step)
+
+            new_values.append(IndexEntry(new_value))
+
+        return Index(new_values)
+
+
     @property
     def high_bound(self) -> Tuple[int, ...]:
         """Get the high-bound of this index.

@@ -111,7 +111,6 @@ def get_input_tile_view(
     low, high = get_tile_bounds(tile_index, tile_shape)
 
     # return subslice_index.apply_restricted(tile, bias=low)
-    subslice_index.add_trivials(len(tile.shape))
 
     values = []
     for i, entry in enumerate(subslice_index.values):
@@ -174,9 +173,6 @@ def get_output_tile_view(
 ) -> np.ndarray:
     low, high = get_tile_bounds(tile_index, tile_shape)
 
-    # return subslice_index.apply_restricted(tile, bias=low)
-    subslice_index.add_trivials(len(tile.shape))
-
     values = []
     for i, entry in enumerate(subslice_index.values):
         new_entry = entry.with_bias(-low[i])
@@ -197,8 +193,6 @@ def get_input_sample_view(
 
     low, high = get_tile_bounds(tile_index, tile_shape)
     # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
-
-    subslice_index.add_trivials(len(sample.shape))
 
     values = []
     for i, entry in enumerate(subslice_index.values):
@@ -227,8 +221,6 @@ def get_output_sample_view(
 
     # return subslice_index.apply_restricted(sample, bias=low, upper_bound=high, normalize=True)
 
-    subslice_index.add_trivials(len(sample.shape))
-
     tile_index_origin_delta = np.asarray(tile_index) - origin_tile_index
 
     values = []
@@ -242,17 +234,7 @@ def get_output_sample_view(
         new_entry = new_entry.clamp_lower(lower_bound)
         values.append(new_entry.value)
 
-    print()
-    print()
-    print()
-    print("ORIGIN", origin_tile_index, "current", tile_index)
-    print("DELTA", tile_index_origin_delta)
-    print("low, high", low, high)
-    print("values", values)
-    print("sample shape", sample.shape)
-
     view = sample[tuple(values)]
-    print("sample view shape", view.shape)
     return view
 
 
