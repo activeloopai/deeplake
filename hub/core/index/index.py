@@ -695,7 +695,6 @@ class Index:
 
         return tuple(low)
 
-
     def fill_upper(self, upper_bound: Tuple[int, ...]) -> "Index":
         new_values = []
 
@@ -712,7 +711,6 @@ class Index:
             new_values.append(IndexEntry(new_value))
 
         return Index(new_values)
-
 
     @property
     def high_bound(self) -> Tuple[int, ...]:

@@ -989,7 +989,7 @@ class ChunkEngine:
         tile_shape = tile_encoder.get_tile_shape(global_sample_index)
 
         full_sample_shape = tile_encoder.get_sample_shape(global_sample_index)
-        
+
         # make all indexes uniform (same number of dimensions, and fill in upper values)
         subslice_index.add_trivials(len(tile_shape))
         subslice_index = subslice_index.fill_upper(full_sample_shape)
