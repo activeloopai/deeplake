@@ -5,7 +5,11 @@ from typing import Dict, List
 
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key, get_tile_encoder_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    get_chunk_id_encoder_key,
+    get_tile_encoder_key,
+)
 import posixpath
 
 
@@ -64,7 +68,10 @@ def merge_all_chunk_id_encoders(
     ds_out.flush()
 
 
-def merge_all_tile_encoders(all_workers_tile_encoders: List[Dict[str, TileEncoder]], ds_out: hub.core.dataset.Dataset) -> None:
+def merge_all_tile_encoders(
+    all_workers_tile_encoders: List[Dict[str, TileEncoder]],
+    ds_out: hub.core.dataset.Dataset,
+) -> None:
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         chunk_engine = ds_out[tensor].chunk_engine
@@ -97,7 +104,10 @@ def combine_chunk_id_encoders(
                     [ds_chunk_id_encoder._encoded, encoded_id]
                 )
 
-def combine_tile_encoders(ds_tile_encoder: TileEncoder, worker_tile_encoder: TileEncoder, offset: int) -> None:
+
+def combine_tile_encoders(
+    ds_tile_encoder: TileEncoder, worker_tile_encoder: TileEncoder, offset: int
+) -> None:
     """Combines the dataset's tile_encoder with a single worker's tile_encoder."""
 
     if len(worker_tile_encoder.entries) != 0:
@@ -105,6 +115,10 @@ def combine_tile_encoders(ds_tile_encoder: TileEncoder, worker_tile_encoder: Til
             new_sample_index = int(sample_index) + offset
 
             if new_sample_index in ds_tile_encoder.entries:
-                raise ValueError(f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={str(ds_tile_encoder.keys())}")
+                raise ValueError(
+                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={str(ds_tile_encoder.keys())}"
+                )
 
-            ds_tile_encoder.entries[str(new_sample_index)] = worker_tile_encoder.entries[sample_index]
+            ds_tile_encoder.entries[
+                str(new_sample_index)
+            ] = worker_tile_encoder.entries[sample_index]

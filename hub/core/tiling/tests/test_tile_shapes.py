@@ -19,25 +19,34 @@ tile_test_compressions = pytest.mark.parametrize("compression", [None, "png"])
 def _get_tensor_meta(sample_compression: str) -> TensorMeta:
     # TODO: test with chunk-wise compression
     tensor_meta = TensorMeta(
-        "generic", sample_compression=sample_compression, chunk_compression=UNSPECIFIED, dtype="int32"
+        "generic",
+        sample_compression=sample_compression,
+        chunk_compression=UNSPECIFIED,
+        dtype="int32",
     )
     return tensor_meta
 
 
 def _get_optimizer(sample_compression: str) -> TileOptimizer:
     tensor_meta = _get_tensor_meta(sample_compression)
-    optimizer = TileOptimizer(DEFAULT_MAX_CHUNK_SIZE // 2, DEFAULT_MAX_CHUNK_SIZE, tensor_meta)
+    optimizer = TileOptimizer(
+        DEFAULT_MAX_CHUNK_SIZE // 2, DEFAULT_MAX_CHUNK_SIZE, tensor_meta
+    )
     return optimizer
 
 
-def _assert_valid(optimizer, sample_shape, expected_num_tiles=None, compression_factor=None):
+def _assert_valid(
+    optimizer, sample_shape, expected_num_tiles=None, compression_factor=None
+):
     tensor_meta = optimizer.tensor_meta
 
     tile_shape = optimizer.last_tile_shape
     actual_num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
 
     compression_factor = compression_factor or get_compression_factor(tensor_meta)
-    nbytes_per_tile = approximate_num_bytes(tile_shape, tensor_meta.dtype, compression_factor)
+    nbytes_per_tile = approximate_num_bytes(
+        tile_shape, tensor_meta.dtype, compression_factor
+    )
 
     msg = f"tile_shape={tile_shape}, num_tiles={actual_num_tiles}, num_bytes_per_tile={nbytes_per_tile}, sample_shape={sample_shape}"
 
@@ -86,7 +95,7 @@ def test_simple(config):
 @tile_test_compressions
 def test_complex(sample_shape, compression):
     # for complex cases, the shape optimization should find an energy state good enough
-    
+
     optimizer = _get_optimizer(compression)
 
     optimizer.optimize(sample_shape)
@@ -98,7 +107,7 @@ def test_complex(sample_shape, compression):
     "config",
     [
         [(90, 100, 3), None, 1, 9],
-    ]
+    ],
 )
 def test_explicit_factor(config):
     sample_shape, compression, compression_factor, expected_num_tiles = config
@@ -107,7 +116,14 @@ def test_explicit_factor(config):
 
     optimizer.min_chunk_size = 10 * KB
     optimizer.max_chunk_size = 20 * KB
-    optimizer.optimize(sample_shape, compression_factor=compression_factor, validate=True)
+    optimizer.optimize(
+        sample_shape, compression_factor=compression_factor, validate=True
+    )
 
     # no matter the compression, it should always be consistent since compression factor is determined
-    _assert_valid(optimizer, sample_shape, expected_num_tiles=expected_num_tiles, compression_factor=compression_factor)
+    _assert_valid(
+        optimizer,
+        sample_shape,
+        expected_num_tiles=expected_num_tiles,
+        compression_factor=compression_factor,
+    )

@@ -581,6 +581,7 @@ class UpdateSampleError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+
 class InvalidSubsliceUpdateShapeError(UpdateSampleError):
     def __init__(self, samples_shape, index_shape):
         super().__init__(
@@ -607,6 +608,8 @@ class TileOptimizerError(TilingError):
 class CannotInferTilesError(TilingError):
     def __init__(self, reason):
         super().__init__(reason)
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(

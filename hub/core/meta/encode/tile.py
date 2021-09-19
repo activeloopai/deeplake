@@ -40,8 +40,8 @@ class TileEncoder(Cachable):
 
     def get_tile_layout_shape(self, global_sample_index: int) -> Tuple[int, ...]:
         """If you were to lay the tiles out in a grid, the tile layout shape would be the shape
-        of the grid. 
-        
+        of the grid.
+
         Example:
             Sample shape:               (1000, 500)
             Tile shape:                 (10, 10)

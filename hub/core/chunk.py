@@ -76,7 +76,9 @@ class Chunk(Cachable):
         bns = self.byte_positions_encoder.num_samples
 
         if sns != bns:
-            raise CorruptedMetaError(f"Expected shapes encoder and byte positions encoder to have the same num samples. Got {sns} and {bns} respectively.")
+            raise CorruptedMetaError(
+                f"Expected shapes encoder and byte positions encoder to have the same num samples. Got {sns} and {bns} respectively."
+            )
 
         return sns
 
@@ -167,7 +169,9 @@ class Chunk(Cachable):
         for nb, shape in zip(nbytes, shapes):
             self.register_sample_to_headers(nb, shape)
 
-    def append_sample(self, buffer: Buffer, max_data_bytes: int, shape: Tuple[int, ...]):
+    def append_sample(
+        self, buffer: Buffer, max_data_bytes: int, shape: Tuple[int, ...]
+    ):
         """Store `buffer` in this chunk.
 
         Args:
@@ -322,7 +326,6 @@ class Chunk(Cachable):
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
-
 
     def __str__(self) -> str:
         return f"Chunk(version={self.version}, num_bytes={len(self._data)}, num_samples={self.num_samples})"
