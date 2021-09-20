@@ -6,7 +6,7 @@ from typing import List, Optional
 class CommitNode:
     """Contains all the Version Control information about a particular commit."""
 
-    def __init__(self, branch: str, commit_id: Optional[str] = None):
+    def __init__(self, branch: str, commit_id: str):
         self.commit_id = commit_id
         self.branch = branch
         self.children: List["CommitNode"] = []

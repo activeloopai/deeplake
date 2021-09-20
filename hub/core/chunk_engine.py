@@ -174,11 +174,11 @@ class ChunkEngine:
         return enc
 
     @property
-    def commit_chunk_set(self) -> CommitChunkSet:
+    def commit_chunk_set(self) -> Optional[CommitChunkSet]:
         """Gets the commit chunk set from cache, if one is not found it creates a blank one.
 
         Returns:
-            CommitChunkSet: The commit chunk set keeps track of all the chunks present in the current commit.
+            Optional[CommitChunkSet]: The commit chunk set keeps track of all the chunks present in the current commit if not the first commit, else None.
         """
         commit_id = self.version_state["commit_id"]
         if commit_id == FIRST_COMMIT_ID:
@@ -236,7 +236,7 @@ class ChunkEngine:
 
     def get_chunk_commit(self, chunk_name) -> str:
         """Returns the commit id that contains the chunk_name."""
-        cur_node: CommitNode = self.version_state["commit_node"]
+        cur_node: Optional[CommitNode] = self.version_state["commit_node"]
         while cur_node is not None:
             commit_id = cur_node.commit_id
             chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
