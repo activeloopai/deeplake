@@ -65,6 +65,7 @@ def test_single_transform_hub_dataset(ds, scheduler):
         isinstance(remove_memory_cache(ds.storage), MemoryProvider)
         and scheduler != "threaded"
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         data_in.delete()
@@ -135,6 +136,8 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
         and scheduler != "threaded"
         and num_workers > 0
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        # num_workers = 0 automatically does single threaded irrespective of the scheduler
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(
                 data_in, ds_out, num_workers=num_workers, scheduler=scheduler
@@ -170,6 +173,7 @@ def test_chain_transform_list_small(ds, scheduler):
         isinstance(remove_memory_cache(ds.storage), MemoryProvider)
         and scheduler != "threaded"
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
         return
@@ -198,6 +202,7 @@ def test_chain_transform_list_big(ds, scheduler):
         isinstance(remove_memory_cache(ds.storage), MemoryProvider)
         and scheduler != "threaded"
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
         return
@@ -225,6 +230,7 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
         isinstance(remove_memory_cache(ds.storage), MemoryProvider)
         and scheduler != "threaded"
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         return
@@ -248,6 +254,7 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
         isinstance(remove_memory_cache(ds.storage), MemoryProvider)
         and scheduler != "threaded"
     ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         return
@@ -273,6 +280,7 @@ def test_hub_like(ds, scheduler="threaded"):
             isinstance(remove_memory_cache(ds.storage), MemoryProvider)
             and scheduler != "threaded"
         ):
+            # any scheduler other than `threaded` will not work with a dataset stored in memory
             with pytest.raises(InvalidOutputDatasetError):
                 fn2(copy=1, mul=2).eval(
                     data_in, ds_out, num_workers=4, scheduler=scheduler
