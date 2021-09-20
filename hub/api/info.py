@@ -1,3 +1,4 @@
+from hub.util.version_control import auto_checkout
 from hub.core.storage.lru_cache import LRUCache
 from typing import Any, Dict, Optional, Union, Sequence
 from hub.core.storage.cachable import CachableCallback, use_callback
@@ -67,8 +68,9 @@ class Info(CachableCallback):
                 >>> ds.info.update()  # required to be persistent!
 
         """
-
         self._cache.check_readonly()
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         self._info.update(*args, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
@@ -93,6 +95,8 @@ class Info(CachableCallback):
     def delete(self, key: Optional[Union[Sequence[str], str]] = None):
         """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
         self._cache.check_readonly()
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         if key is None:
             self._info.clear()
         elif isinstance(key, str):
@@ -106,10 +110,12 @@ class Info(CachableCallback):
     @use_callback()
     def __setitem__(self, key: str, value):
         self._cache.check_readonly()
+        if self._version_state is not None:
+            auto_checkout(self._version_state, self._cache)
         self._info[key] = value
 
     def __setattr__(self, key: str, value):
-        if key in ("_key", "_cache", "_info"):
+        if key in {"_key", "_cache", "_info", "_version_state"}:
             object.__setattr__(self, key, value)
         else:
             self[key] = value
@@ -118,14 +124,17 @@ class Info(CachableCallback):
         try:
             return object.__getattribute__(self, key)
         except AttributeError:
+            if key == "_info":
+                self._info = {}
+                return self._info
             return self[key]
 
 
-def load_info(info_key: str, cache: LRUCache):
+def load_info(info_key: str, cache: LRUCache, version_state: Dict[str, Any]):
     if info_key in cache:
         info = cache.get_cachable(info_key, Info)
     else:
         info = Info()
-        info.initialize_callback_location(info_key, cache)
+        info.initialize_callback_location(info_key, cache, version_state)
 
     return info

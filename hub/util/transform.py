@@ -8,7 +8,6 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB
-
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -88,10 +87,18 @@ def store_data_slice(
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
-    data_slice, (output_storage, group_index), tensors, pipeline = transform_input
-    all_chunk_engines = create_worker_chunk_engines(tensors, output_storage)
+    (
+        data_slice,
+        (output_storage, group_index),
+        tensors,
+        pipeline,
+        version_state,
+    ) = transform_input
+    all_chunk_engines = create_worker_chunk_engines(
+        tensors, output_storage, version_state
+    )
 
-    if isinstance(data_slice, hub.core.dataset.Dataset):
+    if isinstance(data_slice, hub.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice)
 
     transform_data_slice_and_append(
@@ -130,7 +137,7 @@ def transform_data_slice_and_append(
 
 
 def create_worker_chunk_engines(
-    tensors: List[str], output_storage: StorageProvider
+    tensors: List[str], output_storage: StorageProvider, version_state
 ) -> Dict[str, ChunkEngine]:
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
@@ -144,7 +151,7 @@ def create_worker_chunk_engines(
         storage_cache.autoflush = False
 
         # this chunk engine is used to retrieve actual tensor meta and chunk_size
-        storage_chunk_engine = ChunkEngine(tensor, storage_cache)
+        storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
         existing_meta = storage_chunk_engine.tensor_meta
         chunk_size = storage_chunk_engine.max_chunk_size
         new_tensor_meta = TensorMeta(
@@ -154,23 +161,25 @@ def create_worker_chunk_engines(
             chunk_compression=existing_meta.chunk_compression,
             max_chunk_size=chunk_size,
         )
-        meta_key = get_tensor_meta_key(tensor)
+        meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
         memory_cache[meta_key] = new_tensor_meta  # type: ignore
         storage_cache.clear_cache()
-        storage_chunk_engine = ChunkEngine(tensor, storage_cache, memory_cache)
+        storage_chunk_engine = ChunkEngine(
+            tensor, storage_cache, version_state, memory_cache
+        )
         all_chunk_engines[tensor] = storage_chunk_engine
     return all_chunk_engines
 
 
 def add_cache_to_dataset_slice(
-    dataset_slice: hub.core.dataset.Dataset,
-) -> hub.core.dataset.Dataset:
+    dataset_slice: hub.Dataset,
+) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
     cache_size = 64 * len(dataset_slice.tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-    dataset_slice = hub.core.dataset.Dataset(
+    dataset_slice = hub.Dataset(
         cached_store,
         index=dataset_slice.index,
         group_index=dataset_slice.group_index,  # type: ignore
@@ -190,7 +199,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
         raise InvalidInputDataError(
             f"The data_in to transform is invalid. It should support __len__ operation."
         )
-    if isinstance(data_in, hub.core.dataset.Dataset):
+    if isinstance(data_in, hub.Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
             "serial",
@@ -201,7 +210,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.core.dataset.Dataset, scheduler: str) -> None:
+def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError

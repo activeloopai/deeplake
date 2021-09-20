@@ -31,7 +31,7 @@ class TransformFunction:
     def eval(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
     ):
@@ -68,7 +68,7 @@ class Pipeline:
     def eval(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
     ):
@@ -94,7 +94,7 @@ class Pipeline:
         if num_workers == 0:
             scheduler = "serial"
 
-        if isinstance(data_in, hub.core.dataset.Dataset):
+        if isinstance(data_in, hub.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
         hub_reporter.feature_report(
@@ -129,7 +129,7 @@ class Pipeline:
     def run(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         tensors: List[str],
         compute: ComputeProvider,
         num_workers: int,
@@ -142,6 +142,7 @@ class Pipeline:
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
+        version_state = ds_out.version_state
         tensors = [ds_out.tensors[t].key for t in tensors]
         metas_and_encoders = compute.map(
             store_data_slice,
@@ -150,6 +151,7 @@ class Pipeline:
                 repeat((output_base_storage, ds_out.group_index)),  # type: ignore
                 repeat(tensors),
                 repeat(self),
+                repeat(version_state),
             ),
         )
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)

@@ -31,8 +31,7 @@ COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION]
 
 
 # Pillow plugins for some formats might not be installed:
-if not Image.SAVE:
-    Image.init()
+Image.init()
 IMAGE_COMPRESSIONS = [
     c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
