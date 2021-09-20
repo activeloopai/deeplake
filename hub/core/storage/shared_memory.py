@@ -1,5 +1,5 @@
 from typing import List, Optional, Set
-from multiprocessing.shared_memory import SharedMemory
+from shared_numpy import SharedMemory
 from hub.core.storage.provider import StorageProvider
 
 
