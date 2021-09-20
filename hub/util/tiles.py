@@ -197,11 +197,23 @@ def get_input_sample_view(
     values = []
     for i, entry in enumerate(subslice_index.values):
         new_entry = entry
-        new_entry = new_entry.normalize()
-        new_entry = new_entry.with_bias(low[i])
+        
+        # NOTE: this logic works for the `test_populate_full_large_sample` test
         new_entry = new_entry.clamp_upper(high[i])
+        new_entry = new_entry.with_bias(-low[i])
+        new_entry = new_entry.normalize()
+        
+        # NOTE: this logic works for the `test_tile_boundaries` test
+        # new_entry = new_entry.normalize()
+        # new_entry = new_entry.with_bias(low[i])
+        # new_entry = new_entry.clamp_upper(high[i])
+        
         values.append(new_entry.value)
 
+    print(subslice_index)
+    print(low, high)
+    print(values)
+    print(sample.shape)
     view = sample[tuple(values)]
     return view
 
