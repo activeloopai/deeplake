@@ -424,7 +424,7 @@ class ChunkEngine:
         if commit_id != FIRST_COMMIT_ID:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
-            self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set
+            self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
