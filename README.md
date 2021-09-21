@@ -52,7 +52,7 @@ pip3 install hub
 
 ### Creating Datasets
 
-A hub dataset can be created in various locations (Storage providers). This how the paths for each of them would look like:
+A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
 | Storage provider | Example path                  |
 | ---------------- | ----------------------------- |
@@ -63,48 +63,82 @@ A hub dataset can be created in various locations (Storage providers). This how 
 | In-memory        | mem://dataset_name            |
 
 
+
+Let's create a dataset in the Hub cloud. Create a new account with Hub from the terminal using `activeloop register`. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
+
+```sh
+$ activeloop register
+Enter your details. Your password must be atleast 6 characters long.
+Username:
+Email:
+Password:
+```
+
+Initialize an empty dataset in the hub cloud:
+
 ```python
 import hub
 
-fns = my_images # List of image files in dataset
+ds = hub.empty("hub://<USERNAME>/test-dataset")
+```
 
-# Define empty dataset
-ds = hub.empty("gcp://bucket_name/dataset_folder")
+Next, create a tensor to hold images in the dataset we just initialized:
 
-# Upload data
+```python
+images = ds.create_tensor("images", htype="image", sample_compression="jpg")
+```
+
+Assuming you have a list of image file paths, lets upload them to the dataset:
+
+```python
+image_paths = ...
 with ds:
+    for image_path in image_paths:
+        image = hub.read(image_path)
+        ds.images.append(image)
+```
 
-    # Create tensors
-    ds.create_tensor('images', htype = 'image', sample_compression = 'jpg')
-    ds.create_tensor('labels', htype = 'class_label')
-    
-    # Append data
-    for fn in fns:
-        ds.images.append(hub.read(fn))
-        ds.labels.append(my_label_parser(fn))
+Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression="jpg"`, the arrays will be compressed with jpeg compression.
+
+
+```python
+import numpy as np
+
+with ds:
+    for _ in range(1000):  # 1000 random images
+        radnom_image = np.random.randint(0, 256, (100, 100, 3))  # 100x100 image with 3 channels
+        ds.images.append(image)
 ```
 
 
+
 ### Loading Datasets
-Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron) in the numpy array format:
+
+
+You can load the dataset you just created with a single line of code:
+
+```python
+import hub
+
+ds = hub.load("hub://<USERNAME>/test-dataset")
+```
+
+You can also access other publicly available hub datasets, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+
 ```python
 import hub
 
 ds = hub.load('hub://activeloop/objectron_bike_train')
+```
+
+To get the first image in the Objectron Bikes dataset in numpy format:
+
+
+```python
 image_arr = ds.image[0].numpy()
 ```
-To access and train a classifier on your own Hub dataset stored in cloud, run:
-```python
-import hub
 
-ds = hub.load("s3://bucket_name/dataset_folder")
-data_loader = ds.pytorch(batch_size = 16, num_workers = 4)
 
-for batch in data_loader:
-    print(batch)
-
-## Training Loop Here ##
-```
 
 ## Documentation
 Getting started guides, examples, tutorials, API reference, and other usage information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
