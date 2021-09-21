@@ -59,7 +59,7 @@ A hub dataset can be created in various locations (Storage providers). This how 
 | Hub cloud        | hub://user_name/dataset_name  |
 | AWS S3           | s3://bucket_name/dataset_name |
 | GCP              | gcp://bucket_name/dataset_name|
-| Local storage    | <path to local directory>     |
+| Local storage    | path to local directory       |
 | In-memory        | mem://dataset_name            |
 
 
