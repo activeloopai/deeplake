@@ -1,5 +1,5 @@
 from typing import List, Optional, Set
-from shared_numpy import SharedMemory
+from hub_shm import SharedMemory
 from hub.core.storage.provider import StorageProvider
 
 
