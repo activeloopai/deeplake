@@ -30,7 +30,7 @@ Hub is a dataset format and API optimized for machine learning workloads. The hu
 
 Hub includes the following features:
 
-* Storage agnostic API - Use the same API to upload, download and stream datasets to/from AWS S3, GCP, local storage as well as in-memory.
+* Storage agnostic API - Use the same API to upload, download and stream datasets to/from AWS S3, GCP, Hub cloud, local storage as well as in-memory.
 * Compressed storage - Store images, videos and audios in their native compression, decompressing them only when needed, for e.g, when training a model.
 * Lazy Numpy-like slicing - Treat your S3 or GCP datasets as if they are a collection of numpy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 * Version control - Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
@@ -40,61 +40,29 @@ Hub includes the following features:
 
 
 
-Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
-
-## How does Hub work?
-
-Databases, data lakes, and data warehouses are best suited for tabular data and are not optimized for deep-learning applications using images, videos, and text. By storing data as chunked compressed arrays, Hub significantly increases data transfer speeds between network-connected machines. This eliminates the need to download entire datasets before running code, because computations and data streaming can occur simultaneously without increasing the total runtime.
-
-Hub also significantly reduces the time to build machine learning workflows, because its API eliminates boilerplate code that is typically required for data wrangling ✌️.
-
-## Features 
-### Current Release
-* Easy dataset creation and hosting on Activeloop Cloud, S3, or Google Cloud
-* Rapid dataset streaming to any machine
-* Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
-* Rapid data processing using transformations on distributed compute
-* Data pipelines
-
-### Coming Soon
-* Dataset version control
-* Dataset hosting on Azure
-* Dataset query without having to download the entire dataset
-* Rapid visualization of image datasets via integration with Activeloop Platform
- <p align="center">
-    <br>
-    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
-    </br>
-Visualization of a dataset uploaded to Hub
-
 ## Getting Started with Hub
+
+
 ### Installation
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
 pip3 install hub
 ```
-### Loading Datasets
-Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron) in the numpy array format:
-```python
-import hub
 
-ds = hub.load('hub://activeloop/objectron_bike_train')
-image_arr = ds.image[0].numpy()
-```
-To access and train a classifier on your own Hub dataset stored in cloud, run:
-```python
-import hub
 
-ds = hub.load("s3://bucket_name/dataset_folder")
-data_loader = ds.pytorch(batch_size = 16, num_workers = 4)
-
-for batch in data_loader:
-    print(batch)
-
-## Training Loop Here ##
-```
 ### Creating Datasets
-To upload your own dataset to Hub:
+
+A hub dataset can be created in various locations (Storage providers). This how the paths for each of them would look like:
+
+| Storage provider | Example path                  |
+| ---------------- | ----------------------------- |
+| Hub cloud        | hub://user_name/dataset_name  |
+| AWS S3           | s3://bucket_name/dataset_name |
+| GCP              | gcp://bucket_name/dataset_name|
+| Local storage    | <path to local directory>     |
+| In-memory        | mem://dataset_name            |
+
+
 ```python
 import hub
 
@@ -114,6 +82,28 @@ with ds:
     for fn in fns:
         ds.images.append(hub.read(fn))
         ds.labels.append(my_label_parser(fn))
+```
+
+
+### Loading Datasets
+Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron) in the numpy array format:
+```python
+import hub
+
+ds = hub.load('hub://activeloop/objectron_bike_train')
+image_arr = ds.image[0].numpy()
+```
+To access and train a classifier on your own Hub dataset stored in cloud, run:
+```python
+import hub
+
+ds = hub.load("s3://bucket_name/dataset_folder")
+data_loader = ds.pytorch(batch_size = 16, num_workers = 4)
+
+for batch in data_loader:
+    print(batch)
+
+## Training Loop Here ##
 ```
 
 ## Documentation
