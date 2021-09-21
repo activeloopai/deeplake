@@ -22,12 +22,23 @@
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
 
-## Why use Hub?
-**ML engineers spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. The Hub format + API simplifies these tasks so that users can focus on building amazing machine learning models 💻.**
+## About Hub
 
-Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and it has powerful tools for dataset version control, building ML pipelines, and running distributed workloads.
 
-Hub is best suited for unstructured datasets such as images, videos, point clouds, or text. It works locally or on any cloud.
+Hub is a dataset format and API optimized for machine learning workloads. The hub data layout enables you to train your models on the fly, without having to download the entire dataset.
+
+
+Hub includes the following features:
+
+* Storage agnostic API - Use the same API to upload, download and stream datasets to/from AWS S3, GCP, local storage as well as in-memory.
+* Compressed storage - Store images, videos and audios in their native compression, decompressing them only when needed, for e.g, when training a model.
+* Lazy Numpy-like slicing - Treat your S3 or GCP datasets as if they are a collection of numpy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+* Version control - Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
+* Third party integrations - Hub comes with bult-in integrations for Pytorch and Tensorflow. Get your model training in a few lines code - we even take care of dataset shuffling for you.
+* Distributed transforms - Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
+
+
+
 
 Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 
