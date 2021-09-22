@@ -63,7 +63,8 @@ workflows:
       - verify:
           type: approval
           requires:
-            - test-complex
+            - test-complex-python-36
+            - test-complex-python-38
           filters: *version
       - deploy:
           context:
