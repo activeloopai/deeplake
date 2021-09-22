@@ -4,7 +4,7 @@ from hub.core.storage.provider import StorageProvider
 try:
     from multiprocessing.shared_memory import SharedMemory
 except ModuleNotFoundError:
-    from hub_shm import SharedMemory
+    from hub_shm import SharedMemory  # type: ignore
 
 
 class SharedMemoryProvider(StorageProvider):
