@@ -174,11 +174,11 @@ class ChunkEngine:
         return enc
 
     @property
-    def commit_chunk_set(self) -> CommitChunkSet:
+    def commit_chunk_set(self) -> Optional[CommitChunkSet]:
         """Gets the commit chunk set from cache, if one is not found it creates a blank one.
 
         Returns:
-            CommitChunkSet: The commit chunk set keeps track of all the chunks present in the current commit.
+            Optional[CommitChunkSet]: The commit chunk set keeps track of all the chunks present in the current commit, returns None for the first commit.
         """
         commit_id = self.version_state["commit_id"]
         if commit_id == FIRST_COMMIT_ID:
@@ -252,7 +252,7 @@ class ChunkEngine:
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
-            cur_node = cur_node.parent
+            cur_node = cur_node.parent  # type: ignore
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
         return FIRST_COMMIT_ID
 
