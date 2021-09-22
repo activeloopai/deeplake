@@ -301,7 +301,7 @@ jobs:
           steps:
             - slack-status
   deploy:
-    executor: linux
+    executor: linux38
     environment:
       IMAGE_NAME: snarkai/hub
     steps:
@@ -340,7 +340,7 @@ jobs:
             docker push $IMAGE_NAME:$IMAGE_TAG
       - slack-status
   conda:
-    executor: linux
+    executor: linux38
     steps:
       - checkout
       - conda-install
