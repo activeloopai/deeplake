@@ -9,8 +9,15 @@ workflows:
   test:
     jobs:
       - test:
-          name: "Linux Complex Test"
-          e: linux
+          name: "Linux Complex Test: Python 3.6"
+          e: linux36
+          plugins: true
+          context:
+            - test
+            - azure
+      - test:
+          name: "Linux Complex Test: Python 3.8"
+          e: linux38
           plugins: true
           context:
             - test
@@ -34,8 +41,8 @@ workflows:
   test-and-deploy:
     jobs:
       - test:
-          name: test-complex
-          e: linux
+          name: test-complex-python-36
+          e: linux36
           plugins: true
           context:
             - test
@@ -45,6 +52,14 @@ workflows:
               only: /[0-9]+(\.[0-9]+)*/
             branches:
               ignore: /.*/
+      - test:
+          name: test-complex-python-38
+          e: linux38
+          plugins: true
+          context:
+            - test
+            - azure
+          filters: *version
       - verify:
           type: approval
           requires:
@@ -65,7 +80,10 @@ workflows:
           filters: *version
 
 executors:
-  linux:
+  linux36:
+    docker:
+      - image: circleci/python:3.6
+  linux38:
     docker:
       - image: circleci/python:3.8
   win64: win/default
