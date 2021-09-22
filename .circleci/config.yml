@@ -48,7 +48,6 @@ workflows:
       - verify:
           type: approval
           requires:
-            - test-simple
             - test-complex
           filters: *version
       - deploy:
