@@ -659,11 +659,9 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
-def test_invalid_tesnor_name(memory_ds):
+def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("meta")
-    with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("tensors")
+        memory_ds.create_tensor("version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -743,3 +741,6 @@ def test_groups(local_ds_generator):
     assert "d" in ds.y.z.a.b.groups
     e = ds.y.z.a.b.d.e
     np.testing.assert_array_equal(e[0].numpy(), np.ones((4, 3)))
+
+    ds.create_group("g")
+    ds.g.create_tensor("g")

@@ -51,7 +51,7 @@ class LocalProvider(StorageProvider):
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
-            raise KeyError
+            raise KeyError(path)
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value

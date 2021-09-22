@@ -1,54 +1,95 @@
-from hub.core.storage.provider import StorageProvider
 import posixpath
 
-from hub import constants
+from hub.constants import (
+    CHUNKS_FOLDER,
+    DATASET_INFO_FILENAME,
+    DATASET_LOCK_FILENAME,
+    ENCODED_CHUNK_NAMES_FILENAME,
+    ENCODED_CHUNK_NAMES_FOLDER,
+    FIRST_COMMIT_ID,
+    DATASET_META_FILENAME,
+    TENSOR_INFO_FILENAME,
+    TENSOR_META_FILENAME,
+    TENSOR_COMMIT_CHUNK_SET_FILENAME,
+    VERSION_CONTROL_INFO_FILENAME,
+)
 
 
-def get_chunk_key(key: str, chunk_name: str) -> str:
-    return posixpath.join(key, constants.CHUNKS_FOLDER, f"{chunk_name}")
+def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, CHUNKS_FOLDER, f"{chunk_name}")
+
+    return posixpath.join("versions", commit_id, key, CHUNKS_FOLDER, f"{chunk_name}")
 
 
-def get_dataset_meta_key() -> str:
+def get_dataset_meta_key(commit_id: str) -> str:
     # dataset meta is always relative to the `StorageProvider`'s root
-    return constants.DATASET_META_FILENAME
+    if commit_id == FIRST_COMMIT_ID:
+        return DATASET_META_FILENAME
+
+    return posixpath.join("versions", commit_id, DATASET_META_FILENAME)
 
 
-def get_dataset_info_key() -> str:
+def get_dataset_info_key(commit_id: str) -> str:
     # dataset info is always relative to the `StorageProvider`'s root
-    return constants.DATASET_INFO_FILENAME
+    if commit_id == FIRST_COMMIT_ID:
+        return DATASET_INFO_FILENAME
+    return posixpath.join("versions", commit_id, DATASET_INFO_FILENAME)
+
+
+def get_version_control_info_key() -> str:
+    return VERSION_CONTROL_INFO_FILENAME
 
 
 def get_dataset_lock_key() -> str:
-    return constants.DATASET_LOCK_FILENAME
+    return DATASET_LOCK_FILENAME
 
 
-def get_tensor_meta_key(key: str) -> str:
-    return posixpath.join(key, constants.TENSOR_META_FILENAME)
+def get_tensor_meta_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_META_FILENAME)
+    return posixpath.join("versions", commit_id, key, TENSOR_META_FILENAME)
 
 
-def get_tensor_info_key(key: str) -> str:
-    return posixpath.join(key, constants.TENSOR_INFO_FILENAME)
+def get_tensor_info_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_INFO_FILENAME)
+    return posixpath.join("versions", commit_id, key, TENSOR_INFO_FILENAME)
 
 
-def get_chunk_id_encoder_key(key: str) -> str:
+def get_tensor_commit_chunk_set_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, TENSOR_COMMIT_CHUNK_SET_FILENAME)
+    return posixpath.join("versions", commit_id, key, TENSOR_COMMIT_CHUNK_SET_FILENAME)
+
+
+def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(
+            key,
+            ENCODED_CHUNK_NAMES_FOLDER,
+            ENCODED_CHUNK_NAMES_FILENAME,
+        )
     return posixpath.join(
+        "versions",
+        commit_id,
         key,
-        constants.ENCODED_CHUNK_NAMES_FOLDER,
-        constants.ENCODED_CHUNK_NAMES_FILENAME,
+        ENCODED_CHUNK_NAMES_FOLDER,
+        ENCODED_CHUNK_NAMES_FILENAME,
     )
 
 
-def dataset_exists(storage: StorageProvider) -> bool:
+def dataset_exists(storage) -> bool:
     try:
-        storage[get_dataset_meta_key()]
+        storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
         return True
     except KeyError:
         return False
 
 
-def tensor_exists(key: str, storage: StorageProvider) -> bool:
+def tensor_exists(key: str, storage, commit_id: str) -> bool:
     try:
-        storage[get_tensor_meta_key(key)]
+        storage[get_tensor_meta_key(key, commit_id)]
         return True
     except KeyError:
         return False
