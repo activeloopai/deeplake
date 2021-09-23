@@ -16,6 +16,7 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
+import lz4.frame  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -82,6 +83,10 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
+        if (
+            buffer[:4] == b'\x04"M\x18'
+        ):  # python-lz4 magic number (backward compatiblity)
+            return lz4.frame.decompress(buffer)
         return numcodecs.lz4.decompress(buffer)
     else:
         raise SampleDecompressionError()
