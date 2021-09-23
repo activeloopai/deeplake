@@ -16,7 +16,10 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
+<<<<<<< HEAD
 import lz4.frame  # type: ignore
+=======
+>>>>>>> 646d42b7b84d69aed45f437d9d13e47fba1349e3
 
 
 if sys.byteorder == "little":
