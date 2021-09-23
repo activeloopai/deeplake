@@ -15,7 +15,7 @@ import mmap
 import struct
 import sys
 import re
-import lz4.frame  # type: ignore
+import numcodecs.lz4  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -73,7 +73,7 @@ def to_image(array: np.ndarray) -> Image:
 
 def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
-        return lz4.frame.compress(buffer)
+        return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
             (len(buffer),), compression, f"Not a byte compression: {compression}"
@@ -82,7 +82,7 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
-        return lz4.frame.decompress(buffer)
+        return numcodecs.lz4.decompress(buffer)
     else:
         raise SampleDecompressionError()
 
