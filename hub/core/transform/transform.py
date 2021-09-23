@@ -5,6 +5,8 @@ from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
 from hub.core.compute.thread import ThreadProvider
 from hub.core.compute.process import ProcessProvider
+from hub.core.compute.serial import SerialProvider
+from hub.core.ipc import Server
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -18,6 +20,10 @@ from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
 )
+
+import tqdm
+import time
+import threading
 
 
 class TransformFunction:
@@ -132,10 +138,14 @@ class Pipeline:
         tensors: List[str],
         compute: ComputeProvider,
         num_workers: int,
+        progressbar: bool = True,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
+        is_serial = isinstance(compute, SerialProvider)
+        if is_serial:  # TODO
+            progressbar = False
         num_workers = max(num_workers, 1)
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
@@ -143,16 +153,49 @@ class Pipeline:
         output_base_storage = get_base_storage(ds_out.storage)
         version_state = ds_out.version_state
         tensors = [ds_out.tensors[t].key for t in tensors]
-        metas_and_encoders = compute.map(
-            store_data_slice,
-            zip(
-                slices,
-                repeat((output_base_storage, ds_out.group_index)),  # type: ignore
-                repeat(tensors),
-                repeat(self),
-                repeat(version_state),
-            ),
-        )
+
+        if progressbar:
+            num_samples_completed = {"value": 0}
+
+            def progress_callback(num_samples):
+                num_samples_completed["value"] += int(num_samples)
+
+            progress_server = Server(progress_callback)
+            port = progress_server.port
+        else:
+            port = None
+
+        ret = {}
+
+        def _run():
+            ret["metas_and_encoders"] = compute.map(
+                store_data_slice,
+                zip(
+                    slices,
+                    repeat((output_base_storage, ds_out.group_index)),  # type: ignore
+                    repeat(tensors),
+                    repeat(self),
+                    repeat(version_state),
+                    repeat(port),
+                ),
+            )
+
+        thread = None
+        if progressbar and is_serial:
+            thread = threading.Thread(target=_run)
+            thread.start()
+        else:
+            _run()
+
+        if progressbar:
+            for i in tqdm.tqdm(range(len(data_in))):
+                while i + 1 > num_samples_completed["value"]:
+                    time.sleep(1)
+            if thread:
+                thread.join()
+
+        metas_and_encoders = ret["metas_and_encoders"]
+
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)

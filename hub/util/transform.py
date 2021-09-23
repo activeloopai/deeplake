@@ -1,11 +1,13 @@
 import hub
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
+from hub.core.ipc import Client
+
 
 from hub.constants import MB
 from hub.util.remove_cache import get_base_storage
@@ -18,6 +20,7 @@ from hub.util.exceptions import (
 )
 
 import posixpath
+import time
 
 
 def transform_sample(
@@ -93,6 +96,7 @@ def store_data_slice(
         tensors,
         pipeline,
         version_state,
+        progress_port,
     ) = transform_input
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
@@ -102,7 +106,7 @@ def store_data_slice(
         data_slice = add_cache_to_dataset_slice(data_slice)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index
+        data_slice, pipeline, tensors, all_chunk_engines, group_index, progress_port
     )
 
     # retrieve the tensor metas and chunk_id_encoder from the memory
@@ -122,9 +126,19 @@ def transform_data_slice_and_append(
     tensors: List[str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
+    progress_port: Optional[int] = None,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-    for sample in data_slice:
+
+    if progress_port is not None:
+        last_reported_time = time.time()
+        last_reported_num_samples = 0
+        report_interval = 5  # seconds
+
+        client = Client(progress_port)
+
+    n = len(data_slice)
+    for i, sample in enumerate(data_slice):
         result = transform_sample(sample, pipeline)
         result_resolved = {
             posixpath.join(group_index, k): result[k] for k in result.tensors
@@ -134,6 +148,14 @@ def transform_data_slice_and_append(
             raise TensorMismatchError(list(tensors), list(result.keys()))
         for tensor in result:
             all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
+
+        if progress_port is not None:
+            curr_time = time.time()
+            if curr_time - last_reported_time > report_interval or i == n - 1:
+                num_samples = i + 1
+                client.send({"num_samples": num_samples - last_reported_num_samples})
+                last_reported_num_samples = num_samples
+                last_reported_time = curr_time
 
 
 def create_worker_chunk_engines(
