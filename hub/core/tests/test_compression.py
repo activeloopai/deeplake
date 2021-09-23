@@ -117,5 +117,5 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
 def test_lz4_bc():
     inp = np.random.random((100, 100)).tobytes()
     compressed = lz4.frame.compress(inp)
-    decompressed = decompress_bytes(compressed)
+    decompressed = decompress_bytes(compressed, "lz4")
     assert decompressed == inp
