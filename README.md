@@ -1,10 +1,13 @@
+| :zap:        Hacktoberfest 2021 is here! Contribute and win Activeloop swag. Grab an issue in our  <a href="https://github.com/activeloopai/Hub/projects/11"><b>Hacktoberfest dashboard</b></a>! :zap: |
+|-----------------------------------------|
+
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
     <h1 align="center">Dataset Format for AI
  </h1>
 <p align="center">
-    <a href="http://docs.activeloop.ai/">
+    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
     </a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
