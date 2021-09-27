@@ -82,7 +82,10 @@ class S3Provider(StorageProvider):
             )
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if err.response["Error"]["Code"] == "ExpiredToken" and self.loaded_creds_from_environment:
+            if (
+                err.response["Error"]["Code"] == "ExpiredToken"
+                and self.loaded_creds_from_environment
+            ):
                 self._locate_and_load_creds()
                 self._set_s3_client_and_resource()
                 try:
@@ -96,7 +99,7 @@ class S3Provider(StorageProvider):
                     raise S3SetError(err)
             else:
                 raise S3SetError(err)
-                    
+
         except Exception as err:
             raise S3SetError(err)
 
@@ -121,13 +124,14 @@ class S3Provider(StorageProvider):
                 Bucket=self.bucket,
                 Key=path,
             )
-            return resp["Body"].read()            
+            return resp["Body"].read()
         except botocore.exceptions.ClientError as err:
-            print("######", err.response["Error"]["Code"])
-            print("######", self.loaded_creds_from_environment)
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
-            elif err.response["Error"]["Code"] == "ExpiredToken" and self.loaded_creds_from_environment:
+            elif (
+                err.response["Error"]["Code"] == "ExpiredToken"
+                and self.loaded_creds_from_environment
+            ):
                 self._locate_and_load_creds()
                 self._set_s3_client_and_resource()
                 try:
@@ -161,7 +165,10 @@ class S3Provider(StorageProvider):
             self.client.delete_object(Bucket=self.bucket, Key=path)
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if err.response["Error"]["Code"] == "ExpiredToken" and self.loaded_creds_from_environment:
+            if (
+                err.response["Error"]["Code"] == "ExpiredToken"
+                and self.loaded_creds_from_environment
+            ):
                 self._locate_and_load_creds()
                 self._set_s3_client_and_resource()
                 try:
@@ -188,18 +195,23 @@ class S3Provider(StorageProvider):
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if err.response["Error"]["Code"] == "ExpiredToken" and self.loaded_creds_from_environment:
+            if (
+                err.response["Error"]["Code"] == "ExpiredToken"
+                and self.loaded_creds_from_environment
+            ):
                 self._locate_and_load_creds()
                 self._set_s3_client_and_resource()
                 try:
-                    items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
+                    items = self.client.list_objects_v2(
+                        Bucket=self.bucket, Prefix=self.path
+                    )
                 except Exception as err:
                     raise S3ListError(err)
             else:
                 raise S3ListError(err)
         except Exception as err:
             raise S3ListError(err)
-        
+
         if items["KeyCount"] <= 0:
             return set()
         items = items["Contents"]
@@ -266,7 +278,7 @@ class S3Provider(StorageProvider):
             self.expiration,
             self.tag,
             self.token,
-            self.loaded_creds_from_environment
+            self.loaded_creds_from_environment,
         )
 
     def __setstate__(self, state):
@@ -313,7 +325,6 @@ class S3Provider(StorageProvider):
         if self.aws_access_key_id is None and self.aws_secret_access_key is None:
             self._locate_and_load_creds()
             self.loaded_creds_from_environment = True
-            print("loaded creds from environment")
 
         self._set_s3_client_and_resource()
 
