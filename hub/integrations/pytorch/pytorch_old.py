@@ -119,12 +119,15 @@ class TorchDataset:
             # creating a new cache for each process
             cache_size = 32 * MB * len(self.tensor_keys)
             cached_storage = LRUCache(MemoryProvider(), storage, cache_size)
+            print("before")
             self.dataset = hub.Dataset(
                 storage=cached_storage,
                 index=self.index,
                 group_index=self.group_index,
                 verbose=False,
             )
+            print("after")
+
 
     def __len__(self):
         return self.length
