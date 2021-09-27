@@ -54,6 +54,7 @@ class S3Provider(StorageProvider):
         self.expiration: Optional[str] = None
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
+        self.loaded_creds_from_environment = False
 
         self._initialize_s3_parameters()
 
@@ -308,7 +309,6 @@ class S3Provider(StorageProvider):
         self.client_config = botocore.config.Config(
             max_pool_connections=self.max_pool_connections,
         )
-        self.loaded_creds_from_environment = False
 
         if self.aws_access_key_id is None and self.aws_secret_access_key is None:
             self._locate_and_load_creds()
