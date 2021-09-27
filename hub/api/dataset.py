@@ -282,34 +282,40 @@ class dataset:
             - All files and sub-directories with unsupported filetypes are ignored.
             - Valid source directory structures look like:
 
-            src:
-                directory -
-                    img.jpg
+            ```
+                data/
+                    img0.jpg
+                    img1.jpg
                     ...
 
-            src:
-                directory -
-                    class0 -
-                        img.jpg
+            ```
+            or
+            ```
+                data/
+                    class0/
+                        cat0.jpg
                         ...
-                    class1 -
-                        img.jpg
+                    class1/
+                        dog0.jpg
                         ...
                     ...
 
-            src:
-                directory -
-                    train -
-                        class0 -
-                            img.jpg
+            ```
+            or
+            ```
+                data/
+                    train/
+                        class0/
+                            img0.jpg
                             ...
                         ...
-                    test -
-                        class1 -
-                            img.jpg
+                    val/
+                        class0/
+                            img0.jpg
                             ...
                         ...
                     ...
+            ```
 
             - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
             - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]

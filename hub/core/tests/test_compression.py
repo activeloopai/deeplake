@@ -2,12 +2,14 @@ from hub.tests.common import get_actual_compression_from_buffer, assert_images_c
 import numpy as np
 import pytest
 import hub
+import lz4.frame
 from hub.core.compression import (
     compress_array,
     decompress_array,
     compress_multiple,
     decompress_multiple,
     verify_compressed_file,
+    decompress_bytes,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
@@ -110,3 +112,10 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
         with pytest.raises(CorruptedSampleError):
             with open(path, "rb") as f:
                 verify_compressed_file(f.read(), compression)
+
+
+def test_lz4_bc():
+    inp = np.random.random((100, 100)).tobytes()
+    compressed = lz4.frame.compress(inp)
+    decompressed = decompress_bytes(compressed, "lz4")
+    assert decompressed == inp
