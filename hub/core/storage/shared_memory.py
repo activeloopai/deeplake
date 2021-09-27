@@ -1,6 +1,10 @@
 from typing import List, Optional, Set
-from multiprocessing.shared_memory import SharedMemory
 from hub.core.storage.provider import StorageProvider
+
+try:
+    from multiprocessing.shared_memory import SharedMemory
+except ModuleNotFoundError:
+    from hub_shm import SharedMemory  # type: ignore
 
 
 class SharedMemoryProvider(StorageProvider):

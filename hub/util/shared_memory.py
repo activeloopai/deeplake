@@ -1,16 +1,19 @@
 from typing import List
 
+native_shared_memory = True
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
     from multiprocessing import resource_tracker  # type: ignore
 except ImportError:
-    pass
+    native_shared_memory = False
 
 
 def remove_shared_memory_from_resource_tracker():
     """Monkey-patch that fixes bug in Python SharedMemory
     More details at: https://bugs.python.org/issue38119
     """
+    if not native_shared_memory:
+        return
 
     def fix_register(name, rtype):
         if rtype == "shared_memory":
