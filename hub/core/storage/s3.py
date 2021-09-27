@@ -122,6 +122,8 @@ class S3Provider(StorageProvider):
             )
             return resp["Body"].read()            
         except botocore.exceptions.ClientError as err:
+            print("######", err.response["Error"]["Code"])
+            print("######", self.loaded_creds_from_environment)
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
             elif err.response["Error"]["Code"] == "ExpiredToken" and self.loaded_creds_from_environment:
@@ -311,6 +313,7 @@ class S3Provider(StorageProvider):
         if self.aws_access_key_id is None and self.aws_secret_access_key is None:
             self._locate_and_load_creds()
             self.loaded_creds_from_environment = True
+            print("loaded creds from environment")
 
         self._set_s3_client_and_resource()
 
