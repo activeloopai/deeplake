@@ -192,13 +192,9 @@ def add_cache_to_dataset_slice(
 def check_transform_data_in(data_in, scheduler: str) -> None:
     """Checks whether the data_in for a transform is valid or not."""
     if not hasattr(data_in, "__getitem__"):
-        raise InvalidInputDataError(
-            f"The data_in to transform is invalid. It should support __getitem__ operation."
-        )
+        raise InvalidInputDataError("__getitem__")
     if not hasattr(data_in, "__len__"):
-        raise InvalidInputDataError(
-            f"The data_in to transform is invalid. It should support __len__ operation."
-        )
+        raise InvalidInputDataError("__len__")
     if isinstance(data_in, hub.Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [

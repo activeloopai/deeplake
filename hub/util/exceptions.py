@@ -463,9 +463,11 @@ class TransformError(Exception):
 
 
 class InvalidInputDataError(TransformError):
-    def __init__(self, message):
+    def __init__(self, operation):
         super().__init__(
-            f"The data_in to transform is invalid. It should support {message} operation."
+            f"The data_in to transform is invalid. It doesn't support {operation} operation. "
+            "Please use a list, a hub dataset or an object that supports both __getitem__ and __len__. "
+            "Generators are not supported."
         )
 
 
