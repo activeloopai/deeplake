@@ -24,7 +24,7 @@ import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
 import os
 import tempfile
-from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info
+from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -186,14 +186,14 @@ def decompress_array(
         if dtype is None or shape is None:
             raise ValueError("dtype and shape must be specified for byte compressions.")
         try:
-            decompressed_bytes = decompress_bytes(buffer, compression)
+            decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_mp3(buffer)
     try:
-        img = Image.open(BytesIO(buffer))
+        img = Image.open(BytesIO(buffer))  # type: ignore
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)
@@ -288,7 +288,7 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
         elif compression == "mp3":
-            return _read_mp3_shape(file), "<f4"
+            return _read_mp3_shape(file), "<f4"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:

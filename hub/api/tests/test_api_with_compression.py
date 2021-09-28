@@ -196,5 +196,5 @@ def test_audio(ds: Dataset, compression, audio_paths):
     ds.create_tensor("audio", htype="audio", sample_compression=compression)
     with ds:
         for _ in range(2):
-            ds.audio.append(hub.read(path))
-    np.testing.assert_array_equal(ds.audio[0].numpy(), ds.audio[1].numpy())
+            ds.audio.append(hub.read(path))  # type: ignore
+    np.testing.assert_array_equal(ds.audio[0].numpy(), ds.audio[1].numpy())  # type: ignore
