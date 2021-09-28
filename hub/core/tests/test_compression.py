@@ -2,7 +2,7 @@ from hub.tests.common import get_actual_compression_from_buffer, assert_images_c
 import numpy as np
 import pytest
 import hub
-import lz4.frame
+import lz4.frame  # type: ignore
 from hub.core.compression import (
     compress_array,
     decompress_array,
