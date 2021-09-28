@@ -3,11 +3,12 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array
+from hub.client import config
 from typing import List, Optional, Sequence, Union, Tuple, Iterable
-from itertools import repeat
 import hub
 import numpy as np
 import struct
+import warnings
 
 
 def infer_chunk_num_bytes(
@@ -312,10 +313,17 @@ def serialize_input_samples(
         buff = bytearray()
         nbytes = []
         shapes = []
+        expected_dim = len(meta.max_shape)
         for sample in samples:
             byts, shape = _serialize_input_sample(
                 sample, sample_compression, dtype, htype
             )
+            if htype == "image" and config.CONVERT_GRAYSCALE_IMAGES_TO_3D:
+                if not expected_dim:
+                    expected_dim = len(shape)
+                if len(shape) == 2 and expected_dim == 3:
+                    warnings.warn(f"Converting to 3D, 2D image with shape: {shape}")
+                    shape += (1,)
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)
