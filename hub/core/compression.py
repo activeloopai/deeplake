@@ -479,7 +479,8 @@ def read_meta_from_compressed_file(
         elif compression == "mp3":
             try:
                 shape, typestr = _read_mp3_shape(file), "<f8"
-            except Exception:
+            except Exception as e:
+                raise (e)
                 raise CorruptedSampleError("mp3")
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore

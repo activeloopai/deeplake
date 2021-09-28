@@ -119,15 +119,24 @@ class Sample:
                     compressed_bytes = f.read()
                 self._compression = get_compression(compressed_bytes[:32], self.path)
                 if self._compression == compression:
+                    f = (
+                        self.path
+                        if get_compression_type(compression) == AUDIO_COMPRESSION
+                        else compressed_bytes
+                    )
                     if self._verify:
                         self._shape, self._typestr = verify_compressed_file(
-                            compressed_bytes, self._compression
+                            f, self._compression
                         )
                     else:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
-                            compressed_bytes, compression=self._compression
+                            f, compression=self._compression
                         )
                 else:
+                    if get_compression_type(self._compression) != IMAGE_COMPRESSION:
+                        raise ValueError(
+                            "Recompression with different format is only supported for images."
+                        )
                     img = Image.open(BytesIO(compressed_bytes))
                     if img.mode == "1":
                         self._uncompressed_bytes = img.tobytes("raw", "L")

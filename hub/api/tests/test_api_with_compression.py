@@ -12,6 +12,7 @@ import numpy as np
 
 import hub
 from hub.core.dataset import Dataset
+from moviepy.editor import AudioFileClip
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
@@ -186,3 +187,16 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     labels.extend(data)
     for row, label in zip(data, labels):
         np.testing.assert_array_equal(row, label.numpy())
+
+
+@enabled_datasets
+@pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
+def test_audio(ds: Dataset, compression, audio_paths):
+    path = audio_paths[compression]
+    arr = np.stack([frame for frame in AudioFileClip(path).iter_frames()])
+    ds.create_tensor("audio", htype="audio", sample_compression=compression)
+    with ds:
+        for _ in range(2):
+            ds.audio.append(hub.read(path))
+    for i in range(2):
+        np.testing.assert_array_equal(ds.audio[i].numpy(), arr)

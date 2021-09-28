@@ -128,6 +128,7 @@ def test_lz4_bc():
     decompressed = decompress_bytes(compressed, "lz4")
     assert decompressed == inp
 
+
 @pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
 def test_audio(compression, audio_paths):
     path = audio_paths[compression]

@@ -281,9 +281,7 @@ def corrupt_image_paths():
 
 @pytest.fixture
 def audio_paths():
-    paths = {
-        "mp3": "samplemp3.mp3"
-    }
+    paths = {"mp3": "samplemp3.mp3"}
 
     parent = get_dummy_data_path("audio")
     for k in paths:
