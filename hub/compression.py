@@ -61,4 +61,7 @@ for c in AUDIO_COMPRESSIONS:
 
 
 def get_compression_type(c):
-    return _compression_types.get(c)
+    ret = _compression_types.get(c)
+    if ret is None and c is not None and c.upper() in Image.OPEN:
+        ret = IMAGE_COMPRESSION
+    return ret

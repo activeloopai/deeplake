@@ -24,11 +24,7 @@ import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
 import os
 import tempfile
-
-
-def _import_moviepy():
-    global AudioFileClip
-    from moviepy.editor import AudioFileClip
+from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info
 
 
 if sys.byteorder == "little":
@@ -292,7 +288,7 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
         elif compression == "mp3":
-            return _read_mp3_shape(file), "<f8"
+            return _read_mp3_shape(file), "<f4"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -478,7 +474,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError("png")
         elif compression == "mp3":
             try:
-                shape, typestr = _read_mp3_shape(file), "<f8"
+                shape, typestr = _read_mp3_shape(file), "<f4"
             except Exception as e:
                 raise (e)
                 raise CorruptedSampleError("mp3")
@@ -602,24 +598,23 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
 
 
 def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    _import_moviepy()
-    if isinstance(file, str):
-        clip = AudioFileClip(file)
-        arr = np.stack([frame for frame in clip.iter_frames()])
-        clip.close()
-        return arr
-    else:
-        buffer = file
-        with tempfile.NamedTemporaryFile(suffix=".mp3") as f:
-            pass
-        with open(f.name, "wb") as fw:
-            fw.write(buffer)
-            clip = AudioFileClip(f.name)
-            arr = np.stack([frame for frame in clip.iter_frames()])
-            clip.close()
-            return arr
+    decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
+    if isinstance(file, memoryview):
+        if (
+            isinstance(file.obj, bytes)
+            and file.strides == (1,)
+            and file.shape == (len(file.obj),)
+        ):
+            file = file.obj
+        else:
+            file = bytes(file)
+    raw_audio = decompressor(file)
+    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
+        raw_audio.num_frames, raw_audio.nchannels
+    )
 
 
-def _read_mp3_shape(file: str) -> Tuple[Tuple[int, ...], str]:
-    _import_moviepy()
-    return (AudioFileClip(file).reader.nframes, 2)
+def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
+    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
+    info = f_info(file)
+    return (info.num_frames, info.nchannels)
