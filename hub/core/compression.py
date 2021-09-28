@@ -177,6 +177,7 @@ def decompress_array(
     Raises:
         SampleDecompressionError: If decompression fails.
         ValueError: If dtype and shape are not specified for byte compression.
+        NotImplementedError: If compression is not supported.
 
     Returns:
         np.ndarray: Array from the decompressed buffer.

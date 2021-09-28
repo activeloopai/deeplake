@@ -107,6 +107,9 @@ class Sample:
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
+
+        Raises:
+            ValueError: On recompression of unsupported formats.
         """
 
         if compression is None:
@@ -133,8 +136,7 @@ class Sample:
                 else:
                     if get_compression_type(self._compression) != IMAGE_COMPRESSION:
                         raise ValueError(
-                            "Recompression with different format is only supported for images. "
-                            + self._compression
+                            "Recompression with different format is only supported for images."
                         )
                     img = Image.open(BytesIO(compressed_bytes))
                     if img.mode == "1":
