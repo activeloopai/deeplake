@@ -17,6 +17,7 @@ from hub.compression import (
     IMAGE_COMPRESSION,
     IMAGE_COMPRESSIONS,
     BYTE_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
     SUPPORTED_COMPRESSIONS,
 )
 from hub.util.exceptions import CorruptedSampleError
@@ -126,3 +127,11 @@ def test_lz4_bc():
     compressed = lz4.frame.compress(inp)
     decompressed = decompress_bytes(compressed, "lz4")
     assert decompressed == inp
+
+@pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
+def test_audio(compression, audio_paths):
+    path = audio_paths[compression]
+    sample = hub.read(path)
+    arr = np.array(sample)
+    assert arr.shape[-1] == 2
+    assert arr.dtype == "float64"
