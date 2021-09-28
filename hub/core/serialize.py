@@ -229,7 +229,7 @@ def _serialize_input_sample(
     sample_compression: Optional[str],
     expected_dtype: np.dtype,
     htype: str,
-) -> Tuple[bytes, Tuple[int]]:
+) -> Tuple[bytes, Tuple[int, ...]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if isinstance(sample, Sample):
@@ -259,7 +259,7 @@ def _serialize_input_sample(
 
 def _check_input_samples_are_valid(
     num_bytes: List[int],
-    shapes: List[Tuple[int]],
+    shapes: List[Tuple[int, ...]],
     min_chunk_size: int,
     sample_compression: Optional[str],
 ):
@@ -285,7 +285,7 @@ def serialize_input_samples(
     samples: Union[Sequence[SampleValue], np.ndarray],
     meta: TensorMeta,
     min_chunk_size: int,
-) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int]]]:
+) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int, ...]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
     Args:
