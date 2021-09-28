@@ -17,12 +17,13 @@ from hub.compression import (
     IMAGE_COMPRESSION,
     IMAGE_COMPRESSIONS,
     BYTE_COMPRESSIONS,
+    SUPPORTED_COMPRESSIONS,
 )
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
-compressions = hub.compression.SUPPORTED_COMPRESSIONS[:]
+compressions = SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)  # type: ignore
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
