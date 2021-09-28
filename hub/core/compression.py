@@ -113,6 +113,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
         SampleCompressionError: If there was a problem compressing `array`.
+        NotImplementedError: If compression is not supported.
 
     Returns:
         bytes: Compressed `array` represented as bytes.
@@ -177,7 +178,6 @@ def decompress_array(
     Raises:
         SampleDecompressionError: If decompression fails.
         ValueError: If dtype and shape are not specified for byte compression.
-        NotImplementedError: If compression is not supported.
 
     Returns:
         np.ndarray: Array from the decompressed buffer.
