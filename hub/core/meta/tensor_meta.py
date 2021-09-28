@@ -15,7 +15,13 @@ from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from hub.compression import COMPRESSION_ALIASES, get_compression_type
+from hub.compression import (
+    COMPRESSION_ALIASES,
+    get_compression_type,
+    AUDIO_COMPRESSION,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+)
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
 )
@@ -157,6 +163,21 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         raise TensorMetaMissingRequiredValue(
             htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
+
+    if htype == "audio":
+        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
+            raise UnsupportedCompressionError("Chunk compression", htype="audio")
+        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
+            raise TensorMetaMissingRequiredValue(
+                htype, "sample_compression"  # type: ignore
+            )
+        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
+            None,
+            AUDIO_COMPRESSION,
+        ):
+            raise UnsupportedCompressionError(
+                htype_overwrite["sample_compression"], htype="audio"
+            )
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):

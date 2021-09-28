@@ -1,10 +1,12 @@
 # type: ignore
 from hub.core.compression import (
     compress_array,
+    decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
 )
+from hub.compression import get_compression_type, AUDIO_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
@@ -72,7 +74,8 @@ class Sample:
 
     @property
     def compression(self):
-        self._read_meta()
+        if self._compression is None:
+            self._read_meta()
         return self._compression
 
     def _read_meta(self, f=None):
@@ -114,7 +117,7 @@ class Sample:
             if self.path is not None:
                 with open(self.path, "rb") as f:
                     compressed_bytes = f.read()
-                self._compression = get_compression(compressed_bytes[:32])
+                self._compression = get_compression(compressed_bytes[:32], self.path)
                 if self._compression == compression:
                     if self._verify:
                         self._shape, self._typestr = verify_compressed_file(
@@ -141,6 +144,14 @@ class Sample:
 
         if self._uncompressed_bytes is None:
             if self.path is not None:
+                compr = self._compression
+                if compr is None:
+                    compr = get_compression(path=self.path)
+                if get_compression_type(compr) == AUDIO_COMPRESSION:
+                    self._compression = compr
+                    self._array = decompress_array(self.path, compression=compr)
+                    self._uncompressed_bytes = self._array.tobytes()
+                    return self._uncompressed_bytes
                 img = Image.open(self.path)
                 if img.mode == "1":
                     # Binary images need to be extended from bits to bytes

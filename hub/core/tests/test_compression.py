@@ -11,7 +11,13 @@ from hub.core.compression import (
     verify_compressed_file,
     decompress_bytes,
 )
-from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    IMAGE_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+)
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
@@ -20,11 +26,11 @@ compressions = hub.compression.SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)  # type: ignore
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
-image_compressions = hub.compression.IMAGE_COMPRESSIONS[:]
+image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 
 
-@pytest.mark.parametrize("compression", compressions)
+@pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
     compression_type = get_compression_type(compression)
@@ -47,7 +53,7 @@ def test_array(compression, compressed_image_paths):
         assert_images_close(array, decompressed_array)
 
 
-@pytest.mark.parametrize("compression", compressions)
+@pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
 def test_multi_array(compression, compressed_image_paths):
     compression_type = get_compression_type(compression)
     if compression_type == IMAGE_COMPRESSION:
