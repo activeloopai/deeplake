@@ -364,7 +364,7 @@ class Dataset:
             version_state["commit_node_map"][commit_id] = commit_node
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
-
+    
     def commit(self, message: Optional[str] = None) -> None:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
@@ -378,8 +378,15 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
+        
+        # do not store commit message
+        hub_reporter.feature_report(
+            feature_name="commit",
+            parameters={},
+            )
+            
         return commit_id
-
+    
     def checkout(self, address: str, create: bool = False) -> str:
         """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
         Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
@@ -392,8 +399,16 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
+        
+        # do not store address
+        hub_reporter.feature_report(
+            feature_name="checkout",
+            parameters={"Create": create},
+            )
+        
         return self.version_state["commit_id"]
-
+    
+    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
