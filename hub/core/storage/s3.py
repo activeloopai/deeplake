@@ -6,7 +6,30 @@ from typing import Optional
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
+from hub.util.exceptions import (
+    S3DeletionError,
+    S3GetError,
+    S3ListError,
+    S3SetError,
+    S3Error,
+)
+
+
+class S3ReloadCredentialsManager:
+    """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
+
+    def __init__(self, s3p, error_class: S3Error):
+        self.error_class = error_class
+        self.s3p = s3p
+
+    def __enter__(self):
+        self.s3p._locate_and_load_creds()
+        self.s3p._set_s3_client_and_resource()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if exc_type is not None:
+            raise self.error_class(exc_value).with_traceback(exc_traceback)
 
 
 class S3Provider(StorageProvider):
@@ -82,21 +105,14 @@ class S3Provider(StorageProvider):
             )
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if (
-                err.response["Error"]["Code"] == "ExpiredToken"
-                and self.loaded_creds_from_environment
-            ):
-                self._locate_and_load_creds()
-                self._set_s3_client_and_resource()
-                try:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3SetError):
                     self.client.put_object(
                         Bucket=self.bucket,
                         Body=content,
                         Key=path,
                         ContentType="application/octet-stream",  # signifies binary data
                     )
-                except Exception as err:
-                    raise S3SetError(err)
             else:
                 raise S3SetError(err)
 
@@ -128,20 +144,13 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
-            elif (
-                err.response["Error"]["Code"] == "ExpiredToken"
-                and self.loaded_creds_from_environment
-            ):
-                self._locate_and_load_creds()
-                self._set_s3_client_and_resource()
-                try:
+            elif self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3GetError):
                     resp = self.client.get_object(
                         Bucket=self.bucket,
                         Key=path,
                     )
                     return resp["Body"].read()
-                except Exception as err:
-                    raise S3GetError(err)
             else:
                 raise S3GetError(err)
         except Exception as err:
@@ -165,16 +174,9 @@ class S3Provider(StorageProvider):
             self.client.delete_object(Bucket=self.bucket, Key=path)
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if (
-                err.response["Error"]["Code"] == "ExpiredToken"
-                and self.loaded_creds_from_environment
-            ):
-                self._locate_and_load_creds()
-                self._set_s3_client_and_resource()
-                try:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3DeletionError):
                     self.client.delete_object(Bucket=self.bucket, Key=path)
-                except Exception as err:
-                    raise S3DeletionError(err)
             else:
                 raise S3DeletionError(err)
         except Exception as err:
@@ -195,18 +197,11 @@ class S3Provider(StorageProvider):
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
         # catch expired token error
         except botocore.exceptions.ClientError as err:
-            if (
-                err.response["Error"]["Code"] == "ExpiredToken"
-                and self.loaded_creds_from_environment
-            ):
-                self._locate_and_load_creds()
-                self._set_s3_client_and_resource()
-                try:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3ListError):
                     items = self.client.list_objects_v2(
                         Bucket=self.bucket, Prefix=self.path
                     )
-                except Exception as err:
-                    raise S3ListError(err)
             else:
                 raise S3ListError(err)
         except Exception as err:
@@ -253,13 +248,9 @@ class S3Provider(StorageProvider):
             # catch expired token error
             except Exception as e:
                 if self.loaded_creds_from_environment:
-                    self._locate_and_load_creds()
-                    self._set_s3_client_and_resource()
-                    try:
+                    with S3ReloadCredentialsManager(self, S3DeletionError):
                         bucket = self.resource.Bucket(self.bucket)
                         bucket.objects.filter(Prefix=self.path).delete()
-                    except Exception as err:
-                        raise S3DeletionError(err)
                 else:
                     raise S3DeletionError(e)
 
@@ -390,4 +381,13 @@ class S3Provider(StorageProvider):
             config=self.client_config,
             endpoint_url=self.endpoint_url,
             region_name=self.aws_region,
+        )
+
+    def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
+        """Checks if the credentials need to be reloaded.
+        This happens if the credentials were loaded from the environment and have now expired.
+        """
+        return (
+            err.response["Error"]["Code"] == "ExpiredToken"
+            and self.loaded_creds_from_environment
         )
