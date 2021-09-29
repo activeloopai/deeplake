@@ -1,3 +1,28 @@
+"""
+Image and Byte compression types.
+
+Supported image compressions (formats):
+
+ * BMP
+ * DIB
+ * GIF
+ * ICO
+ * JPEG
+ * JPEG 2000
+ * PCX
+ * PNG
+ * PPM
+ * SGI
+ * TGA
+ * TIFF
+ * WEBP
+ * WMF
+ * XBM
+
+Supported byte compression:
+
+ * LZ4
+"""
 from PIL import Image  # type: ignore
 
 
@@ -9,16 +34,16 @@ BYTE_COMPRESSIONS = [
 IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
-    "pcx",
     "gif",
-    "png",
-    "jpeg2000",
     "ico",
-    "tiff",
     "jpeg",
+    "jpeg2000",
+    "pcx",
+    "png",
     "ppm",
     "sgi",
     "tga",
+    "tiff",
     "webp",
     "wmf",
     "xbm",

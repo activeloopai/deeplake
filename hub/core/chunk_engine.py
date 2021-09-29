@@ -236,7 +236,7 @@ class ChunkEngine:
 
     def get_chunk_commit(self, chunk_name) -> str:
         """Returns the commit id that contains the chunk_name."""
-        cur_node: CommitNode = self.version_state["commit_node"]
+        cur_node: Optional[CommitNode] = self.version_state["commit_node"]
         while cur_node is not None:
             commit_id = cur_node.commit_id
             chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
