@@ -17,6 +17,7 @@ from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
 from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
+    TransformError,
 )
 
 
@@ -43,13 +44,13 @@ class TransformFunction:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded' and 'processed'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
         """
 
         pipeline = Pipeline([self])
@@ -80,14 +81,14 @@ class Pipeline:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded' and 'processed'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
-            Exception: If any other exception is raised during the transform.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            TransformError: All other exceptions raised if there are problems while running the pipeline.
         """
         num_workers = max(num_workers, 0)
         if num_workers == 0:
@@ -118,12 +119,12 @@ class Pipeline:
 
         try:
             self.run(data_in, ds_out, tensors, compute_provider, num_workers)
-        except Exception:
+        except Exception as e:
+            raise TransformError(e)
+        finally:
             compute_provider.close()
-            raise
 
         ds_out.storage.autoflush = initial_autoflush
-        compute_provider.close()
 
     def run(
         self,

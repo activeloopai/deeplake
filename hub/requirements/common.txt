@@ -12,4 +12,5 @@ types-click
 tqdm
 lz4
 typing_extensions>=3.10.0.0
+pickle5>=0.0.11
 numcodecs~=0.7.3

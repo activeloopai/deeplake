@@ -15,6 +15,7 @@ import google.auth.exceptions  # type: ignore
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
+from google.api_core.exceptions import NotFound  # type: ignore
 
 
 class GCloudCredentials:
@@ -210,6 +211,7 @@ class GCSProvider(StorageProvider):
             IsADirectoryError,
             NotADirectoryError,
             AttributeError,
+            NotFound,
         )
         self._initialize_provider()
 
