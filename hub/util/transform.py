@@ -142,8 +142,9 @@ def create_worker_chunk_engines(
     These are created separately for each worker for parallel uploads.
     """
     all_chunk_engines = {}
+    num_tries = 1000
     for tensor in tensors:
-        for _ in range(1000):
+        for i in range(num_tries):
             try:
                 # TODO: replace this with simply a MemoryProvider once we get rid of cachable
                 memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
@@ -172,7 +173,8 @@ def create_worker_chunk_engines(
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
             except (JSONDecodeError, KeyError):
-                pass
+                if i == num_tries - 1:
+                    raise
     return all_chunk_engines
 
 
