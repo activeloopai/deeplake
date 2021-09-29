@@ -174,7 +174,7 @@ class ChunkEngine:
         return enc
 
     @property
-    def commit_chunk_set(self) -> CommitChunkSet:
+    def commit_chunk_set(self) -> Optional[CommitChunkSet]:
         """Gets the commit chunk set from cache, if one is not found it creates a blank one.
 
         Returns:
