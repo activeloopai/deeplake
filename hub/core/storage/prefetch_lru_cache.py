@@ -36,10 +36,10 @@ class PrefetchLRUCache(LRUCache):
         next_storage: Optional[StorageProvider],
         cache_size: int,
         dataset,
-        num_workers: int,
         tensor_keys: Optional[Sequence[str]],
         transform: Optional[Callable],
         mode: Optional[str] = None,
+        num_workers: int = None
     ):
         super().__init__(cache_storage, next_storage, cache_size)
         self.mode = mode

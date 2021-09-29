@@ -128,7 +128,7 @@ class Pipeline:
         ds_out: hub.Dataset,
         tensors: List[str],
         compute: ComputeProvider,
-        num_workers: int,
+        num_workers: int = None,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
