@@ -733,7 +733,7 @@ class Dataset:
         unique = set(groups)
         groups.clear()
         groups += unique
-        self.storage.maybe_flush()
+        self.storage.flush()
         return self[ret]
 
     def create_group(self, name: str) -> "Dataset":
