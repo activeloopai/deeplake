@@ -81,6 +81,7 @@ class Dataset:
         """
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
+        self._tensor_cache: Dict[Tuple[str, str], Union[Dataset, Tensor]] = {}
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
@@ -163,6 +164,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self._tensor_cache = {}
         self._set_derived_attributes()
 
     def __getitem__(
@@ -172,12 +174,16 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
+            key = (item, self.version_state["commit_id"])
+            ret = self._tensor_cache.get(key)
+            if ret is not None:
+                return ret
             if item in self._all_tensors_filtered:
-                return self.version_state["full_tensors"][
+                ret = self.version_state["full_tensors"][
                     posixpath.join(self.group_index, item)
                 ][self.index]
             elif item in self._groups_filtered:
-                return Dataset(
+                ret = Dataset(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -187,9 +193,12 @@ class Dataset:
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
-                return self[splt[0]][splt[1]]
+                ret = self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
+            self._tensor_cache[key] = ret
+            return ret
+
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,
@@ -633,6 +642,9 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
+        if not self._is_root():
+            # A tensor might have been created by the parent group
+            load_meta(self.storage, self.version_state)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
