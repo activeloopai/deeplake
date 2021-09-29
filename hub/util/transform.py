@@ -1,6 +1,7 @@
 import hub
+import posixpath
+from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Tuple
-
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
@@ -16,8 +17,6 @@ from hub.util.exceptions import (
     InvalidTransformDataset,
     TensorMismatchError,
 )
-
-import posixpath
 
 
 def transform_sample(
@@ -144,30 +143,36 @@ def create_worker_chunk_engines(
     """
     all_chunk_engines = {}
     for tensor in tensors:
-        # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-        memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
-        memory_cache.autoflush = False
-        storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
-        storage_cache.autoflush = False
+        for _ in range(1000):
+            try:
+                # TODO: replace this with simply a MemoryProvider once we get rid of cachable
+                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+                memory_cache.autoflush = False
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
+                storage_cache.autoflush = False
 
-        # this chunk engine is used to retrieve actual tensor meta and chunk_size
-        storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
-        existing_meta = storage_chunk_engine.tensor_meta
-        chunk_size = storage_chunk_engine.max_chunk_size
-        new_tensor_meta = TensorMeta(
-            htype=existing_meta.htype,
-            dtype=existing_meta.dtype,
-            sample_compression=existing_meta.sample_compression,
-            chunk_compression=existing_meta.chunk_compression,
-            max_chunk_size=chunk_size,
-        )
-        meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
-        memory_cache[meta_key] = new_tensor_meta  # type: ignore
-        storage_cache.clear_cache()
-        storage_chunk_engine = ChunkEngine(
-            tensor, storage_cache, version_state, memory_cache
-        )
-        all_chunk_engines[tensor] = storage_chunk_engine
+                # this chunk engine is used to retrieve actual tensor meta and chunk_size
+
+                storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
+                existing_meta = storage_chunk_engine.tensor_meta
+                chunk_size = storage_chunk_engine.max_chunk_size
+                new_tensor_meta = TensorMeta(
+                    htype=existing_meta.htype,
+                    dtype=existing_meta.dtype,
+                    sample_compression=existing_meta.sample_compression,
+                    chunk_compression=existing_meta.chunk_compression,
+                    max_chunk_size=chunk_size,
+                )
+                meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
+                memory_cache[meta_key] = new_tensor_meta  # type: ignore
+                storage_cache.clear_cache()
+                storage_chunk_engine = ChunkEngine(
+                    tensor, storage_cache, version_state, memory_cache
+                )
+                all_chunk_engines[tensor] = storage_chunk_engine
+                break
+            except (JSONDecodeError, KeyError):
+                pass
     return all_chunk_engines
 
 
