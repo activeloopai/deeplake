@@ -528,7 +528,7 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-
+        autoflush = self.storage.autoflush
         self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
@@ -541,6 +541,7 @@ class Dataset:
         self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
+        self.storage.autoflush = autoflush
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -733,7 +734,7 @@ class Dataset:
         unique = set(groups)
         groups.clear()
         groups += unique
-        self.storage.flush()
+        self.storage.maybe_flush()
         return self[ret]
 
     def create_group(self, name: str) -> "Dataset":
