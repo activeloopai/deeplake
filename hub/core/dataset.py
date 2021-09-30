@@ -378,6 +378,13 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
+
+        # do not store commit message
+        hub_reporter.feature_report(
+            feature_name="commit",
+            parameters={},
+        )
+
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -392,8 +399,16 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
+
+        # do not store address
+        hub_reporter.feature_report(
+            feature_name="checkout",
+            parameters={"Create": str(create)},
+        )
+
         return self.version_state["commit_id"]
 
+    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
