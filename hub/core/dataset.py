@@ -735,9 +735,8 @@ class Dataset:
         self.storage.maybe_flush()
         autoflush = self.storage.autoflush
         group = self[fullname]
-        self.storage.autoflush = (
-            autoflush  # Re-enables autoflush if inside with context
-        )
+        # Re-enables autoflush if inside with context
+        self.storage.autoflush = autoflush
         return group
 
     def create_group(self, name: str) -> "Dataset":
