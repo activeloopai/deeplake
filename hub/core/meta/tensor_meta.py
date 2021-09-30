@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, GenericMeta
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -11,6 +11,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
 )
+from hub.util.json import validate_json_schema
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
@@ -53,8 +54,8 @@ class TensorMeta(Meta):
             _validate_htype_exists(htype)
             _validate_htype_overwrites(htype, kwargs)
             _replace_unspecified_values(htype, kwargs)
-            _validate_required_htype_overwrites(kwargs)
-            _format_values(kwargs)
+            _validate_required_htype_overwrites(htype, kwargs)
+            _format_values(htype, kwargs)
 
             required_meta = _required_meta_from_htype(htype)
             required_meta.update(kwargs)
@@ -158,6 +159,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
 
+    if htype in ("json", "list", "text"):
+        compr = htype_overwrite["chunk_compression"]
+        if compr in (None, UNSPECIFIED):
+            compr = htype_overwrite["sample_compression"]
+        if compr not in (None, UNSPECIFIED):
+            if get_compression_type(compr) != BYTE_COMPRESSION:
+                raise Exception()  # TODO
+        dtype = htype_overwrite["dtype"]
+
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
     """Replaces `UNSPECIFIED` values in `htype_overwrite` with the `htype`'s defaults."""
@@ -168,8 +178,11 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
         if v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
+    if htype in ("json", "list") and not htype_overwrite["dtype"]:
+        htype_overwrite["dtype"] = HTYPE_CONFIGURATIONS[htype]["dtype"]
 
-def _validate_required_htype_overwrites(htype_overwrite: dict):
+
+def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
 
     sample_compression = htype_overwrite["sample_compression"]
@@ -188,19 +201,27 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
         )
 
     if htype_overwrite["dtype"] is not None:
-        _raise_if_condition(
-            "dtype",
-            htype_overwrite,
-            lambda dtype: not _is_dtype_supported_by_numpy(dtype),
-            "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
-        )
+        if htype in ("json", "list"):
+            validate_json_schema(htype_overwrite["dtype"])
+        else:
+            _raise_if_condition(
+                "dtype",
+                htype_overwrite,
+                lambda dtype: not _is_dtype_supported_by_numpy(dtype),
+                "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            )
 
 
-def _format_values(htype_overwrite: dict):
+def _format_values(htype: str, htype_overwrite: dict):
     """Replaces values in `htype_overwrite` with consistent types/formats."""
 
-    if htype_overwrite["dtype"] is not None:
-        htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
+    dtype = htype_overwrite["dtype"]
+    if dtype is not None:
+        if htype in ("json", "list"):
+            if isinstance(dtype, GenericMeta):
+                dtype = str(dtype)
+        else:
+            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
     for key, value in COMPRESSION_ALIASES.items():
         if htype_overwrite.get("sample_compression") == key:

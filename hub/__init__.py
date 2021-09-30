@@ -27,7 +27,7 @@ from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 
 compressions = list(SUPPORTED_COMPRESSIONS)
-htypes = list(HTYPE_CONFIGURATIONS.keys())
+htypes = sorted(list(HTYPE_CONFIGURATIONS))
 list = dataset.list
 load = dataset.load
 empty = dataset.empty

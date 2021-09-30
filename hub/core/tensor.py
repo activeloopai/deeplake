@@ -404,3 +404,7 @@ class Tensor:
     @_inplace_op
     def __ior__(self, other):
         pass
+
+    def data(self) -> Any:
+        # TODO
+        pass

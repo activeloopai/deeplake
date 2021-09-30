@@ -3,7 +3,17 @@ import pickle
 import warnings
 import posixpath
 import numpy as np
-from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Union,
+    Tuple,
+    List,
+    Sequence,
+    GenericMeta,
+)
 
 from hub.api.info import load_info
 from hub.client.log import logger
@@ -208,7 +218,7 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
+        dtype: Union[str, np.dtype, type, GenericMeta] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         **kwargs,
