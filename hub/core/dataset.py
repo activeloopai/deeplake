@@ -541,6 +541,7 @@ class Dataset:
         self.index.validate(self.num_samples)
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
+            print(self)
 
     @hub_reporter.record_call
     def tensorflow(self):
