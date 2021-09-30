@@ -1,0 +1,156 @@
+from typing import Any, Dict, List, Optional, Tuple, Union, GenericMeta
+from numpy import ndarray
+
+
+scalars = ["int", "float", "bool", "str", "list", "dict", "ndarray"]
+types = ["Any", "Dict", "List", "Optional", "Union"]
+
+
+def _norm_type(typ: str):
+    typ = typ.replace("typing.", "")
+    replacements = {
+        "numpy.ndarray": "ndarray",
+        "np.ndarray": "ndarray"
+    }
+    return replacements.get(typ, typ)
+
+def _parse_schema(schema: Union[str, GenericMeta]) -> Tuple[str, List[str]]:
+    if isinstance(schema, GenericMeta):
+        schema = str(schema)
+        validate = False
+    else:
+        validate = True
+
+    if schema in scalars:
+        return schema, []
+
+    if "[" not in schema:
+        return _norm_type(schema), []
+
+    typ, param_string = schema.split("[", 1)
+    typ = _norm_type(typ)
+    assert param_string[-1] == "]"
+    params = []
+    buff = ""
+    level = 0
+    for c in param_string:
+        if c == "[":
+            level += 1
+            buff += c
+        elif c == "]":
+            if level == 0:
+                if buff:
+                    params.append(buff)
+                if validate:
+                    _validate_schema(typ, params)
+                return typ, params
+            else:
+                buff += c
+                level -= 1
+        elif c == ",":
+            if level == 0:
+                params.append(buff)
+                buff = ""
+            else:
+                buff += c
+        elif c == " ":
+            continue
+        else:
+            buff += c
+
+
+class InvalidJsonSchemaException(Exception):
+    pass
+
+class ArgumentMismatchException(InvalidJsonSchemaException):
+    def __init__(self, typ: str, actual: int, expected: int, exact: bool = False):
+        assert actual != expected
+        gt = actual > expected
+        super(ArgumentMismatchException, self).__init__(
+            f"Too {'many' if gt else 'few'} parameters for {typ};" + 
+            f" actual {actual},expected {'exatcly' if exact else ('at most' if gt else 'at least')} {expected}."
+        )
+
+
+def _validate_schema(typ: str, params: List[str]) -> Tuple[str, List[str]]:
+    if typ in scalars:
+        return typ, params
+
+    if typ not in types:
+        raise InvalidJsonSchemaException(f"Unsupported type: {typ}")
+
+    def _err(expected_num_params: int, exact: bool = False):
+        raise ArgumentMismatchException(typ, len(params), expected_num_params, exact)
+
+    if typ == "Any":
+        if params:
+            _err(0)
+    elif typ == "Optional":
+        if len(params) > 1:
+            _err(1)
+    elif typ == "Union":
+        if len(params) == 0:
+            _err(1)
+    elif typ == "List":
+        if len(params) > 1:
+            _err(1)
+    elif typ == "Dict":
+        if len(params) not in (0, 2):
+            _err(2, True)
+    return typ, params
+
+
+def _validate_any(obj: Any, params: List[str]):
+    assert not params
+    return True
+
+
+def _validate_union(obj: Any, params: List[str]):
+    for schema in params:
+        if _validate_object(obj, schema):
+            return True
+    return False
+
+
+def _validate_optional(obj: Any, params: List[str]) -> bool:
+    assert len(params) <= 1
+    if obj is None:
+        return True
+    if params:
+        return _validate_object(obj, params[0])
+
+
+def _validate_list(obj: Any, params: List[str]) -> bool:
+    assert len(params) == 1
+    assert isinstance(obj, (list, tuple))
+    for item in obj:
+        if not _validate_object(item, params[0]):
+            return False
+    return True
+
+
+def _validate_dict(obj: Any, params: List[str]) -> bool:
+    assert len(params) in (0, 2)
+    assert isinstance(obj, dict)
+    if params:
+        assert params[0] in ("str", "Any"), "Only string keys are allowed for json dicts."
+        for v in obj.values():
+            if not _validate_object(v, params[1]):
+                return False
+    return True
+
+
+def _validate_object(obj: Any, schema: Union[str, GenericMeta]) -> bool:
+    typ, params = _parse_schema(schema)
+    if typ in scalars:
+        return isinstance(obj, eval(typ))
+    return globals()[f"_validate_{typ.lower()}"](obj, params)
+
+
+class JsonValidationError(Exception):
+    pass
+
+
+def validate_json_object(obj: Any, schema: Union[str, GenericMeta]) -> None:
+    if not _validate_object(obj, schema):
+        raise JsonValidationError()
