@@ -706,6 +706,7 @@ class Dataset:
             self.verbose,
         )
         self.storage.autoflush = autoflush
+        return ds
 
     @property
     def root(self):
