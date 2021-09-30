@@ -191,7 +191,7 @@ class Dataset:
                     token=self._token,
                     verbose=False,
                 )
-                self._group_cache[key] = group
+                # self._group_cache[key] = group
                 return group
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -642,9 +642,6 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        if not self._is_root():
-            # A tensor might have been created by the parent group
-            load_meta(self.storage, self.version_state)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
