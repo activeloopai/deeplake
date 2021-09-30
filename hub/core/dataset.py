@@ -695,7 +695,7 @@ class Dataset:
         """Returns the parent of this group. Returns None if this is the root dataset"""
         if self._is_root():
             return None
-        autoflush = self.autoflush
+        autoflush = self.storage.autoflush
         ds = Dataset(
             self.storage,
             self.index,
@@ -705,13 +705,13 @@ class Dataset:
             self._token,
             self.verbose,
         )
-        self.autoflush = autoflush
+        self.storage.autoflush = autoflush
 
     @property
     def root(self):
         if self._is_root():
             return self
-        autoflush = self.autoflush
+        autoflush = self.storage.autoflush
         ds = Dataset(
             self.storage,
             self.index,
@@ -721,7 +721,7 @@ class Dataset:
             self._token,
             self.verbose,
         )
-        self.autoflush = autoflush
+        self.storage.autoflush = autoflush
         return ds
 
     def _create_group(self, name: str) -> "Dataset":
