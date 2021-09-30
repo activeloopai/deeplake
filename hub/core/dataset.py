@@ -528,6 +528,8 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
+        if self.index.is_trivial() and self._is_root():
+            self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
@@ -539,9 +541,6 @@ class Dataset:
         self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
-        if self.index.is_trivial() and self._is_root():
-            self.storage.autoflush = True
-            print(self)
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -696,7 +695,8 @@ class Dataset:
         """Returns the parent of this group. Returns None if this is the root dataset"""
         if self._is_root():
             return None
-        return Dataset(
+        autoflush = self.autoflush
+        ds = Dataset(
             self.storage,
             self.index,
             posixpath.dirname(self.group_index),
@@ -705,12 +705,14 @@ class Dataset:
             self._token,
             self.verbose,
         )
+        self.autoflush = autoflush
 
     @property
     def root(self):
         if self._is_root():
             return self
-        return Dataset(
+        autoflush = self.autoflush
+        ds = Dataset(
             self.storage,
             self.index,
             "",
@@ -719,6 +721,8 @@ class Dataset:
             self._token,
             self.verbose,
         )
+        self.autoflush = autoflush
+        return ds
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
