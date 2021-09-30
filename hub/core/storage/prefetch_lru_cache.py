@@ -47,7 +47,8 @@ class PrefetchLRUCache(LRUCache):
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
-        self.map = ProcessPool(nodes=num_workers).map
+        pool = ProcessPool(nodes=num_workers)
+        self.map = pool.map
 
         # shared memory file names have format "al_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
         self.last_shm_key_generated = -1

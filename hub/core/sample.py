@@ -1,10 +1,12 @@
 # type: ignore
 from hub.core.compression import (
     compress_array,
+    decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
 )
+from hub.compression import get_compression_type, AUDIO_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
@@ -72,7 +74,8 @@ class Sample:
 
     @property
     def compression(self):
-        self._read_meta()
+        if self._compression is None and self.path:
+            self._read_meta()
         return self._compression
 
     def _read_meta(self, f=None):
@@ -104,6 +107,9 @@ class Sample:
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
+
+        Raises:
+            ValueError: On recompression of unsupported formats.
         """
 
         if compression is None:
@@ -114,7 +120,10 @@ class Sample:
             if self.path is not None:
                 with open(self.path, "rb") as f:
                     compressed_bytes = f.read()
-                self._compression = get_compression(compressed_bytes[:32])
+                if self._compression is None:
+                    self._compression = get_compression(
+                        compressed_bytes[:32], self.path
+                    )
                 if self._compression == compression:
                     if self._verify:
                         self._shape, self._typestr = verify_compressed_file(
@@ -125,6 +134,10 @@ class Sample:
                             compressed_bytes, compression=self._compression
                         )
                 else:
+                    if get_compression_type(self._compression) != IMAGE_COMPRESSION:
+                        raise ValueError(
+                            "Recompression with different format is only supported for images."
+                        )
                     img = Image.open(BytesIO(compressed_bytes))
                     if img.mode == "1":
                         self._uncompressed_bytes = img.tobytes("raw", "L")
@@ -141,12 +154,21 @@ class Sample:
 
         if self._uncompressed_bytes is None:
             if self.path is not None:
-                img = Image.open(self.path)
-                if img.mode == "1":
-                    # Binary images need to be extended from bits to bytes
-                    self._uncompressed_bytes = img.tobytes("raw", "L")
+                compr = self._compression
+                if compr is None:
+                    compr = get_compression(path=self.path)
+                if get_compression_type(compr) == AUDIO_COMPRESSION:
+                    self._compression = compr
+                    if self._array is None:
+                        self._array = decompress_array(self.path, compression=compr)
+                    self._uncompressed_bytes = self._array.tobytes()
                 else:
-                    self._uncompressed_bytes = img.tobytes()
+                    img = Image.open(self.path)
+                    if img.mode == "1":
+                        # Binary images need to be extended from bits to bytes
+                        self._uncompressed_bytes = img.tobytes("raw", "L")
+                    else:
+                        self._uncompressed_bytes = img.tobytes()
             else:
                 self._uncompressed_bytes = self._array.tobytes()
 
@@ -156,18 +178,29 @@ class Sample:
     def array(self) -> np.ndarray:
 
         if self._array is None:
-            self._read_meta()
-            array_interface = {
-                "shape": self._shape,
-                "typestr": self._typestr,
-                "version": 3,
-                "data": self.uncompressed_bytes(),
-            }
+            compr = self._compression
+            if compr is None:
+                compr = get_compression(path=self.path)
+            if get_compression_type(compr) == AUDIO_COMPRESSION:
+                self._compression = compr
+                array = decompress_array(self.path, compression=compr)
+                if self._shape is None:
+                    self._shape = array.shape
+                    self._typestr = array.__array_interface__["typestr"]
+                self._array = array
+            else:
+                self._read_meta()
+                array_interface = {
+                    "shape": self._shape,
+                    "typestr": self._typestr,
+                    "version": 3,
+                    "data": self.uncompressed_bytes(),
+                }
 
-            class ArrayData:
-                __array_interface__ = array_interface
+                class ArrayData:
+                    __array_interface__ = array_interface
 
-            self._array = np.array(ArrayData, None)
+                self._array = np.array(ArrayData, None)
         return self._array
 
     def __str__(self):

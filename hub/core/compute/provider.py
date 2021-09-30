@@ -10,7 +10,7 @@ class ComputeProvider(ABC):
 
     @abstractmethod
     def map(self, func, iterable):
-        """Apply 'func' to each element in 'iterable', collecting the results
+        """Applies 'func' to each element in 'iterable', collecting the results
         in a list that is returned.
         """
 

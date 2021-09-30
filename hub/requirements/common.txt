@@ -12,4 +12,7 @@ types-click
 tqdm
 lz4
 typing_extensions>=3.10.0.0
-numcodecs==0.7.3
+hub_shm; python_version < "3.8" and python_version >= "3.6"
+numcodecs~=0.7.3
+pickle5>=0.0.11
+miniaudio~=1.44
