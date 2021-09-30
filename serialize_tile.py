@@ -11,6 +11,14 @@ def ceildiv(a: Union[np.ndarray, int, float], b: Union[np.ndarray, int, float]) 
 
 
 def view(sample: np.ndarray, low: Tuple[int, ...], high: Tuple[int, ...], step=1) -> np.ndarray:
+    """Get a zero-copy view of the sample array on the n-dimensional interval low:high.
+
+    For a 3D sample, the indexing would look like this:
+        sample[low[0]:high[0], low[1]:high[1], low[2]:high[2]]
+    """
+
+    if len(sample.shape) != len(low) or len(sample.shape) != len(high):
+        raise ValueError("low, high, and sample must have the same number of dimensions")
 
     slices = []
     for low_dim, high_dim in zip(low, high):
@@ -26,7 +34,36 @@ def view(sample: np.ndarray, low: Tuple[int, ...], high: Tuple[int, ...], step=1
 
 
 def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndarray:
-    # TODO: docstring
+    """Get a new tile-ordered numpy object array that is the shape of the tile grid.
+    
+    Each element of the returned numpy object array is also a numpy array that is a zero-copy view of the actual tile
+    at the tile coordinate.
+    
+    Example:
+        >>> tiles = break_into_tiles(np.arange(10).reshape(2, 5), (3, 3))
+        >>> tiles
+        [[array([[0, 1, 2],
+                 [5, 6, 7]]) 
+          array([[3, 4],
+                 [8, 9]])]]
+        >>> tiles.shape
+        (1, 2)
+        >>> tiles[0, 0]
+        array([[0, 1, 2],
+               [5, 6, 7]])
+        >>> tiles[0, 1]
+        array([[3, 4],
+               [8, 9]])
+
+    Args:
+        sample: The sample array to break into tiles.
+        tile_shape: The shape that each tile will have. Determines the number of tiles in each dimension.
+            Corner tiles (tiles at the end of one or more dimensions) may be smaller than the tile shape.
+    
+    Returns:
+        numpy object array of tiles. Each element of the array is a numpy array that is a zero-copy view (source = sample array) 
+            of the actual tile at the tile coordinate.
+    """
 
     tiles_per_dim = ceildiv(np.array(sample.shape), tile_shape) # np.array(sample.shape) // tile_shape
     tiles = np.empty(tiles_per_dim, dtype=object)
@@ -41,7 +78,6 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
 
         tiles[tile_coord] = tile
 
-    # return numpy array of numpy objects (tiles) in tile order
     return tiles
 
 
