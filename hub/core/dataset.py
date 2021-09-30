@@ -528,7 +528,6 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-        autoflush = self.storage.autoflush
         self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
@@ -541,7 +540,6 @@ class Dataset:
         self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
-        self.storage.autoflush = autoflush
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -725,7 +723,7 @@ class Dataset:
         groups = self._groups
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
-        ret = name
+        fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
@@ -735,7 +733,12 @@ class Dataset:
         groups.clear()
         groups += unique
         self.storage.maybe_flush()
-        return self[ret]
+        autoflush = self.storage.autoflush
+        group = self[fullname]
+        self.storage.autoflush = (
+            autoflush  # Re-enables autoflush if inside with context
+        )
+        return group
 
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created."""
