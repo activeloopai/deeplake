@@ -35,17 +35,20 @@ def test_append_grayscale_second(local_ds_generator, hub_read_images):
 
 
 def test_append_grayscale_second_many(local_ds_generator, hub_read_images):
-    ""
+    "Append a hub.read color image first, then a mix of color and gray."
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     with pytest.warns(UserWarning, match=WARNING_STR):
-        make_tensor_and_append(ds, "image", imgtype, [color, color, gray, color, gray, color])
+        make_tensor_and_append(
+            ds, "image", imgtype, [color, color, gray, color, gray, color]
+        )
     assert len(ds.images) == 6
     assert ds.images.meta.min_shape[-1] == 1
     assert ds.images.meta.max_shape[-1] == 3
 
 
 def test_extend_grayscale_second(local_ds_generator, hub_read_images):
+    "Extend a dataset with a list of color first, gray second."
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     with pytest.warns(UserWarning, match=WARNING_STR):
@@ -57,12 +60,14 @@ def test_extend_grayscale_second(local_ds_generator, hub_read_images):
 
 @pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
 def test_append_grayscale_first(local_ds_generator, hub_read_images):
+    "Append a gray first, color second."
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     make_tensor_and_append(ds, "image", imgtype, [gray, color])
 
 
 def test_append_grayscale_second_generic_ds(local_ds_generator, hub_read_images):
+    "Append with htype=generic, sample_compression=<valid image compression>."
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     with pytest.warns(UserWarning, match=WARNING_STR):
@@ -70,7 +75,10 @@ def test_append_grayscale_second_generic_ds(local_ds_generator, hub_read_images)
 
 
 @pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
-def test_append_grayscale_second_generic_ds_unspecified_comp(local_ds_generator, hub_read_images):
+def test_append_grayscale_second_generic_ds_unspecified_comp(
+    local_ds_generator, hub_read_images
+):
+    "Append with htype=generic and sample_compression=unspecified."
     ds = local_ds_generator()
     _, gray, color = hub_read_images
     make_tensor_and_append(ds, "generic", "unspecified", [color, gray])
@@ -79,10 +87,33 @@ def test_append_grayscale_second_generic_ds_unspecified_comp(local_ds_generator,
 @pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
 def test_append_grayscale_second_convert_false(
     local_ds_generator, grayscale_image_paths, color_image_paths
-    ):
+):
+    "Append setting convert_grayscale=False."
     ds = local_ds_generator()
     gray_path = grayscale_image_paths["jpeg"]
     color_path = color_image_paths["jpeg"]
     gray = hub.read(gray_path, convert_grayscale=False)
     color = hub.read(color_path, convert_grayscale=False)
     make_tensor_and_append(ds, "image", "jpeg", [color, gray])
+
+
+def test_append_two_grayscale(local_ds_generator, hub_read_images):
+    "Append two hub.read grayscale images.  There should be no warning."
+    ds = local_ds_generator()
+    imgtype, gray, _ = hub_read_images
+    make_tensor_and_append(ds, "image", imgtype, [gray, gray])
+    assert len(ds.images) == 2
+    assert len(ds.images.meta.min_shape) == 2
+    assert list(ds.images.meta.min_shape) == list(gray.shape)
+    assert list(ds.images.meta.max_shape) == list(gray.shape)
+
+
+def test_append_many_grayscale(local_ds_generator, hub_read_images):
+    "Append two hub.read grayscale images."
+    ds = local_ds_generator()
+    imgtype, gray, _ = hub_read_images
+    make_tensor_and_append(ds, "image", imgtype, [gray, gray, gray, gray])
+    assert len(ds.images) == 4
+    assert len(ds.images.meta.min_shape) == 2
+    assert list(ds.images.meta.min_shape) == list(gray.shape)
+    assert list(ds.images.meta.max_shape) == list(gray.shape)

@@ -21,6 +21,8 @@ def read(path: str, verify: bool = False, convert_grayscale: bool = True) -> Sam
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
+        convert_grayscale: If True, and if the rest of the dataset is in color (3D), then
+                           reshape a grayscale image by appending a 1 to its shape.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
