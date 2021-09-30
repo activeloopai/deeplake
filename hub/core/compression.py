@@ -5,7 +5,12 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.compression import get_compression_type
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+)
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
@@ -17,6 +22,8 @@ import sys
 import re
 import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
+import os
+import subprocess as sp
 
 
 if sys.byteorder == "little":

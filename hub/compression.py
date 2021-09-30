@@ -24,11 +24,12 @@ IMAGE_COMPRESSIONS = [
     "xbm",
 ]
 
+VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
+VIDEO_COMPRESSION = "video"
 COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION]
-
 
 # Pillow plugins for some formats might not be installed:
 Image.init()
@@ -36,10 +37,7 @@ IMAGE_COMPRESSIONS = [
     c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
 
-SUPPORTED_COMPRESSIONS = [
-    *BYTE_COMPRESSIONS,
-    *IMAGE_COMPRESSIONS,
-]
+SUPPORTED_COMPRESSIONS = [*BYTE_COMPRESSIONS, *IMAGE_COMPRESSIONS, *VIDEO_COMPRESSIONS]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
@@ -55,6 +53,8 @@ for c in IMAGE_COMPRESSIONS:
     _compression_types[c] = IMAGE_COMPRESSION
 for c in BYTE_COMPRESSIONS:
     _compression_types[c] = BYTE_COMPRESSION
+for c in VIDEO_COMPRESSIONS:
+    _compression_types[c] = VIDEO_COMPRESSION
 
 
 def get_compression_type(c):
