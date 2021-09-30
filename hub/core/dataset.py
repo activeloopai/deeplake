@@ -529,6 +529,7 @@ class Dataset:
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
         if self.index.is_trivial() and self._is_root():
+            print(self)
             self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
