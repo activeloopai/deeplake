@@ -403,7 +403,7 @@ class Dataset:
         # do not store address
         hub_reporter.feature_report(
             feature_name="checkout",
-            parameters={"Create": create},
+            parameters={"Create": str(create)},
         )
 
         return self.version_state["commit_id"]
