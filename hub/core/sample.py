@@ -74,7 +74,7 @@ class Sample:
 
     @property
     def compression(self):
-        if self._compression is None:
+        if self._compression is None and self.path:
             self._read_meta()
         return self._compression
 

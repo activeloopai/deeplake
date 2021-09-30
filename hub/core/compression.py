@@ -136,7 +136,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         return compress_bytes(array.tobytes(), compression)
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError(
-            "Audio compression is not supported. Use hub.read to read audio files."
+            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
     try:
         img = to_image(array)
@@ -169,7 +169,7 @@ def decompress_array(
         `compress_array` may be used to get the `buffer` input.
 
     Args:
-        buffer (bytes, memoryview, str): Buffer to be decompressed. It is assumed all meta information required to
+        buffer (bytes, memoryview, str): Buffer or file to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for byte compressions
         shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
@@ -194,7 +194,9 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_mp3(buffer)
     try:
-        img = Image.open(BytesIO(buffer))  # type: ignore
+        if not isinstance(buffer, str):
+            buffer = BytesIO(buffer)  # type: ignore
+        img = Image.open(buffer)  # type: ignore
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)

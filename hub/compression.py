@@ -28,9 +28,12 @@ IMAGE_COMPRESSIONS = [
 AUDIO_COMPRESSIONS = ["mp3"]
 
 
+# Just constants
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
 AUDIO_COMPRESSION = "audio"
+
+
 COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION, AUDIO_COMPRESSION]
 
 
@@ -61,7 +64,11 @@ for c in AUDIO_COMPRESSIONS:
 
 
 def get_compression_type(c):
+    if c is None:
+        return None
     ret = _compression_types.get(c)
-    if ret is None and c is not None and c.upper() in Image.OPEN:
+    if ret is None and c.upper() in Image.OPEN:
         ret = IMAGE_COMPRESSION
+    if ret is None:
+        raise KeyError(c)
     return ret

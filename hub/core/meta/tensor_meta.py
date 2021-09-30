@@ -166,7 +166,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
     if htype == "audio":
         if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
-            raise UnsupportedCompressionError("Chunk compression", htype="audio")
+            raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif htype_overwrite["sample_compression"] == UNSPECIFIED:
             raise TensorMetaMissingRequiredValue(
                 htype, "sample_compression"  # type: ignore
