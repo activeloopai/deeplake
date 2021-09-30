@@ -71,6 +71,8 @@ def combine_chunk_id_encoders(
 ) -> None:
     """Combines the dataset's chunk_id_encoder with a single worker's chunk_id_encoder."""
     encoded_ids = worker_chunk_id_encoder._encoded
+    if not encoded_ids.flags.writeable:
+        encoded_ids = encoded_ids.copy()
     if encoded_ids.size != 0:
         offset = ds_chunk_id_encoder.num_samples
         for encoded_id in encoded_ids:

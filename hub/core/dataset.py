@@ -749,3 +749,25 @@ class Dataset:
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
+
+    # the below methods are used by cloudpickle dumps
+    def __origin__(self):
+        return None
+
+    def __values__(self):
+        return None
+
+    def __type__(self):
+        return None
+
+    def __union_params__(self):
+        return None
+
+    def __tuple_params__(self):
+        return None
+
+    def __result__(self):
+        return None
+
+    def __args__(self):
+        return None

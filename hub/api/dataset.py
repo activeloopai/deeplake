@@ -132,7 +132,7 @@ class dataset:
             storage.clear()
         elif dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
+                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
 
         read_only = storage.read_only
@@ -195,7 +195,7 @@ class dataset:
 
         if not dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
+                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
         if overwrite:
             storage.clear()
