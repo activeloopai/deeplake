@@ -5,8 +5,8 @@ import pytest
 
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
-from hub.util.storage import get_pytorch_local_storage
 from hub.util.check_installation import requires_torch
+from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
@@ -312,11 +312,14 @@ def test_readonly(local_ds):
     base_storage.enable_readonly()
     ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 
+    ptds = ds.pytorch()
     # no need to check input, only care that readonly works
-    for _ in ds.pytorch():
+    for _ in ptds:
         pass
 
-    for _ in dataset_to_pytorch(ds):
+    ptds = dataset_to_pytorch(ds)
+
+    for _ in ptds:
         pass
 
 
