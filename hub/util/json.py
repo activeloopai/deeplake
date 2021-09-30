@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Tuple, Union, GenericMeta
 from numpy import ndarray
+import json
 
 
 scalars = ["int", "float", "bool", "str", "list", "dict", "ndarray"]
@@ -154,3 +155,12 @@ class JsonValidationError(Exception):
 def validate_json_object(obj: Any, schema: Union[str, GenericMeta]) -> None:
     if not _validate_object(obj, schema):
         raise JsonValidationError()
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ndarray):
+            {
+                "_type": "ndarray",
+                "data": ""
+            }
