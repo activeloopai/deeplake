@@ -528,9 +528,6 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-        if self.index.is_trivial() and self._is_root():
-            print(self)
-            self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
@@ -542,6 +539,8 @@ class Dataset:
         self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
+        if self.index.is_trivial() and self._is_root():
+            self.storage.autoflush = True
 
     @hub_reporter.record_call
     def tensorflow(self):
