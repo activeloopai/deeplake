@@ -81,7 +81,7 @@ class Dataset:
         """
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
-        self._tensor_cache: Dict[Tuple[str, str], Union[Dataset, Tensor]] = {}
+        self._group_cache: Dict[Tuple[str, str], Union[Dataset, Tensor]] = {}
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
@@ -164,7 +164,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
-        self._tensor_cache = {}
+        self._group_cache = {}
         self._set_derived_attributes()
 
     def __getitem__(
@@ -175,15 +175,15 @@ class Dataset:
     ):
         if isinstance(item, str):
             key = (item, self.version_state["commit_id"])
-            ret = self._tensor_cache.get(key)
-            if ret is not None:
-                return ret
-            if item in self._all_tensors_filtered:
-                ret = self.version_state["full_tensors"][
+            group = self._group_cache.get(key)
+            if group is not None:
+                return group
+            elif item in self._all_tensors_filtered:
+                return self.version_state["full_tensors"][
                     posixpath.join(self.group_index, item)
                 ][self.index]
             elif item in self._groups_filtered:
-                ret = Dataset(
+                group = Dataset(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -191,13 +191,13 @@ class Dataset:
                     token=self._token,
                     verbose=False,
                 )
+                self._group_cache[key] = group
+                return group
             elif "/" in item:
                 splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+                return self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
-            self._tensor_cache[key] = ret
-            return ret
 
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
@@ -528,7 +528,8 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-        self.storage.autoflush = True
+        if self.index.is_trivial() and self._is_root():
+            self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
@@ -733,11 +734,7 @@ class Dataset:
         groups.clear()
         groups += unique
         self.storage.maybe_flush()
-        autoflush = self.storage.autoflush
-        group = self[fullname]
-        # Re-enables autoflush if inside with context
-        self.storage.autoflush = autoflush
-        return group
+        return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created."""
