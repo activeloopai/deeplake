@@ -303,7 +303,7 @@ def verify_compressed_file(
 
 def get_compression(header=None, path=None):
     if path:
-        if os.path.splitext(path)[-1].lower() == ".mp3":
+        if path.lower().endswith(".mp3"):
             return "mp3"
     if header:
         if not Image.OPEN:
@@ -479,7 +479,6 @@ def read_meta_from_compressed_file(
             try:
                 shape, typestr = _read_mp3_shape(file), "<f4"
             except Exception as e:
-                raise (e)
                 raise CorruptedSampleError("mp3")
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore

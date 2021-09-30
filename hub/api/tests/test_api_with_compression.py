@@ -12,7 +12,7 @@ import numpy as np
 
 import hub
 from hub.core.dataset import Dataset
-from miniaudio import mp3_read_file_f32
+from miniaudio import mp3_read_file_f32  # type: ignore
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
