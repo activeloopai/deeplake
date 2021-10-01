@@ -684,7 +684,9 @@ def _decompress_video(
         raw_video = pipe.communicate()[0]
     else:
         file = _strip_hub_mp4_header(file)
-        pipe = sp.Popen(command, stdin=sp.PIPE, stdout=sp.PIPE, bufsize=10 ** 8)
+        pipe = sp.Popen(
+            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
+        )
         raw_video = pipe.communicate(input=file)[0]
     return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
         shape
@@ -759,7 +761,9 @@ def _mp4_file_to_mkv_bytes(file: str):
         "pipe:",
     ]
 
-    pipe = sp.Popen(command, stdin=sp.PIPE, stdout=sp.PIPE, bufsize=10 ** 5)
+    pipe = sp.Popen(
+        command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
+    )
     raw_video = pipe.communicate()[0]
     info = _get_video_info(file)
     raw_video = _HUB_MP4_HEADER + struct.pack("<Hf", 4, info["duration"]) + raw_video
