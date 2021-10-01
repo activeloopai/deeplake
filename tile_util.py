@@ -20,11 +20,15 @@ def validate_is_serialized(tiles: np.ndarray, operation: str):
         raise TypeError(f"Before {operation}, you should serialize the tiles.")
 
 
-def tile_bounds(tile_coords: np.ndarray, tile_shape: Tuple[int, ...]) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+def tile_bounds(
+    tile_coords: np.ndarray, tile_shape: Tuple[int, ...]
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     """Returns the low and high bounds of the tile at `tile_coords` assuming all tiles are of shape `tile_shape`."""
 
     if len(tile_coords) != len(tile_shape):
-        raise ValueError("tile_coords and tile_shape must have the same number of dimensions.")
+        raise ValueError(
+            "tile_coords and tile_shape must have the same number of dimensions."
+        )
 
     low = tuple(tile_coords * tile_shape)
     high = tuple((tile_coords + 1) * tile_shape)
@@ -69,4 +73,3 @@ def view(
 
     sample_view = sample[tuple(slices)]
     return sample_view
-

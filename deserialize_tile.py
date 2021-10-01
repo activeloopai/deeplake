@@ -5,7 +5,12 @@ import numpy as np
 from tile_util import tile_bounds, validate_is_serialized, validate_not_serialized, view
 
 
-def coalesce_tiles(tiles: np.ndarray, tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...], dtype: Union[str, np.dtype]) -> np.ndarray:
+def coalesce_tiles(
+    tiles: np.ndarray,
+    tile_shape: Tuple[int, ...],
+    sample_shape: Tuple[int, ...],
+    dtype: Union[str, np.dtype],
+) -> np.ndarray:
     """Coalesce tiles into a single array of shape `sample_shape`.
 
     Args:
@@ -36,14 +41,18 @@ def coalesce_tiles(tiles: np.ndarray, tile_shape: Tuple[int, ...], sample_shape:
     return sample
 
 
-def deserialize_tiles(serialized_tiles: np.ndarray, tile_shapes: np.ndarray, frombytes_func: Callable[[bytes], np.ndarray]) -> np.ndarray:
+def deserialize_tiles(
+    serialized_tiles: np.ndarray,
+    tile_shapes: np.ndarray,
+    frombytes_func: Callable[[bytes], np.ndarray],
+) -> np.ndarray:
     """Deserialize numpy object array of tiles (represented as bytes) into a new numpy object of tiles (represented as numpy arrays).
 
     Args:
         serialized_tiles (np.ndarray): numpy object array of tiles where each element is a bytes object.
         tile_shapes (np.ndarray): Shape of each individual tile. Different from the tile shape used to serialize the tiles.
             For example, the corner tiles may not be equal to the tile shape used to serialize the tiles, so in those cases we need to know the exact shape.
-        frombytes_func (Callable[[bytes], np.ndarray]): A function that takes a byte array and returns a numpy array. 
+        frombytes_func (Callable[[bytes], np.ndarray]): A function that takes a byte array and returns a numpy array.
             This is used to deserialize each tile, may be used to decompress the tile.
 
     Returns:

@@ -24,7 +24,6 @@ def test_break_into_tiles():
     np.testing.assert_array_equal(sample, coalesced_sample)
 
 
-
 def test_serialize_tiles():
     sample = get_arange_sample((2, 5))
     tile_shape = (3, 3)
@@ -38,8 +37,12 @@ def test_serialize_tiles():
     with pytest.raises(TypeError):
         coalesce_tiles(serialized_tiles, tile_shape, sample.shape, sample.dtype)
 
-    deserialized_tiles = deserialize_tiles(serialized_tiles, tile_shapes, lambda x: np.frombuffer(x, dtype=sample.dtype))
-    coalesced_sample = coalesce_tiles(deserialized_tiles, tile_shape, sample.shape, sample.dtype)
+    deserialized_tiles = deserialize_tiles(
+        serialized_tiles, tile_shapes, lambda x: np.frombuffer(x, dtype=sample.dtype)
+    )
+    coalesced_sample = coalesce_tiles(
+        deserialized_tiles, tile_shape, sample.shape, sample.dtype
+    )
     np.testing.assert_array_equal(sample, coalesced_sample)
 
 
@@ -55,6 +58,10 @@ def test_serialize_tiles_gzip():
     assert serialized_tiles.shape == tiles.shape
 
     gzip_decompress = lambda x: np.frombuffer(gzip.decompress(x), dtype=sample.dtype)
-    deserialized_tiles = deserialize_tiles(serialized_tiles, tile_shapes, gzip_decompress)
-    coalesced_sample = coalesce_tiles(deserialized_tiles, tile_shape, sample.shape, sample.dtype)
+    deserialized_tiles = deserialize_tiles(
+        serialized_tiles, tile_shapes, gzip_decompress
+    )
+    coalesced_sample = coalesce_tiles(
+        deserialized_tiles, tile_shape, sample.shape, sample.dtype
+    )
     np.testing.assert_array_equal(sample, coalesced_sample)
