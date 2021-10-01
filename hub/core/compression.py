@@ -5,7 +5,12 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.compression import get_compression_type
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    AUDIO_COMPRESSION,
+)
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
@@ -17,6 +22,9 @@ import sys
 import re
 import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
+import os
+import tempfile
+from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -105,6 +113,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
         SampleCompressionError: If there was a problem compressing `array`.
+        NotImplementedError: If compression is not supported.
 
     Returns:
         bytes: Compressed `array` represented as bytes.
@@ -121,9 +130,14 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     if compression is None:
         return array.tobytes()
 
-    if get_compression_type(compression) == "byte":
-        return compress_bytes(array.tobytes(), compression)
+    compr_type = get_compression_type(compression)
 
+    if compr_type == BYTE_COMPRESSION:
+        return compress_bytes(array.tobytes(), compression)
+    elif compr_type == AUDIO_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     try:
         img = to_image(array)
         out = BytesIO()
@@ -143,7 +157,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
 
 def decompress_array(
-    buffer: Union[bytes, memoryview],
+    buffer: Union[bytes, memoryview, str],
     shape: Optional[Tuple[int]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
@@ -155,7 +169,7 @@ def decompress_array(
         `compress_array` may be used to get the `buffer` input.
 
     Args:
-        buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
+        buffer (bytes, memoryview, str): Buffer or file to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for byte compressions
         shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
@@ -168,16 +182,21 @@ def decompress_array(
     Returns:
         np.ndarray: Array from the decompressed buffer.
     """
-    if compression and get_compression_type(compression) == "byte":
+    compr_type = get_compression_type(compression)
+    if compr_type == BYTE_COMPRESSION:
         if dtype is None or shape is None:
             raise ValueError("dtype and shape must be specified for byte compressions.")
         try:
-            decompressed_bytes = decompress_bytes(buffer, compression)
+            decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
+    elif compr_type == AUDIO_COMPRESSION:
+        return _decompress_mp3(buffer)
     try:
-        img = Image.open(BytesIO(buffer))
+        if not isinstance(buffer, str):
+            buffer = BytesIO(buffer)  # type: ignore
+        img = Image.open(buffer)  # type: ignore
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)
@@ -208,10 +227,13 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
                 compression,
                 message="All arrays expected to have same dtype.",
             )
-    if get_compression_type(compression) == "byte":
+    compr_type = get_compression_type(compression)
+    if compr_type == BYTE_COMPRESSION:
         return compress_bytes(
             b"".join(arr.tobytes() for arr in arrays), compression
         )  # Note: shape and dtype info not included
+    elif compr_type == AUDIO_COMPRESSION:
+        raise NotImplementedError("compress_multiple does not support audio samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
@@ -268,6 +290,8 @@ def verify_compressed_file(
             return _verify_png(file)
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
+        elif compression == "mp3":
+            return _read_mp3_shape(file), "<f4"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -277,14 +301,18 @@ def verify_compressed_file(
             file.close()  # type: ignore
 
 
-def get_compression(header):
-    if not Image.OPEN:
-        Image.init()
-    for fmt in Image.OPEN:
-        accept = Image.OPEN[fmt][1]
-        if accept and accept(header):
-            return fmt.lower()
-    raise SampleDecompressionError()
+def get_compression(header=None, path=None):
+    if path:
+        if path.lower().endswith(".mp3"):
+            return "mp3"
+    if header:
+        if not Image.OPEN:
+            Image.init()
+        for fmt in Image.OPEN:
+            accept = Image.OPEN[fmt][1]
+            if accept and accept(header):
+                return fmt.lower()
+        raise SampleDecompressionError()
 
 
 def _verify_png(buf):
@@ -431,11 +459,12 @@ def read_meta_from_compressed_file(
         close = False
     try:
         if compression is None:
+            path = file if isinstance(file, str) else None
             if hasattr(f, "read"):
-                compression = get_compression(f.read(32))
+                compression = get_compression(f.read(32), path)
                 f.seek(0)
             else:
-                compression = get_compression(f[:32])  # type: ignore
+                compression = get_compression(f[:32], path)  # type: ignore
         if compression == "jpeg":
             try:
                 shape, typestr = _read_jpeg_shape(f), "|u1"
@@ -446,6 +475,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
+        elif compression == "mp3":
+            try:
+                shape, typestr = _read_mp3_shape(file), "<f4"
+            except Exception as e:
+                raise CorruptedSampleError("mp3")
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -563,3 +597,26 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
             nlayers = 4
     shape = size if nlayers is None else size + (nlayers,)
     return shape, typstr  # type: ignore
+
+
+def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
+    decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
+    if isinstance(file, memoryview):
+        if (
+            isinstance(file.obj, bytes)
+            and file.strides == (1,)
+            and file.shape == (len(file.obj),)
+        ):
+            file = file.obj
+        else:
+            file = bytes(file)
+    raw_audio = decompressor(file)
+    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
+        raw_audio.num_frames, raw_audio.nchannels
+    )
+
+
+def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
+    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
+    info = f_info(file)
+    return (info.num_frames, info.nchannels)

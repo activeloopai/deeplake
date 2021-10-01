@@ -12,6 +12,7 @@ import numpy as np
 
 import hub
 from hub.core.dataset import Dataset
+from miniaudio import mp3_read_file_f32  # type: ignore
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
@@ -186,3 +187,19 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     labels.extend(data)
     for row, label in zip(data, labels):
         np.testing.assert_array_equal(row, label.numpy())
+
+
+@enabled_datasets
+@pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
+def test_audio(ds: Dataset, compression, audio_paths):
+    path = audio_paths[compression]
+    audio = mp3_read_file_f32(path)
+    arr = np.frombuffer(audio.samples, dtype=np.float32).reshape(
+        audio.num_frames, audio.nchannels
+    )
+    ds.create_tensor("audio", htype="audio", sample_compression=compression)
+    with ds:
+        for _ in range(10):
+            ds.audio.append(hub.read(path))  # type: ignore
+    for i in range(10):
+        np.testing.assert_array_equal(ds.audio[i].numpy(), arr)  # type: ignore
