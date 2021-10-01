@@ -9,6 +9,12 @@ workflows:
   test:
     jobs:
       - test:
+          name: "Linux Simple Test"
+          e: linux38
+          context:
+            - test
+            - azure
+      - test:
           name: "Linux Complex Test: Python 3.6"
           e: linux36
           plugins: true
@@ -60,9 +66,17 @@ workflows:
             - test
             - azure
           filters: *version
+      - test:
+          name: test-simple-python-38
+          e: linux38
+          context:
+            - test
+            - azure
+          filters: *version
       - verify:
           type: approval
           requires:
+            - test-simple-python-38
             - test-complex-python-36
             - test-complex-python-38
           filters: *version
