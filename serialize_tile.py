@@ -11,6 +11,17 @@ def ceildiv(
     return -(-a // b)
 
 
+def tile_bounds(tile_coords: np.ndarray, tile_shape: Tuple[int, ...]) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    """Returns the low and high bounds of the tile at `tile_coords` assuming all tiles are of shape `tile_shape`."""
+
+    if len(tile_coords) != len(tile_shape):
+        raise ValueError("tile_coords and tile_shape must have the same number of dimensions.")
+
+    low = tuple(tile_coords * tile_shape)
+    high = tuple((tile_coords + 1) * tile_shape)
+    return low, high
+
+
 def view(
     sample: np.ndarray, low: Tuple[int, ...], high: Tuple[int, ...], step=1
 ) -> np.ndarray:
@@ -69,17 +80,13 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
             of the actual tile at the tile coordinate.
     """
 
-    tiles_per_dim = ceildiv(
-        np.array(sample.shape), tile_shape
-    )  # np.array(sample.shape) // tile_shape
+    tiles_per_dim = ceildiv(np.array(sample.shape), tile_shape)
     tiles = np.empty(tiles_per_dim, dtype=object)
 
     for tile_coord, _ in np.ndenumerate(tiles):
         tile_coord_arr = np.asarray(tile_coord)
 
-        low = tuple(tile_coord_arr * tile_shape)
-        high = tuple((tile_coord_arr + 1) * tile_shape)
-
+        low, high = tile_bounds(tile_coord_arr, tile_shape)
         tile = view(sample, low, high)
 
         tiles[tile_coord] = tile
