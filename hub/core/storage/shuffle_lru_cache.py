@@ -18,7 +18,7 @@ class ShuffleLRUCache(PrefetchLRUCache):
         tensor_keys: Optional[Sequence[str]],
         transform: Optional[Callable],
         mode: Optional[str] = None,
-        num_workers: int = None
+        num_workers: int = 2
     ):
         super().__init__(
             cache_storage,
