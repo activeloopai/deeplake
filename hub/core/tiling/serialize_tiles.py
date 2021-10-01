@@ -1,7 +1,7 @@
 from typing import Callable, Tuple
 import numpy as np
 
-from tile_util import ceildiv, tile_bounds, validate_not_serialized, view
+from hub.util.tiling import ceildiv, tile_bounds, view, validate_not_serialized
 
 
 def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndarray:

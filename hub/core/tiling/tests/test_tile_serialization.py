@@ -1,18 +1,19 @@
+from typing import Tuple
 import pytest
 import numpy as np
 import gzip
 
-from serialize_tile import *
-from deserialize_tile import *
-from tile_util import get_tile_shapes
+from hub.core.tiling.serialize_tiles import break_into_tiles, serialize_tiles
+from hub.core.tiling.deserialize_tiles import coalesce_tiles, deserialize_tiles
+from hub.util.tiling import get_tile_shapes
 
 
-def get_arange_sample(shape: Tuple[int, ...]) -> np.ndarray:
+def _get_arange_sample(shape: Tuple[int, ...]) -> np.ndarray:
     return np.arange(np.prod(shape)).reshape(*shape)
 
 
 def test_break_into_tiles():
-    sample = get_arange_sample((2, 5))
+    sample = _get_arange_sample((2, 5))
     tile_shape = (3, 3)
 
     tiles = break_into_tiles(sample, tile_shape)
@@ -25,7 +26,7 @@ def test_break_into_tiles():
 
 
 def test_serialize_tiles():
-    sample = get_arange_sample((2, 5))
+    sample = _get_arange_sample((2, 5))
     tile_shape = (3, 3)
 
     tiles = break_into_tiles(sample, tile_shape)
@@ -47,7 +48,7 @@ def test_serialize_tiles():
 
 
 def test_serialize_tiles_gzip():
-    sample = get_arange_sample((2, 5))
+    sample = _get_arange_sample((2, 5))
     tile_shape = (3, 3)
 
     tiles = break_into_tiles(sample, tile_shape)
