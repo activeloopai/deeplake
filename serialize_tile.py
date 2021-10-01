@@ -1,7 +1,7 @@
 from typing import Callable, Tuple
 import numpy as np
 
-from tile_util import ceildiv, tile_bounds, view
+from tile_util import ceildiv, tile_bounds, validate_not_serialized, view
 
 
 def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndarray:
@@ -55,18 +55,18 @@ def serialize_tiles(tiles: np.ndarray, tobytes_func: Callable[[np.ndarray], byte
 
     Args:
         tiles (np.ndarray): The tile-ordered numpy object array to serialize.
-        tobytes_func (Callable): A function that takes a numpy array and returns a bytes object.
+        tobytes_func (Callable[[np.ndarray], bytes]): A function that takes a numpy array and returns a bytes object.
             This function is used to serialize each tile, may be used to compress the tile.
 
     Returns:
-        numpy object array of serialized tiles. Each element of the array is a bytes object.
+        np.ndarray: numpy object array of serialized tiles. Each element of the array is a bytes object.
     """
 
     # TODO: maybe use memoryview and update docstring
 
-    serialized_tiles = np.empty(tiles.shape, dtype=object)
+    validate_not_serialized(tiles, "serialize_tiles")
 
+    serialized_tiles = np.empty(tiles.shape, dtype=object)
     for tile_coord, tile in np.ndenumerate(tiles):
         serialized_tiles[tile_coord] = tobytes_func(tile)
-
     return serialized_tiles
