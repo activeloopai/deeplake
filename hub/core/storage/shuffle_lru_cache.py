@@ -25,10 +25,10 @@ class ShuffleLRUCache(PrefetchLRUCache):
             next_storage,
             cache_size,
             dataset,
-            num_workers,
             tensor_keys,
             transform,
             mode,
+            num_workers
         )
 
         # set of all indexes that have not been used yet, used to pick new indexes every time
