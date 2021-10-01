@@ -1,5 +1,4 @@
-from typing import Tuple, Union
-from itertools import product
+from typing import Callable, Tuple, Union
 import numpy as np
 
 
@@ -94,45 +93,24 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
     return tiles
 
 
-def serialize_tiles(tiles: np.ndarray) -> np.ndarray:
+def serialize_tiles(tiles: np.ndarray, tobytes_func: Callable[[np.ndarray], bytes]) -> np.ndarray:
     """Get a new tile-ordered numpy object array that is the same shape of the tile-grid.
     Each element of the returned numpy object array is a bytes object representing the serialized tile.
+
+    Args:
+        tiles (np.ndarray): The tile-ordered numpy object array to serialize.
+        tobytes_func (Callable): A function that takes a numpy array and returns a bytes object.
+            This function is used to serialize each tile, may be used to compress the tile.
+
+    Returns:
+        numpy object array of serialized tiles. Each element of the array is a bytes object.
     """
 
-    # TODO: compression and update docstring
     # TODO: maybe use memoryview and update docstring
 
     serialized_tiles = np.empty(tiles.shape, dtype=object)
 
     for tile_coord, tile in np.ndenumerate(tiles):
-        serialized_tiles[tile_coord] = tile.tobytes()
+        serialized_tiles[tile_coord] = tobytes_func(tile)
 
     return serialized_tiles
-
-
-def test_break_into_tiles():
-    sample = np.arange(10).reshape(2, 5)
-    tile_shape = (3, 3)
-    tiles = break_into_tiles(sample, tile_shape)
-
-    assert tiles.shape == (1, 2)
-    np.testing.assert_array_equal(tiles[0, 0], np.array([[0, 1, 2], [5, 6, 7]]))
-    np.testing.assert_array_equal(tiles[0, 1], np.array([[3, 4], [8, 9]]))
-
-    # TODO: coalesce tiles into sample and compare
-
-
-def test_serialize_tiles():
-    sample = np.arange(10).reshape(2, 5)
-    tile_shape = (3, 3)
-    tiles = break_into_tiles(sample, tile_shape)
-    serialized_tiles = serialize_tiles(tiles)
-
-    assert serialized_tiles.shape == tiles.shape
-
-    # TODO: deserialize and coalesce tiles into sample and compare
-
-
-if __name__ == "__main__":
-    test_break_into_tiles()
-    test_serialize_tiles()
