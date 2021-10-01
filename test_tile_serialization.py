@@ -1,8 +1,10 @@
+import pytest
 import numpy as np
 import gzip
 
 from serialize_tile import *
 from deserialize_tile import *
+from tile_util import get_tile_shapes
 
 
 def get_arange_sample(shape: Tuple[int, ...]) -> np.ndarray:
@@ -18,8 +20,9 @@ def test_break_into_tiles():
     np.testing.assert_array_equal(tiles[0, 0], np.array([[0, 1, 2], [5, 6, 7]]))
     np.testing.assert_array_equal(tiles[0, 1], np.array([[3, 4], [8, 9]]))
 
-    coalesced_sample = coalesce_tiles(tiles, sample.shape)
+    coalesced_sample = coalesce_tiles(tiles, tile_shape, sample.shape, sample.dtype)
     np.testing.assert_array_equal(sample, coalesced_sample)
+
 
 
 def test_serialize_tiles():
@@ -27,11 +30,16 @@ def test_serialize_tiles():
     tile_shape = (3, 3)
 
     tiles = break_into_tiles(sample, tile_shape)
+    tile_shapes = get_tile_shapes(tiles)
+
     serialized_tiles = serialize_tiles(tiles, lambda x: x.tobytes())
     assert serialized_tiles.shape == tiles.shape
 
-    deserialized_tiles = deserialize_tiles(serialized_tiles, lambda x: np.frombuffer(x, dtype=sample.dtype))
-    coalesced_sample = coalesce_tiles(deserialized_tiles, sample.shape)
+    with pytest.raises(TypeError):
+        coalesce_tiles(serialized_tiles, tile_shape, sample.shape, sample.dtype)
+
+    deserialized_tiles = deserialize_tiles(serialized_tiles, tile_shapes, lambda x: np.frombuffer(x, dtype=sample.dtype))
+    coalesced_sample = coalesce_tiles(deserialized_tiles, tile_shape, sample.shape, sample.dtype)
     np.testing.assert_array_equal(sample, coalesced_sample)
 
 
@@ -40,11 +48,13 @@ def test_serialize_tiles_gzip():
     tile_shape = (3, 3)
 
     tiles = break_into_tiles(sample, tile_shape)
+    tile_shapes = get_tile_shapes(tiles)
+
     gzip_compress = lambda x: gzip.compress(x.tobytes())
     serialized_tiles = serialize_tiles(tiles, gzip_compress)
     assert serialized_tiles.shape == tiles.shape
 
     gzip_decompress = lambda x: np.frombuffer(gzip.decompress(x), dtype=sample.dtype)
-    deserialized_tiles = deserialize_tiles(serialized_tiles, gzip_decompress)
-    coalesced_sample = coalesce_tiles(deserialized_tiles, sample.shape)
+    deserialized_tiles = deserialize_tiles(serialized_tiles, tile_shapes, gzip_decompress)
+    coalesced_sample = coalesce_tiles(deserialized_tiles, tile_shape, sample.shape, sample.dtype)
     np.testing.assert_array_equal(sample, coalesced_sample)
