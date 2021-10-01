@@ -203,3 +203,18 @@ def test_audio(ds: Dataset, compression, audio_paths):
             ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
         np.testing.assert_array_equal(ds.audio[i].numpy(), arr)  # type: ignore
+
+
+@enabled_datasets
+@pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+def test_video(ds: Dataset, compression, video_paths):
+    path = video_paths[compression]
+    ds.create_tensor("video", htype="video", sample_compression=compression)
+    sample = hub.read(path)
+    assert len(sample.shape) == 4
+    assert sample.shape[-1] == 3
+    with ds:
+        for _ in range(10):
+            ds.video.append(hub.read(path))  # type: ignore
+    for i in range(10):
+        assert ds.video[i].numpy().shape == sample.shape  # type: ignore

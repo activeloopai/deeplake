@@ -13,6 +13,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
+from matplotlib.pyplot import get
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
@@ -27,6 +28,7 @@ import os
 import subprocess as sp
 import tempfile
 from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
+import math
 
 
 if sys.byteorder == "little":
@@ -36,6 +38,17 @@ else:
     _NATIVE_INT32 = ">i4"
     _NATIVE_FLOAT32 = ">f4"
 
+if os.name == "nt":
+    FFMPEG_BINARY = "ffmpeg.exe"
+    FFPROBE_BINARY = "ffprobe.exe"
+else:
+    FFMPEG_BINARY = "ffmpeg"
+    FFPROBE_BINARY = "ffprobe"
+
+DIMS_RE = re.compile(rb" ([0-9]+)x([0-9]+)")
+FPS_RE = re.compile(rb" ([0-9]+) fps,")
+DURATION_RE = re.compile(rb"Duration: ([0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}),")
+INFO_RE = re.compile(rb"([a-z]+)=([0-9./]+)")
 
 _JPEG_SOFS = [
     b"\xff\xc0",
@@ -140,6 +153,10 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise NotImplementedError(
             "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
+    elif compr_type == VIDEO_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     try:
         img = to_image(array)
         out = BytesIO()
@@ -195,6 +212,8 @@ def decompress_array(
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_mp3(buffer)
+    elif compr_type == VIDEO_COMPRESSION:
+        return _decompress_video(buffer)
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -236,6 +255,8 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
         )  # Note: shape and dtype info not included
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support audio samples.")
+    elif compr_type == VIDEO_COMPRESSION:
+        raise NotImplementedError("compress_multiple does not support video samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
@@ -294,6 +315,8 @@ def verify_compressed_file(
             return _verify_jpeg(file), "|u1"
         elif compression == "mp3":
             return _read_mp3_shape(file), "<f4"  # type: ignore
+        elif compression in ("mp4", "mkv", "avi"):
+            return _read_video_shape(file), "|u1"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -305,8 +328,11 @@ def verify_compressed_file(
 
 def get_compression(header=None, path=None):
     if path:
-        if path.lower().endswith(".mp3"):
-            return "mp3"
+        # These formats are recognized by file extension for now
+        file_formats = ["mp3", "mp4", "mkv", "avi"]
+        for fmt in file_formats:
+            if path.lower().endswith("." + fmt):
+                return fmt
     if header:
         if not Image.OPEN:
             Image.init()
@@ -482,6 +508,12 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_mp3_shape(file), "<f4"
             except Exception as e:
                 raise CorruptedSampleError("mp3")
+        elif compression in ("mp4", "mkv", "avi"):
+            try:
+                shape, typestr = _read_video_shape(file), "|u1"
+            except Exception as e:
+                raise (e)
+                raise CorruptedSampleError(compression)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -622,3 +654,123 @@ def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
     f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
     info = f_info(file)
     return (info.num_frames, info.nchannels)
+
+
+def _to_time(time):
+    h = int(time / 3600)
+    time %= 3600
+    m = int(time / 60)
+    time %= 60
+    return f"{h:02d}:{m:02d}:%s" % ("%05.2f" % time)
+
+
+def _strip_hub_mp4_header(buffer: bytes):
+    if buffer[: len(_HUB_MP4_HEADER)] == _HUB_MP4_HEADER:
+        return memoryview(buffer)[len(_HUB_MP4_HEADER) + 6 :]
+    return buffer
+
+
+def _decompress_video(
+    file: Union[bytes, memoryview, str],
+) -> np.ndarray:
+
+    shape = _read_video_shape(file)
+
+    command = [
+        FFMPEG_BINARY,
+        "-i",
+        "pipe:",
+        "-f",
+        "image2pipe",
+        "-pix_fmt",
+        "rgb24",
+        "-vcodec",
+        "rawvideo",
+        "-",
+    ]
+    if isinstance(file, str):
+        command[2] = file
+        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
+        raw_video = pipe.communicate()[0]
+    else:
+        file = _strip_hub_mp4_header(file)
+        pipe = sp.Popen(command, stdin=sp.PIPE, stdout=sp.PIPE, bufsize=10 ** 8)
+        raw_video = pipe.communicate(input=file)[0]
+    return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
+        shape
+    )
+
+
+def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
+    info = _get_video_info(file)
+    if info["duration"] is None:
+        nframes = -1
+    else:
+        nframes = math.floor(info["duration"] * info["rate"])
+    return (nframes, info["height"], info["width"], 3)
+
+
+def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
+    duration = None
+    fps = None
+    command = [
+        FFPROBE_BINARY,
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height,duration,r_frame_rate",
+        "-of",
+        "default=noprint_wrappers=1",
+        "pipe:",
+    ]
+
+    if isinstance(file, str):
+        command[-1] = file
+        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
+        raw_info = pipe.stdout.read()
+        pipe.communicate()
+    else:
+        if file[: len(_HUB_MP4_HEADER)] == _HUB_MP4_HEADER:
+            mv = memoryview(file)
+            n = len(_HUB_MP4_HEADER) + 2
+            duration = struct.unpack("f", mv[n : n + 4])[0]
+            file = mv[n + 4 :]
+        pipe = sp.Popen(
+            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
+        )
+        raw_info = pipe.communicate(input=file)[0]
+    ret = dict(
+        map(lambda kv: (bytes.decode(kv[0]), kv[1]), re.findall(INFO_RE, raw_info))
+    )
+    ret["width"] = int(ret["width"])
+    ret["height"] = int(ret["height"])
+    if "duration" in ret:
+        ret["duration"] = float(ret["duration"])
+    else:
+        ret["duration"] = duration
+    ret["rate"] = float(eval(ret["rate"]))
+    return ret
+
+
+_HUB_MP4_HEADER = b"HUB_MP4_CONVERTED"
+
+
+def _mp4_file_to_mkv_bytes(file: str):
+    command = [
+        "ffmpeg",
+        "-i",
+        file,
+        "-codec",
+        "copy",
+        "-f",
+        "matroska",
+        "pipe:",
+    ]
+
+    pipe = sp.Popen(command, stdin=sp.PIPE, stdout=sp.PIPE, bufsize=10 ** 5)
+    raw_video = pipe.communicate()[0]
+    info = _get_video_info(file)
+    raw_video = _HUB_MP4_HEADER + struct.pack("<Hf", 4, info["duration"]) + raw_video
+    return raw_video

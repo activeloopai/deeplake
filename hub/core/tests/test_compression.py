@@ -18,6 +18,7 @@ from hub.compression import (
     IMAGE_COMPRESSIONS,
     BYTE_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
     SUPPORTED_COMPRESSIONS,
 )
 from hub.util.exceptions import CorruptedSampleError
@@ -138,3 +139,15 @@ def test_audio(compression, audio_paths):
     assert arr.dtype == "float32"
     with open(path, "rb") as f:
         assert sample.compressed_bytes(compression) == f.read()
+
+
+@pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
+def test_video(compression, video_paths):
+    path = video_paths[compression]
+    sample = hub.read(path)
+    arr = np.array(sample)
+    assert arr.shape[-1] == 3
+    assert arr.dtype == "uint8"
+    if compression != "mp4":
+        with open(path, "rb") as f:
+            assert sample.compressed_bytes(compression) == f.read()
