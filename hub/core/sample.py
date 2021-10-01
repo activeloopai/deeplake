@@ -1,10 +1,7 @@
 # type: ignore
 from hub.core.compression import (
     compress_array,
-<<<<<<< HEAD
     compress_bytes,
-=======
->>>>>>> d1f2eaf080bed24efce0f8dbb19d2a9a9ab23004
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
@@ -174,14 +171,10 @@ class Sample:
                 compr = self._compression
                 if compr is None:
                     compr = get_compression(path=self.path)
-<<<<<<< HEAD
                 if get_compression_type(compr) in (
                     AUDIO_COMPRESSION,
                     VIDEO_COMPRESSION,
                 ):
-=======
-                if get_compression_type(compr) == AUDIO_COMPRESSION:
->>>>>>> d1f2eaf080bed24efce0f8dbb19d2a9a9ab23004
                     self._compression = compr
                     if self._array is None:
                         self._array = decompress_array(self.path, compression=compr)
@@ -205,11 +198,7 @@ class Sample:
             compr = self._compression
             if compr is None:
                 compr = get_compression(path=self.path)
-<<<<<<< HEAD
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
-=======
-            if get_compression_type(compr) == AUDIO_COMPRESSION:
->>>>>>> d1f2eaf080bed24efce0f8dbb19d2a9a9ab23004
                 self._compression = compr
                 array = decompress_array(self.path, compression=compr)
                 if self._shape is None:

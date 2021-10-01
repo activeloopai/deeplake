@@ -13,7 +13,6 @@ from hub.compression import (
     AUDIO_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
-from matplotlib.pyplot import get
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
