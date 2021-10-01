@@ -155,7 +155,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store video data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
     try:
         img = to_image(array)
