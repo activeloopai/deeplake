@@ -320,10 +320,15 @@ class CompressionError(Exception):
 
 
 class UnsupportedCompressionError(CompressionError):
-    def __init__(self, compression: str):
-        super().__init__(
-            f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
-        )
+    def __init__(self, compression: str, htype: Optional[str] = None):
+        if htype:
+            super().__init__(
+                f"Compression '{compression}' is not supported for {htype} htype."
+            )
+        else:
+            super().__init__(
+                f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
+            )
 
 
 class SampleCompressionError(CompressionError):
