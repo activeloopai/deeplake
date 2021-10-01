@@ -512,7 +512,6 @@ def read_meta_from_compressed_file(
             try:
                 shape, typestr = _read_video_shape(file), "|u1"
             except Exception as e:
-                raise (e)
                 raise CorruptedSampleError(compression)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
@@ -654,14 +653,6 @@ def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
     f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
     info = f_info(file)
     return (info.num_frames, info.nchannels)
-
-
-def _to_time(time):
-    h = int(time / 3600)
-    time %= 3600
-    m = int(time / 60)
-    time %= 60
-    return f"{h:02d}:{m:02d}:%s" % ("%05.2f" % time)
 
 
 def _strip_hub_mp4_header(buffer: bytes):
