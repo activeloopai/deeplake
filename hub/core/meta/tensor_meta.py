@@ -83,7 +83,7 @@ class TensorMeta(Meta):
     def update_shape_interval(self, shape: Tuple[int, ...]):
         ffw_tensor_meta(self)
 
-        if self.length <= 0:
+        if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
