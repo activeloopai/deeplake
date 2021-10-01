@@ -3,8 +3,8 @@ import pytest
 import numpy as np
 import gzip
 
-from hub.core.tiling.serialize_tiles import break_into_tiles, serialize_tiles
-from hub.core.tiling.deserialize_tiles import coalesce_tiles, deserialize_tiles
+from hub.core.tiling.serialize_tiles import break_into_tiles, serialize_tiles  # type: ignore
+from hub.core.tiling.deserialize_tiles import coalesce_tiles, deserialize_tiles  # type: ignore
 from hub.util.tiling import get_tile_shapes
 
 

@@ -1,7 +1,12 @@
 from typing import Callable, Tuple, Union
 import numpy as np
 
-from hub.util.tiling import tile_bounds, validate_is_serialized, validate_not_serialized, view
+from hub.util.tiling import (
+    tile_bounds,
+    validate_is_serialized,
+    validate_not_serialized,
+    view,
+)
 
 
 def coalesce_tiles(
