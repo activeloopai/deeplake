@@ -1,0 +1,194 @@
+name: Benchmark Hub
+on:
+  pull_request_target:
+    types: [labeled]
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ACTIVELOOP_HUB_PASSWORD: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+  REPOSITORY_PAT: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+  BASELINE_REF: pr-${{ github.event.number }}-baseline-${{ github.event.pull_request.base.ref }}
+  COMMIT_REF: pr-${{ github.event.number }}-commit-${{ github.event.pull_request.head.sha }}
+  MAIN_REPO_NAME: hub
+jobs:
+  benchmark-pr:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'triggger-benchmark') && github.repository == 'activeloopai/hub' }}
+    runs-on: [looprunner]
+    steps:
+      - name: Remove the benchmark approval label
+        if: always()
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          script: |
+            await github.issues.removeLabel({
+              issue_number: context.issue.number,
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              name: 'triggger-benchmark'
+            });
+      - name: Cancel previous runs if available
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+          access_token: ${{ github.token }}
+      - name: Creates initial issue comment
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.REPOSITORY_PAT }}
+          script: |
+            const workflowRunUrl =
+              process.env.GITHUB_SERVER_URL +
+              '/' +
+              process.env.GITHUB_REPOSITORY +
+              '/actions/runs/${{ github.run_id }}';
+             // Get the existing comments.
+            const {data: comments} = await github.issues.listComments({
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              issue_number: context.issue.number,
+            });
+            const commentFromBot = comments.find(
+              (item) => item.user.login === 'activeloop-bot'
+            );
+            if (commentFromBot) {
+              const prComment =
+                'We are currently redoing the benchmarks. Please wait until it completes.\n\nURL: ' +
+                workflowRunUrl + '\n SHA: ${{ github.event.pull_request.head.sha }}';
+              const commentId = commentFromBot.id;
+              await github.issues.updateComment({
+                issue_number: context.issue.number,
+                owner: 'activeloopai',
+                repo: '${{ env.MAIN_REPO_NAME }}',
+                comment_id: commentId,
+                body: prComment,
+              });
+            } else {
+              const prComment =
+                'Thank you for contributing to the Hub! :tada:\n\nWe are currently running benchmarks on your code. Please wait until it completes.\n\nURL: ' +
+                workflowRunUrl + '\n SHA: ${{ github.event.pull_request.head.sha }}';
+              await github.issues.createComment({
+                owner: 'activeloopai',
+                repo: '${{ env.MAIN_REPO_NAME }}',
+                issue_number: context.issue.number,
+                body: prComment,
+              });
+            }
+      - name: Cleans the workspace
+        run: rm -rdf baseline-source benchmark-source pr-source comment-temp
+      - name: Checkout the pull request source code
+        uses: actions/checkout@v2
+        with:
+          path: pr-source
+      - name: Checkout the Hub baseline source code
+        uses: actions/checkout@v2
+        with:
+          path: baseline-source
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.base.ref }}
+      - name: Checkout the Hub Benchmark source code
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub-benchmark
+          token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          path: benchmark-source
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Cache pip dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip # This path is specific to Ubuntu
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Sets up git username
+        run: |
+          git config --global user.name activeloop-bot
+          git config --global user.email bot@activeloop.ai
+      - name: Install Baseline Hub
+        run: |
+          python -m pip install --upgrade pip
+          cd baseline-source
+          pip install -r hub/requirements/common.txt
+          pip install -r hub/requirements/plugins.txt
+          pip install -r hub/requirements/tests.txt
+          python setup.py install
+      - name: Doing the benchmark and publishing results -> Hub baseline version
+        run: |
+          cd benchmark-source
+          pip install -r requirements.ci.txt
+          python run.py --all --github
+          python publish.py ${BASELINE_REF} --github
+      - name: Install Hub from PR
+        run: |
+          cd pr-source
+          pip install -r hub/requirements/common.txt
+          pip install -r hub/requirements/plugins.txt
+          pip install -r hub/requirements/tests.txt
+          python setup.py install
+      - name: Doing the benchmark and comparing with baseline -> Hub from PR
+        run: |
+          cd benchmark-source
+          python3 run.py --all --baseline=${BASELINE_REF} --github
+          python publish.py ${COMMIT_REF} --github
+      - name: Convert CSV to Markdown
+        run: |
+          pip install csv2md
+          mkdir comment-temp
+          csv2md benchmark-source/results/improvements.csv > comment-temp/improvements.md
+          csv2md benchmark-source/results/regressions.csv > comment-temp/regressions.md
+      - name: Add benchmark results from file as a comment on pulll requests
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          script: |
+            const commitRefEnv = process.env.COMMIT_REF;
+            const fs = require('fs');
+            const TOP_COUNT = 5; // Considering the top 5 only
+            const regressions = fs
+              .readFileSync('comment-temp/regressions.md', 'utf-8')
+              .split('\n')
+              .slice(0, TOP_COUNT + 2)
+              .filter((item) => item);
+            const improvements = fs
+              .readFileSync('comment-temp/improvements.md', 'utf-8')
+              .split('\n')
+              .slice(0, TOP_COUNT + 2)
+              .filter((item) => item);
+            let template =
+              '## Benchmark results 🚀 \n\n### Top 5 Regressions\nTABLE_REGRESSION\n\n\n### Top 5 Improvements\nTABLE_IMPROVEMENTS\n\n### Full results\n- [Full Improvenents List (Employees Only)](https://github.com/activeloopai/hub-benchmark-results/blob/' +
+              commitRefEnv +
+              '/improvements.csv)\n- [Full Regressions List (Employees Only)](https://github.com/activeloopai/hub-benchmark-results/blob/' +
+              commitRefEnv +
+              '/regressions.csv)\n';
+            const prComment = template
+              .replace(
+                'TABLE_REGRESSION',
+                regressions.length > 2 ? regressions.join('\n') : 'No Change'
+              )
+              .replace(
+                'TABLE_IMPROVEMENTS',
+                improvements.length > 2 ? improvements.join('\n') : 'No Change'
+              );
+            const {data: comments} = await github.issues.listComments({
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              issue_number: context.issue.number
+            });
+
+            const commentFromBot = comments.find(
+              (item) => item.user.login === 'activeloop-bot'
+            );
+
+            await github.issues.updateComment({
+              issue_number: context.issue.number,
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              comment_id: commentFromBot.id,
+              body: prComment,
+            });
