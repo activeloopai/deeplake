@@ -13,7 +13,7 @@ env:
   MAIN_REPO_NAME: hub
 jobs:
   benchmark-pr:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') && github.repository == 'activeloopai/hub' }}
+    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') && github.repository == 'activeloopai/hub' }}
     runs-on: [looprunner]
     steps:
       - name: Cancel previous runs if available
@@ -36,7 +36,7 @@ jobs:
       - name: Creates initial issue comment
         uses: actions/github-script@v3
         with:
-          github-token: ${{ secrets.REPOSITORY_PAT }}
+          github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
           script: |
             const workflowRunUrl =
               process.env.GITHUB_SERVER_URL +
@@ -131,7 +131,7 @@ jobs:
           pip install -r hub/requirements/plugins.txt
           pip install -r hub/requirements/tests.txt
           python setup.py install
-      - name: Doing the benchmark and comparing with baseline -> Hub from PR
+      - name: Doing the benchmark, publishing and comparing with baseline -> Hub from PR
         run: |
           cd benchmark-source
           python3 run.py --all --baseline=${BASELINE_REF} --github
@@ -142,8 +142,9 @@ jobs:
           mkdir comment-temp
           csv2md benchmark-source/results/improvements.csv > comment-temp/improvements.md
           csv2md benchmark-source/results/regressions.csv > comment-temp/regressions.md
-      - name: Add benchmark results from file as a comment on pulll requests
+      - name: Update benchmark results from file as a comment on pulll requests
         uses: actions/github-script@v3
+        if: success()
         with:
           github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
           script: |
@@ -185,6 +186,36 @@ jobs:
               (item) => item.user.login === 'activeloop-bot'
             );
 
+            await github.issues.updateComment({
+              issue_number: context.issue.number,
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              comment_id: commentFromBot.id,
+              body: prComment,
+            });
+            
+      - name: Update the comment if the job fails
+        uses: actions/github-script@v3
+        if: failure()
+        with:
+          github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          script: |
+            const {data: comments} = await github.issues.listComments({
+              owner: 'activeloopai',
+              repo: '${{ env.MAIN_REPO_NAME }}',
+              issue_number: context.issue.number
+            });
+
+            const commentFromBot = comments.find(
+              (item) => item.user.login === 'activeloop-bot'
+            );
+            const workflowRunUrl =
+              process.env.GITHUB_SERVER_URL +
+              '/' +
+              process.env.GITHUB_REPOSITORY +
+              '/actions/runs/${{ github.run_id }}';
+            const prComment = 'Benchmark failed for ${{ github.event.pull_request.head.sha }}, please check: ' + workflowRunUrl;
+            
             await github.issues.updateComment({
               issue_number: context.issue.number,
               owner: 'activeloopai',
