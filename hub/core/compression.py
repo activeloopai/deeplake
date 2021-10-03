@@ -351,7 +351,7 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = ["mp3", "mp4", "mkv", "avi"]
+        file_formats = ["mp3", "flac", "wav", "mp4", "mkv", "avi"]
         for fmt in file_formats:
             if path.lower().endswith("." + fmt):
                 return fmt
