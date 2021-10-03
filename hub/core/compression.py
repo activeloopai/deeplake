@@ -37,7 +37,8 @@ from miniaudio import (
     wav_read_f32,
     wav_get_file_info,
     wav_get_info,
-)  # type: ignore
+)
+from numpy.core.fromnumeric import compress  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -204,12 +205,8 @@ def decompress_array(
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
-    elif compression == "mp3":
-        return _decompress_mp3(buffer)
-    elif compression == "flac":
-        return _decompress_flac(buffer)
-    elif compression == "wav":
-        return _decompress_wav(buffer)
+    elif compr_type == AUDIO_COMPRESSION:
+        return _decompress_audio(buffer, compression)
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -307,8 +304,8 @@ def verify_compressed_file(
             return _verify_png(file)
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
-        elif compression == "mp3":
-            return _read_mp3_shape(file), "<f4"  # type: ignore
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            return _read_audio_shape(file, compression), "<f4"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -495,21 +492,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
-        elif compression == "mp3":
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
-                shape, typestr = _read_mp3_shape(file), "<f4"
+                shape, typestr = _read_audio_shape(file, compression), "<f4"
             except Exception as e:
-                raise CorruptedSampleError("mp3")
-        elif compression == "flac":
-            try:
-                shape, typestr = _read_flac_shape(file), "<f4"
-            except Exception as e:
-                raise CorruptedSampleError("flac")
-        elif compression == "wav":
-            try:
-                shape, typestr = _read_wav_shape(file), "<f4"
-            except Exception as e:
-                raise CorruptedSampleError("wav")
+                raise CorruptedSampleError(compress)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -629,22 +616,12 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
     return shape, typstr  # type: ignore
 
 
-def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
-    return _decompress_audio(file, decompressor)
-
-
-def _decompress_flac(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    decompressor = flac_read_file_f32 if isinstance(file, str) else flac_read_f32
-    return _decompress_audio(file, decompressor)
-
-
-def _decompress_wav(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    decompressor = wav_read_file_f32 if isinstance(file, str) else wav_read_f32
-    return _decompress_audio(file, decompressor)
-
-
-def _decompress_audio(file: Union[bytes, memoryview, str], decompressor) -> np.ndarray:
+def _decompress_audio(
+    file: Union[bytes, memoryview, str], compression: str
+) -> np.ndarray:
+    decompressor = globals()[
+        f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
+    ]
     if isinstance(file, memoryview):
         if (
             isinstance(file.obj, bytes)
@@ -660,25 +637,11 @@ def _decompress_audio(file: Union[bytes, memoryview, str], decompressor) -> np.n
     )
 
 
-def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
-
-
-def _read_flac_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = flac_get_file_info if isinstance(file, str) else flac_get_info
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
-
-
-def _read_wav_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = wav_get_file_info if isinstance(file, str) else wav_get_info
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
-
-
-def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
+def _read_audio_shape(
+    file: Union[bytes, memoryview, str], compression: str
+) -> Tuple[int, ...]:
+    f_info = globals()[
+        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
+    ]
     info = f_info(file)
     return (info.num_frames, info.nchannels)
