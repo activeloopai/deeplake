@@ -16,6 +16,11 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') && github.repository == 'activeloopai/hub' }}
     runs-on: [looprunner]
     steps:
+      - name: Cancel previous runs if available
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+          access_token: ${{ github.token }}
       - name: Remove the benchmark approval label
         if: always()
         uses: actions/github-script@v3
@@ -28,11 +33,6 @@ jobs:
               repo: '${{ env.MAIN_REPO_NAME }}',
               name: 'trigger-benchmark'
             });
-      - name: Cancel previous runs if available
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Creates initial issue comment
         uses: actions/github-script@v3
         with:
