@@ -13,7 +13,7 @@ env:
   MAIN_REPO_NAME: hub
 jobs:
   benchmark-pr:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'triggger-benchmark') && github.repository == 'activeloopai/hub' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') && github.repository == 'activeloopai/hub' }}
     runs-on: [looprunner]
     steps:
       - name: Remove the benchmark approval label
@@ -26,7 +26,7 @@ jobs:
               issue_number: context.issue.number,
               owner: 'activeloopai',
               repo: '${{ env.MAIN_REPO_NAME }}',
-              name: 'triggger-benchmark'
+              name: 'trigger-benchmark'
             });
       - name: Cancel previous runs if available
         uses: styfle/cancel-workflow-action@0.9.1
