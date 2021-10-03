@@ -37,7 +37,7 @@ from miniaudio import (
     wav_read_f32,
     wav_get_file_info,
     wav_get_info,
-)
+)  # type: ignore
 from numpy.core.fromnumeric import compress  # type: ignore
 
 
@@ -617,7 +617,7 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
 
 
 def _decompress_audio(
-    file: Union[bytes, memoryview, str], compression: str
+    file: Union[bytes, memoryview, str], compression: Optional[str]
 ) -> np.ndarray:
     decompressor = globals()[
         f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
