@@ -84,6 +84,8 @@ _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
 
+_HUB_MKV_HEADER = b"HUB_MKV_META"
+
 
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
@@ -655,8 +657,8 @@ def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
 
 
 def _strip_hub_mp4_header(buffer: bytes):
-    if buffer[: len(_HUB_MP4_HEADER)] == _HUB_MP4_HEADER:
-        return memoryview(buffer)[len(_HUB_MP4_HEADER) + 6 :]
+    if buffer[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
+        return memoryview(buffer)[len(_HUB_MKV_HEADER) + 6 :]
     return buffer
 
 
@@ -704,11 +706,8 @@ def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
 
 def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
     duration = None
-    fps = None
     command = [
         FFPROBE_BINARY,
-        "-v",
-        "error",
         "-select_streams",
         "v:0",
         "-show_entries",
@@ -722,11 +721,14 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
         command[-1] = file
         pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
         raw_info = pipe.stdout.read()
+        raw_err = pipe.stderr.read()
         pipe.communicate()
+        duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])
+        duration = to_seconds(duration)
     else:
-        if file[: len(_HUB_MP4_HEADER)] == _HUB_MP4_HEADER:
+        if file[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
             mv = memoryview(file)
-            n = len(_HUB_MP4_HEADER) + 2
+            n = len(_HUB_MKV_HEADER) + 2
             duration = struct.unpack("f", mv[n : n + 4])[0]
             file = mv[n + 4 :]
         pipe = sp.Popen(
@@ -746,10 +748,14 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
     return ret
 
 
-_HUB_MP4_HEADER = b"HUB_MP4_CONVERTED"
+DURATION_RE = rb"Duration: ([0-9:.]+),"
 
 
-def _mp4_file_to_mkv_bytes(file: str):
+def to_seconds(time):
+    return sum([60 ** i * float(j) for (i, j) in enumerate(time.split(":")[::-1])])
+
+
+def _to_hub_mkv(file: str):
     command = [
         "ffmpeg",
         "-i",
@@ -764,7 +770,9 @@ def _mp4_file_to_mkv_bytes(file: str):
     pipe = sp.Popen(
         command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
     )
-    raw_video = pipe.communicate()[0]
-    info = _get_video_info(file)
-    raw_video = _HUB_MP4_HEADER + struct.pack("<Hf", 4, info["duration"]) + raw_video
-    return raw_video
+    raw_info = pipe.communicate()[1]
+    duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])
+    duration = to_seconds(duration)
+    mkv = pipe.communicate()[0]
+    mkv = _HUB_MKV_HEADER + struct.pack("<Hf", 4, duration) + mkv
+    return mkv

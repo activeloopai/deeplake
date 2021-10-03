@@ -148,6 +148,6 @@ def test_video(compression, video_paths):
     arr = np.array(sample)
     assert arr.shape[-1] == 3
     assert arr.dtype == "uint8"
-    if compression != "mp4":
+    if compression not in ("mp4", "mkv"):
         with open(path, "rb") as f:
             assert sample.compressed_bytes(compression) == f.read()

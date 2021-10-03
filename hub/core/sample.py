@@ -6,7 +6,7 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
-    _mp4_file_to_mkv_bytes,
+    _to_hub_mkv,
 )
 from hub.compression import (
     get_compression_type,
@@ -129,8 +129,11 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
-                if self._compression == "mp4":  # mp4 byte stream is not seekable
-                    compressed_bytes = _mp4_file_to_mkv_bytes(self.path)
+                if self._compression in (
+                    "mp4",
+                    "mkv",
+                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
+                    compressed_bytes = _to_hub_mkv(self.path)
                 else:
                     with open(self.path, "rb") as f:
                         compressed_bytes = f.read()
