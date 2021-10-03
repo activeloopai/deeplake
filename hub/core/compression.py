@@ -26,7 +26,20 @@ import lz4.frame  # type: ignore
 import os
 import subprocess as sp
 import tempfile
-from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
+from miniaudio import (
+    mp3_read_file_f32,
+    mp3_read_f32,
+    mp3_get_file_info,
+    mp3_get_info,
+    flac_read_file_f32,
+    flac_read_f32,
+    flac_get_file_info,
+    flac_get_info,
+    wav_read_file_f32,
+    wav_read_f32,
+    wav_get_file_info,
+    wav_get_info,
+)  # type: ignore
 import math
 
 
@@ -211,8 +224,12 @@ def decompress_array(
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
-    elif compr_type == AUDIO_COMPRESSION:
+    elif compression == "mp3":
         return _decompress_mp3(buffer)
+    elif compression == "flac":
+        return _decompress_flac(buffer)
+    elif compression == "wav":
+        return _decompress_wav(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer)
     try:
@@ -316,6 +333,10 @@ def verify_compressed_file(
             return _verify_jpeg(file), "|u1"
         elif compression == "mp3":
             return _read_mp3_shape(file), "<f4"  # type: ignore
+        elif compression == "flac":
+            return _read_flac_shape(file), "<f4"  # type: ignore
+        elif compression == "wav":
+            return _read_wav_shape(file), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
             return _read_video_shape(file), "|u1"
         else:
@@ -509,6 +530,16 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_mp3_shape(file), "<f4"
             except Exception as e:
                 raise CorruptedSampleError("mp3")
+        elif compression == "flac":
+            try:
+                shape, typestr = _read_flac_shape(file), "<f4"
+            except Exception as e:
+                raise CorruptedSampleError("flac")
+        elif compression == "wav":
+            try:
+                shape, typestr = _read_wav_shape(file), "<f4"
+            except Exception as e:
+                raise CorruptedSampleError("wav")
         elif compression in ("mp4", "mkv", "avi"):
             try:
                 shape, typestr = _read_video_shape(file), "|u1"
@@ -635,6 +666,20 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
 
 def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
     decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
+    return _decompress_audio(file, decompressor)
+
+
+def _decompress_flac(file: Union[bytes, memoryview, str]) -> np.ndarray:
+    decompressor = flac_read_file_f32 if isinstance(file, str) else flac_read_f32
+    return _decompress_audio(file, decompressor)
+
+
+def _decompress_wav(file: Union[bytes, memoryview, str]) -> np.ndarray:
+    decompressor = wav_read_file_f32 if isinstance(file, str) else wav_read_f32
+    return _decompress_audio(file, decompressor)
+
+
+def _decompress_audio(file: Union[bytes, memoryview, str], decompressor) -> np.ndarray:
     if isinstance(file, memoryview):
         if (
             isinstance(file.obj, bytes)
@@ -652,6 +697,18 @@ def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
 
 def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
     f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
+    info = f_info(file)
+    return (info.num_frames, info.nchannels)
+
+
+def _read_flac_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
+    f_info = flac_get_file_info if isinstance(file, str) else flac_get_info
+    info = f_info(file)
+    return (info.num_frames, info.nchannels)
+
+
+def _read_wav_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
+    f_info = wav_get_file_info if isinstance(file, str) else wav_get_info
     info = f_info(file)
     return (info.num_frames, info.nchannels)
 
