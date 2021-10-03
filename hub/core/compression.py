@@ -24,7 +24,7 @@ import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
 import os
 import tempfile
-from miniaudio import (
+from miniaudio import (  # type: ignore
     mp3_read_file_f32,
     mp3_read_f32,
     mp3_get_file_info,
@@ -37,7 +37,7 @@ from miniaudio import (
     wav_read_f32,
     wav_get_file_info,
     wav_get_info,
-)  # type: ignore
+)
 from numpy.core.fromnumeric import compress  # type: ignore
 
 
