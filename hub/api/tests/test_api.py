@@ -676,6 +676,8 @@ def test_compressions_list():
         "jpeg2000",
         "lz4",
         "mp3",
+        "flac",
+        "wav",
         "pcx",
         "png",
         "ppm",
