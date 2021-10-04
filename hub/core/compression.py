@@ -327,6 +327,8 @@ def verify_compressed_file(
         if close:
             file.close()  # type: ignore
 
+    return
+
 
 def get_compression(header=None, path=None):
     if path:
