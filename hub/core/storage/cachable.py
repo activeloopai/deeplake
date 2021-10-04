@@ -27,7 +27,7 @@ class Cachable(ABC):
         self.__dict__.update(state)
 
     def tobytes(self) -> bytes:
-        return bytes(json.dumps(self.__getstate__()), "utf-8")
+        return bytes(json.dumps(self.__getstate__()), sort_keys=True, indent=4)
 
     def copy(self):
         return self.frombuffer(self.tobytes())
