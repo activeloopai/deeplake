@@ -47,7 +47,7 @@ jobs:
       - name: Doing the benchmark and publishing results -> Hub baseline version
         run: |
           cd benchmark-source
-          export BRANCH_NAME $(echo $GITHUB_REF | sed 's/refs\/heads\///g')
+          export BRANCH_NAME=$(echo $GITHUB_REF | sed 's/refs\/heads\///g')
           pip install -r requirements.ci.txt
           python run.py --all --github
           python publish.py ${BRANCH_NAME} --github
