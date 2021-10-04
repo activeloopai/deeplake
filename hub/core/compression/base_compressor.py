@@ -13,8 +13,6 @@ class BaseCompressor(ABC):
     _image: Image = None
 
     def __init__(self, item):
-        # TODO: docstring + types, also common field variables
-
         if isinstance(item, BytesIO):
             self._bytesio_object = item
         elif isinstance(item, str):
@@ -71,9 +69,10 @@ class BaseCompressor(ABC):
         return self._image
 
     def verify(self):
-        # TODO: docstring + types
         pass
 
     def read_shape_and_dtype(self) -> Tuple[Tuple[int, ...], str]:
-        # TODO: docstring + types
+        pass
+
+    def decompress(self):
         pass

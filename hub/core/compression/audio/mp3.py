@@ -18,8 +18,6 @@ class MP3(BaseCompressor):
         return (info.num_frames, info.nchannels), _MP3_DTYPE
 
     def decompress(self):
-        # TODO: put in base class
-
         if self.file is not None:
             raw_audio = mp3_read_file_f32(self.file)
         else:
