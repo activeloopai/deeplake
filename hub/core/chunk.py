@@ -13,7 +13,7 @@ from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
-from hub.core.compression import (
+from hub.util.compression import (
     compress_multiple,
     decompress_multiple,
     compress_bytes,

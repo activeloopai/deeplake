@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import hub
 import lz4.frame  # type: ignore
-from hub.core.compression import (
+from hub.util.compression import (
     compress_array,
     decompress_array,
     compress_multiple,

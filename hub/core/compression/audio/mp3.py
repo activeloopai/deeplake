@@ -1,5 +1,5 @@
 from typing import Tuple, Union
-from hub.core._compression import BaseCompressor
+from hub.core.compression import BaseCompressor
 import numpy as np
 
 from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore

@@ -1,5 +1,5 @@
 # type: ignore
-from hub.core.compression import (
+from hub.util.compression import (
     compress_array,
     decompress_array,
     verify_compressed_file,
