@@ -1,4 +1,3 @@
-import re
 import hub
 from hub.core.compression import JPEG, PNG, MP3
 from hub.util.exceptions import (

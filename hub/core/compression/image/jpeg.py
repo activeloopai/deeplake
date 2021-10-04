@@ -43,16 +43,12 @@ _JPEG_DTYPE = "|u1"
 
 class JPEG(BaseCompressor):
     def verify(self):
-        # TODO: docstring
-
         if self.file is not None:
             return _verify_jpeg_file(self.file), _JPEG_DTYPE
 
         return _verify_jpeg_buffer(self.buffer), _JPEG_DTYPE
 
     def read_shape_and_dtype(self):
-        # TODO: formerly _read_jpeg_shape
-
         if self.file is not None:
             return _read_jpeg_shape_from_file(self.file), _JPEG_DTYPE
 
