@@ -346,4 +346,3 @@ def read_meta_from_compressed_file(
     finally:
         if close:
             f.close()
-

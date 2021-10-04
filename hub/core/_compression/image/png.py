@@ -4,7 +4,6 @@ from PIL import Image  # type: ignore
 
 
 class PNG(BaseCompressor):
-
     def verify(self):
         self.image.verify()
         return Image._conv_type_shape(self.image)
@@ -41,4 +40,3 @@ class PNG(BaseCompressor):
                 nlayers = 4
         shape = size if nlayers is None else size + (nlayers,)
         return shape, typstr  # type: ignore
-    
