@@ -44,7 +44,10 @@ class BaseCompressor(ABC):
     @property
     def image(self) -> Image:
         if self._image is None:
-            self._image = Image.open(self.buffer)
+            if self.file is not None:
+                self._image = Image.open(self.file)
+            else:
+                self._image = Image.open(self.bytesio_object)
         return self._image
 
     def verify(self):

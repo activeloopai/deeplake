@@ -1,6 +1,6 @@
 import hub
 from hub.core._compression import NATIVE_INT32, STRUCT_II
-from hub.core._compression.image.jpeg import JPEG
+from hub.core._compression import JPEG, PNG
 from hub.util.compression import re_find_first
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -246,7 +246,7 @@ def verify_compressed_file(
         close = False
     try:
         if compression == "png":
-            return _verify_png(file)
+            return PNG(file).verify()
         elif compression == "jpeg":
             return JPEG(file).verify()
         elif compression == "mp3":
@@ -272,14 +272,6 @@ def get_compression(header=None, path=None):
             if accept and accept(header):
                 return fmt.lower()
         raise SampleDecompressionError()
-
-
-def _verify_png(buf):
-    if not hasattr(buf, "read"):
-        buf = BytesIO(buf)
-    img = Image.open(buf)
-    img.verify()
-    return Image._conv_type_shape(img)
 
 
 def _fast_decompress(buf):
