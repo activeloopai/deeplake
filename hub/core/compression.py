@@ -1,4 +1,7 @@
 import hub
+from hub.core._compression import NATIVE_INT32, STRUCT_II
+from hub.core._compression.image.jpeg import JPEG
+from hub.util.compression import re_find_first
 from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
@@ -25,50 +28,6 @@ import lz4.frame  # type: ignore
 import os
 import tempfile
 from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
-
-
-if sys.byteorder == "little":
-    _NATIVE_INT32 = "<i4"
-    _NATIVE_FLOAT32 = "<f4"
-else:
-    _NATIVE_INT32 = ">i4"
-    _NATIVE_FLOAT32 = ">f4"
-
-
-_JPEG_SOFS = [
-    b"\xff\xc0",
-    b"\xff\xc2",
-    b"\xff\xc1",
-    b"\xff\xc3",
-    b"\xff\xc5",
-    b"\xff\xc6",
-    b"\xff\xc7",
-    b"\xff\xc9",
-    b"\xff\xca",
-    b"\xff\xcb",
-    b"\xff\xcd",
-    b"\xff\xce",
-    b"\xff\xcf",
-    b"\xff\xde",
-    # Skip:
-    b"\xff\xcc",
-    b"\xff\xdc",
-    b"\xff\xdd",
-    b"\xff\xdf",
-    # App: (0xFFE0 - 0xFFEF):
-    *map(lambda x: x.to_bytes(2, "big"), range(0xFFE0, 0xFFF0)),
-    # DQT:
-    b"\xff\xdb",
-    # COM:
-    b"\xff\xfe",
-    # Start of scan
-    b"\xff\xda",
-]
-
-_JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
-_JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
-_STRUCT_HHB = struct.Struct(">HHB")
-_STRUCT_II = struct.Struct(">ii")
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -289,7 +248,7 @@ def verify_compressed_file(
         if compression == "png":
             return _verify_png(file)
         elif compression == "jpeg":
-            return _verify_jpeg(file), "|u1"
+            return JPEG(file).verify()
         elif compression == "mp3":
             return _read_mp3_shape(file), "<f4"  # type: ignore
         else:
@@ -321,100 +280,6 @@ def _verify_png(buf):
     img = Image.open(buf)
     img.verify()
     return Image._conv_type_shape(img)
-
-
-def _verify_jpeg(f):
-    if hasattr(f, "read"):
-        return _verify_jpeg_file(f)
-    return _verify_jpeg_buffer(f)
-
-
-def _verify_jpeg_buffer(buf: bytes):
-    # Start of Image
-    mview = memoryview(buf)
-    assert buf.startswith(b"\xff\xd8")
-    # Look for Start of Frame
-    sof_idx = -1
-    offset = 0
-    while True:
-        match = _re_find_first(_JPEG_SOFS_RE, mview[offset:])
-        if match is None:
-            break
-        idx = match.start(0) + offset
-        marker = buf[idx : idx + 2]
-        if marker == _JPEG_SOFS[-1]:
-            break
-        elif marker in _JPEG_SKIP_MARKERS:
-            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
-        else:
-            sof_idx = idx
-            offset = idx + 2
-    if sof_idx == -1:
-        raise Exception()
-
-    length = int.from_bytes(mview[sof_idx + 2 : sof_idx + 4], "big")
-    assert mview[sof_idx + length + 2 : sof_idx + length + 4] in [
-        b"\xff\xc4",
-        b"\xff\xdb",
-        b"\xff\xdd",
-    ]  # DHT, DQT, DRI
-    shape = _STRUCT_HHB.unpack(mview[sof_idx + 5 : sof_idx + 10])
-    assert buf.find(b"\xff\xd9") != -1
-    if shape[-1] in (1, None):
-        shape = shape[:-1]
-    return shape
-
-
-def _verify_jpeg_file(f):
-    # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
-    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-    mv = memoryview(mm)
-    try:
-        soi = f.read(2)
-        # Start of Image
-        assert soi == b"\xff\xd8"
-
-        # Look for Start of Frame
-        sof_idx = -1
-        offset = 0
-        while True:
-            view = mv[offset:]
-            match = _re_find_first(_JPEG_SOFS_RE, view)
-            view.release()
-            if match is None:
-                break
-            idx = match.start(0) + offset
-            marker = mm[idx : idx + 2]
-            if marker == _JPEG_SOFS[-1]:
-                break
-            elif marker in _JPEG_SKIP_MARKERS:
-                f.seek(idx + 2)
-                offset = idx + int.from_bytes(f.read(2), "big")
-            else:
-                sof_idx = idx
-                offset = idx + 2
-        if sof_idx == -1:
-            raise Exception()  # Caught by verify_compressed_file()
-
-        f.seek(sof_idx + 2)
-        length = int.from_bytes(f.read(2), "big")
-        f.seek(length - 2, 1)
-        definition_start = f.read(2)
-        assert definition_start in [
-            b"\xff\xc4",
-            b"\xff\xdb",
-            b"\xff\xdd",
-        ]  # DHT, DQT, DRI
-        f.seek(sof_idx + 5)
-        shape = _STRUCT_HHB.unpack(f.read(5))
-        # TODO this check is too slow
-        assert mm.find(b"\xff\xd9") != -1  # End of Image
-        if shape[-1] in (1, None):
-            shape = shape[:-1]
-        return shape
-    finally:
-        mv.release()
-        mm.close()
 
 
 def _fast_decompress(buf):
@@ -467,7 +332,7 @@ def read_meta_from_compressed_file(
                 compression = get_compression(f[:32], path)  # type: ignore
         if compression == "jpeg":
             try:
-                shape, typestr = _read_jpeg_shape(f), "|u1"
+                shape, typestr = JPEG(f).read_shape_and_dtype()
             except Exception:
                 raise CorruptedSampleError("jpeg")
         elif compression == "png":
@@ -490,87 +355,13 @@ def read_meta_from_compressed_file(
             f.close()
 
 
-def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
-    if hasattr(f, "read"):
-        return _read_jpeg_shape_from_file(f)
-    return _read_jpeg_shape_from_buffer(f)  # type: ignore
-
-
-def _re_find_first(pattern, string):
-    for match in re.finditer(pattern, string):
-        return match
-
-
-def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
-    """Reads shape of a jpeg image from file without loading the whole image in memory"""
-    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
-    mv = memoryview(mm)
-    try:
-        # Look for Start of Frame
-        sof_idx = -1
-        offset = 0
-        while True:
-            view = mv[offset:]
-            match = _re_find_first(_JPEG_SOFS_RE, view)
-            view.release()
-            if match is None:
-                break
-            idx = match.start(0) + offset
-            marker = mm[idx : idx + 2]
-            if marker == _JPEG_SOFS[-1]:
-                break
-            elif marker in _JPEG_SKIP_MARKERS:
-                f.seek(idx + 2)
-                offset = idx + int.from_bytes(f.read(2), "big")
-            else:
-                sof_idx = idx
-                offset = idx + 2
-        if sof_idx == -1:
-            raise Exception()
-        f.seek(sof_idx + 5)
-        shape = _STRUCT_HHB.unpack(f.read(5))  # type: ignore
-        if shape[-1] in (1, None):
-            shape = shape[:-1]
-        return shape
-    finally:
-        mv.release()
-        mm.close()
-
-
-def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
-    """Gets shape of a jpeg file from its contents"""
-    # Look for Start of Frame
-    mv = memoryview(buf)
-    sof_idx = -1
-    offset = 0
-    while True:
-        match = _re_find_first(_JPEG_SOFS_RE, mv[offset:])
-        if match is None:
-            break
-        idx = match.start(0) + offset
-        marker = buf[idx : idx + 2]
-        if marker == _JPEG_SOFS[-1]:
-            break
-        elif marker in _JPEG_SKIP_MARKERS:
-            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
-        else:
-            sof_idx = idx
-            offset = idx + 2
-    if sof_idx == -1:
-        raise Exception()
-    shape = _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
-    if shape[-1] in (1, None):
-        shape = shape[:-1]
-    return shape
-
-
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
     """Reads shape and dtype of a png file from a file like object or file contents.
     If a file like object is provided, all of its contents are NOT loaded into memory."""
     if not hasattr(f, "read"):
         f = BytesIO(f)  # type: ignore
     f.seek(16)  # type: ignore
-    size = _STRUCT_II.unpack(f.read(8))[::-1]  # type: ignore
+    size = STRUCT_II.unpack(f.read(8))[::-1]  # type: ignore
     bits, colors = f.read(2)  # type: ignore
 
     # Get the number of channels and dtype based on bits and colors:
@@ -578,7 +369,7 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
         if bits == 1:
             typstr = "|b1"
         elif bits == 16:
-            typstr = _NATIVE_INT32
+            typstr = NATIVE_INT32
         else:
             typstr = "|u1"
         nlayers = None
