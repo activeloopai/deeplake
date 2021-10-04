@@ -16,4 +16,4 @@ STRUCT_II = struct.Struct(">ii")
 from .base_compressor import BaseCompressor
 from .image.jpeg import JPEG
 from .image.png import PNG
-from .audio.mp3 import MP3, decompress_mp3
+from .audio.mp3 import MP3

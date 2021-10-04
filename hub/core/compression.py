@@ -1,7 +1,7 @@
 import hub
 from hub.core._compression import NATIVE_INT32, STRUCT_II
 from hub.core._compression import JPEG, PNG
-from hub.core._compression.audio.mp3 import MP3, decompress_mp3
+from hub.core._compression.audio.mp3 import MP3
 from hub.util.compression import re_find_first
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -151,7 +151,7 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return decompress_mp3(buffer)
+        return MP3(buffer).decompress()
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
