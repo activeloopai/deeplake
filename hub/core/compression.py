@@ -294,11 +294,11 @@ def decompress_multiple(
 
 
 def verify_compressed_file(
-    file: Union[str, BinaryIO, bytes], compression: str
+    file: Union[str, BinaryIO, bytes, memoryview], compression: str
 ) -> Tuple[Tuple[int, ...], str]:
     """Verify the contents of an image file
     Args:
-        file (Union[str, BinaryIO]): Path to the file or file like object or contents of the file
+        file (Union[str, BinaryIO, bytes, memoryview]): Path to the file or file like object or contents of the file
         compression (str): Expected compression of the image file
     """
     if isinstance(file, str):
@@ -317,7 +317,8 @@ def verify_compressed_file(
         elif compression == "mp3":
             return _read_mp3_shape(file), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
-            return _read_video_shape(file), "|u1"
+            if isinstance(file, (bytes, memoryview, str)):
+                return _read_video_shape(file), "|u1"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -689,7 +690,7 @@ def _decompress_video(
         pipe = sp.Popen(
             command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
         )
-        raw_video = pipe.communicate(input=file)[0]
+        raw_video = pipe.communicate(input=file)[0]  # type: ignore
     return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
         shape
     )
