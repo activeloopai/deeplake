@@ -295,7 +295,7 @@ def decompress_multiple(
 
 def verify_compressed_file(
     file: Union[str, BinaryIO, bytes, memoryview], compression: str
-) -> Tuple[Tuple[int, ...], str]:
+) -> Union[Tuple[Tuple[int, ...], str], None]:
     """Verify the contents of an image file
     Args:
         file (Union[str, BinaryIO, bytes, memoryview]): Path to the file or file like object or contents of the file
