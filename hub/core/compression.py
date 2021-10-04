@@ -329,8 +329,9 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError("jpeg")
         elif compression == "png":
             try:
-                shape, typestr = _read_png_shape_and_dtype(f)
+                shape, typestr = PNG(f).read_shape_and_dtype()
             except Exception:
+                # TODO: better way to raise corrupted sample errors
                 raise CorruptedSampleError("png")
         elif compression == "mp3":
             try:
@@ -345,41 +346,6 @@ def read_meta_from_compressed_file(
     finally:
         if close:
             f.close()
-
-
-def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
-    """Reads shape and dtype of a png file from a file like object or file contents.
-    If a file like object is provided, all of its contents are NOT loaded into memory."""
-    if not hasattr(f, "read"):
-        f = BytesIO(f)  # type: ignore
-    f.seek(16)  # type: ignore
-    size = STRUCT_II.unpack(f.read(8))[::-1]  # type: ignore
-    bits, colors = f.read(2)  # type: ignore
-
-    # Get the number of channels and dtype based on bits and colors:
-    if colors == 0:
-        if bits == 1:
-            typstr = "|b1"
-        elif bits == 16:
-            typstr = NATIVE_INT32
-        else:
-            typstr = "|u1"
-        nlayers = None
-    else:
-        typstr = "|u1"
-        if colors == 2:
-            nlayers = 3
-        elif colors == 3:
-            nlayers = None
-        elif colors == 4:
-            if bits == 8:
-                nlayers = 2
-            else:
-                nlayers = 4
-        else:
-            nlayers = 4
-    shape = size if nlayers is None else size + (nlayers,)
-    return shape, typstr  # type: ignore
 
 
 def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
