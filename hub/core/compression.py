@@ -720,10 +720,10 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
     if isinstance(file, str):
         command[-1] = file
         pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
-        raw_info = pipe.stdout.read()
-        raw_err = pipe.stderr.read()
+        raw_info = pipe.stdout.read()  # type: ignore
+        raw_err = pipe.stderr.read()  # type: ignore
         pipe.communicate()
-        duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])
+        duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])  # type: ignore
         duration = to_seconds(duration)
     else:
         if file[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
@@ -748,7 +748,7 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
     return ret
 
 
-DURATION_RE = rb"Duration: ([0-9:.]+),"
+DURATION_RE = re.compile(rb"Duration: ([0-9:.]+),")
 
 
 def to_seconds(time):
@@ -771,7 +771,7 @@ def _to_hub_mkv(file: str):
         command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
     )
     raw_info = pipe.communicate()[1]
-    duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])
+    duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])  # type: ignore
     duration = to_seconds(duration)
     mkv = pipe.communicate()[0]
     mkv = _HUB_MKV_HEADER + struct.pack("<Hf", 4, duration) + mkv
