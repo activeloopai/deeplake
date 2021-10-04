@@ -44,9 +44,9 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
 * Rapid data processing using transformations on distributed compute
 * Data pipelines
+* Dataset version control (alpha)
 
 ### Coming Soon
-* Dataset version control
 * Dataset hosting on Azure
 * Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
