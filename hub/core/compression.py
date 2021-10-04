@@ -1,6 +1,7 @@
 import hub
 from hub.core._compression import NATIVE_INT32, STRUCT_II
 from hub.core._compression import JPEG, PNG
+from hub.core._compression.audio.mp3 import MP3, decompress_mp3
 from hub.util.compression import re_find_first
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -27,7 +28,6 @@ import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
 import os
 import tempfile
-from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -151,7 +151,7 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return _decompress_mp3(buffer)
+        return decompress_mp3(buffer)
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -250,7 +250,7 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return JPEG(file).verify()
         elif compression == "mp3":
-            return _read_mp3_shape(file), "<f4"  # type: ignore
+            return MP3(file).read_shape_and_dtype()
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -335,7 +335,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError("png")
         elif compression == "mp3":
             try:
-                shape, typestr = _read_mp3_shape(file), "<f4"
+                shape, typestr = MP3(file).read_shape_and_dtype()
             except Exception as e:
                 raise CorruptedSampleError("mp3")
         else:
@@ -347,25 +347,3 @@ def read_meta_from_compressed_file(
         if close:
             f.close()
 
-
-def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
-    if isinstance(file, memoryview):
-        if (
-            isinstance(file.obj, bytes)
-            and file.strides == (1,)
-            and file.shape == (len(file.obj),)
-        ):
-            file = file.obj
-        else:
-            file = bytes(file)
-    raw_audio = decompressor(file)
-    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
-        raw_audio.num_frames, raw_audio.nchannels
-    )
-
-
-def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
