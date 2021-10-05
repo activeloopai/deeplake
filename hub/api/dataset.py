@@ -347,9 +347,8 @@ class dataset:
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
-        if os.path.isdir(dest):
-            if os.path.samefile(src, dest):
-                raise SamePathException(src)
+        if os.path.isdir(dest) and os.path.samefile(src, dest):
+            raise SamePathException(src)
 
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)
