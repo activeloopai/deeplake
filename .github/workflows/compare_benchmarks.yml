@@ -1,22 +1,44 @@
 name: Manual Hub Benchmark
 on:
   workflow_dispatch:
-
+    inputs:
+      baseline:
+          description: 'Baseline ref'
+          required: true
+      mainref:
+          description: 'Ref to compare'
+          required: true
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   ACTIVELOOP_HUB_PASSWORD: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
   REPOSITORY_PAT: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+  BASELINE_REF: manual-compare-${{ github.event.inputs.baseline }}
+  COMMIT_REF: manual-compare-${{ github.event.inputs.mainref }}-vs-${{ github.event.inputs.baseline }}
 jobs:
   benchmark:
-    if: ${{ github.repository == 'activeloopai/hub' }}
+    name: ${{ github.event.inputs.mainref }} vs ${{ github.event.inputs.baseline }}
     runs-on: [looprunner]
     steps:
       - name: Cleans the workspace
-        run: rm -rdf baseline-source
+        run: rm -rdf baseline-source comparison-source benchmark-source
+      - name: Checkout the Hub Benchmark source code
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub-benchmark
+          token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          path: benchmark-source
+      - name: Checkout the Hub source code to compare
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub
+          ref: ${{ github.event.inputs.mainref }}
+          path: comparison-source
       - name: Checkout the Hub baseline source code
         uses: actions/checkout@v2
         with:
+          repository: activeloopai/hub
+          ref: ${{ github.event.inputs.baseline }}
           path: baseline-source
       - name: Set up Python 3.8
         uses: actions/setup-python@v2
@@ -38,7 +60,6 @@ jobs:
       - name: Install Baseline Hub
         run: |
           python -m pip install --upgrade pip
-          pip install csv2md # Installs csv2md for the last step
           cd baseline-source
           pip install -r hub/requirements/common.txt
           pip install -r hub/requirements/plugins.txt
@@ -47,7 +68,20 @@ jobs:
       - name: Doing the benchmark and publishing results -> Hub baseline version
         run: |
           cd benchmark-source
-          export BRANCH_NAME=$(echo $GITHUB_REF | sed 's/refs\/heads\///g')
           pip install -r requirements.ci.txt
           python run.py --all --github
-          python publish.py ${BRANCH_NAME} --github
+          python publish.py ${BASELINE_REF} --github
+      - name: Install Hub to compare
+        run: |
+          cd comparison-source
+          pip install -r hub/requirements/common.txt
+          pip install -r hub/requirements/plugins.txt
+          pip install -r hub/requirements/tests.txt
+          python setup.py install
+      - name: Doing the benchmark and comparing with baseline -> Hub from input ref
+        run: |
+          cd benchmark-source
+          python3 run.py --all --baseline=${BASELINE_REF} --github
+          python publish.py ${COMMIT_REF} --github
+
+       
