@@ -351,9 +351,6 @@ class dataset:
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        if len(os.listdir(src)) < 1:
-            raise AutoCompressionError(src)
-
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)
             if images_compression is None:

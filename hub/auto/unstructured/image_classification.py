@@ -64,6 +64,10 @@ class ImageClassification(UnstructuredDataset):
 
         self._abs_file_paths = _get_file_paths(self.source)
         self._rel_file_paths = _get_file_paths(self.source, relative_to=self.source)
+        if len(self._abs_file_paths) == 0:
+            raise InvalidPathException(
+                f"No files found in {self.source}. Please ensure that the source path is correct."
+            )
 
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
