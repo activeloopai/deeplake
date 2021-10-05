@@ -18,6 +18,7 @@ env:
 jobs:
   benchmark:
     name: ${{ github.event.inputs.mainref }} vs ${{ github.event.inputs.baseline }}
+    if: ${{ github.repository == 'activeloopai/hub' }}
     runs-on: [looprunner]
     steps:
       - name: Cleans the workspace
