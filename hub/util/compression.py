@@ -254,6 +254,7 @@ def verify_compressed_file(
 
 def get_compression(header=None, path=None):
     if path:
+        path = str(path)
         if path.lower().endswith(".mp3"):
             return "mp3"
     if header:
