@@ -135,7 +135,6 @@ def test_audio(compression, audio_paths):
     path = audio_paths[compression]
     sample = hub.read(path)
     arr = np.array(sample)
-    assert arr.shape[-1] == 2
     assert arr.dtype == "float32"
     with open(path, "rb") as f:
         assert sample.compressed_bytes(compression) == f.read()

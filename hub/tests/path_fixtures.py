@@ -231,7 +231,7 @@ def flower_path():
 
 @pytest.fixture
 def color_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "dog2.jpg"),
     }
@@ -240,7 +240,7 @@ def color_image_paths():
 
 @pytest.fixture
 def grayscale_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "hopper_gray.jpg"),
     }
@@ -299,7 +299,7 @@ def corrupt_image_paths():
 
 @pytest.fixture
 def audio_paths():
-    paths = {"mp3": "samplemp3.mp3"}
+    paths = {"mp3": "samplemp3.mp3", "flac": "sampleflac.flac", "wav": "samplewav.wav"}
 
     parent = get_dummy_data_path("audio")
     for k in paths:

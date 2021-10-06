@@ -51,7 +51,7 @@ IMAGE_COMPRESSIONS = [
 
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
-AUDIO_COMPRESSIONS = ["mp3"]
+AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
 
 # Just constants

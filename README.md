@@ -17,7 +17,8 @@
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/"><b>Documentation</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/%22%3E"><b>Getting Started</b></a> &bull;
-   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
+      <a href="https://github.com/activeloopai/examples"><b> Examples </b></a> &bull; 
+      <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
@@ -44,9 +45,9 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
 * Rapid data processing using transformations on distributed compute
 * Data pipelines
+* Dataset version control (alpha)
 
 ### Coming Soon
-* Dataset version control
 * Dataset hosting on Azure
 * Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform
