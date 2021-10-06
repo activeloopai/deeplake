@@ -178,6 +178,10 @@ class Tensor:
         return self.chunk_engine.tensor_meta
 
     @property
+    def num_chunks(self) -> int:
+        return self.chunk_engine.num_chunks
+
+    @property
     def shape(self) -> Tuple[Optional[int], ...]:
         """Get the shape of this tensor. Length is included.
 
