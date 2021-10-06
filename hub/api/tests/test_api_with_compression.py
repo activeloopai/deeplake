@@ -224,7 +224,8 @@ def test_video(ds: Dataset, compression, video_paths):
         assert sample.shape == (900, 270, 480, 3)
     assert sample.shape[-1] == 3
     with ds:
-        for _ in range(10):
+        for _ in range(5):
             ds.video.append(hub.read(path))  # type: ignore
+        ds.video.extend([hub.read(path) for _ in range(5)])  # type: ignore
     for i in range(10):
         assert ds.video[i].numpy().shape == sample.shape  # type: ignore
