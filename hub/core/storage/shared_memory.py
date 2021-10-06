@@ -129,11 +129,12 @@ class SharedMemoryProvider(StorageProvider):
         for path in paths:
             del self[path]
 
-    def __getstate__(self) -> str:
-        raise NotImplementedError
+    def __getstate__(self) -> tuple:
+        return (self.root, self.files)
+        
 
     def __setstate__(self, state: str):
-        raise NotImplementedError
+        self.root, self.files = state
 
     def update_files(self, files: List[str]):
         """Updates the files present in the provider.

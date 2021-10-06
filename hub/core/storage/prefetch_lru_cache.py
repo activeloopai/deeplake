@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
 
 from hub.constants import EMERGENCY_STORAGE_PATH, MB
 from hub.core.chunk import Chunk
@@ -86,21 +86,24 @@ class PrefetchLRUCache(LRUCache):
             LocalProvider(EMERGENCY_STORAGE_PATH) if self.next_storage is None else None
         )
 
-    def __getitem__(self, path):
+    def __getitem__(self, path, modify=True):
         if path in self.lru_sizes:
-            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            if modify:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
         elif self.next_storage is not None:
             # fetch from next storage, may throw KeyError
             result = self.next_storage[path]
-            if len(result) <= self.cache_size:  # insert in cache if it fits
-                self._insert_in_cache(path, result)
+            if modify:
+                if len(result) <= self.cache_size:  # insert in cache if it fits
+                    self._insert_in_cache(path, result)
             return result
         else:
             # fetch from emergency storage, may throw KeyError
             result = self.emergency_storage[path]
-            if len(result) <= self.cache_size:  # insert in cache if it fits
-                self._insert_in_cache(path, result)
+            if modify:
+                if len(result) <= self.cache_size:  # insert in cache if it fits
+                    self._insert_in_cache(path, result)
             return result
 
     def iterate_samples(self):
@@ -113,6 +116,9 @@ class PrefetchLRUCache(LRUCache):
 
         # indexes that have been encountered but skipped due to data being unavailable
         pending_indexes: List[int] = []
+
+        # indexes whose data is available but not yielded yet
+        queued_indexes: List[int] = []
         for i in range(self.length):
             index = self._suggest_next_index()
             chunk_names = self._get_chunk_names(index)
@@ -129,17 +135,36 @@ class PrefetchLRUCache(LRUCache):
                 if needed_chunks:
                     chunk_groups_for_workers.append(needed_chunks)
                 if len(chunk_groups_for_workers) == self.workers or i == len(self) - 1:
-                    yield from self._yield_pending(
-                        chunk_groups_for_workers, pending_indexes
-                    )
+                    self._fetch_and_store_required_data(chunk_groups_for_workers)
+                    for idx in pending_indexes:
+                        queued_indexes.append(idx)
+
+                    pending_indexes.clear()
                     scheduled_chunks.clear()
             else:
-                # no missing chunks, so we can just yield the data
-                yield self._get_final_output(index)
+                queued_indexes.append(index)
+
+            if len(queued_indexes) >= self.workers:
+                currently_scheduled_indexes = queued_indexes[: self.workers]
+                data_list = self.map(self._get_final_output, currently_scheduled_indexes)
+                queued_indexes = queued_indexes[self.workers :]
+                yield from data_list
+                self.required_chunks.clear()
+                if self.emergency_storage is not None:
+                    self.emergency_storage.clear()
+
 
         if pending_indexes:
-            yield from self._yield_pending(chunk_groups_for_workers, pending_indexes)
-            scheduled_chunks.clear()
+            self._fetch_and_store_required_data(chunk_groups_for_workers)
+            for idx in pending_indexes:
+                queued_indexes.append(idx)
+
+        if queued_indexes:
+            data_list = self.map(self._get_final_output, queued_indexes)
+            yield from data_list
+            self.required_chunks.clear()
+            if self.emergency_storage is not None:
+                self.emergency_storage.clear()
 
         self.clear_cache()
 
@@ -319,7 +344,8 @@ class PrefetchLRUCache(LRUCache):
     def _chunk_from_name(self, tensor: str, chunk_name: str):
         """Takes a single chunk name and tensor and returns Chunk"""
         shm_name = self.chunk_shared_mem_map[(tensor, chunk_name)]
-        chunk_data = self[shm_name]
+        chunk_data = self.__getitem__(shm_name, False)
+        # TODO: update cache later
         chunk = Chunk.frombuffer(chunk_data, copy=False)
         return chunk
 
@@ -438,3 +464,9 @@ class PrefetchLRUCache(LRUCache):
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
         return self.transform(sample) if self.transform else sample
+
+    def __getstate__(self) -> Dict[str, Any]:
+        return self.__dict__
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__ = state
