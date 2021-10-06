@@ -335,7 +335,7 @@ def get_compression(header=None, path=None):
         # These formats are recognized by file extension for now
         file_formats = ["mp3", "mp4", "mkv", "avi"]
         for fmt in file_formats:
-            if path.lower().endswith("." + fmt):
+            if str(path).lower().endswith("." + fmt):
                 return fmt
     if header:
         if not Image.OPEN:
