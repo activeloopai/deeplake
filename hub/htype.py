@@ -51,6 +51,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
     "bbox": {"dtype": "float32"},
+    "audio": {"dtype": "float64"},
     "video": {"dtype": "uint8"},
     "binary_mask": {
         "dtype": "bool"

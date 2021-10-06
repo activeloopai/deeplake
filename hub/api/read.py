@@ -1,7 +1,7 @@
 from hub.core.sample import Sample  # type: ignore
 
 
-def read(path: str, verify: bool = False) -> Sample:
+def read(path: str, verify: bool = False, convert_grayscale: bool = True) -> Sample:
     """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
 
     Note:
@@ -21,9 +21,13 @@ def read(path: str, verify: bool = False) -> Sample:
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
+        convert_grayscale: If True, and if the rest of the dataset is in color (3D), then
+                           reshape a grayscale image by appending a 1 to its shape.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
 
-    return Sample(path, verify=verify)
+    sample = Sample(path, verify=verify)
+    sample._convert_grayscale = convert_grayscale
+    return sample
