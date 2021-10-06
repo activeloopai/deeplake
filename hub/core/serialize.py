@@ -4,11 +4,13 @@ from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array, compress_bytes
+from hub.client import config
+from hub.compression import IMAGE_COMPRESSIONS
 from typing import List, Optional, Sequence, Union, Tuple, Iterable
-from itertools import repeat
 import hub
 import numpy as np
 import struct
+import warnings
 
 
 def infer_chunk_num_bytes(
@@ -328,10 +330,27 @@ def serialize_input_samples(
         buff = bytearray()
         nbytes = []
         shapes = []
+        expected_dim = len(meta.max_shape)
+        is_convert_candidate = (htype == "image") or (
+            sample_compression in IMAGE_COMPRESSIONS
+        )
+
         for sample in samples:
             byts, shape = _serialize_input_sample(
                 sample, sample_compression, dtype, htype
             )
+            if (
+                isinstance(sample, Sample)
+                and sample._convert_grayscale
+                and is_convert_candidate
+            ):
+                if not expected_dim:
+                    expected_dim = len(shape)
+                if len(shape) == 2 and expected_dim == 3:
+                    warnings.warn(
+                        f"Reshaping grayscale image with shape {shape} to {shape + (1,)} to match tensor dimension."
+                    )
+                    shape += (1,)  # type: ignore[assignment]
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)

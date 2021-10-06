@@ -670,17 +670,20 @@ def test_compressions_list():
     assert hub.compressions == [
         "bmp",
         "dib",
+        "flac",
         "gif",
         "ico",
         "jpeg",
         "jpeg2000",
         "lz4",
+        "mp3",
         "pcx",
         "png",
         "ppm",
         "sgi",
         "tga",
         "tiff",
+        "wav",
         "webp",
         "wmf",
         "xbm",
@@ -690,6 +693,7 @@ def test_compressions_list():
 
 def test_htypes_list():
     assert hub.htypes == [
+        "audio",
         "bbox",
         "binary_mask",
         "class_label",

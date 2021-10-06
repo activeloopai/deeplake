@@ -16,7 +16,13 @@ from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from hub.compression import COMPRESSION_ALIASES, get_compression_type
+from hub.compression import (
+    COMPRESSION_ALIASES,
+    get_compression_type,
+    AUDIO_COMPRESSION,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+)
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
 )
@@ -84,7 +90,7 @@ class TensorMeta(Meta):
     def update_shape_interval(self, shape: Tuple[int, ...]):
         ffw_tensor_meta(self)
 
-        if self.length <= 0:
+        if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
@@ -166,7 +172,20 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         if compr not in (None, UNSPECIFIED):
             if get_compression_type(compr) != BYTE_COMPRESSION:
                 raise Exception()  # TODO
-        dtype = htype_overwrite["dtype"]
+    elif htype == "audio":
+        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
+            raise UnsupportedCompressionError("Chunk compression", htype=htype)
+        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
+            raise TensorMetaMissingRequiredValue(
+                htype, "sample_compression"  # type: ignore
+            )
+        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
+            None,
+            AUDIO_COMPRESSION,
+        ):
+            raise UnsupportedCompressionError(
+                htype_overwrite["sample_compression"], htype="audio"
+            )
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
