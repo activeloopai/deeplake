@@ -50,7 +50,7 @@ IMAGE_COMPRESSIONS = [
 ]
 
 
-AUDIO_COMPRESSIONS = ["mp3"]
+AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
 
 # Just constants

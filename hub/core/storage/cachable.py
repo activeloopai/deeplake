@@ -26,8 +26,9 @@ class Cachable(ABC):
     def __setstate__(self, state: Dict[str, Any]):
         self.__dict__.update(state)
 
+    # sortkeys / indent make the json more human readable
     def tobytes(self) -> bytes:
-        return bytes(json.dumps(self.__getstate__()), "utf-8")
+        return bytes(json.dumps(self.__getstate__(), sort_keys=True, indent=4), "utf-8")
 
     def copy(self):
         return self.frombuffer(self.tobytes())
