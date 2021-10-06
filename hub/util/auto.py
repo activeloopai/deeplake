@@ -15,6 +15,9 @@ def get_most_common_extension(
         local_path (str): Directory to scan.
         allowed_extensions (Tuple): File extensions considered for scanning.
 
+    Raises:
+        AutoCompressionError: If no files with allowed extensions are found.
+
     Returns:
         compression (str): Most common extension under the provided path.
     """
