@@ -3,6 +3,7 @@ import os, random
 from collections import Counter
 from typing import Tuple
 import shutil
+from hub.util.exceptions import AutoCompressionError
 
 
 def get_most_common_extension(
@@ -26,23 +27,19 @@ def get_most_common_extension(
         else:
             return file_extension
 
-    file_names = []
-
     g = glob.glob(os.path.join(local_path, "**"), recursive=True)
 
-    for name in g:
-        if name.endswith(allowed_extensions):
-            file_names.append(name)
+    file_names = [name for name in g if name.endswith(allowed_extensions)]
 
-    if len(file_names) < 100:
-        file_names = file_names
-    else:
+    if not file_names:
+        raise AutoCompressionError(local_path)
+
+    if len(file_names) > 100:
         file_names = random.sample(file_names, 100)
 
-    extension_list = []
-
-    for file in range(len(file_names)):
-        extension_list.append(os.path.splitext(file_names[file])[1])
+    extension_list = [
+        os.path.splitext(file_names[file])[1] for file in range(len(file_names))
+    ]
 
     most_common_extension = [
         extension
