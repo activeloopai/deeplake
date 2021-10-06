@@ -760,7 +760,7 @@ def to_seconds(time):
 
 def _to_hub_mkv(file: str):
     command = [
-        "ffmpeg",
+        FFMPEG_BINARY,
         "-i",
         file,
         "-codec",

@@ -1,3 +1,4 @@
+from hub.compression import get_compression_type
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
@@ -212,6 +213,10 @@ def test_video(ds: Dataset, compression, video_paths):
     ds.create_tensor("video", htype="video", sample_compression=compression)
     sample = hub.read(path)
     assert len(sample.shape) == 4
+    if compression in ("mp4", "mkv"):
+        assert sample.shape == (400, 360, 640, 3)
+    elif compression == "avi":
+        assert sample.shape == (900, 270, 480, 3)
     assert sample.shape[-1] == 3
     with ds:
         for _ in range(10):
