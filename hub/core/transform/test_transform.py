@@ -175,9 +175,9 @@ def test_chain_transform_list_small(ds, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+            pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
         return
-    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+    pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
@@ -204,9 +204,9 @@ def test_chain_transform_list_big(ds, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+            pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
         return
-    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+    pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 8
     for i in range(2):
         for index in range(4 * i, 4 * i + 4):
