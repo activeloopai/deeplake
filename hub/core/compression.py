@@ -24,7 +24,21 @@ import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
 import os
 import tempfile
-from miniaudio import mp3_read_file_f32, mp3_read_f32, mp3_get_file_info, mp3_get_info  # type: ignore
+from miniaudio import (  # type: ignore
+    mp3_read_file_f32,
+    mp3_read_f32,
+    mp3_get_file_info,
+    mp3_get_info,
+    flac_read_file_f32,
+    flac_read_f32,
+    flac_get_file_info,
+    flac_get_info,
+    wav_read_file_f32,
+    wav_read_f32,
+    wav_get_file_info,
+    wav_get_info,
+)
+from numpy.core.fromnumeric import compress  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -192,7 +206,7 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return _decompress_mp3(buffer)
+        return _decompress_audio(buffer, compression)
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -290,8 +304,8 @@ def verify_compressed_file(
             return _verify_png(file)
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
-        elif compression == "mp3":
-            return _read_mp3_shape(file), "<f4"  # type: ignore
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            return _read_audio_shape(file, compression), "<f4"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -303,9 +317,11 @@ def verify_compressed_file(
 
 def get_compression(header=None, path=None):
     if path:
-        path = str(path)
-        if path.lower().endswith(".mp3"):
-            return "mp3"
+        # These formats are recognized by file extension for now
+        file_formats = ["mp3", "flac", "wav"]
+        for fmt in file_formats:
+            if str(path).lower().endswith("." + fmt):
+                return fmt
     if header:
         if not Image.OPEN:
             Image.init()
@@ -476,11 +492,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
-        elif compression == "mp3":
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
-                shape, typestr = _read_mp3_shape(file), "<f4"
+                shape, typestr = _read_audio_shape(file, compression), "<f4"
             except Exception as e:
-                raise CorruptedSampleError("mp3")
+                raise CorruptedSampleError(compress)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -600,8 +616,12 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
     return shape, typstr  # type: ignore
 
 
-def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
-    decompressor = mp3_read_file_f32 if isinstance(file, str) else mp3_read_f32
+def _decompress_audio(
+    file: Union[bytes, memoryview, str], compression: Optional[str]
+) -> np.ndarray:
+    decompressor = globals()[
+        f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
+    ]
     if isinstance(file, memoryview):
         if (
             isinstance(file.obj, bytes)
@@ -617,7 +637,11 @@ def _decompress_mp3(file: Union[bytes, memoryview, str]) -> np.ndarray:
     )
 
 
-def _read_mp3_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    f_info = mp3_get_file_info if isinstance(file, str) else mp3_get_info
+def _read_audio_shape(
+    file: Union[bytes, memoryview, str], compression: str
+) -> Tuple[int, ...]:
+    f_info = globals()[
+        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
+    ]
     info = f_info(file)
     return (info.num_frames, info.nchannels)
