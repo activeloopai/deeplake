@@ -669,12 +669,17 @@ class Dataset:
     @property
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        return {
-            t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
-                self.index
-            ]
-            for t in self._all_tensors_filtered
-        }
+
+        tensors = {}
+        for tensor_name in self._all_tensors_filtered:
+            print(self.version_state["full_tensors"])
+            print(tensor_name)
+            tensor_key = posixpath.join(self.group_index, tensor_name)
+            print(tensor_key)
+            print(self.version_state["full_tensors"][tensor_key])
+            tensor = self.version_state["full_tensors"][tensor_key][self.index]
+            tensors[tensor_name] = tensor
+        return tensors
 
     @property
     def _groups(self) -> List[str]:
