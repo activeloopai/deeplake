@@ -29,7 +29,7 @@ def get_tile_shape(
     elif not isinstance(exclude_axes, list):
         # should be a list for numpy advanced indexing
         exclude_axes = list(exclude_axes)
-    sample_shape_masked = sample_shape.copy()
+    sample_shape_masked = sample_shape.copy()  # type: ignore
     sample_shape_masked[exclude_axes] = 0
     while ratio > 1:
         idx = np.argmax(sample_shape_masked)
@@ -38,5 +38,5 @@ def get_tile_shape(
             raise ValueError(f"Chunk size is too small: {chunk_size} bytes")
         val /= 2
         ratio /= 2
-    sample_shape_masked[exclude_axes] = sample_shape[exclude_axes]
+    sample_shape_masked[exclude_axes] = sample_shape[exclude_axes]  # type: ignore
     return tuple(np.cast[int](np.ceil(sample_shape_masked)))
