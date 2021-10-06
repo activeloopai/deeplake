@@ -231,7 +231,7 @@ def flower_path():
 
 @pytest.fixture
 def color_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "dog2.jpg"),
     }
@@ -240,7 +240,7 @@ def color_image_paths():
 
 @pytest.fixture
 def grayscale_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "hopper_gray.jpg"),
     }
