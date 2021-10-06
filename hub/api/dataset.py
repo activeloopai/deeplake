@@ -6,6 +6,7 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.core.dataset import Dataset
+from hub import core
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path
@@ -248,7 +249,10 @@ class dataset:
                 "BACK UP YOUR DATASET BEFORE CALLING FIX! As an extra precaution, you must first set the `backed_up` argument to `True` in `hub.fix`."
             )
 
-        raise NotImplementedError
+        core.chunk_engine.FIX_TENSOR_LENGTH = True
+        ds = hub.load(path)
+        core.chunk_engine.FIX_TENSOR_LENGTH = False
+        ds.flush()
 
     @staticmethod
     def like(

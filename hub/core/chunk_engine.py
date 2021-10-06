@@ -54,6 +54,9 @@ def is_uniform_sequence(samples):
 CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
+# if True, the tensor_meta.json's length property will be auto-synchronized with the chunk_id_encoder's num_samples
+FIX_TENSOR_LENGTH = False
+
 class ChunkEngine:
     def __init__(
         self,
@@ -759,9 +762,16 @@ class ChunkEngine:
             commit_id = self.version_state["commit_id"]
             tkey = get_tensor_meta_key(self.key, commit_id)
             ikey = get_chunk_id_encoder_key(self.key, commit_id)
-            raise CorruptedMetaError(
-                f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
-            )
+
+            # TODO: can maybe make this cleaner with `with` statement contexts?
+            if FIX_TENSOR_LENGTH:
+                self.tensor_meta.length = chunk_id_num_samples
+                self.meta_cache[tkey] = self.tensor_meta
+
+            else:
+                raise CorruptedMetaError(
+                    f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
+                )
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
         """Copies the chunk to the current commit.

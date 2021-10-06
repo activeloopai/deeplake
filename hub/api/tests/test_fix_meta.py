@@ -61,3 +61,8 @@ def test_wrong_tensor_meta_length(local_ds_generator):
     ds = local_ds_generator()
 
     assert_correct(ds)
+
+    # re-corrupt and make sure fixing isn't happening automatically
+    corrupt(ds, "x")
+    with pytest.raises(CorruptedMetaError):
+        ds = local_ds_generator()
