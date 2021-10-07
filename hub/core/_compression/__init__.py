@@ -11,3 +11,7 @@ else:
 
 STRUCT_HHB = struct.Struct(">HHB")
 STRUCT_II = struct.Struct(">ii")
+
+
+from .image.jpeg import JPEG
+from .image.png import PNG
