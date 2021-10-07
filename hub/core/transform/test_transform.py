@@ -67,11 +67,11 @@ def test_single_transform_hub_dataset(ds, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+            fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
         data_in.delete()
         return
 
-    fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+    fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
@@ -103,7 +103,7 @@ def test_groups(ds):
         data_in = data_in.data
         ds_out = ds_out.stuff
 
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=2)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -175,9 +175,9 @@ def test_chain_transform_list_small(ds, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+            pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
         return
-    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+    pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
@@ -204,9 +204,9 @@ def test_chain_transform_list_big(ds, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+            pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
         return
-    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+    pipeline.eval(ls, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 8
     for i in range(2):
         for index in range(4 * i, 4 * i + 4):
@@ -232,10 +232,10 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+            read_image().eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
         return
 
-    read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+    read_image().eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 10
     for i in range(10):
         assert ds_out.image[i].numpy().shape == (900, 900, 3)
@@ -256,9 +256,9 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+            pipeline.eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
         return
-    pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+    pipeline.eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image[i].numpy().shape == (100, 100, 3)
@@ -283,10 +283,10 @@ def test_hub_like(ds, scheduler="threaded"):
             # any scheduler other than `threaded` will not work with a dataset stored in memory
             with pytest.raises(InvalidOutputDatasetError):
                 fn2(copy=1, mul=2).eval(
-                    data_in, ds_out, num_workers=4, scheduler=scheduler
+                    data_in, ds_out, num_workers=2, scheduler=scheduler
                 )
             return
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=2, scheduler=scheduler)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
