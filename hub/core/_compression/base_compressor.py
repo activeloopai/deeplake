@@ -1,5 +1,5 @@
 from abc import ABC
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from typing import Optional, Tuple, Union
 from PIL import Image  # type: ignore
 
@@ -9,6 +9,7 @@ class BaseCompressor(ABC):
     _filename: Optional[str] = None
     _buffer: Optional[Union[bytes, memoryview]] = None
     _bytesio_object: Optional[BytesIO] = None
+    _buffered_reader_object: Optional[BufferedReader] = None
     _image: Image = None
 
     def __init__(self, item):
@@ -20,11 +21,24 @@ class BaseCompressor(ABC):
             self._filename = item
         elif isinstance(item, (bytes, memoryview)):
             self._buffer = item
+        elif isinstance(item, BufferedReader):
+            self._buffered_reader_object = item
         elif hasattr(item, "read"):
-            # TODO: maybe don't use hasattr?
+            # TODO: maybe don't use hasattr(item, "read")?
             self.file = item
         else:
             raise TypeError(f"Don't support {type(item)} as input to compressors.")
+
+    @property
+    def buffer(self) -> Union[bytes, memoryview]:
+        if self._buffer is None:
+            if self._buffered_reader_object is not None:
+                self._buffer = self._buffered_reader_object.read()
+            else:
+                # TODO: load buffer from file
+                raise NotImplementedError
+
+        return self._buffer
 
     @property
     def bytesio_object(self) -> BytesIO:
@@ -32,14 +46,6 @@ class BaseCompressor(ABC):
             self._bytesio_object = BytesIO(self.buffer)
 
         return self._bytesio_object
-
-    @property
-    def buffer(self) -> Union[bytes, memoryview]:
-        if self._buffer is None:
-            # TODO: load buffer from file
-            raise NotImplementedError
-
-        return self._buffer
 
     @property
     def image(self) -> Image:
