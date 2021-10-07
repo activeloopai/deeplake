@@ -303,7 +303,10 @@ class LRUCache(StorageProvider):
         """Returns the state of the cache, for pickling"""
 
         # flushes the cache before pickling
-        self._flush_if_not_read_only()
+        try:
+            self.flush()
+        except Exception:
+            pass
 
         return {
             "next_storage": self.next_storage,
