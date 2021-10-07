@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Cleans the workspace
         run: rm -rdf baseline-source comparison-source benchmark-source
+      - name: Installs FFMPEG
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Checkout the Hub Benchmark source code
         uses: actions/checkout@v2
         with:
