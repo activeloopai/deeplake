@@ -11,6 +11,7 @@ import hub
 import numpy as np
 import struct
 import warnings
+import json
 
 
 def infer_chunk_num_bytes(
@@ -239,7 +240,7 @@ def _serialize_input_sample(
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
         if sample_compression:
             byts = compress_bytes(byts, compression=sample_compression)
-        shape = (len(sample),) if htype == "list" else 1
+        shape = (len(sample),) if htype == "list" else (1,)
         return byts, shape
     elif htype == "text":
         if not isinstance(sample, str):

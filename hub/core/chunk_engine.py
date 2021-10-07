@@ -1,5 +1,6 @@
 import hub
 import warnings
+import json
 import numpy as np
 from math import ceil
 from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
@@ -690,25 +691,26 @@ class ChunkEngine:
         htype = self.tensor_meta.htype
 
         if htype in ("json", "text", "list"):
+            sb, eb = chunk.byte_positions_encoder[local_sample_index]
             if chunk_compression:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
-                sb, eb = chunk.byte_positions_encoder[local_sample_index]
                 buffer = decompressed[sb:eb]
             elif sample_compression:
                 buffer = decompress_bytes(buffer[sb:eb], compression=sample_compression)
             else:
                 buffer = buffer[sb:eb]
+            buffer = bytes(buffer)
             if htype == "json":
                 arr = np.empty(1, dtype=object)
-                arr[0] = json.loads(str.encode(buffer), cls=HubJsonDecoder)
+                arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
                 return arr
             elif htype == "list":
-                lst = json.loads(str.encode(buffer), cls=HubJsonDecoder)
+                lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
                 arr = np.empty(len(lst), dtype=object)
                 arr[:] = lst
                 return arr
             elif htype == "text":
-                arr = np.array(str.encode(buffer)).reshape(
+                arr = np.array(bytes.decode(buffer)).reshape(
                     1,
                 )
             return arr

@@ -22,6 +22,8 @@ class Sample:
         self,
         path: str = None,
         array: np.ndarray = None,
+        buffer: Union[bytes, memoryview] = None,
+        compression: str = None,
         verify: bool = False,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
@@ -34,6 +36,8 @@ class Sample:
             path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
                 Implicitly makes `self.is_lazy == True`.
             array (np.ndarray): Array that represents a single sample. If `array` is provided, `path` should not be. Implicitly makes `self.is_lazy == False`.
+            buffer: (bytes): Byte buffer that represents a single sample. If compressed, `compression` argument should be provided.
+            compression (str): Specify in case of byte buffer.
             verify (bool): If a path is provided, verifies the sample if True.
 
         Raises:
@@ -47,21 +51,30 @@ class Sample:
         self._uncompressed_bytes = None
         self._convert_grayscale = False
 
+        self._array = None
+        self._typestr = None
+        self._shape = None
+        self.path = None
+
         if path is not None:
             self.path = path
-            self._array = None
-            self._typestr = None
-            self._shape = None
             self._compression = None
             self._verified = False
             self._verify = verify
 
         if array is not None:
-            self.path = None
             self._array = array
             self._shape = array.shape
             self._typestr = array.__array_interface__["typestr"]
             self._compression = None
+
+        if buffer is not None:
+            self._compression = compression
+            self._buffer = buffer
+            if compression is None:
+                self._uncompressed_bytes = buffer
+            else:
+                self._compressed_bytes[compression] = buffer
 
     @property
     def dtype(self):
@@ -83,7 +96,7 @@ class Sample:
         if self._shape is not None:
             return
         if f is None:
-            f = self.path
+            f = self.path if self.path else self.compressed_bytes[self._compression]
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
@@ -95,6 +108,18 @@ class Sample:
     @property
     def is_empty(self) -> bool:
         return 0 in self.shape
+
+    def _recompress(self, buffer: bytes, compression: str) -> bytes:
+        if get_compression_type(self._compression) != IMAGE_COMPRESSION:
+            raise ValueError(
+                "Recompression with different format is only supported for images."
+            )
+        img = Image.open(BytesIO(buffer))
+        if img.mode == "1":
+            self._uncompressed_bytes = img.tobytes("raw", "L")
+        else:
+            self._uncompressed_bytes = img.tobytes()
+        return compress_array(self.array, compression)
 
     def compressed_bytes(self, compression: str) -> bytes:
         """Returns this sample as compressed bytes.
@@ -135,16 +160,9 @@ class Sample:
                             compressed_bytes, compression=self._compression
                         )
                 else:
-                    if get_compression_type(self._compression) != IMAGE_COMPRESSION:
-                        raise ValueError(
-                            "Recompression with different format is only supported for images."
-                        )
-                    img = Image.open(BytesIO(compressed_bytes))
-                    if img.mode == "1":
-                        self._uncompressed_bytes = img.tobytes("raw", "L")
-                    else:
-                        self._uncompressed_bytes = img.tobytes()
-                    compressed_bytes = compress_array(self.array, compression)
+                    compressed_bytes = self._recompress(compressed_bytes, compression)
+            elif self._buffer is not None:
+                compressed_bytes = self._recompress(self._buffer, compression)
             else:
                 compressed_bytes = compress_array(self.array, compression)
             self._compressed_bytes[compression] = compressed_bytes
@@ -184,7 +202,7 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) == AUDIO_COMPRESSION:
                 self._compression = compr
-                array = decompress_array(self.path, compression=compr)
+                array = decompress_array(self.path or self._buffer, compression=compr)
                 if self._shape is None:
                     self._shape = array.shape
                     self._typestr = array.__array_interface__["typestr"]

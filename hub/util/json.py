@@ -129,11 +129,12 @@ def _validate_optional(obj: Any, params: List[str]) -> bool:
 
 
 def _validate_list(obj: Any, params: List[str]) -> bool:
-    assert len(params) == 1
+    assert len(params) <= 1
     assert isinstance(obj, (list, tuple))
-    for item in obj:
-        if not _validate_object(item, params[0]):
-            return False
+    if params:
+        for item in obj:
+            if not _validate_object(item, params[0]):
+                return False
     return True
 
 
