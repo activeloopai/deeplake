@@ -16,7 +16,7 @@
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/main"><img src="https://codecov.io/gh/activeloopai/Hub/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/"><b>Documentation</b></a> &bull;
-   <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/%22%3E"><b>Getting Started</b></a> &bull;
+   <a href="https://docs.activeloop.ai/getting-started-with-hub/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/%22%3E"><b>Getting Started</b></a> &bull;
       <a href="https://github.com/activeloopai/examples"><b> Examples </b></a> &bull; 
       <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
