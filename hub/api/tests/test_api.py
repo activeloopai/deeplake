@@ -758,7 +758,7 @@ def test_json(memory_ds):
     ds.create_tensor("json", htype="json")
     items = [
         {"x": [1, 2, 3], "y": [4, [5, 6]]},
-        {"x": [1, 2, 3], "y": [4, {"z": [0.1, 0.2, []]}]}
+        {"x": [1, 2, 3], "y": [4, {"z": [0.1, 0.2, []]}]},
     ]
     with ds:
         for x in items:
