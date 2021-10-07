@@ -22,4 +22,4 @@ def re_find_first(pattern, string):
 from .base_compressor import BaseCompressor  # type: ignore
 from .image.jpeg import JPEG  # type: ignore
 from .image.png import PNG  # type: ignore
-from .audio.mp3 import MP3  # type: ignore
+from .audio.audio import Audio  # type: ignore

@@ -1,5 +1,5 @@
 import hub
-from hub.core.compression import JPEG, PNG, MP3
+from hub.core.compression import JPEG, PNG, Audio
 from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
@@ -143,7 +143,7 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return MP3(buffer).decompress()
+        return Audio(buffer, compression).decompress()
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -241,8 +241,8 @@ def verify_compressed_file(
             return PNG(file).verify()
         elif compression == "jpeg":
             return JPEG(file).verify()
-        elif compression == "mp3":
-            return MP3(file).read_shape_and_dtype()
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            return Audio(file, compression).read_shape_and_dtype()
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -254,8 +254,11 @@ def verify_compressed_file(
 
 def get_compression(header=None, path=None):
     if path:
-        if path.lower().endswith(".mp3"):
-            return "mp3"
+        # These formats are recognized by file extension for now
+        file_formats = ["mp3", "flac", "wav"]
+        for fmt in file_formats:
+            if str(path).lower().endswith("." + fmt):
+                return fmt
     if header:
         if not Image.OPEN:
             Image.init()
@@ -325,11 +328,11 @@ def read_meta_from_compressed_file(
             except Exception:
                 # TODO: better way to raise corrupted sample errors
                 raise CorruptedSampleError("png")
-        elif compression == "mp3":
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
-                shape, typestr = MP3(file).read_shape_and_dtype()
+                shape, typestr = Audio(file, compression).read_shape_and_dtype()
             except Exception as e:
-                raise CorruptedSampleError("mp3")
+                raise CorruptedSampleError(compression)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
