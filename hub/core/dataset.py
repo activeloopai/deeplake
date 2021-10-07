@@ -674,7 +674,7 @@ class Dataset:
         for tensor_name in self._all_tensors_filtered:
             print(self.version_state["full_tensors"])
             print(tensor_name)
-            tensor_key = posixpath.join(self.group_index, tensor_name)
+            tensor_key = str(posixpath.join(self.group_index, tensor_name))
             print(tensor_key)
             print(self.version_state["full_tensors"][tensor_key])
             tensor = self.version_state["full_tensors"][tensor_key][self.index]
