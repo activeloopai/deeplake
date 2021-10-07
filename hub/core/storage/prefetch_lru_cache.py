@@ -146,13 +146,14 @@ class PrefetchLRUCache(LRUCache):
 
             if len(queued_indexes) >= self.workers:
                 currently_scheduled_indexes = queued_indexes[: self.workers]
-                data_list = self.map(self._get_final_output, currently_scheduled_indexes)
+                data_list = self.map(
+                    self._get_final_output, currently_scheduled_indexes
+                )
                 queued_indexes = queued_indexes[self.workers :]
                 yield from data_list
                 self.required_chunks.clear()
                 if self.emergency_storage is not None:
                     self.emergency_storage.clear()
-
 
         if pending_indexes:
             self._fetch_and_store_required_data(chunk_groups_for_workers)

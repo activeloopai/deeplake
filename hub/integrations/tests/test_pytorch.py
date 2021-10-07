@@ -336,11 +336,10 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
             local_ds.image.append(img_bad)
     num_samples = 0
     num_batches = 0
-    with pytest.warns(UserWarning):
-        dl = local_ds.pytorch(num_workers=2, batch_size=2)
-        for (batch,) in dl:
-            num_batches += 1
-            num_samples += len(batch)
+    dl = local_ds.pytorch(num_workers=2, batch_size=2)
+    for (batch,) in dl:
+        num_batches += 1
+        num_samples += len(batch)
     assert num_samples == 30
     assert num_batches == 15
 

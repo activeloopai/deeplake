@@ -131,7 +131,6 @@ class SharedMemoryProvider(StorageProvider):
 
     def __getstate__(self) -> tuple:
         return (self.root, self.files)
-        
 
     def __setstate__(self, state: str):
         self.root, self.files = state
