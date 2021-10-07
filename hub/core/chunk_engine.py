@@ -8,7 +8,7 @@ from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRE
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.compression import decompress_array
+from hub.util.compression import decompress_array
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -16,7 +16,7 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.serialize import serialize_input_samples
-from hub.core.compression import compress_multiple, decompress_multiple
+from hub.util.compression import compress_multiple
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID
 
 

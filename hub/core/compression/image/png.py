@@ -1,5 +1,5 @@
 from typing import Tuple
-from hub.core._compression import STRUCT_II, NATIVE_INT32, BaseCompressor
+from hub.core.compression import STRUCT_II, NATIVE_INT32, BaseCompressor
 from PIL import Image  # type: ignore
 
 

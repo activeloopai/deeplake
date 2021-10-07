@@ -1,7 +1,6 @@
 import mmap
 from typing import Tuple
-from hub.core._compression import STRUCT_HHB, BaseCompressor
-from hub.util.compression import re_find_first
+from hub.core.compression import STRUCT_HHB, BaseCompressor, re_find_first
 import re
 
 

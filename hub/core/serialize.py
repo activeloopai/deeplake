@@ -2,7 +2,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.core.compression import compress_array
+from hub.util.compression import compress_array
 from hub.client import config
 from hub.compression import IMAGE_COMPRESSIONS
 from typing import List, Optional, Sequence, Union, Tuple, Iterable
