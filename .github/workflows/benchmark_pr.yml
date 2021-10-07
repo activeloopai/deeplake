@@ -75,6 +75,8 @@ jobs:
                 body: prComment,
               });
             }
+      - name: Installs FFMPEG
+        run: sudo apt-get update && sudo apt-get install  -y ffmpeg
       - name: Cleans the workspace
         run: rm -rdf baseline-source benchmark-source pr-source comment-temp
       - name: Checkout the pull request source code
