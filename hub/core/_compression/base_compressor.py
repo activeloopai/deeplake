@@ -37,7 +37,7 @@ class BaseCompressor(ABC):
 
             elif self._filename is not None:
                 self._buffer = open(self._filename, "rb").read()
-            
+
             else:
                 raise NotImplementedError
 
