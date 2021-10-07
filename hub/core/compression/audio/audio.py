@@ -29,6 +29,7 @@ def _validate_audio_compression(compression: str):
             f"{compression} is not an audio compression. Audio compressions: {AUDIO_COMPRESSIONS}"
         )
 
+
 class Audio(BaseCompressor):
     def __init__(self, item, compression: str):
         _validate_audio_compression(compression)
