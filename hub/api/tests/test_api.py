@@ -765,10 +765,8 @@ def test_json_basic(memory_ds):
             ds.json.append(x)
         ds.json.extend(items)
     assert ds.json.shape == (4, 1)
-    for i in [0, 2]:
-        assert ds.json[i].numpy()[0] == items[0]
-    for i in [1, 3]:
-        assert ds.json[i].numpy()[0] == items[1]
+    for i in range(4):
+        assert ds.json[i].numpy()[0] == items[i % 2]
 
 
 def test_json_list_basic(memory_ds):
@@ -783,7 +781,18 @@ def test_json_list_basic(memory_ds):
             ds.list.append(x)
         ds.list.extend(items)
     assert ds.list.shape == (4, 3)
-    for i in [0, 2]:
-        assert list(ds.list[i].numpy()) == items[0]
-    for i in [1, 3]:
-        assert list(ds.list[i].numpy()) == items[1]
+    for i in range(4):
+        assert list(ds.list[i].numpy()) == items[i % 2]
+
+
+def test_text(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("text", htype="text")
+    items = ["abcd", "efgh", "0123456"]
+    with ds:
+        for x in items:
+            ds.text.append(x)
+        ds.text.extend(items)
+    assert ds.text.shape == (6, 1)
+    for i in range(6):
+        assert ds.text[i].numpy()[0] == items[i % 3]
