@@ -16,6 +16,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     TensorDtypeMismatchError,
+    ModuleNotInstalledException,
 )
 
 
@@ -345,6 +346,70 @@ class Tensor:
         """
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
+
+    def pytorch(self, aslist=False):
+        """Computes the contents of the tensor in pytorch format.
+
+        Args:
+            aslist (bool): If True, a list of torch.Tensors will be returned. Helpful for dynamic tensors.
+                If False, a single torch.Tensor will be returned unless the samples are dynamically shaped, in which case
+                an error is raised.
+
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+
+        Returns:
+            A torch tensor containing the data represented by this tensor.
+        """
+
+        global torch
+        try:
+            import torch
+        except ModuleNotFoundError:
+            raise ModuleNotInstalledException(
+                "'torch' should be installed to convert the Tensor into pytorch format"
+            )
+
+        if aslist:
+            return [
+                torch.from_numpy(array)
+                for array in self.chunk_engine.numpy(self.index, aslist=aslist)
+            ]
+        else:
+            return torch.from_numpy(self.chunk_engine.numpy(self.index, aslist=aslist))
+
+    def tensorflow(self, aslist=False):
+        """Computes the contents of the tensor in tensorflow format.
+
+        Args:
+            aslist (bool): If True, a list of tf.Tensors will be returned. Helpful for dynamic tensors.
+                If False, a single tf.Tensor will be returned unless the samples are dynamically shaped, in which case
+                an error is raised.
+
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+
+        Returns:
+            A tensorflow tensor containing the data represented by this tensor.
+        """
+
+        global tf
+        try:
+            import tensorflow as tf  # type: ignore
+        except ModuleNotFoundError:
+            raise ModuleNotInstalledException(
+                "'tensorflow' should be installed to convert the Tensor into tensorflow format"
+            )
+
+        if aslist:
+            return [
+                tf.convert_to_tensor(array)
+                for array in self.chunk_engine.numpy(self.index, aslist=aslist)
+            ]
+        else:
+            return tf.convert_to_tensor(
+                self.chunk_engine.numpy(self.index, aslist=aslist)
+            )
 
     def __str__(self):
         index_str = f", index={self.index}"

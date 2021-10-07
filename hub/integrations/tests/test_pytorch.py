@@ -419,3 +419,21 @@ def test_groups(local_ds, compressed_image_paths):
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
+
+
+@requires_torch
+@enabled_datasets
+def test_tensor_torch(ds, compressed_image_paths):
+    img = hub.read(compressed_image_paths["jpeg"][0])
+    with ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        for _ in range(10):
+            ds.images.append(img)
+
+    np.testing.assert_array_equal(ds.images[0].pytorch(), img.array)
+
+    np.testing.assert_array_equal(
+        ds.images[0:10].pytorch(), np.array([img.array for i in range(10)])
+    )
+    for tensor in ds.images[0:10].pytorch(aslist=True):
+        np.testing.assert_array_equal(tensor, img.array)
