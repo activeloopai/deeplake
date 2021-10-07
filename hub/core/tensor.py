@@ -357,6 +357,7 @@ class Tensor:
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ModuleNotInstalledException: If torch is not available.
 
         Returns:
             A torch tensor containing the data represented by this tensor.
@@ -388,6 +389,7 @@ class Tensor:
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ModuleNotInstalledException: If tensorflow is not available.
 
         Returns:
             A tensorflow tensor containing the data represented by this tensor.

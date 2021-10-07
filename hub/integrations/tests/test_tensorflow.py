@@ -108,4 +108,3 @@ def test_tensor_tensorflow(ds, compressed_image_paths):
     )
     for tensor in ds.images[0:10].tensorflow(aslist=True):
         np.testing.assert_array_equal(tensor, img.array)
-
