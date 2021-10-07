@@ -34,9 +34,23 @@ class BaseCompressor(ABC):
         if self._buffer is None:
             if self._buffered_reader_object is not None:
                 self._buffer = self._buffered_reader_object.read()
+
+            elif self._filename is not None:
+                self._buffer = open(self._filename, "rb").read()
+            
             else:
-                # TODO: load buffer from file
                 raise NotImplementedError
+
+        # from mp3 edge case
+        if isinstance(self._buffer, memoryview):
+            if (
+                isinstance(self._buffer.obj, bytes)
+                and self._buffer.strides == (1,)
+                and self._buffer.shape == (len(self._buffer.obj),)
+            ):
+                self._buffer = self._buffer.obj
+            else:
+                self._buffer = bytes(self._buffer)
 
         return self._buffer
 
