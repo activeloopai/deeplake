@@ -303,10 +303,11 @@ def test_custom_tensor_order(ds):
 
 @requires_torch
 def test_readonly(local_ds):
-    local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    local_ds.images.extend(np.ones((10, 12, 12)))
-    local_ds.labels.extend(np.ones(10))
+    with local_ds:
+        local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        local_ds.images.extend(np.ones((10, 12, 12)))
+        local_ds.labels.extend(np.ones(10))
 
     base_storage = get_base_storage(local_ds.storage)
     base_storage.enable_readonly()
