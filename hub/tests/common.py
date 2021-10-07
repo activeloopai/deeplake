@@ -30,7 +30,7 @@ CHUNK_SIZE_PARAM = "chunk_size"
 NUM_WORKERS_PARAM = "num_workers"
 
 NUM_BATCHES = (1, 5)
-NUM_WORKERS = (4, 2, 1, 0)
+NUM_WORKERS = (2, 1, 0)
 
 CHUNK_SIZES = (
     1 * KB,
