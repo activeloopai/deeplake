@@ -751,3 +751,20 @@ def test_groups(local_ds_generator):
 
     ds.create_group("g")
     ds.g.create_tensor("g")
+
+
+def test_json(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("json", htype="json")
+    items = [
+        {"x": [1, 2, 3], "y": [4, [5, 6]]},
+        {"x": [1, 2, 3], "y": [4, {"z": [0.1, 0.2, []]}]}
+    ]
+    with ds:
+        for x in items:
+            ds.json.append(x)
+        ds.json.extend(items)
+    for i in [0, 2]:
+        assert ds.json[i].numpy()[0] == items[0]
+    for i in [1, 3]:
+        assert ds.json[i].numpy()[0] == items[1]

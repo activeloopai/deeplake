@@ -198,7 +198,7 @@ class HubJsonDecoder(json.JSONDecoder):
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
     def object_hook(self, obj):
-        hub_custom_type = obj.get(hub_custom_type)
+        hub_custom_type = obj.get("_hub_custom_type")
         if hub_custom_type == "ndarray":
             return np.frombuffer(
                 base64.b64encode(obj["data"]), dtype=obj["dtype"]
