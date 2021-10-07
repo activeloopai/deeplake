@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Tuple, GenericMeta
+from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -28,6 +28,12 @@ from hub.htype import (
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
+
+
+try:
+    from typing import GenericMeta
+except ImportError:
+    from typing import _GenericAlias as GenericMeta
 
 
 class TensorMeta(Meta):

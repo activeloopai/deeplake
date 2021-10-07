@@ -1,9 +1,14 @@
-from typing import Any, Dict, List, Optional, Tuple, Union, GenericMeta
+from typing import Any, Dict, List, Optional, Tuple, Union
 from numpy import ndarray
 import json
 import base64
 
 from hub.core.sample import Sample
+
+try:
+    from typing import GenericMeta
+except ImportError:
+    from typing import _GenericAlias as GenericMeta
 
 
 scalars = ["int", "float", "bool", "str", "list", "dict", "ndarray", "Sample"]

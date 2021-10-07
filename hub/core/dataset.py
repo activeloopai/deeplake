@@ -12,7 +12,6 @@ from typing import (
     Tuple,
     List,
     Sequence,
-    GenericMeta,
 )
 
 from hub.api.info import load_info
@@ -53,6 +52,12 @@ from hub.util.exceptions import (
 from hub.util.version_control import auto_checkout, checkout, commit, load_meta
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
+
+
+try:
+    from typing import GenericMeta
+except ImportError:
+    from typing import _GenericAlias as GenericMeta
 
 
 class Dataset:
