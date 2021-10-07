@@ -1,8 +1,6 @@
 import re
 import hub
-from hub.core.compression import NATIVE_INT32, STRUCT_II
-from hub.core.compression import JPEG, PNG
-from hub.core.compression.audio.mp3 import MP3
+from hub.core.compression import JPEG, PNG, MP3
 from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
@@ -18,16 +16,11 @@ from hub.compression import (
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
-from PIL import Image, UnidentifiedImageError  # type: ignore
+from PIL import Image  # type: ignore
 from io import BytesIO
-import mmap
-import struct
-import sys
 import re
 import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
-import os
-import tempfile
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -346,4 +339,3 @@ def read_meta_from_compressed_file(
     finally:
         if close:
             f.close()
-

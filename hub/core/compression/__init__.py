@@ -19,8 +19,7 @@ def re_find_first(pattern, string):
         return match
 
 
-from .base_compressor import BaseCompressor
-from .image.jpeg import JPEG
-from .image.png import PNG
-from .audio.mp3 import MP3
-
+from .base_compressor import BaseCompressor  # type: ignore
+from .image.jpeg import JPEG  # type: ignore
+from .image.png import PNG  # type: ignore
+from .audio.mp3 import MP3  # type: ignore
