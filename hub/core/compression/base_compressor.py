@@ -57,6 +57,7 @@ class BaseCompressor(ABC):
         if self._bytesio_object is None:
             self._bytesio_object = BytesIO(self.buffer)
 
+        self._bytesio_object.seek(0)
         return self._bytesio_object
 
     @property
