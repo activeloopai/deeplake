@@ -1,4 +1,5 @@
 import hub
+from tqdm import tqdm
 import pickle
 import warnings
 import posixpath
@@ -483,6 +484,7 @@ class Dataset:
         shuffle: bool = False,
         buffer_size: int = 10 * 1000,
         use_local_cache: bool = False,
+        use_progress_bar: bool = True,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -505,13 +507,14 @@ class Dataset:
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
             buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
+            use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
         """
         from hub.integrations import dataset_to_pytorch
 
-        return dataset_to_pytorch(
+        dataloader = dataset_to_pytorch(
             self,
             transform,
             tensors,
@@ -524,6 +527,11 @@ class Dataset:
             buffer_size=buffer_size,
             use_local_cache=use_local_cache,
         )
+
+        if use_progress_bar:
+            dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
+
+        return dataloader
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
