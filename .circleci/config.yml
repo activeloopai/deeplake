@@ -311,7 +311,14 @@ jobs:
           condition: << parameters.mac-like >>
           steps:
             - get-python
+      - when:
+          condition: << parameters.plugins >> && << parameters.mac-like >>
+          steps:
             - get-ffmpeg-mac
+      - when:
+          condition: << parameters.plugins >> && << parameters.unix-like >>
+          steps:
+            - get-ffmpeg-unix
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
@@ -330,7 +337,6 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - slack-status
-            - get-ffmpeg-unix
   deploy:
     executor: linux38
     environment:
