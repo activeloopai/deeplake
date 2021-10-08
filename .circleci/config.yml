@@ -307,7 +307,6 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - aliases
-            - get-ffmpeg-unix
       - when:
           condition: << parameters.mac-like >>
           steps:
@@ -331,6 +330,7 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - slack-status
+            - get-ffmpeg-unix
   deploy:
     executor: linux38
     environment:
