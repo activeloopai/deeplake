@@ -670,6 +670,7 @@ def test_compressions_list():
     assert hub.compressions == [
         "bmp",
         "dib",
+        "flac",
         "gif",
         "ico",
         "jpeg",
@@ -682,6 +683,7 @@ def test_compressions_list():
         "sgi",
         "tga",
         "tiff",
+        "wav",
         "webp",
         "wmf",
         "xbm",
