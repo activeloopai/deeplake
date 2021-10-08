@@ -311,6 +311,11 @@ jobs:
           condition: << parameters.mac-like >>
           steps:
             - get-python
+      - info
+      - google-creds:
+          unix-like: << parameters.unix-like >>
+      - requirements:
+          plugins: << parameters.plugins >>
       - when:
           condition: << parameters.plugins >> && << parameters.mac-like >>
           steps:
@@ -319,11 +324,6 @@ jobs:
           condition: << parameters.plugins >> && << parameters.unix-like >>
           steps:
             - get-ffmpeg-unix
-      - info
-      - google-creds:
-          unix-like: << parameters.unix-like >>
-      - requirements:
-          plugins: << parameters.plugins >>
       - run-tests:
           unix-like: << parameters.unix-like >>
       - run-backwards-compatibility-tests
