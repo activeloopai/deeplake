@@ -100,6 +100,37 @@ _STRUCT_II = struct.Struct(">ii")
 
 _HUB_MKV_HEADER = b"HUB_MKV_META"
 
+cache = {"ffmpeg_exists": None}
+
+
+def ffmpeg_exists():
+    try:
+        retval = sp.run(
+            [FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
+        ).returncode
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            "ffmpeg is not installed. Install ffmpeg to use hub's video features."
+        ) from e
+
+    if retval == 0:
+        cache["ffmpeg_exists"] = True
+        return True
+
+
+def ffmpeg_binary():
+    if cache["ffmpeg_exists"]:
+        return FFMPEG_BINARY
+    if ffmpeg_exists():
+        return FFMPEG_BINARY
+
+
+def ffprobe_binary():
+    if cache["ffmpeg_exists"]:
+        return FFPROBE_BINARY
+    if ffmpeg_exists():
+        return FFPROBE_BINARY
+
 
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
@@ -694,7 +725,7 @@ def _decompress_video(
     shape = _read_video_shape(file)
 
     command = [
-        FFMPEG_BINARY,
+        ffmpeg_binary(),
         "-i",
         "pipe:",
         "-f",
@@ -732,7 +763,7 @@ def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
 def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
     duration = None
     command = [
-        FFPROBE_BINARY,
+        ffprobe_binary(),
         "-select_streams",
         "v:0",
         "-show_entries",
@@ -782,7 +813,7 @@ def to_seconds(time):
 
 def _to_hub_mkv(file: str):
     command = [
-        FFMPEG_BINARY,
+        ffmpeg_binary(),
         "-i",
         file,
         "-codec",
