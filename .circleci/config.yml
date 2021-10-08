@@ -128,20 +128,19 @@ commands:
             brew install zlib libjpeg webp
             sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
             sudo launchctl limit maxfiles 65536 200000
-  get-ffmpeg-unix:
+  get-ffmpeg:
     steps:
       - run:
           name: "Install FFMPEG"
           command: |
+            <<# parameters.unix-like >>
             sudo sh -c 'echo "deb http://ftp.debian.org/debian jessie-backports main" >> /etc/apt/sources.list'
             apt update
             apt install -y ffmpeg
-  get-ffmpeg-mac:
-    steps:
-      - run:
-          name: "Install FFMPEG"
-          command: |
+            <</ parameters.unix-like >>
+            <<# parameters.mac-like >>
             brew install ffmpeg
+            <</ parameters.mac-like >>
   info:
     steps:
       - run:
@@ -317,13 +316,9 @@ jobs:
       - requirements:
           plugins: << parameters.plugins >>
       - when:
-          condition: << parameters.plugins >> && << parameters.mac-like >>
+          condition: << parameters.plugins >>
           steps:
-            - get-ffmpeg-mac
-      - when:
-          condition: << parameters.plugins >> && << parameters.unix-like >>
-          steps:
-            - get-ffmpeg-unix
+            - get-ffmpeg
       - run-tests:
           unix-like: << parameters.unix-like >>
       - run-backwards-compatibility-tests
