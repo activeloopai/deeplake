@@ -13,7 +13,7 @@ env:
   MAIN_REPO_NAME: hub
 jobs:
   benchmark-pr:
-    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') && github.repository == 'activeloopai/hub' }}
+    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') }}
     runs-on: [looprunner]
     steps:
       - name: Cancel previous runs if available
