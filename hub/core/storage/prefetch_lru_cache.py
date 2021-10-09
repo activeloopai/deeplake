@@ -27,19 +27,16 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
 
-def retrieve_data(path, presence, next_storage, emergency_storage):
-    if presence:
-        cache_storage = SharedMemoryProvider()
-        return cache_storage[path].tobytes()
+def retrieve_data(path, cache_storage, next_storage, emergency_storage):
+    if cache_storage is not None:
+        # return cache_storage[path].tobytes()
+        return cache_storage[path]
     elif next_storage is not None:
         # fetch from next storage, may throw KeyError
-        result = next_storage[path]
-        return result
+        return next_storage[path]
     else:
         # fetch from emergency storage, may throw KeyError
-        result = emergency_storage[path]
-        return result
-
+        return emergency_storage[path]
 
 def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
     data = {}
@@ -60,7 +57,8 @@ def chunks_from_names(shm_names: List[str], shm_names_presence_list, next_storag
 
 def chunk_from_name(shm_name: str, shm_name_presence: bool, next_storage, emergency_storage):
     """Takes a shm_name and tensor and returns Chunk"""
-    chunk_data = retrieve_data(shm_name,shm_name_presence, next_storage, emergency_storage)
+    cache_storage = SharedMemoryProvider() if shm_name_presence else None
+    chunk_data = retrieve_data(shm_name, cache_storage, next_storage, emergency_storage)
     # TODO: update cache later
     chunk = Chunk.frombuffer(chunk_data, copy=False)
     return chunk
