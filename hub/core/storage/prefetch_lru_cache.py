@@ -1,3 +1,4 @@
+import pickle
 import warnings
 import numpy as np
 from itertools import repeat
@@ -50,7 +51,8 @@ def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, nex
         if arr is None:
             return None
         data[tensor] = arr
-    return data
+    storage = SharedMemoryProvider()
+    storage[f"tr_{index}"] = pickle.dumps(data)
 
 def chunks_from_names(shm_names: List[str], shm_names_presence_list, next_storage, emergency_storage):
     """Takes a list of shm names and returns a list with corresponding chunk objects"""
@@ -258,13 +260,18 @@ class PrefetchLRUCache(LRUCache):
                 shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
                 shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
                 # print("before map")
-                data_list = self.map(
+                self.map(
                     data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
                 )
+
+                data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
                 # print("after map")
                 # print("waiting in while for", currently_scheduled_indexes)
                 queued_indexes = queued_indexes[self.workers :]
                 yield from data_list
+                for index in currently_scheduled_indexes:
+                    del self.cache_storage[f"tr_{index}"]
+                    
                 self.required_chunks.clear()
                 if self.emergency_storage is not None:
                     self.emergency_storage.clear()
