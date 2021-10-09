@@ -24,13 +24,13 @@ from hub.util.exceptions import (
 from hub.util.remove_cache import get_base_storage
 from hub.util.prefetch_cache import read_and_store_chunk_group
 from hub.util.iterable_ordered_dict import IterableOrderedDict
+from hub.util.shared_memory import remove_shared_memory_from_resource_tracker
 
 
 
 def retrieve_data(path, cache_storage, next_storage, emergency_storage):
     if cache_storage is not None:
-        # return cache_storage[path].tobytes()
-        return cache_storage[path]
+        return cache_storage[path].tobytes()
     elif next_storage is not None:
         # fetch from next storage, may throw KeyError
         return next_storage[path]
@@ -39,6 +39,7 @@ def retrieve_data(path, cache_storage, next_storage, emergency_storage):
         return emergency_storage[path]
 
 def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
+    remove_shared_memory_from_resource_tracker()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
@@ -279,9 +280,21 @@ class PrefetchLRUCache(LRUCache):
             for idx in pending_indexes:
                 queued_indexes.append(idx)
 
-        if queued_indexes:
-            data_list = self.map(self._get_final_output, queued_indexes)
+        while queued_indexes:
+            currently_scheduled_indexes = queued_indexes[: self.workers]
+            chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
+            shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
+            shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
+            self.map(
+                data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
+            )
+
+            data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
+            queued_indexes = queued_indexes[self.workers :]
             yield from data_list
+            for index in currently_scheduled_indexes:
+                del self.cache_storage[f"tr_{index}"]
+                
             self.required_chunks.clear()
             if self.emergency_storage is not None:
                 self.emergency_storage.clear()
