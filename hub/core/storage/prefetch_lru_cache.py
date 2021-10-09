@@ -25,6 +25,97 @@ from hub.util.prefetch_cache import read_and_store_chunk_group
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
+
+def retrieve_data(path, presence, next_storage, emergency_storage):
+    if presence:
+        cache_storage = SharedMemoryProvider()
+        return cache_storage[path].tobytes()
+    elif next_storage is not None:
+        # fetch from next storage, may throw KeyError
+        result = next_storage[path]
+        return result
+    else:
+        # fetch from emergency storage, may throw KeyError
+        result = emergency_storage[path]
+        return result
+
+
+def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
+    data = {}
+    for tensor, shm_names in shm_names_dict.items():
+        shm_names_presence_list = shm_names_presence_dict[tensor]
+        # zipped_list = list(zip(shm_names, shm_names_presence_list))
+
+        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, next_storage, emergency_storage)
+        if arr is None:
+            return None
+        data[tensor] = arr
+    return data
+
+def chunks_from_names(shm_names: List[str], shm_names_presence_list, next_storage, emergency_storage):
+    """Takes a list of shm names and returns a list with corresponding chunk objects"""
+    return [chunk_from_name(shm_name, shm_name_presence, next_storage, emergency_storage) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
+
+def chunk_from_name(shm_name: str, shm_name_presence: bool, next_storage, emergency_storage):
+    """Takes a shm_name and tensor and returns Chunk"""
+    chunk_data = retrieve_data(shm_name,shm_name_presence, next_storage, emergency_storage)
+    # TODO: update cache later
+    chunk = Chunk.frombuffer(chunk_data, copy=False)
+    return chunk
+
+def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, next_storage, emergency_storage):
+    chunks = chunks_from_names(shm_names, shm_names_presence_list, next_storage, emergency_storage)
+    arr = numpy_from_chunks(index, tensor, chunks)
+    return arr
+
+
+def numpy_from_chunks(index: int, key: str, chunks: List[Chunk]):
+    """Takes a list of chunks and returns a numpy array from it"""
+    global all_chunk_engines
+    global iter_mode
+    # TODO: separate out casting
+    chunk_engine = all_chunk_engines[key]
+
+    # TODO: update this once we support images spanning across multiple chunks
+    chunk = chunks[0]
+    if iter_mode != "pytorch":
+        try:
+            return chunk_engine.read_sample_from_chunk(
+                index, chunk, cast=True, copy=True
+            )
+        except SampleDecompressionError:
+            warnings.warn(
+                f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
+            )
+            return None
+    else:
+        # read the chunk and cast it to pytorch tensor with compatible dtype
+        import torch
+
+        try:
+            value = chunk_engine.read_sample_from_chunk(
+                index, chunk, cast=False, copy=False
+            )
+        except SampleDecompressionError:
+            warnings.warn(
+                f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
+            )
+            return None
+        # typecast if incompatible with pytorch
+        dtype = chunk_engine.tensor_meta.dtype
+        compatible_dtypes = {
+            "uint16": "int32",
+            "uint32": "int64",
+            "uint64": "int64",
+        }
+        dtype = compatible_dtypes.get(dtype, dtype)
+        try:
+            torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
+        except AttributeError:
+            raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
+        return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
+
+
 # TODO: fetching from local cache happens on the main thread, this needs to be improved
 # TODO: transforms are performed on the main thread, this needs to be improved
 class PrefetchLRUCache(LRUCache):
@@ -42,13 +133,13 @@ class PrefetchLRUCache(LRUCache):
         mode: Optional[str] = None,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
+        global iter_mode
         self.mode = mode
+        iter_mode = mode
         self.transform = transform
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
-        pool = ProcessPool(nodes=num_workers)
-        self.map = pool.map
 
         # shared memory file names have format "al_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
         self.last_shm_key_generated = -1
@@ -77,6 +168,12 @@ class PrefetchLRUCache(LRUCache):
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines(
             dataset.version_state
         )
+        global all_chunk_engines
+        all_chunk_engines = self.all_chunk_engines
+
+        pool = ProcessPool(nodes=num_workers)
+        self.map = pool.map
+
         self.commit_id = dataset.version_state["commit_id"]
 
         # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
@@ -129,12 +226,16 @@ class PrefetchLRUCache(LRUCache):
 
             # chunks not found in cache for the current index and also not scheduled to be fetched by another worker
             needed_chunks = self._get_chunks_needed(missing_chunks, scheduled_chunks)
+            # print(f"{missing_chunks=}")
+            # print(f"{needed_chunks=}")
+            # print(f"{scheduled_chunks=}")
 
             if missing_chunks:
                 pending_indexes.append(index)
                 if needed_chunks:
                     chunk_groups_for_workers.append(needed_chunks)
-                if len(chunk_groups_for_workers) == self.workers or i == len(self) - 1:
+                if len(chunk_groups_for_workers) >= self.workers or i == len(self) - 1:
+                    # print(f"fetching {chunk_groups_for_workers}")
                     self._fetch_and_store_required_data(chunk_groups_for_workers)
                     for idx in pending_indexes:
                         queued_indexes.append(idx)
@@ -144,11 +245,24 @@ class PrefetchLRUCache(LRUCache):
             else:
                 queued_indexes.append(index)
 
-            if len(queued_indexes) >= self.workers:
+            # print(f"{len(chunk_groups_for_workers)=}")
+
+            # print(f"{queued_indexes=}")
+            # print(f"{pending_indexes=}")
+
+            while len(queued_indexes) >= self.workers:
+                # print("in while")
                 currently_scheduled_indexes = queued_indexes[: self.workers]
+                # print("yielding", currently_scheduled_indexes)
+                chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
+                shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
+                shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
+                # print("before map")
                 data_list = self.map(
-                    self._get_final_output, currently_scheduled_indexes
+                    data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
                 )
+                # print("after map")
+                # print("waiting in while for", currently_scheduled_indexes)
                 queued_indexes = queued_indexes[self.workers :]
                 yield from data_list
                 self.required_chunks.clear()
@@ -294,66 +408,23 @@ class PrefetchLRUCache(LRUCache):
         cache = LRUCache(MemoryProvider(), self.storage, 32 * MB)
         return {key: ChunkEngine(key, cache, version_state) for key in self.tensor_keys}
 
-    def _numpy_from_chunks(self, index: int, key: str, chunks: List[Chunk]):
-        """Takes a list of chunks and returns a numpy array from it"""
-        # TODO: separate out casting
-        chunk_engine = self.all_chunk_engines[key]
+    def _shm_names_dict_from_chunk_names_dict(self, chunk_names_dict):
+        d = {}
+        for tensor, chunk_names in chunk_names_dict.items():
+            shm_names = [self.chunk_shared_mem_map[(tensor, chunk_name)] for chunk_name in chunk_names]
+            d[tensor] = shm_names
+        return d
 
-        # TODO: update this once we support images spanning across multiple chunks
-        chunk = chunks[0]
-        if self.mode != "pytorch":
-            try:
-                return chunk_engine.read_sample_from_chunk(
-                    index, chunk, cast=True, copy=True
-                )
-            except SampleDecompressionError:
-                warnings.warn(
-                    f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
-                )
-                return None
-        else:
-            # read the chunk and cast it to pytorch tensor with compatible dtype
-            import torch
+    def _shm_names_presence_dict(self, shm_names_dict):
+        d = {}
+        for tensor, shm_names in shm_names_dict.items():
+            presence_list = [shm_name in self.lru_sizes for shm_name in shm_names]
+            d[tensor] = presence_list
+        return d
 
-            try:
-                value = chunk_engine.read_sample_from_chunk(
-                    index, chunk, cast=False, copy=False
-                )
-            except SampleDecompressionError:
-                warnings.warn(
-                    f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
-                )
-                return None
-            # typecast if incompatible with pytorch
-            dtype = chunk_engine.tensor_meta.dtype
-            compatible_dtypes = {
-                "uint16": "int32",
-                "uint32": "int64",
-                "uint64": "int64",
-            }
-            dtype = compatible_dtypes.get(dtype, dtype)
-            try:
-                torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
-            except AttributeError:
-                raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
-            return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
 
-    def _chunks_from_names(self, tensor: str, chunk_names: List[str]):
-        """Takes a list of chunk names and returns a list with corresponding chunk objects"""
-        return [self._chunk_from_name(tensor, chunk_name) for chunk_name in chunk_names]
 
-    def _chunk_from_name(self, tensor: str, chunk_name: str):
-        """Takes a single chunk name and tensor and returns Chunk"""
-        shm_name = self.chunk_shared_mem_map[(tensor, chunk_name)]
-        chunk_data = self.__getitem__(shm_name, False)
-        # TODO: update cache later
-        chunk = Chunk.frombuffer(chunk_data, copy=False)
-        return chunk
 
-    def _numpy_from_chunk_names(self, tensor, chunk_names, index):
-        chunks = self._chunks_from_names(tensor, chunk_names)
-        arr = self._numpy_from_chunks(index, tensor, chunks)
-        return arr
 
     def _get_data(self, index: int):
         """Returns all the data for a given index"""

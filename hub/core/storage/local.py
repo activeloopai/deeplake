@@ -175,3 +175,9 @@ class LocalProvider(StorageProvider):
         full_path = os.path.expanduser(self.root)
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
+
+    def __getstate__(self):
+        return self.root
+
+    def __setstate__(self, state):
+        self.root = state
