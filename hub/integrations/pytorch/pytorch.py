@@ -9,14 +9,9 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
 )
+from hub.util.check_installation import pytorch_installed
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
-
-pytorch_installed = True
-try:
-    import torch
-except ModuleNotFoundError:
-    pytorch_installed = False
 
 
 def set_worker_sharing_strategy(worker_id: int) -> None:
@@ -36,10 +31,12 @@ def dataset_to_pytorch(
     buffer_size: int = 10 * 1000,
     use_local_cache: bool = False,
 ):
-    if not pytorch_installed:
+    if not pytorch_installed():
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
+
+    import torch
 
     try_flushing(dataset)
 
