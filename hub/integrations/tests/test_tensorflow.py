@@ -3,7 +3,6 @@ from hub.util.check_installation import requires_tensorflow
 import numpy as np
 import hub
 import pytest
-from hub.tests.dataset_fixtures import enabled_datasets
 
 
 @requires_tensorflow
@@ -93,18 +92,17 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_tensorflow
-@enabled_datasets
-def test_tensor_tensorflow(ds, compressed_image_paths):
+def test_tensor_tensorflow(memory_ds, compressed_image_paths):
     img = hub.read(compressed_image_paths["jpeg"][0])
-    with ds:
-        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+    with memory_ds:
+        memory_ds.create_tensor("images", htype="image", sample_compression="jpeg")
         for _ in range(10):
-            ds.images.append(img)
+            memory_ds.images.append(img)
 
-    np.testing.assert_array_equal(ds.images[0].tensorflow(), img.array)
+    np.testing.assert_array_equal(memory_ds.images[0].tensorflow(), img.array)
 
     np.testing.assert_array_equal(
-        ds.images[0:10].tensorflow(), np.array([img.array for i in range(10)])
+        memory_ds.images[0:10].tensorflow(), np.array([img.array for i in range(10)])
     )
-    for tensor in ds.images[0:10].tensorflow(aslist=True):
+    for tensor in memory_ds.images[0:10].tensorflow(aslist=True):
         np.testing.assert_array_equal(tensor, img.array)

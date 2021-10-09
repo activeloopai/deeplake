@@ -422,18 +422,17 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_torch
-@enabled_datasets
-def test_tensor_torch(ds, compressed_image_paths):
+def test_tensor_torch(memory_ds, compressed_image_paths):
     img = hub.read(compressed_image_paths["jpeg"][0])
-    with ds:
-        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+    with memory_ds:
+        memory_ds.create_tensor("images", htype="image", sample_compression="jpeg")
         for _ in range(10):
-            ds.images.append(img)
+            memory_ds.images.append(img)
 
-    np.testing.assert_array_equal(ds.images[0].pytorch(), img.array)
+    np.testing.assert_array_equal(memory_ds.images[0].pytorch(), img.array)
 
     np.testing.assert_array_equal(
-        ds.images[0:10].pytorch(), np.array([img.array for i in range(10)])
+        memory_ds.images[0:10].pytorch(), np.array([img.array for i in range(10)])
     )
-    for tensor in ds.images[0:10].pytorch(aslist=True):
+    for tensor in memory_ds.images[0:10].pytorch(aslist=True):
         np.testing.assert_array_equal(tensor, img.array)
