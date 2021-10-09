@@ -432,7 +432,6 @@ class PrefetchLRUCache(LRUCache):
                     self.lru_sizes.move_to_end(shm_name)
                 else:
                     presence_list.append(False)
-            presence_list = [shm_name in self.lru_sizes for shm_name in shm_names]
             d[tensor] = presence_list
         return d
 
