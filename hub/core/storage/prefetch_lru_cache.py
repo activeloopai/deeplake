@@ -52,7 +52,7 @@ def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, nex
             return None
         data[tensor] = arr
     storage = SharedMemoryProvider()
-    storage[f"tr_{index}"] = pickle.dumps(data)
+    storage[f"tr_{index}"] = pickle.dumps(data, protocol=-1)
 
 def chunks_from_names(shm_names: List[str], shm_names_presence_list, next_storage, emergency_storage):
     """Takes a list of shm names and returns a list with corresponding chunk objects"""
@@ -425,13 +425,16 @@ class PrefetchLRUCache(LRUCache):
     def _shm_names_presence_dict(self, shm_names_dict):
         d = {}
         for tensor, shm_names in shm_names_dict.items():
+            presence_list = []
+            for shm_name in shm_names:
+                if shm_name in self.lru_sizes:
+                    presence_list.append(True)
+                    self.lru_sizes.move_to_end(shm_name)
+                else:
+                    presence_list.append(False)
             presence_list = [shm_name in self.lru_sizes for shm_name in shm_names]
             d[tensor] = presence_list
         return d
-
-
-
-
 
     def _get_data(self, index: int):
         """Returns all the data for a given index"""
