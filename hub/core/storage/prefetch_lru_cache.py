@@ -2,7 +2,7 @@ import pickle
 import warnings
 import numpy as np
 from itertools import repeat
-from pathos.pools import ProcessPool  # type: ignore
+from pathos.pools import ProcessPool, ThreadPool  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
 
 from hub.constants import EMERGENCY_STORAGE_PATH, MB
@@ -174,6 +174,8 @@ class PrefetchLRUCache(LRUCache):
 
         pool = ProcessPool(nodes=num_workers)
         self.map = pool.map
+
+        self.tmap = ThreadPool(nodes=num_workers).map
 
         self.commit_id = dataset.version_state["commit_id"]
 
@@ -541,7 +543,7 @@ class PrefetchLRUCache(LRUCache):
             storage = self.storage_state_tuple
 
         commit_id = self.commit_id
-        all_chunk_sizes: List[Dict[str, int]] = self.map(
+        all_chunk_sizes: List[Dict[str, int]] = self.tmap(
             read_and_store_chunk_group,
             chunk_groups,
             shared_memory_groups,
