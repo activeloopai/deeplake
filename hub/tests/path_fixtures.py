@@ -37,6 +37,18 @@ GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
 
+
+def _download_hub_test_images(tempdir):
+    cwd = os.getcwd()
+    os.chdir(tempdir)
+    try:
+        os.system("git clone https://www.github.com/activeloopai/hub-test-resources.git")
+        d = "hub-test-resources/images/jpeg"
+        return [os.path.join(tempdir, d, f) for f in os.listdir(d)]
+    finally:
+        os.chdir(cwd)
+
+
 def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
@@ -279,6 +291,8 @@ def compressed_image_paths():
     pil_image_paths = _download_pil_test_images(tmpdir)
     paths["jpeg"] += pil_image_paths[".jpg"]
     paths["png"] += pil_image_paths[".png"]
+    hub_test_images = _download_hub_test_images(tmpdir)
+    paths["jpeg"] += hub_test_images
     yield paths
     try:
         shutil.rmtree(tmpdir)
