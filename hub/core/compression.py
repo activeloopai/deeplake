@@ -345,11 +345,9 @@ def _verify_jpeg_buffer(buf: bytes):
         marker = buf[idx : idx + 2]
         if marker == _JPEG_SOFS[-1]:
             break
-        elif marker in _JPEG_SKIP_MARKERS:
-            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
-        else:
+        offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big") + 2
+        if marker not in _JPEG_SKIP_MARKERS:
             sof_idx = idx
-            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
 
@@ -388,12 +386,10 @@ def _verify_jpeg_file(f):
             marker = mm[idx : idx + 2]
             if marker == _JPEG_SOFS[-1]:
                 break
-            elif marker in _JPEG_SKIP_MARKERS:
-                f.seek(idx + 2)
-                offset = idx + int.from_bytes(f.read(2), "big")
-            else:
+            f.seek(idx + 2)
+            offset = idx + int.from_bytes(f.read(2), "big") + 2
+            if marker not in _JPEG_SKIP_MARKERS:
                 sof_idx = idx
-                offset = idx + 2
         if sof_idx == -1:
             raise Exception()  # Caught by verify_compressed_file()
 
@@ -520,12 +516,10 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
             marker = mm[idx : idx + 2]
             if marker == _JPEG_SOFS[-1]:
                 break
-            elif marker in _JPEG_SKIP_MARKERS:
-                f.seek(idx + 2)
-                offset = idx + int.from_bytes(f.read(2), "big")
-            else:
+            f.seek(idx + 2)
+            offset = idx + int.from_bytes(f.read(2), "big") + 2
+            if marker not in _JPEG_SKIP_MARKERS:
                 sof_idx = idx
-                offset = idx + 2
         if sof_idx == -1:
             raise Exception()
         f.seek(sof_idx + 5)
@@ -552,11 +546,9 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
         marker = buf[idx : idx + 2]
         if marker == _JPEG_SOFS[-1]:
             break
-        elif marker in _JPEG_SKIP_MARKERS:
-            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
-        else:
+        offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big") + 2
+        if marker not in _JPEG_SKIP_MARKERS:
             sof_idx = idx
-            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
     shape = _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
