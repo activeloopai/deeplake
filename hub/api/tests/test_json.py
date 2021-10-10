@@ -97,3 +97,30 @@ def test_list_with_numpy(memory_ds):
         actual, expected = list(ds.list[i].numpy()), items[i % 2]
         np.testing.assert_array_equal(actual[0], expected[0])
         assert actual[1:] == expected[1:]
+
+
+def test_list_with_hub_sample(memory_ds, compressed_image_paths):
+    ds = memory_ds
+    ds.create_tensor("list", htype="list")
+    items = [
+        [
+            {
+                "x": [1, 2, 3],
+                "y": [4, [5, 6, hub.read(compressed_image_paths["jpeg"][0])]],
+            },
+            [[hub.read(compressed_image_paths["jpeg"][1])]],
+            [None, 0.1],
+        ],
+        [
+            [],
+            [[[hub.read(compressed_image_paths["png"][0])]]],
+            {"a": [0.1, 1, "a", hub.read(compressed_image_paths["png"][0])]},
+        ],
+    ]
+    with ds:
+        for x in items:
+            ds.list.append(x)
+        ds.list.extend(items)
+    assert ds.list.shape == (4, 3)
+    for i in range(4):
+        assert list(ds.list[i].numpy()) == items[i % 2]
