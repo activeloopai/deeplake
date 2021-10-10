@@ -47,7 +47,8 @@ def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, nex
         
         # TODO: fix
         if arr is None:
-            return None
+            cache_storage[f"tr_{index}"] = pickle.dumps(None, protocol=-1)
+            return
         data[tensor] = arr
 
     # sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
@@ -269,6 +270,7 @@ class PrefetchLRUCache(LRUCache):
                 # print("after map")
                 # print("waiting in while for", currently_scheduled_indexes)
                 queued_indexes = queued_indexes[self.workers :]
+                yield from data_list
                 # yield from currently_scheduled_indexes
                 for index in currently_scheduled_indexes:
                     del self.cache_storage[f"tr_{index}"]
@@ -292,7 +294,8 @@ class PrefetchLRUCache(LRUCache):
 
             data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
             queued_indexes = queued_indexes[self.workers :]
-            yield from currently_scheduled_indexes
+            yield from data_list
+            # yield from currently_scheduled_indexes
             for index in currently_scheduled_indexes:
                 del self.cache_storage[f"tr_{index}"]
                 
