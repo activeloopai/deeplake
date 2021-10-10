@@ -37,12 +37,13 @@ GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
 
-
 def _download_hub_test_images(tempdir):
     cwd = os.getcwd()
     os.chdir(tempdir)
     try:
-        os.system("git clone https://www.github.com/activeloopai/hub-test-resources.git")
+        os.system(
+            "git clone https://www.github.com/activeloopai/hub-test-resources.git"
+        )
         d = "hub-test-resources/images/jpeg"
         return [os.path.join(tempdir, d, f) for f in os.listdir(d)]
     finally:
