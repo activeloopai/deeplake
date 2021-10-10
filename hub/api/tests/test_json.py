@@ -74,3 +74,26 @@ def test_json_list_basic(memory_ds):
     assert ds.list.shape == (4, 3)
     for i in range(4):
         assert list(ds.list[i].numpy()) == items[i % 2]
+
+
+def test_list_with_numpy(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("list", htype="list")
+    items = [
+        [
+            np.random.random((3, 4)),
+            {"x": [1, 2, 3], "y": [4, [5, 6]]},
+            [[]],
+            [None, 0.1],
+        ],
+        [np.random.randint(0, 10, (4, 5)), [], [[[]]], {"a": [0.1, 1, "a", []]}],
+    ]
+    with ds:
+        for x in items:
+            ds.list.append(x)
+        ds.list.extend(items)
+    assert ds.list.shape == (4, 4)
+    for i in range(4):
+        actual, expected = list(ds.list[i].numpy()), items[i % 2]
+        np.testing.assert_array_equal(actual[0], expected[0])
+        assert actual[1:] == expected[1:]
