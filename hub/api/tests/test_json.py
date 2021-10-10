@@ -2,6 +2,7 @@ import numpy as np
 import hub
 import pytest
 from hub.util.json import JsonValidationError
+from typing import Any, Optional, Union, List, Dict
 
 
 def test_json_basic(memory_ds):
@@ -124,3 +125,26 @@ def test_list_with_hub_sample(memory_ds, compressed_image_paths):
     assert ds.list.shape == (4, 3)
     for i in range(4):
         assert list(ds.list[i].numpy()) == items[i % 2]
+
+
+def test_json_with_schema(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("json", htype="json", dtype=List[Dict[str, int]])
+    ds.json.append([{"x": 1, "y": 2}])
+    with pytest.raises(JsonValidationError):
+        ds.json.append({"x": 1, "y": 2})
+    with pytest.raises(JsonValidationError):
+        ds.json.append([{"x": 1, "y": "2"}])
+
+    assert ds.json.numpy()[0, 0] == [{"x": 1, "y": 2}]
+
+    ds.create_tensor("json2", htype="json", dtype=Optional[List[Dict[str, int]]])
+    items = [
+        [{"x": 1, "y": 2}],
+        None,
+        [{"x": 2, "y": 3}],
+        None,
+    ]
+    ds.json2.extend(items)
+    for i in range(len(items)):
+        assert ds.json2[i].numpy()[0] == ds.json2.numpy()[i][0] == items[i]

@@ -30,12 +30,6 @@ from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIF
 from hub.core.meta.meta import Meta
 
 
-try:
-    from typing import GenericMeta
-except ImportError:
-    from typing import _GenericAlias as GenericMeta
-
-
 class TensorMeta(Meta):
     htype: str
     dtype: str
@@ -243,8 +237,8 @@ def _format_values(htype: str, htype_overwrite: dict):
     dtype = htype_overwrite["dtype"]
     if dtype is not None:
         if htype in ("json", "list"):
-            if isinstance(dtype, GenericMeta):
-                dtype = str(dtype)
+            if getattr(dtype, "__module__", None) == "typing":
+                htype_overwrite["dtype"] = str(dtype)
         else:
             htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 

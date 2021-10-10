@@ -54,12 +54,6 @@ from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 
 
-try:
-    from typing import GenericMeta
-except ImportError:
-    from typing import _GenericAlias as GenericMeta
-
-
 class Dataset:
     def __init__(
         self,
@@ -223,7 +217,7 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        dtype: Union[str, np.dtype, type, GenericMeta] = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         **kwargs,

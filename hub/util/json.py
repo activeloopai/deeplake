@@ -6,10 +6,8 @@ import base64
 
 from hub.core.sample import Sample
 
-try:
-    from typing import GenericMeta
-except ImportError:
-    from typing import _GenericAlias as GenericMeta
+
+Schema = Any
 
 
 scalars = ["int", "float", "bool", "str", "list", "dict", "ndarray", "Sample"]
@@ -21,14 +19,14 @@ def _norm_type(typ: str):
     replacements = {
         "numpy.ndarray": "ndarray",
         "np.ndarray": "ndarray",
-        "hub.core.Sample": "Sample",
+        "hub.core.sample.Sample": "Sample",
         "hub.Sample": "Sample",
     }
     return replacements.get(typ, typ)
 
 
-def _parse_schema(schema: Union[str, GenericMeta]) -> Tuple[str, List[str]]:
-    if isinstance(schema, GenericMeta):
+def _parse_schema(schema: Union[str, Schema]) -> Tuple[str, List[str]]:
+    if getattr(schema, "__module__", None) == "typing":
         schema = str(schema)
         validate = False
     else:
@@ -36,6 +34,7 @@ def _parse_schema(schema: Union[str, GenericMeta]) -> Tuple[str, List[str]]:
 
     if schema in scalars:
         return schema, []
+
 
     if "[" not in schema:
         return _norm_type(schema), []
@@ -136,7 +135,8 @@ def _validate_optional(obj: Any, params: List[str]) -> bool:
 
 def _validate_list(obj: Any, params: List[str]) -> bool:
     assert len(params) <= 1
-    assert isinstance(obj, (list, tuple))
+    if not isinstance(obj, (list, tuple)):
+        return False
     if params:
         for item in obj:
             if not _validate_object(item, params[0]):
@@ -146,7 +146,8 @@ def _validate_list(obj: Any, params: List[str]) -> bool:
 
 def _validate_dict(obj: Any, params: List[str]) -> bool:
     assert len(params) in (0, 2)
-    assert isinstance(obj, dict)
+    if not isinstance(obj, dict):
+        return False
     if params:
         assert params[0] in (
             "str",
@@ -158,7 +159,12 @@ def _validate_dict(obj: Any, params: List[str]) -> bool:
     return True
 
 
-def _validate_object(obj: Any, schema: Union[str, GenericMeta]) -> bool:
+def _validate_nonetype(obj: Any, params: List[str]) -> bool:
+    assert not params
+    return obj is None
+
+
+def _validate_object(obj: Any, schema: Union[str, Schema]) -> bool:
     typ, params = _parse_schema(schema)
     if typ in scalars:
         return isinstance(obj, eval(typ))
@@ -169,7 +175,7 @@ class JsonValidationError(Exception):
     pass
 
 
-def validate_json_object(obj: Any, schema: Union[str, GenericMeta]) -> None:
+def validate_json_object(obj: Any, schema: Union[str, Schema]) -> None:
     if not _validate_object(obj, schema):
         raise JsonValidationError()
 
