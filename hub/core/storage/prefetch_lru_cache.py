@@ -27,10 +27,9 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import remove_shared_memory_from_resource_tracker
 
 
-
-def retrieve_data(path, cache_storage, next_storage, emergency_storage):
-    if cache_storage is not None:
-        return cache_storage[path].tobytes()
+def retrieve_data(path, presence, cache_storage, next_storage, emergency_storage):
+    if presence:
+        return cache_storage[path]
     elif next_storage is not None:
         # fetch from next storage, may throw KeyError
         return next_storage[path]
@@ -40,35 +39,34 @@ def retrieve_data(path, cache_storage, next_storage, emergency_storage):
 
 def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
     remove_shared_memory_from_resource_tracker()
+    cache_storage = SharedMemoryProvider()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
-        # zipped_list = list(zip(shm_names, shm_names_presence_list))
-
-        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, next_storage, emergency_storage)
+        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage)
+        
+        # TODO: fix
         if arr is None:
             return None
         data[tensor] = arr
 
     # sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
     # final = self._apply_transform(sample)
-    storage = SharedMemoryProvider()
-    storage[f"tr_{index}"] = pickle.dumps(data, protocol=-1)
+    cache_storage[f"tr_{index}"] = pickle.dumps(data, protocol=-1)
 
-def chunks_from_names(shm_names: List[str], shm_names_presence_list, next_storage, emergency_storage):
+def chunks_from_names(shm_names: List[str], shm_names_presence_list, cache_storage, next_storage, emergency_storage):
     """Takes a list of shm names and returns a list with corresponding chunk objects"""
-    return [chunk_from_name(shm_name, shm_name_presence, next_storage, emergency_storage) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
+    return [chunk_from_name(shm_name, shm_name_presence, cache_storage, next_storage, emergency_storage) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
 
-def chunk_from_name(shm_name: str, shm_name_presence: bool, next_storage, emergency_storage):
+def chunk_from_name(shm_name: str, shm_name_presence: bool, cache_storage, next_storage, emergency_storage):
     """Takes a shm_name and tensor and returns Chunk"""
-    cache_storage = SharedMemoryProvider() if shm_name_presence else None
-    chunk_data = retrieve_data(shm_name, cache_storage, next_storage, emergency_storage)
+    chunk_data = retrieve_data(shm_name, shm_name_presence, cache_storage, next_storage, emergency_storage)
     # TODO: update cache later
     chunk = Chunk.frombuffer(chunk_data, copy=False)
     return chunk
 
-def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, next_storage, emergency_storage):
-    chunks = chunks_from_names(shm_names, shm_names_presence_list, next_storage, emergency_storage)
+def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage):
+    chunks = chunks_from_names(shm_names, shm_names_presence_list, cache_storage, next_storage, emergency_storage)
     arr = numpy_from_chunks(index, tensor, chunks)
     return arr
 
@@ -271,7 +269,7 @@ class PrefetchLRUCache(LRUCache):
                 # print("after map")
                 # print("waiting in while for", currently_scheduled_indexes)
                 queued_indexes = queued_indexes[self.workers :]
-                yield from data_list
+                # yield from currently_scheduled_indexes
                 for index in currently_scheduled_indexes:
                     del self.cache_storage[f"tr_{index}"]
                     
@@ -294,7 +292,7 @@ class PrefetchLRUCache(LRUCache):
 
             data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
             queued_indexes = queued_indexes[self.workers :]
-            yield from data_list
+            yield from currently_scheduled_indexes
             for index in currently_scheduled_indexes:
                 del self.cache_storage[f"tr_{index}"]
                 
