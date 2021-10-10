@@ -177,7 +177,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             compr = htype_overwrite["sample_compression"]
         if compr not in (None, UNSPECIFIED):
             if get_compression_type(compr) != BYTE_COMPRESSION:
-                raise Exception()  # TODO
+                raise UnsupportedCompressionError(compr, htype)
     elif htype == "audio":
         if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
