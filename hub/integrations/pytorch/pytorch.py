@@ -15,6 +15,8 @@ from .common import convert_fn as default_convert_fn, collate_fn as default_coll
 
 
 def set_worker_sharing_strategy(worker_id: int) -> None:
+    import torch
+
     torch.multiprocessing.set_sharing_strategy("file_system")
 
 
