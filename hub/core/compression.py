@@ -106,13 +106,13 @@ _FFMPEG_EXISTS = None
 def ffmpeg_exists():
     global _FFMPEG_EXISTS
     if _FFMPEG_EXISTS is None:
+        _FFMPEG_EXISTS = True
         try:
             retval = sp.run(
                 [_FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
             ).returncode
         except FileNotFoundError as e:
             _FFMPEG_EXISTS = False
-        _FFMPEG_EXISTS = True
     return _FFMPEG_EXISTS
 
 
