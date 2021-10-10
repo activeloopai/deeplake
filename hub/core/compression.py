@@ -108,7 +108,7 @@ def ffmpeg_exists():
     if _FFMPEG_EXISTS is None:
         try:
             retval = sp.run(
-                [FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
+                [_FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
             ).returncode
         except FileNotFoundError as e:
             _FFMPEG_EXISTS = False
@@ -119,15 +119,19 @@ def ffmpeg_exists():
 def ffmpeg_binary():
     if ffmpeg_exists():
         return _FFMPEG_BINARY
-    raise FileNotFoundError("FFMPEG not found. Install FFMPEG to use hub's video features")
+    raise FileNotFoundError(
+        "FFMPEG not found. Install FFMPEG to use hub's video features"
+    )
 
 
 def ffprobe_binary():
     if ffmpeg_exists():
         return _FFPROBE_BINARY
-    raise FileNotFoundError("FFMPEG not found. Install FFMPEG to use hub's video features")
+    raise FileNotFoundError(
+        "FFMPEG not found. Install FFMPEG to use hub's video features"
+    )
 
-    
+
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
