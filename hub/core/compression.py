@@ -52,11 +52,11 @@ else:
     _NATIVE_FLOAT32 = ">f4"
 
 if os.name == "nt":
-    FFMPEG_BINARY = "ffmpeg.exe"
-    FFPROBE_BINARY = "ffprobe.exe"
+    _FFMPEG_BINARY = "ffmpeg.exe"
+    _FFPROBE_BINARY = "ffprobe.exe"
 else:
-    FFMPEG_BINARY = "ffmpeg"
-    FFPROBE_BINARY = "ffprobe"
+    _FFMPEG_BINARY = "ffmpeg"
+    _FFPROBE_BINARY = "ffprobe"
 
 DIMS_RE = re.compile(rb" ([0-9]+)x([0-9]+)")
 FPS_RE = re.compile(rb" ([0-9]+) fps,")
@@ -100,38 +100,34 @@ _STRUCT_II = struct.Struct(">ii")
 
 _HUB_MKV_HEADER = b"HUB_MKV_META"
 
-cache = {"ffmpeg_exists": None}
+_FFMPEG_EXISTS = None
 
 
 def ffmpeg_exists():
-    try:
-        retval = sp.run(
-            [FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
-        ).returncode
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
-            "ffmpeg is not installed. Install ffmpeg to use hub's video features."
-        ) from e
-
-    if retval == 0:
-        cache["ffmpeg_exists"] = True
-        return True
+    global _FFMPEG_EXISTS
+    if _FFMPEG_EXISTS is None:
+        try:
+            retval = sp.run(
+                [FFMPEG_BINARY, "-h"], stdout=sp.PIPE, stderr=sp.PIPE
+            ).returncode
+        except FileNotFoundError as e:
+            _FFMPEG_EXISTS = False
+        _FFMPEG_EXISTS = True
+    return _FFMPEG_EXISTS
 
 
 def ffmpeg_binary():
-    if cache["ffmpeg_exists"]:
-        return FFMPEG_BINARY
     if ffmpeg_exists():
-        return FFMPEG_BINARY
+        return _FFMPEG_BINARY
+    raise FileNotFoundError("FFMPEG not found. Install FFMPEG to use hub's video features")
 
 
 def ffprobe_binary():
-    if cache["ffmpeg_exists"]:
-        return FFPROBE_BINARY
     if ffmpeg_exists():
-        return FFPROBE_BINARY
+        return _FFPROBE_BINARY
+    raise FileNotFoundError("FFMPEG not found. Install FFMPEG to use hub's video features")
 
-
+    
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
