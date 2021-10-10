@@ -44,8 +44,8 @@ class Sample:
             ValueError: Cannot create a sample from both a `path` and `array`.
         """
 
-        if (path is None) == (array is None):
-            raise ValueError("Must pass either `path` or `array`.")
+        if not any((path, array, buffer)):
+            raise ValueError("Must pass one of `path`, `array` or `buffer`.")
 
         self._compressed_bytes = {}
         self._uncompressed_bytes = None
@@ -55,6 +55,7 @@ class Sample:
         self._typestr = None
         self._shape = None
         self.path = None
+        self._buffer = None
 
         if path is not None:
             self.path = path
@@ -75,6 +76,12 @@ class Sample:
                 self._uncompressed_bytes = buffer
             else:
                 self._compressed_bytes[compression] = buffer
+
+    @property
+    def buffer(self):
+        if self._buffer is not None:
+            return self._buffer
+        return self.compressed_bytes(self.compression)
 
     @property
     def dtype(self):
@@ -233,6 +240,11 @@ class Sample:
 
     def __array__(self):
         return self.array
+
+    def __eq__(self, other):
+        if self.path is not None and other.path is not None:
+            return self.path == other.path
+        return self.buffer == other.buffer
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

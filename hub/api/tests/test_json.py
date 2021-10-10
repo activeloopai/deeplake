@@ -36,6 +36,30 @@ def test_json_with_numpy(memory_ds):
         np.testing.assert_array_equal(ds.json[i].numpy()[0]["x"], items[i % 2]["x"])
 
 
+def test_json_with_hub_sample(memory_ds, compressed_image_paths):
+    ds = memory_ds
+    ds.create_tensor("json", htype="json")
+    items = [
+        {
+            "x": [1, 2, 3],
+            "y": [4, [5, 6]],
+            "z": hub.read(compressed_image_paths["jpeg"][0]),
+        },
+        {
+            "x": [1, 2, 3],
+            "y": [4, {"z": [0.1, 0.2, []]}],
+            "z": hub.read(compressed_image_paths["png"][0]),
+        },
+    ]
+    with ds:
+        for x in items:
+            ds.json.append(x)
+        ds.json.extend(items)
+    assert ds.json.shape == (4, 1)
+    for i in range(4):
+        assert ds.json[i].numpy()[0] == items[i % 2]
+
+
 def test_json_list_basic(memory_ds):
     ds = memory_ds
     ds.create_tensor("list", htype="list")
