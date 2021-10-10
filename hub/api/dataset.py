@@ -8,7 +8,7 @@ from hub.client.client import HubBackendClient
 from hub.core.dataset import Dataset
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
-from hub.util.bugout_reporter import feature_report_path
+from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
     DatasetHandlerError,
@@ -344,6 +344,15 @@ class dataset:
             InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
 
+        feature_report_path(
+            dest,
+            "ingest",
+            {
+                "Images_Compression": images_compression,
+                "Progress_Bar": progress_bar,
+                "Summary": summary,
+            },
+        )
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
@@ -411,6 +420,17 @@ class dataset:
             SamePathException: If the source and destination path are same.
         """
 
+        feature_report_path(
+            dest,
+            "ingest_kaggle",
+            {
+                "Images_Compression": images_compression,
+                "Exist_Ok": exist_ok,
+                "Progress_Bar": progress_bar,
+                "Summary": summary,
+            },
+        )
+
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
@@ -435,6 +455,7 @@ class dataset:
         return ds
 
     @staticmethod
+    @hub_reporter.record_call
     def list(workspace: str = "") -> None:
         """List all available hub cloud datasets.
 

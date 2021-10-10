@@ -6,8 +6,30 @@ from typing import Optional
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
-import hub
+from hub.util.exceptions import (
+    S3DeletionError,
+    S3GetError,
+    S3ListError,
+    S3SetError,
+    S3Error,
+)
+
+
+class S3ReloadCredentialsManager:
+    """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
+
+    def __init__(self, s3p, error_class: S3Error):
+        self.error_class = error_class
+        self.s3p = s3p
+
+    def __enter__(self):
+        self.s3p._locate_and_load_creds()
+        self.s3p._set_s3_client_and_resource()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if exc_type is not None:
+            raise self.error_class(exc_value).with_traceback(exc_traceback)
 
 
 class S3Provider(StorageProvider):
@@ -55,6 +77,7 @@ class S3Provider(StorageProvider):
         self.expiration: Optional[str] = None
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
+        self.loaded_creds_from_environment = False
 
         self._initialize_s3_parameters()
 
@@ -71,15 +94,28 @@ class S3Provider(StorageProvider):
         """
         self.check_readonly()
         self._check_update_creds()
+        path = posixpath.join(self.path, path)
+        content = bytearray(memoryview(content))
         try:
-            path = posixpath.join(self.path, path)
-            content = bytearray(memoryview(content))
             self.client.put_object(
                 Bucket=self.bucket,
                 Body=content,
                 Key=path,
                 ContentType="application/octet-stream",  # signifies binary data
             )
+        # catch expired token error
+        except botocore.exceptions.ClientError as err:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3SetError):
+                    self.client.put_object(
+                        Bucket=self.bucket,
+                        Body=content,
+                        Key=path,
+                        ContentType="application/octet-stream",  # signifies binary data
+                    )
+            else:
+                raise S3SetError(err)
+
         except Exception as err:
             raise S3SetError(err)
 
@@ -98,8 +134,8 @@ class S3Provider(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self._check_update_creds()
+        path = posixpath.join(self.path, path)
         try:
-            path = posixpath.join(self.path, path)
             resp = self.client.get_object(
                 Bucket=self.bucket,
                 Key=path,
@@ -108,7 +144,15 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
-            raise S3GetError(err)
+            elif self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3GetError):
+                    resp = self.client.get_object(
+                        Bucket=self.bucket,
+                        Key=path,
+                    )
+                    return resp["Body"].read()
+            else:
+                raise S3GetError(err)
         except Exception as err:
             raise S3GetError(err)
 
@@ -125,9 +169,16 @@ class S3Provider(StorageProvider):
         """
         self.check_readonly()
         self._check_update_creds()
+        path = posixpath.join(self.path, path)
         try:
-            path = posixpath.join(self.path, path)
             self.client.delete_object(Bucket=self.bucket, Key=path)
+        # catch expired token error
+        except botocore.exceptions.ClientError as err:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3DeletionError):
+                    self.client.delete_object(Bucket=self.bucket, Key=path)
+            else:
+                raise S3DeletionError(err)
         except Exception as err:
             raise S3DeletionError(err)
 
@@ -144,16 +195,26 @@ class S3Provider(StorageProvider):
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
-            if items["KeyCount"] <= 0:
-                return set()
-            items = items["Contents"]
-            names = [item["Key"] for item in items]
-            # removing the prefix from the names
-            len_path = len(self.path.split("/")) - 1
-            names = {"/".join(name.split("/")[len_path:]) for name in names}
-            return names
+        # catch expired token error
+        except botocore.exceptions.ClientError as err:
+            if self.need_to_reload_creds(err):
+                with S3ReloadCredentialsManager(self, S3ListError):
+                    items = self.client.list_objects_v2(
+                        Bucket=self.bucket, Prefix=self.path
+                    )
+            else:
+                raise S3ListError(err)
         except Exception as err:
             raise S3ListError(err)
+
+        if items["KeyCount"] <= 0:
+            return set()
+        items = items["Contents"]
+        names = [item["Key"] for item in items]
+        # removing the prefix from the names
+        len_path = len(self.path.split("/")) - 1
+        names = {"/".join(name.split("/")[len_path:]) for name in names}
+        return names
 
     def __len__(self):
         """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
@@ -181,8 +242,18 @@ class S3Provider(StorageProvider):
         self.check_readonly()
         self._check_update_creds()
         if self.resource is not None:
-            bucket = self.resource.Bucket(self.bucket)
-            bucket.objects.filter(Prefix=self.path).delete()
+            try:
+                bucket = self.resource.Bucket(self.bucket)
+                bucket.objects.filter(Prefix=self.path).delete()
+            # catch expired token error
+            except Exception as e:
+                if self.loaded_creds_from_environment:
+                    with S3ReloadCredentialsManager(self, S3DeletionError):
+                        bucket = self.resource.Bucket(self.bucket)
+                        bucket.objects.filter(Prefix=self.path).delete()
+                else:
+                    raise S3DeletionError(e)
+
         else:
             super().clear()
 
@@ -198,6 +269,7 @@ class S3Provider(StorageProvider):
             self.expiration,
             self.tag,
             self.token,
+            self.loaded_creds_from_environment,
         )
 
     def __setstate__(self, state):
@@ -211,6 +283,7 @@ class S3Provider(StorageProvider):
         self.expiration = state[7]
         self.tag = state[8]
         self.token = state[9]
+        self.loaded_creds_from_environment = state[10]
 
         self._initialize_s3_parameters()
 
@@ -242,6 +315,7 @@ class S3Provider(StorageProvider):
 
         if self.aws_access_key_id is None and self.aws_secret_access_key is None:
             self._locate_and_load_creds()
+            self.loaded_creds_from_environment = True
 
         self._set_s3_client_and_resource()
 
@@ -307,4 +381,13 @@ class S3Provider(StorageProvider):
             config=self.client_config,
             endpoint_url=self.endpoint_url,
             region_name=self.aws_region,
+        )
+
+    def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
+        """Checks if the credentials need to be reloaded.
+        This happens if the credentials were loaded from the environment and have now expired.
+        """
+        return (
+            err.response["Error"]["Code"] == "ExpiredToken"
+            and self.loaded_creds_from_environment
         )
