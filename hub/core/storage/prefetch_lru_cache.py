@@ -49,6 +49,9 @@ def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, nex
         if arr is None:
             return None
         data[tensor] = arr
+
+    # sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
+    # final = self._apply_transform(sample)
     storage = SharedMemoryProvider()
     storage[f"tr_{index}"] = pickle.dumps(data, protocol=-1)
 
@@ -240,8 +243,7 @@ class PrefetchLRUCache(LRUCache):
                 if len(chunk_groups_for_workers) >= self.workers or i == len(self) - 1:
                     # print(f"fetching {chunk_groups_for_workers}")
                     self._fetch_and_store_required_data(chunk_groups_for_workers)
-                    for idx in pending_indexes:
-                        queued_indexes.append(idx)
+                    queued_indexes.extend(pending_indexes)
 
                     pending_indexes.clear()
                     scheduled_chunks.clear()
@@ -279,8 +281,7 @@ class PrefetchLRUCache(LRUCache):
 
         if pending_indexes:
             self._fetch_and_store_required_data(chunk_groups_for_workers)
-            for idx in pending_indexes:
-                queued_indexes.append(idx)
+            queued_indexes.extend(pending_indexes)
 
         while queued_indexes:
             currently_scheduled_indexes = queued_indexes[: self.workers]
