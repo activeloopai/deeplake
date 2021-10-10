@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
+import numpy as np
 from numpy import ndarray
 import json
 import base64
@@ -206,10 +207,10 @@ class HubJsonDecoder(json.JSONDecoder):
         hub_custom_type = obj.get("_hub_custom_type")
         if hub_custom_type == "ndarray":
             return np.frombuffer(
-                base64.b64encode(obj["data"]), dtype=obj["dtype"]
-            ).reshape(obj.shape)
+                base64.b64decode(obj["data"]), dtype=obj["dtype"]
+            ).reshape(obj["shape"])
         elif hub_custom_type == "Sample":
             return Sample(
-                buffer=base64.b64encode(obj["data"]), compression=obj["compression"]
+                buffer=base64.b64decode(obj["data"]), compression=obj["compression"]
             )
         return obj
