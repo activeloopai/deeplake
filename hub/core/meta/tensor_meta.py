@@ -172,13 +172,6 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         if compr not in (None, UNSPECIFIED):
             if get_compression_type(compr) != BYTE_COMPRESSION:
                 raise UnsupportedCompressionError(compr, htype)
-        if htype == "text":
-            if htype_overwrite["dtype"] not in (str, "str"):
-                raise TensorMetaInvalidHtypeOverwriteValue(
-                    "dtype",
-                    htype_overwrite["dtype"],
-                    "dtype for tensors with text htype should always be `str`",
-                )
     elif htype == "audio":
         if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
@@ -204,7 +197,7 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
         if v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
-    if htype in ("json", "list") and not htype_overwrite["dtype"]:
+    if htype in ("json", "list", "text") and not htype_overwrite["dtype"]:
         htype_overwrite["dtype"] = HTYPE_CONFIGURATIONS[htype]["dtype"]
 
 
@@ -235,6 +228,14 @@ def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
                 htype_overwrite,
                 lambda dtype: not _is_dtype_supported_by_numpy(dtype),
                 "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            )
+
+    if htype == "text":
+        if htype_overwrite["dtype"] not in (str, "str"):
+            raise TensorMetaInvalidHtypeOverwriteValue(
+                "dtype",
+                htype_overwrite["dtype"],
+                "dtype for tensors with text htype should always be `str`",
             )
 
 
