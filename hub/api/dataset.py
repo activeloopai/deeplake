@@ -8,7 +8,7 @@ from hub.client.client import HubBackendClient
 from hub.core.dataset import Dataset
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
-from hub.util.bugout_reporter import feature_report_path
+from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
     DatasetHandlerError,
@@ -132,7 +132,7 @@ class dataset:
             storage.clear()
         elif dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
+                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
 
         read_only = storage.read_only
@@ -195,7 +195,7 @@ class dataset:
 
         if not dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
+                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
         if overwrite:
             storage.clear()
@@ -282,34 +282,40 @@ class dataset:
             - All files and sub-directories with unsupported filetypes are ignored.
             - Valid source directory structures look like:
 
-            src:
-                directory -
-                    img.jpg
+            ```
+                data/
+                    img0.jpg
+                    img1.jpg
                     ...
 
-            src:
-                directory -
-                    class0 -
-                        img.jpg
+            ```
+            or
+            ```
+                data/
+                    class0/
+                        cat0.jpg
                         ...
-                    class1 -
-                        img.jpg
+                    class1/
+                        dog0.jpg
                         ...
                     ...
 
-            src:
-                directory -
-                    train -
-                        class0 -
-                            img.jpg
+            ```
+            or
+            ```
+                data/
+                    train/
+                        class0/
+                            img0.jpg
                             ...
                         ...
-                    test -
-                        class1 -
-                            img.jpg
+                    val/
+                        class0/
+                            img0.jpg
                             ...
                         ...
                     ...
+            ```
 
             - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
             - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]
@@ -338,15 +344,20 @@ class dataset:
             InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
 
+        feature_report_path(
+            dest,
+            "ingest",
+            {
+                "Images_Compression": images_compression,
+                "Progress_Bar": progress_bar,
+                "Summary": summary,
+            },
+        )
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
-        if os.path.isdir(dest):
-            if os.path.samefile(src, dest):
-                raise SamePathException(src)
-
-        if len(os.listdir(src)) < 1:
-            raise AutoCompressionError(src)
+        if os.path.isdir(dest) and os.path.samefile(src, dest):
+            raise SamePathException(src)
 
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)
@@ -409,6 +420,17 @@ class dataset:
             SamePathException: If the source and destination path are same.
         """
 
+        feature_report_path(
+            dest,
+            "ingest_kaggle",
+            {
+                "Images_Compression": images_compression,
+                "Exist_Ok": exist_ok,
+                "Progress_Bar": progress_bar,
+                "Summary": summary,
+            },
+        )
+
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
@@ -433,6 +455,7 @@ class dataset:
         return ds
 
     @staticmethod
+    @hub_reporter.record_call
     def list(workspace: str = "") -> None:
         """List all available hub cloud datasets.
 

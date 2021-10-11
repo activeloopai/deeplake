@@ -129,6 +129,28 @@ class Info(CachableCallback):
                 return self._info
             return self[key]
 
+    # the below methods are used by cloudpickle dumps
+    def __origin__(self):
+        return None
+
+    def __values__(self):
+        return None
+
+    def __type__(self):
+        return None
+
+    def __union_params__(self):
+        return None
+
+    def __tuple_params__(self):
+        return None
+
+    def __result__(self):
+        return None
+
+    def __args__(self):
+        return None
+
 
 def load_info(info_key: str, cache: LRUCache, version_state: Dict[str, Any]):
     if info_key in cache:

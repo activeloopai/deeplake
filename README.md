@@ -1,12 +1,12 @@
+| :zap:        Hacktoberfest 2021 is here! Contribute and win Activeloop swag. Grab an issue in our  <a href="https://github.com/activeloopai/Hub/projects/11"><b>Hacktoberfest dashboard</b></a>! :zap: |
+|-----------------------------------------|
+
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
     <h1 align="center">Dataset Format for AI
  </h1>
 <p align="center">
-    <a href="http://docs.activeloop.ai/">
-        <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
-    </a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
     <a href="https://app.circleci.com/pipelines/github/activeloopai/Hub">
@@ -15,9 +15,10 @@
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/main"><img src="https://codecov.io/gh/activeloopai/Hub/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
   <h3 align="center">
-   <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
-   <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
-   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
+   <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/"><b>Documentation</b></a> &bull;
+   <a href="https://docs.activeloop.ai/getting-started-with-hub/?utm_source=github&utm_medium=readme&utm_campaign=docsbutton&utm_id=docs/%22%3E"><b>Getting Started</b></a> &bull;
+      <a href="https://github.com/activeloopai/examples"><b> Examples </b></a> &bull; 
+      <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
@@ -44,9 +45,9 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 * Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
 * Rapid data processing using transformations on distributed compute
 * Data pipelines
+* Dataset version control (alpha)
 
 ### Coming Soon
-* Dataset version control
 * Dataset hosting on Azure
 * Dataset query without having to download the entire dataset
 * Rapid visualization of image datasets via integration with Activeloop Platform

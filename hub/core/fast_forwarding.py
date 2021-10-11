@@ -41,7 +41,7 @@ def _check_version(v):
     comparison = version_compare(v, hub.__version__)
     if comparison > 0:
         raise Exception(
-            f"Cannot update the version of a dataset that was created with a newer version of hub. Dataset version: {v}, current hub version: {hub.__version__}"
+            f"Cannot load a dataset that was created with a newer version of hub. Dataset version: {v}, current hub version: {hub.__version__}. You may update to the latest version of hub to solve this problem."
         )
 
     return comparison == 0
