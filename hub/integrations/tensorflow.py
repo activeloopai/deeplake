@@ -3,18 +3,18 @@ from hub.util.exceptions import (
     SampleDecompressionError,
     CorruptedSampleError,
 )
+from hub.util.check_installation import tensorflow_installed
 import warnings
 
 
 def dataset_to_tensorflow(dataset):
     """Converts the dataset into a tensorflow compatible format"""
-    global tf
-    try:
-        import tensorflow as tf  # type: ignore
-    except ModuleNotFoundError:
+    if not tensorflow_installed():
         raise ModuleNotInstalledException(
             "'tensorflow' should be installed to convert the Dataset into tensorflow format"
         )
+
+    import tensorflow as tf  # type: ignore
 
     def __iter__():
         for index in range(len(dataset)):
