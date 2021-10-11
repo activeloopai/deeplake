@@ -60,7 +60,10 @@ def get_final_buffer_size(buffer_size_in_mb):
         shm_size_in_mb = shm_size * 1000
         if shm_size_in_bytes < buffer_size_in_bytes:
             warnings.warn(
-                f"The available shared memory size({shm_size_in_mb} MB) is less than the specified buffer size({buffer_size_in_mb} MB). Setting the buffer size as {0.95 * shm_size_in_mb} MB."
+                UserWarning(
+                    f"The available shared memory size({shm_size_in_mb} MB) is less than the specified buffer size({buffer_size_in_mb} MB). "
+                    f"Setting the buffer size to {0.95 * shm_size_in_mb} MB."
+                )
             )
             return 0.95 * shm_size_in_bytes
     return buffer_size_in_bytes

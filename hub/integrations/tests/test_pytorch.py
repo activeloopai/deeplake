@@ -229,6 +229,20 @@ def test_pytorch_small_old(ds):
             np.testing.assert_array_equal(
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
+    
+    with pytest.raises(UserWarning):
+        dl2 = ds.pytorch(
+            num_workers=2, batch_size=1, buffer_size=64
+        )
+
+    for _ in range(2):
+        for i, batch in enumerate(dl2):
+            np.testing.assert_array_equal(
+                batch["image"].numpy(), i * np.ones((1, 10, 10))
+            )
+            np.testing.assert_array_equal(
+                batch["image2"].numpy(), i * np.ones((1, 12, 12))
+            )
 
 
 @requires_torch
