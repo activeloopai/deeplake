@@ -1,0 +1,90 @@
+name: Manual Hub Benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+          description: 'Baseline ref'
+          required: true
+      mainref:
+          description: 'Ref to compare'
+          required: true
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ACTIVELOOP_HUB_PASSWORD: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+  REPOSITORY_PAT: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+  BASELINE_REF: manual-compare-${{ github.event.inputs.baseline }}
+  COMMIT_REF: manual-compare-${{ github.event.inputs.mainref }}-vs-${{ github.event.inputs.baseline }}
+jobs:
+  benchmark:
+    name: ${{ github.event.inputs.mainref }} vs ${{ github.event.inputs.baseline }}
+    if: ${{ github.repository == 'activeloopai/hub' }}
+    runs-on: [looprunner]
+    steps:
+      - name: Cleans the workspace
+        run: rm -rdf baseline-source comparison-source benchmark-source
+      - name: Installs FFMPEG
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Checkout the Hub Benchmark source code
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub-benchmark
+          token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          path: benchmark-source
+      - name: Checkout the Hub source code to compare
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub
+          ref: ${{ github.event.inputs.mainref }}
+          path: comparison-source
+      - name: Checkout the Hub baseline source code
+        uses: actions/checkout@v2
+        with:
+          repository: activeloopai/hub
+          ref: ${{ github.event.inputs.baseline }}
+          path: baseline-source
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Cache pip dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip # This path is specific to Ubuntu
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Sets up git username
+        run: |
+          git config --global user.name activeloop-bot
+          git config --global user.email bot@activeloop.ai
+      - name: Install Baseline Hub
+        run: |
+          python -m pip install --upgrade pip
+          cd baseline-source
+          pip install -r hub/requirements/common.txt
+          pip install -r hub/requirements/plugins.txt
+          pip install -r hub/requirements/tests.txt
+          python setup.py install
+      - name: Doing the benchmark and publishing results -> Hub baseline version
+        run: |
+          cd benchmark-source
+          pip install -r requirements.ci.txt
+          python run.py --all --github
+          python publish.py ${BASELINE_REF} --github
+      - name: Install Hub to compare
+        run: |
+          cd comparison-source
+          pip install -r hub/requirements/common.txt
+          pip install -r hub/requirements/plugins.txt
+          pip install -r hub/requirements/tests.txt
+          python setup.py install
+      - name: Doing the benchmark and comparing with baseline -> Hub from input ref
+        run: |
+          cd benchmark-source
+          python3 run.py --all --baseline=${BASELINE_REF} --github
+          python publish.py ${COMMIT_REF} --github
+
+       
