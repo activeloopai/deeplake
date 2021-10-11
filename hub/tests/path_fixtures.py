@@ -217,7 +217,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 def cat_path():
     """Path to a cat image in the dummy data folder. Expected shape: (900, 900, 3)"""
 
-    path = get_dummy_data_path("compressed_images")
+    path = get_dummy_data_path("images")
     return os.path.join(path, "cat.jpeg")
 
 
@@ -225,13 +225,13 @@ def cat_path():
 def flower_path():
     """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 
-    path = get_dummy_data_path("compressed_images")
+    path = get_dummy_data_path("images")
     return os.path.join(path, "flower.png")
 
 
 @pytest.fixture
 def color_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "dog2.jpg"),
     }
@@ -240,7 +240,7 @@ def color_image_paths():
 
 @pytest.fixture
 def grayscale_image_paths():
-    base = get_dummy_data_path("compressed_images")
+    base = get_dummy_data_path("images")
     paths = {
         "jpeg": os.path.join(base, "hopper_gray.jpg"),
     }
@@ -269,7 +269,7 @@ def compressed_image_paths():
 
     paths = {k: ([v] if isinstance(v, str) else v) for k, v in paths.items()}
 
-    parent = get_dummy_data_path("compressed_images")
+    parent = get_dummy_data_path("images")
     for k in paths:
         paths[k] = [os.path.join(parent, p) for p in paths[k]]
 
@@ -290,7 +290,18 @@ def compressed_image_paths():
 def corrupt_image_paths():
     paths = {"jpeg": "corrupt_jpeg.jpeg", "png": "corrupt_png.png"}
 
-    parent = get_dummy_data_path("compressed_images")
+    parent = get_dummy_data_path("images")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+
+    return paths
+
+
+@pytest.fixture
+def audio_paths():
+    paths = {"mp3": "samplemp3.mp3", "flac": "sampleflac.flac", "wav": "samplewav.wav"}
+
+    parent = get_dummy_data_path("audio")
     for k in paths:
         paths[k] = os.path.join(parent, paths[k])
 
