@@ -299,19 +299,25 @@ class InvalidTokenException(Exception):
 
 
 # TODO Better S3 Exception handling
-class S3GetError(Exception):
+
+
+class S3Error(Exception):
+    """Catchall for all errors encountered while working with S3"""
+
+
+class S3GetError(S3Error):
     """Catchall for all errors encountered while working getting an object from S3"""
 
 
-class S3SetError(Exception):
+class S3SetError(S3Error):
     """Catchall for all errors encountered while working setting an object in S3"""
 
 
-class S3DeletionError(Exception):
+class S3DeletionError(S3Error):
     """Catchall for all errors encountered while working deleting an object in S3"""
 
 
-class S3ListError(Exception):
+class S3ListError(S3Error):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
