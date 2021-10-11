@@ -81,7 +81,6 @@ class Dataset:
         """
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
-        self._group_cache: Dict[Tuple[str, str], Union[Dataset, Tensor]] = {}
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
@@ -164,7 +163,6 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
-        self._group_cache = {}
         self._set_derived_attributes()
 
     def __getitem__(
@@ -175,15 +173,12 @@ class Dataset:
     ):
         if isinstance(item, str):
             key = (item, self.version_state["commit_id"])
-            group = self._group_cache.get(key)
-            if group is not None:
-                return group
-            elif item in self._all_tensors_filtered:
-                return self.version_state["full_tensors"][
-                    posixpath.join(self.group_index, item)
-                ][self.index]
-            elif item in self._groups_filtered:
-                group = Dataset(
+            fullpath = posixpath.join(self.group_index, item)
+            tensor = self._get_tensor_from_root(fullpath)
+            if tensor is not None:
+                return tensor[self.index]
+            elif self._has_group_in_root(fullpath):
+                return Dataset(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -191,14 +186,11 @@ class Dataset:
                     token=self._token,
                     verbose=False,
                 )
-                self._group_cache[key] = group
-                return group
             elif "/" in item:
                 splt = posixpath.split(item)
                 return self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
-
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,
@@ -622,6 +614,25 @@ class Dataset:
         return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
 
     __repr__ = __str__
+
+    def _get_tensor_from_root(self, name: str) -> bool:
+        """Gets a tensor from the root dataset.
+        Acesses storageonly for the first call.
+        """
+        ret = self.version_state["full_tensors"].get(name)
+        if ret is None:
+            load_meta(self.storage, self.version_state)
+            ret = self.version_state["full_tensors"].get(name)
+        return ret
+
+    def _has_group_in_root(self, name: str) -> bool:
+        """Checks if a group exists in the root dataset.
+        This is faster than checking `if group in self._groups:`
+        """
+        if name in self.version_state["meta"].groups:
+            return True
+        load_meta(self.storage, self.version_state)
+        return name in self.version_state["meta"].groups
 
     @property
     def token(self):
