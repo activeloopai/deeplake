@@ -2,4 +2,4 @@ torch
 tensorflow
 tensorflow_datasets
 tensorflow
-ray
+ray==1.6.0
