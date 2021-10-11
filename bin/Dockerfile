@@ -6,9 +6,7 @@ RUN apt-get -y update && \
 
 RUN mkdir /app
 
-RUN git clone https://github.com/activeloopai/Hub.git /app/ && \
-    cd /app/
-
+ADD ./ /app
 WORKDIR /app
 
 ENV PYTHONPATH="/app/Hub:$PYTHONPATH"
@@ -18,3 +16,4 @@ RUN pip install -r hub/requirements/requirements.txt && \
     pip install -r hub/requirements/tests.txt && \
     pip install -r hub/requirements/plugins.txt
 
+RUN pip3 install -e .
