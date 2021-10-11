@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 import warnings
 import hub
@@ -77,7 +78,9 @@ class TorchDataset:
             warning_message = ""
             if os.name == "nt":
                 warning_message += f"Windows OS detected. Pytorch iteration speeds are up to 500% faster using linux/macOS along with Python version >= 3.8. "
-            else:
+            elif sys.version_info[0] < 3 or (
+                sys.version_info[0] == 3 and sys.version_info[1] < 8
+            ):
                 warning_message += f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8.\n"
 
             warning_message += "This version will also not utilize the buffer_size and use_local_cache arguments.\n"
