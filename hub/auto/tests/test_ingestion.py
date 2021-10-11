@@ -49,6 +49,25 @@ def test_ingestion_simple(memory_ds: Dataset):
     assert ds["labels"].info.class_names == ("class0", "class1", "class2")
 
 
+def test_ingestion_simple_hierarchical(memory_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/image_classification")
+
+    ds = hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        images_compression="auto",
+        progress_bar=False,
+        summary=False,
+        overwrite=False,
+        mode="hierarchical",
+    )
+
+    assert ds["images/class0"].meta.sample_compression == "jpeg"
+    assert list(ds.tensors.keys()) == []
+    assert ds["images/class0"].numpy().shape == (1, 200, 200, 3)
+    assert list(ds["images"].tensors.keys()) == ["class0", "class1", "class2"]
+
+
 def test_image_classification_sets(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
     ds = hub.ingest(
@@ -75,6 +94,26 @@ def test_image_classification_sets(memory_ds: Dataset):
     assert ds["train/images"].numpy().shape == (3, 200, 200, 3)
     assert ds["train/labels"].numpy().shape == (3, 1)
     assert ds["train/labels"].info.class_names == ("class0", "class1", "class2")
+
+
+def test_image_classification_sets_hierarchical(memory_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/image_classification_with_sets")
+    ds = hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        images_compression="auto",
+        progress_bar=False,
+        summary=False,
+        overwrite=False,
+        mode="hierarchical",
+    )
+
+    assert ds["train/images/class0"].meta.sample_compression == "jpeg"
+    assert ds["train/images/class0"].numpy().shape == (1, 200, 200, 3)
+    assert ds["test/images/class0"].numpy().shape == (1, 200, 200, 3)
+
+    assert list(ds["train/images"].tensors.keys()) == ["class0", "class1", "class2"]
+    assert list(ds["test/images"].tensors.keys()) == ["class0", "class1", "class2"]
 
 
 def test_ingestion_exception(memory_ds: Dataset):

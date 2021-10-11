@@ -97,6 +97,7 @@ class ImageClassification(UnstructuredDataset):
         use_progress_bar: bool = True,
         generate_summary: bool = True,
         image_tensor_args: dict = {},
+        mode: str = "linear",
     ) -> Dataset:
         """Create a structured dataset.
 
@@ -105,6 +106,7 @@ class ImageClassification(UnstructuredDataset):
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+            mode (str): Defines mode of structuring (linear or hierarchical).
 
         Returns:
             A hub dataset.
@@ -126,16 +128,23 @@ class ImageClassification(UnstructuredDataset):
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
             # TODO: infer sample_compression
-            ds.create_tensor(
-                images_tensor_name.replace("\\", "/"),
-                htype="image",
-                **image_tensor_args,
-            )
-            ds.create_tensor(
-                labels_tensor_name.replace("\\", "/"),
-                htype="class_label",
-                class_names=self.class_names,
-            )
+            if mode == "linear":
+                ds.create_tensor(
+                    images_tensor_map[set_name], htype="image", **image_tensor_args
+                )
+                ds.create_tensor(
+                    labels_tensor_map[set_name],
+                    htype="class_label",
+                    class_names=self.class_names,
+                )
+            elif mode == "hierarchical":
+                ds.create_group(images_tensor_map[set_name])
+                for class_name in self.class_names:
+                    ds[images_tensor_map[set_name]].create_tensor(
+                        class_name,
+                        htype="image",
+                        **image_tensor_args,
+                    )
 
             paths = self._abs_file_paths
             skipped_files: list = []
@@ -169,12 +178,20 @@ class ImageClassification(UnstructuredDataset):
                 # TODO: try to get all len(shape)s to match.
                 # if appending fails because of a shape mismatch, expand dims (might also fail)
                 try:
-                    ds[images_tensor_map[set_name]].append(image)
+                    if mode == "linear":
+                        ds[images_tensor_map[set_name]].append(image)
+                    elif mode == "hierarchical":
+                        ds[images_tensor_map[set_name]][class_name].append(image)
 
                 except TensorInvalidSampleShapeError:
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
-                    ds[images_tensor_map[set_name]].append(reshaped_image)
+                    if mode == "linear":
+                        ds[images_tensor_map[set_name]].append(reshaped_image)
+                    elif mode == "hierarchical":
+                        ds[images_tensor_map[set_name]][class_name].append(
+                            reshaped_image
+                        )
 
                 except Exception:
                     skipped_files.append(file_path.name)
@@ -184,7 +201,8 @@ class ImageClassification(UnstructuredDataset):
                     )
                     continue
 
-                ds[labels_tensor_map[set_name]].append(label)
+                if mode == "linear":
+                    ds[labels_tensor_map[set_name]].append(label)
 
             if generate_summary:
                 ingestion_summary(str(self.source), skipped_files)

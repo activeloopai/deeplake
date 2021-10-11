@@ -272,6 +272,7 @@ class dataset:
         dest_creds: dict = None,
         progress_bar: bool = True,
         summary: bool = True,
+        mode: str = "linear",
         **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
@@ -332,6 +333,7 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
             summary (bool): If True, a summary of skipped files will be printed after completion. Defaults to True.
+            mode (str): Mode of structuring (linear or hierarchical).
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -375,6 +377,7 @@ class dataset:
             use_progress_bar=progress_bar,
             generate_summary=summary,
             image_tensor_args={"sample_compression": images_compression},
+            mode=mode,
         )
 
         return ds  # type: ignore
@@ -390,6 +393,7 @@ class dataset:
         kaggle_credentials: dict = None,
         progress_bar: bool = True,
         summary: bool = True,
+        mode: str = "linear",
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
@@ -411,6 +415,7 @@ class dataset:
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
             progress_bar (bool): Enables or disables ingestion progress bar. Set to true by default.
             summary (bool): Generates ingestion summary. Set to true by default.
+            mode (str): Mode of structuring (linear or hierarchical).
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -449,6 +454,7 @@ class dataset:
             dest_creds=dest_creds,
             progress_bar=progress_bar,
             summary=summary,
+            mode=mode,
             **dataset_kwargs,
         )
 
