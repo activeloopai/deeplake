@@ -4,7 +4,7 @@ from numpy import ndarray
 import json
 import base64
 
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 
 
 Schema = Any
@@ -34,7 +34,6 @@ def _parse_schema(schema: Union[str, Schema]) -> Tuple[str, List[str]]:
 
     if schema in scalars:
         return schema, []
-
 
     if "[" not in schema:
         return _norm_type(schema), []
@@ -69,6 +68,7 @@ def _parse_schema(schema: Union[str, Schema]) -> Tuple[str, List[str]]:
             continue
         else:
             buff += c
+    raise InvalidJsonSchemaException()
 
 
 class InvalidJsonSchemaException(Exception):

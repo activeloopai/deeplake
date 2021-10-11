@@ -200,7 +200,6 @@ class Tensor:
             return shape
         return shape[1:]
 
-
     @property
     def ndim(self) -> int:
         return len(self.shape)
@@ -421,7 +420,7 @@ class Tensor:
     def data(self) -> Any:
         htype = self.htype
         if htype in ("json", "text"):
-            
+
             if self.ndim == 1:
                 return self.numpy()[0]
             else:
