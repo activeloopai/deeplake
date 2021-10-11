@@ -17,3 +17,4 @@ numcodecs~=0.7.3
 pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
 miniaudio~=1.44
 responder~=2.0.7
+typesystem~=0.2.5
