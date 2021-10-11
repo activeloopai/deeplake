@@ -293,7 +293,7 @@ class Dataset:
         )
         self.version_state["meta"].tensors.append(name)
         ffw_dataset_meta(self.version_state["meta"])
-        self.storage.flush()
+        self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.version_state["full_tensors"][name] = tensor
@@ -754,7 +754,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         meta.groups = list(set(groups))
         self.storage[meta_key] = meta
-        self.storage.flush()
+        self.storage.maybe_flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
