@@ -387,13 +387,6 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         commit(self.version_state, self.storage, message)
-
-        # do not store commit message
-        hub_reporter.feature_report(
-            feature_name="commit",
-            parameters={},
-        )
-
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -408,16 +401,8 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         checkout(self.version_state, self.storage, address, create)
-
-        # do not store address
-        hub_reporter.feature_report(
-            feature_name="checkout",
-            parameters={"Create": str(create)},
-        )
-
         return self.version_state["commit_id"]
 
-    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
@@ -637,8 +622,6 @@ class Dataset:
         return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
 
     __repr__ = __str__
-    tf = tensorflow
-    torch = pytorch
 
     @property
     def token(self):
@@ -659,9 +642,7 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        if not self._is_root():
-            # A tensor might have been created by the parent group
-            load_meta(self.storage, self.version_state)
+        load_meta(self.storage, self.version_state)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
@@ -671,17 +652,12 @@ class Dataset:
     @property
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-
-        tensors = {}
-        for tensor_name in self._all_tensors_filtered:
-            print(self.version_state["full_tensors"])
-            print(tensor_name)
-            tensor_key = str(posixpath.join(self.group_index, tensor_name))
-            print(tensor_key)
-            print(self.version_state["full_tensors"][tensor_key])
-            tensor = self.version_state["full_tensors"][tensor_key][self.index]
-            tensors[tensor_name] = tensor
-        return tensors
+        return {
+            t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
+                self.index
+            ]
+            for t in self._all_tensors_filtered
+        }
 
     @property
     def _groups(self) -> List[str]:
@@ -754,7 +730,9 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        groups = self._groups
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        groups = meta.groups
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
@@ -763,9 +741,8 @@ class Dataset:
                 raise TensorAlreadyExistsError(name)
             groups.append(name)
             name, _ = posixpath.split(name)
-        unique = set(groups)
-        groups.clear()
-        groups += unique
+        meta.groups = list(set(groups))
+        self.storage[meta_key] = meta
         self.storage.maybe_flush()
         return self[fullname]
 
