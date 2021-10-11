@@ -85,7 +85,7 @@ def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
         assert ds["train/labels"].info.class_names == ("class0", "class1", "class2")
 
 
-def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
+def test_ingestion_sets_hierarchical(local_ds: Dataset, hub_kaggle_credentials):
     with CliRunner().isolated_filesystem():
         kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_sets")
         username, key = hub_kaggle_credentials
