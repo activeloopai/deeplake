@@ -484,7 +484,7 @@ class Dataset:
         shuffle: bool = False,
         buffer_size: int = 10 * 1000,
         use_local_cache: bool = False,
-        use_progress_bar: bool = True,
+        use_progress_bar: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
