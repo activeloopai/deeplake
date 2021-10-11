@@ -39,21 +39,32 @@ def retrieve_data(path, presence, cache_storage, next_storage, emergency_storage
 
 def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
     remove_shared_memory_from_resource_tracker()
+    # print("getting data for", index)
     cache_storage = SharedMemoryProvider()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
+        # print("here")
         arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage)
-        
+        # print("error")
         # TODO: fix
         if arr is None:
             cache_storage[f"tr_{index}"] = pickle.dumps(None, protocol=-1)
             return
         data[tensor] = arr
 
-    # sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
-    # final = self._apply_transform(sample)
-    cache_storage[f"tr_{index}"] = pickle.dumps(data, protocol=-1)
+
+    sample = IterableOrderedDict((key, data[key]) for key in data.keys())
+    final_data = apply_transform(sample)
+    # print("about to write data for", index)
+    cache_storage[f"tr_{index}"] = pickle.dumps(final_data, protocol=-1)
+    # print("wrote data for", index)
+
+
+def apply_transform(sample: Union[Dict, Tuple]):
+    """Used to apply transform to a single sample"""
+    global transform_fn
+    return transform_fn(sample) if transform_fn else sample
 
 def chunks_from_names(shm_names: List[str], shm_names_presence_list, cache_storage, next_storage, emergency_storage):
     """Takes a list of shm names and returns a list with corresponding chunk objects"""
@@ -139,7 +150,9 @@ class PrefetchLRUCache(LRUCache):
         global iter_mode
         self.mode = mode
         iter_mode = mode
+        global transform_fn
         self.transform = transform
+        transform_fn = transform
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
@@ -557,9 +570,9 @@ class PrefetchLRUCache(LRUCache):
             combined_chunk_sizes_dict.update(chunk_sizes)
         return combined_chunk_sizes_dict
 
-    def _apply_transform(self, sample: Union[Dict, Tuple]):
-        """Used to apply transform to a single sample"""
-        return self.transform(sample) if self.transform else sample
+    # def _apply_transform(self, sample: Union[Dict, Tuple]):
+    #     """Used to apply transform to a single sample"""
+    #     return self.transform(sample) if self.transform else sample
 
     def __getstate__(self) -> Dict[str, Any]:
         return self.__dict__
