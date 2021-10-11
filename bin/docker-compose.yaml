@@ -15,12 +15,11 @@ services:
       dockerfile: ./bin/Dockerfile
     volumes:
       - ../:/app
-    stdin_open: true
     command: >
       bash -c "python3 -m pytest -x --local" 
       
 
-  complex:
+  complete:
     image: activeloop/hub:latest
     build:
       context: ../.
