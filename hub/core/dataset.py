@@ -293,7 +293,7 @@ class Dataset:
         )
         self.version_state["meta"].tensors.append(name)
         ffw_dataset_meta(self.version_state["meta"])
-        self.storage.maybe_flush()
+        self.storage.flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
         self.version_state["full_tensors"][name] = tensor
@@ -615,9 +615,9 @@ class Dataset:
 
     __repr__ = __str__
 
-    def _get_tensor_from_root(self, name: str) -> bool:
+    def _get_tensor_from_root(self, name: str) -> Optional[Tensor]:
         """Gets a tensor from the root dataset.
-        Acesses storageonly for the first call.
+        Acesses storage only for the first call.
         """
         ret = self.version_state["full_tensors"].get(name)
         if ret is None:
@@ -754,7 +754,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         meta.groups = list(set(groups))
         self.storage[meta_key] = meta
-        self.storage.maybe_flush()
+        self.storage.flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
