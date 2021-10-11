@@ -131,6 +131,7 @@ def _validate_optional(obj: Any, params: List[str]) -> bool:
         return True
     if params:
         return _validate_object(obj, params[0])
+    return True
 
 
 def _validate_list(obj: Any, params: List[str]) -> bool:
