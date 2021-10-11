@@ -172,6 +172,9 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         if compr not in (None, UNSPECIFIED):
             if get_compression_type(compr) != BYTE_COMPRESSION:
                 raise UnsupportedCompressionError(compr, htype)
+        if htype == "text":
+            if htype_overwrite["dtype"] not in (str, "str"):
+                raise TensorMetaInvalidHtypeOverwriteValue("dtype", htype_overwrite["dtype"], "dtype for tensors with text htype should always be `str`")
     elif htype == "audio":
         if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
             raise UnsupportedCompressionError("Chunk compression", htype=htype)

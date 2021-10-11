@@ -18,7 +18,7 @@ def test_json_basic(memory_ds):
         ds.json.extend(items)
     assert ds.json.shape == (4, 1)
     for i in range(4):
-        assert ds.json[i].numpy()[0] == items[i % 2]
+        assert ds.json[i].data() == items[i % 2]
 
 
 def test_json_with_numpy(memory_ds):
@@ -33,8 +33,8 @@ def test_json_with_numpy(memory_ds):
             ds.json.append(x)
         ds.json.extend(items)
     for i in range(4):
-        assert ds.json[i].numpy()[0]["y"] == items[i % 2]["y"]
-        np.testing.assert_array_equal(ds.json[i].numpy()[0]["x"], items[i % 2]["x"])
+        assert ds.json[i].data()["y"] == items[i % 2]["y"]
+        np.testing.assert_array_equal(ds.json[i].data()["x"], items[i % 2]["x"])
 
 
 def test_json_with_hub_sample(memory_ds, compressed_image_paths):
@@ -58,7 +58,7 @@ def test_json_with_hub_sample(memory_ds, compressed_image_paths):
         ds.json.extend(items)
     assert ds.json.shape == (4, 1)
     for i in range(4):
-        assert ds.json[i].numpy()[0] == items[i % 2]
+        assert ds.json[i].data() == items[i % 2]
 
 
 def test_json_list_basic(memory_ds):
@@ -74,7 +74,9 @@ def test_json_list_basic(memory_ds):
         ds.list.extend(items)
     assert ds.list.shape == (4, 3)
     for i in range(4):
-        assert list(ds.list[i].numpy()) == items[i % 2]
+        assert ds.list[i].data() == items[i % 2]
+    for i, x in enumerate(ds.list.data()):
+        assert x == items[i % 2]
 
 
 def test_list_with_numpy(memory_ds):
@@ -95,7 +97,7 @@ def test_list_with_numpy(memory_ds):
         ds.list.extend(items)
     assert ds.list.shape == (4, 4)
     for i in range(4):
-        actual, expected = list(ds.list[i].numpy()), items[i % 2]
+        actual, expected = ds.list[i].data(), items[i % 2]
         np.testing.assert_array_equal(actual[0], expected[0])
         assert actual[1:] == expected[1:]
 
@@ -124,7 +126,7 @@ def test_list_with_hub_sample(memory_ds, compressed_image_paths):
         ds.list.extend(items)
     assert ds.list.shape == (4, 3)
     for i in range(4):
-        assert list(ds.list[i].numpy()) == items[i % 2]
+        assert ds.list[i].data() == items[i % 2]
 
 
 def test_json_with_schema(memory_ds):
@@ -147,4 +149,4 @@ def test_json_with_schema(memory_ds):
     ]
     ds.json2.extend(items)
     for i in range(len(items)):
-        assert ds.json2[i].numpy()[0] == ds.json2.numpy()[i][0] == items[i]
+        assert ds.json2[i].data() == ds.json2.data()[i] == items[i]

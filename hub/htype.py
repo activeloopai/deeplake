@@ -61,7 +61,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "Any",
     },
     "list": {"dtype": "List"},
-    "text": {"dtype": "<U4"},
+    "text": {"dtype": "str"},
 }
 
 # these configs are added to every `htype`
