@@ -3,7 +3,7 @@ from hub.util.exceptions import (
     SampleDecompressionError,
     CorruptedSampleError,
 )
-from hub.tests.common import tensorflow_installed
+from hub.util.check_installation import tensorflow_installed
 import warnings
 
 

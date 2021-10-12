@@ -9,7 +9,7 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
 )
-from hub.tests.common import pytorch_installed
+from hub.util.check_installation import pytorch_installed
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 

@@ -1,5 +1,5 @@
 from hub.util.exceptions import ModuleNotInstalledException, UnsupportedSchedulerError
-from hub.tests.common import ray_installed
+from hub.util.check_installation import ray_installed
 from hub.core.compute.provider import ComputeProvider
 
 
