@@ -755,3 +755,4 @@ def test_groups(local_ds_generator):
         ds.h.i.create_tensor("j")
         assert not ds.storage.autoflush
     assert "j" in ds.h.i.tensors
+    assert ds.storage.autoflush
