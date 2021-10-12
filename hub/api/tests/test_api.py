@@ -668,6 +668,7 @@ def test_invalid_tensor_name(memory_ds):
 
 def test_compressions_list():
     assert hub.compressions == [
+        "apng",
         "bmp",
         "dib",
         "flac",

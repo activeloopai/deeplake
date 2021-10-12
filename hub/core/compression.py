@@ -94,6 +94,43 @@ def to_image(array: np.ndarray) -> Image:
     return Image.fromarray(array)
 
 
+def _compress_apng(array: np.ndarray) -> bytes:
+    if array.ndim == 3:
+        # Binary APNG
+        frames = list(
+            map(Image.fromarray, (array[:, :, i] for i in range(array.shape[2])))
+        )
+    elif array.ndim == 4 and array.shape[3] <= 4:
+        # RGB(A) APNG
+        frames = list(map(Image.fromarray, array))
+    else:
+        raise SampleCompressionError(array.shape, "apng", "Unexpected shape.")
+    out = BytesIO()
+    frames[0].save(out, "png", save_all=True, append_images=frames[1:])
+    out.seek(0)
+    ret = out.read()
+    out.close()
+    return ret
+
+
+def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
+    img = Image.open(BytesIO(buffer))
+    frame0 = np.array(img)
+    if frame0.ndim == 2:
+        ret = np.zeros(frame0.shape + (img.n_frames,), dtype=frame0.dtype)
+        ret[:, :, 0] = frame0
+        for i in range(1, img.n_frames):
+            img.seek(i)
+            ret[:, :, i] = np.array(img)
+    else:
+        ret = np.zeros((img.n_frames,) + frame0.shape, dtype=frame0.dtype)
+        ret[0] = frame0
+        for i in range(1, img.n_frames):
+            img.seek(i)
+            ret[i] = np.array(img)
+    return ret
+
+
 def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
         return numcodecs.lz4.compress(buffer)
@@ -152,6 +189,8 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise NotImplementedError(
             "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
+    if compression == "apng":
+        return _compress_apng(array)
     try:
         img = to_image(array)
         out = BytesIO()
@@ -207,6 +246,8 @@ def decompress_array(
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
+    if compression == "apng":
+        return _decompress_apng(buffer)  # type: ignore
     try:
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
@@ -248,6 +289,8 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
         )  # Note: shape and dtype info not included
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support audio samples.")
+    elif compression == "apng":
+        raise NotImplementedError("compress_multiple does not support apng samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
