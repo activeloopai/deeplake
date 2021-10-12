@@ -86,8 +86,8 @@ def test_single_transform_hub_dataset(ds, scheduler):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
@@ -156,9 +156,9 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-        and num_workers > 0
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
+            and num_workers > 0
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         # num_workers = 0 automatically does single threaded irrespective of the scheduler
@@ -194,8 +194,8 @@ def test_chain_transform_list_small(ds, scheduler):
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
@@ -223,8 +223,8 @@ def test_chain_transform_list_big(ds, scheduler):
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
@@ -251,8 +251,8 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
 
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
@@ -275,8 +275,8 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
     pipeline = hub.compose([read_image(), crop_image(copy=2)])
     if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
     ):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
@@ -301,8 +301,8 @@ def test_hub_like(ds, scheduler="threaded"):
                 data_in.label.append(i * np.ones((1,), dtype="uint32"))
         ds_out = hub.like("./transform_hub_like", data_in)
         if (
-            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-            and scheduler != "threaded"
+                isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+                and scheduler != "threaded"
         ):
             # any scheduler other than `threaded` will not work with a dataset stored in memory
             with pytest.raises(InvalidOutputDatasetError):
