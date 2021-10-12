@@ -192,6 +192,7 @@ class Pipeline:
                     time.sleep(1)
             if thread:
                 thread.join()
+            progress_server.stop()
 
         metas_and_encoders = ret["metas_and_encoders"]
 

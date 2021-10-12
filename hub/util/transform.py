@@ -153,7 +153,7 @@ def transform_data_slice_and_append(
             curr_time = time.time()
             if curr_time - last_reported_time > report_interval or i == n - 1:
                 num_samples = i + 1
-                client.send({"num_samples": num_samples - last_reported_num_samples})
+                client.send(num_samples - last_reported_num_samples)
                 last_reported_num_samples = num_samples
                 last_reported_time = curr_time
 
