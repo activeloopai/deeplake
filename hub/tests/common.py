@@ -11,7 +11,11 @@ import pytest
 
 from hub.constants import KB, MB
 
-from hub.util.check_installation import pytorch_installed, tensorflow_installed, tfds_installed
+from hub.util.check_installation import (
+    pytorch_installed,
+    tensorflow_installed,
+    tfds_installed,
+)
 
 
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
@@ -88,7 +92,6 @@ def assert_images_close(img1: np.ndarray, img2: np.ndarray, eps=0.5):
     err = np.sum((img1.astype(np.float32) - img2.astype(np.float32)) ** 2)
     err /= np.prod(img1.shape) * 256
     assert err < eps, err
-
 
 
 requires_torch = pytest.mark.skipif(

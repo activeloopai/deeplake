@@ -1,7 +1,6 @@
 from importlib.util import find_spec
 
 
-
 def pytorch_installed():
     return find_spec("torch") != None
 
