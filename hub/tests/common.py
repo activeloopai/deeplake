@@ -10,6 +10,7 @@ import posixpath
 import pytest
 
 from hub.constants import KB, MB
+from importlib.util import find_spec
 
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
@@ -85,3 +86,32 @@ def assert_images_close(img1: np.ndarray, img2: np.ndarray, eps=0.5):
     err = np.sum((img1.astype(np.float32) - img2.astype(np.float32)) ** 2)
     err /= np.prod(img1.shape) * 256
     assert err < eps, err
+
+
+def pytorch_installed():
+    return find_spec("torch") != None
+
+
+def tensorflow_installed():
+    return find_spec("tensorflow") != None
+
+
+def tfds_installed():
+    return find_spec("tensorflow_datasets") != None
+
+
+def ray_installed():
+    return find_spec("ray") != None
+
+
+requires_torch = pytest.mark.skipif(
+    not pytorch_installed(), reason="requires pytorch to be installed"
+)
+
+requires_tensorflow = pytest.mark.skipif(
+    not tensorflow_installed(), reason="requires tensorflow to be installed"
+)
+
+requires_tfds = pytest.mark.skipif(
+    not tfds_installed(), reason="requires tensorflow_datasets to be installed"
+)
