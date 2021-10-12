@@ -8,7 +8,11 @@ from hub.core.storage import StorageProvider, LRUCache
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+)
 from hub.util.casting import get_incompatible_dtype, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
@@ -55,6 +59,22 @@ def create_tensor(
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
+
+
+def delete_item(
+    key: str,
+    storage: StorageProvider,
+):
+    """Delete tensor or tensor group from storage.
+
+    Args:
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider that all tensor data is written to.
+    """
+
+    for chunk_key in list(storage.keys()):
+        if chunk_key.startswith(key):
+            del storage[chunk_key]
 
 
 def _inplace_op(f):

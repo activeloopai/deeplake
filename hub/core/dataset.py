@@ -1,4 +1,5 @@
 import hub
+from numpy.core.numeric import full
 from tqdm import tqdm  # type: ignore
 import pickle
 import warnings
@@ -18,7 +19,7 @@ from hub.core.lock import lock, unlock
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import S3Provider, LRUCache
-from hub.core.tensor import create_tensor, Tensor
+from hub.core.tensor import create_tensor, Tensor, delete_item
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 
 from hub.util.keys import (
@@ -37,6 +38,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorDoesNotExistError,
+    TensorGroupDoesNotExistError,
     InvalidTensorNameError,
     InvalidTensorGroupNameError,
     LockedException,
@@ -240,10 +242,7 @@ class Dataset:
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.storage)
-        name = name.strip("/")
-
-        while "//" in name:
-            name = name.replace("//", "/")
+        name = name.strip("/").replace("//", "/")
 
         full_path = posixpath.join(self.group_index, name)
 
@@ -299,6 +298,49 @@ class Dataset:
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
+
+    @hub_reporter.record_call
+    def delete_tensor(self, name: str, large_ok: bool = False):
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/").replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+            raise TensorDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorNameError(name)
+
+        delete_item(name, self.storage)
+        self.version_state["meta"].tensors.remove(name)
+        ffw_dataset_meta(self.version_state["meta"])
+        self.version_state["full_tensors"].pop(name)
+        self.storage.maybe_flush()
+
+    @hub_reporter.record_call
+    def delete_group(self, name: str, large_ok: bool = False):
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/").replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if full_path not in self._groups:
+            raise TensorGroupDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorGroupNameError(name)
+
+        delete_item(name, self.storage)
+        for group in self.version_state["meta"].groups:
+            if group.startswith(name):
+                self.version_state["meta"].groups.remove(group)
+        for tensor in self.version_state["meta"].tensors:
+            if tensor.startswith(name):
+                self.version_state["meta"].tensors.remove(tensor)
+                self.version_state["full_tensors"].pop(tensor)
+        ffw_dataset_meta(self.version_state["meta"])
+        self.storage.maybe_flush()
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
