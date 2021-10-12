@@ -9,5 +9,3 @@ Pillow~=8.2.0
 zstd~=1.4.5
 requests~=2.25.1
 miniaudio~=1.44
-responder~=2.0.7
-typesystem~=0.2.5
