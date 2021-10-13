@@ -163,6 +163,11 @@ def test_json_transform(ds, scheduler="threaded"):
         ["a", ["b", "c"], {"d": 1.0}],
         [1.0, 2.0, 3.0, 4.0],
         ["a", "b", "c", "d"],
+        1,
+        5.0,
+        True,
+        False,
+        None,
     ] * 5
 
     @hub.compute
