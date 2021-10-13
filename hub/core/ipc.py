@@ -40,9 +40,7 @@ class Server(object):
                 try:
                     connection = self._listener.accept()
                     key = str(uuid.uuid4())
-                    thread = threading.Thread(
-                        target=self._receive_loop, args=(key,)
-                    )
+                    thread = threading.Thread(target=self._receive_loop, args=(key,))
                     self._connections[key] = (connection, thread)
                     thread.start()
                 except Exception:
@@ -79,7 +77,6 @@ class Server(object):
                 timer += 1
                 time.sleep(1)
         self._listener.close()
-
 
     @property
     def url(self) -> str:

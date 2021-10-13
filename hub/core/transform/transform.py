@@ -40,6 +40,7 @@ class TransformFunction:
         ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
+        progressbar: bool = True,
     ):
         """Evaluates the TransformFunction on data_in to produce an output dataset ds_out.
 
@@ -51,6 +52,8 @@ class TransformFunction:
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray.
+            progressbar (bool): Displays a progress bar if True (default).
+
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -60,7 +63,7 @@ class TransformFunction:
         """
 
         pipeline = Pipeline([self])
-        pipeline.eval(data_in, ds_out, num_workers, scheduler)
+        pipeline.eval(data_in, ds_out, num_workers, scheduler, progressbar)
 
 
 class Pipeline:
@@ -77,6 +80,7 @@ class Pipeline:
         ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
+        progressbar: bool = True,
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -88,6 +92,7 @@ class Pipeline:
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            progressbar (bool): Displays a progress bar if True (default).
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -124,7 +129,9 @@ class Pipeline:
         compute_provider = get_compute_provider(scheduler, num_workers)
 
         try:
-            self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+            self.run(
+                data_in, ds_out, tensors, compute_provider, num_workers, progressbar
+            )
         except Exception as e:
             raise TransformError(e)
         finally:
