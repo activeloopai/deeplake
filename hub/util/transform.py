@@ -157,6 +157,9 @@ def transform_data_slice_and_append(
                 last_reported_num_samples = num_samples
                 last_reported_time = curr_time
 
+    if progress_port is not None:
+        client.close()
+
 
 def create_worker_chunk_engines(
     tensors: List[str], output_storage: StorageProvider, version_state

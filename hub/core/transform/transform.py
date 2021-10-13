@@ -157,7 +157,7 @@ class Pipeline:
             num_samples_completed = {"value": 0}
 
             def progress_callback(num_samples):
-                num_samples_completed["value"] += int(num_samples)
+                num_samples_completed["value"] += num_samples
 
             progress_server = Server(progress_callback)
             port = progress_server.port
@@ -180,19 +180,16 @@ class Pipeline:
             )
 
         thread = None
-        if progressbar and is_serial:
+        if progressbar:
             thread = threading.Thread(target=_run)
             thread.start()
-        else:
-            _run()
-
-        if progressbar:
             for i in tqdm.tqdm(range(len(data_in))):
                 while i + 1 > num_samples_completed["value"]:
                     time.sleep(1)
-            if thread:
-                thread.join()
+            thread.join()
             progress_server.stop()
+        else:
+            _run()
 
         metas_and_encoders = ret["metas_and_encoders"]
 

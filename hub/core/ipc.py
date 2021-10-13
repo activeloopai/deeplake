@@ -8,6 +8,10 @@ import queue
 import multiprocessing.connection
 import atexit
 import time
+import uuid
+
+
+_DISCONNECT_MESSAGE = "!@_dIsCoNNect"
 
 
 def _get_free_port() -> int:
@@ -26,7 +30,7 @@ class Server(object):
             return
         self.port = _get_free_port()
         self._listener = multiprocessing.connection.Listener(("localhost", self.port))
-        self._connections = []
+        self._connections = {}
         self._connect_thread = threading.Thread(target=self._connect_loop, daemon=True)
         self._connect_thread.start()
 
@@ -35,32 +39,47 @@ class Server(object):
             while True:
                 try:
                     connection = self._listener.accept()
+                    key = str(uuid.uuid4())
                     thread = threading.Thread(
-                        target=self._receive_loop, args=(connection,)
+                        target=self._receive_loop, args=(key,)
                     )
-                    self._connections.append((connection, thread))
+                    self._connections[key] = (connection, thread)
                     thread.start()
                 except Exception:
                     time.sleep(0.1)
         except Exception:
             pass  # Thread termination
 
-    def _receive_loop(self, connection):
+    def _receive_loop(self, key):
         try:
             while True:
-                self.callback(connection.recv())
+                connection = self._connections[key][0]
+                msg = connection.recv()
+                if msg == _DISCONNECT_MESSAGE:
+                    self._connections.pop(key)
+                    connection.close()
+                    return
+                self.callback(msg)
         except Exception:
             pass  # Thread termination
 
     def stop(self):
         if self._connect_thread:
-            terminate_thread(self._connect_thread)
+            terminate_thread(self._connect_thread)  # Do not accept anymore connections
             self._connect_thread = None
-        while self._connections:
-            connection, thread = self._connections.pop()
-            terminate_thread(thread)
-            connection.close()
+        timer = 0
+        while self._connections:  # wait for clients to disconnect
+            if timer >= 5:
+                # clients taking too long, force shutdown
+                for connection, thread in self._connections.values():
+                    terminate_thread(thread)
+                    connection.close()
+                self._connections.clear()
+            else:
+                timer += 1
+                time.sleep(1)
         self._listener.close()
+
 
     @property
     def url(self) -> str:
@@ -73,6 +92,7 @@ class Client(object):
         self._buffer = []
         self._client = None
         threading.Thread(target=self._connect, daemon=True).start()
+        atexit.register(self.close)
 
     def _connect(self):
         while True:
@@ -89,6 +109,16 @@ class Client(object):
 
     def send(self, stuff):
         if self._client:
-            self._client.send(stuff)
+            try:
+                self._client.send(stuff)
+            except Exception:  # Server shutdown
+                pass
         else:
             self._buffer.append(stuff)
+
+    def close(self):
+        try:
+            self.send(_DISCONNECT_MESSAGE)
+            self._client.close()
+        except Exception:
+            pass
