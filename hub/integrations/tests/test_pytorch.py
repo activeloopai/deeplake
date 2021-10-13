@@ -52,10 +52,10 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=2, batch_size=1)
+    dl = ds.pytorch(num_workers=0, batch_size=1)
 
     assert len(dl.dataset) == 16
 
@@ -68,12 +68,12 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-    dls = ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
+    dls = ds.pytorch(num_workers=0, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(0, 16, dls)
 
     sub_ds = ds[5:]
 
-    sub_dl = sub_ds.pytorch(num_workers=2)
+    sub_dl = sub_ds.pytorch(num_workers=0)
 
     for i, batch in enumerate(sub_dl):
         np.testing.assert_array_equal(
@@ -83,12 +83,12 @@ def test_pytorch_small(ds):
             batch["image2"].numpy(), (5 + i) * np.ones((1, 12, 12))
         )
 
-    sub_dls = sub_ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
+    sub_dls = sub_ds.pytorch(num_workers=0, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(5, 16, sub_dls)
 
     sub_ds2 = ds[8:12]
 
-    sub_dl2 = sub_ds2.pytorch(num_workers=2, batch_size=1)
+    sub_dl2 = sub_ds2.pytorch(num_workers=0, batch_size=1)
 
     for _ in range(2):
         for i, batch in enumerate(sub_dl2):
@@ -99,12 +99,12 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), (8 + i) * np.ones((1, 12, 12))
             )
 
-    sub_dls2 = sub_ds2.pytorch(num_workers=2, batch_size=1, shuffle=True)
+    sub_dls2 = sub_ds2.pytorch(num_workers=0, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(8, 12, sub_dls2)
 
     sub_ds3 = ds[:5]
 
-    sub_dl3 = sub_ds3.pytorch(num_workers=2, batch_size=1)
+    sub_dl3 = sub_ds3.pytorch(num_workers=0, batch_size=1)
 
     for _ in range(2):
         for i, batch in enumerate(sub_dl3):
@@ -115,7 +115,7 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), (i) * np.ones((1, 12, 12))
             )
 
-    sub_dls3 = sub_ds3.pytorch(num_workers=2, batch_size=1, shuffle=True)
+    sub_dls3 = sub_ds3.pytorch(num_workers=0, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(0, 5, sub_dls3)
 
 
@@ -130,10 +130,10 @@ def test_pytorch_transform(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=2, transform=to_tuple, batch_size=1)
+    dl = ds.pytorch(num_workers=0, transform=to_tuple, batch_size=1)
 
     for _ in range(2):
         for i, batch in enumerate(dl):
@@ -144,7 +144,7 @@ def test_pytorch_transform(ds):
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
-    dls = ds.pytorch(num_workers=2, transform=to_tuple, batch_size=1, shuffle=True)
+    dls = ds.pytorch(num_workers=0, transform=to_tuple, batch_size=1, shuffle=True)
 
     for _ in range(2):
         all_values = []
@@ -187,11 +187,11 @@ def test_pytorch_with_compression(ds: Dataset):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=2, batch_size=1)
-    dls = ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
+    dl = ds.pytorch(num_workers=0, batch_size=1)
+    dls = ds.pytorch(num_workers=0, batch_size=1, shuffle=True)
 
     for dataloader in [dl, dls]:
         for _ in range(2):
@@ -214,13 +214,13 @@ def test_pytorch_small_old(ds):
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = dataset_to_pytorch(
-                ds, num_workers=2, batch_size=1, python_version_warning=False
+                ds, num_workers=0, batch_size=1, python_version_warning=False
             )
         return
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     dl = dataset_to_pytorch(
-        ds, num_workers=2, batch_size=1, python_version_warning=False
+        ds, num_workers=0, batch_size=1, python_version_warning=False
     )
 
     for _ in range(2):
@@ -244,20 +244,23 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = dataset_to_pytorch(
+                ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
+            )
         return
 
     with pytest.raises(TensorDoesNotExistError):
-        dl = ds.pytorch(num_workers=2, tensors=["c", "d", "e"])
+        dl = ds.pytorch(num_workers=0, tensors=["c", "d", "e"])
     with pytest.raises(TensorDoesNotExistError):
         dl = dataset_to_pytorch(
-            ds, num_workers=2, tensors=["c", "e"], python_version_warning=False
+            ds, num_workers=0, tensors=["c", "e"], python_version_warning=False
         )
 
-    dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
+    dl_new = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
     dl_old = dataset_to_pytorch(
-        ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
+        ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
     )
+
     for dl in [dl_new, dl_old]:
         for i, batch in enumerate(dl):
             c1, d1, a1 = batch
@@ -283,7 +286,7 @@ def test_custom_tensor_order(ds):
             np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
             np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
-    dls = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
+    dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
     for i, batch in enumerate(dls):
         c1, d1, a1 = batch
         a2 = batch["a"]
@@ -304,17 +307,18 @@ def test_custom_tensor_order(ds):
 
 
 @requires_torch
-def test_readonly(local_ds):
+def test_readonly_with_two_workers(local_ds):
     local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
     local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
     local_ds.images.extend(np.ones((10, 12, 12)))
     local_ds.labels.extend(np.ones(10))
 
     base_storage = get_base_storage(local_ds.storage)
+    base_storage.flush()
     base_storage.enable_readonly()
     ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 
-    ptds = ds.pytorch()
+    ptds = ds.pytorch(num_workers=2)
     # no need to check input, only care that readonly works
     for _ in ptds:
         pass
@@ -337,11 +341,10 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
             local_ds.image.append(img_bad)
     num_samples = 0
     num_batches = 0
-    with pytest.warns(UserWarning):
-        dl = local_ds.pytorch(num_workers=2, batch_size=2)
-        for (batch,) in dl:
-            num_batches += 1
-            num_samples += len(batch)
+    dl = local_ds.pytorch(num_workers=0, batch_size=2)
+    for (batch,) in dl:
+        num_batches += 1
+        num_samples += len(batch)
     assert num_samples == 30
     assert num_batches == 15
 
@@ -360,12 +363,10 @@ def test_pytorch_local_cache(ds):
             dl = ds.pytorch(num_workers=2)
         return
 
-    local_cache = get_pytorch_local_storage(ds)
+    epochs = 2
 
-    for buffer_size in [0, 0.001, 0.002, 0.003, 0.004, 1]:
-        dl = ds.pytorch(
-            num_workers=2, batch_size=1, buffer_size=buffer_size, use_local_cache=True
-        )
+    for _ in range(epochs):
+        dl = ds.pytorch(num_workers=1, batch_size=1, use_local_cache=True)
         for i, batch in enumerate(dl):
             np.testing.assert_array_equal(
                 batch["image"].numpy(), i * np.ones((1, i + 1, i + 1))
@@ -374,17 +375,13 @@ def test_pytorch_local_cache(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-        local_cache.clear()
-
         dls = ds.pytorch(
             num_workers=2,
             batch_size=1,
             shuffle=True,
-            buffer_size=buffer_size,
             use_local_cache=True,
         )
         pytorch_small_shuffle_helper(0, 16, dls)
-        local_cache.clear()
 
 
 @requires_torch
