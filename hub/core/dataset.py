@@ -25,7 +25,7 @@ from hub.integrations import dataset_to_tensorflow
 
 from hub.core.index import Index
 from hub.core.lock import lock, unlock
-from hub.core.fast_forwarding import ffw_dataset_meta, ffw_tensor_meta
+from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import S3Provider, LRUCache
 from hub.core.tensor import create_tensor, Tensor, delete_item
@@ -313,6 +313,19 @@ class Dataset:
 
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
+        """Delete a tensor from the dataset.
+
+        Args:
+            name (str): The name of tensor to be deleted.
+            large_ok (bool): Delete tensors larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
+            InvalidTensorNameError: If `name` is in dataset attributes.
+        """
         auto_checkout(self.version_state, self.storage)
         name = name.strip("/").replace("//", "/")
 
@@ -349,6 +362,19 @@ class Dataset:
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
+        """Delete a tensor group from the dataset.
+
+        Args:
+            name (str): The name of tensor group to be deleted.
+            large_ok (bool): Delete tensor groups larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
+        """
         auto_checkout(self.version_state, self.storage)
         name = name.strip("/").replace("//", "/")
 
