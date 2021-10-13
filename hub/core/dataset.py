@@ -25,7 +25,7 @@ from hub.integrations import dataset_to_tensorflow
 
 from hub.core.index import Index
 from hub.core.lock import lock, unlock
-from hub.core.fast_forwarding import ffw_dataset_meta
+from hub.core.fast_forwarding import ffw_dataset_meta, ffw_tensor_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import S3Provider, LRUCache
 from hub.core.tensor import create_tensor, Tensor, delete_item
@@ -109,6 +109,7 @@ class Dataset:
 
         self.index: Index = index or Index()
         self.group_index = group_index
+        self._parent = None
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -189,7 +190,7 @@ class Dataset:
                     posixpath.join(self.group_index, item)
                 ][self.index]
             elif item in self._groups_filtered:
-                return Dataset(
+                ret = Dataset(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -197,6 +198,8 @@ class Dataset:
                     token=self._token,
                     verbose=False,
                 )
+                ret._parent = self
+                return ret
             elif "/" in item:
                 splt = posixpath.split(item)
                 return self[splt[0]][splt[1]]
@@ -322,13 +325,26 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         if not self._is_root():
-            return self.root.delete_tensor(full_path)
+            return self.root.delete_tensor(full_path, large_ok)
+
+        if not large_ok:
+            chunk_engine = self.version_state["full_tensors"][name].chunk_engine
+            size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Tensor {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
 
         delete_item(name, self.storage)
-        self.version_state["meta"].tensors.remove(name)
-        ffw_dataset_meta(self.version_state["meta"])
-        self.version_state["full_tensors"].pop(name)
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        meta.tensors.remove(name)
+        self.storage[meta_key] = meta
         self.storage.maybe_flush()
+        self.version_state["meta"] = meta
+        self.version_state["full_tensors"].pop(name)
         return None
 
     @hub_reporter.record_call
@@ -345,18 +361,33 @@ class Dataset:
             raise InvalidTensorGroupNameError(name)
 
         if not self._is_root():
-            return self.root.delete_group(full_path)
+            return self.root.delete_group(full_path, large_ok)
+
+        if not large_ok:
+            size_approx = self[name].size_approx()
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Group {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
 
         delete_item(name, self.storage)
-        for group in self.version_state["meta"].groups:
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        groups = meta.groups.copy()
+        for group in groups:
             if group.startswith(name):
-                self.version_state["meta"].groups.remove(group)
-        for tensor in self.version_state["meta"].tensors:
+                meta.groups.remove(group)
+
+        tensors = meta.tensors.copy()
+        for tensor in tensors:
             if tensor.startswith(name):
-                self.version_state["meta"].tensors.remove(tensor)
+                meta.tensors.remove(tensor)
                 self.version_state["full_tensors"].pop(tensor)
-        ffw_dataset_meta(self.version_state["meta"])
+        self.storage[meta_key] = meta
         self.storage.maybe_flush()
+        self.version_state["meta"] = meta
         return None
 
     @hub_reporter.record_call
@@ -652,6 +683,8 @@ class Dataset:
         tensors = self.version_state["full_tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+        for group in self._groups_filtered:
+            size += self[group].size_approx()
         return size
 
     @hub_reporter.record_call
@@ -765,6 +798,8 @@ class Dataset:
     @property
     def parent(self):
         """Returns the parent of this group. Returns None if this is the root dataset"""
+        if self._parent:
+            return self._parent
         if self._is_root():
             return None
         return Dataset(
@@ -779,6 +814,8 @@ class Dataset:
 
     @property
     def root(self):
+        if self._parent:
+            return self._parent.root
         if self._is_root():
             return self
         return Dataset(
