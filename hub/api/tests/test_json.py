@@ -154,8 +154,9 @@ def test_json_with_schema(memory_ds):
 
 
 @enabled_non_gcs_datasets
-def test_json_transform(ds, scheduler="threaded"):
-    ds.create_tensor("json", htype="json")
+@pytest.mark.parametrize("compression", ["lz4", None])
+def test_json_transform(ds, compression, scheduler="threaded"):
+    ds.create_tensor("json", htype="json", sample_compression=compression)
 
     items = [
         {"x": [1, 2, 3], "y": [4, [5, 6]]},
@@ -180,7 +181,8 @@ def test_json_transform(ds, scheduler="threaded"):
 
 
 @enabled_non_gcs_datasets
-def test_list_transform(ds, scheduler="threaded"):
+@pytest.mark.parametrize("compression", ["lz4", None])
+def test_list_transform(ds, compression, scheduler="threaded"):
     ds.create_tensor("list", htype="list")
 
     items = [
