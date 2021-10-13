@@ -2,6 +2,7 @@ import numpy as np
 import hub
 import pytest
 from hub.util.json import JsonValidationError
+from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
 from typing import Any, Optional, Union, List, Dict
 
 
@@ -150,3 +151,43 @@ def test_json_with_schema(memory_ds):
     ds.json2.extend(items)
     for i in range(len(items)):
         assert ds.json2[i].data() == ds.json2.data()[i] == items[i]
+
+
+@enabled_non_gcs_datasets
+def test_json_transform(ds, scheduler="threaded"):
+    ds.create_tensor("json", htype="json")
+
+    items = [
+        {"x": [1, 2, 3], "y": [4, [5, 6]]},
+        {"x": [1, 2, 3], "y": [4, {"z": [0.1, 0.2, []]}]},
+        ["a", ["b", "c"], {"d": 1.0}],
+        [1.0, 2.0, 3.0, 4.0],
+        ["a", "b", "c", "d"],
+    ] * 5
+
+    @hub.compute
+    def upload(stuff, ds):
+        ds.json.append(stuff)
+        return ds
+
+    upload().eval(items, ds, num_workers=2, scheduler=scheduler)
+    assert ds.json.data() == items
+
+
+@enabled_non_gcs_datasets
+def test_list_transform(ds, scheduler="threaded"):
+    ds.create_tensor("list", htype="list")
+
+    items = [
+        ["a", ["b", "c"], {"d": 1.0}],
+        [1.0, 2.0, 3.0, 4.0],
+        ["a", "b", "c", "d"],
+    ] * 5
+
+    @hub.compute
+    def upload(stuff, ds):
+        ds.list.append(stuff)
+        return ds
+
+    upload().eval(items, ds, num_workers=2, scheduler=scheduler)
+    assert ds.list.data() == items

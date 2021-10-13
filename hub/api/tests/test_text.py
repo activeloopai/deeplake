@@ -17,7 +17,7 @@ def test_text(memory_ds):
 
 
 @enabled_non_gcs_datasets
-def test_text(ds, scheduler="threaded"):
+def test_text_transform(ds, scheduler="threaded"):
     ds.create_tensor("text", htype="text")
 
     @hub.compute
@@ -25,7 +25,9 @@ def test_text(ds, scheduler="threaded"):
         ds.text.append(some_str)
         return ds
 
-    upload().eval(["hi", "if ur reading this ur a nerd"], ds, num_workers=2, scheduler=scheduler)
+    upload().eval(
+        ["hi", "if ur reading this ur a nerd"], ds, num_workers=2, scheduler=scheduler
+    )
 
     assert len(ds) == 2
-    assert ds.text.numpy() == ["hi", "if ur reading this ur a nerd"]
+    assert ds.text.data() == ["hi", "if ur reading this ur a nerd"]
