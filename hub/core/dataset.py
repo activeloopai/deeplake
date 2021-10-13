@@ -521,9 +521,9 @@ class Dataset:
         Returns:
             A torch.utils.data.DataLoader object.
         """
-        from hub.integrations import dataset_to_pytorch
+        from hub.integrations import dataset_to_pytorch as to_pytorch
 
-        dataloader = dataset_to_pytorch(
+        dataloader = to_pytorch(
             self,
             transform,
             tensors,
