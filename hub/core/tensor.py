@@ -215,14 +215,26 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
+        shape = self.shape_interval.astuple()
+        if self.index.values[0].subscriptable():
+            return shape
+        return shape[1:]
 
-        return self.shape_interval.astuple()
+    @property
+    def ndim(self) -> int:
+        return len(self.shape)
 
     @property
     def dtype(self) -> np.dtype:
+        if self.htype in ("json", "list"):
+            return self.dtype
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None
+
+    @property
+    def htype(self):
+        return self.meta.htype
 
     @property
     def shape_interval(self) -> ShapeInterval:
@@ -424,3 +436,19 @@ class Tensor:
     @_inplace_op
     def __ior__(self, other):
         pass
+
+    def data(self) -> Any:
+        htype = self.htype
+        if htype in ("json", "text"):
+
+            if self.ndim == 1:
+                return self.numpy()[0]
+            else:
+                return [sample[0] for sample in self.numpy(aslist=True)]
+        elif htype == "list":
+            if self.ndim == 1:
+                return list(self.numpy())
+            else:
+                return list(map(list, self.numpy(aslist=True)))
+        else:
+            return self.numpy()

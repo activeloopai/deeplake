@@ -694,14 +694,17 @@ def test_compressions_list():
 
 def test_htypes_list():
     assert hub.htypes == [
+        "audio",
+        "bbox",
+        "binary_mask",
+        "class_label",
         "generic",
         "image",
-        "class_label",
-        "bbox",
-        "audio",
-        "video",
-        "binary_mask",
+        "json",
+        "list",
         "segment_mask",
+        "text",
+        "video",
     ]
 
 
