@@ -312,11 +312,15 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
+        if not self._is_root():
+            return self.root.delete_tensor(full_path)
+
         delete_item(name, self.storage)
         self.version_state["meta"].tensors.remove(name)
         ffw_dataset_meta(self.version_state["meta"])
         self.version_state["full_tensors"].pop(name)
         self.storage.maybe_flush()
+        return None
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -331,6 +335,9 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
 
+        if not self._is_root():
+            return self.root.delete_group(full_path)
+
         delete_item(name, self.storage)
         for group in self.version_state["meta"].groups:
             if group.startswith(name):
@@ -341,6 +348,7 @@ class Dataset:
                 self.version_state["full_tensors"].pop(tensor)
         ffw_dataset_meta(self.version_state["meta"])
         self.storage.maybe_flush()
+        return None
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
