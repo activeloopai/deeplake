@@ -198,7 +198,7 @@ class Dataset:
                     token=self._token,
                     verbose=False,
                 )
-                ret._parent = self
+                ret._parent = self  # type: ignore
                 return ret
             elif "/" in item:
                 splt = posixpath.split(item)
