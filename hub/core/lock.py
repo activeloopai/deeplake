@@ -60,7 +60,7 @@ class Lock(object):
                     if (
                         self._previous_update_timestamp is not None
                         and time.time() - self._previous_update_timestamp
-                        >= self.DATASET_LOCK_VALIDITY
+                        >= hub.constants.DATASET_LOCK_VALIDITY
                     ):
                         # Its been too long since last update, another machine might have locked the storage
                         lock_bytes = self.storage.get(get_dataset_lock_key())
