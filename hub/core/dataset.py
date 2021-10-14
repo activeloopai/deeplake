@@ -194,6 +194,7 @@ class Dataset:
                     read_only=self.read_only,
                     token=self._token,
                     verbose=False,
+                    version_state=self.version_state,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)

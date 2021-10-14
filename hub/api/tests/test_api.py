@@ -752,3 +752,13 @@ def test_groups(local_ds_generator):
 
     ds.create_group("g")
     ds.g.create_tensor("g")
+
+
+def test_vc_bug(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("abc")
+    ds.abc.append(1)
+    a = ds.commit("first")
+    ds.checkout(a)
+    ds.create_tensor("a/b/c/d")
+    assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
