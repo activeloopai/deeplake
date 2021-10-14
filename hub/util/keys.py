@@ -6,6 +6,7 @@ from hub.constants import (
     DATASET_LOCK_FILENAME,
     ENCODED_CHUNK_NAMES_FILENAME,
     ENCODED_CHUNK_NAMES_FOLDER,
+    ENCODED_TILE_NAMES_FOLDER,
     FIRST_COMMIT_ID,
     DATASET_META_FILENAME,
     TENSOR_INFO_FILENAME,
@@ -77,6 +78,13 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
         ENCODED_CHUNK_NAMES_FOLDER,
         ENCODED_CHUNK_NAMES_FILENAME,
     )
+
+def get_tile_encoder_key(key: str) -> str:
+    return posixpath.join(
+        key,
+        ENCODED_TILE_NAMES_FOLDER,
+        ENCODED_CHUNK_NAMES_FILENAME,
+     )
 
 
 def dataset_exists(storage) -> bool:

@@ -1,3 +1,4 @@
+from typing import List, Tuple, Union
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
@@ -76,7 +77,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return id
 
-    def register_samples(self, num_samples: int):  # type: ignore
+    def register_samples(self, samples, num_samples: int):  # type: ignore
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
 
@@ -88,8 +89,18 @@ class ChunkIdEncoder(Encoder, Cachable):
             ChunkIdEncoderError: Must call `generate_chunk_id` before registering samples.
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
-
         super().register_samples(None, num_samples)
+
+    def register_tiled_samples(self, samples):
+        """Registers tiled samples to newly created chunk IDs.
+        """
+        last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
+        for sample in samples:
+            last_index += 1
+            for tile in sample:
+                self.generate_chunk_id()
+                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = last_index
+
 
     def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
@@ -118,7 +129,13 @@ class ChunkIdEncoder(Encoder, Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, chunk_index = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
+        _, chunk_indexes = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
+
+        # for tiled samples, the relative index is always 0
+        if len(chunk_indexes) > 1:
+            return 0
+        
+        chunk_index = chunk_indexes[0]
 
         if chunk_index == 0:
             return global_sample_index
@@ -166,3 +183,34 @@ class ChunkIdEncoder(Encoder, Cachable):
         raise NotImplementedError(
             "There is no reason for ChunkIdEncoder to be updated now."
         )
+
+    def __getitem__(
+        self, local_sample_index: int, return_row_index: bool = False
+    ) -> Union[np.ndarray, Tuple[np.ndarray, List[int]]]:
+        """Derives the value at `local_sample_index`.
+
+        Args:
+            local_sample_index (int): Index of the sample for the desired value.
+            return_row_index (bool): If True, the index of the row that the value was derived from is returned as well.
+                Defaults to False.
+
+        Returns:
+            Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
+        """
+        values = []
+        row_indices = []
+
+        row_index = self.translate_index(local_sample_index)
+        value = self._derive_value(self._encoded[row_index])
+
+        arr = self._encoded[:, LAST_SEEN_INDEX_COLUMN]
+        while row_index  < len(arr) and arr[row_index] == local_sample_index:
+            values.append(value)
+            row_indices.append(row_index)
+            row_index += 1
+
+
+        if return_row_index:
+            return values, row_indices
+
+        return values

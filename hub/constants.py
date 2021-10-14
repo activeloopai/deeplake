@@ -52,7 +52,8 @@ CHUNKS_FOLDER = "chunks"
 
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
+ENCODED_TILE_NAMES_FOLDER = "tiles_index"
+ENCODED_CHUNK_NAMES_FILENAME = "unsharded"
 
 ENCODING_DTYPE = np.uint32
 # caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
