@@ -840,7 +840,7 @@ class Dataset:
 
     @property
     def root(self):
-        if self._parent:
+        if self._parent is not None:
             return self._parent.root
         if self._is_root():
             return self
