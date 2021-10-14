@@ -63,34 +63,16 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
 
-def delete_item(
-    key: str,
-    storage: StorageProvider,
-    version_state: Dict[str, Any],
-):
-    """Delete tensor or tensor group from storage.
-
-    Args:
-        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider that all tensor data is written to.
-    """
-
-    for chunk_key in list(storage.keys()):
-        if chunk_key.startswith(key):
-            if not (
-                chunk_key.endswith(TENSOR_META_FILENAME)
-                or chunk_key.endswith(TENSOR_INFO_FILENAME)
-            ):
-                del storage[chunk_key]
-
-
 def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
     """Delete tensor from storage.
 
     Args:
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider that all tensor data is written to.
+        storage (LRUCache): StorageProvider that all tensor data is written to.
         version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+
+    Raises:
+        TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
     """
 
     if not tensor_exists(key, storage, version_state["commit_id"]):
