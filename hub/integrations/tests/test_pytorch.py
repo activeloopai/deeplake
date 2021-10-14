@@ -246,7 +246,7 @@ def test_pytorch_small_old(ds):
                 np.testing.assert_array_equal(
                     batch["image2"].numpy(), i * np.ones((1, 12, 12))
                 )
-    except Exception:
+    except ModuleNotFoundError:
         pass
 
 
