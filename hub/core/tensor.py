@@ -9,6 +9,7 @@ from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import (
+    get_chunk_key,
     get_tensor_meta_key,
     tensor_exists,
     get_tensor_info_key,
@@ -21,7 +22,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDtypeMismatchError,
 )
-from hub.constants import TENSOR_META_FILENAME
+from hub.constants import TENSOR_META_FILENAME, TENSOR_INFO_FILENAME
 
 
 def create_tensor(
@@ -65,6 +66,7 @@ def create_tensor(
 def delete_item(
     key: str,
     storage: StorageProvider,
+    version_state: Dict[str, Any],
 ):
     """Delete tensor or tensor group from storage.
 
@@ -75,8 +77,39 @@ def delete_item(
 
     for chunk_key in list(storage.keys()):
         if chunk_key.startswith(key):
-            if not chunk_key.endswith(TENSOR_META_FILENAME):
+            if not (
+                chunk_key.endswith(TENSOR_META_FILENAME)
+                or chunk_key.endswith(TENSOR_INFO_FILENAME)
+            ):
                 del storage[chunk_key]
+
+
+def delete_tensor(key: str, storage: StorageProvider, version_state: Dict[str, Any]):
+    if not tensor_exists(key, storage, version_state["commit_id"]):
+        raise TensorDoesNotExistError(key)
+
+    tensor = Tensor(key, storage, version_state)
+    chunk_engine = tensor.chunk_engine
+    n_samples = chunk_engine.num_samples
+    chunk_names = chunk_engine.get_chunk_names_for_multiple_indexes(
+        0, n_samples, n_samples
+    )
+    chunk_keys = [
+        get_chunk_key(key, chunk_name, version_state["commit_id"])
+        for chunk_name in chunk_names
+    ]
+    for chunk_key in chunk_keys:
+        try:
+            del storage[chunk_key]
+        except KeyError:
+            pass
+        finally:
+            meta_key = get_tensor_meta_key(key, version_state["commit_id"])
+            del storage[meta_key]
+
+
+def delete_group():
+    pass
 
 
 def _inplace_op(f):

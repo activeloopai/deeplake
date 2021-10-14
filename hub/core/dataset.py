@@ -28,7 +28,13 @@ from hub.core.lock import lock, unlock
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import S3Provider, LRUCache
-from hub.core.tensor import create_tensor, Tensor, delete_item
+from hub.core.tensor import (
+    create_tensor,
+    Tensor,
+    delete_group,
+    delete_item,
+    delete_tensor,
+)
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 
 from hub.util.keys import (
@@ -349,7 +355,7 @@ class Dataset:
                 )
                 return
 
-        delete_item(name, self.storage)
+        delete_tensor(name, self.storage, self.version_state)
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)
@@ -397,7 +403,17 @@ class Dataset:
                 )
                 return
 
-        delete_item(name, self.storage)
+        tensors = [
+            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
+        ]
+        groups = [posixpath.join(name, group) for group in self[name]._groups_filtered]
+
+        for tensor in tensors:
+            delete_tensor(tensor, self.storage, self.version_state)
+
+        for group in groups:
+            self.delete_group(group, large_ok)
+
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)

@@ -361,3 +361,27 @@ def test_auto_commit(local_ds):
     local_ds.checkout("main")
 
     assert local_ds.commit_id != current_commit_id
+
+
+def test_delete(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        local_ds.abc.append(1)
+        a = local_ds.commit("first")
+        local_ds.delete_tensor("abc")
+        b = local_ds.commit("second")
+        local_ds.checkout(a)
+        assert local_ds.abc[0].numpy() == 1
+        local_ds.checkout(b)
+        assert local_ds.tensors == {}
+
+        local_ds.create_tensor("x/y/z")
+        local_ds["x/y/z"].append(1)
+        c = local_ds.commit("third")
+        local_ds["x"].delete_tensor("y/z")
+        d = local_ds.commit("fourth")
+        local_ds.checkout(c)
+        assert local_ds["x/y/z"][0].numpy() == 1
+        local_ds.checkout(d)
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
