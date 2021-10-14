@@ -84,7 +84,15 @@ def delete_item(
                 del storage[chunk_key]
 
 
-def delete_tensor(key: str, storage: StorageProvider, version_state: Dict[str, Any]):
+def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
+    """Delete tensor from storage.
+
+    Args:
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider that all tensor data is written to.
+        version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+    """
+
     if not tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorDoesNotExistError(key)
 

@@ -31,8 +31,6 @@ from hub.core.storage import S3Provider, LRUCache
 from hub.core.tensor import (
     create_tensor,
     Tensor,
-    delete_group,
-    delete_item,
     delete_tensor,
 )
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
