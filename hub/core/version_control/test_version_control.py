@@ -385,3 +385,15 @@ def test_delete(local_ds):
         local_ds.checkout(d)
         assert local_ds.tensors == {}
         assert list(local_ds.groups) == ["x"]
+        local_ds.delete_group("x")
+        assert list(local_ds.groups) == []
+
+        local_ds.checkout(c)
+        local_ds["x"].delete_group("y")
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
+
+        local_ds.checkout(c)
+        local_ds.delete_group("x/y")
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
