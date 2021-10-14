@@ -21,6 +21,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDtypeMismatchError,
 )
+from hub.constants import TENSOR_META_FILENAME
 
 
 def create_tensor(
@@ -74,7 +75,8 @@ def delete_item(
 
     for chunk_key in list(storage.keys()):
         if chunk_key.startswith(key):
-            del storage[chunk_key]
+            if not chunk_key.endswith(TENSOR_META_FILENAME):
+                del storage[chunk_key]
 
 
 def _inplace_op(f):

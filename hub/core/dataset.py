@@ -824,7 +824,7 @@ class Dataset:
     @property
     def parent(self):
         """Returns the parent of this group. Returns None if this is the root dataset"""
-        if self._parent:
+        if self._parent is not None:
             return self._parent
         if self._is_root():
             return None
