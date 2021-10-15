@@ -28,18 +28,17 @@
 
 ## About Hub
 
-
-Hub is a dataset format and API optimized for machine learning workloads. The hub data layout enables you to train your models on the fly, without having to download the entire dataset.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapidly transform and stream data while training models at scale. Hub is used Google, Waymo, Red Cross, Omdena, and Rarebase.
 
 
 Hub includes the following features:
 
-* Storage agnostic API - Use the same API to upload, download and stream datasets to/from AWS S3, GCP, Hub cloud, local storage as well as in-memory.
-* Compressed storage - Store images, videos and audios in their native compression, decompressing them only when needed, for e.g, when training a model.
-* Lazy Numpy-like slicing - Treat your S3 or GCP datasets as if they are a collection of numpy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
-* Version control - Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
-* Third party integrations - Hub comes with bult-in integrations for Pytorch and Tensorflow. Get your model training in a few lines code - we even take care of dataset shuffling for you.
-* Distributed transforms - Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
+* Storage agnostic API: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage as well as in-memory.
+* Compressed storage: Store images and audios in their native compression (full list [here](https://docs.activeloop.ai/getting-started/understanding-compression)), decompressing them only when needed, for e.g, when training a model.
+* Lazy NumPy-like slicing: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+* Dataset version control: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
+* Third-party integrations: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+* Distributed transforms: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
 
 
 
@@ -47,28 +46,29 @@ Hub includes the following features:
 ## Getting Started with Hub
 
 
-### Installation
+### How to install Hub
 Hub is written in 100% python and can be quickly installed using pip.
+
 ```sh
 pip3 install hub
 ```
 
 
-### Creating Datasets
+### How to create a Hub Dataset
 
 A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
-| Storage provider | Example path                  |
-| ---------------- | ----------------------------- |
-| Hub cloud        | hub://user_name/dataset_name  |
-| AWS S3           | s3://bucket_name/dataset_name |
-| GCP              | gcp://bucket_name/dataset_name|
-| Local storage    | path to local directory       |
-| In-memory        | mem://dataset_name            |
+| Storage provider        | Example path                  |
+| ----------------------- | ----------------------------- |
+| Activeloop cloud        | hub://user_name/dataset_name  |
+| AWS S3                  | s3://bucket_name/dataset_name |
+| GCP                     | gcp://bucket_name/dataset_name|
+| Local storage           | path to local directory       |
+| In-memory               | mem://dataset_name            |
 
 
 
-Let's create a dataset in the Hub cloud. Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
 
 ```sh
 $ activeloop register
@@ -116,7 +116,7 @@ with ds:
 
 
 
-### Loading Datasets
+### How to load a Hub Dataset
 
 
 You can load the dataset you just created with a single line of code:
