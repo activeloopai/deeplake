@@ -752,3 +752,11 @@ def test_groups(local_ds_generator):
 
     ds.create_group("g")
     ds.g.create_tensor("g")
+
+    with ds:
+        ds.create_group("h")
+        ds.h.create_group("i")
+        ds.h.i.create_tensor("j")
+        assert not ds.storage.autoflush
+    assert "j" in ds.h.i.tensors
+    assert ds.storage.autoflush
