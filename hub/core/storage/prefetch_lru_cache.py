@@ -1,5 +1,6 @@
 import warnings
 import numpy as np
+from uuid import uuid1
 from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
@@ -49,8 +50,10 @@ class PrefetchLRUCache(LRUCache):
         self.workers = num_workers
         pool = ProcessPool(nodes=num_workers)
         self.map = pool.map
+        self.shm_prefix = str(uuid1())[0:8]
 
-        # shared memory file names have format "al_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
+
+        # shared memory file names have format "{self.shm_prefix}_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
         self.last_shm_key_generated = -1
 
         # keeps track of the last index suggested from all_indexes, incremented by 1 every time to return sequential indexes
@@ -345,7 +348,7 @@ class PrefetchLRUCache(LRUCache):
             for chunk in chunk_group:
                 if chunk not in self.chunk_shared_mem_map:
                     self.last_shm_key_generated += 1
-                    shared_memory_name = f"al_{self.last_shm_key_generated}"
+                    shared_memory_name = f"{self.shm_prefix}_{self.last_shm_key_generated}"
                     self.chunk_shared_mem_map[chunk] = shared_memory_name
                     self.shared_mem_chunk_map[shared_memory_name] = chunk
 
