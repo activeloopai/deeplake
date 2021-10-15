@@ -24,7 +24,7 @@ def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     tensors: Optional[Sequence[str]] = None,
-    num_workers: int = 1,
+    num_workers: int = None,
     batch_size: Optional[int] = 1,
     drop_last: bool = False,
     collate_fn: Optional[Callable] = None,
@@ -48,7 +48,7 @@ def dataset_to_pytorch(
             dataset,
             transform: Optional[Callable] = None,
             tensors: Optional[Sequence[str]] = None,
-            num_workers: int = 1,
+            num_workers: int = None,
             shuffle: bool = False,
             buffer_size: int = 10 * 1000,
             use_local_cache: bool = False,
@@ -86,7 +86,10 @@ def dataset_to_pytorch(
                     yield value
 
     # TODO new pytorch approach doesn't support 0 workers currently
-    num_workers = max(num_workers, 1)
+    if num_workers is not None:
+        num_workers = max(num_workers, 1)
+    else:
+        num_workers = 1
     pytorch_ds = TorchDataset(
         dataset,
         transform,

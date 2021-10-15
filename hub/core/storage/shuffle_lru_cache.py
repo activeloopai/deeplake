@@ -15,20 +15,20 @@ class ShuffleLRUCache(PrefetchLRUCache):
         next_storage: Optional[StorageProvider],
         cache_size: int,
         dataset,
+        num_workers: int,
         tensor_keys: Optional[Sequence[str]],
         transform: Optional[Callable],
         mode: Optional[str] = None,
-        num_workers: int = 2
     ):
         super().__init__(
             cache_storage,
             next_storage,
             cache_size,
             dataset,
+            num_wokers,
             tensor_keys,
             transform,
             mode,
-            num_workers
         )
 
         # set of all indexes that have not been used yet, used to pick new indexes every time
