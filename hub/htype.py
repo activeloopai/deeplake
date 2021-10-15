@@ -25,7 +25,7 @@ Supported htypes and their respective defaults are:
 | bbox          |  float32  |  none         |
 | video         |  uint8    |  none         |
 | binary_mask   |  bool     |  none         |
-| segment_mask  |  int32    |  none         |
+| segment_mask  |  uint32    |  none         |
 | keypoint_coco |  int32    |  none         |
 
 """
