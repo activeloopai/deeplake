@@ -39,13 +39,23 @@ def retrieve_data(path, presence, cache_storage, prefetch_cache):
         # fetch from emergency storage, may throw KeyError
         return emergency_storage[path]
 
-def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, prefetch_cache):
+
+def data_from_shm_names_dict(
+    index, shm_names_dict, shm_names_presence_dict, prefetch_cache
+):
     remove_shared_memory_from_resource_tracker()
     cache_storage = SharedMemoryProvider()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
-        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, prefetch_cache)
+        arr = numpy_from_shm_names(
+            tensor,
+            shm_names,
+            shm_names_presence_list,
+            index,
+            cache_storage,
+            prefetch_cache,
+        )
         if arr is None:
             return None
         data[tensor] = arr
@@ -59,19 +69,35 @@ def apply_transform(sample: Union[Dict, Tuple], transform=None):
     """Used to apply transform to a single sample"""
     return transform(sample) if transform else sample
 
-def chunks_from_names(shm_names: List[str], shm_names_presence_list, cache_storage, prefetch_cache):
-    """Takes a list of shm names and returns a list with corresponding chunk objects"""
-    return [chunk_from_name(shm_name, shm_name_presence, cache_storage, prefetch_cache) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
 
-def chunk_from_name(shm_name: str, shm_name_presence: bool, cache_storage, prefetch_cache):
+def chunks_from_names(
+    shm_names: List[str], shm_names_presence_list, cache_storage, prefetch_cache
+):
+    """Takes a list of shm names and returns a list with corresponding chunk objects"""
+    return [
+        chunk_from_name(shm_name, shm_name_presence, cache_storage, prefetch_cache)
+        for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)
+    ]
+
+
+def chunk_from_name(
+    shm_name: str, shm_name_presence: bool, cache_storage, prefetch_cache
+):
     """Takes a shm_name and tensor and returns Chunk"""
-    chunk_data = retrieve_data(shm_name, shm_name_presence, cache_storage, prefetch_cache)
+    chunk_data = retrieve_data(
+        shm_name, shm_name_presence, cache_storage, prefetch_cache
+    )
     # TODO: update cache later
     chunk = Chunk.frombuffer(chunk_data, copy=False)
     return chunk
 
-def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, prefetch_cache):
-    chunks = chunks_from_names(shm_names, shm_names_presence_list, cache_storage, prefetch_cache)
+
+def numpy_from_shm_names(
+    tensor, shm_names, shm_names_presence_list, index, cache_storage, prefetch_cache
+):
+    chunks = chunks_from_names(
+        shm_names, shm_names_presence_list, cache_storage, prefetch_cache
+    )
     arr = numpy_from_chunks(index, tensor, chunks, prefetch_cache)
     return arr
 
@@ -241,53 +267,45 @@ class PrefetchLRUCache(LRUCache):
                 queued_indexes.append(index)
 
             while len(queued_indexes) >= self.workers:
-                currently_scheduled_indexes = queued_indexes[: self.workers]
-                chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
-                shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
-                shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
-                data_list = self.map(
-                    data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self)
-                )
-
+                yield from self._yield_queued_indexes(queued_indexes)
                 queued_indexes = queued_indexes[self.workers :]
-                yield from data_list
-                    
-                self.required_chunks.clear()
-                if self.emergency_storage is not None:
-                    self.emergency_storage.clear()
+                self._clean_up_after_yield()
 
         if pending_indexes:
             self._fetch_and_store_required_data(chunk_groups_for_workers)
+            queued_indexes = queued_indexes[self.workers :]
             queued_indexes.extend(pending_indexes)
 
         while queued_indexes:
-            currently_scheduled_indexes = queued_indexes[: self.workers]
-            chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
-            shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
-            shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
-            data_list = self.map(
-                data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self)
-            )
-
+            yield from self._yield_queued_indexes(queued_indexes)
             queued_indexes = queued_indexes[self.workers :]
-            yield from data_list
-                
-            self.required_chunks.clear()
-            if self.emergency_storage is not None:
-                self.emergency_storage.clear()
+            self._clean_up_after_yield()
 
         self.clear_cache()
 
-    def _yield_pending(
-        self,
-        chunk_groups_for_workers: List[List[Tuple[str, str]]],
-        pending_indexes: List[int],
-    ):
-        """Yields data for the indexes that are pending."""
-        self._fetch_and_store_required_data(chunk_groups_for_workers)
-        for index in pending_indexes:
-            yield self._get_final_output(index)
-        pending_indexes.clear()
+    def _yield_queued_indexes(self, queued_indexes):
+        currently_scheduled_indexes = queued_indexes[: self.workers]
+        chunk_name_dict_list = [
+            self._get_chunk_names(index) for index in currently_scheduled_indexes
+        ]
+        shm_name_dict_list = [
+            self._shm_names_dict_from_chunk_names_dict(chunk_name_dict)
+            for chunk_name_dict in chunk_name_dict_list
+        ]
+        shm_name_presence_dict_list = [
+            self._shm_names_presence_dict(shm_name_dict)
+            for shm_name_dict in shm_name_dict_list
+        ]
+        data_list = self.map(
+            data_from_shm_names_dict,
+            currently_scheduled_indexes,
+            shm_name_dict_list,
+            shm_name_presence_dict_list,
+            repeat(self),
+        )
+        return data_list
+
+    def _clean_up_after_yield(self):
         self.required_chunks.clear()
         if self.emergency_storage is not None:
             self.emergency_storage.clear()
@@ -304,14 +322,6 @@ class PrefetchLRUCache(LRUCache):
                 chunks_needed.append(chunk)
                 scheduled_chunks.add(chunk)
         return chunks_needed
-
-    def _get_final_output(self, index: int):
-        """Returns the final output for the given index after converting to IterableOrderedDict and transforming."""
-        data = self._get_data(index)
-        if data is None:
-            return None
-        sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
-        return self._apply_transform(sample)
 
     def clear_cache(self):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
@@ -406,7 +416,10 @@ class PrefetchLRUCache(LRUCache):
     def _shm_names_dict_from_chunk_names_dict(self, chunk_names_dict):
         d = {}
         for tensor, chunk_names in chunk_names_dict.items():
-            shm_names = [self.chunk_shared_mem_map[(tensor, chunk_name)] for chunk_name in chunk_names]
+            shm_names = [
+                self.chunk_shared_mem_map[(tensor, chunk_name)]
+                for chunk_name in chunk_names
+            ]
             d[tensor] = shm_names
         return d
 
@@ -422,17 +435,6 @@ class PrefetchLRUCache(LRUCache):
                     presence_list.append(False)
             d[tensor] = presence_list
         return d
-
-    def _get_data(self, index: int):
-        """Returns all the data for a given index"""
-        data: Dict[str, np.ndarray] = {}
-        chunk_names_dict = self._get_chunk_names(index)
-        for tensor, chunk_names in chunk_names_dict.items():
-            arr = self._numpy_from_chunk_names(tensor, chunk_names, index)
-            if arr is None:
-                return None
-            data[tensor] = arr
-        return data
 
     def _generate_shared_memory_names(self, chunk_groups: List[List[Tuple[str, str]]]):
         """Generates shared memory names for all chunks in chunk_groups as chunks names often get too large for some OS"""
