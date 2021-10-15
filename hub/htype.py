@@ -20,12 +20,13 @@ Supported htypes and their respective defaults are:
 
 | HTYPE         |  DTYPE    |  COMPRESSION  |
 | ------------  |  -------  |  -----------  |
-| image         |  uint8    |  png          |
+| image         |  uint8    |  none         |
 | class_label   |  uint32   |  none         |
 | bbox          |  float32  |  none         |
 | video         |  uint8    |  none         |
 | binary_mask   |  bool     |  none         |
 | segment_mask  |  int32    |  none         |
+| keypoint_coco |  int32    |  none         |
 
 """
 
@@ -56,7 +57,8 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "binary_mask": {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
-    "segment_mask": {"dtype": "int32"},
+    "segment_mask": {"dtype": "uint32"},
+    "keypoint_coco": {"dtype": "float32"},
     "json": {
         "dtype": "Any",
     },
