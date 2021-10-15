@@ -27,7 +27,9 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import remove_shared_memory_from_resource_tracker
 
 
-def retrieve_data(path, presence, cache_storage, next_storage, emergency_storage):
+def retrieve_data(path, presence, cache_storage, prefetch_cache):
+    next_storage = prefetch_cache.next_storage
+    emergency_storage = prefetch_cache.emergency_storage
     if presence:
         return cache_storage[path]
     elif next_storage is not None:
@@ -37,54 +39,53 @@ def retrieve_data(path, presence, cache_storage, next_storage, emergency_storage
         # fetch from emergency storage, may throw KeyError
         return emergency_storage[path]
 
-def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
+def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, prefetch_cache):
     remove_shared_memory_from_resource_tracker()
     cache_storage = SharedMemoryProvider()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
-        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage)
+        arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, prefetch_cache)
         if arr is None:
             return None
         data[tensor] = arr
 
     sample = IterableOrderedDict((key, data[key]) for key in data.keys())
-    final_data = apply_transform(sample)
+    final_data = apply_transform(sample, prefetch_cache.transform)
     return final_data
 
 
-def apply_transform(sample: Union[Dict, Tuple]):
+def apply_transform(sample: Union[Dict, Tuple], transform=None):
     """Used to apply transform to a single sample"""
-    global transform_fn
-    return transform_fn(sample) if transform_fn else sample
+    return transform(sample) if transform else sample
 
-def chunks_from_names(shm_names: List[str], shm_names_presence_list, cache_storage, next_storage, emergency_storage):
+def chunks_from_names(shm_names: List[str], shm_names_presence_list, cache_storage, prefetch_cache):
     """Takes a list of shm names and returns a list with corresponding chunk objects"""
-    return [chunk_from_name(shm_name, shm_name_presence, cache_storage, next_storage, emergency_storage) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
+    return [chunk_from_name(shm_name, shm_name_presence, cache_storage, prefetch_cache) for shm_name, shm_name_presence in zip(shm_names, shm_names_presence_list)]
 
-def chunk_from_name(shm_name: str, shm_name_presence: bool, cache_storage, next_storage, emergency_storage):
+def chunk_from_name(shm_name: str, shm_name_presence: bool, cache_storage, prefetch_cache):
     """Takes a shm_name and tensor and returns Chunk"""
-    chunk_data = retrieve_data(shm_name, shm_name_presence, cache_storage, next_storage, emergency_storage)
+    chunk_data = retrieve_data(shm_name, shm_name_presence, cache_storage, prefetch_cache)
     # TODO: update cache later
     chunk = Chunk.frombuffer(chunk_data, copy=False)
     return chunk
 
-def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage):
-    chunks = chunks_from_names(shm_names, shm_names_presence_list, cache_storage, next_storage, emergency_storage)
-    arr = numpy_from_chunks(index, tensor, chunks)
+def numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, prefetch_cache):
+    chunks = chunks_from_names(shm_names, shm_names_presence_list, cache_storage, prefetch_cache)
+    arr = numpy_from_chunks(index, tensor, chunks, prefetch_cache)
     return arr
 
 
-def numpy_from_chunks(index: int, key: str, chunks: List[Chunk]):
+def numpy_from_chunks(index: int, key: str, chunks: List[Chunk], prefetch_cache):
     """Takes a list of chunks and returns a numpy array from it"""
-    global all_chunk_engines
-    global iter_mode
+    all_chunk_engines = prefetch_cache.all_chunk_engines
+    mode = prefetch_cache.mode
     # TODO: separate out casting
     chunk_engine = all_chunk_engines[key]
 
     # TODO: update this once we support images spanning across multiple chunks
     chunk = chunks[0]
-    if iter_mode != "pytorch":
+    if mode != "pytorch":
         try:
             return chunk_engine.read_sample_from_chunk(
                 index, chunk, cast=True, copy=True
@@ -137,12 +138,8 @@ class PrefetchLRUCache(LRUCache):
         mode: Optional[str] = None,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
-        global iter_mode
         self.mode = mode
-        iter_mode = mode
-        global transform_fn
         self.transform = transform
-        transform_fn = transform
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
@@ -174,8 +171,6 @@ class PrefetchLRUCache(LRUCache):
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines(
             dataset.version_state
         )
-        global all_chunk_engines
-        all_chunk_engines = self.all_chunk_engines
 
         self.map = ThreadPool(nodes=num_workers).map
 
@@ -251,7 +246,7 @@ class PrefetchLRUCache(LRUCache):
                 shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
                 shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
                 data_list = self.map(
-                    data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
+                    data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self)
                 )
 
                 queued_indexes = queued_indexes[self.workers :]
@@ -271,7 +266,7 @@ class PrefetchLRUCache(LRUCache):
             shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
             shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
             data_list = self.map(
-                data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
+                data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self)
             )
 
             queued_indexes = queued_indexes[self.workers :]
