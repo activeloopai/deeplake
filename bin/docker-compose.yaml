@@ -9,25 +9,21 @@ x-creds: &global-vars
 
 services:
   local:
-    image: activeloop/hub:latest
     build:
       context: ../.
-      dockerfile: ./bin/Dockerfile
+      dockerfile: ./bin/Dockerfile.dev
     volumes:
       - ../:/app
     command: >
-      bash -c "python3 -m pytest -x --local" 
-      
+      bash -c "python3 -m pytest -x --local"
 
   complete:
-    image: activeloop/hub:latest
     build:
       context: ../.
-      dockerfile: ./bin/Dockerfile
+      dockerfile: ./bin/Dockerfile.dev
     <<: *global-vars
     volumes:
       - ~/.config/gcloud/gcs.json:/root/.config/gcloud/gcs.json
       - ../:/app
     command: >
-      bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ignore-glob=buH/*" 
-      
+      bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ignore-glob=buH/*"
