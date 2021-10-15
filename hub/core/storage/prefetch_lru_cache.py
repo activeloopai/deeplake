@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
 
 from hub.constants import EMERGENCY_STORAGE_PATH, MB
 from hub.core.chunk import Chunk
@@ -438,3 +438,9 @@ class PrefetchLRUCache(LRUCache):
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
         return self.transform(sample) if self.transform else sample
+
+    def __getstate__(self) -> Dict[str, Any]:
+        return self.__dict__
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__ = state
