@@ -181,3 +181,4 @@ class LocalProvider(StorageProvider):
 
     def __setstate__(self, state):
         self.root = state
+        self.files = None
