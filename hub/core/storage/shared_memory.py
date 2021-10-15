@@ -1,4 +1,4 @@
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 from multiprocessing.shared_memory import SharedMemory
 from hub.core.storage.provider import StorageProvider
 
@@ -129,11 +129,11 @@ class SharedMemoryProvider(StorageProvider):
         for path in paths:
             del self[path]
 
-    def __getstate__(self) -> str:
-        raise NotImplementedError
+    def __getstate__(self) -> Tuple[str, Set[str]]:
+        return self.root, self.files
 
-    def __setstate__(self, state: str):
-        raise NotImplementedError
+    def __setstate__(self, state: Tuple[str, Set[str]]):
+        self.root, self.files = state
 
     def update_files(self, files: List[str]):
         """Updates the files present in the provider.
