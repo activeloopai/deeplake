@@ -39,26 +39,18 @@ def retrieve_data(path, presence, cache_storage, next_storage, emergency_storage
 
 def data_from_shm_names_dict(index, shm_names_dict, shm_names_presence_dict, next_storage, emergency_storage):
     remove_shared_memory_from_resource_tracker()
-    # print("getting data for", index)
     cache_storage = SharedMemoryProvider()
     data = {}
     for tensor, shm_names in shm_names_dict.items():
         shm_names_presence_list = shm_names_presence_dict[tensor]
-        # print("here")
         arr = numpy_from_shm_names(tensor, shm_names, shm_names_presence_list, index, cache_storage, next_storage, emergency_storage)
-        # print("error")
-        # TODO: fix
         if arr is None:
-            cache_storage[f"tr_{index}"] = pickle.dumps(None, protocol=-1)
-            return
+            return None
         data[tensor] = arr
-
 
     sample = IterableOrderedDict((key, data[key]) for key in data.keys())
     final_data = apply_transform(sample)
-    # print("about to write data for", index)
-    cache_storage[f"tr_{index}"] = pickle.dumps(final_data, protocol=-1)
-    # print("wrote data for", index)
+    return final_data
 
 
 def apply_transform(sample: Union[Dict, Tuple]):
@@ -130,8 +122,6 @@ def numpy_from_chunks(index: int, key: str, chunks: List[Chunk]):
         return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
 
 
-# TODO: fetching from local cache happens on the main thread, this needs to be improved
-# TODO: transforms are performed on the main thread, this needs to be improved
 class PrefetchLRUCache(LRUCache):
     """Creates a cache that fetches multiple chunks parallelly."""
 
@@ -187,10 +177,7 @@ class PrefetchLRUCache(LRUCache):
         global all_chunk_engines
         all_chunk_engines = self.all_chunk_engines
 
-        pool = ProcessPool(nodes=num_workers)
-        self.map = pool.map
-
-        self.tmap = ThreadPool(nodes=num_workers).map
+        self.map = ThreadPool(nodes=num_workers).map
 
         self.commit_id = dataset.version_state["commit_id"]
 
@@ -244,16 +231,12 @@ class PrefetchLRUCache(LRUCache):
 
             # chunks not found in cache for the current index and also not scheduled to be fetched by another worker
             needed_chunks = self._get_chunks_needed(missing_chunks, scheduled_chunks)
-            # print(f"{missing_chunks=}")
-            # print(f"{needed_chunks=}")
-            # print(f"{scheduled_chunks=}")
 
             if missing_chunks:
                 pending_indexes.append(index)
                 if needed_chunks:
                     chunk_groups_for_workers.append(needed_chunks)
                 if len(chunk_groups_for_workers) >= self.workers or i == len(self) - 1:
-                    # print(f"fetching {chunk_groups_for_workers}")
                     self._fetch_and_store_required_data(chunk_groups_for_workers)
                     queued_indexes.extend(pending_indexes)
 
@@ -262,31 +245,17 @@ class PrefetchLRUCache(LRUCache):
             else:
                 queued_indexes.append(index)
 
-            # print(f"{len(chunk_groups_for_workers)=}")
-
-            # print(f"{queued_indexes=}")
-            # print(f"{pending_indexes=}")
-
             while len(queued_indexes) >= self.workers:
-                # print("in while")
                 currently_scheduled_indexes = queued_indexes[: self.workers]
-                # print("yielding", currently_scheduled_indexes)
                 chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
                 shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
                 shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
-                # print("before map")
-                self.map(
+                data_list = self.map(
                     data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
                 )
 
-                data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
-                # print("after map")
-                # print("waiting in while for", currently_scheduled_indexes)
                 queued_indexes = queued_indexes[self.workers :]
                 yield from data_list
-                # yield from currently_scheduled_indexes
-                for index in currently_scheduled_indexes:
-                    del self.cache_storage[f"tr_{index}"]
                     
                 self.required_chunks.clear()
                 if self.emergency_storage is not None:
@@ -301,16 +270,12 @@ class PrefetchLRUCache(LRUCache):
             chunk_name_dict_list = [self._get_chunk_names(index) for index in currently_scheduled_indexes]
             shm_name_dict_list = [self._shm_names_dict_from_chunk_names_dict(chunk_name_dict) for chunk_name_dict in chunk_name_dict_list]
             shm_name_presence_dict_list = [self._shm_names_presence_dict(shm_name_dict) for shm_name_dict in shm_name_dict_list]
-            self.map(
+            data_list = self.map(
                 data_from_shm_names_dict, currently_scheduled_indexes, shm_name_dict_list, shm_name_presence_dict_list, repeat(self.next_storage), repeat(self.emergency_storage)
             )
 
-            data_list = [pickle.loads(self.cache_storage[f"tr_{index}"]) for index in currently_scheduled_indexes]
             queued_indexes = queued_indexes[self.workers :]
             yield from data_list
-            # yield from currently_scheduled_indexes
-            for index in currently_scheduled_indexes:
-                del self.cache_storage[f"tr_{index}"]
                 
             self.required_chunks.clear()
             if self.emergency_storage is not None:
@@ -558,7 +523,7 @@ class PrefetchLRUCache(LRUCache):
             storage = self.storage_state_tuple
 
         commit_id = self.commit_id
-        all_chunk_sizes: List[Dict[str, int]] = self.tmap(
+        all_chunk_sizes: List[Dict[str, int]] = self.map(
             read_and_store_chunk_group,
             chunk_groups,
             shared_memory_groups,
@@ -569,10 +534,6 @@ class PrefetchLRUCache(LRUCache):
         for chunk_sizes in all_chunk_sizes:
             combined_chunk_sizes_dict.update(chunk_sizes)
         return combined_chunk_sizes_dict
-
-    # def _apply_transform(self, sample: Union[Dict, Tuple]):
-    #     """Used to apply transform to a single sample"""
-    #     return self.transform(sample) if self.transform else sample
 
     def __getstate__(self) -> Dict[str, Any]:
         return self.__dict__
