@@ -68,7 +68,7 @@ A hub dataset can be created in various locations (Storage providers). This is h
 
 
 
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage upto 300 GB per user (more info [here](#🎓 For Students and Educators)). Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage upto 300 GB per user (more info [here](#🎓-for-students-and-educators)). Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
 
 ```sh
 $ activeloop register
