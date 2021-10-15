@@ -58,17 +58,17 @@ pip3 install hub
 
 A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
-| Storage provider        | Example path                  |
-| ----------------------- | ----------------------------- |
-| Activeloop cloud        | hub://user_name/dataset_name  |
-| AWS S3                  | s3://bucket_name/dataset_name |
-| GCP                     | gcp://bucket_name/dataset_name|
-| Local storage           | path to local directory       |
-| In-memory               | mem://dataset_name            |
+| Storage provider        | Example path                   |
+| ----------------------- | ------------------------------ |
+| Activeloop cloud        | hub://user_name/dataset_name   |
+| AWS S3 / S3 compatible  | s3://bucket_name/dataset_name  |
+| GCP                     | gcp://bucket_name/dataset_name |
+| Local storage           | path to local directory        |
+| In-memory               | mem://dataset_name             |
 
 
 
-Let's create a dataset in the Activeloop cloud. Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage upto 300 GB per user. Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email id and passowrd. The user name you enter here will be used in the dataset path.
 
 ```sh
 $ activeloop register
@@ -85,6 +85,7 @@ import hub
 
 ds = hub.empty("hub://<USERNAME>/test-dataset")
 ```
+
 
 Next, create a tensor to hold images in the dataset we just initialized:
 
