@@ -98,7 +98,7 @@ def store_data_slice(
     )
 
     if isinstance(data_slice, hub.Dataset):
-        data_slice = add_cache_to_dataset_slice(data_slice)
+        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
         data_slice, pipeline, tensors, all_chunk_engines, group_index
@@ -180,11 +180,12 @@ def create_worker_chunk_engines(
 
 def add_cache_to_dataset_slice(
     dataset_slice: hub.Dataset,
+    tensors: List[str],
 ) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
-    cache_size = 64 * len(dataset_slice.tensors) * MB
+    cache_size = 64 * len(tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     dataset_slice = hub.Dataset(
         cached_store,
