@@ -189,22 +189,13 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-<<<<<<< HEAD
-            if item in self._all_tensors_filtered:
-                return self.version_state["full_tensors"][
-                    posixpath.join(self.group_index, item)
-                ][self.index]
-            elif item in self._groups_filtered:
-                ret = Dataset(
-=======
             key = (item, self.version_state["commit_id"])
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
             if tensor is not None:
                 return tensor[self.index]
             elif self._has_group_in_root(fullpath):
-                return Dataset(
->>>>>>> 8bf55341304707cba206309998a04f210f08c76c
+                ret = Dataset(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -414,13 +405,9 @@ class Dataset:
         tensors = [
             posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
         ]
-        groups = [posixpath.join(name, group) for group in self[name]._groups_filtered]
 
         for tensor in tensors:
             delete_tensor(tensor, self.storage, self.version_state)
-
-        for group in groups:
-            self.delete_group(group, large_ok)
 
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)

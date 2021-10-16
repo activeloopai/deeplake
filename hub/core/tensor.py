@@ -1,3 +1,4 @@
+from logging import info
 from hub.util.version_control import checkout, generate_hash
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
@@ -93,13 +94,18 @@ def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
             del storage[chunk_key]
         except KeyError:
             pass
-        finally:
-            meta_key = get_tensor_meta_key(key, version_state["commit_id"])
-            del storage[meta_key]
 
+    meta_key = get_tensor_meta_key(key, version_state["commit_id"])
+    try:
+        del storage[meta_key]
+    except KeyError:
+        pass
 
-def delete_group():
-    pass
+    info_key = get_tensor_info_key(key, version_state["commit_id"])
+    try:
+        del storage[info_key]
+    except KeyError:
+        pass
 
 
 def _inplace_op(f):
