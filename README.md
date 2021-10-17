@@ -151,7 +151,7 @@ Getting started guides, examples, tutorials, API reference, and other usage info
 ## 🎓 For Students and Educators
 Hub users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
 
-| ----------------------- | ------------------------------ |
+| ---------------------------------------------------- | --------------------------- |
 | Storage for public datasets hosted by Activeloop     | 200GB Free + $10/TB/month   |
 | Storage for public datasets hosted by Activeloop     | 100GB Free + $10/TB/month   |
 
