@@ -177,9 +177,8 @@ Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets 
 
 
 <details>
-  <summary><b>Hub and TensorFlow Datasets (TFDS)</b></summary>
-  
-### Hub and HuggingFace 
+  <summary><b>Hub and HuggingFace</b></summary>
+
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace primarily focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
 
 
