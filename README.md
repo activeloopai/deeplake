@@ -46,7 +46,7 @@ Hub includes the following features:
 ## Getting Started with Hub
 
 
-### How to install Hub
+### 👨‍💻 How to install Hub
 Hub is written in 100% python and can be quickly installed using pip.
 
 ```sh
@@ -54,7 +54,7 @@ pip3 install hub
 ```
 
 
-### 🔨 How to create a Hub Dataset
+### 🏗️ How to create a Hub Dataset
 
 A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
@@ -157,7 +157,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | Storage for public datasets hosted by Activeloop     | 100GB Free + $10/TB/month   |
 
 
-## Comparisons to Familiar Tools
+## 🏁 Comparisons to Familiar Tools
 ### Hub and DVC
 Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to a traditional file structures by DVC when datasets are composed of many files (i.e. many images). An additional distinction is that DVC primarily uses a command line interface, where as Hub is a python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools.
 
