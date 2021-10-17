@@ -54,7 +54,7 @@ pip3 install hub
 ```
 
 
-### How to create a Hub Dataset
+### 🔨 How to create a Hub Dataset
 
 A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
@@ -117,7 +117,7 @@ with ds:
 
 
 
-### How to load a Hub Dataset
+### 👩‍💻 How to load a Hub Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -145,7 +145,7 @@ image_arr = ds.image[0].numpy()
 
 
 
-## Documentation
+## 📚 Documentation
 Getting started guides, examples, tutorials, API reference, and other usage information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
 
 ## 🎓 For Students and Educators
