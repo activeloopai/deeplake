@@ -1,5 +1,6 @@
 import hub
 import warnings
+import json
 import numpy as np
 from math import ceil
 from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
@@ -8,7 +9,7 @@ from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRE
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.compression import decompress_array
+from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -30,6 +31,7 @@ from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
 )
+from hub.util.json import HubJsonDecoder
 from hub.util.casting import get_dtype, intelligent_cast
 from hub.util.version_control import auto_checkout, commit, commit_chunk_set_exists
 
@@ -174,11 +176,11 @@ class ChunkEngine:
         return enc
 
     @property
-    def commit_chunk_set(self) -> CommitChunkSet:
+    def commit_chunk_set(self) -> Optional[CommitChunkSet]:
         """Gets the commit chunk set from cache, if one is not found it creates a blank one.
 
         Returns:
-            CommitChunkSet: The commit chunk set keeps track of all the chunks present in the current commit.
+            Optional[CommitChunkSet]: The commit chunk set keeps track of all the chunks present in the current commit, returns None for the first commit.
         """
         commit_id = self.version_state["commit_id"]
         if commit_id == FIRST_COMMIT_ID:
@@ -236,7 +238,7 @@ class ChunkEngine:
 
     def get_chunk_commit(self, chunk_name) -> str:
         """Returns the commit id that contains the chunk_name."""
-        cur_node: CommitNode = self.version_state["commit_node"]
+        cur_node: Optional[CommitNode] = self.version_state["commit_node"]
         while cur_node is not None:
             commit_id = cur_node.commit_id
             chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
@@ -252,7 +254,7 @@ class ChunkEngine:
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
-            cur_node = cur_node.parent
+            cur_node = cur_node.parent  # type: ignore
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
         return FIRST_COMMIT_ID
 
@@ -424,7 +426,7 @@ class ChunkEngine:
         if commit_id != FIRST_COMMIT_ID:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
-            self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set
+            self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -684,6 +686,35 @@ class ChunkEngine:
             return np.zeros(shape, dtype=dtype)
 
         chunk_compression = self.tensor_meta.chunk_compression
+        sample_compression = self.tensor_meta.sample_compression
+
+        htype = self.tensor_meta.htype
+
+        if htype in ("json", "text", "list"):
+            sb, eb = chunk.byte_positions_encoder[local_sample_index]
+            if chunk_compression:
+                decompressed = chunk.decompressed_data(compression=chunk_compression)
+                buffer = decompressed[sb:eb]
+            elif sample_compression:
+                buffer = decompress_bytes(buffer[sb:eb], compression=sample_compression)
+            else:
+                buffer = buffer[sb:eb]
+            buffer = bytes(buffer)
+            if htype == "json":
+                arr = np.empty(1, dtype=object)
+                arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+                return arr
+            elif htype == "list":
+                lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+                arr = np.empty(len(lst), dtype=object)
+                arr[:] = lst
+                return arr
+            elif htype == "text":
+                arr = np.array(bytes.decode(buffer)).reshape(
+                    1,
+                )
+            return arr
+
         if chunk_compression:
             if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
@@ -691,10 +722,9 @@ class ChunkEngine:
                 return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
             else:
                 return chunk.decompressed_samples()[local_sample_index]
+
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         buffer = buffer[sb:eb]
-
-        sample_compression = self.tensor_meta.sample_compression
         if sample_compression:
             sample = decompress_array(
                 buffer, shape, dtype=dtype, compression=sample_compression

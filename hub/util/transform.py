@@ -1,6 +1,7 @@
 import hub
+import posixpath
+from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Tuple
-
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
@@ -16,8 +17,6 @@ from hub.util.exceptions import (
     InvalidTransformDataset,
     TensorMismatchError,
 )
-
-import posixpath
 
 
 def transform_sample(
@@ -99,7 +98,7 @@ def store_data_slice(
     )
 
     if isinstance(data_slice, hub.Dataset):
-        data_slice = add_cache_to_dataset_slice(data_slice)
+        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
         data_slice, pipeline, tensors, all_chunk_engines, group_index
@@ -143,41 +142,50 @@ def create_worker_chunk_engines(
     These are created separately for each worker for parallel uploads.
     """
     all_chunk_engines = {}
+    num_tries = 1000
     for tensor in tensors:
-        # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-        memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
-        memory_cache.autoflush = False
-        storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
-        storage_cache.autoflush = False
+        for i in range(num_tries):
+            try:
+                # TODO: replace this with simply a MemoryProvider once we get rid of cachable
+                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+                memory_cache.autoflush = False
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
+                storage_cache.autoflush = False
 
-        # this chunk engine is used to retrieve actual tensor meta and chunk_size
-        storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
-        existing_meta = storage_chunk_engine.tensor_meta
-        chunk_size = storage_chunk_engine.max_chunk_size
-        new_tensor_meta = TensorMeta(
-            htype=existing_meta.htype,
-            dtype=existing_meta.dtype,
-            sample_compression=existing_meta.sample_compression,
-            chunk_compression=existing_meta.chunk_compression,
-            max_chunk_size=chunk_size,
-        )
-        meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
-        memory_cache[meta_key] = new_tensor_meta  # type: ignore
-        storage_cache.clear_cache()
-        storage_chunk_engine = ChunkEngine(
-            tensor, storage_cache, version_state, memory_cache
-        )
-        all_chunk_engines[tensor] = storage_chunk_engine
+                # this chunk engine is used to retrieve actual tensor meta and chunk_size
+
+                storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
+                existing_meta = storage_chunk_engine.tensor_meta
+                chunk_size = storage_chunk_engine.max_chunk_size
+                new_tensor_meta = TensorMeta(
+                    htype=existing_meta.htype,
+                    dtype=existing_meta.dtype,
+                    sample_compression=existing_meta.sample_compression,
+                    chunk_compression=existing_meta.chunk_compression,
+                    max_chunk_size=chunk_size,
+                )
+                meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
+                memory_cache[meta_key] = new_tensor_meta  # type: ignore
+                storage_cache.clear_cache()
+                storage_chunk_engine = ChunkEngine(
+                    tensor, storage_cache, version_state, memory_cache
+                )
+                all_chunk_engines[tensor] = storage_chunk_engine
+                break
+            except (JSONDecodeError, KeyError):
+                if i == num_tries - 1:
+                    raise
     return all_chunk_engines
 
 
 def add_cache_to_dataset_slice(
     dataset_slice: hub.Dataset,
+    tensors: List[str],
 ) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
-    cache_size = 64 * len(dataset_slice.tensors) * MB
+    cache_size = 64 * len(tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     dataset_slice = hub.Dataset(
         cached_store,
@@ -192,20 +200,16 @@ def add_cache_to_dataset_slice(
 def check_transform_data_in(data_in, scheduler: str) -> None:
     """Checks whether the data_in for a transform is valid or not."""
     if not hasattr(data_in, "__getitem__"):
-        raise InvalidInputDataError(
-            f"The data_in to transform is invalid. It should support __getitem__ operation."
-        )
+        raise InvalidInputDataError("__getitem__")
     if not hasattr(data_in, "__len__"):
-        raise InvalidInputDataError(
-            f"The data_in to transform is invalid. It should support __len__ operation."
-        )
+        raise InvalidInputDataError("__len__")
     if isinstance(data_in, hub.Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
             "serial",
             "threaded",
         ]:
-            raise InvalidOutputDatasetError(
+            raise InvalidInputDataError(
                 f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
             )
 

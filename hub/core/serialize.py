@@ -1,13 +1,17 @@
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
+from hub.util.json import HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.core.compression import compress_array
+from hub.core.compression import compress_array, compress_bytes
+from hub.client import config
+from hub.compression import IMAGE_COMPRESSIONS
 from typing import List, Optional, Sequence, Union, Tuple, Iterable
-from itertools import repeat
 import hub
 import numpy as np
 import struct
+import warnings
+import json
 
 
 def infer_chunk_num_bytes(
@@ -226,10 +230,25 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
 def _serialize_input_sample(
     sample: SampleValue,
     sample_compression: Optional[str],
-    expected_dtype: np.dtype,
+    expected_dtype: str,
     htype: str,
 ) -> Tuple[bytes, Tuple[int]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
+
+    if htype in ("json", "list"):
+        validate_json_object(sample, expected_dtype)
+        byts = json.dumps(sample, cls=HubJsonEncoder).encode()
+        if sample_compression:
+            byts = compress_bytes(byts, compression=sample_compression)
+        shape = (len(sample),) if htype == "list" else (1,)
+        return byts, shape
+    elif htype == "text":
+        if not isinstance(sample, str):
+            raise TypeError("Expected str, received: " + str(sample))
+        byts = sample.encode()
+        if sample_compression:
+            byts = compress_bytes(byts, compression=sample_compression)
+        return byts, (1,)
 
     if isinstance(sample, Sample):
         if (
@@ -305,17 +324,34 @@ def serialize_input_samples(
         raise ValueError("Dtype must be set before input samples can be serialized.")
 
     sample_compression = meta.sample_compression
-    dtype = np.dtype(meta.dtype)
+    dtype = meta.dtype
     htype = meta.htype
 
     if sample_compression or not hasattr(samples, "dtype"):
         buff = bytearray()
         nbytes = []
         shapes = []
+        expected_dim = len(meta.max_shape)
+        is_convert_candidate = (htype == "image") or (
+            sample_compression in IMAGE_COMPRESSIONS
+        )
+
         for sample in samples:
             byts, shape = _serialize_input_sample(
                 sample, sample_compression, dtype, htype
             )
+            if (
+                isinstance(sample, Sample)
+                and sample._convert_grayscale
+                and is_convert_candidate
+            ):
+                if not expected_dim:
+                    expected_dim = len(shape)
+                if len(shape) == 2 and expected_dim == 3:
+                    warnings.warn(
+                        f"Reshaping grayscale image with shape {shape} to {shape + (1,)} to match tensor dimension."
+                    )
+                    shape += (1,)  # type: ignore[assignment]
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)

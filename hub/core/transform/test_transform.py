@@ -4,11 +4,16 @@ import numpy as np
 from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
+from hub.util.check_installation import ray_installed
+from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
-from hub.util.exceptions import InvalidOutputDatasetError
 
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
+
+schedulers = ["threaded", "processed"]
+schedulers = schedulers + ["ray"] if ray_installed() else schedulers
+all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 
 
 @hub.compute
@@ -43,32 +48,42 @@ def crop_image(sample_in, samples_out, copy=1):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
+@all_schedulers
 @enabled_non_gcs_datasets
-def test_single_transform_hub_dataset(ds):
-    with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_generic") as data_in:
-            data_in.create_tensor("image")
-            data_in.create_tensor("label")
-            for i in range(1, 100):
-                data_in.image.append(i * np.ones((i, i)))
-                data_in.label.append(i * np.ones((1,)))
-        data_in = hub.dataset("./test/transform_hub_in_generic")
-        ds_out = ds
-        ds_out.create_tensor("image")
-        ds_out.create_tensor("label")
+def test_single_transform_hub_dataset(ds, scheduler):
+    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    with data_in:
+        data_in.create_tensor("image")
+        data_in.create_tensor("label")
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i)))
+            data_in.label.append(i * np.ones((1,)))
+    ds_out = ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        with pytest.raises(InvalidOutputDatasetError):
+            fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+        data_in.delete()
+        return
 
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
-        assert len(ds_out) == 99
-        for index in range(1, 100):
-            np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
-            )
-            np.testing.assert_array_equal(
-                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
-            )
+    fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+    assert len(ds_out) == 99
+    for index in range(1, 100):
+        np.testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        )
+        np.testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    assert ds_out.image.shape_interval.lower == (99, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    data_in.delete()
 
 
 @enabled_datasets
@@ -102,42 +117,67 @@ def test_groups(ds):
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 @parametrize_num_workers
-def test_single_transform_hub_dataset_htypes(ds, num_workers):
-    with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_htypes") as data_in:
-            data_in.create_tensor("image", htype="image", sample_compression="png")
-            data_in.create_tensor("label", htype="class_label")
-            for i in range(1, 100):
-                data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-                data_in.label.append(i * np.ones((1,), dtype="uint32"))
-        data_in = hub.dataset("./test/transform_hub_in_htypes")
-        ds_out = ds
-        ds_out.create_tensor("image")
-        ds_out.create_tensor("label")
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=num_workers)
-        assert len(ds_out) == 99
-        for index in range(1, 100):
-            np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+@all_schedulers
+def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
+    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
+    with data_in:
+        data_in.create_tensor("image", htype="image", sample_compression="png")
+        data_in.create_tensor("label", htype="class_label")
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+            data_in.label.append(i * np.ones((1,), dtype="uint32"))
+    ds_out = ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+        and num_workers > 0
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        # num_workers = 0 automatically does single threaded irrespective of the scheduler
+        with pytest.raises(InvalidOutputDatasetError):
+            fn2(copy=1, mul=2).eval(
+                data_in, ds_out, num_workers=num_workers, scheduler=scheduler
             )
-            np.testing.assert_array_equal(
-                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
-            )
+        data_in.delete()
+        return
+    fn2(copy=1, mul=2).eval(
+        data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+    )
+    assert len(ds_out) == 99
+    for index in range(1, 100):
+        np.testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        )
+        np.testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    assert ds_out.image.shape_interval.lower == (99, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    data_in.delete()
 
 
-@enabled_datasets
-def test_chain_transform_list_small(ds):
+@all_schedulers
+@enabled_non_gcs_datasets
+def test_chain_transform_list_small(ds, scheduler):
     ls = [i for i in range(100)]
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=3)
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        with pytest.raises(InvalidOutputDatasetError):
+            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+        return
+    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
@@ -149,15 +189,24 @@ def test_chain_transform_list_small(ds):
             )
 
 
+@all_schedulers
 @enabled_non_gcs_datasets
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_chain_transform_list_big(ds):
+@pytest.mark.xfail(raises=TransformError, strict=False)
+def test_chain_transform_list_big(ds, scheduler):
     ls = [i for i in range(2)]
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=3)
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        with pytest.raises(InvalidOutputDatasetError):
+            pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
+        return
+    pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
     assert len(ds_out) == 8
     for i in range(2):
         for index in range(4 * i, 4 * i + 4):
@@ -169,52 +218,47 @@ def test_chain_transform_list_big(ds):
             )
 
 
-@enabled_datasets
-def test_chain_transform_list_small_processed(ds):
-    ls = list(range(100))
-    ds_out = ds
-    ds_out.create_tensor("image")
-    ds_out.create_tensor("label")
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
-        with pytest.raises(InvalidOutputDatasetError):
-            fn2().eval(ls, ds_out, num_workers=3, scheduler="processed")
-        return
-
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=3, scheduler="processed")
-    assert len(ds_out) == 600
-    for i in range(100):
-        for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
-            )
-            np.testing.assert_array_equal(
-                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
-            )
-
-
+@all_schedulers
 @all_compressions
 @enabled_non_gcs_datasets
-def test_transform_hub_read(ds, cat_path, sample_compression):
+def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
     data_in = [cat_path] * 10
     ds_out = ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
 
-    read_image().eval(data_in, ds_out, num_workers=8)
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        with pytest.raises(InvalidOutputDatasetError):
+            read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+        return
+
+    read_image().eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
     assert len(ds_out) == 10
     for i in range(10):
         assert ds_out.image[i].numpy().shape == (900, 900, 3)
         np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
 
+@all_schedulers
 @all_compressions
 @enabled_non_gcs_datasets
-def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
+def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler):
     data_in = [cat_path] * 10
     ds_out = ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
     pipeline = hub.compose([read_image(), crop_image(copy=2)])
-    pipeline.eval(data_in, ds_out, num_workers=8)
+    if (
+        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+        and scheduler != "threaded"
+    ):
+        # any scheduler other than `threaded` will not work with a dataset stored in memory
+        with pytest.raises(InvalidOutputDatasetError):
+            pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
+        return
+    pipeline.eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image[i].numpy().shape == (100, 100, 3)
@@ -222,16 +266,27 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
 
 
 @enabled_non_gcs_datasets
-def test_hub_like(ds):
+def test_hub_like(ds, scheduler="threaded"):
     with CliRunner().isolated_filesystem():
         data_in = ds
-        data_in.create_tensor("image", htype="image", sample_compression="png")
-        data_in.create_tensor("label", htype="class_label")
-        for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-            data_in.label.append(i * np.ones((1,), dtype="uint32"))
-        ds_out = hub.like("test/transform_hub_like", ds)
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        with data_in:
+            data_in.create_tensor("image", htype="image", sample_compression="png")
+            data_in.create_tensor("label", htype="class_label")
+            for i in range(1, 100):
+                data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+                data_in.label.append(i * np.ones((1,), dtype="uint32"))
+        ds_out = hub.like("./transform_hub_like", data_in)
+        if (
+            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
+            and scheduler != "threaded"
+        ):
+            # any scheduler other than `threaded` will not work with a dataset stored in memory
+            with pytest.raises(InvalidOutputDatasetError):
+                fn2(copy=1, mul=2).eval(
+                    data_in, ds_out, num_workers=4, scheduler=scheduler
+                )
+            return
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=4, scheduler=scheduler)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
