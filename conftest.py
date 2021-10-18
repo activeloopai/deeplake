@@ -2,8 +2,6 @@ from hub.core.storage.provider import StorageProvider
 import os
 import logging
 
-from traitlets.traitlets import default
-
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
