@@ -485,7 +485,7 @@ class Dataset:
         self,
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
-        num_workers: int = None,
+        num_workers: int = 1,
         batch_size: Optional[int] = 1,
         drop_last: bool = False,
         collate_fn: Optional[Callable] = None,

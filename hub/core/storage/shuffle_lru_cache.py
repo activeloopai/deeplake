@@ -25,7 +25,7 @@ class ShuffleLRUCache(PrefetchLRUCache):
             next_storage,
             cache_size,
             dataset,
-            num_wokers,
+            num_workers,
             tensor_keys,
             transform,
             mode,
