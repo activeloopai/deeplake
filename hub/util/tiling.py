@@ -7,7 +7,7 @@ def ceildiv(
 ) -> Union[np.ndarray, int, float]:
     """General ceiling division."""
 
-    return -(-a // b)
+    return np.ceil(a / b).astype(int)
 
 
 def validate_not_serialized(tiles: np.ndarray, operation: str):
