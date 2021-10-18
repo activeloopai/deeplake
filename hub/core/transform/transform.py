@@ -161,10 +161,13 @@ class Pipeline:
         tensors = [ds_out.tensors[t].key for t in tensors]
 
         if progressbar:
-            num_samples_completed = {"value": 0}
+            progress = {"value": 0, "error": None}
 
-            def progress_callback(num_samples):
-                num_samples_completed["value"] += num_samples
+            def progress_callback(data):
+                if isinstance(data, Exception):
+                    progress["error"] = data
+                else:
+                    progress["value"] += data
 
             progress_server = Server(progress_callback)
             port = progress_server.port
@@ -186,13 +189,15 @@ class Pipeline:
                 ),
             )
 
-        thread = None
         if progressbar:
             thread = threading.Thread(target=_run)
             thread.start()
             for i in tqdm.tqdm(range(len(data_in))):
-                while i + 1 > num_samples_completed["value"]:
+                brk = False
+                while i + 1 > progress["value"]:
                     time.sleep(1)
+                    if progress["error"]:
+                        raise progress["error"]
             thread.join()
             progress_server.stop()
         else:

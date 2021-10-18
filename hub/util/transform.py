@@ -136,29 +136,30 @@ def transform_data_slice_and_append(
         report_interval = 5  # seconds
 
         client = Client(progress_port)
-
-    n = len(data_slice)
-    for i, sample in enumerate(data_slice):
-        result = transform_sample(sample, pipeline)
-        result_resolved = {
-            posixpath.join(group_index, k): result[k] for k in result.tensors
-        }
-        result = result_resolved  # type: ignore
-        if set(result.keys()) != set(tensors):
-            raise TensorMismatchError(list(tensors), list(result.keys()))
-        for tensor in result:
-            all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
-
+    try:
+        n = len(data_slice)
+        for i, sample in enumerate(data_slice):
+            result = transform_sample(sample, pipeline)
+            result_resolved = {
+                posixpath.join(group_index, k): result[k] for k in result.tensors
+            }
+            result = result_resolved  # type: ignore
+            if set(result.keys()) != set(tensors):
+                raise TensorMismatchError(list(tensors), list(result.keys()))
+            for tensor in result:
+                all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
+            if progress_port is not None:
+                curr_time = time.time()
+                if curr_time - last_reported_time > report_interval or i == n - 1:
+                    num_samples = i + 1
+                    client.send(num_samples - last_reported_num_samples)
+                    last_reported_num_samples = num_samples
+                    last_reported_time = curr_time
+    except Exception as e:
+        client.send(e)
+    finally:
         if progress_port is not None:
-            curr_time = time.time()
-            if curr_time - last_reported_time > report_interval or i == n - 1:
-                num_samples = i + 1
-                client.send(num_samples - last_reported_num_samples)
-                last_reported_num_samples = num_samples
-                last_reported_time = curr_time
-
-    if progress_port is not None:
-        client.close()
+                    client.close()
 
 
 def create_worker_chunk_engines(
