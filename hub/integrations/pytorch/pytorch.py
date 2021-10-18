@@ -38,5 +38,4 @@ def dataset_to_pytorch(
         collate_fn=default_convert_fn if batch_size is None else default_collate_fn,
         pin_memory=pin_memory,
         drop_last=drop_last,
-        prefetch_factor=batch_size * 2,
     )
