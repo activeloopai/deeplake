@@ -82,9 +82,8 @@ def dataset_to_pytorch(
                     "Underlying storage of the dataset in MemoryProvider which is not supported."
                 )
 
-        @property
-        def dataset(self):
-            return self.hub_dataset
+        def __len__(self):
+            return len(self.hub_dataset)
 
         def __iter__(self):
             for value in self.cache.iterate_samples():
