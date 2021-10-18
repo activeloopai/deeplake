@@ -24,6 +24,9 @@ def dataset_to_pytorch(
 
     torch.multiprocessing.set_sharing_strategy("file_system")
 
+    if collate_fn is None:
+        collate_fn = default_convert_fn if batch_size is None else default_collate_fn
+
     return torch.utils.data.DataLoader(
         TorchDataset(
             dataset,
@@ -35,7 +38,7 @@ def dataset_to_pytorch(
         ),
         num_workers=num_workers,
         batch_size=batch_size,
-        collate_fn=default_convert_fn if batch_size is None else default_collate_fn,
+        collate_fn=collate_fn,
         pin_memory=pin_memory,
         drop_last=drop_last,
     )
