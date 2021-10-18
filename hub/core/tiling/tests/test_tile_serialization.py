@@ -32,7 +32,7 @@ def test_serialize_tiles():
     tiles = break_into_tiles(sample, tile_shape)
     tile_shapes = get_tile_shapes(tiles)
 
-    serialized_tiles = serialize_tiles(tiles, lambda x: x.tobytes())
+    serialized_tiles = serialize_tiles(tiles, lambda x: memoryview(x.tobytes()))
     assert serialized_tiles.shape == tiles.shape
 
     with pytest.raises(TypeError):
@@ -54,7 +54,7 @@ def test_serialize_tiles_gzip():
     tiles = break_into_tiles(sample, tile_shape)
     tile_shapes = get_tile_shapes(tiles)
 
-    gzip_compress = lambda x: gzip.compress(x.tobytes())
+    gzip_compress = lambda x: memoryview(gzip.compress(x.tobytes()))
     serialized_tiles = serialize_tiles(tiles, gzip_compress)
     assert serialized_tiles.shape == tiles.shape
 

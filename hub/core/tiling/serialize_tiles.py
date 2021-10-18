@@ -50,21 +50,19 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
 
 
 def serialize_tiles(
-    tiles: np.ndarray, tobytes_func: Callable[[np.ndarray], bytes]
+    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], memoryview]
 ) -> np.ndarray:
     """Get a new tile-ordered numpy object array that is the same shape of the tile-grid.
-    Each element of the returned numpy object array is a bytes object representing the serialized tile.
+    Each element of the returned numpy object array is a memoryview object representing the serialized tile.
 
     Args:
         tiles (np.ndarray): The tile-ordered numpy object array to serialize.
-        tobytes_func (Callable[[np.ndarray], bytes]): A function that takes a numpy array and returns a bytes object.
+        serialize_func (Callable[[np.ndarray], memoryview]): A function that takes a numpy array and returns a memoryview object.
             This function is used to serialize each tile, may be used to compress the tile.
 
     Returns:
-        np.ndarray: numpy object array of serialized tiles. Each element of the array is a bytes object.
+        np.ndarray: numpy object array of serialized tiles. Each element of the array is a memoryview object.
     """
 
-    # TODO: maybe use memoryview and update docstring
-
     validate_not_serialized(tiles, "serialize_tiles")
-    return np.vectorize(tobytes_func, otypes=[object])(tiles)
+    return np.vectorize(serialize_func, otypes=[object])(tiles)

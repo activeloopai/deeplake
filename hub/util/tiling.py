@@ -11,7 +11,7 @@ def ceildiv(
 
 
 def validate_not_serialized(tiles: np.ndarray, operation: str):
-    if type(tiles.flatten()[0]) == bytes:
+    if type(tiles.flatten()[0]) == memoryview:
         raise TypeError(f"Before {operation}, you should deserialize the tiles.")
 
 
