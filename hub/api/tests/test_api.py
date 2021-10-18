@@ -459,7 +459,7 @@ def test_htype(memory_ds: Dataset):
     video = memory_ds.create_tensor("video", htype="video")
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
-    keypoint_coco = memory_ds.create_tensor("keypoint_coco", htype="keypoint_coco")
+    keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -468,7 +468,7 @@ def test_htype(memory_ds: Dataset):
     video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
-    keypoint_coco.append(np.ones((51, 2), dtype=np.float32))
+    keypoints_coco.append(np.ones((51, 2), dtype=np.float32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -703,7 +703,7 @@ def test_htypes_list():
         "generic",
         "image",
         "json",
-        "keypoint_coco",
+        "keypoints_coco",
         "list",
         "segment_mask",
         "text",
