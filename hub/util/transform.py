@@ -74,10 +74,15 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
 
 
 def validate_transform_dataset(dataset: TransformDataset):
-    """Cheks if the length of all the tensors is equal. Raises exception if not equal."""
+    """Checks if the length of all the tensors is equal. Raises exception if not equal."""
     lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
     if any(length != lengths[0] for length in lengths):
         raise InvalidTransformDataset
+
+
+def is_empty_transform_dataset(dataset: TransformDataset):
+    """Checks if there is any data in the TransformDataset. Returns True if empty, False otherwise."""
+    return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
 def store_data_slice(
@@ -125,16 +130,16 @@ def transform_data_slice_and_append(
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
     for sample in data_slice:
         result = transform_sample(sample, pipeline)
+        if is_empty_transform_dataset(result):
+            continue  # empty sample
         result_resolved = {
             posixpath.join(group_index, k): result[k] for k in result.tensors
         }
         result = result_resolved  # type: ignore
-        if len(result.keys()) == 0:
-            continue  # empty sample
         if set(result.keys()) != set(tensors):
             raise TensorMismatchError(list(tensors), list(result.keys()))
-        for tensor in result:
-            all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
+        for tensor, value in result.items():
+            all_chunk_engines[tensor].extend(value.numpy_compressed())
 
 
 def create_worker_chunk_engines(
