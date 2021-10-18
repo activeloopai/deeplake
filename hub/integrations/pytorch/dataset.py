@@ -87,9 +87,9 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
     def _remap_dtype(self, tensor):
         if tensor.dtype == np.uint16:
-            return tensor.astype(np.int16)
-        if tensor.dtype == np.uint32:
             return tensor.astype(np.int32)
+        if tensor.dtype == np.uint32:
+            return tensor.astype(np.int64)
         if tensor.dtype == np.uint64:
             return tensor.astype(np.int64)
 

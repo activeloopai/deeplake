@@ -314,6 +314,7 @@ def test_readonly(local_ds):
     local_ds.labels.extend(np.ones(10))
 
     base_storage = get_base_storage(local_ds.storage)
+    base_storage.flush()
     base_storage.enable_readonly()
     ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 

@@ -21,6 +21,10 @@ ChunkEngineMap = Dict[str, ChunkEngine]
 
 
 class IOBlock:
+    r"""
+    Represents ordered sequential read of samples from corresponding tensor chunks.
+    """
+
     def __init__(self) -> None:
         self._ind: List[int] = list()
 
@@ -28,9 +32,15 @@ class IOBlock:
         self._ind.append(index)
 
     def shuffle(self):
+        r"""
+        Shuffle sequence in which indices would be read from the IOBlock
+        """
         shuffle(self._ind)
 
     def split(self):
+        r"""
+        Splits current IOBlock in half and return other part as new IOBlock
+        """
         other = IOBlock()
         mid = len(self._ind) // 2
         left = self._ind[:mid]
@@ -50,6 +60,9 @@ class Schedule:
         self._blocks: List[IOBlock] = blocks
 
     def shuffle(self):
+        r"""
+        Shuffle IOBlocks in the schedule as well as each IOBlock
+        """
         shuffle(self._blocks)
 
         for block in self._blocks:
@@ -192,6 +205,7 @@ class SampleStreaming:
         return ChunkEngine(tensor_key, self._use_cache(), version_state)
 
     def _map_index_to_chunks(self) -> IndexMap:
+        """Build map of all sequence indices and their corresponding chunk names"""
         tensor_lengths = [
             len(self.dataset.version_state["full_tensors"][tensor])
             for tensor in self.tensors
@@ -225,6 +239,7 @@ class SampleStreaming:
         return [dataset.tensors[k].key for k in tensor_keys]
 
     def _hash_fetch_request(self, chunks: List[List[str]]) -> bytes:
+        """Calculates a hash of chunks"""
         sha = sha1()
         for tensor in chunks:
             for chunk in tensor:
