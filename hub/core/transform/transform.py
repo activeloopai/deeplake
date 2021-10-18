@@ -193,7 +193,6 @@ class Pipeline:
             thread = threading.Thread(target=_run)
             thread.start()
             for i in tqdm.tqdm(range(len(data_in))):
-                brk = False
                 while i + 1 > progress["value"]:
                     time.sleep(1)
                     if progress["error"]:

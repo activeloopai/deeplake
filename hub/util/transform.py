@@ -159,7 +159,7 @@ def transform_data_slice_and_append(
         client.send(e)
     finally:
         if progress_port is not None:
-                    client.close()
+            client.close()
 
 
 def create_worker_chunk_engines(
