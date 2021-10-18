@@ -335,7 +335,10 @@ class Dataset:
             InvalidTensorNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self.version_state, self.storage)
-        name = name.strip("/").replace("//", "/")
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
 
         full_path = posixpath.join(self.group_index, name)
 
@@ -384,7 +387,10 @@ class Dataset:
             InvalidTensorGroupNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self.version_state, self.storage)
-        name = name.strip("/").replace("//", "/")
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
 
         full_path = posixpath.join(self.group_index, name)
 
