@@ -6,6 +6,7 @@ from io import BytesIO
 import posixpath
 import pickle
 from googleapiclient.errors import HttpError
+import os
 
 CREDS_FILE = ".gdrive_creds"
 
@@ -18,7 +19,9 @@ class GDriveIDManager:
 
     def makemap(self, root_id, root_fname):
         try:
-            file_list = self.drive.ListFile({"q": f"'{root_id}' in parents"}).GetList()
+            file_list = self.drive.ListFile(
+                {"q": f"'{root_id}' in parents and trashed = false"}
+            ).GetList()
         except HttpError:
             file_list = []
 
@@ -72,9 +75,13 @@ class GDriveProvider(StorageProvider):
         self.gauth.SaveCredentialsFile(CREDS_FILE)
         self.drive = GoogleDrive(self.gauth)
         self.root = root
-        self.root_fname = self.drive.CreateFile({"id": self.root})["title"]
+        if root.startswith("gdrive://"):
+            root = root.replace("gdrive://", "")
+            root = posixpath.split(root)[-1]
+        self.root_id = root
+        self.root_fname = self.drive.CreateFile({"id": self.root_id})["title"]
         self.gid = GDriveIDManager(self.drive, self.root_fname)
-        self.gid.makemap(self.root, self.root_fname)
+        self.gid.makemap(self.root_id, self.root_fname)
 
     def _get_id(self, path):
         return self.gid.path_id_map.get(path)
@@ -93,7 +100,7 @@ class GDriveProvider(StorageProvider):
                     self.make_dir(dirname)
                     dir_id = self._get_id(dirname)
             else:
-                dir_id = self.root
+                dir_id = self.root_id
 
             file = self.drive.CreateFile(
                 {
@@ -126,12 +133,13 @@ class GDriveProvider(StorageProvider):
                 }
             )
             folder.Upload()
+            self._set_id(path, folder["id"])
             return
 
         folder = self.drive.CreateFile(
             {
                 "title": basename,
-                "parents": [{"id": self.root}],
+                "parents": [{"id": self.root_id}],
                 "mimeType": "application/vnd.google-apps.folder",
             }
         )
@@ -140,6 +148,8 @@ class GDriveProvider(StorageProvider):
         return
 
     def __getitem__(self, path):
+        if self._get_id(path) is None:
+            raise KeyError(path)
         file = self.drive.CreateFile({"id": self._get_id(path)})
         file.FetchContent()
         return file.content.getvalue()
@@ -161,7 +171,7 @@ class GDriveProvider(StorageProvider):
         return len(self._all_keys())
 
     def refresh_ids(self):
-        self.gid.makemap(self.root, self.root_fname)
+        self.gid.makemap(self.root_id, self.root_fname)
 
     def clear(self):
         for key in self._all_keys:

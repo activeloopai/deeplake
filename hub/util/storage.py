@@ -5,7 +5,13 @@ from hub.util.tag import check_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
+from hub.core.storage import (
+    LocalProvider,
+    S3Provider,
+    MemoryProvider,
+    GDriveProvider,
+    LRUCache,
+)
 from hub.client.client import HubBackendClient
 
 
@@ -25,8 +31,9 @@ def storage_provider_from_path(
         token (str): token for authentication into activeloop
 
     Returns:
-        If given a path starting with s3://  returns the S3Provider.
+        If given a path starting with s3:// returns the S3Provider.
         If given a path starting with gcp:// or gcs:// returns the GCPProvider.
+        If given a path starting with gdrive:// returns the GDriveProvider
         If given a path starting with mem:// returns the MemoryProvider.
         If given a path starting with hub:// returns the underlying cloud Provider.
         If given a valid local path, returns the LocalProvider.
@@ -47,6 +54,8 @@ def storage_provider_from_path(
         )
     elif path.startswith("gcp://") or path.startswith("gcs://"):
         storage = GCSProvider(path, creds)
+    elif path.startswith("gdrive://"):
+        storage = GDriveProvider(path)
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
