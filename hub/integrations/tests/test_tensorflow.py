@@ -1,5 +1,5 @@
 from hub.core.dataset import Dataset
-from hub.util.check_installation import requires_tensorflow
+from hub.tests.common import requires_tensorflow
 import numpy as np
 import hub
 import pytest
