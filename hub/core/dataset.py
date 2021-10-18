@@ -259,7 +259,10 @@ class Dataset:
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.storage)
-        name = name.strip("/").replace("//", "/")
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
 
         full_path = posixpath.join(self.group_index, name)
 
