@@ -182,7 +182,6 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-            key = (item, self.version_state["commit_id"])
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
             if tensor is not None:
@@ -195,6 +194,7 @@ class Dataset:
                     read_only=self.read_only,
                     token=self._token,
                     verbose=False,
+                    version_state=self.version_state,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
