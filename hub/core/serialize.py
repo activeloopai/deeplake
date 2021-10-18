@@ -236,6 +236,19 @@ def _serialize_input_sample(
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if htype in ("json", "list"):
+        if isinstance(sample, np.ndarray):
+            if htype == "list":
+                if sample.dtype == object:
+                    sample = list(sample)
+                else:
+                    sample = sample.tolist()
+            elif htype == "json":
+                if sample.ndim == 0:
+                    sample = sample.tolist()  # actually returns dict
+                elif sample.dtype == object:
+                    sample = list(sample)
+                else:
+                    sample = sample.tolist()
         validate_json_object(sample, expected_dtype)
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
         if sample_compression:
@@ -243,6 +256,8 @@ def _serialize_input_sample(
         shape = (len(sample),) if htype == "list" else (1,)
         return byts, shape
     elif htype == "text":
+        if isinstance(sample, np.ndarray):
+            sample = sample.tolist()
         if not isinstance(sample, str):
             raise TypeError("Expected str, received: " + str(sample))
         byts = sample.encode()
