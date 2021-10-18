@@ -1,23 +1,24 @@
 from hub.core.storage.provider import StorageProvider
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+from pydrive.auth import GoogleAuth  # type: ignore
+from pydrive.drive import GoogleDrive  # type: ignore
 from hub.core.storage.provider import StorageProvider
 from io import BytesIO
 import posixpath
 import pickle
-from googleapiclient.errors import HttpError
-import os
+from googleapiclient.errors import HttpError  # type: ignore
+from typing import Dict
 
 CREDS_FILE = ".gdrive_creds"
 
 
 class GDriveIDManager:
-    def __init__(self, drive: GoogleDrive, root):
-        self.path_id_map = {}
+    def __init__(self, drive: GoogleDrive, root: str):
+        self.path_id_map: Dict[str, str] = {}
         self.drive = drive
         self.root_fname = root
 
     def makemap(self, root_id, root_fname):
+        """Make mapping from google drive paths to ids"""
         try:
             file_list = self.drive.ListFile(
                 {"q": f"'{root_id}' in parents and trashed = false"}
@@ -57,7 +58,20 @@ class GDriveIDManager:
 
 
 class GDriveProvider(StorageProvider):
-    def __init__(self, root="root"):
+    """Provider class for using Google Drive storage."""
+
+    def __init__(self, root: str = "root"):
+        """Initializes the GDriveProvider
+
+        Example:
+            gdrive_provider = GDriveProvider("gdrive://<folder-id>")
+
+        Args:
+            root(str): The root of the provider. All read/write request keys will be appended to root.
+
+        Note:
+            Requires `client_secrets.json` in working directory
+        """
         self.gauth = GoogleAuth()
 
         try:
@@ -174,5 +188,8 @@ class GDriveProvider(StorageProvider):
         self.gid.makemap(self.root_id, self.root_fname)
 
     def clear(self):
-        for key in self._all_keys:
-            del self[key]
+        for key in self._all_keys():
+            try:
+                del self[key]
+            except:
+                pass

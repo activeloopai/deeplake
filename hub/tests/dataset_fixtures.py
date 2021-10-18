@@ -3,19 +3,24 @@ import hub
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "gdrive_ds"],
     indirect=True,
 )
 
 enabled_non_gcs_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gdrive_ds"],
     indirect=True,
 )
 
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
     "ds_generator",
-    ["local_ds_generator", "s3_ds_generator", "gcs_ds_generator"],
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "gcs_ds_generator",
+        "gdrive_ds_generator",
+    ],
     indirect=True,
 )
 
@@ -49,6 +54,19 @@ def s3_ds_generator(s3_path):
         return hub.dataset(s3_path, **kwargs)
 
     return generate_s3_ds
+
+
+@pytest.fixture
+def gdrive_ds(gdrive_ds_generator):
+    return gdrive_ds_generator()
+
+
+@pytest.fixture
+def gdrive_ds_generator(gdrive_path):
+    def generate_gdrive_ds():
+        return hub.dataset(gdrive_path)
+
+    return generate_gdrive_ds
 
 
 @pytest.fixture

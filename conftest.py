@@ -2,6 +2,8 @@ from hub.core.storage.provider import StorageProvider
 import os
 import logging
 
+from traitlets.traitlets import default
+
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
@@ -32,6 +34,9 @@ def pytest_addoption(parser):
         GCS_OPT, action="store_true", help="GCS tests will run if enabled."
     )
     parser.addoption(
+        GDRIVE_OPT, action="store_true", help="GDrive tests will run if enabled."
+    )
+    parser.addoption(
         HUB_CLOUD_OPT, action="store_true", help="Hub cloud tests will run if enabled."
     )
     parser.addoption(
@@ -39,6 +44,12 @@ def pytest_addoption(parser):
         type=str,
         help="Url to s3 bucket with optional key. Example: s3://bucket_name/key/to/tests/",
         default=PYTEST_S3_PROVIDER_BASE_ROOT,
+    )
+    parser.addoption(
+        GDRIVE_PATH_OPT,
+        type=str,
+        help="Google drive folder id. Example: gdrive://<folder-id>",
+        default=PYTEST_GDRIVE_PROVIDER_BASE_ROOT,
     )
     parser.addoption(
         KEEP_STORAGE_OPT,

@@ -1,9 +1,9 @@
 from hub.core.storage.gcs import GCSProvider
+from hub.core.storage.gdrive import GDriveProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
-from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
     KEEP_STORAGE_OPT,
@@ -15,6 +15,9 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
+    GDRIVE_OPT,
+    S3_PATH_OPT,
+    GDRIVE_PATH_OPT,
     ENV_GOOGLE_APPLICATION_CREDENTIALS,
 )
 import posixpath
@@ -33,6 +36,7 @@ import tempfile
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
+GDRIVE = "gdrive"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
@@ -107,6 +111,12 @@ def _get_path_composition_configs(request):
             "is_id_prefix": True,
             "use_underscores": False,
         },
+        GDRIVE: {
+            "base_root": request.config.getoption(GDRIVE_PATH_OPT),
+            "use_id": False,
+            "is_id_prefix": False,
+            "use_underscores": False,
+        },
         GCS: {
             "base_root": PYTEST_GCS_PROVIDER_BASE_ROOT,
             "use_id": True,
@@ -143,7 +153,7 @@ def _get_storage_path(
     if info["use_underscores"]:
         path = path.replace("/", "_")
 
-    root = posixpath.join(root, path)
+    root = posixpath.join(root, path).strip("/")
     return root
 
 
@@ -208,6 +218,21 @@ def gcs_path(request, gcs_creds):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         GCSProvider(path, token=gcs_creds).clear()
+
+
+@pytest.fixture
+def gdrive_path(request):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
+        return
+
+    path = _get_storage_path(request, GDRIVE, with_current_test_name=False)
+    GDriveProvider(path).clear()
+
+    yield path
+
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        GDriveProvider(path).clear()
 
 
 @pytest.fixture
