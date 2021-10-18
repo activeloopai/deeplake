@@ -1,7 +1,7 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from hashlib import sha1
 from random import shuffle
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, Iterator, List, Optional, Sequence
 from copy import copy
 from warnings import warn
 
@@ -75,7 +75,7 @@ class Schedule:
         return sum(map(len, self._blocks))
 
 
-class Scheduler:
+class Scheduler(ABC):
     @abstractmethod
     def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
         ...
@@ -117,7 +117,16 @@ class ShufflingSchedulerWrapper(Scheduler):
         return schedules
 
 
-class SampleStreaming:
+class Streaming(ABC):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @abstractmethod
+    def read(self, schedule: Schedule) -> Iterator:
+        ...
+
+
+class SampleStreaming(Streaming):
     def __init__(
         self,
         dataset,
@@ -126,6 +135,8 @@ class SampleStreaming:
         use_local_cache: bool = False,
         cache_size: int = 10 * 1000,
     ) -> None:
+        super().__init__()
+
         self.dataset = dataset
         self.use_local_cache: bool = use_local_cache
 
@@ -144,7 +155,7 @@ class SampleStreaming:
         self.index_map: IndexMap = self._map_index_to_chunks()
         self.scheduler: Scheduler = scheduler
 
-    def read(self, schedule: Schedule):
+    def read(self, schedule: Schedule) -> Iterator:
         for job in schedule._blocks:
             yield from self.stream(job._ind)
 
@@ -246,3 +257,11 @@ class SampleStreaming:
                 sha.update(chunk.encode())
 
         return sha.digest()
+
+
+class BufferedStreaming:
+    def __init__(self, streaming: Streaming) -> None:
+        self._streaming = streaming
+
+    def read(self, schedule: Schedule):
+        yield from self._streaming.read(schedule)
