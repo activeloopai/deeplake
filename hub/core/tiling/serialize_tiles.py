@@ -67,8 +67,4 @@ def serialize_tiles(
     # TODO: maybe use memoryview and update docstring
 
     validate_not_serialized(tiles, "serialize_tiles")
-
-    serialized_tiles = np.empty(tiles.shape, dtype=object)
-    for tile_coord, tile in np.ndenumerate(tiles):
-        serialized_tiles[tile_coord] = tobytes_func(tile)
-    return serialized_tiles
+    return np.vectorize(tobytes_func, otypes=[object])(tiles)
