@@ -82,9 +82,17 @@ jobs:
           pip install -r hub/requirements/tests.txt
           python setup.py install
       - name: Doing the benchmark and comparing with baseline -> Hub from input ref
-        run: |
+        run:
           cd benchmark-source
           python3 run.py --all --baseline=${BASELINE_REF} --github
           python publish.py ${COMMIT_REF} --github
-
-       
+      - name: Saving improvements as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: improvements
+          path: benchmark-source/results/improvements.csv
+      - name: Saving regressions as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: regressions
+          path: benchmark-source/results/regressions.csv
