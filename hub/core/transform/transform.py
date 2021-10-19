@@ -25,6 +25,7 @@ from hub.util.exceptions import (
 import tqdm  # type: ignore
 import time
 import threading
+import sys
 
 
 class TransformFunction:
@@ -190,7 +191,8 @@ class Pipeline:
             )
 
         if progressbar:
-            thread = threading.Thread(target=_run, daemon=True)
+            ismac = sys.platform == "darwin"
+            thread = threading.Thread(target=_run, daemon=ismac)
             thread.start()
             try:
                 for i in tqdm.tqdm(range(len(data_in))):
@@ -199,8 +201,12 @@ class Pipeline:
                         if progress["error"]:
                             raise progress["error"]  # type: ignore
             finally:
-                if "metas_and_encoders" not in ret:
+                if ismac:
+                    while not ret:
+                        time.sleep(1)
+                else:
                     thread.join()
+
                 progress_server.stop()
         else:
             _run()
