@@ -48,6 +48,12 @@ def crop_image(sample_in, samples_out, copy=1):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
+@hub.compute
+def filter_tr(sample_in, sample_out):
+    if sample_in % 2 == 0:
+        sample_out.image.append(sample_in * np.ones((100, 100)))
+
+
 @all_schedulers
 @enabled_non_gcs_datasets
 def test_single_transform_hub_dataset(ds, scheduler):
@@ -298,3 +304,17 @@ def test_hub_like(ds, scheduler="threaded"):
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
+
+
+def test_transform_empty(local_ds):
+    local_ds.create_tensor("image")
+
+    ls = list(range(10))
+    filter_tr().eval(ls, local_ds)
+
+    assert len(local_ds) == 5
+
+    for i in range(5):
+        np.testing.assert_array_equal(
+            local_ds[i].image.numpy(), 2 * i * np.ones((100, 100))
+        )

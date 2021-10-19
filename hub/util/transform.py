@@ -74,10 +74,15 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
 
 
 def validate_transform_dataset(dataset: TransformDataset):
-    """Cheks if the length of all the tensors is equal. Raises exception if not equal."""
+    """Checks if the length of all the tensors is equal. Raises exception if not equal."""
     lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
     if any(length != lengths[0] for length in lengths):
         raise InvalidTransformDataset
+
+
+def is_empty_transform_dataset(dataset: TransformDataset):
+    """Checks if there is any data in the TransformDataset. Returns True if empty, False otherwise."""
+    return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
 def store_data_slice(
@@ -98,7 +103,7 @@ def store_data_slice(
     )
 
     if isinstance(data_slice, hub.Dataset):
-        data_slice = add_cache_to_dataset_slice(data_slice)
+        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
         data_slice, pipeline, tensors, all_chunk_engines, group_index
@@ -125,14 +130,16 @@ def transform_data_slice_and_append(
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
     for sample in data_slice:
         result = transform_sample(sample, pipeline)
+        if is_empty_transform_dataset(result):
+            continue  # empty sample
         result_resolved = {
             posixpath.join(group_index, k): result[k] for k in result.tensors
         }
         result = result_resolved  # type: ignore
         if set(result.keys()) != set(tensors):
             raise TensorMismatchError(list(tensors), list(result.keys()))
-        for tensor in result:
-            all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
+        for tensor, value in result.items():
+            all_chunk_engines[tensor].extend(value.numpy_compressed())
 
 
 def create_worker_chunk_engines(
@@ -180,11 +187,12 @@ def create_worker_chunk_engines(
 
 def add_cache_to_dataset_slice(
     dataset_slice: hub.Dataset,
+    tensors: List[str],
 ) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
-    cache_size = 64 * len(dataset_slice.tensors) * MB
+    cache_size = 64 * len(tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     dataset_slice = hub.Dataset(
         cached_store,
