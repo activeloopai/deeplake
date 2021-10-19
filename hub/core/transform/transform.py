@@ -190,7 +190,7 @@ class Pipeline:
             )
 
         if progressbar:
-            thread = threading.Thread(target=_run)
+            thread = threading.Thread(target=_run, daemon=True)
             thread.start()
             try:
                 for i in tqdm.tqdm(range(len(data_in))):
@@ -199,7 +199,6 @@ class Pipeline:
                         if progress["error"]:
                             raise progress["error"]  # type: ignore
             finally:
-                thread.join()
                 progress_server.stop()
         else:
             _run()
