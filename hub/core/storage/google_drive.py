@@ -15,9 +15,31 @@ class GoogleDriveIDManager:
     def __init__(self, drive: GoogleDrive, root: str):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
-        self.root_fname = root
+        self.root_path = root
+        self.root_id = self.find_id(root)
+        self.makemap(self.root_id, self.root_path)
 
-    def makemap(self, root_id, root_fname):
+    def find_id(self, path):
+        dirname, basename = posixpath.split(path)
+        try:
+            file_list = self.drive.ListFile(
+                {
+                    "q": f"""'{self.find_id(dirname) if dirname else 'root'}' in parents and 
+                    title = '{basename}' and 
+                    trashed = false and 
+                    mimeType = 'application/vnd.google-apps.folder'"""
+                }
+            ).GetList()
+        except HttpError:
+            file_list = []
+        if len(file_list) == 0:
+            raise
+        if len(file_list) > 1:
+            raise
+        id = file_list[0]["id"]
+        return id
+
+    def makemap(self, root_id, root_path):
         """Make mapping from google drive paths to ids"""
         try:
             file_list = self.drive.ListFile(
@@ -29,7 +51,7 @@ class GoogleDriveIDManager:
         self.path_id_map.update(
             {
                 posixpath.join(
-                    f"{'' if root_fname == self.root_fname else root_fname}",
+                    f"{'' if root_path == self.root_path else root_path}",
                     file["title"],
                 ): file["id"]
                 for file in file_list
@@ -39,7 +61,7 @@ class GoogleDriveIDManager:
             self.makemap(
                 file["id"],
                 posixpath.join(
-                    f"{'' if root_fname == self.root_fname else root_fname}",
+                    f"{'' if root_path == self.root_path else root_path}",
                     file["title"],
                 ),
             )
@@ -64,7 +86,7 @@ class GDriveProvider(StorageProvider):
         """Initializes the GDriveProvider
 
         Example:
-            gdrive_provider = GDriveProvider("gdrive://<folder-id>")
+            gdrive_provider = GDriveProvider("gdrive://folder_name/folder_name")
 
         Args:
             root(str): The root of the provider. All read/write request keys will be appended to root.
@@ -91,11 +113,9 @@ class GDriveProvider(StorageProvider):
         self.root = root
         if root.startswith("gdrive://"):
             root = root.replace("gdrive://", "")
-            root = posixpath.split(root)[-1]
-        self.root_id = root
-        self.root_fname = self.drive.CreateFile({"id": self.root_id})["title"]
-        self.gid = GoogleDriveIDManager(self.drive, self.root_fname)
-        self.gid.makemap(self.root_id, self.root_fname)
+            self.root_path = root
+            self.gid = GoogleDriveIDManager(self.drive, self.root_path)
+        self.root_id = self.gid.root_id
 
     def _get_id(self, path):
         return self.gid.path_id_map.get(path)
@@ -185,7 +205,7 @@ class GDriveProvider(StorageProvider):
         return len(self._all_keys())
 
     def refresh_ids(self):
-        self.gid.makemap(self.root_id, self.root_fname)
+        self.gid.makemap(self.root_id, self.root_path)
 
     def clear(self):
         for key in self._all_keys():
