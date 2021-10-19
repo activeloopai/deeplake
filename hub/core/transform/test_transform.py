@@ -8,6 +8,20 @@ from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
+import sys
+import hub
+
+
+# TODO progressbar is disabled while running tests on mac for now
+if sys.platform == "darwin":
+    defs = hub.core.transform.transform.Pipeline.eval.__defaults__
+    defs = defs[:-1] + (False,)
+    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs
+
+    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__
+    defs = defs[:-1] + (False,)
+    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs
+
 
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
 

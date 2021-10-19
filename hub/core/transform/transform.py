@@ -202,7 +202,7 @@ class Pipeline:
                             raise progress["error"]  # type: ignore
             finally:
                 if ismac:
-                    while not ret:
+                    while not ret:  # thread.join() takes forever on mac
                         time.sleep(1)
                 else:
                     thread.join()
