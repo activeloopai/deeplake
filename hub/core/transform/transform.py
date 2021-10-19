@@ -123,10 +123,6 @@ class Pipeline:
 
         tensors = list(ds_out.tensors)
 
-        # Initialize chunk id encoders
-        for tensor in tensors:
-            ds_out[tensor].chunk_engine.chunk_id_encoder
-
         compute_provider = get_compute_provider(scheduler, num_workers)
 
         try:
