@@ -199,6 +199,8 @@ class Pipeline:
                         if progress["error"]:
                             raise progress["error"]  # type: ignore
             finally:
+                if "metas_and_encoders" not in ret:
+                    thread.join()
                 progress_server.stop()
         else:
             _run()
