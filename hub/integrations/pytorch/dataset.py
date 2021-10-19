@@ -33,7 +33,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.dataset = dataset
         self.transform = transform
         self.tensors = tensors
-
+        self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers)
 
         if shuffle:
@@ -61,7 +61,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             self.dataset,
             scheduler=self.scheduler,
             tensors=self.tensors,
-            use_local_cache=False,
+            use_local_cache=self.use_local_cache,
         )
 
         stream = streaming.read(schedule)

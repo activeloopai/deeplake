@@ -128,8 +128,9 @@ class SampleStreaming:
         use_local_cache: bool = False,
     ) -> None:
         self.dataset = dataset
+        self.use_local_cache = use_local_cache
         self.local_storage: Optional[LocalProvider] = (
-            get_pytorch_local_storage(dataset) if use_local_cache else None
+            get_pytorch_local_storage(dataset) if self.use_local_cache else None
         )
 
         # TODO: copy all meta/info to local_storage
@@ -142,12 +143,10 @@ class SampleStreaming:
         self.tensors: Sequence[str] = self._map_tensor_keys(
             dataset=dataset, tensor_keys=tensors
         )
-        self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(
-            self.storage, self.tensors
-        )
+        self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
         self.local_caches: Optional[Dict[str, LRUCache]] = (
             {tensor: self._use_cache(self.local_storage) for tensor in self.tensors}
-            if use_local_cache
+            if self.use_local_cache
             else None
         )
         self.index_map: IndexMap = self._map_index_to_chunks()
@@ -168,13 +167,16 @@ class SampleStreaming:
                 try:
                     c_key = get_chunk_key(key, self.index_map[idx][keyid][0], commit_id)
 
-                    if self.local_storage is not None:
+                    if self.use_local_cache:
+                        local_cache = self.local_caches[key]
                         if c_key in self.local_storage:
-                            chunk = self.local_caches[key].get_cachable(c_key, Chunk)
+                            chunk = local_cache.get_cachable(c_key, Chunk)
                         else:
                             chunk = engine.get_chunk(c_key)
-                            # TODO: handle locking, directly write to local_storage, not to cache
-                            self.local_storage[c_key] = chunk.tobytes()
+                            local_cache[c_key] = chunk
+
+                            # send data to actual storage
+                            local_cache._forward(c_key, True)
                     else:
                         chunk = engine.get_chunk(c_key)
 
