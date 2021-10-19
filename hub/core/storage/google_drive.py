@@ -11,7 +11,7 @@ from typing import Dict
 CREDS_FILE = ".gdrive_creds"
 
 
-class GDriveIDManager:
+class GoogleDriveIDManager:
     def __init__(self, drive: GoogleDrive, root: str):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
@@ -94,7 +94,7 @@ class GDriveProvider(StorageProvider):
             root = posixpath.split(root)[-1]
         self.root_id = root
         self.root_fname = self.drive.CreateFile({"id": self.root_id})["title"]
-        self.gid = GDriveIDManager(self.drive, self.root_fname)
+        self.gid = GoogleDriveIDManager(self.drive, self.root_fname)
         self.gid.makemap(self.root_id, self.root_fname)
 
     def _get_id(self, path):

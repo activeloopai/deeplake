@@ -1,5 +1,5 @@
 from hub.core.storage.gcs import GCSProvider
-from hub.core.storage.gdrive import GDriveProvider
+from hub.core.storage.google_drive import GDriveProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
