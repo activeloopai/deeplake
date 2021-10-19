@@ -175,3 +175,7 @@ class LocalProvider(StorageProvider):
         full_path = os.path.expanduser(self.root)
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
+
+    def __contains__(self, key: str) -> bool:
+        full_path = self._check_is_file(key)
+        return os.path.exists(full_path)

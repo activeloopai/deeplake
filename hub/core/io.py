@@ -16,6 +16,7 @@ from hub.util.exceptions import (
 )
 from hub.util.keys import get_chunk_key
 from hub.util.remove_cache import get_base_storage
+from hub.util.storage import get_pytorch_local_storage
 
 IndexMap = Dict[int, List[List[str]]]
 ChunkEngineMap = Dict[str, ChunkEngine]
@@ -127,9 +128,8 @@ class SampleStreaming:
         use_local_cache: bool = False,
     ) -> None:
         self.dataset = dataset
-        # TODO: determine path
         self.local_storage: Optional[LocalProvider] = (
-            LocalProvider() if use_local_cache else None
+            get_pytorch_local_storage(dataset) if use_local_cache else None
         )
 
         # TODO: copy all meta/info to local_storage
@@ -169,11 +169,11 @@ class SampleStreaming:
                     c_key = get_chunk_key(key, self.index_map[idx][keyid][0], commit_id)
 
                     if self.local_storage is not None:
-                        if c_key in self.local_storage:  # TODO: optimize
+                        if c_key in self.local_storage:
                             chunk = self.local_caches[key].get_cachable(c_key, Chunk)
                         else:
                             chunk = engine.get_chunk(c_key)
-                            # handle locking, directly write to local_storage, not to cache
+                            # TODO: handle locking, directly write to local_storage, not to cache
                             self.local_storage[c_key] = chunk.tobytes()
                     else:
                         chunk = engine.get_chunk(c_key)
