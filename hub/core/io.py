@@ -1,9 +1,10 @@
 from abc import abstractmethod, ABC
 from hashlib import sha1
-from random import shuffle
+from random import shuffle, randrange
 from typing import Dict, Iterator, List, Optional, Sequence
 from copy import copy
 from warnings import warn
+
 
 from hub.constants import MB
 from hub.core.chunk_engine import ChunkEngine
@@ -260,8 +261,33 @@ class SampleStreaming(Streaming):
 
 
 class BufferedStreaming:
-    def __init__(self, streaming: Streaming) -> None:
+    def __init__(self, streaming: Streaming, size: int) -> None:
         self._streaming = streaming
+        self._buffer: List = list()
+        self._buffer_size = size
 
     def read(self, schedule: Schedule):
-        yield from self._streaming.read(schedule)
+        buffer = self._buffer
+        buffer_size = self._buffer_size
+
+        it = self._streaming.read(schedule)
+
+        # prefill buffer with samples
+        while len(buffer) < buffer_size:
+            data = next(it, None)
+
+            if data is not None:
+                buffer.append(data)
+            else:
+                break
+
+        # stream untill all samples exchusted
+        while len(buffer) > 0:
+            selected = randrange(len(buffer))
+
+            next_val = next(it, None)
+
+            if next_val is not None:
+                buffer.append(next_val)
+
+            yield buffer.pop(selected)
