@@ -562,6 +562,7 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
+        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
 
