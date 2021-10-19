@@ -18,14 +18,14 @@ Specifying an htype allows for strict settings and error handling, and it is cri
 
 Supported htypes and their respective defaults are:
 
-| HTYPE         |  DTYPE    |  COMPRESSION  |
-| ------------  |  -------  |  -----------  |
-| image         |  uint8    |  none         |
-| class_label   |  uint32   |  none         |
-| bbox          |  float32  |  none         |
-| video         |  uint8    |  none         |
-| binary_mask   |  bool     |  none         |
-| segment_mask  |  uint32   |  none         |
+| HTYPE          |  DTYPE    |  COMPRESSION  |
+| ------------   |  -------  |  -----------  |
+| image          |  uint8    |  none         |
+| class_label    |  uint32   |  none         |
+| bbox           |  float32  |  none         |
+| video          |  uint8    |  none         |
+| binary_mask    |  bool     |  none         |
+| segment_mask   |  uint32   |  none         |
 | keypoints_coco |  int32    |  none         |
 
 """
@@ -58,7 +58,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
     "segment_mask": {"dtype": "uint32"},
-    "keypoints_coco": {"dtype": "float32"},
+    "keypoints_coco": {"dtype": "int32"},
     "json": {
         "dtype": "Any",
     },
