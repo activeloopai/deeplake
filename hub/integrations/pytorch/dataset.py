@@ -71,6 +71,9 @@ class TorchDataset(torch.utils.data.IterableDataset):
             transform=self.transform,
         )
 
+    def __len__(self):
+        return sum(map(len, self.schedules))
+
     @staticmethod
     def apply_transform(stream, transform):
         if transform is not None:
