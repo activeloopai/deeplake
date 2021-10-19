@@ -27,7 +27,7 @@ from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 
 compressions = list(SUPPORTED_COMPRESSIONS)
-htypes = list(HTYPE_CONFIGURATIONS.keys())
+htypes = sorted(list(HTYPE_CONFIGURATIONS))
 list = dataset.list
 load = dataset.load
 empty = dataset.empty
@@ -56,7 +56,7 @@ __all__ = [
     "htypes",
 ]
 
-__version__ = "2.0.12"
+__version__ = "2.0.13"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")

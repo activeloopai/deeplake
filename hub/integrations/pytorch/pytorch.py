@@ -9,17 +9,14 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
 )
+from hub.util.check_installation import pytorch_installed
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
-pytorch_installed = True
-try:
-    import torch
-except ModuleNotFoundError:
-    pytorch_installed = False
-
 
 def set_worker_sharing_strategy(worker_id: int) -> None:
+    import torch
+
     torch.multiprocessing.set_sharing_strategy("file_system")
 
 
@@ -36,10 +33,12 @@ def dataset_to_pytorch(
     buffer_size: int = 10 * 1000,
     use_local_cache: bool = False,
 ):
-    if not pytorch_installed:
+    if not pytorch_installed():
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
+
+    import torch
 
     try_flushing(dataset)
 
@@ -65,6 +64,8 @@ def dataset_to_pytorch(
             if next_storage is not None:
                 next_storage.clear()
 
+            self.hub_dataset = dataset
+
             try:
                 self.cache = cache(
                     cache_storage=cache_storage,
@@ -80,6 +81,9 @@ def dataset_to_pytorch(
                 raise DatasetUnsupportedPytorch(
                     "Underlying storage of the dataset in MemoryProvider which is not supported."
                 )
+
+        def __len__(self):
+            return len(self.hub_dataset)
 
         def __iter__(self):
             for value in self.cache.iterate_samples():
