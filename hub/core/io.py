@@ -6,8 +6,9 @@ from copy import copy
 from warnings import warn
 
 from hub.constants import MB
+from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.storage import LRUCache, MemoryProvider
+from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
@@ -124,11 +125,14 @@ class SampleStreaming:
         scheduler: Scheduler = SingleThreadScheduler(),
         tensors: Optional[Sequence[str]] = None,
         use_local_cache: bool = False,
-        cache_size: int = 10 * 1000,
     ) -> None:
         self.dataset = dataset
-        self.use_local_cache: bool = use_local_cache
+        # TODO: determine path
+        self.local_storage: Optional[LocalProvider] = (
+            LocalProvider() if use_local_cache else None
+        )
 
+        # TODO: copy all meta/info to local_storage
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -138,8 +142,13 @@ class SampleStreaming:
         self.tensors: Sequence[str] = self._map_tensor_keys(
             dataset=dataset, tensor_keys=tensors
         )
-        self.chunk_engines: Dict[str, ChunkEngine] = self._map_chunk_engines(
-            self.tensors
+        self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(
+            self.storage, self.tensors
+        )
+        self.local_caches: Optional[Dict[str, LRUCache]] = (
+            {tensor: self._use_cache(self.local_storage) for tensor in self.tensors}
+            if use_local_cache
+            else None
         )
         self.index_map: IndexMap = self._map_index_to_chunks()
         self.scheduler: Scheduler = scheduler
@@ -157,12 +166,19 @@ class SampleStreaming:
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 try:
-                    data = engine.read_sample_from_chunk(
-                        idx,
-                        engine.get_chunk(
-                            get_chunk_key(key, self.index_map[idx][keyid][0], commit_id)
-                        ),
-                    )
+                    c_key = get_chunk_key(key, self.index_map[idx][keyid][0], commit_id)
+
+                    if self.local_storage is not None:
+                        if c_key in self.local_storage:  # TODO: optimize
+                            chunk = self.local_caches[key].get_cachable(c_key, Chunk)
+                        else:
+                            chunk = engine.get_chunk(c_key)
+                            # handle locking, directly write to local_storage, not to cache
+                            self.local_storage[c_key] = chunk.tobytes()
+                    else:
+                        chunk = engine.get_chunk(c_key)
+
+                    data = engine.read_sample_from_chunk(idx, chunk)
 
                     if data is not None:
                         sample[key] = data
@@ -192,8 +208,8 @@ class SampleStreaming:
 
         return list(jobs_dict.values())
 
-    def _use_cache(self):
-        return LRUCache(MemoryProvider(), copy(self.storage), 32 * MB)
+    def _use_cache(self, storage: StorageProvider) -> LRUCache:
+        return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
 
     def _map_chunk_engines(self, tensors: List[str]) -> Dict[str, ChunkEngine]:
         return {
@@ -202,7 +218,7 @@ class SampleStreaming:
         }
 
     def _create_chunk_engine(self, tensor_key, version_state):
-        return ChunkEngine(tensor_key, self._use_cache(), version_state)
+        return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
 
     def _map_index_to_chunks(self) -> IndexMap:
         """Build map of all sequence indices and their corresponding chunk names"""
