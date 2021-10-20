@@ -1,14 +1,17 @@
 from abc import abstractmethod, ABC
-from hashlib import sha1
 from random import shuffle, randrange
 from typing import Dict, Iterator, List, Optional, Sequence, Union
 from copy import copy
 from warnings import warn
+from numpy import nditer, argmin
+from numpy import array as nparray
 
 
 from hub.constants import MB
 from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
+from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
@@ -19,7 +22,6 @@ from hub.util.keys import get_chunk_key
 from hub.util.remove_cache import get_base_storage
 from hub.util.storage import get_pytorch_local_storage
 
-IndexMap = Dict[int, List[List[str]]]
 ChunkEngineMap = Dict[str, ChunkEngine]
 CachesMap = Dict[str, LRUCache]
 
@@ -29,11 +31,9 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self) -> None:
-        self._ind: List[int] = list()
-
-    def add_samples(self, index: int) -> None:
-        self._ind.append(index)
+    def __init__(self, chunks: List[str], indexes: List[int]) -> None:
+        self._chunks: List[str] = chunks
+        self._ind: List[int] = indexes
 
     def shuffle(self):
         r"""
@@ -41,22 +41,11 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def split(self):
-        r"""
-        Splits current IOBlock in half and return other part as new IOBlock
+    def chunk_name(self, tensor_index: int) -> str:
+        return self._chunks[tensor_index]
 
-        Returns:
-            IOBlock other part of IOBlock
-        """
-        other = IOBlock()
-        mid = len(self._ind) // 2
-        left = self._ind[:mid]
-        right = self._ind[mid:]
-
-        self._ind = left
-        other._ind = right
-
-        return other
+    def indices(self) -> List[int]:
+        return self._ind
 
     def __len__(self) -> int:
         return len(self._ind)
@@ -170,23 +159,23 @@ class SampleStreaming(Streaming):
             if self.local_storage
             else None
         )
-        self.index_map: IndexMap = self._map_index_to_chunks()
         self.scheduler: Scheduler = scheduler
 
     def read(self, schedule: Schedule) -> Iterator:
-        for job in schedule._blocks:
-            yield from self.stream(job._ind)
+        for block in schedule._blocks:
+            yield from self.stream(block)
 
-    def stream(self, indices: Sequence[int]):
+    def stream(self, block: IOBlock):
         commit_id = self.dataset.version_state["commit_id"]
 
-        for idx in indices:
+        for idx in block.indices():
+
             sample = dict()
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 try:
-                    c_key = get_chunk_key(key, self.index_map[idx][keyid][0], commit_id)
+                    c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
 
                     if self.local_caches is not None:
                         local_cache = self.local_caches[key]
@@ -219,17 +208,45 @@ class SampleStreaming(Streaming):
                 yield sample
 
     def list_blocks(self) -> List[IOBlock]:
-        jobs_dict: Dict[bytes, IOBlock] = dict()
+        blocks: List[IOBlock] = list()
 
-        for idx, chunks in self.index_map.items():
-            hashed = self._hash_fetch_request(chunks=chunks)
+        ds_indicies_set = set(self._get_dataset_indicies())
 
-            if jobs_dict.get(hashed) == None:
-                jobs_dict[hashed] = IOBlock()
+        chunk_id_encodings = [
+            engine.chunk_id_encoder.array for engine in self.chunk_engines.values()
+        ]
 
-            jobs_dict[hashed].add_samples(idx)
+        iterators = [
+            nditer([arr[:, LAST_SEEN_INDEX_COLUMN], arr[:, CHUNK_ID_COLUMN]])
+            for arr in chunk_id_encodings
+        ]
 
-        return list(jobs_dict.values())
+        last_idx: int = 0
+
+        while all([not it.finished for it in iterators]):
+            next_it = iterators[argmin(nparray([it.value[0] for it in iterators]))]
+            next_it_value = int(next_it.value[0])
+
+            if next_it_value >= last_idx:
+                chunks = [
+                    ChunkIdEncoder.name_from_id(cid)
+                    for cid in [int(it.value[1]) for it in iterators]
+                ]
+
+                streamable_ids = list(
+                    ds_indicies_set.intersection(range(last_idx, next_it_value + 1))
+                )
+                streamable_ids.sort()
+
+                if len(streamable_ids) > 0:
+                    new_block = IOBlock(chunks, streamable_ids)
+                    blocks.append(new_block)
+
+                last_idx = next_it_value + 1
+
+            next(next_it, None)
+
+        return blocks
 
     def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
         return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
@@ -242,23 +259,6 @@ class SampleStreaming(Streaming):
 
     def _create_chunk_engine(self, tensor_key, version_state):
         return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
-
-    def _map_index_to_chunks(self) -> IndexMap:
-        """Build map of all sequence indices and their corresponding chunk names"""
-        tensor_lengths = [
-            len(self.dataset.version_state["full_tensors"][tensor])
-            for tensor in self.tensors
-        ]
-        length = min(tensor_lengths, default=0)
-        dataset_indices = self.dataset.index.values[0].indices(length)
-
-        return {
-            index: [
-                engine.get_chunk_names_for_index(index)
-                for _, engine in self.chunk_engines.items()
-            ]
-            for index in dataset_indices
-        }
 
     def _map_tensor_keys(
         self, dataset, tensor_keys: Optional[Sequence[str]]
@@ -277,14 +277,14 @@ class SampleStreaming(Streaming):
         # Get full path in case of groups
         return [dataset.tensors[k].key for k in tensor_keys]
 
-    def _hash_fetch_request(self, chunks: List[List[str]]) -> bytes:
-        """Calculates a hash of chunks"""
-        sha = sha1()
-        for tensor in chunks:
-            for chunk in tensor:
-                sha.update(chunk.encode())
+    def _get_dataset_indicies(self):
+        tensor_lengths = [
+            len(self.dataset.version_state["full_tensors"][tensor])
+            for tensor in self.tensors
+        ]
+        length = min(tensor_lengths, default=0)
 
-        return sha.digest()
+        return self.dataset.index.values[0].indices(length)
 
 
 class BufferedStreaming(Streaming):
