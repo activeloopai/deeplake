@@ -46,7 +46,7 @@ def pytest_addoption(parser):
     parser.addoption(
         GDRIVE_PATH_OPT,
         type=str,
-        help="Google drive folder id. Example: gdrive://<folder-id>",
+        help="Google drive folder id. Example: gdrive://folder_name/folder_name",
         default=PYTEST_GDRIVE_PROVIDER_BASE_ROOT,
     )
     parser.addoption(
