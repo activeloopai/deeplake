@@ -69,7 +69,6 @@ class TorchDataset(torch.utils.data.IterableDataset):
             use_local_cache=self.use_local_cache,
         )
 
-        print(self.buffer_size)
         if self.shuffle and self.buffer_size > 0:
             streaming = BufferedStreaming(streaming, self.buffer_size)
 
