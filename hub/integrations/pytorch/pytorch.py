@@ -13,7 +13,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: bool = False,
     shuffle: bool = False,
-    buffer_size: Optional[int] = None,
+    buffer_size: int = 0,
     use_local_cache: bool = False,
 ):
 

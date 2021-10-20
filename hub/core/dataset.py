@@ -491,7 +491,7 @@ class Dataset:
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
-        buffer_size: int = 10 * 1000,
+        buffer_size: int = 0,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
     ):
