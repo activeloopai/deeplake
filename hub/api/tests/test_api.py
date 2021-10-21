@@ -632,15 +632,15 @@ def test_dataset_delete():
 
         with pytest.raises(DatasetHandlerError):
             # Can't delete raw data without force
-            hub.dataset.delete("test/")
+            hub.delete("test/")
 
-        hub.dataset.delete("test/", force=True)
+        hub.delete("test/", force=True)
         assert not os.path.isfile("test/test.txt")
 
         hub.empty("test/").create_tensor("tmp")
         assert os.path.isfile("test/dataset_meta.json")
 
-        hub.dataset.delete("test/")
+        hub.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
         old_size = hub.constants.DELETE_SAFETY_SIZE
@@ -651,11 +651,11 @@ def test_dataset_delete():
         ds.data.extend(np.zeros((100, 2000)))
 
         try:
-            hub.dataset.delete("test/")
+            hub.delete("test/")
         finally:
             assert os.path.isfile("test/dataset_meta.json")
 
-        hub.dataset.delete("test/", large_ok=True)
+        hub.delete("test/", large_ok=True)
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
