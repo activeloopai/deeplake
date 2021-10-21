@@ -30,8 +30,7 @@ req_map = {
 extras = {"audio": ["miniaudio"]}
 
 all_extras = set()
-for v in extras.values():
-    all_extras += v
+[all_extras.update(v) for v in extras.values()]
 non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
 extras["all"] = [req_map[r] for r in all_extras]
 
