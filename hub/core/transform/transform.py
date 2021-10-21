@@ -13,6 +13,7 @@ from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_c
 from hub.util.transform import (
     check_transform_data_in,
     check_transform_ds_out,
+    get_pbar_description,
     store_data_slice,
 )
 from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
@@ -22,7 +23,7 @@ from hub.util.exceptions import (
     TransformError,
 )
 
-import tqdm  # type: ignore
+from tqdm import tqdm # type: ignore
 import time
 import threading
 import sys
@@ -190,8 +191,12 @@ class Pipeline:
             ismac = sys.platform == "darwin"
             thread = threading.Thread(target=_run, daemon=ismac)
             thread.start()
+
             try:
-                for i in tqdm.tqdm(range(len(data_in))):
+                pbar_desc = get_pbar_description(self.functions)
+                pbar_iter = tqdm(range(len(data_in)), desc=pbar_desc)
+
+                for i in pbar_iter:
                     while i + 1 > progress["value"]:
                         time.sleep(1)
                         if progress["error"]:

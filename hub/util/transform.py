@@ -266,3 +266,20 @@ def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
         raise InvalidOutputDatasetError(
             f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
         )
+
+def get_pbar_description(transform_functions: List):
+    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `TransformFunction`s."""
+
+    num_funcs = len(transform_functions)
+    if num_funcs == 0:
+        return "Evaluating"
+
+    func_names: List[str] = []
+    for transform_function in transform_functions:
+        func_names.append(transform_function.func.__name__)
+    
+    if num_funcs == 1:
+        return f"Evaluating {func_names[0]}"
+
+    names_desc = ", ".join(func_names)
+    return f"Evaluating [{names_desc}]"
