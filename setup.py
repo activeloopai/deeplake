@@ -18,12 +18,16 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
-req_map = {b: a for a, b in (re.findall(r"^(([^!=<>~]+)(?:[!=<>~].*)?$)", x.strip("\n"))[0] for x in requirements)}
+req_map = {
+    b: a
+    for a, b in (
+        re.findall(r"^(([^!=<>~]+)(?:[!=<>~].*)?$)", x.strip("\n"))[0]
+        for x in requirements
+    )
+}
 
 # Add optional dependencies to this dict without version. Version should be specified in requirements.txt
-extras = {
-    "audio": ["miniaudio"]
-}
+extras = {"audio": ["miniaudio"]}
 
 all_extras = set()
 for v in extras.values():
