@@ -57,6 +57,8 @@ def test_pytorch_small(ds):
 
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
+    assert len(dl.dataset) == 16
+
     for _ in range(2):
         for i, batch in enumerate(dl):
             np.testing.assert_array_equal(
