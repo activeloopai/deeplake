@@ -664,6 +664,20 @@ class ChunkEngine:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
 
+    def read_bytes_for_sample(self, global_sample_index: int):
+        if self.tensor_meta.chunk_compression:
+            raise Exception(
+                "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
+            )
+        enc = self.chunk_id_encoder
+        chunk = self.get_chunk_for_sample(global_sample_index, enc)
+        buffer = chunk.memoryview_data
+        if not buffer:
+            return buffer
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        sb, eb = chunk.byte_positions_encoder[local_sample_index]
+        return buffer[sb:eb]
+
     def read_sample_from_chunk(
         self,
         global_sample_index: int,

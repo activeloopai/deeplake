@@ -432,3 +432,8 @@ class Tensor:
                 return list(map(list, self.numpy(aslist=True)))
         else:
             return self.numpy()
+
+    def bytes(self) -> bytes:
+        if self.index.values[0].subscriptable():
+            raise ValueError("bytes() can be used only on exatcly 1 sample.")
+        return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)
