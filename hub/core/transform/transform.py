@@ -23,7 +23,7 @@ from hub.util.exceptions import (
     TransformError,
 )
 
-from tqdm import tqdm # type: ignore
+from tqdm import tqdm  # type: ignore
 import time
 import threading
 import sys

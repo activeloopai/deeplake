@@ -339,4 +339,7 @@ def test_pbar_description():
     assert get_pbar_description([fn1()]) == "Evaluating fn1"
     assert get_pbar_description([fn1(), fn2()]) == "Evaluating [fn1, fn2]"
     assert get_pbar_description([fn1(), fn1()]) == "Evaluating [fn1, fn1]"
-    assert get_pbar_description([fn1(), fn1(), read_image()]) == "Evaluating [fn1, fn1, read_image]"
+    assert (
+        get_pbar_description([fn1(), fn1(), read_image()])
+        == "Evaluating [fn1, fn1, read_image]"
+    )
