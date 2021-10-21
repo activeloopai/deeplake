@@ -360,15 +360,13 @@ def test_pytorch_local_cache(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch(num_workers=2)
         return
 
-    local_cache = get_pytorch_local_storage(ds)
+    epochs = 2
 
-    for buffer_size in [1, 10, 1000, 10000]:
-        dl = ds.pytorch(
-            num_workers=1, batch_size=1, buffer_size=buffer_size, use_local_cache=True
-        )
+    for _ in range(epochs):
+        dl = ds.pytorch(num_workers=1, batch_size=1, use_local_cache=True)
         for i, batch in enumerate(dl):
             np.testing.assert_array_equal(
                 batch["image"].numpy(), i * np.ones((1, i + 1, i + 1))
@@ -377,17 +375,13 @@ def test_pytorch_local_cache(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-        local_cache.clear()
-
         dls = ds.pytorch(
-            num_workers=0,
+            num_workers=2,
             batch_size=1,
             shuffle=True,
-            buffer_size=buffer_size,
             use_local_cache=True,
         )
         pytorch_small_shuffle_helper(0, 16, dls)
-        local_cache.clear()
 
 
 @requires_torch
