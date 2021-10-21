@@ -29,8 +29,7 @@ req_map = {
 # Add optional dependencies to this dict without version. Version should be specified in requirements.txt
 extras = {"audio": ["miniaudio"]}
 
-all_extras = set()
-[all_extras.update(v) for v in extras.values()]
+all_extras = set(r for v in extras.values() for r in v)
 non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
 extras["all"] = [req_map[r] for r in all_extras]
 
