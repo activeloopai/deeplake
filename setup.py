@@ -8,7 +8,7 @@ project_name = "hub"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "hub/requirements/common.txt")) as f:
+with open(os.path.join(this_directory, "hub/requirements/requirements.txt")) as f:
     requirements = f.readlines()
 
 with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
@@ -16,6 +16,20 @@ with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
 
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
+
+
+req_map = {b: a for a, b in (re.findall(r"^(([^!=<>~]+)(?:[!=<>~].*)?$)", x.strip("\n"))[0] for x in requirements)}
+
+# Add optional dependencies to this dict without version. Version should be specified in requirements.txt
+extras = {
+    "audio": ["miniaudio"]
+}
+
+all_extras = set()
+for v in extras.values():
+    all_extras += v
+non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
+extras["all"] = [req_map[r] for r in all_extras]
 
 
 init_file = os.path.join(project_name, "__init__.py")
@@ -39,7 +53,8 @@ setup(
     author="activeloop.ai",
     author_email="support@activeloop.ai",
     packages=find_packages(),
-    install_requires=requirements,
+    install_requires=non_extra_deps,
+    extras_require=extras,
     tests_require=tests,
     include_package_data=True,
     zip_safe=False,
