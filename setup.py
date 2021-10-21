@@ -8,7 +8,7 @@ project_name = "hub"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "hub/requirements/requirements.txt")) as f:
+with open(os.path.join(this_directory, "hub/requirements/common.txt")) as f:
     requirements = f.readlines()
 
 with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
