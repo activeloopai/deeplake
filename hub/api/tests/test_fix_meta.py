@@ -9,6 +9,8 @@ from hub.util.exceptions import CorruptedMetaError
 
 
 def assert_correct(ds):
+    print("fixed")
+    print(ds["x"].meta)
     assert ds.x.num_chunks == 8
     assert ds.x.shape_interval.lower == (1001, 10, 9)
     assert ds.x.shape_interval.upper == (1001, 11, 10)
@@ -35,6 +37,8 @@ def corrupt(ds, tensor_name: str):
     with open(x_meta_path, "r") as f:
         meta = json.load(f)
         meta["length"] = 0
+        meta["min_shape"] = [0]
+        meta["max_shape"] = [0]
 
     with open(x_meta_path, "w") as f:
         json.dump(meta, f)

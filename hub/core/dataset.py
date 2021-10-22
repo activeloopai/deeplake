@@ -470,6 +470,31 @@ class Dataset:
             self.client.update_privacy(self.org_id, self.ds_name, public=False)
             self.public = False
 
+    @staticmethod
+    def synchronize(self):
+        """Iterates over dataset and synchronizes TensorMeta's min_shape and max_shape."""
+
+        index = []
+        shapes = []
+        tensor_set = set()
+        for idx, sub_ds in enumerate(self):
+            index.append(idx)
+            key, item = list(sub_ds.tensors.items())[0]
+            tensor_set.add(key)
+
+        for i in list(tensor_set):
+            for j in range(idx + 1):
+                shapes.append(np.shape(self[i][j].numpy()))
+
+        min_shape = min(shapes)[0], max(shapes)[1]
+        max_shape = max(shapes)[0], min(shapes)[1]
+
+        for i in list(tensor_set):
+            self[i].meta.min_shape = min_shape
+
+        for i in list(tensor_set):
+            self[i].meta.max_shape = max_shape
+
     @hub_reporter.record_call
     def pytorch(
         self,

@@ -1,4 +1,6 @@
 import os
+import numpy as np
+from time import process_time
 import hub
 from typing import Optional, Union
 
@@ -251,6 +253,8 @@ class dataset:
 
         core.chunk_engine.FIX_TENSOR_LENGTH = True
         ds = hub.load(path)
+        ds.synchronize(ds)
+
         core.chunk_engine.FIX_TENSOR_LENGTH = False
         ds.flush()
 

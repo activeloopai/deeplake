@@ -57,6 +57,7 @@ CHUNK_UPDATE_WARN_PORTION = 0.2
 # if True, the tensor_meta.json's length property will be auto-synchronized with the chunk_id_encoder's num_samples
 FIX_TENSOR_LENGTH = False
 
+
 class ChunkEngine:
     def __init__(
         self,
@@ -765,6 +766,7 @@ class ChunkEngine:
 
             # TODO: can maybe make this cleaner with `with` statement contexts?
             if FIX_TENSOR_LENGTH:
+                print(self.tensor_meta)
                 self.tensor_meta.length = chunk_id_num_samples
                 self.meta_cache[tkey] = self.tensor_meta
 
