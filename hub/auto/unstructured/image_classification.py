@@ -11,6 +11,8 @@ from hub.util.exceptions import (
     InvalidPathException,
     TensorInvalidSampleShapeError,
 )
+from hub.core.dataset import Dataset
+
 from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
@@ -91,11 +93,11 @@ class ImageClassification(UnstructuredDataset):
 
     def structure(  # type: ignore
         self,
-        ds,
+        ds: Dataset,
         use_progress_bar: bool = True,
         generate_summary: bool = True,
         image_tensor_args: dict = {},
-    ):
+    ) -> Dataset:
         """Create a structured dataset.
 
         Args:
