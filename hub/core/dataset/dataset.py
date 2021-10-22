@@ -18,18 +18,25 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.exceptions import (CouldNotCreateNewDatasetException,
-                                 InvalidKeyTypeError,
-                                 InvalidTensorGroupNameError,
-                                 InvalidTensorNameError, LockedException,
-                                 MemoryDatasetCanNotBePickledError,
-                                 PathNotEmptyException,
-                                 TensorAlreadyExistsError,
-                                 TensorDoesNotExistError,
-                                 TensorGroupAlreadyExistsError)
-from hub.util.keys import (dataset_exists, get_dataset_info_key,
-                           get_dataset_meta_key, get_version_control_info_key,
-                           tensor_exists)
+from hub.util.exceptions import (
+    CouldNotCreateNewDatasetException,
+    InvalidKeyTypeError,
+    InvalidTensorGroupNameError,
+    InvalidTensorNameError,
+    LockedException,
+    MemoryDatasetCanNotBePickledError,
+    PathNotEmptyException,
+    TensorAlreadyExistsError,
+    TensorDoesNotExistError,
+    TensorGroupAlreadyExistsError,
+)
+from hub.util.keys import (
+    dataset_exists,
+    get_dataset_info_key,
+    get_dataset_meta_key,
+    get_version_control_info_key,
+    tensor_exists,
+)
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.util.version_control import auto_checkout, checkout, commit, load_meta
@@ -444,7 +451,6 @@ class Dataset:
             self.storage.disable_readonly()
         self._read_only = value
 
-
     @hub_reporter.record_call
     def pytorch(
         self,
@@ -520,7 +526,6 @@ class Dataset:
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
 
-
         if not self.version_state:
             self._load_version_info()
 
@@ -586,7 +591,6 @@ class Dataset:
 
         unlock(self.storage)
         self.storage.clear()
-
 
     def __str__(self):
         path_str = ""
@@ -760,7 +764,6 @@ class Dataset:
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
-
 
     # the below methods are used by cloudpickle dumps
     def __origin__(self):
