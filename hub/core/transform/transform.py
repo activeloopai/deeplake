@@ -147,6 +147,8 @@ class Pipeline:
             total (int): Total number of steps in the progress bar
             desc (str, Optional): Description for the progress bar
 
+        Raises:
+            Exception: If any worker encounters an error, it is raised
         """
         ismac = sys.platform == "darwin"
         progress = {"value": 0, "error": None}
