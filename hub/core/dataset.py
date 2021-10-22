@@ -470,7 +470,6 @@ class Dataset:
             self.client.update_privacy(self.org_id, self.ds_name, public=False)
             self.public = False
 
-    @staticmethod
     def synchronize(self):
         """Iterates over dataset and synchronizes TensorMeta's min_shape and max_shape."""
 

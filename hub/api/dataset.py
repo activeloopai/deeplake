@@ -253,7 +253,7 @@ class dataset:
 
         core.chunk_engine.FIX_TENSOR_LENGTH = True
         ds = hub.load(path)
-        ds.synchronize(ds)
+        ds.synchronize()
 
         core.chunk_engine.FIX_TENSOR_LENGTH = False
         ds.flush()

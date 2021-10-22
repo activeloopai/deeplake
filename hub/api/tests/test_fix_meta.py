@@ -9,8 +9,6 @@ from hub.util.exceptions import CorruptedMetaError
 
 
 def assert_correct(ds):
-    print("fixed")
-    print(ds["x"].meta)
     assert ds.x.num_chunks == 8
     assert ds.x.shape_interval.lower == (1001, 10, 9)
     assert ds.x.shape_interval.upper == (1001, 11, 10)
