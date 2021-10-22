@@ -235,7 +235,7 @@ class dataset:
                 raise
 
     @staticmethod
-    def fix(path: str, backed_up: bool = False):
+    def fix(path: str, backed_up: bool = False) -> None:
         """Attempts to fix a corrupted dataset.
 
         Important:
