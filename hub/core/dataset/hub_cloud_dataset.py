@@ -7,6 +7,9 @@ from warnings import warn
 
 class HubCloudDataset(Dataset):
     def __init__(self, *args, **kwargs):
+        self._client = None
+        self.org_id, self.ds_name = None, None
+
         super().__init__(*args, **kwargs)
 
         # TODO: better logging? (so we don't spam tests)
@@ -14,6 +17,12 @@ class HubCloudDataset(Dataset):
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "{HUB_CLOUD_PREFIX}" prefix. Note: this dataset should only be used for testing!'
             )
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = HubBackendClient(token=self._token)
+        return self._client
 
     @property
     def is_actually_cloud(self) -> bool:
@@ -36,10 +45,6 @@ class HubCloudDataset(Dataset):
         if self.is_actually_cloud():
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
-        else:
-            self.org_id, self.ds_name = None, None
-
-        self.client = HubBackendClient(token=self._token)
 
     def _populate_meta(self):
         super()._populate_meta()

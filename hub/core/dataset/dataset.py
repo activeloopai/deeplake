@@ -175,7 +175,7 @@ class Dataset:
             if tensor is not None:
                 return tensor[self.index]
             elif self._has_group_in_root(fullpath):
-                return Dataset(
+                return self.__class__(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -190,7 +190,7 @@ class Dataset:
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(
+            return self.__class__(
                 storage=self.storage,
                 index=self.index[item],
                 group_index=self.group_index,
@@ -707,7 +707,7 @@ class Dataset:
         if self._is_root():
             return None
         autoflush = self.storage.autoflush
-        ds = Dataset(
+        ds = self.__class__(
             self.storage,
             self.index,
             posixpath.dirname(self.group_index),
@@ -724,7 +724,7 @@ class Dataset:
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
-        ds = Dataset(
+        ds = self.__class__(
             self.storage,
             self.index,
             "",
