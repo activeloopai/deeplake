@@ -107,12 +107,8 @@ class Info(CachableCallback):
         else:
             raise KeyError(key)
 
-    @use_callback()
     def __setitem__(self, key: str, value):
-        self._cache.check_readonly()
-        if self._version_state is not None:
-            auto_checkout(self._version_state, self._cache)
-        self._info[key] = value
+        self.update({key: value})
 
     def __setattr__(self, key: str, value):
         if key in {"_key", "_cache", "_info", "_version_state"}:
