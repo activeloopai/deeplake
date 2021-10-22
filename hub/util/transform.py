@@ -9,7 +9,7 @@ from hub.core.transform.transform_dataset import TransformDataset
 from hub.core.ipc import Client
 
 
-from hub.constants import MB
+from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -125,6 +125,26 @@ def store_data_slice(
     return all_tensor_metas, all_chunk_id_encoders
 
 
+def _transform_sample_and_update_chunk_engines(
+    sample,
+    pipeline,
+    tensors: List[str],
+    all_chunk_engines: Dict[str, ChunkEngine],
+    group_index: str,
+):
+    result = transform_sample(sample, pipeline)
+    if is_empty_transform_dataset(result):
+        return
+    result_resolved = {
+        posixpath.join(group_index, k): result[k] for k in result.tensors
+    }
+    result = result_resolved  # type: ignore
+    if set(result.keys()) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result.keys()))
+    for tensor, value in result.items():
+        all_chunk_engines[tensor].extend(value.numpy_compressed())
+
+
 def transform_data_slice_and_append(
     data_slice,
     pipeline,
@@ -138,22 +158,14 @@ def transform_data_slice_and_append(
     if progress_port is not None:
         last_reported_time = time.time()
         last_reported_num_samples = 0
-        report_interval = 5  # seconds
-
+        report_interval = TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
         client = Client(progress_port)
     try:
         n = len(data_slice)
         for i, sample in enumerate(data_slice):
-            result = transform_sample(sample, pipeline)
-            if not is_empty_transform_dataset(result):
-                result_resolved = {
-                    posixpath.join(group_index, k): result[k] for k in result.tensors
-                }
-                result = result_resolved  # type: ignore
-                if set(result.keys()) != set(tensors):
-                    raise TensorMismatchError(list(tensors), list(result.keys()))
-                for tensor, value in result.items():
-                    all_chunk_engines[tensor].extend(value.numpy_compressed())
+            _transform_sample_and_update_chunk_engines(
+                sample, pipeline, tensors, all_chunk_engines, group_index
+            )
             if progress_port is not None:
                 curr_time = time.time()
                 if curr_time - last_reported_time > report_interval or i == n - 1:
