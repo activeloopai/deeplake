@@ -244,6 +244,9 @@ class dataset:
         Args:
             path (str): Path to the corrupted dataset.
             backed_up (bool): Must be explicitly set to `True`.
+
+        Raises:
+            ValueError: If dataset is not marked as backed up.
         """
 
         if not backed_up:
