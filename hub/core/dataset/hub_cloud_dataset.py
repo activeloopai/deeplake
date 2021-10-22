@@ -1,3 +1,4 @@
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.util.path import is_hub_cloud_path
@@ -6,16 +7,18 @@ from warnings import warn
 
 
 class HubCloudDataset(Dataset):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, path, *args, **kwargs):
         self._client = None
+        self.path = path
         self.org_id, self.ds_name = None, None
+        self._set_org_and_name()
 
         super().__init__(*args, **kwargs)
 
         # TODO: better logging? (so we don't spam tests)
         if not self.is_actually_cloud:
             warn(
-                f'Created a hub cloud dataset @ "{self.path}" which does not have the "{HUB_CLOUD_PREFIX}" prefix. Note: this dataset should only be used for testing!'
+                    f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
 
     @property
@@ -39,12 +42,16 @@ class HubCloudDataset(Dataset):
             self._token = self.client.get_token()
         return self._token
 
-    def _set_derived_attributes(self):
-        super()._set_derived_attributes()
-
-        if self.is_actually_cloud():
+    def _set_org_and_name(self):
+        if self.is_actually_cloud:
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
+        else:
+            # if this dataset isn't actually pointing to a datset in the cloud
+            # a.k.a this dataset is trying to simulate a hub cloud dataset
+            # it's safe to assume they want to use the dev org
+            self.org_id = HUB_CLOUD_DEV_USERNAME
+            self.ds_name = self.path.replace("/", "_").replace(".", "")
 
     def _populate_meta(self):
         super()._populate_meta()
@@ -73,13 +80,6 @@ class HubCloudDataset(Dataset):
         logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     def add_terms_of_access(self, terms: str):
-        """Users trying to access this dataset must agree to these terms first.
-
-        Note:
-            Only applicable for public hub cloud datasets (path begins with "hub://".
-        """
-
-        # if not self.path.startswith("hub://"):
-        # raise Exception("Terms of access can only be applied to datasets stored in hub cloud (path begins with hub://")
+        """Users trying to access this dataset must agree to these terms first."""
 
         print(self.client)
