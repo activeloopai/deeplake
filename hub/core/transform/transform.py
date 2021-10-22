@@ -1,6 +1,6 @@
 import hub
 import math
-from typing import List
+from typing import List, Callable, Optional
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
 from hub.core.compute.thread import ThreadProvider
@@ -137,6 +137,44 @@ class Pipeline:
 
         ds_out.storage.autoflush = initial_autoflush
 
+    def _run_with_progbar(
+        self, func: Callable, ret: dict, total: int, desc: Optional[str] = ""
+    ):
+        """
+        Args:
+            func (Callable): Function to be executed
+            ret (dict): `func` should place its return value in this dictionary
+            total (int): Total number of steps in the progress bar
+            desc (str, Optional): Description for the progress bar
+
+        """
+        ismac = sys.platform == "darwin"
+        progress = {"value": 0, "error": None}
+
+        def callback(data):
+            if isinstance(data, Exception):
+                progress["error"] = data
+            else:
+                progress["value"] += data
+
+        server = Server(callback)
+        port = server.port
+        thread = threading.Thread(target=func, args=(port,), daemon=ismac)
+        thread.start()
+        try:
+            for i in tqdm(range(total), desc=desc):
+                while i + 1 > progress["value"]:
+                    time.sleep(1)
+                    if progress["error"]:
+                        raise progress["error"]  # type: ignore
+        finally:
+            if ismac:
+                while not ret:  # thread.join() takes forever on mac
+                    time.sleep(1)
+            else:
+                thread.join()
+            server.stop()
+
     def run(
         self,
         data_in,
@@ -158,23 +196,9 @@ class Pipeline:
         version_state = ds_out.version_state
         tensors = [ds_out.tensors[t].key for t in tensors]
 
-        if progressbar:
-            progress = {"value": 0, "error": None}
-
-            def progress_callback(data):
-                if isinstance(data, Exception):
-                    progress["error"] = data
-                else:
-                    progress["value"] += data
-
-            progress_server = Server(progress_callback)
-            port = progress_server.port
-        else:
-            port = None
-
         ret = {}
 
-        def _run():
+        def _run(progress_port=None):
             ret["metas_and_encoders"] = compute.map(
                 store_data_slice,
                 zip(
@@ -183,32 +207,14 @@ class Pipeline:
                     repeat(tensors),
                     repeat(self),
                     repeat(version_state),
-                    repeat(port),
+                    repeat(progress_port),
                 ),
             )
 
         if progressbar:
-            ismac = sys.platform == "darwin"
-            thread = threading.Thread(target=_run, daemon=ismac)
-            thread.start()
-
-            try:
-                pbar_desc = get_pbar_description(self.functions)
-                pbar_iter = tqdm(range(len(data_in)), desc=pbar_desc)
-
-                for i in pbar_iter:
-                    while i + 1 > progress["value"]:
-                        time.sleep(1)
-                        if progress["error"]:
-                            raise progress["error"]  # type: ignore
-            finally:
-                if ismac:
-                    while not ret:  # thread.join() takes forever on mac
-                        time.sleep(1)
-                else:
-                    thread.join()
-
-                progress_server.stop()
+            self._run_with_progbar(
+                _run, ret, len(data_in), get_pbar_description(self.functions)
+            )
         else:
             _run()
 
