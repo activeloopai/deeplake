@@ -15,7 +15,7 @@ class HubCloudDataset(Dataset):
 
         super().__init__(*args, **kwargs)
 
-        # TODO: better logging? (so we don't spam tests)
+        # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
         if not self.is_actually_cloud:
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
