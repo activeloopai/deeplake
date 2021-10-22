@@ -1,6 +1,6 @@
 from hub.constants import (
-    HUB_CLOUD_DEV_USERNAME,
     HUB_CLOUD_OPT,
+    ENV_HUB_DEV_USERNAME,
     ENV_HUB_DEV_PASSWORD,
     ENV_KAGGLE_USERNAME,
     ENV_KAGGLE_KEY,
@@ -10,6 +10,9 @@ from hub.tests.common import is_opt_true
 import os
 import pytest
 from hub.client.client import HubBackendClient
+from hub.client.config import USE_LOCAL_HOST, USE_DEV_ENVIRONMENT
+
+from warnings import warn
 
 
 @pytest.fixture(scope="session")
@@ -17,15 +20,22 @@ def hub_cloud_dev_credentials(request):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
 
-    # TODO: use dev environment
+    if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT):
+        warn(
+            "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT."
+        )
 
+    username = os.getenv(ENV_HUB_DEV_USERNAME)
     password = os.getenv(ENV_HUB_DEV_PASSWORD)
 
+    assert (
+        username is not None
+    ), f"Hub dev username was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing hub cloud datasets."
     assert (
         password is not None
     ), f"Hub dev password was not found in the environment variable '{ENV_HUB_DEV_PASSWORD}'. This is necessary for testing hub cloud datasets."
 
-    return HUB_CLOUD_DEV_USERNAME, password
+    return username, password
 
 
 @pytest.fixture(scope="session")
