@@ -18,4 +18,8 @@ def get_dataset_instance(path, *args, **kwargs):
     else:
         clz = Dataset
 
-    return clz(path, *args, **kwargs)
+    if clz is Dataset:
+        return clz(*args, **kwargs)
+    elif clz is HubCloudDataset:
+        return clz(path, *args, **kwargs)
+    raise TypeError(f"Invalid dataset class {clz}")

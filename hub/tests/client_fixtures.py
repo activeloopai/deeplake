@@ -19,9 +19,7 @@ def hub_cloud_dev_credentials(request):
         pytest.skip()
 
     if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT):
-        raise ValueError(
-            "Can only run hub cloud tests if `USE_LOCAL_HOST` or `USE_DEV_ENVIRONMENT` are set to `True`"
-        )
+        warn("Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT.")
 
     username = os.getenv(ENV_HUB_DEV_USERNAME)
     password = os.getenv(ENV_HUB_DEV_PASSWORD)
