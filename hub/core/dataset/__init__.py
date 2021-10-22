@@ -4,7 +4,7 @@ from .hub_cloud_dataset import HubCloudDataset
 from hub.util.path import is_hub_cloud_path
 
 
-# NOTE: overriding this is how we can manually create sign-wall datasets for testing
+# NOTE: experimentation helper
 FORCE_CLASS = None
 
 

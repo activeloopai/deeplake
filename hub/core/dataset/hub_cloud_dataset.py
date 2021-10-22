@@ -18,7 +18,7 @@ class HubCloudDataset(Dataset):
         # TODO: better logging? (so we don't spam tests)
         if not self.is_actually_cloud:
             warn(
-                    f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
+                f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
 
     @property
