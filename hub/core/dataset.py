@@ -473,26 +473,22 @@ class Dataset:
     def synchronize(self):
         """Iterates over dataset and synchronizes TensorMeta's min_shape and max_shape."""
 
-        index = []
-        shapes = []
         tensor_set = set()
         for idx, sub_ds in enumerate(self):
-            index.append(idx)
-            key, item = list(sub_ds.tensors.items())[0]
-            tensor_set.add(key)
+            for tensor in range(len(self.meta.tensors)):
+                key, item = list(sub_ds.tensors.items())[tensor]
+                tensor_set.add(key)
 
-        for i in list(tensor_set):
-            for j in range(idx + 1):
-                shapes.append(np.shape(self[i][j].numpy()))
-
-        min_shape = min(shapes)[0], max(shapes)[1]
-        max_shape = max(shapes)[0], min(shapes)[1]
-
-        for i in list(tensor_set):
-            self[i].meta.min_shape = min_shape
-
-        for i in list(tensor_set):
-            self[i].meta.max_shape = max_shape
+        for tensor in list(tensor_set):
+            shapes = []
+            if self[tensor].meta.length != 0:
+                for index in range(self[tensor].meta.length):
+                    shapes.append(np.shape(self[tensor][index].numpy()))
+                self[tensor].meta.min_shape = min(shapes)[0], max(shapes)[1]
+                self[tensor].meta.max_shape = max(shapes)[0], min(shapes)[1]
+            else:
+                self[tensor].meta.min_shape = []
+                self[tensor].meta.max_shape = []
 
     @hub_reporter.record_call
     def pytorch(
