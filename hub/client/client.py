@@ -16,6 +16,7 @@ from hub.client.config import (
     LIST_DATASETS,
     GET_USER_PROFILE,
     UPDATE_SUFFIX,
+    ADD_TERMS_OF_ACCESS_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -268,3 +269,7 @@ class HubBackendClient:
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
+
+    def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
+        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms": terms})

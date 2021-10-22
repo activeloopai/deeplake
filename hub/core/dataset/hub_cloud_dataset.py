@@ -78,3 +78,8 @@ class HubCloudDataset(Dataset):
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
         logger.info(f"Hub Dataset {self.path} successfully deleted.")
+
+    def add_terms_of_access(self, terms: str):
+        """Users must agree to these terms before being able to access this dataset."""
+
+        self.client.add_terms_of_access(self.org_id, self.ds_name, terms)

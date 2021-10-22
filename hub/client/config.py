@@ -17,6 +17,7 @@ DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
 LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
+ADD_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms",
 
 DEFAULT_REQUEST_TIMEOUT = 170
 
