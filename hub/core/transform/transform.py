@@ -167,8 +167,9 @@ class Pipeline:
             for i in tqdm(range(total), desc=desc):
                 while i + 1 > progress["value"]:
                     time.sleep(1)
-                    if progress["error"]:
-                        raise progress["error"]  # type: ignore
+                    err = progress["error"]
+                    if err:
+                        exec("raise err")  # Because darglint
         finally:
             if ismac:
                 while not ret:  # thread.join() takes forever on mac
