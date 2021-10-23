@@ -1,6 +1,7 @@
 from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
+from hub.client.log import logger
 from hub.util.path import is_hub_cloud_path
 
 from warnings import warn
