@@ -1,9 +1,19 @@
 import hub
+from tqdm import tqdm  # type: ignore
 import pickle
 import warnings
 import posixpath
 import numpy as np
-from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Union,
+    Tuple,
+    List,
+    Sequence,
+)
 
 from hub.api.info import load_info
 from hub.client.log import logger
@@ -172,11 +182,11 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-            if item in self._all_tensors_filtered:
-                return self.version_state["full_tensors"][
-                    posixpath.join(self.group_index, item)
-                ][self.index]
-            elif item in self._groups_filtered:
+            fullpath = posixpath.join(self.group_index, item)
+            tensor = self._get_tensor_from_root(fullpath)
+            if tensor is not None:
+                return tensor[self.index]
+            elif self._has_group_in_root(fullpath):
                 return Dataset(
                     storage=self.storage,
                     index=self.index,
@@ -184,6 +194,7 @@ class Dataset:
                     read_only=self.read_only,
                     token=self._token,
                     verbose=False,
+                    version_state=self.version_state,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -208,7 +219,7 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         **kwargs,
@@ -408,7 +419,6 @@ class Dataset:
 
         return self.version_state["commit_id"]
 
-    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         # TODO: use logger.info instead of prints
@@ -496,13 +506,14 @@ class Dataset:
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
-        batch_size: Optional[int] = 1,
+        batch_size: int = 1,
         drop_last: bool = False,
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
         buffer_size: int = 10 * 1000,
         use_local_cache: bool = False,
+        use_progress_bar: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -514,7 +525,7 @@ class Dataset:
             transform (Callable, optional) : Transformation function to be applied to each sample.
             tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
-            batch_size (int, optional): Number of samples per batch to load. Default value is 1.
+            batch_size (int): Number of samples per batch to load. Default value is 1.
             drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
                 If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
@@ -525,13 +536,14 @@ class Dataset:
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
             buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
+            use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
         """
         from hub.integrations import dataset_to_pytorch
 
-        return dataset_to_pytorch(
+        dataloader = dataset_to_pytorch(
             self,
             transform,
             tensors,
@@ -545,6 +557,11 @@ class Dataset:
             use_local_cache=use_local_cache,
         )
 
+        if use_progress_bar:
+            dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
+
+        return dataloader
+
     def _get_total_meta(self):
         """Returns tensor metas all together"""
         return {
@@ -554,8 +571,8 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-
-        self.storage.autoflush = True
+        if self.index.is_trivial() and self._is_root():
+            self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
@@ -649,6 +666,25 @@ class Dataset:
 
     __repr__ = __str__
 
+    def _get_tensor_from_root(self, name: str) -> Optional[Tensor]:
+        """Gets a tensor from the root dataset.
+        Acesses storage only for the first call.
+        """
+        ret = self.version_state["full_tensors"].get(name)
+        if ret is None:
+            load_meta(self.storage, self.version_state)
+            ret = self.version_state["full_tensors"].get(name)
+        return ret
+
+    def _has_group_in_root(self, name: str) -> bool:
+        """Checks if a group exists in the root dataset.
+        This is faster than checking `if group in self._groups:`
+        """
+        if name in self.version_state["meta"].groups:
+            return True
+        load_meta(self.storage, self.version_state)
+        return name in self.version_state["meta"].groups
+
     @property
     def token(self):
         """Get attached token of the dataset"""
@@ -668,6 +704,7 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
+        load_meta(self.storage, self.version_state)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
@@ -677,7 +714,12 @@ class Dataset:
     @property
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        return {t: self[t] for t in self._all_tensors_filtered}
+        return {
+            t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
+                self.index
+            ]
+            for t in self._all_tensors_filtered
+        }
 
     @property
     def _groups(self) -> List[str]:
@@ -718,7 +760,8 @@ class Dataset:
         """Returns the parent of this group. Returns None if this is the root dataset"""
         if self._is_root():
             return None
-        return Dataset(
+        autoflush = self.storage.autoflush
+        ds = Dataset(
             self.storage,
             self.index,
             posixpath.dirname(self.group_index),
@@ -727,12 +770,15 @@ class Dataset:
             self._token,
             self.verbose,
         )
+        self.storage.autoflush = autoflush
+        return ds
 
     @property
     def root(self):
         if self._is_root():
             return self
-        return Dataset(
+        autoflush = self.storage.autoflush
+        ds = Dataset(
             self.storage,
             self.index,
             "",
@@ -741,23 +787,26 @@ class Dataset:
             self._token,
             self.verbose,
         )
+        self.storage.autoflush = autoflush
+        return ds
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        groups = self._groups
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        groups = meta.groups
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
-        ret = name
+        fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
             groups.append(name)
             name, _ = posixpath.split(name)
-        unique = set(groups)
-        groups.clear()
-        groups += unique
+        meta.groups = list(set(groups))
+        self.storage[meta_key] = meta
         self.storage.maybe_flush()
-        return self[ret]
+        return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created."""

@@ -1,5 +1,6 @@
 import hub
 import warnings
+import json
 import numpy as np
 from math import ceil
 from typing import Any, Dict, Optional, Sequence, Union, Tuple, List, Set
@@ -8,7 +9,7 @@ from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRE
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.compression import decompress_array
+from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -30,6 +31,7 @@ from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
 )
+from hub.util.json import HubJsonDecoder
 from hub.util.casting import get_dtype, intelligent_cast
 from hub.util.version_control import auto_checkout, commit, commit_chunk_set_exists
 
@@ -688,6 +690,35 @@ class ChunkEngine:
             return np.zeros(shape, dtype=dtype)
 
         chunk_compression = self.tensor_meta.chunk_compression
+        sample_compression = self.tensor_meta.sample_compression
+
+        htype = self.tensor_meta.htype
+
+        if htype in ("json", "text", "list"):
+            sb, eb = chunk.byte_positions_encoder[local_sample_index]
+            if chunk_compression:
+                decompressed = chunk.decompressed_data(compression=chunk_compression)
+                buffer = decompressed[sb:eb]
+            elif sample_compression:
+                buffer = decompress_bytes(buffer[sb:eb], compression=sample_compression)
+            else:
+                buffer = buffer[sb:eb]
+            buffer = bytes(buffer)
+            if htype == "json":
+                arr = np.empty(1, dtype=object)
+                arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+                return arr
+            elif htype == "list":
+                lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+                arr = np.empty(len(lst), dtype=object)
+                arr[:] = lst
+                return arr
+            elif htype == "text":
+                arr = np.array(bytes.decode(buffer)).reshape(
+                    1,
+                )
+            return arr
+
         if chunk_compression:
             if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
@@ -695,10 +726,9 @@ class ChunkEngine:
                 return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
             else:
                 return chunk.decompressed_samples()[local_sample_index]
+
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         buffer = buffer[sb:eb]
-
-        sample_compression = self.tensor_meta.sample_compression
         if sample_compression:
             sample = decompress_array(
                 buffer, shape, dtype=dtype, compression=sample_compression

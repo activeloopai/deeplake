@@ -1,27 +1,9 @@
 """
-Image and Byte compression types.
+Supported compressions (formats):
+    Image : bmp, dib, gif, ico, jpeg, jp2, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
+    Audio : flac, mp3, wav
+    Bytes : lz4
 
-Supported image compressions (formats):
-
- * BMP
- * DIB
- * GIF
- * ICO
- * JPEG
- * JPEG 2000
- * PCX
- * PNG
- * PPM
- * SGI
- * TGA
- * TIFF
- * WEBP
- * WMF
- * XBM
-
-Supported byte compression:
-
- * LZ4
 """
 from PIL import Image  # type: ignore
 
@@ -67,6 +49,8 @@ Image.init()
 IMAGE_COMPRESSIONS = [
     c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
+
+IMAGE_COMPRESSIONS.insert(0, "apng")
 
 SUPPORTED_COMPRESSIONS = [*BYTE_COMPRESSIONS, *IMAGE_COMPRESSIONS, *AUDIO_COMPRESSIONS]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore

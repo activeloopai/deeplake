@@ -30,6 +30,7 @@ compressions.remove("wmf")  # driver has to be provided by user for wmf write su
 
 image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
+image_compressions.remove("apng")
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
@@ -137,3 +138,34 @@ def test_audio(compression, audio_paths):
     assert arr.dtype == "float32"
     with open(path, "rb") as f:
         assert sample.compressed_bytes(compression) == f.read()
+
+
+def test_apng(memory_ds):
+    ds = memory_ds
+
+    arrays = {
+        "binary": [
+            np.random.randint(
+                0, 256, (25, 50, np.random.randint(100, 200)), dtype=np.uint8
+            )
+            for _ in range(10)
+        ],
+        "rgb": [
+            np.random.randint(
+                0, 256, (np.random.randint(100, 200), 32, 64, 3), dtype=np.uint8
+            )
+            for _ in range(10)
+        ],
+        "rgba": [
+            np.random.randint(
+                0, 256, (np.random.randint(100, 200), 16, 32, 4), dtype=np.uint8
+            )
+            for _ in range(10)
+        ],
+    }
+    for k, v in arrays.items():
+        with ds:
+            ds.create_tensor(k, htype="image", sample_compression="apng")
+            ds[k].extend(v)
+        for arr1, arr2 in zip(ds[k].numpy(aslist=True), v):
+            np.testing.assert_array_equal(arr1, arr2)

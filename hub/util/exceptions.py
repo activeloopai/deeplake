@@ -199,7 +199,7 @@ class InvalidHubPathException(Exception):
 class PathNotEmptyException(Exception):
     def __init__(self):
         super().__init__(
-            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+            f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
         )
 
 
@@ -299,19 +299,25 @@ class InvalidTokenException(Exception):
 
 
 # TODO Better S3 Exception handling
-class S3GetError(Exception):
+
+
+class S3Error(Exception):
+    """Catchall for all errors encountered while working with S3"""
+
+
+class S3GetError(S3Error):
     """Catchall for all errors encountered while working getting an object from S3"""
 
 
-class S3SetError(Exception):
+class S3SetError(S3Error):
     """Catchall for all errors encountered while working setting an object in S3"""
 
 
-class S3DeletionError(Exception):
+class S3DeletionError(S3Error):
     """Catchall for all errors encountered while working deleting an object in S3"""
 
 
-class S3ListError(Exception):
+class S3ListError(S3Error):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
