@@ -5,7 +5,7 @@ import pytest
 
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
-from hub.util.check_installation import requires_torch
+from hub.tests.common import requires_torch
 from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
@@ -56,6 +56,8 @@ def test_pytorch_small(ds):
         return
 
     dl = ds.pytorch(num_workers=2, batch_size=1)
+
+    assert len(dl.dataset) == 16
 
     for _ in range(2):
         for i, batch in enumerate(dl):

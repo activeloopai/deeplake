@@ -8,6 +8,21 @@ from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
+from hub.util.transform import get_pbar_description
+import sys
+import hub
+
+
+# TODO progressbar is disabled while running tests on mac for now
+if sys.platform == "darwin":
+    defs = hub.core.transform.transform.Pipeline.eval.__defaults__
+    defs = defs[:-1] + (False,)
+    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs
+
+    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__
+    defs = defs[:-1] + (False,)
+    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs
+
 
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
 
@@ -46,6 +61,12 @@ def read_image(sample_in, samples_out):
 def crop_image(sample_in, samples_out, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
+
+
+@hub.compute
+def filter_tr(sample_in, sample_out):
+    if sample_in % 2 == 0:
+        sample_out.image.append(sample_in * np.ones((100, 100)))
 
 
 @all_schedulers
@@ -298,3 +319,27 @@ def test_hub_like(ds, scheduler="threaded"):
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
+
+
+def test_transform_empty(local_ds):
+    local_ds.create_tensor("image")
+
+    ls = list(range(10))
+    filter_tr().eval(ls, local_ds)
+
+    assert len(local_ds) == 5
+
+    for i in range(5):
+        np.testing.assert_array_equal(
+            local_ds[i].image.numpy(), 2 * i * np.ones((100, 100))
+        )
+
+
+def test_pbar_description():
+    assert get_pbar_description([fn1()]) == "Evaluating fn1"
+    assert get_pbar_description([fn1(), fn2()]) == "Evaluating [fn1, fn2]"
+    assert get_pbar_description([fn1(), fn1()]) == "Evaluating [fn1, fn1]"
+    assert (
+        get_pbar_description([fn1(), fn1(), read_image()])
+        == "Evaluating [fn1, fn1, read_image]"
+    )

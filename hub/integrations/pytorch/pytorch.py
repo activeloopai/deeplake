@@ -64,6 +64,8 @@ def dataset_to_pytorch(
             if next_storage is not None:
                 next_storage.clear()
 
+            self.hub_dataset = dataset
+
             try:
                 self.cache = cache(
                     cache_storage=cache_storage,
@@ -79,6 +81,9 @@ def dataset_to_pytorch(
                 raise DatasetUnsupportedPytorch(
                     "Underlying storage of the dataset in MemoryProvider which is not supported."
                 )
+
+        def __len__(self):
+            return len(self.hub_dataset)
 
         def __iter__(self):
             for value in self.cache.iterate_samples():
