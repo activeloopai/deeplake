@@ -4,6 +4,7 @@ from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
+from numpy.core.numeric import full
 
 
 class LocalProvider(StorageProvider):
@@ -144,9 +145,7 @@ class LocalProvider(StorageProvider):
             key_set = set()
             for root, dirs, files in os.walk(full_path):
                 for file in files:
-                    key_set.add(
-                        os.path.relpath(os.path.join(full_path, file), full_path)
-                    )
+                    key_set.add(os.path.relpath(os.path.join(root, file), full_path))
             self.files = key_set
         return self.files
 

@@ -32,6 +32,7 @@ list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+copy = dataset.copy
 list = dataset.list
 dataset_cl = Dataset
 ingest = dataset.ingest

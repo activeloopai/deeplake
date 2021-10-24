@@ -32,8 +32,10 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 
 from hub.util.keys import (
     dataset_exists,
+    get_chunk_id_encoder_key,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_tensor_meta_key,
     get_version_control_info_key,
     tensor_exists,
 )
@@ -336,6 +338,27 @@ class Dataset:
         destination_tensor.info.update(info)
 
         return destination_tensor
+
+    @hub_reporter.record_call
+    def copy_tensor(self, name: str, source: "Tensor") -> "Tensor":
+        info = source.info.__getstate__().copy()
+        meta = pickle.loads(pickle.dumps(source.meta))
+
+        if "/" in name:
+            self._create_group(posixpath.split(name)[0])
+
+        meta_key = get_tensor_meta_key(name, self.version_state["commit_id"])
+        self.storage[meta_key] = meta
+
+        self.version_state["meta"].tensors.append(name)
+        ffw_dataset_meta(self.version_state["meta"])
+        self.storage.maybe_flush()
+        tensor = Tensor(name, self.storage, self.version_state)
+
+        self.version_state["full_tensors"][name] = tensor
+        tensor.info.update(info)
+
+        return tensor
 
     __getattr__ = __getitem__
 

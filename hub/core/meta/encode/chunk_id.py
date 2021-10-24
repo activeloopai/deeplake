@@ -95,7 +95,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
 
         Example:
-            Given: 2 sampes in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
+            Given: 2 samples in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
             >>> self.num_samples
             7
             >>> self.num_chunks

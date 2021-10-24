@@ -7,9 +7,18 @@ from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.core.dataset import Dataset
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.storage import cachable
+from hub.core.storage.cachable import Cachable
 from hub.util.auto import get_most_common_extension
+from hub.util.version_control import load_meta
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
-from hub.util.keys import dataset_exists
+from hub.util.keys import (
+    dataset_exists,
+    get_chunk_id_encoder_key,
+    get_chunk_key,
+    get_dataset_meta_key,
+)
 from hub.util.exceptions import (
     DatasetHandlerError,
     AutoCompressionError,
@@ -263,6 +272,38 @@ class dataset:
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
         return destination_ds
+
+    @staticmethod
+    def copy(src: Union[str, Dataset], dest: Union[str, Dataset]):
+        src_ds = dataset.load(src) if isinstance(src, str) else src
+        dest_ds = dest
+        if isinstance(dest, str):
+            dest_ds = dataset.empty(dest)
+
+        if len(dest_ds.tensors) > 0:
+            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")
+
+        for tensor_name in src_ds.version_state["meta"].tensors:
+            chunk_engine = src_ds[tensor_name].chunk_engine
+            n_samples = chunk_engine.num_samples
+            names = chunk_engine.get_chunk_names_for_multiple_indexes(
+                0, n_samples, n_samples
+            )
+            chunk_id_encoder_key = get_chunk_id_encoder_key(
+                tensor_name, src_ds.version_state["commit_id"]
+            )
+            keys = [
+                get_chunk_key(tensor_name, name, src_ds.version_state["commit_id"])
+                for name in names
+            ]
+            keys.append(chunk_id_encoder_key)
+            for key in keys:
+                dest_ds.storage[key] = src_ds.storage[key].tobytes()
+            dest_ds.copy_tensor(tensor_name, src_ds[tensor_name])
+
+        dest_ds.info.update(src_ds.info.__getstate__())
+
+        return dest_ds
 
     @staticmethod
     def ingest(
