@@ -407,7 +407,10 @@ class ChunkEngine:
 
         # synchronize chunks
         if chunk_keys is None:
-            chunk_keys = [self.last_chunk_key]
+            if self.num_chunks > 0:
+                chunk_keys = [self.last_chunk_key]
+            else:
+                chunk_keys = []
         for chunk_key in chunk_keys:
             chunk = self.get_chunk(chunk_key)
             self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
@@ -523,6 +526,25 @@ class ChunkEngine:
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
+
+    def clear(self):
+        """Deletes all samples."""
+        self.cache.check_readonly()
+
+        n_samples = self.num_samples
+        chunk_names = self.get_chunk_names_for_multiple_indexes(0, n_samples, n_samples)
+        commit_id = self.version_state["commit_id"]
+        chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
+
+        enc_key = get_chunk_id_encoder_key(self.key, commit_id)
+        enc = ChunkIdEncoder()
+        self.cache[enc_key] = enc
+
+        for key in chunk_keys:
+            del self.cache[key]
+
+        self._synchronize_cache()
+        self.cache.maybe_flush()
 
     def update(
         self,
