@@ -9,7 +9,7 @@ RUN mkdir /app
 ADD ./ /app
 WORKDIR /app
 
-ENV PYTHONPATH="/app/Hub:$PYTHONPATH"
-RUN pip install -r hub/requirements/plugins.txt
+RUN pip install -r hub/requirements/plugins.txt && \
+    pip install -r hub/requirements/tests.txt
 
 RUN pip3 install -e .
