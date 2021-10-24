@@ -71,3 +71,11 @@ jobs:
       - name: Run tests
         run: |
           python3 -m pytest --local
+      - name: Save PR number for workflow run
+        run: |
+          mkdir -p ./pr
+          echo ${{ github.event.number }} > ./pr/NR
+      - uses: actions/upload-artifact@v2
+        with:
+          name: pr
+          path: pr/
