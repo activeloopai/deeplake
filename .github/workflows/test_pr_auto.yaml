@@ -54,6 +54,8 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Setup FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install requirements
         run: |
           pip3 install --upgrade pip --user
