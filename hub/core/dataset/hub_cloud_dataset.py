@@ -22,6 +22,7 @@ class HubCloudDataset(Dataset):
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
 
+
     @property
     def client(self):
         if self._client is None:
@@ -35,6 +36,14 @@ class HubCloudDataset(Dataset):
         """
 
         return is_hub_cloud_path(self.path)
+
+    def check_credentials(self):
+        """If terms of access are unagreed to, this method will raise an error and trigger
+        user-interaction requirement for agreeing. It's basically just an alias for `get_dataset_credentials`
+        """
+
+        self.client.get_dataset_credentials(self.org_id, self.ds_name)
+
 
     @property
     def token(self):
@@ -56,6 +65,8 @@ class HubCloudDataset(Dataset):
 
     def _populate_meta(self):
         super()._populate_meta()
+
+        self.check_credentials()
 
         self.client.create_dataset_entry(
             self.org_id,
@@ -83,4 +94,5 @@ class HubCloudDataset(Dataset):
     def add_terms_of_access(self, terms: str):
         """Users must agree to these terms before being able to access this dataset."""
 
+        self.check_credentials
         self.client.add_terms_of_access(self.org_id, self.ds_name, terms)
