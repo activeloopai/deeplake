@@ -6,3 +6,5 @@ mypy
 black
 darglint
 kaggle
+types-requests
+types-click
