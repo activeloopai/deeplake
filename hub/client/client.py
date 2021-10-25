@@ -1,7 +1,11 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
+from hub.util.exceptions import (
+    LoginException,
+    InvalidPasswordException,
+    UnagreedTermsOfAccessError,
+)
 from hub.util.terms_of_access import terms_of_access_prompt
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
@@ -184,7 +188,9 @@ class HubBackendClient:
         if unagreed_terms_of_access:
             agreed = terms_of_access_prompt(org_id, ds_name, unagreed_terms_of_access)
             if not agreed:
-                raise UnagreedTermsOfAccessError("Cannot get credentials unless the terms are agreed to.")
+                raise UnagreedTermsOfAccessError(
+                    "Cannot get credentials unless the terms are agreed to."
+                )
             self._agree_to_terms_of_access(org_id, ds_name)
             return self.get_dataset_credentials(org_id, ds_name, mode)
 
