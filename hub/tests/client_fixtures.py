@@ -22,7 +22,7 @@ def hub_cloud_dev_credentials(request):
 
     if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT):
         warn(
-            "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT."
+            "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT is not recommended."
         )
 
     username = os.getenv(ENV_HUB_DEV_USERNAME)
