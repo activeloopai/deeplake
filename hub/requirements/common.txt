@@ -12,4 +12,3 @@ tqdm
 pathos
 humbug>=0.2.6
 hub_shm; python_version < "3.8" and python_version >= "3.6"
-pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
