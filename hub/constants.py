@@ -94,3 +94,7 @@ VERSION_CONTROL_INFO_FILENAME = "version_control_info"
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
 
 TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
+
+
+# If True, and if the rest of the dataset is in color (3D), then reshape a grayscale image by appending a 1 to its shape.
+CONVERT_GRAYSCALE = True

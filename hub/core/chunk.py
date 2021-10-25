@@ -20,6 +20,7 @@ from hub.core.compression import (
     decompress_bytes,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
+from abc import abstractmethod
 
 
 class Chunk(Cachable):
@@ -308,3 +309,12 @@ class Chunk(Cachable):
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
+
+
+class BaseChunk(Cachable):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def append_sample(self, sample: bytes):
+        pass
