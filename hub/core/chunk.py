@@ -20,7 +20,6 @@ from hub.core.compression import (
     decompress_bytes,
 )
 from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
-from abc import abstractmethod
 
 
 class Chunk(Cachable):
