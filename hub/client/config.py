@@ -6,7 +6,7 @@ REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
 HUB_REST_ENDPOINT_DEV = "https://app.dev.activeloop.ai"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:5000"
-USE_LOCAL_HOST = True
+USE_LOCAL_HOST = False
 USE_DEV_ENVIRONMENT = False
 
 GET_TOKEN_SUFFIX = "/api/user/token"
@@ -17,7 +17,7 @@ DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
 LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
-ADD_TERMS_OF_ACCESS_SUFFIX = ("/api/org/{}/ds/{}/terms",)
+ADD_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms",
 RESPOND_TO_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms/agree"
 
 DEFAULT_REQUEST_TIMEOUT = 170
