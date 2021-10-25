@@ -12,6 +12,7 @@ from hub.client.config import (
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
+    RESPOND_TO_TERMS_OF_ACCESS_SUFFIX,
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
     LIST_DATASETS,
@@ -178,16 +179,14 @@ class HubBackendClient:
             params={"mode": mode},
         ).json()
 
+        # NOTE: this block is for terms of access response
         unagreed_terms_of_access = response.get("unagreed_terms_of_access")
         if unagreed_terms_of_access:
-
-            # TODO: generate backend OPT
             agreed = terms_of_access_prompt(org_id, ds_name, unagreed_terms_of_access)
-
             if not agreed:
                 raise UnagreedTermsOfAccessError("Cannot get credentials unless the terms are agreed to.")
-
-            print("was agreed")
+            self._agree_to_terms_of_access(org_id, ds_name)
+            return self.get_dataset_credentials(org_id, ds_name, mode)
 
         full_url = response.get("path")
         creds = response["creds"]
@@ -286,5 +285,9 @@ class HubBackendClient:
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
 
     def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
-        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        suffix = ADD_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
         self.request("POST", suffix, endpoint=self.endpoint(), json={"terms": [terms]})
+
+    def _agree_to_terms_of_access(self, username: str, dataset_name: str):
+        suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
+        self.request("POST", suffix, endpoint=self.endpoint())
