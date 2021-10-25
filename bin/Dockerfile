@@ -12,5 +12,5 @@ WORKDIR /app
 RUN pip install -r hub/requirements/plugins.txt && \
     pip install -r hub/requirements/tests.txt
 
-RUN pip3 install -e .
+RUN pip install -e .
 
