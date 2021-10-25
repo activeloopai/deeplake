@@ -248,7 +248,7 @@ class dataset:
         path: str,
         source: Union[str, Dataset],
         overwrite: bool = False,
-        creds: dict = None,
+        creds: Optional[dict] = None,
         token: Optional[str] = None,
     ) -> Dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
