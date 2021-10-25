@@ -1,4 +1,4 @@
-def terms_of_access_prompt(dataset_org: str, dataset_name: str, terms: str, code_length: int=6):
+def terms_of_access_prompt(dataset_org: str, dataset_name: str, terms: str):
     print()
     print()
     print("The owner of the dataset you are trying to access requires that you agree to the following terms first:")
