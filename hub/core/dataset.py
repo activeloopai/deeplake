@@ -483,11 +483,7 @@ class Dataset:
     def synchronize(self):
         """Iterates over dataset and synchronizes TensorMeta's min_shape and max_shape."""
 
-        tensor_set = set()
-        for idx, sub_ds in enumerate(self):
-            for tensor in range(len(self.meta.tensors)):
-                key, item = list(sub_ds.tensors.items())[tensor]
-                tensor_set.add(key)
+        tensor_set = self.meta.tensors
 
         for tensor in list(tensor_set):
             shapes = []

@@ -14,6 +14,7 @@ def assert_correct(ds):
     assert ds.x.shape_interval.upper == (1001, 11, 10)
     assert ds.y.shape_interval.lower == (101, 10, 10)
     assert ds.y.shape_interval.upper == (101, 11, 11)
+    assert ds.z.shape_interval.upper == (0,)
 
     np.testing.assert_array_equal(
         ds.x[0:1000].numpy(), np.ones((1000, 10, 10), dtype="int32")
@@ -28,11 +29,15 @@ def populate(ds):
     ds.create_tensor(
         "y", dtype="int32", sample_compression=None, max_chunk_size=100 * KB
     )
-    ds.y.extend(np.ones((100, 11, 11), dtype="int32"))
-    ds.y.append(np.ones((10, 10), dtype="int32"))
+    ds.create_tensor(
+        "z", dtype="int32", sample_compression=None, max_chunk_size=100 * KB
+    )
 
     ds.x.extend(np.ones((1000, 10, 10), dtype="int32"))
     ds.x.append(np.ones((11, 9), dtype="int32"))
+
+    ds.y.extend(np.ones((100, 11, 11), dtype="int32"))
+    ds.y.append(np.ones((10, 10), dtype="int32"))
     assert_correct(ds)
 
 
