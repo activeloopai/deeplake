@@ -28,7 +28,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         transform: Optional[Callable] = None,
         num_workers: int = 1,
         shuffle: bool = False,
-        buffer_size: Optional[int] = None,
+        buffer_size: int = 0,
     ) -> None:
         super().__init__()
 
@@ -53,7 +53,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         )
 
         self.shuffle: bool = shuffle
-        self.buffer_suze: Optional[int] = buffer_size
+        self.buffer_size: Optional[int] = buffer_size
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -69,8 +69,8 @@ class TorchDataset(torch.utils.data.IterableDataset):
             use_local_cache=self.use_local_cache,
         )
 
-        if self.shuffle and self.buffer_suze is not None:
-            streaming = BufferedStreaming(streaming, self.buffer_suze)
+        if self.shuffle and self.buffer_size > 0:
+            streaming = BufferedStreaming(streaming, self.buffer_size)
 
         stream = streaming.read(schedule)
 
