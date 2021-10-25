@@ -309,12 +309,3 @@ class Chunk(Cachable):
         chunk = cls(shapes, byte_positions, data=data)
         chunk.version = version
         return chunk
-
-
-class BaseChunk(Cachable):
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def append_sample(self, sample: bytes):
-        pass
