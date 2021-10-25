@@ -167,13 +167,20 @@ class HubBackendClient:
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """
+
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
+
         response = self.request(
             "GET",
             relative_url,
             endpoint=self.endpoint(),
             params={"mode": mode},
         ).json()
+
+        unagreed_terms_of_access = response.get("unagreed_terms_of_access")
+        if unagreed_terms_of_access:
+            raise NotImplementedError(unagreed_terms_of_access)
+
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -272,4 +279,4 @@ class HubBackendClient:
 
     def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
-        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms": terms})
+        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms": [terms]})
