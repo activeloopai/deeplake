@@ -28,7 +28,7 @@
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapidly transform and stream data while training models at scale. Hub is used Google, Waymo, Red Cross, Omdena, and Rarebase.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapidly transforming and streaming data while training models at scale. Hub is used Google, Waymo, Red Cross, Omdena, and Rarebase.
 
 
 Hub includes the following features:
@@ -111,8 +111,8 @@ import numpy as np
 
 with ds:
     for _ in range(1000):  # 1000 random images
-        radnom_image = np.random.randint(0, 256, (100, 100, 3))  # 100x100 image with 3 channels
-        ds.images.append(image)
+        random_image = np.random.randint(0, 256, (100, 100, 3))  # 100x100 image with 3 channels
+        ds.images.append(random_image)
 ```
 
 
