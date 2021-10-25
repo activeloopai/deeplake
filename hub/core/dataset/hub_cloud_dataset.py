@@ -94,5 +94,5 @@ class HubCloudDataset(Dataset):
     def add_terms_of_access(self, terms: str):
         """Users must agree to these terms before being able to access this dataset."""
 
-        self.check_credentials
+        self.check_credentials()
         self.client.add_terms_of_access(self.org_id, self.ds_name, terms)

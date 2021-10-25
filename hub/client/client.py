@@ -1,7 +1,8 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
+from hub.util.terms_of_access import terms_of_access_prompt
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -179,7 +180,14 @@ class HubBackendClient:
 
         unagreed_terms_of_access = response.get("unagreed_terms_of_access")
         if unagreed_terms_of_access:
-            raise NotImplementedError(unagreed_terms_of_access)
+
+            # TODO: generate backend OPT
+            agreed = terms_of_access_prompt(org_id, ds_name, unagreed_terms_of_access)
+
+            if not agreed:
+                raise UnagreedTermsOfAccessError("Cannot get credentials unless the terms are agreed to.")
+
+            print("was agreed")
 
         full_url = response.get("path")
         creds = response["creds"]

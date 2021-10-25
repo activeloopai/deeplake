@@ -604,3 +604,7 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class UnagreedTermsOfAccessError(Exception):
+    pass
