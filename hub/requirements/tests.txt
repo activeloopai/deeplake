@@ -3,7 +3,6 @@ pytest-cases
 pytest-benchmark
 pytest-cov
 mypy
-typing_extensions>=3.10.0.0
 black
 darglint
 kaggle
