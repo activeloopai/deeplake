@@ -22,7 +22,6 @@ class HubCloudDataset(Dataset):
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
 
-
     @property
     def client(self):
         if self._client is None:
@@ -43,7 +42,6 @@ class HubCloudDataset(Dataset):
         """
 
         self.client.get_dataset_credentials(self.org_id, self.ds_name)
-
 
     @property
     def token(self):
