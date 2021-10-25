@@ -5,11 +5,14 @@ from typing import Optional, Union
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
-from hub.core.dataset import Dataset
+
+from hub.core.dataset import Dataset, HubCloudDataset, get_dataset_instance
+
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists
+from hub.util.path import is_hub_cloud_path
 from hub.util.exceptions import (
     DatasetHandlerError,
     AutoCompressionError,
@@ -74,8 +77,8 @@ class dataset:
             storage.clear()
 
         read_only = storage.read_only
-        return Dataset(
-            storage=cache_chain, read_only=read_only, public=public, token=token
+        return get_dataset_instance(
+            path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
@@ -136,8 +139,8 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return Dataset(
-            storage=cache_chain, read_only=read_only, public=public, token=token
+        return get_dataset_instance(
+            path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
@@ -201,8 +204,8 @@ class dataset:
             storage.clear()
 
         read_only = storage.read_only
-        return Dataset(
-            storage=cache_chain, read_only=read_only, public=public, token=token
+        return get_dataset_instance(
+            path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
