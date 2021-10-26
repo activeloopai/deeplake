@@ -141,6 +141,8 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+    if not buffer:
+        return b""
     if compression == "lz4":
         if (
             buffer[:4] == b'\x04"M\x18'
