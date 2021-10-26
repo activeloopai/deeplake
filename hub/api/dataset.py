@@ -283,24 +283,6 @@ class dataset:
         if len(dest_ds.tensors) > 0:
             raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")
 
-        # for tensor_name in src_ds.version_state["meta"].tensors:
-        #     chunk_engine = src_ds[tensor_name].chunk_engine
-        #     n_samples = chunk_engine.num_samples
-        #     names = chunk_engine.get_chunk_names_for_multiple_indexes(
-        #         0, n_samples, n_samples
-        #     )
-        #     chunk_id_encoder_key = get_chunk_id_encoder_key(
-        #         tensor_name, src_ds.version_state["commit_id"]
-        #     )
-        #     keys = [
-        #         get_chunk_key(tensor_name, name, src_ds.version_state["commit_id"])
-        #         for name in names
-        #     ]
-        #     keys.append(chunk_id_encoder_key)
-        #     for key in keys:
-        #         dest_ds.storage[key] = src_ds.storage[key].tobytes()
-        #     dest_ds.copy_tensor(tensor_name, src_ds[tensor_name])
-
         keys = src_ds.storage.keys()
         for key in keys:
             if isinstance(src_ds.storage[key], Cachable):

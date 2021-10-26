@@ -610,6 +610,40 @@ def test_like(local_path):
     assert len(dest_ds) == 0
 
 
+def test_copy(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+    src_ds.info.update(key=0)
+
+    src_ds.create_tensor("a", htype="image", sample_compression="png")
+    src_ds.create_tensor("b", htype="class_label")
+    src_ds.create_tensor("c")
+    src_ds.create_tensor("d", dtype=bool)
+
+    src_ds.d.info.update(key=1)
+
+    src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+    src_ds["b"].append(0)
+
+    dest_ds = hub.copy(src_ds, dest_path)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
         ds = hub.dataset("test")
