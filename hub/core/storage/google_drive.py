@@ -12,19 +12,22 @@ CREDS_FILE = ".gdrive_creds"
 
 
 class GoogleDriveIDManager:
+    """Class used to make google drive path to id maps"""
+
     def __init__(self, drive: GoogleDrive, root: str):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
         self.root_path = root
-        self.root_id = self.find_id(root)
+        self.root_id = self._find_id(root)
         self.makemap(self.root_id, self.root_path)
 
-    def find_id(self, path):
+    def _find_id(self, path):
+        """Find google drive id given path of folder"""
         dirname, basename = posixpath.split(path)
         try:
             file_list = self.drive.ListFile(
                 {
-                    "q": f"""'{self.find_id(dirname) if dirname else 'root'}' in parents and 
+                    "q": f"""'{self._find_id(dirname) if dirname else 'root'}' in parents and 
                     title = '{basename}' and 
                     trashed = false and 
                     mimeType = 'application/vnd.google-apps.folder'"""
@@ -40,7 +43,7 @@ class GoogleDriveIDManager:
         return id
 
     def makemap(self, root_id, root_path):
-        """Make mapping from google drive paths to ids"""
+        """Make mapping from google drive paths to ids for all files and folders under root"""
         try:
             file_list = self.drive.ListFile(
                 {"q": f"'{root_id}' in parents and trashed = false"}
