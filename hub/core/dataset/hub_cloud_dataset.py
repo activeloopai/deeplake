@@ -3,6 +3,7 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import is_hub_cloud_path
+from hub.util.keys import dataset_exists
 
 from warnings import warn
 
@@ -57,7 +58,7 @@ class HubCloudDataset(Dataset):
     def _populate_meta(self):
         super()._populate_meta()
 
-        if self.storage.empty():
+        if not dataset_exists(self.path):
             self.client.create_dataset_entry(
                 self.org_id,
                 self.ds_name,
