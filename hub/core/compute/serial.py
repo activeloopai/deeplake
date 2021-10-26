@@ -6,7 +6,7 @@ class SerialProvider(ComputeProvider):
         pass
 
     def map(self, func, iterable):
-        return map(func, iterable)
+        return list(map(func, iterable))
 
     def close(self):
         return

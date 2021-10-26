@@ -36,7 +36,7 @@ def test_client_workspace_organizations(hub_cloud_dev_credentials):
     runner = CliRunner()
     runner.invoke(login, f"-u {username} -p {password}")
     hub_client = HubBackendClient()
-    assert "testingacc" in hub_client.get_user_organizations()
+    assert username in hub_client.get_user_organizations()
     assert "public" in hub_client.get_user_organizations()
 
     datasets = subprocess.check_output(
