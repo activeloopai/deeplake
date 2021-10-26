@@ -339,6 +339,7 @@ def serialize_input_samples(
         raise ValueError("Dtype must be set before input samples can be serialized.")
 
     sample_compression = meta.sample_compression
+    chunk_compression = meta.chunk_compression
     dtype = meta.dtype
     htype = meta.htype
 
@@ -347,8 +348,10 @@ def serialize_input_samples(
         nbytes = []
         shapes = []
         expected_dim = len(meta.max_shape)
-        is_convert_candidate = (htype == "image") or (
-            sample_compression in IMAGE_COMPRESSIONS
+        is_convert_candidate = (
+            (htype == "image")
+            or sample_compression in IMAGE_COMPRESSIONS
+            or chunk_compression in IMAGE_COMPRESSIONS
         )
 
         for sample in samples:
@@ -357,14 +360,14 @@ def serialize_input_samples(
             )
             if (
                 isinstance(sample, Sample)
-                and sample._convert_grayscale
                 and is_convert_candidate
+                and hub.constants.CONVERT_GRAYSCALE
             ):
                 if not expected_dim:
                     expected_dim = len(shape)
                 if len(shape) == 2 and expected_dim == 3:
                     warnings.warn(
-                        f"Reshaping grayscale image with shape {shape} to {shape + (1,)} to match tensor dimension."
+                        f"Grayscale images will be reshaped from (H, W) to (H, W, 1) to match tensor dimensions. This warning will be shown only once."
                     )
                     shape += (1,)  # type: ignore[assignment]
             buff += byts

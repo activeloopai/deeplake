@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 
@@ -69,11 +70,25 @@ PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
 )
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = f"hub://{HUB_CLOUD_DEV_USERNAME}/"
 
+
 # environment variables
+ENV_HUB_DEV_USERNAME = "ACTIVELOOP_HUB_USERNAME"
 ENV_HUB_DEV_PASSWORD = "ACTIVELOOP_HUB_PASSWORD"
 ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
 ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
+
+HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)
+HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
+
+# dataset base roots for pytests
+PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
+PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
+PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
+PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
+PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
+    None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"
+)
 
 # pytest options
 MEMORY_OPT = "--memory-skip"
@@ -97,3 +112,9 @@ VERSION_CONTROL_INFO_FILENAME = "version_control_info"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
+
+TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
+
+
+# If True, and if the rest of the dataset is in color (3D), then reshape a grayscale image by appending a 1 to its shape.
+CONVERT_GRAYSCALE = True
