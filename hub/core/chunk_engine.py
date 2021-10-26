@@ -285,11 +285,9 @@ class ChunkEngine:
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
         chunk = self.last_chunk
-        new_chunk = lambda: self._create_new_chunk(return_key=True)
+        new_chunk = self._create_new_chunk
         if chunk is None:
-            chunk, chunk_key = new_chunk()
-        else:
-            chunk_key = self.last_chunk_key
+            chunk = new_chunk()
 
         updated_chunks = {}
 
@@ -323,7 +321,7 @@ class ChunkEngine:
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
-            updated_chunks[chunk_key] = chunk
+            updated_chunks[chunk.key] = chunk
             enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
@@ -334,7 +332,7 @@ class ChunkEngine:
             del shapes[:num_samples_to_current_chunk]
 
             if buffer:
-                chunk, chunk_key = new_chunk()
+                chunk = new_chunk()
         for key, chunk in updated_chunks.items():
             self.cache[key] = chunk
 
@@ -393,7 +391,7 @@ class ChunkEngine:
                 self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
-        return self.last_chunk_key, self.last_chunk
+        return self.last_chunk
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         """Whether last chunk's data can be set to a buffer of size nbytes."""
@@ -488,7 +486,7 @@ class ChunkEngine:
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
 
-    def _create_new_chunk(self, return_key=False):
+    def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
@@ -498,8 +496,7 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
-        if return_key:
-            return chunk, chunk_key
+        chunk.key = chunk_key
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -523,8 +520,8 @@ class ChunkEngine:
         if tensor_meta.chunk_compression:
             updated_chunks = {}
             for nb, shape in zip(nbytes, shapes):
-                key, chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
-                updated_chunks[key] = chunk
+                chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                updated_chunks[chunk.key] = chunk
                 buff = buff[nb:]
             for key, chunk in updated_chunks.items():
                 self.cache[key] = chunk
