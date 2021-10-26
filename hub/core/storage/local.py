@@ -4,7 +4,6 @@ from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
-from numpy.core.numeric import full
 
 
 class LocalProvider(StorageProvider):
