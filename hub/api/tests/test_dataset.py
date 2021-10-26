@@ -65,3 +65,14 @@ def test_update_privacy(hub_cloud_ds):
     assert not hub_cloud_ds.public
     with pytest.raises(hub.util.exceptions.AuthorizationException):
         hub.load(hub_cloud_ds.path)
+
+
+def test_dataset_exists():
+    with CliRunner().isolated_filesystem():
+        path = "test_dataset_exists"
+
+        assert hub.exits(path) is False
+
+        ds = hub.empty(path)
+
+        assert hub.exists(path) is True

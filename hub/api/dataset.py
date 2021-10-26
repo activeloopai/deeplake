@@ -166,6 +166,9 @@ class dataset:
         Returns:
             Boolean to indicate if dataset exists.
         """
+        if creds is None:
+            creds = {}
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=False,
