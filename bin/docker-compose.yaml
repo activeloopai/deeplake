@@ -1,0 +1,29 @@
+version: '2'
+x-creds: &global-vars
+  environment:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_DEFAULT_REGION
+    - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/gcs.json
+    - ACTIVELOOP_HUB_PASSWORD
+
+services:
+  local:
+    build:
+      context: ../.
+      dockerfile: ./bin/Dockerfile.dev
+    volumes:
+      - ../:/app
+    command: >
+      bash -c "python3 -m pytest -x --local"
+
+  complete:
+    build:
+      context: ../.
+      dockerfile: ./bin/Dockerfile.dev
+    <<: *global-vars
+    volumes:
+      - ~/.config/gcloud/gcs.json:/root/.config/gcloud/gcs.json
+      - ../:/app
+    command: >
+      bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ignore-glob=buH/*"

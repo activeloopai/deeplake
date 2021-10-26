@@ -1,3 +1,4 @@
+from botocore.config import Config
 import numpy as np
 
 __pdoc__ = {
@@ -6,6 +7,7 @@ __pdoc__ = {
     "cli": False,
     "client": False,
     "constants": False,
+    "config": False,
     "integrations": False,
     "tests": False,
     "Dataset.clear_cache": False,
@@ -16,7 +18,6 @@ __pdoc__ = {
     "Dataset.token": False,
     "Dataset.num_samples": False,
 }
-
 from .api.dataset import dataset
 from .api.read import read
 from .core.dataset import Dataset
@@ -32,8 +33,12 @@ list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+<<<<<<< HEAD
 copy = dataset.copy
 list = dataset.list
+=======
+delete = dataset.delete
+>>>>>>> c1f908e6ca0ec77ee37a772a97dab99b331da9ba
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
@@ -55,10 +60,13 @@ __all__ = [
     "ingest_kaggle",
     "compressions",
     "htypes",
+    "config",
 ]
 
 __version__ = "2.0.15"
 __encoded_version__ = np.array(__version__)
+config = {"s3": Config(max_pool_connections=50)}
+
 
 hub_reporter.tags.append(f"version:{__version__}")
 hub_reporter.system_report(publish=True)
