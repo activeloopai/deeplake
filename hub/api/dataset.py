@@ -13,12 +13,10 @@ from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import cachable
 from hub.core.storage.cachable import Cachable
 from hub.util.auto import get_most_common_extension
-from hub.util.version_control import load_meta
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
     DatasetHandlerError,
-    AutoCompressionError,
     InvalidFileExtension,
     InvalidPathException,
     SamePathException,
