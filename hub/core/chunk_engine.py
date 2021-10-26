@@ -281,7 +281,7 @@ class ChunkEngine:
         buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
-    ):
+    ) -> List[Chunk]:
         """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
             raise NotImplementedError(
@@ -292,7 +292,7 @@ class ChunkEngine:
         if chunk is None:
             chunk = new_chunk()
 
-        updated_chunks = {}
+        updated_chunks = set()
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
@@ -324,7 +324,7 @@ class ChunkEngine:
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
-            updated_chunks[chunk.key] = chunk
+            updated_chunks.add(chunk)
             enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
@@ -336,8 +336,7 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
-        for key, chunk in updated_chunks.items():
-            self.cache[key] = chunk
+        return updated_chunks
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -521,16 +520,17 @@ class ChunkEngine:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
         if tensor_meta.chunk_compression:
-            updated_chunks = {}
+            updated_chunks = set()
             for nb, shape in zip(nbytes, shapes):
                 chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
-                updated_chunks[chunk.key] = chunk
+                updated_chunks.add(chunk)
                 buff = buff[nb:]
-            for key, chunk in updated_chunks.items():
-                self.cache[key] = chunk
+                updated_chunks.add(chunk)
         else:
-            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
-        self._synchronize_cache()
+            updated_chunks = self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
