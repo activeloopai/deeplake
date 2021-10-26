@@ -16,6 +16,7 @@ from hub.client.config import (
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
+    GET_DATASET_SUFFIX,
     RESPOND_TO_TERMS_OF_ACCESS_SUFFIX,
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
@@ -158,6 +159,17 @@ class HubBackendClient:
 
         json = {"username": username, "email": email, "password": password}
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
+
+    def is_dataset_registered(self, org_id: str, ds_name: str) -> bool:
+        suffix = GET_DATASET_SUFFIX.format(ds_name)
+
+        try:
+            self.request("GET", suffix)
+            return True
+        except:
+            pass
+        return False
+
 
     def get_dataset_credentials(
         self, org_id: str, ds_name: str, mode: Optional[str] = None

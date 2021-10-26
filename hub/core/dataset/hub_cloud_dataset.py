@@ -1,7 +1,7 @@
-from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
+from hub.client.utils import get_user_name
 from hub.util.path import is_hub_cloud_path
 
 from warnings import warn
@@ -16,11 +16,13 @@ class HubCloudDataset(Dataset):
 
         super().__init__(*args, **kwargs)
 
+        self._register_dataset()
         # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
         if not self.is_actually_cloud:
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
+
 
     @property
     def client(self):
@@ -58,20 +60,25 @@ class HubCloudDataset(Dataset):
             # if this dataset isn't actually pointing to a datset in the cloud
             # a.k.a this dataset is trying to simulate a hub cloud dataset
             # it's safe to assume they want to use the dev org
-            self.org_id = HUB_CLOUD_DEV_USERNAME
+            self.org_id = get_user_name()
             self.ds_name = self.path.replace("/", "_").replace(".", "")
 
-    def _populate_meta(self):
-        super()._populate_meta()
 
-        self.check_credentials()
-        if self.storage.empty():
+    def _is_registered(self) -> bool:
+        return self.client.is_dataset_registered(self.org_id, self.ds_name)
+
+    def _register_dataset(self):
+        if self._is_registered():
+            self.check_credentials()
+
+        else:
             self.client.create_dataset_entry(
                 self.org_id,
                 self.ds_name,
                 self.version_state["meta"].__getstate__(),
                 public=self.public,
             )
+
 
     def make_public(self):
         if not self.public:

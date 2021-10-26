@@ -11,13 +11,14 @@ USE_DEV_ENVIRONMENT = False
 
 GET_TOKEN_SUFFIX = "/api/user/token"
 REGISTER_USER_SUFFIX = "/api/user/register"
+GET_DATASET_SUFFIX = "/api/dataset/get?tag={}"
 GET_DATASET_CREDENTIALS_SUFFIX = "/api/org/{}/ds/{}/creds"
 CREATE_DATASET_SUFFIX = "/api/dataset/create"
 DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
 LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
-ADD_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms",
+ADD_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms"
 RESPOND_TO_TERMS_OF_ACCESS_SUFFIX = "/api/org/{}/ds/{}/terms/agree"
 
 DEFAULT_REQUEST_TIMEOUT = 170
