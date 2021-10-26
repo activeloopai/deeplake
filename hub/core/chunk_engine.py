@@ -231,7 +231,7 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        chunk.key = chunk_key
+        chunk.key = chunk_key  # type: ignore
         return chunk
 
     def get_chunk(self, chunk_key: str) -> Chunk:
@@ -336,7 +336,7 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
-        return updated_chunks
+        return updated_chunks  # type: ignore
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -372,7 +372,7 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]) -> Tuple[str, Chunk]:
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]) -> Chunk:
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
