@@ -244,7 +244,7 @@ def decompress_array(
         try:
             decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
-        except Exception as e:
+        except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
