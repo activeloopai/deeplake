@@ -6,15 +6,18 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 
-from hub.core.dataset import Dataset, HubCloudDataset, get_dataset_instance
+from hub.core.dataset import Dataset, get_dataset_instance
 
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import cachable
 from hub.core.storage.cachable import Cachable
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
-from hub.util.keys import dataset_exists
+from hub.util.keys import dataset_exists, get_dataset_meta_key
 from hub.util.exceptions import (
     DatasetHandlerError,
     InvalidFileExtension,
@@ -22,6 +25,7 @@ from hub.util.exceptions import (
     SamePathException,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.core.fast_forwarding import ffw_dataset_meta
 
 
 class dataset:
@@ -287,8 +291,14 @@ class dataset:
 
         dest_ds.info.update(src_ds.info.__getstate__())
 
-        for tensor_name in src_ds.version_state["meta"].tensors:
-            dest_ds.copy_tensor(tensor_name, src_ds[tensor_name])
+        for key in dest_ds.version_state:
+            if key not in ("meta", "full_tensors"):
+                dest_ds.version_state[key] = src_ds.version_state[key]
+
+        meta_key = get_dataset_meta_key(dest_ds.version_state["commit_id"])
+        meta = dest_ds.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        dest_ds.version_state["meta"] = meta
 
         return dest_ds
 
