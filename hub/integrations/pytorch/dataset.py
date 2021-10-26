@@ -191,8 +191,8 @@ class PrefetchConcurrentIterator(Iterable):
         self.buffer_size = dataset.buffer_size
 
         self.workers: List[Process] = []
-        self.request_queues = [Queue() for _ in range(self.num_workers)]
-        self.data_queues = [Queue() for _ in range(self.num_workers)]
+        self.request_queues: List[Queue] = [Queue() for _ in range(self.num_workers)]
+        self.data_queues: List[Queue] = [Queue() for _ in range(self.num_workers)]
         self.queue_size = [0 for _ in range(self.num_workers)]
         self.active_workers = [False for _ in range(self.num_workers)]
         self.workers_done = mp.Event()
