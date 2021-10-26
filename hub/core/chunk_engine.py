@@ -284,11 +284,14 @@ class ChunkEngine:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
-        num_samples = len(nbytes)
         chunk = self.last_chunk
-        new_chunk = self._create_new_chunk
+        new_chunk = lambda: self._create_new_chunk(return_key=True)
         if chunk is None:
-            chunk = new_chunk()
+            chunk, chunk_key = new_chunk()
+        else:
+            chunk_key = self.last_chunk_key
+
+        updated_chunks = {}
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
@@ -320,6 +323,7 @@ class ChunkEngine:
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
+            updated_chunks[chunk_key] = chunk
             enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
@@ -330,7 +334,9 @@ class ChunkEngine:
             del shapes[:num_samples_to_current_chunk]
 
             if buffer:
-                chunk = new_chunk()
+                chunk, chunk_key = new_chunk()
+        for key, chunk in updated_chunks.items():
+            self.cache[key] = chunk
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -366,7 +372,7 @@ class ChunkEngine:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]) -> Tuple[str, Chunk]:
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -387,6 +393,7 @@ class ChunkEngine:
                 self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
+        return self.last_chunk_key, self.last_chunk
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         """Whether last chunk's data can be set to a buffer of size nbytes."""
@@ -481,7 +488,7 @@ class ChunkEngine:
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
 
-    def _create_new_chunk(self):
+    def _create_new_chunk(self, return_key=False):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
@@ -491,6 +498,8 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
+        if return_key:
+            return chunk, chunk_key
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -512,9 +521,13 @@ class ChunkEngine:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
         if tensor_meta.chunk_compression:
+            updated_chunks = {}
             for nb, shape in zip(nbytes, shapes):
-                self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                key, chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                updated_chunks[key] = chunk
                 buff = buff[nb:]
+            for key, chunk in updated_chunks.items():
+                self.cache[key] = chunk
         else:
             self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
         self._synchronize_cache()
