@@ -279,17 +279,17 @@ class dataset:
         if isinstance(dest, str):
             dest_ds = dataset.empty(dest)
 
-        if len(dest_ds.tensors) > 0:
-            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")
+        if len(dest_ds.tensors) > 0:  # type: ignore
+            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")  # type: ignore
 
-        keys = src_ds.storage.keys()
+        keys = src_ds.storage.keys()  # type: ignore
         for key in keys:
-            if isinstance(src_ds.storage[key], Cachable):
+            if isinstance(src_ds.storage[key], Cachable):  # type: ignore
                 dest_ds.storage[key] = src_ds.storage[key].tobytes()
             else:
                 dest_ds.storage[key] = src_ds.storage[key]
 
-        dest_ds.info.update(src_ds.info.__getstate__())
+        dest_ds.info.update(src_ds.info.__getstate__())  # type: ignore
 
         for key in dest_ds.version_state:
             if key not in ("meta", "full_tensors"):
