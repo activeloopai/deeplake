@@ -65,7 +65,6 @@ class HubCloudDataset(Dataset):
         super()._populate_meta()
 
         self.check_credentials()
-
         if self.storage.empty():
             self.client.create_dataset_entry(
                 self.org_id,
