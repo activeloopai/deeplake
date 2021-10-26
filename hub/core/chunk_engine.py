@@ -231,10 +231,13 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        chunk.key = chunk_key
         return chunk
 
     def get_chunk(self, chunk_key: str) -> Chunk:
-        return self.cache.get_cachable(chunk_key, Chunk)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
+        return chunk
 
     def get_chunk_commit(self, chunk_name) -> str:
         """Returns the commit id that contains the chunk_name."""
