@@ -1,12 +1,13 @@
 import json
 from hub.tests.path_fixtures import gcs_creds
+from hub.tests.common import is_opt_true
 from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
 from hub.core.storage.gcs import GCloudCredentials
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
 import os
 import pytest
-from hub.constants import MB
+from hub.constants import MB, GCS_OPT
 import pickle
 
 
@@ -139,7 +140,11 @@ def test_pickling(storage):
     assert unpickled_storage[FILE_1] == b"hello world"
 
 
-def test_gcs_tokens():
+@pytest.fixture
+def test_gcs_tokens(request):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
     gcreds = GCloudCredentials()
     assert gcreds.credentials
     token_path = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]

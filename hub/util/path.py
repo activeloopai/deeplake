@@ -5,6 +5,10 @@ import glob
 import os
 
 
+def is_hub_cloud_path(path: str):
+    return path.startswith("hub://")
+
+
 def get_path_from_storage(storage):
     """Extracts the underlying path from a given storage."""
     if isinstance(storage, LRUCache):
