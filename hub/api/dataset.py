@@ -294,22 +294,23 @@ class dataset:
 
     @staticmethod
     def copy(src: Union[str, Dataset], dest: Union[str, Dataset]):
-        src_ds = dataset.load(src) if isinstance(src, str) else src
-        dest_ds = dest
+        src_ds: Dataset = dataset.load(src) if isinstance(src, str) else src
+
         if isinstance(dest, str):
-            dest_ds = dataset.empty(dest)
+            dest = dataset.empty(dest)
+        dest_ds: Dataset = dest
 
-        if len(dest_ds.tensors) > 0:  # type: ignore
-            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")  # type: ignore
+        if len(dest_ds.tensors) > 0:
+            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")
 
-        keys = src_ds.storage.keys()  # type: ignore
+        keys = src_ds.storage.keys()
         for key in keys:
-            if isinstance(src_ds.storage[key], Cachable):  # type: ignore
+            if isinstance(src_ds.storage[key], Cachable):
                 dest_ds.storage[key] = src_ds.storage[key].tobytes()
             else:
                 dest_ds.storage[key] = src_ds.storage[key]
 
-        dest_ds.info.update(src_ds.info.__getstate__())  # type: ignore
+        dest_ds.info.update(src_ds.info.__getstate__())
 
         for key in dest_ds.version_state:
             if key not in ("meta", "full_tensors"):
