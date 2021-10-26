@@ -1,60 +1,55 @@
-import hub
-from tqdm import tqdm  # type: ignore
 import pickle
-import warnings
 import posixpath
-import numpy as np
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Optional,
-    Union,
-    Tuple,
-    List,
-    Sequence,
-)
+import warnings
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+import hub
+import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
-from hub.client.client import HubBackendClient
 from hub.constants import FIRST_COMMIT_ID
-from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
-from hub.integrations import dataset_to_tensorflow
-
+from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock, unlock
-from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import S3Provider, LRUCache
-from hub.core.tensor import create_tensor, Tensor
+from hub.core.storage import LRUCache, S3Provider
+from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 
 from hub.util.keys import (
     dataset_exists,
-    get_chunk_id_encoder_key,
     get_dataset_info_key,
     get_dataset_meta_key,
     get_tensor_meta_key,
     get_version_control_info_key,
     tensor_exists,
 )
+from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
+    InvalidTensorGroupNameError,
+    InvalidTensorNameError,
+    LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
     TensorAlreadyExistsError,
-    TensorGroupAlreadyExistsError,
     TensorDoesNotExistError,
-    InvalidTensorNameError,
-    InvalidTensorGroupNameError,
-    LockedException,
+    TensorGroupAlreadyExistsError,
 )
-from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from hub.util.keys import (
+    dataset_exists,
+    get_dataset_info_key,
+    get_dataset_meta_key,
+    get_version_control_info_key,
+    tensor_exists,
+)
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
+from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from tqdm import tqdm  # type: ignore
 
 
 class Dataset:
@@ -189,7 +184,7 @@ class Dataset:
             if tensor is not None:
                 return tensor[self.index]
             elif self._has_group_in_root(fullpath):
-                return Dataset(
+                return self.__class__(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -204,7 +199,7 @@ class Dataset:
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(
+            return self.__class__(
                 storage=self.storage,
                 index=self.index[item],
                 group_index=self.group_index,
@@ -473,13 +468,6 @@ class Dataset:
             self.version_state["meta"] = DatasetMeta()
             self.storage[meta_key] = self.version_state["meta"]
             self.flush()
-            if self.path.startswith("hub://"):
-                self.client.create_dataset_entry(
-                    self.org_id,
-                    self.ds_name,
-                    self.version_state["meta"].__getstate__(),
-                    public=self.public,
-                )
 
     @property
     def read_only(self):
@@ -492,16 +480,6 @@ class Dataset:
         else:
             self.storage.disable_readonly()
         self._read_only = value
-
-    def make_public(self):
-        if not self.public:
-            self.client.update_privacy(self.org_id, self.ds_name, public=True)
-            self.public = True
-
-    def make_private(self):
-        if self.public:
-            self.client.update_privacy(self.org_id, self.ds_name, public=False)
-            self.public = False
 
     @hub_reporter.record_call
     def pytorch(
@@ -574,12 +552,9 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
+
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
-        if self.path.startswith("hub://"):
-            split_path = self.path.split("/")
-            self.org_id, self.ds_name = split_path[2], split_path[3]
-            self.client = HubBackendClient(token=self._token)
 
         if not self.version_state:
             self._load_version_info()
@@ -635,6 +610,7 @@ class Dataset:
         Args:
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
+
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -642,11 +618,9 @@ class Dataset:
                     f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
                 )
                 return
+
         unlock(self.storage)
         self.storage.clear()
-        if self.path.startswith("hub://"):
-            self.client.delete_dataset_entry(self.org_id, self.ds_name)
-            logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     def __str__(self):
         path_str = ""
@@ -691,8 +665,7 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-        if self._token is None and self.path.startswith("hub://"):
-            self._token = self.client.get_token()
+
         return self._token
 
     @property
@@ -764,7 +737,7 @@ class Dataset:
         if self._is_root():
             return None
         autoflush = self.storage.autoflush
-        ds = Dataset(
+        ds = self.__class__(
             self.storage,
             self.index,
             posixpath.dirname(self.group_index),
@@ -781,7 +754,7 @@ class Dataset:
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
-        ds = Dataset(
+        ds = self.__class__(
             self.storage,
             self.index,
             "",
