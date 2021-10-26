@@ -2,7 +2,7 @@ import pytest
 import hub
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
-WARNING_STR = "Reshaping grayscale image"
+WARNING_STR = "Grayscale images will be reshaped"
 
 
 @pytest.fixture(params=["jpeg"])
@@ -82,19 +82,6 @@ def test_append_grayscale_second_generic_ds_unspecified_comp(
     ds = local_ds_generator()
     _, gray, color = hub_read_images
     make_tensor_and_append(ds, "generic", "unspecified", [color, gray])
-
-
-@pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
-def test_append_grayscale_second_convert_false(
-    local_ds_generator, grayscale_image_paths, color_image_paths
-):
-    "Append setting convert_grayscale=False."
-    ds = local_ds_generator()
-    gray_path = grayscale_image_paths["jpeg"]
-    color_path = color_image_paths["jpeg"]
-    gray = hub.read(gray_path, convert_grayscale=False)
-    color = hub.read(color_path, convert_grayscale=False)
-    make_tensor_and_append(ds, "image", "jpeg", [color, gray])
 
 
 def test_append_two_grayscale(local_ds_generator, hub_read_images):
