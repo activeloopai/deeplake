@@ -148,8 +148,6 @@ class dataset:
     def load(
         path: str,
         read_only: bool = False,
-        overwrite: bool = False,
-        public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -157,9 +155,6 @@ class dataset:
         verbose: bool = True,
     ) -> Dataset:
         """Loads an existing dataset
-
-        Important:
-            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
             path (str): The full path to the dataset. Can be:-
@@ -169,8 +164,6 @@ class dataset:
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
-            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
@@ -188,7 +181,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "load", {"Overwrite": overwrite})
+        feature_report_path(path, "load", {})
 
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
@@ -203,12 +196,10 @@ class dataset:
             raise DatasetHandlerError(
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
-        if overwrite:
-            storage.clear()
 
         read_only = storage.read_only
         return get_dataset_instance(
-            path, storage=cache_chain, read_only=read_only, public=public, token=token
+            path, storage=cache_chain, read_only=read_only, token=token
         )
 
     @staticmethod
