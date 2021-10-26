@@ -33,12 +33,9 @@ list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
-<<<<<<< HEAD
 copy = dataset.copy
 list = dataset.list
-=======
 delete = dataset.delete
->>>>>>> c1f908e6ca0ec77ee37a772a97dab99b331da9ba
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
