@@ -49,7 +49,6 @@ class Sample:
 
         self._compressed_bytes = {}
         self._uncompressed_bytes = None
-        self._convert_grayscale = False
 
         self._array = None
         self._typestr = None
