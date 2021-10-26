@@ -303,8 +303,8 @@ class HubBackendClient:
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
 
     def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
-        suffix = ADD_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
-        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms": [terms]})
+        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms})
 
     def _agree_to_terms_of_access(self, username: str, dataset_name: str):
         suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)

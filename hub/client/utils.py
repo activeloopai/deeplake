@@ -68,7 +68,8 @@ def check_response_status(response: requests.Response):
     elif response.status_code == 401:
         raise AuthenticationException
     elif response.status_code == 403:
-        raise AuthorizationException(message)
+        if "unagreed_terms_of_access" not in response.json():
+            raise AuthorizationException(message)
     elif response.status_code == 404:
         if message != " ":
             raise ResourceNotFoundException(message)
