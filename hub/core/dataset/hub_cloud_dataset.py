@@ -57,12 +57,13 @@ class HubCloudDataset(Dataset):
     def _populate_meta(self):
         super()._populate_meta()
 
-        self.client.create_dataset_entry(
-            self.org_id,
-            self.ds_name,
-            self.version_state["meta"].__getstate__(),
-            public=self.public,
-        )
+        if self.storage.empty():
+            self.client.create_dataset_entry(
+                self.org_id,
+                self.ds_name,
+                self.version_state["meta"].__getstate__(),
+                public=self.public,
+            )
 
     def make_public(self):
         if not self.public:
