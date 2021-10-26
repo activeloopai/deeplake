@@ -343,3 +343,21 @@ def test_pbar_description():
         get_pbar_description([fn1(), fn1(), read_image()])
         == "Evaluating [fn1, fn1, read_image]"
     )
+
+
+def test_bad_transform(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.create_tensor("y")
+    with ds:
+        ds.x.extend(np.random.rand(10, 1))
+        ds.y.extend(np.random.rand(10, 1))
+    ds2 = hub.like("mem://dummy2", ds)
+
+    @hub.compute
+    def fn_filter(sample_in, sample_out):
+        sample_out.y.append(sample_in.y.numpy())
+        return sample_out
+
+    with pytest.raises(TransformError):
+        fn_filter().eval(ds, ds2, progressbar=True)
