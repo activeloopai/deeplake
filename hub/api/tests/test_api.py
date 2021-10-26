@@ -773,3 +773,17 @@ def test_vc_bug(local_ds_generator):
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
     assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
+
+
+def test_persistence_bug(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+
+    ds = local_ds_generator()
+    with ds:
+        ds.abc.append(2)
+
+    ds = local_ds_generator()
+    ds.abc.numpy()
