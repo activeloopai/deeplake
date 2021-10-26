@@ -124,9 +124,11 @@ def _worker_loop(
                         break
                 except KeyboardInterrupt:
                     pass
-                except Exception as e:
+                except Exception:
                     # propagate exception back to parent
-                    data_queue.put(_StopIteration(ExceptionWrapper(e)))
+                    data_queue.put(
+                        _StopIteration(ExceptionWrapper(where="shuffle worker thread"))
+                    )
                     is_running = False
                     break
 
