@@ -8,7 +8,7 @@ from hub.util.path import is_hub_cloud_path
 FORCE_CLASS = None
 
 
-def dataset_factory(path, *args, **kwargs) -> Dataset:
+def dataset_factory(path, *args, **kwargs):
     """Returns a Dataset object from the appropriate class. For example: If `path` is a hub
     cloud path (prefixed with `hub://`), the returned Dataset object will be of HubCloudDataset.
     """
