@@ -132,7 +132,6 @@ class SampleStreaming(Streaming):
     def __init__(
         self,
         dataset,
-        scheduler: Scheduler = SingleThreadScheduler(),
         tensors: Optional[Sequence[str]] = None,
         use_local_cache: bool = False,
     ) -> None:
@@ -154,12 +153,12 @@ class SampleStreaming(Streaming):
             dataset=dataset, tensor_keys=tensors
         )
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
+
         self.local_caches: Optional[CachesMap] = (
-            {tensor: self._use_cache(self.local_storage) for tensor in self.tensors}
-            if self.local_storage
+            ({tensor: self._use_cache(self.local_storage) for tensor in self.tensors})
+            if self.local_storage is not None
             else None
         )
-        self.scheduler: Scheduler = scheduler
 
     def read(self, schedule: Schedule) -> Iterator:
         for block in schedule._blocks:
@@ -179,7 +178,8 @@ class SampleStreaming(Streaming):
 
                     if self.local_caches is not None:
                         local_cache = self.local_caches[key]
-                        if c_key in self.local_caches:
+
+                        if c_key in local_cache:
                             chunk = local_cache.get_cachable(c_key, Chunk)
                         else:
                             chunk = engine.get_chunk(c_key)

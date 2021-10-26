@@ -19,6 +19,7 @@ def dataset_to_pytorch(
 
     import torch
     from hub.integrations.pytorch.dataset import TorchDataset
+    from hub.integrations.pytorch.dataset import ShufflingIterableDataset
 
     try_flushing(dataset)
 
@@ -27,19 +28,38 @@ def dataset_to_pytorch(
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
 
-    return torch.utils.data.DataLoader(
-        TorchDataset(
-            dataset,
-            tensors=tensors,
-            use_local_cache=use_local_cache,
-            transform=transform,
+    if shuffle and num_workers > 0:
+        return torch.utils.data.DataLoader(
+            # this data set is more efficient also shuffles
+            # using threads race conditions as source of entropy
+            ShufflingIterableDataset(
+                dataset,
+                tensors=tensors,
+                use_local_cache=use_local_cache,
+                transform=transform,
+                num_workers=num_workers,
+                buffer_size=buffer_size,
+            ),
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+        )
+
+    else:
+        return torch.utils.data.DataLoader(
+            TorchDataset(
+                dataset,
+                tensors=tensors,
+                use_local_cache=use_local_cache,
+                transform=transform,
+                num_workers=num_workers,
+                shuffle=shuffle,
+                buffer_size=buffer_size,
+            ),
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
             num_workers=num_workers,
-            shuffle=shuffle,
-            buffer_size=buffer_size,
-        ),
-        num_workers=num_workers,
-        batch_size=batch_size,
-        collate_fn=collate_fn,
-        pin_memory=pin_memory,
-        drop_last=drop_last,
-    )
+            drop_last=drop_last,
+        )
