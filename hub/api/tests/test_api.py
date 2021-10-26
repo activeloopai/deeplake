@@ -787,3 +787,20 @@ def test_persistence_bug(local_ds_generator):
 
     ds = local_ds_generator()
     ds.abc.numpy()
+
+
+def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
+    ds = memory_ds
+    ds.create_tensor("image", sample_compression="jpeg")
+    ds.create_tensor("audio", sample_compression="mp3")
+    with ds:
+        for _ in range(3):
+            ds.image.append(hub.read(compressed_image_paths["jpeg"][0]))
+            ds.audio.append(hub.read(audio_paths["mp3"]))
+    with open(compressed_image_paths["jpeg"][0], "rb") as f:
+        image_bytes = f.read()
+    with open(audio_paths["mp3"], "rb") as f:
+        audio_bytes = f.read()
+    for i in range(3):
+        assert ds.image[i].tobytes() == image_bytes
+        assert ds.audio[i].tobytes() == audio_bytes
