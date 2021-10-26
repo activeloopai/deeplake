@@ -141,6 +141,8 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+    if not buffer:
+        return b""
     if compression == "lz4":
         if (
             buffer[:4] == b'\x04"M\x18'
@@ -242,7 +244,7 @@ def decompress_array(
         try:
             decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
-        except Exception:
+        except Exception as e:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
