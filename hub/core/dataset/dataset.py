@@ -164,7 +164,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
-        self.info = None
+        self._info = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -543,13 +543,11 @@ class Dataset:
         self._populate_meta()  # TODO: use the same scheme as `load_info`
         self.index.validate(self.num_samples)
 
-
     @property
     def info(self):
         if self._info is None:
             self._info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         return self._info
-
 
     @hub_reporter.record_call
     def tensorflow(self):
