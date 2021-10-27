@@ -3,7 +3,7 @@ import requests
 from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
 from hub.util.terms_of_access import terms_of_access_prompt
-from hub.client.utils import check_response_status, write_token, read_token
+from hub.client.utils import check_response_status, write_token, read_token, get_user_name
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -180,6 +180,9 @@ class HubBackendClient:
                 params={"mode": mode},
             ).json()
         except UnagreedTermsOfAccessError as e:
+            if get_user_name() == "public":
+                raise LoginException(f"The {org_id}/{ds_name} dataset has terms of access. Please login or register first to be granted access.")
+
             accepted = terms_of_access_prompt(org_id, ds_name, e.terms)
 
             if accepted:

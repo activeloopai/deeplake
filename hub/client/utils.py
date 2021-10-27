@@ -48,9 +48,13 @@ def read_token():
 
 
 def remove_token():
-    """Deletes the token file"""
+    """Deletes the token file and reporting config"""
+
     if os.path.isfile(TOKEN_FILE_PATH):
         os.remove(TOKEN_FILE_PATH)
+
+    if os.path.isfile(REPORTING_CONFIG_FILE_PATH):
+        os.remove(REPORTING_CONFIG_FILE_PATH)
 
 
 def check_response_status(response: requests.Response):
