@@ -147,6 +147,7 @@ class S3Provider(StorageProvider):
             S3GetError: Any other error other than KeyError while retrieving the object.
             ReadOnlyError: If the provider is in read-only mode.
         """
+        print(path)
         self._check_update_creds()
         path = posixpath.join(self.path, path)
         try:
