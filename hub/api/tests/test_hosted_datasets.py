@@ -1,3 +1,6 @@
+import hub
+
+
 def test_mnist():
     ds = hub.load("hub://activeloop/mnist-test")
     sample = ds[0]

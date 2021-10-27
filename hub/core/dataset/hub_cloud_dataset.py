@@ -3,6 +3,7 @@ from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.client.utils import get_user_name
 from hub.util.path import is_hub_cloud_path
+from hub.util.keys import dataset_exists
 
 from warnings import warn
 
@@ -63,21 +64,15 @@ class HubCloudDataset(Dataset):
             self.org_id = get_user_name()
             self.ds_name = self.path.replace("/", "_").replace(".", "")
 
-
-    def _is_registered(self) -> bool:
-        return self.client.is_dataset_registered(self.org_id, self.ds_name)
-
     def _register_dataset(self):
-        if self._is_registered():
-            self.check_credentials()
+        # called in super()._populate_meta
 
-        else:
-            self.client.create_dataset_entry(
-                self.org_id,
-                self.ds_name,
-                self.version_state["meta"].__getstate__(),
-                public=self.public,
-            )
+        self.client.create_dataset_entry(
+            self.org_id,
+            self.ds_name,
+            self.version_state["meta"].__getstate__(),
+            public=self.public,
+        )
 
 
     def make_public(self):

@@ -442,6 +442,12 @@ class Dataset:
             self.version_state["meta"] = DatasetMeta()
             self.storage[meta_key] = self.version_state["meta"]
             self.flush()
+            self._register_dataset()
+
+    def _register_dataset(self):
+        # overridden in HubCloudDataset
+
+        pass
 
     @property
     def read_only(self):
