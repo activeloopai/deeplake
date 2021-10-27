@@ -70,8 +70,8 @@ def check_response_status(response: requests.Response):
         raise AuthenticationException
     elif response.status_code == 403:
         payload = response.json()
-        if "unagreed_terms_of_access" in payload:
-            raise UnagreedTermsOfAccessError(payload["unagreed_terms_of_access"])
+        if "terms" in payload:
+            raise UnagreedTermsOfAccessError(payload["terms"])
 
         raise AuthorizationException(message)
     elif response.status_code == 404:

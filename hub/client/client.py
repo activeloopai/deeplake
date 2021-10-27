@@ -1,7 +1,7 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
 from hub.util.terms_of_access import terms_of_access_prompt
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
@@ -171,12 +171,23 @@ class HubBackendClient:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
-        response = self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"mode": mode},
-        ).json()
+
+        try:
+            response = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"mode": mode},
+            ).json()
+        except UnagreedTermsOfAccessError as e:
+            accepted = terms_of_access_prompt(org_id, ds_name, e.terms)
+
+            if accepted:
+                self._agree_to_terms_of_access(org_id, ds_name)
+                return self.get_dataset_credentials(org_id, ds_name, mode)
+            else:
+                raise e
+
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -275,16 +286,10 @@ class HubBackendClient:
 
     def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms})
+        # creating a dataset means you automatically agree to your own terms of access
+        self._agree_to_terms_of_access(username, dataset_name)
 
-        try:
-            self.request("POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms})
-        except UnagreedTermsOfAccessError as e:
-            accepted = terms_of_access_prompt(self.org_id, self.ds_name, e.terms)
-
-            if accepted:
-                self._agree_to_terms_of_access(username, dataset_name)
-            else:
-                raise e
 
     def _agree_to_terms_of_access(self, username: str, dataset_name: str):
         suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
