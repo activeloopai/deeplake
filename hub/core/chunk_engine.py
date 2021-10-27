@@ -125,6 +125,7 @@ class ChunkEngine:
         self.cache = cache
         self._meta_cache = meta_cache
         self.version_state = version_state
+        self._last_row = 0
 
         if self.tensor_meta.chunk_compression:
             # Cache samples in the last chunk in uncompressed form.
@@ -652,8 +653,31 @@ class ChunkEngine:
         Returns:
             Chunk: Chunk object that contains `global_sample_index`.
         """
+        found = False
+        if self._last_row == 0:
+            if enc.array[self._last_row][1] >= global_sample_index:
+                chunk_id =  enc.array[self._last_row][0]
+                found = True
+            else:
+                if self._last_row < len(enc.array) - 1:
+                    self._last_row += 1
+                    if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
+                        chunk_id = enc.array[self._last_row][0]
+                        found = True
+        else:
+            if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
+                chunk_id = enc.array[self._last_row][0]
+                found = True
+            else:
+                if self._last_row < len(enc.array) - 1:
+                    self._last_row += 1
+                    if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
+                        chunk_id = enc.array[self._last_row][0]
+                        found = True
+        
+        if not found:
+            chunk_id, self._last_row = enc.__getitem__(global_sample_index, return_row_index=True)
 
-        chunk_id = enc[global_sample_index]
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         current_commit_id = self.version_state["commit_id"]
