@@ -3,6 +3,77 @@ from hub.util.dataset import try_flushing
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 
+def create_dataloader_nesteddataloader(
+    dataset,
+    tensors,
+    use_local_cache,
+    transform,
+    num_workers,
+    buffer_size,
+    batch_size,
+    collate_fn,
+    pin_memory,
+    drop_last,
+):
+    import torch
+    from hub.integrations.pytorch.dataset import SubIterableDataset
+
+    return torch.utils.data.DataLoader(
+        # this data set is more efficient also shuffles
+        # using threads race conditions as source of entropy
+        SubIterableDataset(
+            dataset,
+            tensors=tensors,
+            use_local_cache=use_local_cache,
+            transform=transform,
+            num_workers=num_workers,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+        ),
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+    )
+
+
+def create_dataloader_shufflingdataloader(
+    dataset,
+    tensors,
+    use_local_cache,
+    transform,
+    num_workers,
+    buffer_size,
+    batch_size,
+    collate_fn,
+    pin_memory,
+    drop_last,
+):
+    import torch
+    from hub.integrations.pytorch.dataset import ShufflingIterableDataset
+
+    return torch.utils.data.DataLoader(
+        # this data set is more efficient also shuffles
+        # using threads race conditions as source of entropy
+        ShufflingIterableDataset(
+            dataset,
+            tensors=tensors,
+            use_local_cache=use_local_cache,
+            transform=transform,
+            num_workers=num_workers,
+            buffer_size=buffer_size,
+        ),
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+    )
+
+
+create_dataloader = create_dataloader_shufflingdataloader
+
+
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
@@ -19,7 +90,6 @@ def dataset_to_pytorch(
 
     import torch
     from hub.integrations.pytorch.dataset import TorchDataset
-    from hub.integrations.pytorch.dataset import ShufflingIterableDataset
 
     try_flushing(dataset)
 
@@ -29,23 +99,18 @@ def dataset_to_pytorch(
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
 
     if shuffle and num_workers > 0:
-        return torch.utils.data.DataLoader(
-            # this data set is more efficient also shuffles
-            # using threads race conditions as source of entropy
-            ShufflingIterableDataset(
-                dataset,
-                tensors=tensors,
-                use_local_cache=use_local_cache,
-                transform=transform,
-                num_workers=num_workers,
-                buffer_size=buffer_size,
-            ),
-            batch_size=batch_size,
-            collate_fn=collate_fn,
-            pin_memory=pin_memory,
-            drop_last=drop_last,
+        return create_dataloader(
+            dataset,
+            tensors,
+            use_local_cache,
+            transform,
+            num_workers,
+            buffer_size,
+            batch_size,
+            collate_fn,
+            pin_memory,
+            drop_last,
         )
-
     else:
         return torch.utils.data.DataLoader(
             TorchDataset(
@@ -54,7 +119,7 @@ def dataset_to_pytorch(
                 use_local_cache=use_local_cache,
                 transform=transform,
                 num_workers=num_workers,
-                shuffle=shuffle,
+                shuffle=False,
                 buffer_size=buffer_size,
             ),
             batch_size=batch_size,

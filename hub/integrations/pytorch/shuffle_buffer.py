@@ -10,7 +10,7 @@ class ShuffleBuffer:
     def exchange(self, sample):
         buffer_len = len(self.buffer)
 
-        if sample:
+        if not sample is None:
             # fill buffer of not reach limit
             if buffer_len < self.size:
                 self.buffer.append(sample)
@@ -18,9 +18,9 @@ class ShuffleBuffer:
 
             # exchange samples with shuffle buffer
             selected = randrange(buffer_len)
-            self.buffer.append(sample)
-
-            return self.buffer.pop(selected)
+            val = self.buffer[selected]
+            self.buffer[selected] = sample
+            return val
         else:
             if buffer_len > 0:
 
