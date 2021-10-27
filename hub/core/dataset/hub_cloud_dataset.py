@@ -55,16 +55,15 @@ class HubCloudDataset(Dataset):
             self.org_id = HUB_CLOUD_DEV_USERNAME
             self.ds_name = self.path.replace("/", "_").replace(".", "")
 
-    def _populate_meta(self):
-        super()._populate_meta()
+    def _register_dataset(self):
+        # called in super()._populate_meta
 
-        if not dataset_exists(self.path):
-            self.client.create_dataset_entry(
-                self.org_id,
-                self.ds_name,
-                self.version_state["meta"].__getstate__(),
-                public=self.public,
-            )
+        self.client.create_dataset_entry(
+            self.org_id,
+            self.ds_name,
+            self.version_state["meta"].__getstate__(),
+            public=self.public,
+        )
 
     def make_public(self):
         if not self.public:
