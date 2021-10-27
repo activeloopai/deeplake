@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from hub.client.utils import get_user_name
 
 
 BYTE_PADDING = b"\0"
@@ -67,7 +68,6 @@ ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
 ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
 
-HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)
 HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 
 # dataset base roots for pytests
@@ -76,7 +76,7 @@ PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windo
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
-    None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"
+    None if get_user_name() is None else f"hub://{get_user_name()}/"
 )
 
 # pytest options

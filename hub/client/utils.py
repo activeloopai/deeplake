@@ -21,6 +21,7 @@ from hub.util.exceptions import (
     ServerException,
     UnexpectedStatusCodeException,
     InvalidTokenException,
+    UnagreedTermsOfAccessError,
 )
 
 
@@ -68,6 +69,10 @@ def check_response_status(response: requests.Response):
     elif response.status_code == 401:
         raise AuthenticationException
     elif response.status_code == 403:
+        payload = response.json()
+        if "unagreed_terms_of_access" in payload:
+            raise UnagreedTermsOfAccessError(payload["unagreed_terms_of_access"])
+
         raise AuthorizationException(message)
     elif response.status_code == 404:
         if message != " ":

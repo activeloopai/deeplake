@@ -2,6 +2,7 @@ import hub
 import requests
 from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.terms_of_access import terms_of_access_prompt
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -16,6 +17,8 @@ from hub.client.config import (
     LIST_DATASETS,
     GET_USER_PROFILE,
     UPDATE_SUFFIX,
+    ADD_TERMS_OF_ACCESS_SUFFIX,
+    RESPOND_TO_TERMS_OF_ACCESS_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -105,6 +108,7 @@ class HubBackendClient:
         if "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
+
 
         check_response_status(response)
         return response
@@ -268,3 +272,20 @@ class HubBackendClient:
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
+
+    def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
+        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+
+        try:
+            self.request("POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms})
+        except UnagreedTermsOfAccessError as e:
+            accepted = terms_of_access_prompt(self.org_id, self.ds_name, e.terms)
+
+            if accepted:
+                self._agree_to_terms_of_access(username, dataset_name)
+            else:
+                raise e
+
+    def _agree_to_terms_of_access(self, username: str, dataset_name: str):
+        suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
+        self.request("POST", suffix, endpoint=self.endpoint())
