@@ -1,9 +1,18 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
+from hub.util.exceptions import (
+    LoginException,
+    InvalidPasswordException,
+    UnagreedTermsOfAccessError,
+)
 from hub.util.terms_of_access import terms_of_access_prompt
-from hub.client.utils import check_response_status, write_token, read_token, get_user_name
+from hub.client.utils import (
+    check_response_status,
+    write_token,
+    read_token,
+    get_user_name,
+)
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -165,7 +174,7 @@ class HubBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
-        
+
         Raises:
             LoginException: Datasets with terms of access require user login.
             UnagreedTermsOfAccessError: Disagreeing with terms of access.

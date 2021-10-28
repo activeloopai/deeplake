@@ -612,4 +612,3 @@ class UnagreedTermsOfAccessError(Exception):
             "The terms of access must first be agreed to before you can access this dataset."
         )
         self.terms = terms
-
