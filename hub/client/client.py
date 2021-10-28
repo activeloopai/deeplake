@@ -1,8 +1,9 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
-from hub.client.utils import check_response_status, write_token, read_token
+from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
+from hub.util.terms_of_access import terms_of_access_prompt
+from hub.client.utils import check_response_status, write_token, read_token, get_user_name
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -16,6 +17,8 @@ from hub.client.config import (
     LIST_DATASETS,
     GET_USER_PROFILE,
     UPDATE_SUFFIX,
+    ADD_TERMS_OF_ACCESS_SUFFIX,
+    RESPOND_TO_TERMS_OF_ACCESS_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -162,17 +165,38 @@ class HubBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
+        
+        Raises:
+            LoginException: Datasets with terms of access require user login.
+            UnagreedTermsOfAccessError: Disagreeing with terms of access.
 
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """
+
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
-        response = self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"mode": mode},
-        ).json()
+
+        try:
+            response = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"mode": mode},
+            ).json()
+        except UnagreedTermsOfAccessError as e:
+            if get_user_name() == "public":
+                raise LoginException(
+                    f"The {org_id}/{ds_name} dataset has terms of access. Please login or register first to be granted access."
+                )
+
+            accepted = terms_of_access_prompt(org_id, ds_name, e.terms)
+
+            if accepted:
+                self._respond_to_terms_of_access(org_id, ds_name)
+                return self.get_dataset_credentials(org_id, ds_name, mode)
+            else:
+                raise e
+
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -268,3 +292,19 @@ class HubBackendClient:
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
+
+    def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
+        suffix = UPDATE_SUFFIX.format(username, dataset_name)
+        self.request(
+            "POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms}
+        )
+        # creating a dataset means you automatically agree to your own terms of access
+        self._respond_to_terms_of_access(username, dataset_name)
+
+    def _respond_to_terms_of_access(
+        self, username: str, dataset_name: str, response: str = "agree"
+    ):
+        suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(
+            username, dataset_name, response
+        )
+        self.request("POST", suffix, endpoint=self.endpoint())

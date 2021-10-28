@@ -80,3 +80,16 @@ class HubCloudDataset(Dataset):
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
         logger.info(f"Hub Dataset {self.path} successfully deleted.")
+
+    def check_credentials(self):
+        """If terms of access are unagreed to, this method will raise an error and trigger
+        user-interaction requirement for agreeing. It's basically just an alias for `get_dataset_credentials`
+        """
+
+        self.client.get_dataset_credentials(self.org_id, self.ds_name)
+
+    def add_terms_of_access(self, terms: str):
+        """Users must agree to these terms before being able to access this dataset."""
+
+        self.check_credentials()
+        self.client.add_terms_of_access(self.org_id, self.ds_name, terms)
