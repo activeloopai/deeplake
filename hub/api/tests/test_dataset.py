@@ -68,14 +68,15 @@ def test_update_privacy(hub_cloud_ds):
 
 
 def test_persistence_bug(local_ds_generator):
-    ds = local_ds_generator()
-    with ds:
-        ds.create_tensor("abc")
-        ds.abc.append(1)
+    for tensor_name in ["abc", "abcd/defg"]:
+        ds = local_ds_generator()
+        with ds:
+            ds.create_tensor(tensor_name)
+            ds[tensor_name].append(1)
 
-    ds = local_ds_generator()
-    with ds:
-        ds.abc.append(2)
+        ds = local_ds_generator()
+        with ds:
+            ds[tensor_name].append(2)
 
-    ds = local_ds_generator()
-    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1], [2]]))
+        ds = local_ds_generator()
+        np.testing.assert_array_equal(ds[tensor_name].numpy(), np.array([[1], [2]]))
