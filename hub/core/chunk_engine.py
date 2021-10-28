@@ -656,27 +656,38 @@ class ChunkEngine:
         found = False
         if self._last_row == 0:
             if enc.array[self._last_row][1] >= global_sample_index:
-                chunk_id =  enc.array[self._last_row][0]
-                found = True
-            else:
-                if self._last_row < len(enc.array) - 1:
-                    self._last_row += 1
-                    if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
-                        chunk_id = enc.array[self._last_row][0]
-                        found = True
-        else:
-            if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
                 chunk_id = enc.array[self._last_row][0]
                 found = True
             else:
                 if self._last_row < len(enc.array) - 1:
                     self._last_row += 1
-                    if enc.array[self._last_row][1] >= global_sample_index and enc.array[self._last_row - 1][1] < global_sample_index:
+                    if (
+                        enc.array[self._last_row][1] >= global_sample_index
+                        and enc.array[self._last_row - 1][1] < global_sample_index
+                    ):
                         chunk_id = enc.array[self._last_row][0]
                         found = True
-        
+        else:
+            if (
+                enc.array[self._last_row][1] >= global_sample_index
+                and enc.array[self._last_row - 1][1] < global_sample_index
+            ):
+                chunk_id = enc.array[self._last_row][0]
+                found = True
+            else:
+                if self._last_row < len(enc.array) - 1:
+                    self._last_row += 1
+                    if (
+                        enc.array[self._last_row][1] >= global_sample_index
+                        and enc.array[self._last_row - 1][1] < global_sample_index
+                    ):
+                        chunk_id = enc.array[self._last_row][0]
+                        found = True
+
         if not found:
-            chunk_id, self._last_row = enc.__getitem__(global_sample_index, return_row_index=True)
+            chunk_id, self._last_row = enc.__getitem__(
+                global_sample_index, return_row_index=True
+            )
 
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)

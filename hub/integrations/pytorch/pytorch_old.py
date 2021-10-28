@@ -150,7 +150,6 @@ class TorchDataset:
         return self._apply_transform(sample)
 
     def __getitem__(self, index: int):
-        # print(torch.utils.data.get_worker_info().id, ": ", index)
         while True:
             next_good_sample_index = index + self._num_bad_samples
             if next_good_sample_index >= self.length:

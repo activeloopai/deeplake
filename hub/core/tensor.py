@@ -149,7 +149,7 @@ class Tensor:
         Returns:
             TensorInfo: Information about the tensor.
         """
-    
+
         if self._info is None:
             self._info = load_info(
                 get_tensor_info_key(self.key, self.version_state["commit_id"]),
