@@ -6,7 +6,7 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
-from hub.core.dataset import Dataset, get_dataset_instance
+from hub.core.dataset import Dataset, HubCloudDataset, dataset_factory
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
@@ -78,7 +78,7 @@ class dataset:
             storage.clear()
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
@@ -140,7 +140,7 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
@@ -198,7 +198,7 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, token=token
         )
 

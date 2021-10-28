@@ -3,6 +3,7 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import is_hub_cloud_path
+from hub.util.keys import dataset_exists
 
 from warnings import warn
 
@@ -54,8 +55,8 @@ class HubCloudDataset(Dataset):
             self.org_id = HUB_CLOUD_DEV_USERNAME
             self.ds_name = self.path.replace("/", "_").replace(".", "")
 
-    def _populate_meta(self):
-        super()._populate_meta()
+    def _register_dataset(self):
+        # called in super()._populate_meta
 
         self.client.create_dataset_entry(
             self.org_id,
