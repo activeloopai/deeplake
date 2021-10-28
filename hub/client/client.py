@@ -175,6 +175,10 @@ class HubBackendClient:
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
 
+        Raises:
+            LoginException: Datasets with terms of access require user login.
+            UnagreedTermsOfAccessError: Disagreeing with terms of access.
+
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """

@@ -174,7 +174,7 @@ class Encoder(ABC):
     def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
         """Should determine if `item` can be combined with a row in `self._encoded`."""
 
-    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
+    def _derive_next_last_index(self, last_index, num_samples: int):
         """Calculates what the next last index should be."""
         return last_index + num_samples
 
