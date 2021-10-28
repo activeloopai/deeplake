@@ -4,7 +4,6 @@ from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
 import numpy as np
-import math
 from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 

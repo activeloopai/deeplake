@@ -1,13 +1,10 @@
 import os
-import numpy as np
-from time import process_time
 import hub
 from typing import Optional, Union
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
-from hub import core
 from hub.client.log import logger
 from hub.core.dataset import Dataset, get_dataset_instance
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
