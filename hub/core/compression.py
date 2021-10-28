@@ -417,7 +417,8 @@ def _verify_jpeg_buffer(buf: bytes):
         b"\xff\xc4",
         b"\xff\xdb",
         b"\xff\xdd",
-    ]  # DHT, DQT, DRI
+        b"\xff\xda",
+    ]  # DHT, DQT, DRI, SOS
     shape = _STRUCT_HHB.unpack(mview[sof_idx + 5 : sof_idx + 10])
     assert buf.find(b"\xff\xd9") != -1
     if shape[-1] in (1, None):
@@ -462,7 +463,8 @@ def _verify_jpeg_file(f):
             b"\xff\xc4",
             b"\xff\xdb",
             b"\xff\xdd",
-        ]  # DHT, DQT, DRI
+            b"\xff\xda",
+        ]  # DHT, DQT, DRI, SOS
         f.seek(sof_idx + 5)
         shape = _STRUCT_HHB.unpack(f.read(5))
         # TODO this check is too slow
