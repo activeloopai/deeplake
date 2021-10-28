@@ -196,7 +196,7 @@ class HubBackendClient:
             accepted = terms_of_access_prompt(org_id, ds_name, e.terms)
 
             if accepted:
-                self._agree_to_terms_of_access(org_id, ds_name)
+                self._respond_to_terms_of_access(org_id, ds_name)
                 return self.get_dataset_credentials(org_id, ds_name, mode)
             else:
                 raise e
@@ -303,8 +303,12 @@ class HubBackendClient:
             "POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms}
         )
         # creating a dataset means you automatically agree to your own terms of access
-        self._agree_to_terms_of_access(username, dataset_name)
+        self._respond_to_terms_of_access(username, dataset_name)
 
-    def _agree_to_terms_of_access(self, username: str, dataset_name: str):
-        suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)
+    def _respond_to_terms_of_access(
+        self, username: str, dataset_name: str, response: str = "agree"
+    ):
+        suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(
+            username, dataset_name, response
+        )
         self.request("POST", suffix, endpoint=self.endpoint())
