@@ -371,6 +371,7 @@ class ChunkEngine:
         else:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
+        return chunk
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]) -> Chunk:
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -386,14 +387,14 @@ class ChunkEngine:
         num_samples = 1
 
         if self.tensor_meta.chunk_compression:
-            self._append_bytes_to_compressed_chunk(buffer, shape)
+            chunk_after_append = self._append_bytes_to_compressed_chunk(buffer, shape)
         else:
-            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
-            if not buffer_consumed:
-                self._append_to_new_chunk(buffer, shape)
+            chunk_after_append = self._try_appending_to_last_chunk(buffer, shape)
+            if not chunk_after_append:
+                chunk_after_append = self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
-        return self.last_chunk
+        return chunk_after_append
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         """Whether last chunk's data can be set to a buffer of size nbytes."""
@@ -435,9 +436,7 @@ class ChunkEngine:
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
-    def _try_appending_to_last_chunk(
-        self, buffer: memoryview, shape: Tuple[int]
-    ) -> bool:
+    def _try_appending_to_last_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
@@ -446,7 +445,7 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
 
         Returns:
-            bool: True if `buffer` was successfully written to the last chunk, otherwise False.
+            Last chunk if `buffer` was successfully written to the last chunk, otherwise False.
         """
 
         last_chunk = self.last_chunk
@@ -471,7 +470,7 @@ class ChunkEngine:
                 last_chunk.append_sample(
                     buffer[:extra_bytes], self.max_chunk_size, shape
                 )
-                return True
+                return last_chunk
 
         return False
 
@@ -482,11 +481,15 @@ class ChunkEngine:
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            New chunk that was created
         """
 
         # check if `last_chunk_extended` to handle empty samples
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
+        return new_chunk
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -529,7 +532,7 @@ class ChunkEngine:
         else:
             updated_chunks = self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
         for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk
+            self.cache[chunk.key] = chunk  # type: ignore
         self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
@@ -837,7 +840,7 @@ class ChunkEngine:
 
 
 def _format_read_samples(
-    samples: Sequence[np.array], index: Index, aslist: bool
+    samples: Sequence[np.ndarray], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
 

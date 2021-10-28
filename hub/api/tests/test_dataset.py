@@ -65,3 +65,17 @@ def test_update_privacy(hub_cloud_ds):
     assert not hub_cloud_ds.public
     with pytest.raises(hub.util.exceptions.AuthorizationException):
         hub.load(hub_cloud_ds.path)
+
+
+def test_persistence_bug(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+
+    ds = local_ds_generator()
+    with ds:
+        ds.abc.append(2)
+
+    ds = local_ds_generator()
+    ds.abc.numpy()

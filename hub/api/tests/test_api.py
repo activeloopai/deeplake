@@ -775,20 +775,6 @@ def test_vc_bug(local_ds_generator):
     assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
 
 
-def test_persistence_bug(local_ds_generator):
-    ds = local_ds_generator()
-    with ds:
-        ds.create_tensor("abc")
-        ds.abc.append(1)
-
-    ds = local_ds_generator()
-    with ds:
-        ds.abc.append(2)
-
-    ds = local_ds_generator()
-    ds.abc.numpy()
-
-
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     ds = memory_ds
     ds.create_tensor("image", sample_compression="jpeg")
