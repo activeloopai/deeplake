@@ -40,11 +40,12 @@ def hub_cloud_dev_credentials(request):
 
 
 @pytest.fixture(scope="session")
-def hub_cloud_dev_token(request):
-    if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
+def hub_cloud_dev_token(request, hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
 
-    return read_token()
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    return token
 
 
 @pytest.fixture(scope="session")
