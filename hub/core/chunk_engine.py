@@ -381,6 +381,9 @@ class ChunkEngine:
             buffer (memoryview): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            Chunk to which the sample was appended.
         """
 
         # num samples is always 1 when appending
