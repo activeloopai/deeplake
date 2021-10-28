@@ -259,33 +259,6 @@ class dataset:
                 raise
 
     @staticmethod
-    def fix(path: str, backed_up: bool = False) -> None:
-        """Attempts to fix a corrupted dataset.
-
-        Important:
-            To be 100% safe, you should first back up your dataset. This method is experimental and may corrupt your dataset further!
-
-        Args:
-            path (str): Path to the corrupted dataset.
-            backed_up (bool): Must be explicitly set to `True`.
-
-        Raises:
-            ValueError: If dataset is not marked as backed up.
-        """
-
-        if not backed_up:
-            raise ValueError(
-                "BACK UP YOUR DATASET BEFORE CALLING FIX! As an extra precaution, you must first set the `backed_up` argument to `True` in `hub.fix`."
-            )
-
-        core.chunk_engine.FIX_TENSOR_LENGTH = True
-        ds = hub.load(path)
-        ds.synchronize()
-
-        core.chunk_engine.FIX_TENSOR_LENGTH = False
-        ds.flush()
-
-    @staticmethod
     def like(
         path: str,
         source: Union[str, Dataset],

@@ -69,9 +69,9 @@ def test_wrong_tensor_meta_length(local_ds_generator):
 
     with pytest.raises(ValueError):
         # require `backed_up=True`
-        hub.fix(ds.path)
+        ds.synchronize()
 
-    hub.fix(ds.path, backed_up=True)
+    ds.synchronize(backed_up=True)
 
     ds = local_ds_generator()
 

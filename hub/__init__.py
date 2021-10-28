@@ -31,7 +31,6 @@ compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
 list = dataset.list
 load = dataset.load
-fix = dataset.fix
 empty = dataset.empty
 like = dataset.like
 delete = dataset.delete
@@ -46,7 +45,6 @@ __all__ = [
     "read",
     "__version__",
     "load",
-    "fix",
     "empty",
     "compute",
     "compose",
@@ -62,7 +60,7 @@ __all__ = [
 
 __version__ = "2.0.15"
 __encoded_version__ = np.array(__version__)
-config = {"s3": Config(max_pool_connections=50)}
+config = {"s3": Config(max_pool_connections=50), "FIX_TENSOR_LENGTH": False}
 
 
 hub_reporter.tags.append(f"version:{__version__}")

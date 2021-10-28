@@ -451,8 +451,27 @@ class Dataset:
             self.storage.disable_readonly()
         self._read_only = value
 
-    def synchronize(self):
-        """Iterates over dataset and synchronizes TensorMeta's min_shape and max_shape."""
+    def synchronize(self, backed_up: bool = False):
+        """Attempts to fix a corrupted dataset. Iterates over dataset and synchronizes TensorMeta's length, min_shape and max_shape.
+
+        Important:
+            To be 100% safe, you should first back up your dataset. This method is experimental and may corrupt your dataset further!
+
+        Args:
+            backed_up (bool): Must be explicitly set to `True`.
+
+        Raises:
+            ValueError: If dataset is not marked as backed up.
+        """
+
+        if not backed_up:
+            raise ValueError(
+                "BACK UP YOUR DATASET BEFORE CALLING FIX! As an extra precaution, you must first set the `backed_up` argument to `True` in `hub.fix`."
+            )
+
+        # if True, the tensor_meta.json's length property will be auto-synchronized with the chunk_id_encoder's num_samples
+        hub.config["FIX_TENSOR_LENGTH"] = True
+        self = hub.load(self.path)
 
         tensor_set = self.meta.tensors
 
@@ -466,6 +485,9 @@ class Dataset:
             else:
                 self[tensor].meta.min_shape = []
                 self[tensor].meta.max_shape = []
+
+        hub.config["FIX_TENSOR_LENGTH"] = False
+        self.flush()
 
     @hub_reporter.record_call
     def pytorch(

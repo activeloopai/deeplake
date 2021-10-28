@@ -56,10 +56,6 @@ def is_uniform_sequence(samples):
 CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
-# if True, the tensor_meta.json's length property will be auto-synchronized with the chunk_id_encoder's num_samples
-FIX_TENSOR_LENGTH = False
-
-
 class ChunkEngine:
     def __init__(
         self,
@@ -809,7 +805,7 @@ class ChunkEngine:
             ikey = get_chunk_id_encoder_key(self.key, commit_id)
 
             # TODO: can maybe make this cleaner with `with` statement contexts?
-            if FIX_TENSOR_LENGTH:
+            if hub.config["FIX_TENSOR_LENGTH"]:
                 self.tensor_meta.length = chunk_id_num_samples
                 self.meta_cache[tkey] = self.tensor_meta
 
