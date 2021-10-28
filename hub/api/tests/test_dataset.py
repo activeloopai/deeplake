@@ -78,4 +78,4 @@ def test_persistence_bug(local_ds_generator):
         ds.abc.append(2)
 
     ds = local_ds_generator()
-    ds.abc.numpy()
+    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1], [2]]))
