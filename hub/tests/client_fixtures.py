@@ -11,6 +11,7 @@ import os
 import pytest
 from hub.client.client import HubBackendClient
 from hub.client.config import USE_LOCAL_HOST, USE_DEV_ENVIRONMENT
+from hub.client.utils import get_user_name, read_token
 
 from warnings import warn
 
@@ -25,7 +26,7 @@ def hub_cloud_dev_credentials(request):
             "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT is not recommended."
         )
 
-    username = os.getenv(ENV_HUB_DEV_USERNAME)
+    username = get_user_name()
     password = os.getenv(ENV_HUB_DEV_PASSWORD)
 
     assert (
@@ -39,12 +40,11 @@ def hub_cloud_dev_credentials(request):
 
 
 @pytest.fixture(scope="session")
-def hub_cloud_dev_token(hub_cloud_dev_credentials):
-    username, password = hub_cloud_dev_credentials
+def hub_cloud_dev_token(request):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
 
-    client = HubBackendClient()
-    token = client.request_auth_token(username, password)
-    return token
+    return read_token()
 
 
 @pytest.fixture(scope="session")

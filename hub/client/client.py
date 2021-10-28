@@ -1,9 +1,18 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException, UnagreedTermsOfAccessError
+from hub.util.exceptions import (
+    LoginException,
+    InvalidPasswordException,
+    UnagreedTermsOfAccessError,
+)
 from hub.util.terms_of_access import terms_of_access_prompt
-from hub.client.utils import check_response_status, write_token, read_token, get_user_name
+from hub.client.utils import (
+    check_response_status,
+    write_token,
+    read_token,
+    get_user_name,
+)
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -109,7 +118,6 @@ class HubBackendClient:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
-
         check_response_status(response)
         return response
 
@@ -181,7 +189,9 @@ class HubBackendClient:
             ).json()
         except UnagreedTermsOfAccessError as e:
             if get_user_name() == "public":
-                raise LoginException(f"The {org_id}/{ds_name} dataset has terms of access. Please login or register first to be granted access.")
+                raise LoginException(
+                    f"The {org_id}/{ds_name} dataset has terms of access. Please login or register first to be granted access."
+                )
 
             accepted = terms_of_access_prompt(org_id, ds_name, e.terms)
 
@@ -289,10 +299,11 @@ class HubBackendClient:
 
     def add_terms_of_access(self, username: str, dataset_name: str, terms: str):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
-        self.request("POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms})
+        self.request(
+            "POST", suffix, endpoint=self.endpoint(), json={"terms_of_access": terms}
+        )
         # creating a dataset means you automatically agree to your own terms of access
         self._agree_to_terms_of_access(username, dataset_name)
-
 
     def _agree_to_terms_of_access(self, username: str, dataset_name: str):
         suffix = RESPOND_TO_TERMS_OF_ACCESS_SUFFIX.format(username, dataset_name)

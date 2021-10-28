@@ -605,7 +605,10 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Please make sure you initialized gcloud service earlier."
         )
 
+
 class UnagreedTermsOfAccessError(Exception):
     def __init__(self, terms: str):
-        super().__init__("The terms of access must first be agreed to before you can access this dataset.")
+        super().__init__(
+            "The terms of access must first be agreed to before you can access this dataset."
+        )
         self.terms = terms
