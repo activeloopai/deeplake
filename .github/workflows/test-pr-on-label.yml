@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Full Test
+on:
+  pull_request_target:
+    types: [labeled]
+jobs:
+  test:
+    name: Full test Python ${{ matrix.python-version }} - ${{ matrix.os }}
+    if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - 3.6
+          - 3.8
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    steps:
+      - name: Remove trigger-test label
+        continue-on-error: true
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          github_token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          number: ${{ github.event.number }}
+          labels: trigger-test
+      - name: Cancel previous runs if available
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+          access_token: ${{ github.token }}
+      - uses: actions/checkout@v2
+      - name: Checkout the buH source code
+        uses: actions/checkout@v2
+        with:
+          path: buH
+          repository: activeloopai/buH
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/cache@v2
+        if: startsWith(runner.os, 'Linux')
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/cache@v2
+        if: startsWith(runner.os, 'macOS')
+        with:
+          path: ~/Library/Caches/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/cache@v2
+        if: startsWith(runner.os, 'Windows')
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Test AWS credentials validity
+        run: aws sts get-caller-identity
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          credentials_file_path: "gcs.json"
+      - name: Test GCP credentials validity
+        run: gcloud info
+      - name: Install requirements
+        run: |
+          pip3 install --upgrade pip --user
+          pip3 install --upgrade setuptools
+          pip3 install -r hub/requirements/tests.txt
+          pip3 install -r hub/requirements/plugins.txt
+          pip3 install -r hub/requirements/common.txt
+          pip3 install -e buH
+          sh buH/buh/scripts/create_all.sh
+          pip3 install -e .
+        env:
+          BUGGER_OFF: "true"
+      - name: "Run tests"
+        run: |
+          python3 -m pytest --cov-report=xml --cov=./ --s3 --gcs --hub-cloud --ignore-glob=buH/*
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcs.json
+          ENV_HUB_DEV_PASSWORD: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+          ACTIVELOOP_HUB_PASSWORD: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
