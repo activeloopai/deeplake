@@ -91,6 +91,7 @@ class Client(object):
         self.port = port
         self._buffer = []
         self._client = None
+        self._closed = False
         threading.Thread(target=self._connect, daemon=True).start()
         atexit.register(self.close)
 
@@ -117,7 +118,7 @@ class Client(object):
             self._buffer.append(stuff)
 
     def close(self):
-        if not self._client:
+        if self._closed:
             return
         try:
             while not self._client:
@@ -127,5 +128,6 @@ class Client(object):
             self._client.send(_DISCONNECT_MESSAGE)
             self._client.close()
             self._client = None
+            self._closed = True
         except Exception as e:
             pass
