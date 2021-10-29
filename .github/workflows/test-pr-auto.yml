@@ -4,6 +4,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 jobs:
+  cancel-previous:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel previous runs if available
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+          access_token: ${{ github.token }}
   test-pr:
     uses: activeloopai/shared-github-actions/.github/workflows/local_test.yml@main
     with:
