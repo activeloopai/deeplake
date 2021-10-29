@@ -1,7 +1,7 @@
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
-from hub.util.json import HubJsonEncoder, validate_json_object
+from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array, compress_bytes
 from hub.client import config
@@ -396,3 +396,53 @@ def serialize_input_samples(
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
     _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
     return buff, nbytes, shapes
+
+
+def text_to_bytes(sample, dtype, htype):
+    if htype in ("json", "list"):
+        if isinstance(sample, np.ndarray):
+            if htype == "list":
+                sample = list(sample) if sample.dtype == object else sample.tolist()
+            elif htype == "json":
+                if sample.ndim == 0 or sample.dtype != object:
+                    sample = sample.tolist()  # actually returns dict
+                else:
+                    sample = list(sample)
+        validate_json_object(sample, dtype)
+        byts = json.dumps(sample, cls=HubJsonEncoder).encode()
+        shape = (len(sample),) if htype == "list" else (1,)
+    else:  # htype == "text":
+        if isinstance(sample, np.ndarray):
+            sample = sample.tolist()
+        if not isinstance(sample, str):
+            raise TypeError("Expected str, received: " + str(sample))
+        byts = sample.encode()
+        shape = (1,)
+    return byts, shape
+
+
+def bytes_to_text(buffer, htype):
+    buffer = bytes(buffer)
+    if htype == "json":
+        arr = np.empty(1, dtype=object)
+        arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+        return arr
+    elif htype == "list":
+        lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+        arr = np.empty(len(lst), dtype=object)
+        arr[:] = lst
+        return arr
+    else:  # htype == "text":
+        arr = np.array(bytes.decode(buffer)).reshape(
+            1,
+        )
+    return arr
+
+
+def serialize_numpy_and_base_types(
+    sample: Union[np.ndarray, int, float, bool], dtype, htype, compression
+) -> tuple(bytes, tuple):
+    sample = intelligent_cast(sample, dtype, htype)
+    shape = sample.shape
+    sample = compress_array(sample, compression)
+    return sample, shape

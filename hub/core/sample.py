@@ -25,6 +25,7 @@ class Sample:
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
         verify: bool = False,
+        shape: Tuple[int] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -53,7 +54,7 @@ class Sample:
 
         self._array = None
         self._typestr = None
-        self._shape = None
+        self._shape = shape or None
         self.path = None
         self._buffer = None
 
