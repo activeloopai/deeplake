@@ -440,7 +440,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             tensors,
             transform,
             num_workers=num_workers,
-            shuffle=False,
+            shuffle=True,
         )
 
         self.num_workers = num_workers
