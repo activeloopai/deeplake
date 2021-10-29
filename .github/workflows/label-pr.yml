@@ -9,8 +9,7 @@ jobs:
     name: Add pr-ready label
     runs-on: ubuntu-latest
     if: >
-      ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' }}
+      ${{ github.event.workflow_run.event == 'pull_request' }}
     steps:
       - name: 'Download artifact from PR'
         uses: actions/github-script@v3
@@ -47,3 +46,22 @@ jobs:
               repo: 'hub',
               name: 'pr-ready'
             });
+      - name: Get the PR Number
+        id: get_number
+        run: echo ::set-output name=PR_NUMBER::$(cat ./NR)
+      - name: Add pr-ready label
+        continue-on-error: true
+        uses: actions-ecosystem/action-add-labels@v1
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        with:
+          github_token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          number: ${{ steps.get_number.outputs.PR_NUMBER }}
+          labels: pr-ready
+      - name: Remove pr-ready label
+        continue-on-error: true
+        uses: actions-ecosystem/action-remove-labels@v1
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        with:
+          github_token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
+          number: ${{ steps.get_number.outputs.PR_NUMBER }}
+          labels: pr-ready
