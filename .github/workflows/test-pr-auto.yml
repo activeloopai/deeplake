@@ -1,75 +1,16 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.jsonxw
 name: PR Automated Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 jobs:
-  test:
-    name: Python ${{ matrix.python-version }} - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - 3.6
-          - 3.8
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Checkout the buH source code
-        uses: actions/checkout@v2
-        with:
-          path: buH
-          repository: activeloopai/buH
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - uses: actions/cache@v2
-        if: startsWith(runner.os, 'Linux')
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - uses: actions/cache@v2
-        if: startsWith(runner.os, 'macOS')
-        with:
-          path: ~/Library/Caches/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - uses: actions/cache@v2
-        if: startsWith(runner.os, 'Windows')
-        with:
-          path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install requirements
-        run: |
-          pip3 install --upgrade pip --user
-          pip3 install --upgrade setuptools
-          pip3 install -r hub/requirements/tests.txt
-          pip3 install -r hub/requirements/plugins.txt
-          pip3 install -r hub/requirements/common.txt
-          pip3 install -e buH
-          sh buH/buh/scripts/create_all.sh
-          pip3 install -e .
-        env:
-          BUGGER_OFF: "true"
-      - name: Run tests
-        run: |
-          python3 -m pytest --local
+  test-pr:
+    uses: activeloopai/shared-github-actions/.github/workflows/local_test.yml@main
+    with:
+      repo: ${{ github.event.pull_request.head.repo.full_name }}
+      ref: ${{ github.event.pull_request.head.sha }}
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
   add-artifacts:
     name: Save PR number for the workflow run trigger
     runs-on: ubuntu-latest
