@@ -44,7 +44,6 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('hub/requirements/*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - uses: actions/cache@v2
         if: startsWith(runner.os, 'Windows')
         with:
@@ -72,10 +71,12 @@ jobs:
         run: |
           python3 -m pytest --local
       - name: Save PR number for workflow run
+        if: always()
         run: |
           mkdir -p ./pr
           echo ${{ github.event.number }} > ./pr/NR
       - uses: actions/upload-artifact@v2
+        if: always()
         with:
           name: pr
           path: pr/
