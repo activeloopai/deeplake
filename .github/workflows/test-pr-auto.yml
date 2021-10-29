@@ -70,12 +70,17 @@ jobs:
       - name: Run tests
         run: |
           python3 -m pytest --local
-      - name: Save PR number for workflow run
+  add-artifacts:
+    name: Save PR number for the workflow run trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate PR Number file
         if: always()
         run: |
           mkdir -p ./pr
           echo ${{ github.event.number }} > ./pr/NR
-      - uses: actions/upload-artifact@v2
+      - name: Uploading to GitHub
+        uses: actions/upload-artifact@v2
         if: always()
         with:
           name: pr
