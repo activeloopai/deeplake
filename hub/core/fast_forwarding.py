@@ -2,6 +2,7 @@ from hub.constants import ENCODING_DTYPE
 import numpy as np
 from hub.core.meta.encode.shape import ShapeEncoder
 import hub
+import warnings
 
 
 def version_compare(v1, v2):
@@ -36,15 +37,15 @@ def version_compare(v1, v2):
 
 
 def _check_version(v):
-    """Raises exceptions for incompatible versions. Returns True if no fast forwarding is required (False if otherwise)."""
+    """Returns True if no fast forwarding is required (False if otherwise)."""
 
     comparison = version_compare(v, hub.__version__)
     if comparison > 0:
-        raise Exception(
-            f"Cannot load a dataset that was created with a newer version of hub. Dataset version: {v}, current hub version: {hub.__version__}. You may update to the latest version of hub to solve this problem."
+        warnings.warn(
+                f"Loading a dataset that was created with a newer version of hub. This could lead to corruption or weird errors! Dataset version: {v}, current hub version: {hub.__version__}. It's recommended that you update to a version of hub >= {v}."
         )
 
-    return comparison == 0
+    return comparison >= 0
 
 
 def ffw(func):
