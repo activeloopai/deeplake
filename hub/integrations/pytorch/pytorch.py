@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Sequence
 from hub.util.dataset import try_flushing
+from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 
@@ -16,6 +17,7 @@ def create_dataloader_nesteddataloader(
     drop_last,
 ):
     import torch
+    import torch.utils.data
     from hub.integrations.pytorch.dataset import SubIterableDataset
 
     return torch.utils.data.DataLoader(
@@ -51,6 +53,7 @@ def create_dataloader_shufflingdataloader(
     drop_last,
 ):
     import torch
+    import torch.utils.data
     from hub.integrations.pytorch.dataset import ShufflingIterableDataset
 
     return torch.utils.data.DataLoader(
@@ -84,7 +87,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: bool = False,
     shuffle: bool = False,
-    buffer_size: int = 0,
+    buffer_size: int = 512,
     use_local_cache: bool = False,
 ):
 
