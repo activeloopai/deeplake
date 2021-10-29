@@ -1,13 +1,12 @@
-name: Test main
+name: Test
 on:
   push:
-    branches:
-      - main
+
 jobs:
   test-pr:
     uses: activeloopai/shared-github-actions/.github/workflows/local_test.yml@main
     with:
-      repo: ${{ github.event.repository.full_name }}
+      repo: ${{ github.repository }}
       ref: ${{ github.sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
@@ -15,7 +14,7 @@ jobs:
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
     if: github.repository == 'activeloopai/Hub'
     with:
-      repo: ${{ github.event.repository.full_name }}
+      repo: ${{ github.repository }}
       ref: ${{ github.sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
