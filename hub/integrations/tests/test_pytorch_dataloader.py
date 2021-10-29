@@ -1,5 +1,6 @@
 import pytest
 import platform
+from hub.constants import MB
 from hub.util.check_installation import pytorch_installed
 
 if not pytorch_installed():
@@ -95,7 +96,7 @@ def test_more_workers_than_chunk(ds):
 @patch("hub.core.dataset.Dataset")
 def test_big_buffer_size(ds):
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=4, buffer_size=64
+        mock_dataset(ds), use_local_cache=False, num_workers=4, buffer_size=512
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 

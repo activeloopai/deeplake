@@ -1,4 +1,5 @@
 from typing import Callable, Iterable, Optional, Sequence, List, Union
+from hub.constants import MB
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
@@ -19,7 +20,6 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data._utils.worker import ManagerWatchdog
 from torch._C import _remove_worker_pids, _set_worker_pids, _set_worker_signal_handlers
 from torch.utils.data._utils.signal_handling import _set_SIGCHLD_handler
-from torch.utils.data._utils.collate import default_convert as pytorch_collate_fn
 from warnings import warn
 from queue import Empty
 
@@ -111,10 +111,6 @@ def _worker_loop(
         requested: int = 0  # indicate value of samples requested from worker
 
         while watchdog.is_alive():
-            # Check if parent iterator is terminating. If so, no reason to continue.
-            # if workers_done.is_set():
-            # is_running = False
-            # break
 
             # publish requested data
             if not iteration_end and requested > 0:
@@ -122,6 +118,10 @@ def _worker_loop(
                     data = next(it)
 
                     data = _process(data, transform)
+                    data = {
+                        k: torch.as_tensor(v).share_memory_() for k, v in data.items()
+                    }
+
                     data_queue.put((wid, data))
                     requested -= 1
                     del data
@@ -233,7 +233,9 @@ class PrefetchConcurrentIterator(Iterable):
         self._worker_pids_set = True
 
     def __iter__(self):
-        shuffle_buffer = ShuffleBuffer(self.buffer_size)
+        shuffle_buffer = (
+            ShuffleBuffer(self.buffer_size) if self.buffer_size > 0 else None
+        )
 
         while any(self.active_workers):
             try:
@@ -251,7 +253,7 @@ class PrefetchConcurrentIterator(Iterable):
                 self.queue_size[wid] += 1
 
                 # exchange sample with shuffle buffer
-                if self.buffer_size > 0:
+                if shuffle_buffer is not None:
                     data = shuffle_buffer.exchange(data)
 
                     if data is not None:
@@ -274,8 +276,8 @@ class PrefetchConcurrentIterator(Iterable):
         self._shutdown_all()
 
         # clear all samples from shuffle buffer
-        if self.buffer_size > 0:
-            while len(shuffle_buffer) > 0:
+        if shuffle_buffer is not None:
+            while not shuffle_buffer.emtpy():
                 data = shuffle_buffer.exchange(None)
                 yield data
 
@@ -321,7 +323,6 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         transform: Optional[Callable] = None,
         num_workers: int = 1,
         buffer_size: int = 0,
-        queue_size: int = 1,
     ) -> None:
 
         super().__init__()
@@ -337,8 +338,6 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
             MultiThreadedNativeScheduler(self.num_workers)
         )
 
-        self.queue_size = queue_size
-
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,
@@ -349,7 +348,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
             streaming.list_blocks()
         )
 
-        self.buffer_size: Optional[int] = buffer_size
+        self.buffer_size: int = buffer_size * MB
 
     def __iter__(self):
         it = PrefetchConcurrentIterator(self)
@@ -393,7 +392,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         )
 
         self.shuffle: bool = shuffle
-        self.buffer_size: Optional[int] = buffer_size
+        self.buffer_size: int = buffer_size * MB
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -428,8 +427,9 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         tensors: Optional[Sequence[str]] = None,
         transform: Optional[Callable] = None,
         num_workers: int = 1,
-        buffer_size: int = 0,
-        batch_size: int = 64,
+        buffer_size: int = 512,
+        batch_size: int = 0,
+        prefetch_size: int = 64,
         collate_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
@@ -446,23 +446,18 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.collate_fn = collate_fn
+        self.prefetch_size = prefetch_size
+        self.buffer_size = buffer_size * MB
 
-        if buffer_size == 0:
-            self.buffer_size = batch_size * num_workers
-        else:
-            if buffer_size < batch_size * num_workers:
-                raise ValueError(
-                    f"Buffer size should be more than batch_suze * num_workers = ${batch_size * num_workers}"
-                )
-
-            self.buffer_size = buffer_size
+        if self.buffer_size == 0:
+            warn("setting buffer_size = 0 will result in poor shuffling distribution")
 
     def __iter__(self):
-        buffer = ShuffleBuffer(self.buffer_size)
+        buffer = ShuffleBuffer(self.buffer_size) if self.buffer_size > 0 else None
 
         sub_loader = DataLoader(
             self.torch_datset,
-            batch_size=self.batch_size,
+            batch_size=self.prefetch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
         )
@@ -476,16 +471,23 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
 
                 for i in range(len(next_batch[batch_keys[0]])):
                     val = IterableOrderedDict({k: next_batch[k][i] for k in batch_keys})
-                    result = buffer.exchange(val)
 
-                    if result:
-                        yield result
+                    if buffer is not None:
+                        result = buffer.exchange(val)
+
+                        if result:
+                            yield result
+                    else:
+                        yield val
+
+                del next_batch, batch_keys
 
         except StopIteration:
             pass
 
-        while len(buffer) > 0:
-            yield buffer.exchange(None)
+        if buffer is not None:
+            while not buffer.emtpy():
+                yield buffer.exchange(None)
 
         del sub_loader
 
