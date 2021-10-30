@@ -1,5 +1,5 @@
 from hub.core.storage.provider import StorageProvider
-from googleapiclient import discovery
+from googleapiclient import discovery  # type: ignore
 from googleapiclient.http import (  # type: ignore
     MediaIoBaseDownload,
     MediaIoBaseUpload,
