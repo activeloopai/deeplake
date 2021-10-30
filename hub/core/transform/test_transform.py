@@ -27,6 +27,9 @@ if sys.platform == "darwin":
 # github actions can only support 2 workers
 TRANSFORM_TEST_NUM_WORKERS = 2
 
+# github actions can only support 2 workers
+TRANSFORM_TEST_NUM_WORKERS = 2
+
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
 
 schedulers = ["threaded", "processed"]
