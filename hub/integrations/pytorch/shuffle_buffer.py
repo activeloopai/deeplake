@@ -1,6 +1,7 @@
 from typing import List, Any
 from random import randrange
-import math
+from functools import reduce
+from operator import mul
 import warnings
 
 
@@ -76,7 +77,7 @@ class ShuffleBuffer:
     def _sample_size(self, sample):
         return sum(
             [
-                tensor.storage().element_size() * math.prod(tensor.shape)
+                tensor.storage().element_size() * reduce(mul, tensor.shape)
                 for _, tensor in sample.items()
             ]
         )
