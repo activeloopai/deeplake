@@ -21,6 +21,8 @@ FILE = "application/octet-stream"
 
 
 class GoogleDriveIDManager:
+    """Class used to make google drive path to id maps"""
+
     def __init__(self, drive: discovery.Resource, root: str):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
@@ -29,6 +31,8 @@ class GoogleDriveIDManager:
         self.makemap(self.root_id, self.root_path)
 
     def find_id(self, path):
+        """Find google drive id given path of folder"""
+
         dirname, basename = posixpath.split(path)
         file_list = (
             self.drive.files()
@@ -48,6 +52,8 @@ class GoogleDriveIDManager:
         return id
 
     def makemap(self, root_id, root_path):
+        """Make mapping from google drive paths to ids for all files and folders under root"""
+
         file_list = (
             self.drive.files()
             .list(
@@ -77,7 +83,21 @@ class GoogleDriveIDManager:
 
 
 class GDriveProvider(StorageProvider):
+    """Provider class for using Google Drive storage."""
+
     def __init__(self, root: str = "root"):
+        """Initializes the GDriveProvider
+
+        Example:
+            gdrive_provider = GDriveProvider("gdrive://folder_name/folder_name")
+
+        Args:
+            root(str): The root of the provider. All read/write request keys will be appended to root.
+
+        Note:
+            Requires `client_secrets.json` in working directory
+        """
+
         store = file.Storage("gdrive_creds.json")
         creds = store.get()
 
