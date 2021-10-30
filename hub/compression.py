@@ -1,27 +1,9 @@
 """
-Image and Byte compression types.
+Supported compressions (formats):
+    Image : bmp, dib, gif, ico, jpeg, jp2, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
+    Audio : flac, mp3, wav
+    Bytes : lz4
 
-Supported image compressions (formats):
-
- * BMP
- * DIB
- * GIF
- * ICO
- * JPEG
- * JPEG 2000
- * PCX
- * PNG
- * PPM
- * SGI
- * TGA
- * TIFF
- * WEBP
- * WMF
- * XBM
-
-Supported byte compression:
-
- * LZ4
 """
 from PIL import Image  # type: ignore
 
