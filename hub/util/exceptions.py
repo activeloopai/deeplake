@@ -204,7 +204,7 @@ class InvalidHubPathException(Exception):
 class PathNotEmptyException(Exception):
     def __init__(self):
         super().__init__(
-            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+            f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
         )
 
 

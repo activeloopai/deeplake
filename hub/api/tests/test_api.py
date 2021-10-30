@@ -468,7 +468,7 @@ def test_htype(memory_ds: Dataset):
     video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
-    keypoints_coco.append(np.ones((51, 2), dtype=np.float32))
+    keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -632,15 +632,15 @@ def test_dataset_delete():
 
         with pytest.raises(DatasetHandlerError):
             # Can't delete raw data without force
-            hub.dataset.delete("test/")
+            hub.delete("test/")
 
-        hub.dataset.delete("test/", force=True)
+        hub.delete("test/", force=True)
         assert not os.path.isfile("test/test.txt")
 
         hub.empty("test/").create_tensor("tmp")
         assert os.path.isfile("test/dataset_meta.json")
 
-        hub.dataset.delete("test/")
+        hub.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
         old_size = hub.constants.DELETE_SAFETY_SIZE
@@ -651,11 +651,11 @@ def test_dataset_delete():
         ds.data.extend(np.zeros((100, 2000)))
 
         try:
-            hub.dataset.delete("test/")
+            hub.delete("test/")
         finally:
             assert os.path.isfile("test/dataset_meta.json")
 
-        hub.dataset.delete("test/", large_ok=True)
+        hub.delete("test/", large_ok=True)
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
@@ -799,3 +799,20 @@ def test_vc_bug(local_ds_generator):
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
     assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
+
+
+def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
+    ds = memory_ds
+    ds.create_tensor("image", sample_compression="jpeg")
+    ds.create_tensor("audio", sample_compression="mp3")
+    with ds:
+        for _ in range(3):
+            ds.image.append(hub.read(compressed_image_paths["jpeg"][0]))
+            ds.audio.append(hub.read(audio_paths["mp3"]))
+    with open(compressed_image_paths["jpeg"][0], "rb") as f:
+        image_bytes = f.read()
+    with open(audio_paths["mp3"], "rb") as f:
+        audio_bytes = f.read()
+    for i in range(3):
+        assert ds.image[i].tobytes() == image_bytes
+        assert ds.audio[i].tobytes() == audio_bytes
