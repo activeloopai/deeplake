@@ -1,11 +1,11 @@
 from hub.core.storage.provider import StorageProvider
 from googleapiclient import discovery
-from googleapiclient.http import (
+from googleapiclient.http import (  # type: ignore
     MediaIoBaseDownload,
     MediaIoBaseUpload,
 )
-from httplib2 import Http
-from oauth2client import file, client, tools
+from httplib2 import Http  # type: ignore
+from oauth2client import file, client, tools  # type: ignore
 from io import BytesIO
 import posixpath
 import pickle
