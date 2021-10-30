@@ -15,7 +15,12 @@ from hub.constants import (
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage.cachable import Cachable
 from hub.client.log import logger
+<<<<<<< HEAD
 from hub.core.dataset import Dataset, get_dataset_instance
+=======
+from hub.core.dataset import Dataset, HubCloudDataset, dataset_factory
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+>>>>>>> f756ffa39439e75cd21c44df1bc4ba55d18a9263
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists, get_dataset_meta_key
@@ -85,7 +90,7 @@ class dataset:
             storage.clear()
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
@@ -147,7 +152,7 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
@@ -205,7 +210,7 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
+        return dataset_factory(
             path, storage=cache_chain, read_only=read_only, token=token
         )
 

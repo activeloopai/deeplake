@@ -65,3 +65,18 @@ def test_update_privacy(hub_cloud_ds):
     assert not hub_cloud_ds.public
     with pytest.raises(hub.util.exceptions.AuthorizationException):
         hub.load(hub_cloud_ds.path)
+
+
+def test_persistence_bug(local_ds_generator):
+    for tensor_name in ["abc", "abcd/defg"]:
+        ds = local_ds_generator()
+        with ds:
+            ds.create_tensor(tensor_name)
+            ds[tensor_name].append(1)
+
+        ds = local_ds_generator()
+        with ds:
+            ds[tensor_name].append(2)
+
+        ds = local_ds_generator()
+        np.testing.assert_array_equal(ds[tensor_name].numpy(), np.array([[1], [2]]))
