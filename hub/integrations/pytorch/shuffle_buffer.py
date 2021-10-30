@@ -11,7 +11,7 @@ class ShuffleBuffer:
     randomly and swap it with given sample.
 
     Args:
-        size(int)  size of the buffer in bytes
+        size(int):  size of the buffer in bytes
     Raises:
         ValueError if buffer size is not set
     """
@@ -28,7 +28,7 @@ class ShuffleBuffer:
         """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument
 
         Args:
-            sample - new sample to add or None
+            sample: new sample to add or None
 
         Returns:
             random sample or None
