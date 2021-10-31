@@ -1,5 +1,5 @@
 from hub.util.exceptions import NoViewError
-from typing import Callable, Union
+from typing import Callable
 from functools import wraps
 import hub
 
