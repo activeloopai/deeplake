@@ -608,4 +608,9 @@ class GCSDefaultCredsNotFoundError(Exception):
 
 class NoViewError(Exception):
     def __init__(self, method, type):
-        super().__init__(f"{method} method cannot be called on a {type} view.")
+        if method == "read_only":
+            super().__init__(
+                f"read_only property cannot be toggled for a dataset view."
+            )
+        else:
+            super().__init__(f"{method} method cannot be called on a {type} view.")
