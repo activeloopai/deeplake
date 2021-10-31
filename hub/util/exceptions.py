@@ -604,3 +604,8 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class NoViewError(Exception):
+    def __init__(self, method, type):
+        super().__init__(f"{method} method cannot be called on a {type} view.")

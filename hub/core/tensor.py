@@ -1,3 +1,4 @@
+from hub.util.no_view import no_view
 from hub.util.version_control import checkout, generate_hash
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
@@ -113,6 +114,7 @@ class Tensor:
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
 
+    @no_view
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
@@ -146,6 +148,7 @@ class Tensor:
 
         self.chunk_engine.extend(samples)
 
+    @no_view
     def append(
         self,
         sample: Union[np.ndarray, float, int, Sample],
