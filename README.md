@@ -64,6 +64,7 @@ A hub dataset can be created in various locations (Storage providers). This is h
 | Activeloop cloud        | hub://user_name/dataset_name   |
 | AWS S3 / S3 compatible  | s3://bucket_name/dataset_name  |
 | GCP                     | gcp://bucket_name/dataset_name |
+| Google Drive            | gdrive://path_to_dataset
 | Local storage           | path to local directory        |
 | In-memory               | mem://dataset_name             |
 
