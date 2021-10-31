@@ -198,8 +198,6 @@ class Dataset:
                     version_state=self.version_state,
                     path=self.path,
                 )
-                ret._parent = self  # type: ignore
-                return ret
             elif "/" in item:
                 splt = posixpath.split(item)
                 return self[splt[0]][splt[1]]
