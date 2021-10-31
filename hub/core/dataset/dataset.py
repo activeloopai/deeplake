@@ -91,7 +91,7 @@ class Dataset:
             try:
                 lock(base_storage, callback=lambda: self._lock_lost_handler)
             except LockedException:
-                self.read_only = True
+                self.read_only = True  # type: ignore
                 warnings.warn(
                     "Opening dataset in read only mode as another machine has locked it for writing."
                 )
@@ -456,7 +456,7 @@ class Dataset:
     def read_only(self):
         return self._read_only
 
-    @read_only.setter
+    @read_only.setter  # type: ignore
     @no_view
     def read_only(self, value: bool):
         if value:
