@@ -16,6 +16,7 @@ jobs:
       aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
       gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
+      hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
       kaggle_key: ${{ secrets.KAGGLE_KEY }}
