@@ -92,3 +92,6 @@ VERSION_CONTROL_INFO_FILENAME = "version_control_info"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
+
+# If True, and if the rest of the dataset is in color (3D), then reshape a grayscale image by appending a 1 to its shape.
+CONVERT_GRAYSCALE = True
