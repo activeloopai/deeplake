@@ -421,6 +421,8 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 def restore_string(sample):
+    if isinstance(sample, np.ndarray):
+        return sample["strings"][0]
     return sample["strings"].numpy().tobytes().decode()
 
 
