@@ -421,7 +421,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 def restore_string(sample):
-    return sample["strings"][0]
+    return sample["strings"].numpy().tobytes().decode()
 
 
 @requires_torch
