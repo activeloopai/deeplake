@@ -32,19 +32,6 @@ jobs:
             var fs = require('fs');
             fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
       - run: unzip pr.zip
-      - name: Add pr-ready label
-        uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
-          script: |
-            var fs = require('fs');
-            var issue_number = Number(fs.readFileSync('./NR'));
-            await github.issues.addLabel({
-              issue_number,
-              owner: 'activeloopai',
-              repo: 'hub',
-              name: 'pr-ready'
-            });
       - name: Get the PR Number
         id: get_number
         run: echo ::set-output name=PR_NUMBER::$(cat ./NR)
