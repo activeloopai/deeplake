@@ -1,7 +1,8 @@
 name: Test
-push:
-  branches:
-    - master
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   cancel-previous:
