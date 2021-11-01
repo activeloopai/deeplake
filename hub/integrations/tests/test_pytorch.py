@@ -418,3 +418,18 @@ def test_groups(local_ds, compressed_image_paths):
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
+
+
+def restore_string(sample):
+    return sample["strings"].numpy().tostring().decode()
+
+
+@requires_torch
+def test_string_tensors(local_ds):
+    with local_ds:
+        local_ds.create_tensor("strings", htype="text")
+        local_ds.strings.extend([f"string{idx}" for idx in range(5)])
+
+    tds = local_ds.pytorch(transform=restore_string, batch_size=1)
+    for idx, batch in enumerate(tds):
+        np.testing.assert_array_equal(batch, [f"string{idx}"])
