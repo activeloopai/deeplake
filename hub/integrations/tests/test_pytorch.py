@@ -421,7 +421,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 def restore_string(sample):
-    return sample["strings"].numpy().tobytes().decode()
+    return sample["strings"][0]
 
 
 @requires_torch
@@ -430,6 +430,6 @@ def test_string_tensors(local_ds):
         local_ds.create_tensor("strings", htype="text")
         local_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    tds = local_ds.pytorch(transform=restore_string, batch_size=1)
-    for idx, batch in enumerate(tds):
+    ptds = local_ds.pytorch(transform=restore_string, batch_size=1)
+    for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch, [f"string{idx}"])
