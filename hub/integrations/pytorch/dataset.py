@@ -429,7 +429,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 0,
-        prefetch_size: int = 64,
         collate_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
@@ -446,7 +445,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.collate_fn = collate_fn
-        self.prefetch_size = prefetch_size
         self.buffer_size = buffer_size * MB
 
         if self.buffer_size == 0:
@@ -457,7 +455,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
 
         sub_loader = DataLoader(
             self.torch_datset,
-            batch_size=self.prefetch_size,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
         )
