@@ -74,7 +74,7 @@ def create_dataloader_shufflingdataloader(
     )
 
 
-create_dataloader = create_dataloader_shufflingdataloader
+create_dataloader = create_dataloader_nesteddataloader
 
 
 def dataset_to_pytorch(
