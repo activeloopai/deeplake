@@ -26,13 +26,14 @@ class ShuffleBuffer:
         self.buffer_used = 0
 
     def exchange(self, sample):
-        """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument
+        """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument.
 
         Args:
             sample: new sample to add or None
 
         Returns:
-            random sample or None
+            random sample or None,
+            same sample if buffer is empty and sample doesn't fit
         """
         buffer_len = len(self.buffer)
 
@@ -40,7 +41,7 @@ class ShuffleBuffer:
             sample_size = self._sample_size(sample)
 
             # fill buffer of not reach limit
-            if self.buffer_used + sample_size < self.size:
+            if self.buffer_used + sample_size <= self.size:
                 self.buffer_used += sample_size
                 self.buffer.append(sample)
                 return None
@@ -49,7 +50,7 @@ class ShuffleBuffer:
                 warnings.warn(
                     f"Buffer size is too small. Sample with size {sample_size} does not fit in buffer of size {self.size}"
                 )
-                return None
+                return sample
 
             # exchange samples with shuffle buffer
             selected = randrange(buffer_len)
@@ -77,7 +78,7 @@ class ShuffleBuffer:
     def _sample_size(self, sample):
         return sum(
             [
-                tensor.storage().element_size() * reduce(mul, tensor.shape)
+                tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
                 for _, tensor in sample.items()
             ]
         )
