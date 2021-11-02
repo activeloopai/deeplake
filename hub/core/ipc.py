@@ -52,7 +52,10 @@ class Server(object):
         try:
             while True:
                 connection = self._connections[key][0]
-                msg = connection.recv()
+                try:
+                    msg = connection.recv()
+                except ConnectionAbortedError:
+                    return  # Required to avoid pytest.PytestUnhandledThreadExceptionWarning
                 if msg == _DISCONNECT_MESSAGE:
                     self._connections.pop(key)
                     connection.close()
@@ -88,6 +91,7 @@ class Client(object):
         self.port = port
         self._buffer = []
         self._client = None
+        self._closed = False
         threading.Thread(target=self._connect, daemon=True).start()
         atexit.register(self.close)
 
@@ -114,8 +118,16 @@ class Client(object):
             self._buffer.append(stuff)
 
     def close(self):
+        if self._closed:
+            return
         try:
-            self.send(_DISCONNECT_MESSAGE)
+            while not self._client:
+                time.sleep(0.5)
+            for stuff in self._buffer:
+                self._client.send(stuff)
+            self._client.send(_DISCONNECT_MESSAGE)
             self._client.close()
-        except Exception:
+            self._client = None
+            self._closed = True
+        except Exception as e:
             pass
