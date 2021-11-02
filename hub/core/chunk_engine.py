@@ -525,6 +525,7 @@ class ChunkEngine:
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
+        tensor_meta.num_compressed_bytes += len(nbytes)
         if tensor_meta.chunk_compression:
             updated_chunks = set()
             for nb, shape in zip(nbytes, shapes):

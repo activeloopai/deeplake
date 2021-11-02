@@ -39,6 +39,8 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
     max_chunk_size: int
+    num_compressed_bytes: int
+    num_uncompressed_bytes: int
 
     def __init__(
         self,
