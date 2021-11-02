@@ -863,13 +863,11 @@ def _to_hub_mkv(file: str):
         "matroska",
         "pipe:",
     ]
-
     pipe = sp.Popen(
         command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
     )
-    raw_info = pipe.communicate()[1]
+    mkv, raw_info = pipe.communicate()
     duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])  # type: ignore
     duration = to_seconds(duration)
-    mkv = pipe.communicate()[0]
     mkv = _HUB_MKV_HEADER + struct.pack("<Hf", 4, duration) + mkv
     return mkv
