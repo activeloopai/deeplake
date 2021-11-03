@@ -660,6 +660,11 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
+    def index_in_last_row(self, arr, index) -> bool:
+        """Checks if `index` is in the self._last_row of of chunk_id_encoder."""
+        row = self._last_row
+        return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
+
     def get_chunk_for_sample(
         self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
     ) -> Chunk:
@@ -673,35 +678,15 @@ class ChunkEngine:
             Chunk: Chunk object that contains `global_sample_index`.
         """
         found = False
-        if self._last_row == 0:
-            if enc.array[self._last_row][1] >= global_sample_index:
-                chunk_id = enc.array[self._last_row][0]
+        arr = enc.array
+        if self.index_in_last_row(arr, global_sample_index):
+            chunk_id = arr[self._last_row][0]
+            found = True
+        elif self._last_row < len(arr) - 1:
+            self._last_row += 1
+            if self.index_in_last_row(arr, global_sample_index):
+                chunk_id = arr[self._last_row][0]
                 found = True
-            else:
-                if self._last_row < len(enc.array) - 1:
-                    self._last_row += 1
-                    if (
-                        enc.array[self._last_row][1] >= global_sample_index
-                        and enc.array[self._last_row - 1][1] < global_sample_index
-                    ):
-                        chunk_id = enc.array[self._last_row][0]
-                        found = True
-        else:
-            if (
-                enc.array[self._last_row][1] >= global_sample_index
-                and enc.array[self._last_row - 1][1] < global_sample_index
-            ):
-                chunk_id = enc.array[self._last_row][0]
-                found = True
-            else:
-                if self._last_row < len(enc.array) - 1:
-                    self._last_row += 1
-                    if (
-                        enc.array[self._last_row][1] >= global_sample_index
-                        and enc.array[self._last_row - 1][1] < global_sample_index
-                    ):
-                        chunk_id = enc.array[self._last_row][0]
-                        found = True
 
         if not found:
             chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
