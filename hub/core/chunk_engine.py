@@ -660,10 +660,29 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
-    def index_in_last_row(self, arr, index) -> bool:
+    def _is_index_in_last_row(self, arr, index) -> bool:
         """Checks if `index` is in the self._last_row of of chunk_id_encoder."""
         row = self._last_row
         return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
+
+    def _get_chunk_id_for_index(self, global_sample_index: int, enc: ChunkIdEncoder):
+        """Takes a look at self._last_row and tries to find chunk id without binary search by looking at the current and next row.
+        Resorts to binary search if the current and next row don't have global_sample_index in them.
+        """
+        found = False
+        arr = enc.array
+        if self._is_index_in_last_row(arr, global_sample_index):
+            chunk_id = arr[self._last_row][0]
+            found = True
+        elif self._last_row < len(arr) - 1:
+            self._last_row += 1
+            if self._is_index_in_last_row(arr, global_sample_index):
+                chunk_id = arr[self._last_row][0]
+                found = True
+
+        if not found:
+            chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
+        return chunk_id
 
     def get_chunk_for_sample(
         self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
@@ -677,19 +696,7 @@ class ChunkEngine:
         Returns:
             Chunk: Chunk object that contains `global_sample_index`.
         """
-        found = False
-        arr = enc.array
-        if self.index_in_last_row(arr, global_sample_index):
-            chunk_id = arr[self._last_row][0]
-            found = True
-        elif self._last_row < len(arr) - 1:
-            self._last_row += 1
-            if self.index_in_last_row(arr, global_sample_index):
-                chunk_id = arr[self._last_row][0]
-                found = True
-
-        if not found:
-            chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
+        chunk_id = self._get_chunk_id_for_index(global_sample_index, enc)
 
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
