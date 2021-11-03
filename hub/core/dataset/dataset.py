@@ -50,7 +50,7 @@ class Dataset:
         index: Optional[Index] = None,
         group_index: str = "",
         read_only: bool = False,
-        public: Optional[bool] = True,
+        public: Optional[bool] = False,
         token: Optional[str] = None,
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,

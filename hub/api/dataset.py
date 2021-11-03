@@ -28,7 +28,7 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: bool = True,
+        public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -86,7 +86,7 @@ class dataset:
     def empty(
         path: str,
         overwrite: bool = False,
-        public: Optional[bool] = True,
+        public: Optional[bool] = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
