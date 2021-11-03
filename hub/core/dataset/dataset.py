@@ -718,13 +718,13 @@ class Dataset:
             return None
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            posixpath.dirname(self.group_index),
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index=posixpath.dirname(self.group_index),
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -736,13 +736,13 @@ class Dataset:
             return self
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            "",
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index="",
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush

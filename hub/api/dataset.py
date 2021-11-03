@@ -79,7 +79,7 @@ class dataset:
 
         read_only = storage.read_only
         return dataset_factory(
-            path, storage=cache_chain, read_only=read_only, public=public, token=token
+            path=path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
@@ -141,7 +141,7 @@ class dataset:
 
         read_only = storage.read_only
         return dataset_factory(
-            path, storage=cache_chain, read_only=read_only, public=public, token=token
+            path=path, storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
@@ -199,7 +199,7 @@ class dataset:
 
         read_only = storage.read_only
         return dataset_factory(
-            path, storage=cache_chain, read_only=read_only, token=token
+            path=path, storage=cache_chain, read_only=read_only, token=token
         )
 
     @staticmethod

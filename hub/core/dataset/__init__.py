@@ -23,5 +23,5 @@ def dataset_factory(path, *args, **kwargs):
     if clz is Dataset:
         return clz(*args, **kwargs)
     elif clz is HubCloudDataset:
-        return clz(path, *args, **kwargs)
+        return clz(path=path, *args, **kwargs)
     raise TypeError(f"Invalid dataset class {clz}")
