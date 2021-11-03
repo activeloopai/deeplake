@@ -2,15 +2,12 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, List, Optional
-from hub.api.info import Info
-
+from typing import Any, Dict
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.storage.cachable import Cachable
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
@@ -127,7 +124,7 @@ def copy_metas(
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     src_dataset_meta = storage[src_dataset_meta_key]
-    if isinstance(src_dataset_meta, DatasetMeta):
+    if isinstance(src_dataset_meta, Cachable):
         storage[dest_dataset_meta_key] = src_dataset_meta.copy()
     else:
         storage[dest_dataset_meta_key] = src_dataset_meta
@@ -136,7 +133,7 @@ def copy_metas(
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         src_dataset_info = storage[src_dataset_info_key]
-        if isinstance(src_dataset_info, Info):
+        if isinstance(src_dataset_info, Cachable):
             storage[dest_dataset_info_key] = src_dataset_info.copy()
         else:
             storage[dest_dataset_info_key] = src_dataset_info
@@ -149,7 +146,7 @@ def copy_metas(
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
         src_tensor_meta = storage[src_tensor_meta_key]
-        if isinstance(src_tensor_meta, TensorMeta):
+        if isinstance(src_tensor_meta, Cachable):
             storage[dest_tensor_meta_key] = src_tensor_meta.copy()
         else:
             storage[dest_tensor_meta_key] = src_tensor_meta
@@ -158,7 +155,7 @@ def copy_metas(
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
             src_chunk_id_encoder = storage[src_chunk_id_encoder_key]
-            if isinstance(src_chunk_id_encoder, ChunkIdEncoder):
+            if isinstance(src_chunk_id_encoder, Cachable):
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
             else:
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
@@ -169,7 +166,7 @@ def copy_metas(
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
-            if isinstance(src_tensor_info, Info):
+            if isinstance(src_tensor_info, Cachable):
                 storage[dest_tensor_info_key] = src_tensor_info.copy()
             else:
                 storage[dest_tensor_info_key] = src_tensor_info
