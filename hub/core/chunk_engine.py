@@ -704,9 +704,7 @@ class ChunkEngine:
                         found = True
 
         if not found:
-            chunk_id, self._last_row = enc.__getitem__(
-                global_sample_index, return_row_index=True
-            )
+            chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
 
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
