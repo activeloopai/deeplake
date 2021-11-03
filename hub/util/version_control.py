@@ -3,11 +3,14 @@ import time
 import hashlib
 import pickle
 from typing import Any, Dict, List, Optional
+from hub.api.info import Info
 
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
@@ -123,13 +126,21 @@ def copy_metas(
 
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
-    storage[dest_dataset_meta_key] = storage[src_dataset_meta_key].copy()
+    src_dataset_meta = storage[src_dataset_meta_key]
+    if isinstance(src_dataset_meta, DatasetMeta):
+        storage[dest_dataset_meta_key] = src_dataset_meta.copy()
+    else:
+        storage[dest_dataset_meta_key] = src_dataset_meta
 
     try:
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
-        storage[dest_dataset_info_key] = storage[src_dataset_info_key].copy()
-    except (KeyError, CallbackInitializationError):
+        src_dataset_info = storage[src_dataset_info_key]
+        if isinstance(src_dataset_info, Info):
+            storage[dest_dataset_info_key] = src_dataset_info.copy()
+        else:
+            storage[dest_dataset_info_key] = src_dataset_info
+    except KeyError:
         pass
 
     tensor_list = list(tensors.keys())
@@ -137,22 +148,32 @@ def copy_metas(
     for tensor in tensor_list:
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
-        storage[dest_tensor_meta_key] = storage[src_tensor_meta_key].copy()
+        src_tensor_meta = storage[src_tensor_meta_key]
+        if isinstance(src_tensor_meta, TensorMeta):
+            storage[dest_tensor_meta_key] = src_tensor_meta.copy()
+        else:
+            storage[dest_tensor_meta_key] = src_tensor_meta
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
-            storage[dest_chunk_id_encoder_key] = storage[
-                src_chunk_id_encoder_key
-            ].copy()
-        except (KeyError, CallbackInitializationError):
+            src_chunk_id_encoder = storage[src_chunk_id_encoder_key]
+            if isinstance(src_chunk_id_encoder, ChunkIdEncoder):
+                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
+            else:
+                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
+        except KeyError:
             pass
 
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
-            storage[dest_tensor_info_key] = storage[src_tensor_info_key].copy()
-        except (KeyError, CallbackInitializationError):
+            src_tensor_info = storage[src_tensor_info_key]
+            if isinstance(src_tensor_info, Info):
+                storage[dest_tensor_info_key] = src_tensor_info.copy()
+            else:
+                storage[dest_tensor_info_key] = src_tensor_info
+        except KeyError:
             pass
 
     storage.flush()
