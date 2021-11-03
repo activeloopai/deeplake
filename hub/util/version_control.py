@@ -22,7 +22,7 @@ from hub.util.keys import (
     get_version_control_info_key,
 )
 
-# TODO: replace prints with logging
+
 def generate_hash() -> str:
     hsh = hashlib.sha1()
     hsh.update(str(time.time()).encode("utf-8"))
@@ -137,7 +137,7 @@ def copy_metas(
             storage[dest_dataset_info_key] = src_dataset_info.copy()
         else:
             storage[dest_dataset_info_key] = src_dataset_info
-    except KeyError:
+    except (KeyError, CallbackInitializationError):
         pass
 
     tensor_list = list(tensors.keys())
@@ -159,7 +159,7 @@ def copy_metas(
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
             else:
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
-        except KeyError:
+        except (KeyError, CallbackInitializationError):
             pass
 
         try:
@@ -170,7 +170,7 @@ def copy_metas(
                 storage[dest_tensor_info_key] = src_tensor_info.copy()
             else:
                 storage[dest_tensor_info_key] = src_tensor_info
-        except KeyError:
+        except (KeyError, CallbackInitializationError):
             pass
 
     storage.flush()
