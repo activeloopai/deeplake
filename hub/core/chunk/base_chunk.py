@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from abc import abstractmethod
+from typing import List, Optional, Tuple
 import numpy as np
 
 import hub
@@ -25,7 +25,6 @@ class BaseChunk(Cachable):
         data: Optional[memoryview] = None,
     ):
         self.data_bytes = data or bytearray()
-        # self.shapes = []
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta
@@ -47,9 +46,9 @@ class BaseChunk(Cachable):
             self.htype == "image"
         ) or compression in IMAGE_COMPRESSIONS
 
-        # These caches are only used when chunk-wise compression is specified.
-        # self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
-        # self._decompressed_data_cache: Optional[memoryview] = None
+        # These caches are only used for ChunkCompressed chunk.
+        self._decompressed_samples: Optional[List[np.ndarray]] = None
+        self._decompressed_bytes: Optional[memoryview] = None
 
     @property
     def num_data_bytes(self) -> int:
@@ -168,3 +167,8 @@ class BaseChunk(Cachable):
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
+
+    def update_meta_and_headers(self, sample_nbytes, shape):
+        self.register_sample_to_headers(sample_nbytes, shape)
+        self.tensor_meta.length += 1
+        self.tensor_meta.update_shape_interval(shape)

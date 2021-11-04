@@ -9,6 +9,7 @@ from hub.core.serialize import (
     serialize_numpy_and_base_types,
     text_to_bytes,
 )
+from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk
 import numpy as np
 
@@ -66,13 +67,17 @@ class UncompressedChunk(BaseChunk):
             if not self.can_fit_sample(sample_nbytes, buffer_size):
                 break
             buffer_size += sample_nbytes
-            self.register_sample_to_headers(sample_nbytes, shape)
-            self.tensor_meta.length += 1
-            self.tensor_meta.update_shape_interval(shape)
             num_samples += 1
+        samples = incoming_samples[:num_samples]
+        samples = intelligent_cast(samples, self.dtype, self.htype)
+        self.data_bytes += samples.tobytes()
 
-        buffer = incoming_samples[:num_samples].tobytes()
-        self.data_bytes += buffer
+        if num_samples > 0:
+            shape = samples[0].shape if len(samples[0].shape) > 0 else (1,)
+            sample_nbytes = samples[0].nbytes
+            for _ in range(num_samples):
+                self.update_meta_and_headers(sample_nbytes, shape)
+
         return num_samples
 
     def _extend_if_has_space_sequence(
@@ -88,9 +93,7 @@ class UncompressedChunk(BaseChunk):
             if not self.can_fit_sample(sample_nbytes):
                 break
             self.data_bytes += serialized_sample
-            self.register_sample_to_headers(sample_nbytes, shape)
-            self.tensor_meta.length += 1
-            self.tensor_meta.update_shape_interval(shape)
+            self.update_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
         return num_samples
 
@@ -106,7 +109,6 @@ class UncompressedChunk(BaseChunk):
 
         if copy:
             buffer = bytes(buffer)
-        # print(len(buffer), self.dtype)
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(

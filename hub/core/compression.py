@@ -278,7 +278,7 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
     for arr in arrays:
         if arr.dtype != dtype:
             raise SampleCompressionError(
-                [arr.shape for shape in arr],  # type: ignore
+                arr.shape,
                 compression,
                 message="All arrays expected to have same dtype.",
             )

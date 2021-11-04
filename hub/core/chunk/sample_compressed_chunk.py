@@ -1,9 +1,6 @@
 from typing import List, Optional, Union
-import warnings
 
 import numpy as np
-import hub
-from hub.core import sample
 from hub.core.compression import compress_bytes, decompress_array, decompress_bytes
 
 from hub.core.sample import Sample
@@ -73,9 +70,7 @@ class SampleCompressedChunk(BaseChunk):
             if not self.can_fit_sample(sample_nbytes):
                 break
             self.data_bytes += serialized_sample
-            self.register_sample_to_headers(sample_nbytes, shape)
-            self.tensor_meta.length += 1
-            self.tensor_meta.update_shape_interval(shape)
+            self.update_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
         return num_samples
 
@@ -95,7 +90,7 @@ class SampleCompressedChunk(BaseChunk):
         )
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
-        return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
+        return sample
 
     def update_sample(
         self, local_sample_index: int, new_buffer: memoryview, new_shape: tuple[int]
