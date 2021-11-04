@@ -290,7 +290,7 @@ def _serialize_input_sample(
     return buffer, shape
 
 
-def _check_input_samples_are_valid(
+def check_input_samples(
     num_bytes: List[int],
     shapes: List[Tuple[int]],
     min_chunk_size: int,
@@ -397,7 +397,7 @@ def serialize_input_samples(
         )
     else:
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
-    _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
+    check_input_samples(nbytes, shapes, min_chunk_size, sample_compression)
     return buff, nbytes, shapes
 
 
@@ -444,7 +444,7 @@ def bytes_to_text(buffer, htype):
 
 def serialize_numpy_and_base_types(
     sample: Union[np.ndarray, int, float, bool], dtype, htype, compression
-) -> tuple(bytes, tuple):
+) -> tuple[bytes, tuple]:
     sample = intelligent_cast(sample, dtype, htype)
     shape = sample.shape
     sample = compress_array(sample, compression)

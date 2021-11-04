@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+import warnings
 
 import numpy as np
 import hub
@@ -7,6 +8,7 @@ from hub.core.compression import compress_bytes, decompress_array, decompress_by
 
 from hub.core.sample import Sample
 from hub.core.serialize import (
+    check_input_samples,
     bytes_to_text,
     serialize_numpy_and_base_types,
     text_to_bytes,
@@ -15,7 +17,7 @@ from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk
 
 SampleValue = Union[Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = tuple(bytes, Optional[tuple])
+SerializedOutput = tuple[bytes, Optional[tuple]]
 
 
 class SampleCompressedChunk(BaseChunk):
@@ -37,6 +39,7 @@ class SampleCompressedChunk(BaseChunk):
             incoming_sample = compress_bytes(incoming_sample, self.compression)
         elif isinstance(incoming_sample, Sample):
             shape = incoming_sample.shape
+            shape = self.convert_to_rgb(shape)
             if self.is_byte_compression:
                 # Byte compressions don't store dtype, need to cast to expected dtype
                 arr = intelligent_cast(incoming_sample.array, dt, ht)
@@ -54,6 +57,11 @@ class SampleCompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
         self.prepare_for_write()
+        shapes = []
+        nbytes = []
+        buffer = bytearray()
+        num_samples = 0
+
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             sample_nbytes = len(serialized_sample)
@@ -63,14 +71,19 @@ class SampleCompressedChunk(BaseChunk):
                 buffer=serialized_sample, compression=self.compression, shape=shape
             )
 
-            if self.num_data_bytes + sample_nbytes > self.max_chunk_size:
-                return i
+            if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
+                break
 
-            self.data_bytes += serialized_sample
-            self.shapes.append(shape)
-            self.register_sample_to_headers(sample_nbytes, shape)
-
-        return len(incoming_samples)
+            buffer += serialized_sample
+            shapes.append(shape)
+            nbytes.append(sample_nbytes)
+            num_samples += 1
+        check_input_samples(nbytes, shapes, self.min_chunk_size, self.compression)
+        self.shapes.extend(shapes)
+        self.data_bytes += buffer
+        for i in range(num_samples):
+            self.register_sample_to_headers(nbytes[i], shapes[i])
+        return num_samples
 
     def read_sample(
         self, local_sample_index: int, cast: bool = True, copy: bool = False
@@ -91,6 +104,6 @@ class SampleCompressedChunk(BaseChunk):
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
+        self, local_sample_index: int, new_buffer: memoryview, new_shape: tuple[int]
     ):
         raise NotImplementedError

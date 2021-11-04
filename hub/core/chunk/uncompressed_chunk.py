@@ -1,7 +1,9 @@
 from typing import List, Optional, Tuple, Union
+
+from numpy.core.numerictypes import nbytes
 from hub.core.sample import Sample
 from hub.core.serialize import (
-    _check_input_samples_are_valid,
+    check_input_samples,
     bytes_to_text,
     serialize_numpy_and_base_types,
     text_to_bytes,
@@ -10,7 +12,7 @@ from .base_chunk import BaseChunk
 import numpy as np
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = tuple(bytes, Optional[tuple])
+SerializedOutput = tuple[bytes, Optional[tuple]]
 
 
 class UncompressedChunk(BaseChunk):
@@ -29,6 +31,7 @@ class UncompressedChunk(BaseChunk):
             incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
         elif isinstance(incoming_sample, Sample):
             shape = incoming_sample.shape
+            shape = self.convert_to_rgb(shape)
             incoming_sample = incoming_sample.uncompressed_bytes
         elif isinstance(incoming_sample, bytes):
             shape = None
@@ -44,27 +47,37 @@ class UncompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
         self.prepare_for_write()
-        if isinstance(incoming_samples, np.array):
-            # optimized to directly write bytes of multiple arrays at once
+        shapes = []
+        nbytes = []
+        buffer = bytearray()
+        num_samples = 0
+        if isinstance(incoming_samples, np.ndarray):
             for i, incoming_sample in enumerate(incoming_samples):
-                if incoming_sample.nbytes + self.num_data_bytes > self.max_chunk_size:
-                    self.data_bytes += incoming_samples[:i].tobytes()
-                    self.shapes.extend([incoming_sample.shape] * (i - 1))
-                    for _ in range(i):
-                        self.register_sample_to_headers(
-                            incoming_sample.nbytes, incoming_sample.shape
-                        )
-                    return i
+                shape = incoming_sample.shape
+                sample_nbytes = incoming_sample.nbytes
+                if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
+                    break
+                num_samples += 1
+                shapes.append(shape)
+                nbytes.append(sample_nbytes)
+            buffer = incoming_samples[:num_samples].tobytes()
         else:
-            for i, incoming_sample in enumerate(incoming_samples):
+            for incoming_sample in incoming_samples:
                 serialized_sample, shape = self.serialize_sample(incoming_sample)
                 sample_nbytes = len(serialized_sample)
-                if self.num_data_bytes + sample_nbytes > self.max_chunk_size:
-                    return i
-                self.data_bytes += serialized_sample
-                self.shapes.append(shape)
-                self.register_sample_to_headers(sample_nbytes, shape)
-        return len(incoming_samples)
+                if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
+                    break
+                buffer += serialized_sample
+                num_samples += 1
+                shapes.append(shape)
+                nbytes.append(sample_nbytes)
+            
+        check_input_samples(nbytes, shapes, self.min_chunk_size, None)
+        self.shapes.extend(shapes)
+        self.data_bytes += buffer
+        for i in range(num_samples):
+            self.register_sample_to_headers(nbytes[i], shapes[i])
+        return num_samples
 
     def read_sample(
         self, local_sample_index: int, cast: bool = True, copy: bool = False

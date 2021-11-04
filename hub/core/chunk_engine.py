@@ -21,7 +21,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.util.version_control import auto_checkout, commit_chunk_set_exists
-from hub.util.exceptions import DynamicTensorNumpyError
+from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
 
 
 def _format_read_samples(
@@ -111,18 +111,14 @@ class ChunkEngine:
         self.cache = cache
         self._meta_cache = meta_cache
         self.version_state = version_state
-
-        self.chunk_args = [
-            self.min_chunk_size,
-            self.max_chunk_size,
-            self.tensor_meta.dtype,
-            self.tensor_meta.htype,
-        ]
+        self.compression = None
 
         if self.tensor_meta.sample_compression:
+            self.compression = self.tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
             self.chunk_args.append(self.tensor_meta.sample_compression)
         elif self.tensor_meta.chunk_compression:
+            self.compression = self.tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
             self.chunk_args.append(self.tensor_meta.chunk_compression)
         else:
@@ -135,6 +131,17 @@ class ChunkEngine:
         return (
             getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
         )
+
+    @property
+    def chunk_args(self):
+        return [
+            self.min_chunk_size,
+            self.max_chunk_size,
+            self.tensor_meta.dtype,
+            self.tensor_meta.htype,
+            len(self.tensor_meta.max_shape),
+            self.compression
+        ]
 
     @property
     def min_chunk_size(self):
@@ -253,7 +260,7 @@ class ChunkEngine:
         new_chunk_key = get_chunk_key(
             self.key, chunk_name, self.version_state["commit_id"]
         )
-        chunk = chunk.copy()
+        chunk = chunk.copy(self.chunk_args)
         chunk.key = new_chunk_key
         self.cache[new_chunk_key] = chunk
         if self.commit_chunk_set is not None:
@@ -286,24 +293,27 @@ class ChunkEngine:
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
 
-    def extend(self, samples):
+    def _write_initialization(self):
         self.cache.check_readonly()
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+    def extend(self, samples):
+        self._write_initialization()
+
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
-
-        current_chunk = self.last_chunk
-        if current_chunk is None:
-            current_chunk = self._create_new_chunk()
+        current_chunk = (
+            self.last_chunk if self.last_chunk is not None else self._create_new_chunk()
+        )
 
         all_shapes = []
         enc = self.chunk_id_encoder
 
-        while samples:
+        num_samples = len(samples)
+        while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             enc.register_samples(num_samples_added)
 
@@ -316,7 +326,7 @@ class ChunkEngine:
 
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
-        tensor_meta.length += len(samples)
+        tensor_meta.length += num_samples
         self._synchronize_cache()
         self.cache.maybe_flush()
 
@@ -357,7 +367,7 @@ class ChunkEngine:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
-        chunk = BaseChunk(*self.chunk_args)
+        chunk = self.chunk_class(*self.chunk_args)
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
         if self.commit_chunk_set is not None:
@@ -431,3 +441,26 @@ class ChunkEngine:
         if chunk_commit_id != current_commit_id and copy:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
+
+    def validate_num_samples_is_synchronized(self):
+        """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
+        Helpful for determining if a user has tampered with the tensor meta or the chunk ID encoder, or if
+        the tensor was corruptd.
+
+        Raises:
+            CorruptedMetaError: tensor_meta and chunk_id_encoder must have the same num samples.
+        """
+
+        tensor_meta_length = self.tensor_meta.length
+
+        # compare chunk ID encoder and tensor meta
+        chunk_id_num_samples = (
+            self.chunk_id_encoder.num_samples if self.chunk_id_encoder_exists else 0
+        )
+        if tensor_meta_length != chunk_id_num_samples:
+            commit_id = self.version_state["commit_id"]
+            tkey = get_tensor_meta_key(self.key, commit_id)
+            ikey = get_chunk_id_encoder_key(self.key, commit_id)
+            raise CorruptedMetaError(
+                f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
+            )

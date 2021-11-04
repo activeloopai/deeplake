@@ -5,7 +5,7 @@ from pathos.pools import ProcessPool  # type: ignore
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
 
 from hub.constants import EMERGENCY_STORAGE_PATH, MB
-from hub.core.chunk import Chunk
+# from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import (
     S3Provider,
@@ -268,7 +268,7 @@ class PrefetchLRUCache(LRUCache):
         cache = LRUCache(MemoryProvider(), self.storage, 32 * MB)
         return {key: ChunkEngine(key, cache, version_state) for key in self.tensor_keys}
 
-    def _numpy_from_chunks(self, index: int, key: str, chunks: List[Chunk]):
+    def _numpy_from_chunks(self, index: int, key: str, chunks: List["BaseChunk"]):
         """Takes a list of chunks and returns a numpy array from it"""
         # TODO: separate out casting
         chunk_engine = self.all_chunk_engines[key]

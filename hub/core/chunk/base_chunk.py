@@ -3,11 +3,13 @@ from typing import Optional, Tuple
 import numpy as np
 
 import hub
+from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import deserialize_chunk, infer_chunk_num_bytes, serialize_chunk
 from hub.core.storage.cachable import Cachable
+import warnings
 
 
 class BaseChunk(Cachable):
@@ -17,6 +19,7 @@ class BaseChunk(Cachable):
         max_chunk_size: int,
         dtype: str,
         htype: str,
+        num_dims: Optional[int] = None,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
@@ -28,10 +31,11 @@ class BaseChunk(Cachable):
         self.max_chunk_size = max_chunk_size
         self.dtype = dtype
         self.htype = htype
+        self.num_dims = num_dims
         self.is_text_like = self.htype in {"json", "list", "text"}
         self.compression = compression
         self.is_byte_compression = (
-            hub.compression.get_compression_type(self.compression) == "byte"
+            hub.compression.get_compression_type(self.compression) == BYTE_COMPRESSION
         )
         self.uncompressed_samples = []
 
@@ -39,11 +43,15 @@ class BaseChunk(Cachable):
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
+        self.is_convert_candidate = (
+            htype == "image"
+        ) or compression in IMAGE_COMPRESSIONS
 
         # These caches are only used when chunk-wise compression is specified.
         # self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
         # self._decompressed_data_cache: Optional[memoryview] = None
 
+    @property
     def num_data_bytes(self) -> int:
         return len(self.data_bytes)
 
@@ -55,7 +63,7 @@ class BaseChunk(Cachable):
             self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            len_data=len(self._data),
+            len_data=len(self.data_bytes),
         )
 
     def tobytes(self) -> memoryview:
@@ -135,3 +143,20 @@ class BaseChunk(Cachable):
         ):  # incoming_num_bytes is not applicable for image compressions
             self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
         # self._clear_decompressed_caches()
+
+    def convert_to_rgb(self, shape):
+        if self.is_convert_candidate and hub.constants.CONVERT_GRAYSCALE:
+            if self.num_dims is None:
+                self.num_dims = len(shape)
+            if len(shape) == 2 and self.num_dims == 3:
+                warnings.warn(
+                    "Grayscale images will be reshaped from (H, W) to (H, W, 1) to match tensor dimensions. This warning will be shown only once."
+                )
+                shape += (1,)  # type: ignore[assignment]
+        return shape
+
+    def can_fit_sample(self, sample_nbytes, buffer_nbytes):
+        return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.max_chunk_size
+
+    def copy(self, chunk_args=None):
+        return self.frombuffer(self.tobytes(), chunk_args)
