@@ -16,6 +16,7 @@ class DatasetMeta(Meta):
 
         self.tensors = []
         self.hidden_tensors = []
+        self.groups = []
 
         super().__init__()
 
@@ -28,4 +29,5 @@ class DatasetMeta(Meta):
         d = super().__getstate__()
         d["tensors"] = self.tensors
         d["hidden_tensors"] = self.hidden_tensors
+        d["groups"] = self.groups
         return d

@@ -3,9 +3,12 @@ import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
+from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorAlreadyExistsError,
+    TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
@@ -17,6 +20,7 @@ from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
+    enabled_non_gcs_datasets,
 )
 
 
@@ -142,7 +146,7 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
@@ -150,7 +154,7 @@ def test_compute_fixed_tensor(ds):
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
 
@@ -213,7 +217,7 @@ def test_empty_samples(ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_safe_downcasting(ds: Dataset):
     int_tensor = ds.create_tensor("int", dtype="uint8")
     int_tensor.append(0)
@@ -655,11 +659,9 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
-def test_invalid_tesnor_name(memory_ds):
+def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("meta")
-    with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("tensors")
+        memory_ds.create_tensor("version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -668,17 +670,20 @@ def test_compressions_list():
     assert hub.compressions == [
         "bmp",
         "dib",
+        "flac",
         "gif",
         "ico",
         "jpeg",
         "jpeg2000",
         "lz4",
+        "mp3",
         "pcx",
         "png",
         "ppm",
         "sgi",
         "tga",
         "tiff",
+        "wav",
         "webp",
         "wmf",
         "xbm",
@@ -692,8 +697,55 @@ def test_htypes_list():
         "image",
         "class_label",
         "bbox",
+        "audio",
         "video",
         "binary_mask",
         "segment_mask",
         "hash",
     ]
+
+
+def test_groups(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.create_tensor("x/y")
+    ds.create_tensor("y/x")
+    with pytest.raises(TensorGroupAlreadyExistsError):
+        ds.create_tensor("y")
+    assert isinstance(ds.y, Dataset)
+    assert isinstance(ds.x, Tensor)
+    assert isinstance(ds.y.x, Tensor)
+
+    assert "x" in ds._ungrouped_tensors
+
+    ds.create_tensor("/z")
+    assert "z" in ds.tensors
+    assert "" not in ds.groups
+    assert "" not in ds.tensors
+    assert isinstance(ds.z, Tensor)
+
+    assert list(ds.groups) == ["y"]
+    assert set(ds.tensors) == set(["x", "z", "y/x"])
+    assert list(ds.y.tensors) == ["x"]
+    z = ds.y.create_group("z")
+    assert "z" in ds.y.groups
+
+    c = z.create_tensor("a/b/c")
+    d = z.a.b.create_group("d")
+
+    c.append(np.zeros((3, 2)))
+
+    e = ds.create_tensor("/y/z//a/b////d/e/")
+    e.append(np.ones((4, 3)))
+
+    ds = local_ds_generator()
+    c = ds.y.z.a.b.c
+    assert ds.y.z.a.b.parent.group_index == ds.y.z.a.group_index
+    np.testing.assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
+    assert "d" in ds.y.z.a.b.groups
+    e = ds.y.z.a.b.d.e
+    np.testing.assert_array_equal(e[0].numpy(), np.ones((4, 3)))
+
+    ds.create_group("g")
+    ds.g.create_tensor("g")

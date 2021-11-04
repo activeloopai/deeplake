@@ -1,8 +1,8 @@
+import hub
 from hub.util.dataset import try_flushing
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage import MemoryProvider
-import hub
 
 
 def remove_memory_cache(storage: StorageProvider):
@@ -29,9 +29,10 @@ def get_dataset_with_zero_size_cache(ds):
     try_flushing(ds)
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
-    return hub.core.dataset.Dataset(
+    return hub.Dataset(
         storage=zero_cache_storage,
         index=ds.index,
+        group_index=ds.group_index,
         read_only=ds.read_only,
         verbose=False,
     )

@@ -1,29 +1,23 @@
-from hub.util.exceptions import (
-    DatasetHandlerError,
-    InvalidPathException,
-    KaggleDatasetAlreadyDownloadedError,
-    SamePathException,
-)
-from hub.util.storage import get_storage_and_cache_chain
-import hub
 import os
+import hub
 from typing import Optional, Union
 
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.client.log import logger
-from hub.util.keys import dataset_exists
-from hub.util.auto import get_most_common_extension
-from hub.util.bugout_reporter import hub_reporter, feature_report_path
-from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
+from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
+from hub.core.dataset import Dataset
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.util.auto import get_most_common_extension
+from hub.util.bugout_reporter import feature_report_path
+from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
     DatasetHandlerError,
     AutoCompressionError,
     InvalidFileExtension,
+    InvalidPathException,
+    SamePathException,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
-from hub.core.dataset import Dataset
 
 
 class dataset:
@@ -138,7 +132,7 @@ class dataset:
             storage.clear()
         elif dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
+                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
 
         read_only = storage.read_only
@@ -201,7 +195,7 @@ class dataset:
 
         if not dataset_exists(storage):
             raise DatasetHandlerError(
-                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
+                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
         if overwrite:
             storage.clear()
@@ -263,7 +257,7 @@ class dataset:
         if isinstance(source, str):
             source_ds = dataset.load(source)
 
-        for tensor_name in source_ds.meta.tensors:  # type: ignore
+        for tensor_name in source_ds.version_state["meta"].tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
@@ -288,34 +282,40 @@ class dataset:
             - All files and sub-directories with unsupported filetypes are ignored.
             - Valid source directory structures look like:
 
-            src:
-                directory -
-                    img.jpg
+            ```
+                data/
+                    img0.jpg
+                    img1.jpg
                     ...
 
-            src:
-                directory -
-                    class0 -
-                        img.jpg
+            ```
+            or
+            ```
+                data/
+                    class0/
+                        cat0.jpg
                         ...
-                    class1 -
-                        img.jpg
+                    class1/
+                        dog0.jpg
                         ...
                     ...
 
-            src:
-                directory -
-                    train -
-                        class0 -
-                            img.jpg
+            ```
+            or
+            ```
+                data/
+                    train/
+                        class0/
+                            img0.jpg
                             ...
                         ...
-                    test -
-                        class1 -
-                            img.jpg
+                    val/
+                        class0/
+                            img0.jpg
                             ...
                         ...
                     ...
+            ```
 
             - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
             - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]
@@ -347,12 +347,8 @@ class dataset:
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
-        if os.path.isdir(dest):
-            if os.path.samefile(src, dest):
-                raise SamePathException(src)
-
-        if len(os.listdir(src)) < 1:
-            raise AutoCompressionError(src)
+        if os.path.isdir(dest) and os.path.samefile(src, dest):
+            raise SamePathException(src)
 
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)

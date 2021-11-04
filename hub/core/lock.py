@@ -1,15 +1,16 @@
-from typing import Tuple, Dict, Callable, Optional
-from hub.util.exceptions import LockedException
-from hub.util.path import get_path_from_storage
-from hub.util.threading import terminate_thread
-from hub.core.storage.provider import StorageProvider
 import hub
 import time
+import uuid
 import struct
 import atexit
-import uuid
-import os
 import threading
+
+from typing import Tuple, Dict, Callable, Optional
+from hub.util.exceptions import LockedException
+from hub.util.keys import get_dataset_lock_key
+from hub.util.path import get_path_from_storage
+from hub.util.threading import terminate_thread
+from hub.core.storage import StorageProvider
 
 
 class Lock(object):
@@ -62,9 +63,7 @@ class Lock(object):
                         >= self.DATASET_LOCK_VALIDITY
                     ):
                         # Its been too long since last update, another machine might have locked the storage
-                        lock_bytes = self.storage.get(
-                            hub.constants.DATASET_LOCK_FILENAME
-                        )
+                        lock_bytes = self.storage.get(get_dataset_lock_key())
                         if lock_bytes:
                             nodeid, timestamp = self._parse_lock_bytes(lock_bytes)
                             if nodeid != uuid.getnode():
@@ -73,9 +72,7 @@ class Lock(object):
                                 self.acquired = False
                                 return
                     self._previous_update_timestamp = time.time()
-                    self.storage[
-                        hub.constants.DATASET_LOCK_FILENAME
-                    ] = self._get_lock_bytes()
+                    self.storage[get_dataset_lock_key()] = self._get_lock_bytes()
                 except Exception:
                     pass
                 time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
@@ -86,7 +83,7 @@ class Lock(object):
         if self.acquired:
             return
         self.storage.check_readonly()
-        lock_bytes = self.storage.get(hub.constants.DATASET_LOCK_FILENAME)
+        lock_bytes = self.storage.get(get_dataset_lock_key())
         if lock_bytes is not None:
             nodeid = None
             try:
@@ -111,7 +108,7 @@ class Lock(object):
             terminate_thread(self._thread)
             self._acquired = False
         try:
-            del self.storage[hub.constants.DATASET_LOCK_FILENAME]
+            del self.storage[get_dataset_lock_key()]
         except Exception:
             pass
 

@@ -17,6 +17,7 @@ def read_and_store_chunk_group(
     chunk_group: List[Tuple[str, str]],
     shared_memory_names: List[str],
     storage: Union[StorageProvider, tuple],
+    commit_id: str,
 ):
     """Reads chunks from the dataset's storage provider and stores them in the SharedMemory"""
     # TODO: modify to support chunk-wise decompression
@@ -28,7 +29,7 @@ def read_and_store_chunk_group(
 
     chunk_sizes: Dict[str, int] = {}
     for (key, chunk_name), shared_memory_name in zip(chunk_group, shared_memory_names):
-        chunk_key = get_chunk_key(key, chunk_name)
+        chunk_key = get_chunk_key(key, chunk_name, commit_id)
         chunk_bytes = storage[chunk_key]
         chunk_size = len(chunk_bytes)
         chunk_sizes[shared_memory_name] = chunk_size

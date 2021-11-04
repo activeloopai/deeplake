@@ -1,7 +1,6 @@
 import os
 import pickle
 import warnings
-import math
 import hub
 from typing import Callable, Union, Optional, Dict, Tuple, Sequence
 from hub.core.storage import MemoryProvider, LRUCache
@@ -95,6 +94,7 @@ class TorchDataset:
             )
         self.pickled_storage = pickle.dumps(base_storage)
         self.index = dataset.index
+        self.group_index = dataset.group_index
         self.length = len(dataset)
         self.transform = transform
         if tensors is None:
@@ -119,8 +119,11 @@ class TorchDataset:
             # creating a new cache for each process
             cache_size = 32 * MB * len(self.tensor_keys)
             cached_storage = LRUCache(MemoryProvider(), storage, cache_size)
-            self.dataset = hub.core.dataset.Dataset(
-                storage=cached_storage, index=self.index, verbose=False
+            self.dataset = hub.Dataset(
+                storage=cached_storage,
+                index=self.index,
+                group_index=self.group_index,
+                verbose=False,
             )
 
     def __len__(self):

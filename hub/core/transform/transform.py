@@ -3,6 +3,8 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.thread import ThreadProvider
+from hub.core.compute.process import ProcessProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -15,6 +17,7 @@ from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
 from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
+    TransformError,
 )
 
 
@@ -28,7 +31,7 @@ class TransformFunction:
     def eval(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
     ):
@@ -41,13 +44,13 @@ class TransformFunction:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded' and 'processed'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
         """
 
         pipeline = Pipeline([self])
@@ -65,7 +68,7 @@ class Pipeline:
     def eval(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         num_workers: int = 0,
         scheduler: str = "threaded",
     ):
@@ -78,19 +81,20 @@ class Pipeline:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded' and 'processed'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            TransformError: All other exceptions raised if there are problems while running the pipeline.
         """
         num_workers = max(num_workers, 0)
         if num_workers == 0:
             scheduler = "serial"
 
-        if isinstance(data_in, hub.core.dataset.Dataset):
+        if isinstance(data_in, hub.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
         hub_reporter.feature_report(
@@ -113,13 +117,19 @@ class Pipeline:
 
         compute_provider = get_compute_provider(scheduler, num_workers)
 
-        self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        try:
+            self.run(data_in, ds_out, tensors, compute_provider, num_workers)
+        except Exception as e:
+            raise TransformError(e)
+        finally:
+            compute_provider.close()
+
         ds_out.storage.autoflush = initial_autoflush
 
     def run(
         self,
         data_in,
-        ds_out: hub.core.dataset.Dataset,
+        ds_out: hub.Dataset,
         tensors: List[str],
         compute: ComputeProvider,
         num_workers: int,
@@ -132,11 +142,18 @@ class Pipeline:
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
+        version_state = ds_out.version_state
+        tensors = [ds_out.tensors[t].key for t in tensors]
         metas_and_encoders = compute.map(
             store_data_slice,
-            zip(slices, repeat(output_base_storage), repeat(tensors), repeat(self)),
+            zip(
+                slices,
+                repeat((output_base_storage, ds_out.group_index)),  # type: ignore
+                repeat(tensors),
+                repeat(self),
+                repeat(version_state),
+            ),
         )
-
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)

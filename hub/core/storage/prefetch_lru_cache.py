@@ -44,10 +44,11 @@ class PrefetchLRUCache(LRUCache):
         super().__init__(cache_storage, next_storage, cache_size)
         self.mode = mode
         self.transform = transform
-        self.all_indexes = self._extract_indexes_from_dataset(dataset)
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
+        self.all_indexes = self._extract_indexes_from_dataset(dataset, self.tensor_keys)
         self.workers = num_workers
-        self.map = ProcessPool(nodes=num_workers).map
+        pool = ProcessPool(nodes=num_workers)
+        self.map = pool.map
 
         # shared memory file names have format "al_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
         self.last_shm_key_generated = -1
@@ -73,7 +74,10 @@ class PrefetchLRUCache(LRUCache):
         # map from each index to a dictionary having tensors as keys and chunk_names as values
         self.index_chunk_names_map: Dict[int, Dict[str, List[str]]] = {}
 
-        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
+        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines(
+            dataset.version_state
+        )
+        self.commit_id = dataset.version_state["commit_id"]
 
         # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
         self.required_chunks: Set[tuple] = set()
@@ -213,11 +217,16 @@ class PrefetchLRUCache(LRUCache):
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
             tensor_keys = list(tensor_keys)
+
+        # Get full path in case of groups
+        tensor_keys = [dataset.tensors[k].key for k in tensor_keys]
         return tensor_keys
 
-    def _extract_indexes_from_dataset(self, dataset):
+    def _extract_indexes_from_dataset(self, dataset, tensors):
         """Returns a list of all the indexes in the dataset."""
-        tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
+        tensor_lengths = [
+            len(dataset.version_state["full_tensors"][tensor]) for tensor in tensors
+        ]
         length = min(tensor_lengths, default=0)
         return list(dataset.index.values[0].indices(length))
 
@@ -253,11 +262,11 @@ class PrefetchLRUCache(LRUCache):
             chunk_names[key] = names
         return chunk_names
 
-    def _load_all_chunk_engines(self):
+    def _load_all_chunk_engines(self, version_state):
         """Loads chunk engine for all tensors."""
         # creating a cache around base storage to pass to ChunkEngine
         cache = LRUCache(MemoryProvider(), self.storage, 32 * MB)
-        return {key: ChunkEngine(key, cache) for key in self.tensor_keys}
+        return {key: ChunkEngine(key, cache, version_state) for key in self.tensor_keys}
 
     def _numpy_from_chunks(self, index: int, key: str, chunks: List[Chunk]):
         """Takes a list of chunks and returns a numpy array from it"""
@@ -413,11 +422,13 @@ class PrefetchLRUCache(LRUCache):
         if isinstance(storage, S3Provider):
             storage = self.storage_state_tuple
 
+        commit_id = self.commit_id
         all_chunk_sizes: List[Dict[str, int]] = self.map(
             read_and_store_chunk_group,
             chunk_groups,
             shared_memory_groups,
             repeat(storage),
+            repeat(commit_id),
         )
         combined_chunk_sizes_dict: Dict[str, int] = {}
         for chunk_sizes in all_chunk_sizes:

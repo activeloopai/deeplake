@@ -2,27 +2,37 @@ from hub.tests.common import get_actual_compression_from_buffer, assert_images_c
 import numpy as np
 import pytest
 import hub
+import lz4.frame  # type: ignore
 from hub.core.compression import (
     compress_array,
     decompress_array,
     compress_multiple,
     decompress_multiple,
     verify_compressed_file,
+    decompress_bytes,
 )
-from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    IMAGE_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
+    SUPPORTED_COMPRESSIONS,
+)
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
-compressions = hub.compression.SUPPORTED_COMPRESSIONS[:]
+compressions = SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)  # type: ignore
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
-image_compressions = hub.compression.IMAGE_COMPRESSIONS[:]
+image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 
 
-@pytest.mark.parametrize("compression", compressions)
+@pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
     compression_type = get_compression_type(compression)
@@ -45,7 +55,7 @@ def test_array(compression, compressed_image_paths):
         assert_images_close(array, decompressed_array)
 
 
-@pytest.mark.parametrize("compression", compressions)
+@pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
 def test_multi_array(compression, compressed_image_paths):
     compression_type = get_compression_type(compression)
     if compression_type == IMAGE_COMPRESSION:
@@ -110,3 +120,20 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
         with pytest.raises(CorruptedSampleError):
             with open(path, "rb") as f:
                 verify_compressed_file(f.read(), compression)
+
+
+def test_lz4_bc():
+    inp = np.random.random((100, 100)).tobytes()
+    compressed = lz4.frame.compress(inp)
+    decompressed = decompress_bytes(compressed, "lz4")
+    assert decompressed == inp
+
+
+@pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
+def test_audio(compression, audio_paths):
+    path = audio_paths[compression]
+    sample = hub.read(path)
+    arr = np.array(sample)
+    assert arr.dtype == "float32"
+    with open(path, "rb") as f:
+        assert sample.compressed_bytes(compression) == f.read()

@@ -38,7 +38,7 @@ class InvalidPathException(Exception):
 class AutoCompressionError(Exception):
     def __init__(self, directory):
         super().__init__(
-            f"Auto compression could not run on {directory}. The directory is empty."
+            f"Auto compression could not run on {directory}. The directory doesn't contain any files."
         )
 
 
@@ -80,11 +80,31 @@ class TensorAlreadyExistsError(Exception):
         )
 
 
+class TensorGroupAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__(
+            f"Tensor group '{key}' already exists. A tensor group is created when a tensor has a '/' in its name, or using 'ds.create_group'."
+        )
+
+
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
-        super().__init__(
-            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
-        )
+        if name:
+            msg = (
+                f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+            )
+        else:
+            msg = f"Tensor name cannot be empty."
+        super().__init__(msg)
+
+
+class InvalidTensorGroupNameError(Exception):
+    def __init__(self, name: str):
+        if name:
+            msg = f"The use of a reserved attribute '{name}' as a tensor group name is invalid."
+        else:
+            msg = f"Tensor group name cannot be empty."
+        super().__init__(msg)
 
 
 class DynamicTensorNumpyError(Exception):
@@ -300,10 +320,15 @@ class CompressionError(Exception):
 
 
 class UnsupportedCompressionError(CompressionError):
-    def __init__(self, compression: str):
-        super().__init__(
-            f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
-        )
+    def __init__(self, compression: str, htype: Optional[str] = None):
+        if htype:
+            super().__init__(
+                f"Compression '{compression}' is not supported for {htype} htype."
+            )
+        else:
+            super().__init__(
+                f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
+            )
 
 
 class SampleCompressionError(CompressionError):
@@ -464,9 +489,11 @@ class TransformError(Exception):
 
 
 class InvalidInputDataError(TransformError):
-    def __init__(self, message):
+    def __init__(self, operation):
         super().__init__(
-            f"The data_in to transform is invalid. It should support {message} operation."
+            f"The data_in to transform is invalid. It doesn't support {operation} operation. "
+            "Please use a list, a hub dataset or an object that supports both __getitem__ and __len__. "
+            "Generators are not supported."
         )
 
 
@@ -576,3 +603,19 @@ class MemoryDatasetCanNotBePickledError(Exception):
 class CorruptedSampleError(Exception):
     def __init__(self, compression):
         super().__init__(f"Invalid {compression} file.")
+
+
+class VersionControlError(Exception):
+    pass
+
+
+class CheckoutError(VersionControlError):
+    pass
+
+
+class GCSDefaultCredsNotFoundError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
+            "Please make sure you initialized gcloud service earlier."
+        )

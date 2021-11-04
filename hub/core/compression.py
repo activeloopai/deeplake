@@ -5,7 +5,12 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.compression import get_compression_type
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    AUDIO_COMPRESSION,
+)
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 
@@ -15,7 +20,25 @@ import mmap
 import struct
 import sys
 import re
+import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
+import os
+import tempfile
+from miniaudio import (  # type: ignore
+    mp3_read_file_f32,
+    mp3_read_f32,
+    mp3_get_file_info,
+    mp3_get_info,
+    flac_read_file_f32,
+    flac_read_f32,
+    flac_get_file_info,
+    flac_get_info,
+    wav_read_file_f32,
+    wav_read_f32,
+    wav_get_file_info,
+    wav_get_info,
+)
+from numpy.core.fromnumeric import compress  # type: ignore
 
 
 if sys.byteorder == "little":
@@ -41,8 +64,22 @@ _JPEG_SOFS = [
     b"\xff\xce",
     b"\xff\xcf",
     b"\xff\xde",
+    # Skip:
+    b"\xff\xcc",
+    b"\xff\xdc",
+    b"\xff\xdd",
+    b"\xff\xdf",
+    # App: (0xFFE0 - 0xFFEF):
+    *map(lambda x: x.to_bytes(2, "big"), range(0xFFE0, 0xFFF0)),
+    # DQT:
+    b"\xff\xdb",
+    # COM:
+    b"\xff\xfe",
+    # Start of scan
+    b"\xff\xda",
 ]
 
+_JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
@@ -59,7 +96,7 @@ def to_image(array: np.ndarray) -> Image:
 
 def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
-        return lz4.frame.compress(buffer)
+        return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
             (len(buffer),), compression, f"Not a byte compression: {compression}"
@@ -68,7 +105,11 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
-        return lz4.frame.decompress(buffer)
+        if (
+            buffer[:4] == b'\x04"M\x18'
+        ):  # python-lz4 magic number (backward compatiblity)
+            return lz4.frame.decompress(buffer)
+        return numcodecs.lz4.decompress(buffer)
     else:
         raise SampleDecompressionError()
 
@@ -86,6 +127,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
         SampleCompressionError: If there was a problem compressing `array`.
+        NotImplementedError: If compression is not supported.
 
     Returns:
         bytes: Compressed `array` represented as bytes.
@@ -102,9 +144,14 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     if compression is None:
         return array.tobytes()
 
-    if get_compression_type(compression) == "byte":
-        return compress_bytes(array.tobytes(), compression)
+    compr_type = get_compression_type(compression)
 
+    if compr_type == BYTE_COMPRESSION:
+        return compress_bytes(array.tobytes(), compression)
+    elif compr_type == AUDIO_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     try:
         img = to_image(array)
         out = BytesIO()
@@ -124,7 +171,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
 
 def decompress_array(
-    buffer: Union[bytes, memoryview],
+    buffer: Union[bytes, memoryview, str],
     shape: Optional[Tuple[int]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
@@ -136,7 +183,7 @@ def decompress_array(
         `compress_array` may be used to get the `buffer` input.
 
     Args:
-        buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
+        buffer (bytes, memoryview, str): Buffer or file to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for byte compressions
         shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
@@ -149,16 +196,21 @@ def decompress_array(
     Returns:
         np.ndarray: Array from the decompressed buffer.
     """
-    if compression and get_compression_type(compression) == "byte":
+    compr_type = get_compression_type(compression)
+    if compr_type == BYTE_COMPRESSION:
         if dtype is None or shape is None:
             raise ValueError("dtype and shape must be specified for byte compressions.")
         try:
-            decompressed_bytes = decompress_bytes(buffer, compression)
+            decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
+    elif compr_type == AUDIO_COMPRESSION:
+        return _decompress_audio(buffer, compression)
     try:
-        img = Image.open(BytesIO(buffer))
+        if not isinstance(buffer, str):
+            buffer = BytesIO(buffer)  # type: ignore
+        img = Image.open(buffer)  # type: ignore
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)
@@ -189,10 +241,13 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
                 compression,
                 message="All arrays expected to have same dtype.",
             )
-    if get_compression_type(compression) == "byte":
+    compr_type = get_compression_type(compression)
+    if compr_type == BYTE_COMPRESSION:
         return compress_bytes(
             b"".join(arr.tobytes() for arr in arrays), compression
         )  # Note: shape and dtype info not included
+    elif compr_type == AUDIO_COMPRESSION:
+        raise NotImplementedError("compress_multiple does not support audio samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
@@ -249,6 +304,8 @@ def verify_compressed_file(
             return _verify_png(file)
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            return _read_audio_shape(file, compression), "<f4"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -258,14 +315,21 @@ def verify_compressed_file(
             file.close()  # type: ignore
 
 
-def get_compression(header):
-    if not Image.OPEN:
-        Image.init()
-    for fmt in Image.OPEN:
-        accept = Image.OPEN[fmt][1]
-        if accept and accept(header):
-            return fmt.lower()
-    raise SampleDecompressionError()
+def get_compression(header=None, path=None):
+    if path:
+        # These formats are recognized by file extension for now
+        file_formats = ["mp3", "flac", "wav"]
+        for fmt in file_formats:
+            if str(path).lower().endswith("." + fmt):
+                return fmt
+    if header:
+        if not Image.OPEN:
+            Image.init()
+        for fmt in Image.OPEN:
+            accept = Image.OPEN[fmt][1]
+            if accept and accept(header):
+                return fmt.lower()
+        raise SampleDecompressionError()
 
 
 def _verify_png(buf):
@@ -288,8 +352,20 @@ def _verify_jpeg_buffer(buf: bytes):
     assert buf.startswith(b"\xff\xd8")
     # Look for Start of Frame
     sof_idx = -1
-    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
-        sof_idx = sof_match.start(0)
+    offset = 0
+    while True:
+        match = _re_find_first(_JPEG_SOFS_RE, mview[offset:])
+        if match is None:
+            break
+        idx = match.start(0) + offset
+        marker = buf[idx : idx + 2]
+        if marker == _JPEG_SOFS[-1]:
+            break
+        elif marker in _JPEG_SKIP_MARKERS:
+            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
+        else:
+            sof_idx = idx
+            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
 
@@ -309,6 +385,7 @@ def _verify_jpeg_buffer(buf: bytes):
 def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    mv = memoryview(mm)
     try:
         soi = f.read(2)
         # Start of Image
@@ -316,8 +393,23 @@ def _verify_jpeg_file(f):
 
         # Look for Start of Frame
         sof_idx = -1
-        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):
-            sof_idx = sof_match.start(0)
+        offset = 0
+        while True:
+            view = mv[offset:]
+            match = _re_find_first(_JPEG_SOFS_RE, view)
+            view.release()
+            if match is None:
+                break
+            idx = match.start(0) + offset
+            marker = mm[idx : idx + 2]
+            if marker == _JPEG_SOFS[-1]:
+                break
+            elif marker in _JPEG_SKIP_MARKERS:
+                f.seek(idx + 2)
+                offset = idx + int.from_bytes(f.read(2), "big")
+            else:
+                sof_idx = idx
+                offset = idx + 2
         if sof_idx == -1:
             raise Exception()  # Caught by verify_compressed_file()
 
@@ -338,6 +430,7 @@ def _verify_jpeg_file(f):
             shape = shape[:-1]
         return shape
     finally:
+        mv.release()
         mm.close()
 
 
@@ -383,11 +476,12 @@ def read_meta_from_compressed_file(
         close = False
     try:
         if compression is None:
+            path = file if isinstance(file, str) else None
             if hasattr(f, "read"):
-                compression = get_compression(f.read(32))
+                compression = get_compression(f.read(32), path)
                 f.seek(0)
             else:
-                compression = get_compression(f[:32])  # type: ignore
+                compression = get_compression(f[:32], path)  # type: ignore
         if compression == "jpeg":
             try:
                 shape, typestr = _read_jpeg_shape(f), "|u1"
@@ -398,6 +492,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
+        elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            try:
+                shape, typestr = _read_audio_shape(file, compression), "<f4"
+            except Exception as e:
+                raise CorruptedSampleError(compress)
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -414,14 +513,35 @@ def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
     return _read_jpeg_shape_from_buffer(f)  # type: ignore
 
 
+def _re_find_first(pattern, string):
+    for match in re.finditer(pattern, string):
+        return match
+
+
 def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
+    mv = memoryview(mm)
     try:
         # Look for Start of Frame
         sof_idx = -1
-        for sof_match in re.finditer(_JPEG_SOFS_RE, mm):  # type: ignore
-            sof_idx = sof_match.start(0)
+        offset = 0
+        while True:
+            view = mv[offset:]
+            match = _re_find_first(_JPEG_SOFS_RE, view)
+            view.release()
+            if match is None:
+                break
+            idx = match.start(0) + offset
+            marker = mm[idx : idx + 2]
+            if marker == _JPEG_SOFS[-1]:
+                break
+            elif marker in _JPEG_SKIP_MARKERS:
+                f.seek(idx + 2)
+                offset = idx + int.from_bytes(f.read(2), "big")
+            else:
+                sof_idx = idx
+                offset = idx + 2
         if sof_idx == -1:
             raise Exception()
         f.seek(sof_idx + 5)
@@ -430,16 +550,29 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
             shape = shape[:-1]
         return shape
     finally:
-        pass
+        mv.release()
         mm.close()
 
 
 def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     """Gets shape of a jpeg file from its contents"""
     # Look for Start of Frame
+    mv = memoryview(buf)
     sof_idx = -1
-    for sof_match in re.finditer(_JPEG_SOFS_RE, buf):
-        sof_idx = sof_match.start(0)
+    offset = 0
+    while True:
+        match = _re_find_first(_JPEG_SOFS_RE, mv[offset:])
+        if match is None:
+            break
+        idx = match.start(0) + offset
+        marker = buf[idx : idx + 2]
+        if marker == _JPEG_SOFS[-1]:
+            break
+        elif marker in _JPEG_SKIP_MARKERS:
+            offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big")
+        else:
+            sof_idx = idx
+            offset = idx + 2
     if sof_idx == -1:
         raise Exception()
     shape = _STRUCT_HHB.unpack(memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
@@ -481,3 +614,34 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
             nlayers = 4
     shape = size if nlayers is None else size + (nlayers,)
     return shape, typstr  # type: ignore
+
+
+def _decompress_audio(
+    file: Union[bytes, memoryview, str], compression: Optional[str]
+) -> np.ndarray:
+    decompressor = globals()[
+        f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
+    ]
+    if isinstance(file, memoryview):
+        if (
+            isinstance(file.obj, bytes)
+            and file.strides == (1,)
+            and file.shape == (len(file.obj),)
+        ):
+            file = file.obj
+        else:
+            file = bytes(file)
+    raw_audio = decompressor(file)
+    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
+        raw_audio.num_frames, raw_audio.nchannels
+    )
+
+
+def _read_audio_shape(
+    file: Union[bytes, memoryview, str], compression: str
+) -> Tuple[int, ...]:
+    f_info = globals()[
+        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
+    ]
+    info = f_info(file)
+    return (info.num_frames, info.nchannels)

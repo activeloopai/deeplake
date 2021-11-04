@@ -46,12 +46,12 @@ class LocalProvider(StorageProvider):
         """
         try:
             full_path = self._check_is_file(path)
-            file = open(full_path, "rb")
-            return file.read()
+            with open(full_path, "rb") as file:
+                return file.read()
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
-            raise KeyError
+            raise KeyError(path)
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
@@ -76,8 +76,8 @@ class LocalProvider(StorageProvider):
             raise FileAtPathException(directory)
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-        file = open(full_path, "wb")
-        file.write(value)
+        with open(full_path, "wb") as file:
+            file.write(value)
         if self.files is not None:
             self.files.add(path)
 

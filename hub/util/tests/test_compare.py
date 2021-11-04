@@ -15,7 +15,7 @@ import numpy as np
 from hub.core.tensor import Tensor, _add_missing_meta_attributes
 from hub.tests.common import TENSOR_KEY
 from hub.constants import HASHES_TENSOR_FOLDER
-from hub.tests.dataset_fixtures import enabled_datasets
+from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
 
 import glob
 import os
@@ -97,7 +97,7 @@ def test_compare_errors(memory_ds, memory_ds_2):
         hub.compare_hashes(memory_ds, memory_ds_2)
 
 
-@enabled_datasets
+@enabled_non_gcs_datasets
 def test_linked_tensors(ds):
 
     ds.create_tensor("image")

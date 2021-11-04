@@ -31,6 +31,16 @@ def _tfds_installed():
     return True
 
 
+def ray_installed():
+    try:
+        import ray
+
+        ray.__version__
+    except ImportError:
+        return False
+    return True
+
+
 requires_torch = pytest.mark.skipif(
     not pytorch_installed(), reason="requires pytorch to be installed"
 )

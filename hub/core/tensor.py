@@ -1,5 +1,6 @@
+from hub.util.version_control import checkout, generate_hash
 import numpy as np
-from typing import List, Sequence, Union, Optional, Tuple, Any
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
@@ -30,6 +31,7 @@ def create_tensor(
     sample_compression: str,
     chunk_compression: str,
     hash_samples: Optional[bool],
+    version_state: Dict[str, Any],
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -41,6 +43,7 @@ def create_tensor(
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         hash_samples (Optional[bool]): All samples added to this tensor will be hashed and added as chunk to a tensor.
+        version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -48,10 +51,10 @@ def create_tensor(
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
     """
 
-    if tensor_exists(key, storage):
+    if tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorAlreadyExistsError(key)
 
-    meta_key = get_tensor_meta_key(key)
+    meta_key = get_tensor_meta_key(key, version_state["commit_id"])
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
@@ -113,6 +116,7 @@ class Tensor:
         self,
         key: str,
         storage: LRUCache,
+        version_state: Dict[str, Any],
         index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
@@ -124,6 +128,7 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             storage (LRUCache): The storage provider for the parent dataset.
+            version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
@@ -134,13 +139,18 @@ class Tensor:
         self.key = key
         self.storage = storage
         self.index = index or Index()
+        self.version_state = version_state
 
-        if not tensor_exists(self.key, self.storage):
+        if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(self.key, self.storage)
+        self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
         self.index.validate(self.num_samples)
-        self.info = load_info(get_tensor_info_key(self.key), self.storage)
+        self.info = load_info(
+            get_tensor_info_key(self.key, version_state["commit_id"]),
+            self.storage,
+            version_state,
+        )
 
         _add_missing_meta_attributes(self.key, self.storage, self.meta)
 
@@ -315,7 +325,12 @@ class Tensor:
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
-        return Tensor(self.key, self.storage, index=self.index[item])
+        return Tensor(
+            self.key,
+            self.storage,
+            self.version_state,
+            index=self.index[item],
+        )
 
     def _get_bigger_dtype(self, d1, d2):
         if np.can_cast(d1, d2):
