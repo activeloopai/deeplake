@@ -34,7 +34,7 @@ class UncompressedChunk(BaseChunk):
         elif isinstance(incoming_sample, Sample):
             shape = incoming_sample.shape
             shape = self.convert_to_rgb(shape)
-            incoming_sample = incoming_sample.uncompressed_bytes
+            incoming_sample = incoming_sample.uncompressed_bytes()
         elif isinstance(incoming_sample, bytes):
             shape = None
         else:  # np.ndarray, int, float, bool
