@@ -116,14 +116,11 @@ class ChunkEngine:
         if self.tensor_meta.sample_compression:
             self.compression = self.tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
-            self.chunk_args.append(self.tensor_meta.sample_compression)
         elif self.tensor_meta.chunk_compression:
             self.compression = self.tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
-            self.chunk_args.append(self.tensor_meta.chunk_compression)
         else:
             self.chunk_class = UncompressedChunk
-            self.chunk_args.append(None)
 
     @property
     def max_chunk_size(self):
@@ -137,10 +134,8 @@ class ChunkEngine:
         return [
             self.min_chunk_size,
             self.max_chunk_size,
-            self.tensor_meta.dtype,
-            self.tensor_meta.htype,
-            len(self.tensor_meta.max_shape),
-            self.compression
+            self.tensor_meta,
+            self.compression,
         ]
 
     @property
@@ -309,24 +304,17 @@ class ChunkEngine:
             self.last_chunk if self.last_chunk is not None else self._create_new_chunk()
         )
 
-        all_shapes = []
         enc = self.chunk_id_encoder
 
-        num_samples = len(samples)
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
-            enc.register_samples(num_samples_added)
 
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
             else:
-                shapes = current_chunk.shapes[-num_samples_added:]
-                all_shapes.extend(shapes)
+                enc.register_samples(num_samples_added)
                 samples = samples[num_samples_added:]
 
-        for shape in shapes:
-            tensor_meta.update_shape_interval(shape)
-        tensor_meta.length += num_samples
         self._synchronize_cache()
         self.cache.maybe_flush()
 

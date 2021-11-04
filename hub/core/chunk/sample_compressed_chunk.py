@@ -8,8 +8,9 @@ from hub.core.compression import compress_bytes, decompress_array, decompress_by
 
 from hub.core.sample import Sample
 from hub.core.serialize import (
-    check_input_samples,
+    check_sample_shape,
     bytes_to_text,
+    check_sample_size,
     serialize_numpy_and_base_types,
     text_to_bytes,
 )
@@ -57,32 +58,25 @@ class SampleCompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
         self.prepare_for_write()
-        shapes = []
-        nbytes = []
-        buffer = bytearray()
         num_samples = 0
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
+            self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
-
+            check_sample_shape(shape, self.num_dims)
+            check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
             # optimization so that even if this sample doesn't fit, it isn't recompressed next time we try
             incoming_samples[i] = Sample(
                 buffer=serialized_sample, compression=self.compression, shape=shape
             )
-
-            if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
+            if not self.can_fit_sample(sample_nbytes):
                 break
-
-            buffer += serialized_sample
-            shapes.append(shape)
-            nbytes.append(sample_nbytes)
+            self.data_bytes += serialized_sample
+            self.register_sample_to_headers(sample_nbytes, shape)
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(shape)
             num_samples += 1
-        check_input_samples(nbytes, shapes, self.min_chunk_size, self.compression)
-        self.shapes.extend(shapes)
-        self.data_bytes += buffer
-        for i in range(num_samples):
-            self.register_sample_to_headers(nbytes[i], shapes[i])
         return num_samples
 
     def read_sample(

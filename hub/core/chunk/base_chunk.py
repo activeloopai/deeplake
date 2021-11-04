@@ -7,6 +7,7 @@ from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.serialize import deserialize_chunk, infer_chunk_num_bytes, serialize_chunk
 from hub.core.storage.cachable import Cachable
 import warnings
@@ -17,21 +18,20 @@ class BaseChunk(Cachable):
         self,
         min_chunk_size: int,
         max_chunk_size: int,
-        dtype: str,
-        htype: str,
-        num_dims: Optional[int] = None,
+        tensor_meta: TensorMeta,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
         self.data_bytes = data or bytearray()
-        self.shapes = []
+        # self.shapes = []
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
-        self.dtype = dtype
-        self.htype = htype
-        self.num_dims = num_dims
+        self.tensor_meta = tensor_meta
+        self.num_dims = (
+            len(tensor_meta.max_shape) if self.tensor_meta.max_shape else None
+        )
         self.is_text_like = self.htype in {"json", "list", "text"}
         self.compression = compression
         self.is_byte_compression = (
@@ -44,7 +44,7 @@ class BaseChunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
         self.is_convert_candidate = (
-            htype == "image"
+            self.htype == "image"
         ) or compression in IMAGE_COMPRESSIONS
 
         # These caches are only used when chunk-wise compression is specified.
@@ -54,6 +54,14 @@ class BaseChunk(Cachable):
     @property
     def num_data_bytes(self) -> int:
         return len(self.data_bytes)
+
+    @property
+    def dtype(self):
+        return self.tensor_meta.dtype
+
+    @property
+    def htype(self):
+        return self.tensor_meta.htype
 
     @property
     def nbytes(self):
@@ -155,7 +163,7 @@ class BaseChunk(Cachable):
                 shape += (1,)  # type: ignore[assignment]
         return shape
 
-    def can_fit_sample(self, sample_nbytes, buffer_nbytes):
+    def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
         return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.max_chunk_size
 
     def copy(self, chunk_args=None):

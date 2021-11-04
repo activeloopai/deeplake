@@ -290,28 +290,20 @@ def _serialize_input_sample(
     return buffer, shape
 
 
-def check_input_samples(
-    num_bytes: List[int],
-    shapes: List[Tuple[int]],
-    min_chunk_size: int,
-    sample_compression: Optional[str],
+def check_sample_shape(shape, num_dims):
+    if len(shape) != num_dims:
+        raise TensorInvalidSampleShapeError(shape, num_dims)
+
+
+def check_sample_size(
+    num_bytes: int, min_chunk_size: int, sample_compression: Optional[str]
 ):
-    """Iterates through all buffers/shapes and raises appropriate errors."""
-
-    expected_dimensionality = None
-    for nbytes, shape in zip(num_bytes, shapes):
-        # check that all samples have the same dimensionality
-        if expected_dimensionality is None:
-            expected_dimensionality = len(shape)
-
-        if nbytes > min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {nbytes} bytes."
-            if sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-            raise NotImplementedError(msg)
-
-        if len(shape) != expected_dimensionality:
-            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+    """Raises an error if the sample size is too large."""
+    if num_bytes > min_chunk_size:
+        msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
+        if sample_compression is None:
+            msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
+        raise NotImplementedError(msg)
 
 
 def serialize_input_samples(
@@ -397,7 +389,7 @@ def serialize_input_samples(
         )
     else:
         raise TypeError(f"Cannot serialize samples of type {type(samples)}")
-    check_input_samples(nbytes, shapes, min_chunk_size, sample_compression)
+    # check_sample_shapes(nbytes, shapes, min_chunk_size, sample_compression)
     return buff, nbytes, shapes
 
 

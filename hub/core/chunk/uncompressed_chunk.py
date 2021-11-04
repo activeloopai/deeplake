@@ -3,8 +3,9 @@ from typing import List, Optional, Tuple, Union
 from numpy.core.numerictypes import nbytes
 from hub.core.sample import Sample
 from hub.core.serialize import (
-    check_input_samples,
+    check_sample_shape,
     bytes_to_text,
+    check_sample_size,
     serialize_numpy_and_base_types,
     text_to_bytes,
 )
@@ -47,36 +48,50 @@ class UncompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
         self.prepare_for_write()
-        shapes = []
-        nbytes = []
-        buffer = bytearray()
-        num_samples = 0
         if isinstance(incoming_samples, np.ndarray):
-            for i, incoming_sample in enumerate(incoming_samples):
-                shape = incoming_sample.shape
-                sample_nbytes = incoming_sample.nbytes
-                if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
-                    break
-                num_samples += 1
-                shapes.append(shape)
-                nbytes.append(sample_nbytes)
-            buffer = incoming_samples[:num_samples].tobytes()
-        else:
-            for incoming_sample in incoming_samples:
-                serialized_sample, shape = self.serialize_sample(incoming_sample)
-                sample_nbytes = len(serialized_sample)
-                if not self.can_fit_sample(sample_nbytes, sum(nbytes)):
-                    break
-                buffer += serialized_sample
-                num_samples += 1
-                shapes.append(shape)
-                nbytes.append(sample_nbytes)
-            
-        check_input_samples(nbytes, shapes, self.min_chunk_size, None)
-        self.shapes.extend(shapes)
+            return self._extend_if_has_space_numpy(incoming_samples)
+        return self._extend_if_has_space_sequence(incoming_samples)
+
+    def _extend_if_has_space_numpy(self, incoming_samples: np.array):
+        num_samples = 0
+        buffer_size = 0
+        for incoming_sample in incoming_samples:
+            shape = incoming_sample.shape
+            if len(shape) == 0:
+                shape = (1,)
+            self.num_dims = self.num_dims or len(shape)
+            sample_nbytes = incoming_sample.nbytes
+            check_sample_shape(shape, self.num_dims)
+            check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
+            if not self.can_fit_sample(sample_nbytes, buffer_size):
+                break
+            buffer_size += sample_nbytes
+            self.register_sample_to_headers(sample_nbytes, shape)
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(shape)
+            num_samples += 1
+
+        buffer = incoming_samples[:num_samples].tobytes()
         self.data_bytes += buffer
-        for i in range(num_samples):
-            self.register_sample_to_headers(nbytes[i], shapes[i])
+        return num_samples
+
+    def _extend_if_has_space_sequence(
+        self, incoming_samples: List[Union[bytes, Sample, np.array]]
+    ):
+        num_samples = 0
+        for incoming_sample in incoming_samples:
+            serialized_sample, shape = self.serialize_sample(incoming_sample)
+            self.num_dims = self.num_dims or len(shape)
+            sample_nbytes = len(serialized_sample)
+            check_sample_shape(shape, self.num_dims)
+            check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
+            if not self.can_fit_sample(sample_nbytes):
+                break
+            self.data_bytes += serialized_sample
+            self.register_sample_to_headers(sample_nbytes, shape)
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(shape)
+            num_samples += 1
         return num_samples
 
     def read_sample(
@@ -91,6 +106,7 @@ class UncompressedChunk(BaseChunk):
 
         if copy:
             buffer = bytes(buffer)
+        # print(len(buffer), self.dtype)
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(

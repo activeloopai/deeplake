@@ -8,7 +8,8 @@ from hub.core.compression import compress_bytes, decompress_bytes, decompress_mu
 from hub.core.sample import Sample
 from hub.core.serialize import (
     bytes_to_text,
-    check_input_samples,
+    check_sample_shape,
+    check_sample_size,
     serialize_numpy_and_base_types,
     text_to_bytes,
 )
@@ -83,14 +84,14 @@ class ChunkCompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
         self.prepare_for_write()
-        shapes = []
-        nbytes = []
         num_samples = 0
         buffer = self.decompressed_bytes(compression=self.compression)
-        compressed_bytes = self.data_bytes
-        for i, incoming_sample in enumerate(incoming_samples):
+        for incoming_sample in incoming_samples:
             serialized_sample, shape = self.serialize_sample(incoming_sample)
-            nb = len(serialized_sample)
+            self.num_dims = self.num_dims or len(shape)
+            sample_nbytes = len(serialized_sample)
+            check_sample_shape(shape, self.num_dims)
+            check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
             # self.uncompressed_samples.append(serialized_sample)
             buffer += serialized_sample
 
@@ -98,21 +99,16 @@ class ChunkCompressedChunk(BaseChunk):
             compressed_bytes = compress_bytes(buffer, self.compression)
 
             if len(compressed_bytes) > self.min_chunk_size:
-                compressed_bytes = prev_compressed_bytes
                 break
 
-            shapes.append(shape)
-
+            self.data_bytes = compressed_bytes
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
-            nbytes.append(nb if self.is_byte_compression else None)
+            sample_nbytes = sample_nbytes if self.is_byte_compression else None
+            self.register_sample_to_headers(sample_nbytes, shape)
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(shape)
             num_samples += 1
-            prev_compressed_bytes = compressed_bytes
 
-        check_input_samples(nbytes, shapes, self.min_chunk_size, None)
-        self.shapes.extend(shapes)
-        self.data_bytes = compressed_bytes
-        for i in range(num_samples):
-            self.register_sample_to_headers(nbytes[i], shapes[i])
         return num_samples
 
     def decompressed_samples(
