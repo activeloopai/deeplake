@@ -54,6 +54,7 @@ class Dataset:
         token: Optional[str] = None,
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
+        path: Optional[str] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -69,6 +70,7 @@ class Dataset:
             verbose (bool): If True, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             **kwargs: Passing subclass variables through without errors.
+            path: The path to the dataset.
 
 
         Raises:
@@ -80,7 +82,7 @@ class Dataset:
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
         # uniquely identifies dataset
-        self.path = get_path_from_storage(storage)
+        self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
@@ -718,13 +720,13 @@ class Dataset:
             return None
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            posixpath.dirname(self.group_index),
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index=posixpath.dirname(self.group_index),
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -736,13 +738,13 @@ class Dataset:
             return self
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            "",
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index="",
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush
