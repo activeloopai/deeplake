@@ -346,3 +346,14 @@ def audio_paths():
         paths[k] = os.path.join(parent, paths[k])
 
     return paths
+
+
+@pytest.fixture
+def video_paths():
+    paths = {"mp4": "samplemp4.mp4", "mkv": "samplemkv.mkv", "avi": "sampleavi.avi"}
+
+    parent = get_dummy_data_path("video")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+
+    return paths

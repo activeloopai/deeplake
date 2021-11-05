@@ -60,6 +60,8 @@ def test_dataset_empty_load():
 
 
 def test_update_privacy(hub_cloud_ds):
+    assert not hub_cloud_ds.public
+    hub_cloud_ds.make_public()
     assert hub_cloud_ds.public
     hub_cloud_ds.make_private()
     assert not hub_cloud_ds.public
