@@ -456,7 +456,7 @@ def test_htype(memory_ds: Dataset):
     image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
     label = memory_ds.create_tensor("label", htype="class_label")
-    video = memory_ds.create_tensor("video", htype="video")
+    video = memory_ds.create_tensor("video", htype="video", sample_compression="mkv")
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
@@ -465,7 +465,8 @@ def test_htype(memory_ds: Dataset):
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
     # label.append(5)
     label.append(np.array(5, dtype=np.uint32))
-    video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
+    with pytest.raises(NotImplementedError):
+        video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
@@ -671,6 +672,7 @@ def test_invalid_tensor_name(memory_ds):
 def test_compressions_list():
     assert hub.compressions == [
         "apng",
+        "avi",
         "bmp",
         "dib",
         "flac",
@@ -679,7 +681,9 @@ def test_compressions_list():
         "jpeg",
         "jpeg2000",
         "lz4",
+        "mkv",
         "mp3",
+        "mp4",
         "pcx",
         "png",
         "ppm",

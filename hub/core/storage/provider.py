@@ -11,6 +11,7 @@ from hub.util.keys import get_dataset_lock_key
 class StorageProvider(ABC, MutableMapping):
     autoflush = False
     read_only = False
+    root = ""
 
     """An abstract base class for implementing a storage provider.
 
