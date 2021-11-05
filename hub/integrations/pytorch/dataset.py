@@ -39,7 +39,7 @@ def use_scheduler(num_workers: int, ensure_order: bool):
             return SequentialMultithreadScheduler(num_workers)
 
 
-def cast_type(tensor: np.array):
+def cast_type(tensor: np.ndarray):
     if tensor.dtype == np.uint16:
         return tensor.astype(np.int32)
     if tensor.dtype == np.uint32:
