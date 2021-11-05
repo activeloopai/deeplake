@@ -22,8 +22,7 @@ class HubCloudDataset(Dataset):
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
-        else:
-            handle_dataset_agreement(self.agreement, path, self.ds_name, self.org_id)
+        handle_dataset_agreement(self.agreement, self.path, self.ds_name, self.org_id)
 
     @property
     def client(self):
@@ -92,4 +91,5 @@ class HubCloudDataset(Dataset):
             return None
 
     def add_agreeement(self, agreement: str):
+        self.storage.check_readonly()
         self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")

@@ -50,6 +50,8 @@ def handle_dataset_agreement(
     user_name = get_user_name()
     if user_name == "public":
         raise NotLoggedInError()
+    if user_name == "org_id":
+        return
     all_local_agreements = get_all_local_agreements()
     agreement_set = all_local_agreements.get(user_name) or set()
     if path not in agreement_set:
