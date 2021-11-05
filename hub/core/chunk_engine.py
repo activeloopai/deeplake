@@ -627,7 +627,7 @@ class ChunkEngine:
 
     def numpy(
         self, index: Index, aslist: bool = False
-    ) -> Union[np.ndarray, Sequence[np.ndarray]]:
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
@@ -855,7 +855,7 @@ def _format_read_samples(
     samples = index.apply_squeeze(samples)  # type: ignore
 
     if aslist:
-        return samples
+        return samples  # type: ignore
     else:
         return np.array(samples)
 
