@@ -1,14 +1,12 @@
-from click.testing import CliRunner
-import pytest
+import sys
 import hub
+import pytest
+from io import StringIO
+from contextlib import contextmanager
+from click.testing import CliRunner
 from hub.cli.auth import login, logout
 from hub.tests.client_fixtures import hub_cloud_dev_credentials
-from hub.tests.common import assert_array_lists_equal
-import sys
-from contextlib import contextmanager
-from io import StringIO
 from hub.util.agreement import get_all_local_agreements, update_local_agreements
-
 from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInError
 
 
