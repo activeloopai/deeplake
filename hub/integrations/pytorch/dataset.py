@@ -5,6 +5,7 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
     SampleStreaming,
     Schedule,
+    SequentialMultithreadScheduler,
     ShufflingSchedulerWrapper,
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
@@ -28,11 +29,14 @@ import numpy as np
 mp = torch.multiprocessing.get_context()
 
 
-def use_scheduler(num_workers: int):
+def use_scheduler(num_workers: int, ensure_order: bool):
     if num_workers <= 1:
         return SingleThreadScheduler()
     else:
-        return MultiThreadedNaiveScheduler(num_workers)
+        if ensure_order:
+            return MultiThreadedNaiveScheduler(num_workers)
+        else:
+            return SequentialMultithreadScheduler(num_workers)
 
 
 def cast_type(tensor: np.array):
@@ -376,7 +380,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.tensors = tensors
 
         self.use_local_cache = use_local_cache
-        self.scheduler = use_scheduler(num_workers)
+        self.scheduler = use_scheduler(num_workers, shuffle)
 
         if shuffle:
             self.scheduler = ShufflingSchedulerWrapper(self.scheduler)

@@ -1,6 +1,7 @@
 from abc import abstractmethod, ABC
 from random import shuffle, randrange
 from typing import Dict, Iterator, List, Optional, Sequence, Union
+from itertools import cycle
 from copy import copy
 from warnings import warn
 from numpy import nditer, argmin
@@ -47,6 +48,9 @@ class IOBlock:
     def indices(self) -> List[int]:
         return self._ind
 
+    def chunks(self) -> List[str]:
+        return self._chunks
+
     def __len__(self) -> int:
         return len(self._ind)
 
@@ -80,6 +84,47 @@ class Scheduler(ABC):
 class SingleThreadScheduler(Scheduler):
     def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
         return [Schedule(jobs)]
+
+
+class SequentialMultithreadScheduler(Scheduler):
+    """
+    Splits list of IO blocks in a way, so PyTroch loader would return
+    samples in sequence, when started with `num_worker` > 1.
+
+    Scheduler relays on a fact, that PyTroch DataLoader synchronize
+    read of samples per thread and return in a sequence per worker.
+
+    Example:
+        Given sequence of indices `[1, 2, 3, 4, 5, 6]` and 4 workers
+        PyTorch have to read samples in an order
+            thread0: [1, 5]
+            thread1: [2, 6]
+            thread2: [3]
+            thread3: [4]
+
+        So that initial order would be reconstructed by the DataLoader
+    """
+
+    def __init__(self, num_workers: int) -> None:
+        super().__init__()
+        self.num_workers = num_workers
+
+    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
+        per_worker: List[List[IOBlock]] = [list() for _ in range(self.num_workers)]
+        assigneg_worker = iter(cycle(range(self.num_workers)))
+
+        for job in jobs:
+            split: List[List[int]] = [list() for _ in range(self.num_workers)]
+
+            for ind in job.indices():
+                split[next(assigneg_worker)].append(ind)
+
+            for worker_id, idx_list in enumerate(split):
+                if len(idx_list) > 0:
+                    worker_block = IOBlock(job.chunks(), idx_list)
+                    per_worker[worker_id].append(worker_block)
+
+        return [Schedule(worker_jobs) for worker_jobs in per_worker]
 
 
 class MultiThreadedNaiveScheduler(Scheduler):
@@ -172,12 +217,13 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 try:
                     c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
+                    chunk: Chunk
 
                     if self.local_caches is not None:
                         local_cache = self.local_caches[key]
 
                         if c_key in local_cache:
-                            chunk = local_cache.get_cachable(c_key, Chunk)
+                            chunk = local_cache.get_cachable(c_key, Chunk)  # type: ignore
                         else:
                             chunk = engine.get_chunk(c_key)
                             local_cache[c_key] = chunk
@@ -214,7 +260,7 @@ class SampleStreaming(Streaming):
         ]
 
         iterators = [
-            nditer([arr[:, LAST_SEEN_INDEX_COLUMN], arr[:, CHUNK_ID_COLUMN]])
+            nditer([arr[:, LAST_SEEN_INDEX_COLUMN], arr[:, CHUNK_ID_COLUMN]])  # type: ignore
             for arr in chunk_id_encodings
         ]
 
@@ -226,7 +272,7 @@ class SampleStreaming(Streaming):
 
             if next_it_value >= last_idx:
                 chunks = [
-                    ChunkIdEncoder.name_from_id(cid)
+                    ChunkIdEncoder.name_from_id(cid)  # type: ignore
                     for cid in [int(it.value[1]) for it in iterators]
                 ]
 

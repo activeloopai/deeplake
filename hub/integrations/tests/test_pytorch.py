@@ -55,7 +55,7 @@ def test_pytorch_small(ds):
             dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=0, batch_size=1)
+    dl = ds.pytorch(num_workers=2, batch_size=1)
 
     assert len(dl.dataset) == 16
 
@@ -68,7 +68,7 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-    dls = ds.pytorch(num_workers=0, batch_size=1, shuffle=True)
+    dls = ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(0, 16, dls)
 
     sub_ds = ds[5:]
@@ -99,7 +99,7 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), (8 + i) * np.ones((1, 12, 12))
             )
 
-    sub_dls2 = sub_ds2.pytorch(num_workers=0, batch_size=1, shuffle=True)
+    sub_dls2 = sub_ds2.pytorch(num_workers=2, batch_size=1, shuffle=True)
     pytorch_small_shuffle_helper(8, 12, sub_dls2)
 
     sub_ds3 = ds[:5]
@@ -133,7 +133,7 @@ def test_pytorch_transform(ds):
             dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=0, transform=to_tuple, batch_size=1)
+    dl = ds.pytorch(num_workers=2, transform=to_tuple, batch_size=1)
 
     for _ in range(2):
         for i, batch in enumerate(dl):
