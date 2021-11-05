@@ -90,3 +90,6 @@ class HubCloudDataset(Dataset):
             return agreement_bytes.decode("utf-8")
         except KeyError:
             return None
+
+    def add_agreeement(self, agreement: str):
+        self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")
