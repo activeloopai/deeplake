@@ -604,3 +604,23 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class AgreementError(Exception):
+    pass
+
+
+class AgreementNotAcceptedError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "This dataset includes an agreement that needs to be accepted before you can use it.\n"
+            "You need to be signed in to accept this agreement.\n"
+            "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
+        )

@@ -1,10 +1,10 @@
-from hub.constants import HUB_CLOUD_DEV_USERNAME
+from typing import Optional
+from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
+from hub.util.agreement import handle_dataset_agreement
 from hub.util.path import is_hub_cloud_path
-from hub.util.keys import dataset_exists
-
 from warnings import warn
 
 
@@ -22,6 +22,8 @@ class HubCloudDataset(Dataset):
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
+        else:
+            handle_dataset_agreement(self.agreement, path, self.ds_name, self.org_id)
 
     @property
     def client(self):
@@ -80,3 +82,11 @@ class HubCloudDataset(Dataset):
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
         logger.info(f"Hub Dataset {self.path} successfully deleted.")
+
+    @property
+    def agreement(self) -> Optional[str]:
+        try:
+            agreement_bytes = self.storage[AGREEMENT_FILENAME]
+            return agreement_bytes.decode("utf-8")
+        except KeyError:
+            return None
