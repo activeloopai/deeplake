@@ -17,12 +17,13 @@ class HubCloudDataset(Dataset):
 
         super().__init__(*args, **kwargs)
 
-        # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
-        if not self.is_actually_cloud:
+        if self.is_actually_cloud:
+            handle_dataset_agreement(self.agreement, path, self.ds_name, self.org_id)
+        else:
+            # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
             warn(
                 f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
             )
-        handle_dataset_agreement(self.agreement, self.path, self.ds_name, self.org_id)
 
     @property
     def client(self):
