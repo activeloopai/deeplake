@@ -5,7 +5,6 @@ from io import StringIO
 from contextlib import contextmanager
 from click.testing import CliRunner
 from hub.cli.auth import login, logout
-from hub.tests.client_fixtures import hub_cloud_dev_credentials
 from hub.util.agreement import get_all_local_agreements, update_local_agreements
 from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInError
 
@@ -45,7 +44,7 @@ def remove_agreement(username, path):
     update_local_agreements(all_local_agreements)
 
 
-def test_agreement_logged_out():
+def test_agreement_logged_out(hub_cloud_dev_credentials):
     runner = CliRunner()
     runner.invoke(logout)
     path = "hub://activeloop/imagenet-train"
@@ -53,7 +52,7 @@ def test_agreement_logged_out():
         agree(path)
 
 
-def test_agreement_logged_in():
+def test_agreement_logged_in(hub_cloud_dev_credentials):
     runner = CliRunner()
     username, password = hub_cloud_dev_credentials
     runner.invoke(login, f"-u {username} -p {password}")
@@ -63,7 +62,7 @@ def test_agreement_logged_in():
     remove_agreement(username, path)
 
 
-def test_not_agreement_logged_in():
+def test_not_agreement_logged_in(hub_cloud_dev_credentials):
     runner = CliRunner()
     username, password = hub_cloud_dev_credentials
     runner.invoke(login, f"-u {username} -p {password}")
