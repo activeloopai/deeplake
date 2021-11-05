@@ -154,7 +154,7 @@ class Pipeline:
         progress = {"value": 0, "error": None}
 
         def callback(data):
-            if isinstance(data, Exception):
+            if isinstance(data, str):
                 progress["error"] = data
             else:
                 progress["value"] += data
@@ -169,7 +169,7 @@ class Pipeline:
                     time.sleep(1)
                     err = progress["error"]
                     if err:
-                        exec("raise err")  # Because darglint
+                        raise Exception(err)
         finally:
             if ismac:
                 while not ret:  # thread.join() takes forever on mac

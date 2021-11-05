@@ -9,15 +9,16 @@ def is_hub_cloud_path(path: str):
     return path.startswith("hub://")
 
 
-def get_path_from_storage(storage):
+def get_path_from_storage(storage) -> str:
     """Extracts the underlying path from a given storage."""
     if isinstance(storage, LRUCache):
         return get_path_from_storage(storage.next_storage)
     elif isinstance(storage, StorageProvider):
         if hasattr(storage, "hub_path"):
-            return storage.hub_path
+            return storage.hub_path  # type: ignore
         return storage.root
-    return None
+    else:
+        raise ValueError("Invalid storage type.")
 
 
 def find_root(path: str) -> str:
