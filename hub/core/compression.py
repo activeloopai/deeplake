@@ -13,7 +13,7 @@ from hub.compression import (
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
-
+from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
@@ -504,7 +504,7 @@ def read_meta_from_compressed_file(
     file, compression: Optional[str] = None
 ) -> Tuple[str, Tuple[int], str]:
     """Reads shape, dtype and format without decompressing or verifying the sample."""
-    if isinstance(file, str):
+    if isinstance(file, (str, Path)):
         f = open(file, "rb")
         isfile = True
         close = True
