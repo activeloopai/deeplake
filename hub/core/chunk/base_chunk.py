@@ -177,7 +177,6 @@ class BaseChunk(Cachable):
             incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
             if sample_compression:
                 incoming_sample = compress_bytes(incoming_sample, sample_compression)
-
         elif isinstance(incoming_sample, Sample):
             shape = incoming_sample.shape
             shape = self.convert_to_rgb(shape)
@@ -191,7 +190,10 @@ class BaseChunk(Cachable):
                 incoming_sample = incoming_sample.uncompressed_bytes()
         elif isinstance(incoming_sample, bytes):
             shape = None
-        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
+        elif isinstance(
+            incoming_sample,
+            (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
+        ):
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample, dt, ht, sample_compression
             )

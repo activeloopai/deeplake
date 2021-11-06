@@ -6,7 +6,12 @@ from hub.core.compression import (
     read_meta_from_compressed_file,
     get_compression,
 )
-from hub.compression import get_compression_type, AUDIO_COMPRESSION, IMAGE_COMPRESSION
+from hub.compression import (
+    get_compression_type,
+    AUDIO_COMPRESSION,
+    IMAGE_COMPRESSION,
+    BYTE_COMPRESSION,
+)
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
@@ -195,6 +200,16 @@ class Sample:
                         self._uncompressed_bytes = img.tobytes("raw", "L")
                     else:
                         self._uncompressed_bytes = img.tobytes()
+            elif self._compressed_bytes:
+                compr = self._compression
+                if compr is None:
+                    compr = get_compression(path=self.path)
+                buffer = self._buffer
+                if buffer is None:
+                    buffer = self._compressed_bytes[compr]
+                self._array = decompress_array(buffer, compression=compr)
+                self._uncompressed_bytes = self._array.tobytes()
+                self._typestr = self._array.__array_interface__["typestr"]
             else:
                 self._uncompressed_bytes = self._array.tobytes()
 
@@ -216,11 +231,12 @@ class Sample:
                 self._array = array
             else:
                 self._read_meta()
+                data = self.uncompressed_bytes()
                 array_interface = {
                     "shape": self._shape,
                     "typestr": self._typestr,
                     "version": 3,
-                    "data": self.uncompressed_bytes(),
+                    "data": data,
                 }
 
                 class ArrayData:
