@@ -27,9 +27,7 @@ class UncompressedChunk(BaseChunk):
             incoming_sample = incoming_sample.uncompressed_bytes()
         elif isinstance(incoming_sample, bytes):
             shape = None
-        elif isinstance(
-            incoming_sample, (np.ndarray, int, float, bool)
-        ):  # np.ndarray, int, float, bool
+        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample, dt, ht, self.compression
             )

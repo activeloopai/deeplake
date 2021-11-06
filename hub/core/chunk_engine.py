@@ -10,6 +10,7 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.sample import Sample
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_node import CommitNode
@@ -296,6 +297,7 @@ class ChunkEngine:
 
     def extend(self, samples):
         self._write_initialization()
+        check_samples_type(samples)
 
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
@@ -453,3 +455,8 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+
+def check_samples_type(samples):
+    if not isinstance(samples, (List, np.ndarray)):
+        raise TypeError(f"Cannot extend with samples of type {type(samples)}")

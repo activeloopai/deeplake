@@ -30,10 +30,12 @@ class SampleCompressedChunk(BaseChunk):
                 arr = intelligent_cast(incoming_sample.array, dt, ht)
                 incoming_sample = Sample(array=arr)
             incoming_sample = incoming_sample.compressed_bytes(self.compression)
-        else:  # np.ndarray, int, float, bool
+        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample, dt, ht, self.compression
             )
+        else:
+            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         if shape is not None and len(shape) == 0:
             shape = (1,)
         return incoming_sample, shape

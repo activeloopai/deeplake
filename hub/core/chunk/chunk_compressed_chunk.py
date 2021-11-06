@@ -33,10 +33,13 @@ class ChunkCompressedChunk(BaseChunk):
             incoming_sample = incoming_sample.uncompressed_bytes
         elif isinstance(incoming_sample, bytes):
             shape = None
-        else:  # np.ndarray, int, float, bool
+        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample, dt, ht, None
             )
+        else:
+            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
+
         if shape is not None and len(shape) == 0:
             shape = (1,)
         return incoming_sample, shape
