@@ -5,8 +5,6 @@ from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
     check_sample_size,
-    serialize_numpy_and_base_types,
-    text_to_bytes,
 )
 from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk
@@ -17,26 +15,6 @@ SerializedOutput = tuple[bytes, Optional[tuple]]
 
 
 class UncompressedChunk(BaseChunk):
-    def serialize_sample(self, incoming_sample: SampleValue) -> SerializedOutput:
-        dt, ht = self.dtype, self.htype
-        if self.is_text_like:
-            incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
-        elif isinstance(incoming_sample, Sample):
-            shape = incoming_sample.shape
-            shape = self.convert_to_rgb(shape)
-            incoming_sample = incoming_sample.uncompressed_bytes()
-        elif isinstance(incoming_sample, bytes):
-            shape = None
-        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
-            incoming_sample, shape = serialize_numpy_and_base_types(
-                incoming_sample, dt, ht, self.compression
-            )
-        else:
-            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
-        if shape is not None and len(shape) == 0:
-            shape = (1,)
-        return incoming_sample, shape
-
     def extend_if_has_space(
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
@@ -50,8 +28,7 @@ class UncompressedChunk(BaseChunk):
         buffer_size = 0
         for incoming_sample in incoming_samples:
             shape = incoming_sample.shape
-            if len(shape) == 0:
-                shape = (1,)
+            shape = self.normalize_shape(shape)
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = incoming_sample.nbytes
             check_sample_shape(shape, self.num_dims)
@@ -68,7 +45,7 @@ class UncompressedChunk(BaseChunk):
             shape = samples[0].shape if len(samples[0].shape) > 0 else (1,)
             sample_nbytes = samples[0].nbytes
             for _ in range(num_samples):
-                self.update_meta_and_headers(sample_nbytes, shape)
+                self.register_in_meta_and_headers(sample_nbytes, shape)
 
         return num_samples
 
@@ -77,7 +54,9 @@ class UncompressedChunk(BaseChunk):
     ):
         num_samples = 0
         for incoming_sample in incoming_samples:
-            serialized_sample, shape = self.serialize_sample(incoming_sample)
+            serialized_sample, shape = self.sample_to_bytes(
+                incoming_sample, None, False
+            )
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
@@ -85,7 +64,7 @@ class UncompressedChunk(BaseChunk):
             if not self.can_fit_sample(sample_nbytes):
                 break
             self.data_bytes += serialized_sample
-            self.update_meta_and_headers(sample_nbytes, shape)
+            self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
         return num_samples
 
@@ -104,6 +83,19 @@ class UncompressedChunk(BaseChunk):
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
+        self,
+        local_sample_index: int,
+        new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
     ):
-        raise NotImplementedError
+        self.prepare_for_write()
+        serialized_sample, shape = self.sample_to_bytes(new_sample, None, False)
+        self.check_shape_for_update(local_sample_index, shape)
+        new_nb = len(serialized_sample)
+
+        old_data = self.data_bytes
+        self.data_bytes = self.create_buffer_with_updated_data(
+            local_sample_index, old_data, serialized_sample
+        )
+
+        # update encoders and meta
+        self.update_in_meta_and_headers(local_sample_index, new_nb, shape)

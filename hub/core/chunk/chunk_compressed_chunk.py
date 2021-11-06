@@ -1,6 +1,5 @@
 from typing import List, Optional, Tuple, Union
 import numpy as np
-from hub.core.chunk.uncompressed_chunk import SerializedOutput
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -12,8 +11,6 @@ from hub.core.serialize import (
     bytes_to_text,
     check_sample_shape,
     check_sample_size,
-    serialize_numpy_and_base_types,
-    text_to_bytes,
 )
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import SampleDecompressionError
@@ -23,27 +20,6 @@ SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str
 
 
 class ChunkCompressedChunk(BaseChunk):
-    def serialize_sample(self, incoming_sample: SampleValue) -> SerializedOutput:
-        dt, ht = self.dtype, self.htype
-        if self.is_text_like:
-            incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
-        elif isinstance(incoming_sample, Sample):
-            shape = incoming_sample.shape
-            shape = self.convert_to_rgb(shape)
-            incoming_sample = incoming_sample.uncompressed_bytes
-        elif isinstance(incoming_sample, bytes):
-            shape = None
-        elif isinstance(incoming_sample, (np.ndarray, int, float, bool)):
-            incoming_sample, shape = serialize_numpy_and_base_types(
-                incoming_sample, dt, ht, None
-            )
-        else:
-            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
-
-        if shape is not None and len(shape) == 0:
-            shape = (1,)
-        return incoming_sample, shape
-
     def extend_if_has_space(
         self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
     ) -> int:
@@ -62,7 +38,9 @@ class ChunkCompressedChunk(BaseChunk):
             else bytearray()
         )
         for incoming_sample in incoming_samples:
-            serialized_sample, shape = self.serialize_sample(incoming_sample)
+            serialized_sample, shape = self.sample_to_bytes(
+                incoming_sample, None, False
+            )
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
@@ -76,7 +54,7 @@ class ChunkCompressedChunk(BaseChunk):
                 break
 
             self.data_bytes = compressed_bytes
-            self.update_meta_and_headers(sample_nbytes, shape)
+            self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
             self._decompressed_bytes = buffer
         return num_samples
@@ -95,8 +73,8 @@ class ChunkCompressedChunk(BaseChunk):
             if isinstance(incoming_sample, Sample):
                 incoming_sample = incoming_sample.array
             shape = incoming_sample.shape
-            if len(shape) == 0:
-                shape = (1,)
+            shape = self.normalize_shape(shape)
+
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
             buffer_list.append(incoming_sample)
@@ -109,7 +87,7 @@ class ChunkCompressedChunk(BaseChunk):
 
             self.data_bytes = compressed_bytes
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
-            self.update_meta_and_headers(None, shape)
+            self.register_in_meta_and_headers(None, shape)
             num_samples += 1
             self._decompressed_samples = buffer_list
 
@@ -163,6 +141,50 @@ class ChunkCompressedChunk(BaseChunk):
         return np.frombuffer(decompressed[sb:eb], dtype=self.dtype).reshape(shape)
 
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
+        self,
+        local_sample_index: int,
+        new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
     ):
-        raise NotImplementedError
+        self.prepare_for_write()
+        if self.is_byte_compression:
+            self.update_sample_byte_compression(local_sample_index, new_sample)
+        else:
+            self.update_sample_image_compression(local_sample_index, new_sample)
+
+    def update_sample_byte_compression(
+        self,
+        local_sample_index: int,
+        new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
+    ):
+        serialized_sample, shape = self.sample_to_bytes(new_sample, None, False)
+        self.check_shape_for_update(local_sample_index, shape)
+
+        new_nb = len(serialized_sample)
+        decompressed_buffer = self.decompressed_bytes(compression=self.compression)
+
+        new_data_uncompressed = self.create_buffer_with_updated_data(
+            local_sample_index, decompressed_buffer, serialized_sample
+        )
+        self.data_bytes = bytearray(
+            compress_bytes(new_data_uncompressed, compression=self.compression)
+        )
+        self._decompressed_bytes = memoryview(new_data_uncompressed)
+        self.update_in_meta_and_headers(local_sample_index, new_nb, shape)
+
+    def update_sample_image_compression(
+        self,
+        local_sample_index: int,
+        new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
+    ):
+        new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
+        if isinstance(new_sample, Sample):
+            new_sample = new_sample.array
+        shape = new_sample.shape
+        shape = self.normalize_shape(shape)
+        self.check_shape_for_update(local_sample_index, shape)
+        decompressed_samples = self.decompressed_samples()
+        decompressed_samples[local_sample_index] = new_sample
+        self.data_bytes = bytearray(
+            compress_multiple(decompressed_samples, self.compression)
+        )
+        self.update_in_meta_and_headers(local_sample_index, None, shape)

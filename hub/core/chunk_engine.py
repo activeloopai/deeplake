@@ -1,6 +1,8 @@
-from typing import Any, Dict, List, Optional, Sequence, Union
-
+import hub
+import warnings
 import numpy as np
+from typing import Any, Dict, List, Optional, Sequence, Union
+from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
@@ -10,7 +12,7 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample
+from hub.core.sample import Sample, SampleValue
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_node import CommitNode
@@ -23,6 +25,9 @@ from hub.util.keys import (
 )
 from hub.util.version_control import auto_checkout, commit_chunk_set_exists
 from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
+
+# used for warning the user if updating a tensor caused suboptimal chunks
+CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
 def _format_read_samples(
@@ -366,8 +371,69 @@ class ChunkEngine:
         self.cache[chunk_key] = chunk
         return chunk
 
-    def update(self):
-        raise NotImplementedError
+    def update(
+        self,
+        index: Index,
+        samples: Union[Sequence[SampleValue], SampleValue],
+        operator: Optional[str] = None,
+    ):
+        """Update data at `index` with `samples`."""
+        self._write_initialization()
+        if operator is not None:
+            return self._update_with_operator(index, samples, operator)
+
+        enc = self.chunk_id_encoder
+        updated_chunks = set()
+
+        index_length = index.length(self.num_samples)
+        samples = _make_sequence(samples, index_length)
+        chunks_nbytes_after_updates = []
+        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+        for i, sample in enumerate(samples):
+            global_sample_index = global_sample_indices[i]  # TODO!
+            chunk = self.get_chunk_for_sample(global_sample_index, enc, copy=True)
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+            # tensor_meta.update_shape_interval(shape)
+            chunk.update_sample(local_sample_index, sample)
+            updated_chunks.add(chunk)
+
+            # only care about deltas if it isn't the last chunk
+            if chunk.key != self.last_chunk_key:  # type: ignore
+                chunks_nbytes_after_updates.append(chunk.nbytes)
+
+        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk  # type: ignore
+
+        self._synchronize_cache(chunk_keys=[])
+        self.cache.maybe_flush()
+
+        _warn_if_suboptimal_chunks(
+            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
+        )
+
+    def _update_with_operator(
+        self,
+        index: Index,
+        samples: Union[Sequence[SampleValue], SampleValue],
+        operator: str,
+    ):
+        """Update data at `index` with the output of elem-wise operatorion with samples"""
+        try:
+            if isinstance(samples, hub.core.tensor.Tensor):
+                samples = samples.numpy()
+            arr = self.numpy(index)
+        except DynamicTensorNumpyError:
+            raise NotImplementedError(
+                "Inplace update operations are not available for dynamic tensors yet."
+            )
+
+        dt, ht = self.tensor_meta.dtype, self.tensor_meta.htype
+        samples = intelligent_cast(samples, dt, ht)
+        getattr(arr, operator)(samples)
+        self.update(index, arr)
 
     def numpy(
         self, index: Index, aslist: bool = False
@@ -460,3 +526,54 @@ class ChunkEngine:
 def check_samples_type(samples):
     if not isinstance(samples, (List, np.ndarray)):
         raise TypeError(f"Cannot extend with samples of type {type(samples)}")
+
+
+def _make_sequence(
+    samples: Union[Sequence[SampleValue], SampleValue], index_length: int
+) -> Sequence[SampleValue]:
+    """Make `samples` a sequence of `SampleValue`s.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Incoming samples to be made into a sequence.
+        index_length (int): Number of expected samples in the sequence.
+
+    Raises:
+        ValueError: If `index_length` is incompatible with the true length of `samples`.
+
+    Returns:
+        Sequence[SampleValue]: Sequence of `SampleValue`s with the same length as `index_length`.
+    """
+
+    if index_length == 1:
+        if hasattr(samples, "__len__"):
+            if len(samples) != 1:
+                samples = [samples]
+        elif hasattr(samples, "shape"):
+            if len(samples.shape) > 0 and samples.shape[0] != 1:  # type: ignore
+                samples = [samples]
+        else:
+            samples = [samples]
+
+    if hasattr(samples, "__len__"):
+        if index_length != len(samples):
+            raise ValueError(
+                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
+            )
+    else:
+        samples = [samples]
+
+    return samples
+
+
+def _warn_if_suboptimal_chunks(
+    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
+):
+    upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
+    lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
+
+    for nbytes in chunks_nbytes_after_updates:
+        if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
+            warnings.warn(
+                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
+            )
+            break
