@@ -305,6 +305,7 @@ class ChunkEngine:
         )
 
         enc = self.chunk_id_encoder
+        samples = samples.copy()
 
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)

@@ -50,11 +50,10 @@ class SampleCompressedChunk(BaseChunk):
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
             check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
-            # TODO: think of a better way to do this, modifying user array in place isn't great
             # optimization so that even if this sample doesn't fit, it isn't recompressed next time we try
-            # incoming_samples[i] = Sample(
-            #     buffer=serialized_sample, compression=self.compression, shape=shape
-            # )
+            incoming_samples[i] = Sample(
+                buffer=serialized_sample, compression=self.compression, shape=shape
+            )
             if not self.can_fit_sample(sample_nbytes):
                 break
             self.data_bytes += serialized_sample
