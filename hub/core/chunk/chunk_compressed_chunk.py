@@ -1,5 +1,4 @@
 from typing import List, Optional, Tuple, Union
-
 import numpy as np
 from hub.core.chunk.uncompressed_chunk import SerializedOutput
 from hub.core.compression import (
@@ -8,7 +7,6 @@ from hub.core.compression import (
     decompress_bytes,
     decompress_multiple,
 )
-
 from hub.core.sample import Sample
 from hub.core.serialize import (
     bytes_to_text,
@@ -25,22 +23,6 @@ SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str
 
 
 class ChunkCompressedChunk(BaseChunk):
-    """Responsibility: Case where we are using chunk-wise compression.
-    Case:
-        - sample_compression=None
-        - chunk_compression=compressed
-    Input pipeline:
-        - hub.read(...) ->
-            - decompress
-            - add to uncompressed data
-            - re-compress all data together
-            - check if newly re-compressed data fits in this chunk, if not then create new chunk
-        - numpy -> compressed bytes
-            - add to uncompressed data
-            - re-compress all data together
-            - check if newly re-compressed data fits in this chunk, if not then create new chunk
-    """
-
     def serialize_sample(self, incoming_sample: SampleValue) -> SerializedOutput:
         dt, ht = self.dtype, self.htype
         if self.is_text_like:

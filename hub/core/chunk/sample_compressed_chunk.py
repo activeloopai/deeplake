@@ -1,8 +1,6 @@
 from typing import List, Optional, Union
-
 import numpy as np
 from hub.core.compression import compress_bytes, decompress_array, decompress_bytes
-
 from hub.core.sample import Sample
 from hub.core.serialize import (
     check_sample_shape,
@@ -19,17 +17,6 @@ SerializedOutput = tuple[bytes, Optional[tuple]]
 
 
 class SampleCompressedChunk(BaseChunk):
-    """Responsibility: Case where we are using sample-wise compression.
-    Case:
-        - sample_compression=compressed
-        - chunk_compression=None
-    Input pipeline:
-        - hub.read(...) ->
-            - if incoming compression matches, use unprocessed bytes
-            - if incoming compression doesn't match, decompress then compress bytes
-        - numpy -> compressed bytes
-    """
-
     def serialize_sample(self, incoming_sample: SampleValue) -> SerializedOutput:
         dt, ht = self.dtype, self.htype
         if self.is_text_like:

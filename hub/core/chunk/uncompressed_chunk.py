@@ -1,5 +1,4 @@
 from typing import List, Optional, Tuple, Union
-
 from numpy.core.numerictypes import nbytes
 from hub.core.sample import Sample
 from hub.core.serialize import (
@@ -18,15 +17,6 @@ SerializedOutput = tuple[bytes, Optional[tuple]]
 
 
 class UncompressedChunk(BaseChunk):
-    """Responsibility: Case where we aren't using any compression.
-    Case:
-        - sample_compression=None
-        - chunk_compression=None
-    Input pipeline:
-        - hub.read(...) -> numpy
-        - numpy -> numpy
-    """
-
     def serialize_sample(self, incoming_sample: SampleValue) -> SerializedOutput:
         dt, ht = self.dtype, self.htype
         if self.is_text_like:
@@ -37,10 +27,14 @@ class UncompressedChunk(BaseChunk):
             incoming_sample = incoming_sample.uncompressed_bytes()
         elif isinstance(incoming_sample, bytes):
             shape = None
-        else:  # np.ndarray, int, float, bool
+        elif isinstance(
+            incoming_sample, (np.ndarray, int, float, bool)
+        ):  # np.ndarray, int, float, bool
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample, dt, ht, self.compression
             )
+        else:
+            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         if shape is not None and len(shape) == 0:
             shape = (1,)
         return incoming_sample, shape
