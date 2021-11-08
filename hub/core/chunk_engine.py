@@ -137,6 +137,9 @@ class ChunkEngine:
                 else []
             )
 
+        self.tensor_meta.num_compressed_bytes = self.num_compressed_bytes
+        self.tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -148,6 +151,22 @@ class ChunkEngine:
     def min_chunk_size(self):
         # only the last chunk may be less than this
         return self.max_chunk_size // 2
+
+    @property
+    def num_compressed_bytes(self):
+        nbytes = getattr(self.tensor_meta, "num_compressed_bytes", None)
+        if nbytes is None:
+            nbytes = self._get_num_compressed_bytes()
+            self.tensor_meta.num_compressed_bytes = nbytes
+        return nbytes
+
+    @property
+    def num_uncompressed_bytes(self):
+        nbytes = getattr(self.tensor_meta, "num_uncompressed_bytes", None)
+        if nbytes is None:
+            nbytes = self._get_num_uncompressed_bytes()
+            self.tensor_meta.num_uncompressed_bytes = nbytes
+        return nbytes
 
     @property
     def meta_cache(self) -> LRUCache:
@@ -518,6 +537,7 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
+        itemsize = np.dtype(tensor_meta.dtype).itemsize
 
         buff, nbytes, shapes = serialize_input_samples(
             samples, tensor_meta, self.min_chunk_size
@@ -525,7 +545,8 @@ class ChunkEngine:
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
-        tensor_meta.num_compressed_bytes += len(nbytes)
+        tensor_meta.num_compressed_bytes += sum(nbytes)
+        tensor_meta.num_uncompressed_bytes += np.prod(shapes).item() * itemsize
         if tensor_meta.chunk_compression:
             updated_chunks = set()
             for nb, shape in zip(nbytes, shapes):
@@ -841,6 +862,45 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         return chunk
+
+    def _get_all_chunks(self):
+        n_samples = self.num_samples
+        chunk_names = self.get_chunk_names_for_multiple_indexes(0, n_samples, n_samples)
+        commit_id = self.version_state["commit_id"]
+        chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
+        chunks = [self.cache[key] for key in chunk_keys]
+        return chunks
+
+    def _get_num_compressed_bytes(self):
+        chunks = self._get_all_chunks()
+        nbytes = 0
+
+        for chunk in chunks:
+            nbytes += chunk.num_data_bytes
+
+        return nbytes
+
+    def _get_chunk_uncompressed_size(self, chunk):
+        dtype = self.tensor_meta.dtype
+        if not dtype:
+            return
+        itemsize = np.dtype(dtype).itemsize
+        nbytes = 0
+
+        shapes = [
+            chunk.shapes_encoder[i] for i in range(chunk.shapes_encoder.num_samples)
+        ]
+        nbytes += np.prod(shapes) * itemsize
+        return nbytes
+
+    def _get_num_uncompressed_bytes(self):
+        chunks = self._get_all_chunks()
+        nbytes = 0
+
+        for chunk in chunks:
+            nbytes += self._get_chunk_uncompressed_size(chunk)
+
+        return nbytes
 
 
 def _format_read_samples(
