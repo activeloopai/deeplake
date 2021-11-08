@@ -6,7 +6,7 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
-from hub.core.dataset import Dataset, get_dataset_instance
+from hub.core.dataset import Dataset, HubCloudDataset, dataset_factory
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
@@ -28,7 +28,7 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: bool = True,
+        public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -78,15 +78,19 @@ class dataset:
             storage.clear()
 
         read_only = storage.read_only
-        return get_dataset_instance(
-            path, storage=cache_chain, read_only=read_only, public=public, token=token
+        return dataset_factory(
+            path=path,
+            storage=cache_chain,
+            read_only=read_only,
+            public=public,
+            token=token,
         )
 
     @staticmethod
     def empty(
         path: str,
         overwrite: bool = False,
-        public: Optional[bool] = True,
+        public: Optional[bool] = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -140,8 +144,12 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
-            path, storage=cache_chain, read_only=read_only, public=public, token=token
+        return dataset_factory(
+            path=path,
+            storage=cache_chain,
+            read_only=read_only,
+            public=public,
+            token=token,
         )
 
     @staticmethod
@@ -198,8 +206,8 @@ class dataset:
             )
 
         read_only = storage.read_only
-        return get_dataset_instance(
-            path, storage=cache_chain, read_only=read_only, token=token
+        return dataset_factory(
+            path=path, storage=cache_chain, read_only=read_only, token=token
         )
 
     @staticmethod

@@ -8,9 +8,10 @@ from hub.util.path import is_hub_cloud_path
 FORCE_CLASS = None
 
 
-def get_dataset_instance(path, *args, **kwargs):
+def dataset_factory(path, *args, **kwargs):
     """Returns a Dataset object from the appropriate class. For example: If `path` is a hub
-    cloud path, the returned Dataset object will be of HubCloudDataset."""
+    cloud path (prefixed with `hub://`), the returned Dataset object will be of HubCloudDataset.
+    """
 
     if FORCE_CLASS is not None:
         clz = FORCE_CLASS
@@ -19,8 +20,6 @@ def get_dataset_instance(path, *args, **kwargs):
     else:
         clz = Dataset
 
-    if clz is Dataset:
-        return clz(*args, **kwargs)
-    elif clz is HubCloudDataset:
-        return clz(path, *args, **kwargs)
+    if clz in {Dataset, HubCloudDataset}:
+        return clz(path=path, *args, **kwargs)
     raise TypeError(f"Invalid dataset class {clz}")
