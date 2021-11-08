@@ -103,6 +103,7 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
+        self._info = None
         self._set_derived_attributes()
 
     def _lock_lost_handler(self):
@@ -165,6 +166,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self._info = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -534,7 +536,6 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
 
@@ -542,9 +543,13 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
-        self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
+
+    @property
+    def info(self):
+        if self._info is None:
+            self._info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+        return self._info
 
     @hub_reporter.record_call
     def tensorflow(self):
