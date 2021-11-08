@@ -2,6 +2,8 @@ import hub
 import warnings
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Union
+from hub.core.meta.encode.tile import TileEncoder
+from hub.core.tiling.tile import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID
 from hub.core.chunk.base_chunk import BaseChunk
@@ -22,6 +24,7 @@ from hub.util.keys import (
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
+    get_tensor_tile_encoder_key,
 )
 from hub.util.version_control import auto_checkout, commit_chunk_set_exists
 from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
@@ -215,6 +218,29 @@ class ChunkEngine:
             return False
 
     @property
+    def tile_encoder(self) -> TileEncoder:
+        """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
+        commit_id = self.version_state["commit_id"]
+        key = get_tensor_tile_encoder_key(self.key, commit_id)
+        if not self.tile_encoder_exists:
+            enc = TileEncoder()
+            self.meta_cache[key] = enc
+            return enc
+
+        enc = self.meta_cache.get_cachable(key, TileEncoder)
+        return enc
+
+    @property
+    def tile_encoder_exists(self) -> bool:
+        try:
+            commit_id = self.version_state["commit_id"]
+            key = get_tensor_tile_encoder_key(self.key, commit_id)
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
+
+    @property
     def num_chunks(self) -> int:
         if not self.chunk_id_encoder_exists:
             return 0
@@ -300,6 +326,15 @@ class ChunkEngine:
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+    def convert_to_list(self, samples):
+        if isinstance(samples, list):
+            return False
+        if self.chunk_class != UncompressedChunk:
+            return True
+        elif isinstance(samples, np.ndarray):
+            return samples[0].nbytes >= self.min_chunk_size
+        return True
+
     def extend(self, samples):
         self._write_initialization()
         check_samples_type(samples)
@@ -313,13 +348,21 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
         samples = samples.copy()
-        if self.tensor_meta.sample_compression:
+        if self.convert_to_list(samples):
             samples = list(samples)
-
         while len(samples) > 0:
+            if isinstance(samples[0], SampleTiles) and not samples[0].registered:
+                self.tile_encoder.register_sample(self.num_samples, samples[0].sample_shape, samples[0].tile_shape)
+                samples[0].registered = True
             num_samples_added = current_chunk.extend_if_has_space(samples)
 
             if num_samples_added == 0:
+                current_chunk = self._create_new_chunk()
+            elif num_samples_added == 0.5:
+                if samples[0].is_first_write():
+                    enc.register_samples(1)
+                if samples[0].is_last_write():
+                    samples = samples[1:]
                 current_chunk = self._create_new_chunk()
             else:
                 enc.register_samples(num_samples_added)

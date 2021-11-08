@@ -49,7 +49,7 @@ DATASET_LOCK_VALIDITY = 300  # seconds
 META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
-
+ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
 ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"

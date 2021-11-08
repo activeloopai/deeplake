@@ -6,6 +6,7 @@ from hub.constants import (
     DATASET_LOCK_FILENAME,
     ENCODED_CHUNK_NAMES_FILENAME,
     ENCODED_CHUNK_NAMES_FOLDER,
+    ENCODED_TILE_NAMES_FOLDER,
     FIRST_COMMIT_ID,
     DATASET_META_FILENAME,
     TENSOR_INFO_FILENAME,
@@ -49,6 +50,12 @@ def get_tensor_meta_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return posixpath.join(key, TENSOR_META_FILENAME)
     return posixpath.join("versions", commit_id, key, TENSOR_META_FILENAME)
+
+
+def get_tensor_tile_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return posixpath.join(key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME)
+    return posixpath.join("versions", commit_id, key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME)
 
 
 def get_tensor_info_key(key: str, commit_id: str) -> str:
