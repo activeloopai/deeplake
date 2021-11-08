@@ -543,6 +543,7 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
+        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         self.index.validate(self.num_samples)
 
     @property
