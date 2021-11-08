@@ -474,7 +474,7 @@ class Dataset:
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
-        buffer_size: int = 10 * 1000,
+        buffer_size: int = 512,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
     ):
@@ -497,16 +497,16 @@ class Dataset:
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 512 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
         """
-        from hub.integrations import dataset_to_pytorch
+        from hub.integrations import dataset_to_pytorch as to_pytorch
 
-        dataloader = dataset_to_pytorch(
+        dataloader = to_pytorch(
             self,
             transform,
             tensors,
@@ -542,6 +542,7 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
+        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         self.index.validate(self.num_samples)
 
