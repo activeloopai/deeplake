@@ -139,4 +139,4 @@ class TileEncoder(Cachable):
 
     def __setstate__(self, state: Dict[str, Any]):
         self.entries = state["entries"]
-        self.version = state["version"] 
+        self.version = state["version"]

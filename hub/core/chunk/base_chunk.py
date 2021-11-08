@@ -4,7 +4,7 @@ import numpy as np
 
 import hub
 from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS
-from hub.core.compression import compress_bytes
+from hub.core.compression import compress_array, compress_bytes
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
@@ -14,11 +14,11 @@ from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
     serialize_chunk,
-    serialize_numpy_and_base_types,
     text_to_bytes,
 )
 from hub.core.storage.cachable import Cachable
 import warnings
+from hub.core.tiling.tile import SampleTiles
 from hub.util.casting import intelligent_cast
 
 from hub.util.exceptions import TensorInvalidSampleShapeError
@@ -165,41 +165,101 @@ class BaseChunk(Cachable):
             self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
         # self._clear_decompressed_caches()
 
-    def sample_to_bytes(
+    def serialize_sample(
         self,
         incoming_sample: SampleValue,
         sample_compression: Optional[str],
         is_byte_compression,
     ) -> SerializedOutput:
         """Converts the sample into bytes"""
-        dt, ht = self.dtype, self.htype
         if self.is_text_like:
-            incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
-            if sample_compression:
-                incoming_sample = compress_bytes(incoming_sample, sample_compression)
+            incoming_sample, shape = self.serialize_text(
+                incoming_sample, sample_compression
+            )
         elif isinstance(incoming_sample, Sample):
-            shape = incoming_sample.shape
-            shape = self.convert_to_rgb(shape)
-            if sample_compression:
-                if is_byte_compression:
-                    # Byte compressions don't store dtype, need to cast to expected dtype
-                    arr = intelligent_cast(incoming_sample.array, dt, ht)
-                    incoming_sample = Sample(array=arr)
-                incoming_sample = incoming_sample.compressed_bytes(sample_compression)
-            else:
-                incoming_sample = incoming_sample.uncompressed_bytes()
+            incoming_sample, shape = self.serialize_sample_object(
+                incoming_sample, sample_compression, is_byte_compression
+            )
         elif isinstance(incoming_sample, bytes):
             shape = None
         elif isinstance(
             incoming_sample,
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
         ):
-            incoming_sample, shape = serialize_numpy_and_base_types(
-                incoming_sample, dt, ht, sample_compression
+            incoming_sample, shape = self.serialize_numpy_and_base_types(
+                incoming_sample, sample_compression
             )
+        elif isinstance(incoming_sample, SampleTiles):
+            shape = incoming_sample.sample_shape
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         shape = self.normalize_shape(shape)
+        return incoming_sample, shape
+
+    def serialize_text(
+        self, incoming_sample: SampleValue, sample_compression: Optional[str]
+    ) -> SerializedOutput:
+        """Converts the sample into bytes"""
+        dt, ht = self.dtype, self.htype
+        incoming_sample, shape = text_to_bytes(incoming_sample, dt, ht)
+        if sample_compression:
+            incoming_sample = compress_bytes(incoming_sample, sample_compression)
+        return incoming_sample, shape
+
+    def serialize_sample_object(
+        self,
+        incoming_sample: SampleValue,
+        sample_compression: str,
+        is_byte_compression: bool,
+    ) -> SerializedOutput:
+        dt, ht = self.dtype, self.htype
+        shape = incoming_sample.shape
+        shape = self.convert_to_rgb(shape)
+        if sample_compression:
+            if is_byte_compression:
+                # Byte compressions don't store dtype, need to cast to expected dtype
+                arr = intelligent_cast(incoming_sample.array, dt, ht)
+                incoming_sample = Sample(array=arr)
+            compressed_bytes = incoming_sample.compressed_bytes(sample_compression)
+            if len(compressed_bytes) > self.min_chunk_size:
+                incoming_sample = SampleTiles(
+                    incoming_sample.array, sample_compression, self.min_chunk_size
+                )
+            else:
+                incoming_sample = compressed_bytes
+        else:
+            incoming_sample = incoming_sample.array
+            if incoming_sample.nbytes > self.min_chunk_size:
+                incoming_sample = SampleTiles(
+                    incoming_sample, sample_compression, self.min_chunk_size
+                )
+            else:
+                incoming_sample = incoming_sample.tobytes()
+        return incoming_sample, shape
+
+    def serialize_numpy_and_base_types(
+        self, incoming_sample: SampleValue, sample_compression: Optional[str]
+    ) -> SerializedOutput:
+        """Converts the sample into bytes"""
+        dt, ht = self.dtype, self.htype
+        incoming_sample = intelligent_cast(incoming_sample, dt, ht)
+        shape = incoming_sample.shape
+
+        if sample_compression is None:
+            if incoming_sample.nbytes > self.min_chunk_size:
+                incoming_sample = SampleTiles(
+                    incoming_sample, sample_compression, self.min_chunk_size
+                )
+            else:
+                incoming_sample = incoming_sample.tobytes()
+        else:
+            compressed_bytes = compress_array(incoming_sample, sample_compression)
+            if len(compressed_bytes) > self.min_chunk_size:
+                incoming_sample = SampleTiles(
+                    incoming_sample, sample_compression, self.min_chunk_size
+                )
+            else:
+                incoming_sample = compressed_bytes
         return incoming_sample, shape
 
     def convert_to_rgb(self, shape):

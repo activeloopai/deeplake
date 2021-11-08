@@ -120,7 +120,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
 
-        assert len(ls) == 1 # this method should only be called for non tiled samples 
+        assert len(ls) == 1  # this method should only be called for non tiled samples
         chunk_index = ls[0][1]
 
         if chunk_index == 0:

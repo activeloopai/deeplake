@@ -54,8 +54,16 @@ def get_tensor_meta_key(key: str, commit_id: str) -> str:
 
 def get_tensor_tile_encoder_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return posixpath.join(key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME)
-    return posixpath.join("versions", commit_id, key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME)
+        return posixpath.join(
+            key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME
+        )
+    return posixpath.join(
+        "versions",
+        commit_id,
+        key,
+        ENCODED_TILE_NAMES_FOLDER,
+        ENCODED_CHUNK_NAMES_FILENAME,
+    )
 
 
 def get_tensor_info_key(key: str, commit_id: str) -> str:

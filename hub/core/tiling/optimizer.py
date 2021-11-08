@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple, Union, List, Optional
 
+
 def get_tile_shape(
     sample_shape: Tuple[int, ...],
     sample_size: int,

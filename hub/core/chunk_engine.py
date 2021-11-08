@@ -353,7 +353,9 @@ class ChunkEngine:
             samples = list(samples)
         while len(samples) > 0:
             if isinstance(samples[0], SampleTiles) and not samples[0].registered:
-                self.tile_encoder.register_sample(self.num_samples - 1, samples[0].sample_shape, samples[0].tile_shape)
+                self.tile_encoder.register_sample(
+                    self.num_samples - 1, samples[0].sample_shape, samples[0].tile_shape
+                )
                 samples[0].registered = True
             num_samples_added = current_chunk.extend_if_has_space(samples)
 
@@ -532,12 +534,16 @@ class ChunkEngine:
                     tiled_arrays.append(arr)
 
                 tile_shape = self.tile_encoder.get_tile_shape(global_sample_index)
-                tile_layout_shape = self.tile_encoder.get_tile_layout_shape(global_sample_index)
+                tile_layout_shape = self.tile_encoder.get_tile_layout_shape(
+                    global_sample_index
+                )
                 tiles = np.empty((len(chunks),), dtype=np.object)
                 for i in range(len(chunks)):
                     tiles[i] = tiled_arrays[i]
                 tiles = np.reshape(tiles, tile_layout_shape)
-                sample = coalesce_tiles(tiles, tile_shape, shape, self.tensor_meta.dtype)
+                sample = coalesce_tiles(
+                    tiles, tile_shape, shape, self.tensor_meta.dtype
+                )
             samples.append(sample)
             last_shape = shape
         return _format_read_samples(samples, index, aslist)

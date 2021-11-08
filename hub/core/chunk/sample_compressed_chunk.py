@@ -21,7 +21,7 @@ class SampleCompressedChunk(BaseChunk):
         num_samples = 0
 
         for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.sample_to_bytes(
+            serialized_sample, shape = self.serialize_sample(
                 incoming_sample, self.compression, self.is_byte_compression
             )
             self.num_dims = self.num_dims or len(shape)
@@ -64,7 +64,7 @@ class SampleCompressedChunk(BaseChunk):
         new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
     ):
         self.prepare_for_write()
-        serialized_sample, shape = self.sample_to_bytes(
+        serialized_sample, shape = self.serialize_sample(
             new_sample, self.compression, self.is_byte_compression
         )
 
