@@ -106,7 +106,7 @@ class S3Provider(StorageProvider):
         """
         self.check_readonly()
         self._check_update_creds()
-        path = "/".join((self.path, path))
+        path = "".join((self.path, path))
         content = bytearray(memoryview(content))
         try:
             self.client.put_object(
@@ -147,7 +147,7 @@ class S3Provider(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self._check_update_creds()
-        path = "/".join((self.path, path))
+        path = "".join((self.path, path))
         try:
             resp = self.client.get_object(
                 Bucket=self.bucket,
@@ -185,7 +185,7 @@ class S3Provider(StorageProvider):
         """
         self.check_readonly()
         self._check_update_creds()
-        path = "/".join((self.path, path))
+        path = "".join((self.path, path))
         try:
             self.client.delete_object(Bucket=self.bucket, Key=path)
         # catch expired token error
