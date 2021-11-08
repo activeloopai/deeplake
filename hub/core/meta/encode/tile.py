@@ -65,8 +65,7 @@ class TileEncoder(Cachable):
             np.ceil(sample_shape_dim / tile_shape_dim)
             for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape)
         ]
-
-        return tuple(layout)
+        return tuple(int(x) for x in layout)
 
     def order_tiles(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]

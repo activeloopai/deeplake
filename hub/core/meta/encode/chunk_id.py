@@ -1,7 +1,7 @@
+from typing import Any
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
-import hub
 from hub.core.storage.cachable import Cachable
 import numpy as np
 from uuid import uuid4
@@ -118,7 +118,10 @@ class ChunkIdEncoder(Encoder, Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, chunk_index = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
+        ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
+
+        assert len(ls) == 1 # this method should only be called for non tiled samples 
+        chunk_index = ls[0][1]
 
         if chunk_index == 0:
             return global_sample_index
@@ -166,3 +169,34 @@ class ChunkIdEncoder(Encoder, Cachable):
         raise NotImplementedError(
             "There is no reason for ChunkIdEncoder to be updated now."
         )
+
+    def __getitem__(
+        self, local_sample_index: int, return_row_index: bool = False
+    ) -> Any:
+        """Derives the value at `local_sample_index`.
+
+        Args:
+            local_sample_index (int): Index of the sample for the desired value.
+            return_row_index (bool): If True, the index of the row that the value was derived from is returned as well.
+                Defaults to False.
+
+        Returns:
+            Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
+        """
+
+        row_index = self.translate_index(local_sample_index)
+
+        output = []
+        while row_index < len(self._encoded):
+            if self._encoded[row_index][1] == local_sample_index:
+                value = self._derive_value(
+                    self._encoded[row_index], row_index, local_sample_index
+                )
+                if return_row_index:
+                    output.append((value, row_index))
+                else:
+                    output.append(value)
+                row_index += 1
+            else:
+                break
+        return output

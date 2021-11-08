@@ -15,9 +15,6 @@ import numpy as np
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
 SerializedOutput = tuple[bytes, Optional[tuple]]
 
-import numpy as np
-from typing import List, Optional, Tuple, Union
-
 
 class UncompressedChunk(BaseChunk):
     def needs_to_be_tiled(self, nbytes) -> bool:
