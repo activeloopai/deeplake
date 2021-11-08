@@ -695,7 +695,7 @@ class ChunkEngine:
             return b""
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
-        return bytes(buffer[sb:eb])
+        return buffer[sb:eb].tobytes()
 
     def read_sample_from_chunk(
         self,
