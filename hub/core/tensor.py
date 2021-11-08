@@ -217,7 +217,7 @@ class Tensor:
         return len(self.shape)
 
     @property
-    def dtype(self) -> np.dtype:
+    def dtype(self) -> Optional[np.dtype]:
         if self.htype in ("json", "list"):
             return self.dtype
         if self.meta.dtype:
@@ -324,7 +324,7 @@ class Tensor:
         elif isinstance(val, str):
             return np.array("").dtype
         elif isinstance(val, bool):
-            return np.bool
+            return np.dtype(bool)
         elif isinstance(val, Sequence):
             return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
         else:
@@ -379,7 +379,7 @@ class Tensor:
     __repr__ = __str__
 
     def __array__(self) -> np.ndarray:
-        return self.numpy()
+        return self.numpy()  # type: ignore
 
     @_inplace_op
     def __iadd__(self, other):

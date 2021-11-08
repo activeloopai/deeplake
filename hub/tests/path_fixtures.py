@@ -28,6 +28,7 @@ import pytest
 import requests
 import shutil
 import tempfile
+import sys
 
 
 MEMORY = "memory"
@@ -314,6 +315,9 @@ def corrupt_image_paths():
 
 @pytest.fixture
 def audio_paths():
+    if os.name == "linux" and sys.version_info == (3, 6):  # FixMe
+        pytest.skip()
+        return
     paths = {"mp3": "samplemp3.mp3", "flac": "sampleflac.flac", "wav": "samplewav.wav"}
 
     parent = get_dummy_data_path("audio")

@@ -6,7 +6,7 @@ import numpy as np
 
 
 class ShapeEncoder(Encoder):
-    def _derive_value(self, row: np.ndarray, *_) -> Tuple:
+    def _derive_value(self, row: np.ndarray, *_) -> Tuple:  # type: ignore
         return tuple(row[:LAST_SEEN_INDEX_COLUMN])
 
     @property

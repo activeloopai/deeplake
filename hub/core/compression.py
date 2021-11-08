@@ -265,7 +265,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
 def decompress_array(
     buffer: Union[bytes, memoryview, str],
-    shape: Optional[Tuple[int]] = None,
+    shape: Optional[Tuple[int, ...]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
 ) -> np.ndarray:
@@ -317,7 +317,7 @@ def decompress_array(
         raise SampleDecompressionError()
 
 
-def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int, int, int]:
+def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, int]:
     """Gets the shape of a bounding box that can contain the given the shapes tiled horizontally."""
     if len(shapes) == 0:
         return (0, 0, 0)
@@ -361,7 +361,7 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
 def decompress_multiple(
     buffer: Union[bytes, memoryview],
     shapes: Sequence[Tuple[int, ...]],
-    dtype: Optional[str] = None,
+    dtype: Optional[Union[np.dtype, str]] = None,
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
