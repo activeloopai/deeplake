@@ -30,7 +30,7 @@
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapidly transforming and streaming data while training models at scale. Hub is used Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid tranformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
 
 
 Hub includes the following features:
@@ -118,7 +118,7 @@ with ds:
 
 
 
-### 👩‍💻 How to load a Hub Dataset
+### 🚀 How to load a Hub Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -158,7 +158,9 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | Storage for public datasets hosted by Activeloop     | 100GB Free    |
 
 
-## 👨‍ Comparisons to Familiar Tools
+
+## 👩‍💻 Comparisons to Familiar Tools
+
 
 <details>
   <summary><b>Hub vs DVC</b></summary>
