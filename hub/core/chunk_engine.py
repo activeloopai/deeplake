@@ -556,13 +556,13 @@ class ChunkEngine:
                     last_chunk_key = self.last_chunk_key
                     num_bytes_before = self.last_chunk.num_data_bytes
                 else:
-                    last_chunk_key = None
+                    last_chunk_key = ""
                     num_bytes_before = 0
                 chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
                 num_bytes_after = chunk.num_data_bytes
                 diff = (
                     num_bytes_after - num_bytes_before
-                    if chunk.key == last_chunk_key
+                    if chunk.key == last_chunk_key  # type: ignore
                     else num_bytes_after
                 )
                 updated_chunks.add(chunk)
