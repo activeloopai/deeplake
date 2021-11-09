@@ -87,7 +87,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: bool = False,
     shuffle: bool = False,
-    buffer_size: int = 512,
+    buffer_size: int = 2048,
     use_local_cache: bool = False,
 ):
 
