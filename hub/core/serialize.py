@@ -1,16 +1,13 @@
-from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array, compress_bytes
-from hub.client import config
-from hub.compression import IMAGE_COMPRESSIONS
-from typing import List, Optional, Sequence, Union, Tuple, Iterable
+from typing import List, Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
-import warnings
 import json
 
 
@@ -284,10 +281,75 @@ def bytes_to_text(buffer, htype):
     return arr
 
 
+def serialize_text(
+    incoming_sample: SampleValue,
+    sample_compression: Optional[str],
+    dtype: str,
+    htype: str,
+):
+    """Converts the sample into bytes"""
+    incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
+    if sample_compression:
+        incoming_sample = compress_bytes(incoming_sample, sample_compression)
+    return incoming_sample, shape
+
+
 def serialize_numpy_and_base_types(
-    sample: Union[np.ndarray, int, float, bool], dtype, htype, compression
-) -> tuple[bytes, tuple]:
-    sample = intelligent_cast(sample, dtype, htype)
-    shape = sample.shape
-    sample = compress_array(sample, compression)
-    return sample, shape
+    incoming_sample: SampleValue,
+    sample_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+):
+    """Converts the sample into bytes"""
+    incoming_sample = intelligent_cast(incoming_sample, dtype, htype)
+    shape = incoming_sample.shape
+
+    if sample_compression is None:
+        if incoming_sample.nbytes > min_chunk_size:
+            incoming_sample = SampleTiles(
+                incoming_sample, sample_compression, min_chunk_size
+            )
+        else:
+            incoming_sample = incoming_sample.tobytes()
+    else:
+        compressed_bytes = compress_array(incoming_sample, sample_compression)
+        if len(compressed_bytes) > min_chunk_size:
+            incoming_sample = SampleTiles(
+                incoming_sample, sample_compression, min_chunk_size
+            )
+        else:
+            incoming_sample = compressed_bytes
+    return incoming_sample, shape
+
+
+def serialize_sample_object(
+    incoming_sample: SampleValue,
+    sample_compression: str,
+    is_byte_compression: bool,
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+):
+    shape = incoming_sample.shape
+    if sample_compression:
+        if is_byte_compression:
+            # Byte compressions don't store dtype, need to cast to expected dtype
+            arr = intelligent_cast(incoming_sample.array, dtype, htype)
+            incoming_sample = Sample(array=arr)
+        compressed_bytes = incoming_sample.compressed_bytes(sample_compression)
+        if len(compressed_bytes) > min_chunk_size:
+            incoming_sample = SampleTiles(
+                incoming_sample.array, sample_compression, min_chunk_size
+            )
+        else:
+            incoming_sample = compressed_bytes
+    else:
+        incoming_sample = incoming_sample.array
+        if incoming_sample.nbytes > min_chunk_size:
+            incoming_sample = SampleTiles(
+                incoming_sample, sample_compression, min_chunk_size
+            )
+        else:
+            incoming_sample = incoming_sample.tobytes()
+    return incoming_sample, shape
