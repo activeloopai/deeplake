@@ -292,7 +292,7 @@ class ChunkEngine:
         updated_chunks = set()
 
         if not nbytes:  # extending with empty list
-            return updated_chunks
+            return updated_chunks  # type: ignore
 
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
