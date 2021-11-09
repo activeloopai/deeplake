@@ -13,7 +13,7 @@ class SampleTiles:
         self.sample_shape = arr.shape
 
         self.tile_shape = get_tile_shape(
-            arr.shape, arr.nbytes * compression_ratios[compression], chunk_size, 2
+            arr.shape, arr.nbytes * compression_ratios[compression], chunk_size, -1
         )
         tiles = break_into_tiles(arr, self.tile_shape)
         self.tiles = serialize_tiles(tiles, lambda x: memoryview(x.tobytes()))
