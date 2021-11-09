@@ -1,6 +1,7 @@
 from abc import abstractmethod
-from typing import List, Optional, Tuple, Union
 import numpy as np
+from typing import List, Optional, Tuple, Union
+import warnings
 
 import hub
 from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS
@@ -17,10 +18,8 @@ from hub.core.serialize import (
     text_to_bytes,
 )
 from hub.core.storage.cachable import Cachable
-import warnings
-from hub.core.tiling.tile import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
-
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
@@ -117,11 +116,6 @@ class BaseChunk(Cachable):
     ):
         pass
 
-    # TODO
-    # @abstractmethod
-    # def read_all_samples(self):
-    #     pass
-
     @abstractmethod
     def update_sample(
         self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
@@ -159,17 +153,15 @@ class BaseChunk(Cachable):
         """
 
         self.shapes_encoder.register_samples(sample_shape, 1)
-        if (
-            incoming_num_bytes is not None
-        ):  # incoming_num_bytes is not applicable for image compressions
+        if incoming_num_bytes is not None:
+            # incoming_num_bytes is not applicable for image compressions
             self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
-        # self._clear_decompressed_caches()
 
     def serialize_sample(
         self,
         incoming_sample: SampleValue,
-        sample_compression: Optional[str],
-        is_byte_compression,
+        sample_compression: Optional[str] = None,
+        is_byte_compression: bool = False,
     ) -> SerializedOutput:
         """Converts the sample into bytes"""
         if self.is_text_like:

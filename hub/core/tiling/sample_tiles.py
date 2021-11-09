@@ -1,4 +1,3 @@
-from typing import List, Optional, Tuple, Union
 import numpy as np
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize_tile import break_into_tiles, serialize_tiles

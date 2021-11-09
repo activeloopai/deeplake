@@ -38,9 +38,7 @@ class ChunkCompressedChunk(BaseChunk):
             else bytearray()
         )
         for incoming_sample in incoming_samples:
-            serialized_sample, shape = self.serialize_sample(
-                incoming_sample, None, False
-            )
+            serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
@@ -156,7 +154,7 @@ class ChunkCompressedChunk(BaseChunk):
         local_sample_index: int,
         new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
     ):
-        serialized_sample, shape = self.serialize_sample(new_sample, None, False)
+        serialized_sample, shape = self.serialize_sample(new_sample)
         self.check_shape_for_update(local_sample_index, shape)
 
         new_nb = len(serialized_sample)

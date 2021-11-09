@@ -1,13 +1,13 @@
+import numpy as np
 from typing import List, Optional, Tuple, Union
 from hub.core.sample import Sample
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
 )
-from hub.core.tiling.tile import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk
-import numpy as np
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
 SerializedOutput = tuple[bytes, Optional[tuple]]
@@ -35,6 +35,7 @@ class UncompressedChunk(BaseChunk):
                 break
             buffer_size += sample_nbytes
             num_samples += 1
+
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
         self.data_bytes += samples.tobytes()
@@ -52,9 +53,7 @@ class UncompressedChunk(BaseChunk):
     ):
         num_samples = 0
         for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.serialize_sample(
-                incoming_sample, None, False
-            )
+            serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
             if isinstance(serialized_sample, SampleTiles):
@@ -103,7 +102,7 @@ class UncompressedChunk(BaseChunk):
         new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
     ):
         self.prepare_for_write()
-        serialized_sample, shape = self.serialize_sample(new_sample, None, False)
+        serialized_sample, shape = self.serialize_sample(new_sample)
         self.check_shape_for_update(local_sample_index, shape)
         new_nb = len(serialized_sample)
 
