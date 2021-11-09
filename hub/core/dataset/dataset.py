@@ -510,8 +510,8 @@ class Dataset:
 
         dataloader = to_pytorch(
             self,
-            transform,
-            tensors,
+            transform=transform,
+            tensors=tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
