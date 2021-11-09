@@ -3,6 +3,7 @@ import posixpath
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Tuple
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
@@ -87,7 +88,7 @@ def is_empty_transform_dataset(dataset: TransformDataset):
 
 def store_data_slice(
     transform_input: Tuple,
-) -> Tuple[Dict[str, TensorMeta], Dict[str, ChunkIdEncoder]]:
+) -> Tuple[Dict[str, TensorMeta], Dict[str, ChunkIdEncoder], Dict[str, TileEncoder]]:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
@@ -112,12 +113,14 @@ def store_data_slice(
     # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
+    all_tile_encoders = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
-    return all_tensor_metas, all_chunk_id_encoders
+        all_tile_encoders[tensor] = chunk_engine.tile_encoder
+    return all_tensor_metas, all_chunk_id_encoders, all_tile_encoders
 
 
 def transform_data_slice_and_append(

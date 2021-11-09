@@ -13,7 +13,11 @@ from hub.util.transform import (
     check_transform_ds_out,
     store_data_slice,
 )
-from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
+from hub.util.encoder import (
+    merge_all_chunk_id_encoders,
+    merge_all_tensor_metas,
+    merge_all_tile_encoders,
+)
 from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
@@ -150,7 +154,14 @@ class Pipeline:
                 repeat(version_state),
             ),
         )
-        all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
+        all_tensor_metas, all_chunk_id_encoders, all_tile_encoders = zip(
+            *metas_and_encoders
+        )
+        all_num_samples = []
+        for tensor_meta_dict in all_tensor_metas:
+            num_samples_dict = {k: v.length for k, v in tensor_meta_dict.items()}
+            all_num_samples.append(num_samples_dict)
+        merge_all_tile_encoders(all_tile_encoders, all_num_samples, ds_out)
         merge_all_tensor_metas(all_tensor_metas, ds_out)
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
 
