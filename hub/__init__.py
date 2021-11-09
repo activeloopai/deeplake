@@ -4,7 +4,7 @@ import multiprocessing
 import sys
 
 if sys.platform == "darwin":
-    multiprocessing.set_start_method("fork")
+    multiprocessing.set_start_method("fork", force=True)
 
 __pdoc__ = {
     "core": False,
