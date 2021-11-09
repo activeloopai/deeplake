@@ -98,9 +98,9 @@ def merge_all_tile_encoders(
     tensors = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
-        chunk_engine = ds_out[tensor].chunk_engine
+        rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
+        chunk_engine = ds_out[rel_path].chunk_engine
         offset = chunk_engine.num_samples
-
         tile_encoder = chunk_engine.tile_encoder
         for i, current_worker_tile_encoder in enumerate(all_workers_tile_encoders):
             current_tile_encoder = current_worker_tile_encoder[tensor]

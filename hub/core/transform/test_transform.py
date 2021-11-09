@@ -213,9 +213,9 @@ def test_chain_transform_list_big(ds, scheduler):
             pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
         return
     pipeline.eval(ls, ds_out, num_workers=3, scheduler=scheduler)
-    assert len(ds_out) == 8
+    assert len(ds_out) == 12
     for i in range(2):
-        for index in range(4 * i, 4 * i + 4):
+        for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
                 ds_out[index].image.numpy(), 15 * i * np.ones((1310, 2087))
             )
