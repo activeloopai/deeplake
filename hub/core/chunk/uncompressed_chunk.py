@@ -74,17 +74,6 @@ class UncompressedChunk(BaseChunk):
                 num_samples += 1
         return num_samples
 
-    def write_tile(self, sample: SampleTiles):
-        data = sample.yield_tile()
-        sample_nbytes = len(data)
-        self.data_bytes = data
-        tile_shape = sample.tile_shape
-        update_meta = sample.is_first_write
-        self.register_sample_to_headers(sample_nbytes, tile_shape)
-        if update_meta:
-            self.tensor_meta.length += 1
-            self.tensor_meta.update_shape_interval(sample.sample_shape)
-
     def read_sample(
         self, local_sample_index: int, cast: bool = True, copy: bool = False
     ):

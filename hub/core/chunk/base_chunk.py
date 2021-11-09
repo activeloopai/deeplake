@@ -251,3 +251,14 @@ class BaseChunk(Cachable):
         if shape is not None and len(shape) == 0:
             shape = (1,)
         return shape
+
+    def write_tile(self, sample: SampleTiles):
+        data = sample.yield_tile()
+        sample_nbytes = len(data)
+        self.data_bytes = data
+        tile_shape = sample.tile_shape
+        update_meta = sample.is_first_write
+        self.register_sample_to_headers(sample_nbytes, tile_shape)
+        if update_meta:
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(sample.sample_shape)
