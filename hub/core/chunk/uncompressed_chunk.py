@@ -1,9 +1,10 @@
 import numpy as np
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 from hub.core.sample import Sample
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
+    check_sample_size,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
@@ -31,6 +32,7 @@ class UncompressedChunk(BaseChunk):
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = sample.nbytes
             check_sample_shape(shape, self.num_dims)
+            # no need to check sample size, this code is only reached when size smaller than chunk
             if not self.can_fit_sample(sample_nbytes, buffer_size):
                 break
             buffer_size += sample_nbytes
@@ -64,6 +66,7 @@ class UncompressedChunk(BaseChunk):
                 break
             else:
                 sample_nbytes = len(serialized_sample)
+                check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
                 if not self.can_fit_sample(sample_nbytes):
                     break
                 self.data_bytes += serialized_sample

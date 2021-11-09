@@ -83,8 +83,14 @@ class BaseChunk(Cachable):
             self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            len_data=len(self.data_bytes),
+            len_data=self.num_data_bytes,
         )
+
+    @property
+    def memoryview_data(self):
+        if isinstance(self.data_bytes, memoryview):
+            return self.data_bytes
+        return memoryview(self.data_bytes)
 
     def tobytes(self) -> memoryview:
         return serialize_chunk(
@@ -118,12 +124,6 @@ class BaseChunk(Cachable):
         self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
     ):
         pass
-
-    @property
-    def memoryview_data(self):
-        if isinstance(self.data_bytes, memoryview):
-            return self.data_bytes
-        return memoryview(self.data_bytes)
 
     def _make_data_bytearray(self):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
