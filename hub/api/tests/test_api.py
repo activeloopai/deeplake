@@ -115,7 +115,6 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
     memory_ds.image.extend(np.ones((4, 4096, 4096)))

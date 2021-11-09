@@ -187,16 +187,25 @@ class ChunkIdEncoder(Encoder, Cachable):
         row_index = self.translate_index(local_sample_index)
 
         output = []
+        value = self._derive_value(
+            self._encoded[row_index], row_index, local_sample_index
+        )
+        if return_row_index:
+            output.append((value, row_index))
+        else:
+            output.append(value)
+        row_index += 1
+
         while row_index < len(self._encoded):
-            if self._encoded[row_index][1] >= local_sample_index:
+            if self._encoded[row_index][1] == local_sample_index:
                 value = self._derive_value(
                     self._encoded[row_index], row_index, local_sample_index
                 )
+                row_index += 1
                 if return_row_index:
                     output.append((value, row_index))
                 else:
                     output.append(value)
-                row_index += 1
             else:
                 break
         return output
