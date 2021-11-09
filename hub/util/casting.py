@@ -30,7 +30,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     elif isinstance(val, str):
         return np.array("").dtype
     elif isinstance(val, bool):
-        return np.bool
+        return np.dtype(bool)
     elif isinstance(val, Sequence):
         return reduce(_get_bigger_dtype, map(get_dtype, val))
     else:

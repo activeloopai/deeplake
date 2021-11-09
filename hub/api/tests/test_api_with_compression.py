@@ -1,3 +1,4 @@
+from hub.compression import get_compression_type
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
