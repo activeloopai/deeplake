@@ -1,5 +1,10 @@
 from botocore.config import Config
 import numpy as np
+import multiprocessing
+import sys
+
+if sys.platform == "darwin":
+    multiprocessing.set_start_method("fork")
 
 __pdoc__ = {
     "core": False,
