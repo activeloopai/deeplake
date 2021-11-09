@@ -174,7 +174,10 @@ def transform_data_slice_and_append(
                     last_reported_num_samples = num_samples
                     last_reported_time = curr_time
     except Exception as e:
-        client.send(e)
+        if progress_port is not None:
+            client.send(str(e))
+        else:
+            raise e
     finally:
         if progress_port is not None:
             client.close()

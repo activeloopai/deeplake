@@ -37,6 +37,8 @@ def dataset_to_tensorflow(dataset):
         for key in dataset.tensors:
             dtype = dataset[key].meta.dtype
             shape = dataset[key].shape
+            if dtype == "str":
+                dtype = tf.string
             signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
         return signature
 

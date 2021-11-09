@@ -1,0 +1,32 @@
+name: Test
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  cancel-previous:
+    name: Cancel Previous
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel previous runs if available
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+  full-test:
+    name: Full Test
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
+    if: github.repository == 'activeloopai/Hub'
+    with:
+      repo: ${{ github.repository }}
+      ref: ${{ github.sha }}
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+      aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
+      gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
+      hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
+      hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+      kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
+      kaggle_key: ${{ secrets.KAGGLE_KEY }}

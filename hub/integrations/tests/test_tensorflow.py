@@ -89,3 +89,15 @@ def test_groups(local_ds, compressed_image_paths):
     for batch in tds:
         np.testing.assert_array_equal(batch["jpegs/cats"].numpy(), img1.array)
         np.testing.assert_array_equal(batch["pngs/flowers"].numpy(), img2.array)
+
+
+@requires_tensorflow
+def test_tensorflow_string_objects(local_ds: Dataset):
+    with local_ds:
+        local_ds.create_tensor("strings", htype="text")
+        local_ds.strings.extend([f"testing{idx}" for idx in range(10)])  # type: ignore[attr-defined]
+    tds = local_ds.tensorflow()
+    for idx, batch in tds.enumerate():
+        np.testing.assert_array_equal(
+            batch["strings"].numpy(), [f"testing{idx}".encode()]
+        )
