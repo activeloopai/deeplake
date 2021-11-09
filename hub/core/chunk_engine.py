@@ -6,7 +6,7 @@ from hub.core.meta.encode.tile import TileEncoder
 from hub.core.tiling.deserialize_tile import coalesce_tiles
 from hub.core.tiling.tile import SampleTiles
 from hub.util.casting import intelligent_cast
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -327,6 +327,10 @@ class ChunkEngine:
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+    def _write_finalization(self):
+        self._synchronize_cache()
+        self.cache.maybe_flush()
+
     def convert_to_list(self, samples):
         if isinstance(samples, list):
             return False
@@ -336,35 +340,39 @@ class ChunkEngine:
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
-    def extend(self, samples):
-        self._write_initialization()
+    def _sanitize_samples(self, samples):
         check_samples_type(samples)
-
-        tensor_meta = self.tensor_meta
-        if tensor_meta.dtype is None:
-            tensor_meta.set_dtype(get_dtype(samples))
-        current_chunk = (
-            self.last_chunk if self.last_chunk is not None else self._create_new_chunk()
-        )
-
-        enc = self.chunk_id_encoder
+        if self.tensor_meta.dtype is None:
+            self.tensor_meta.set_dtype(get_dtype(samples))
         samples = samples.copy()
         if self.convert_to_list(samples):
             samples = list(samples)
+        return samples
+
+    def register_tiles(self, sample: SampleTiles):
+        if sample.registered:
+            return
+        ss, ts = sample.sample_shape, sample.tile_shape
+        self.tile_encoder.register_sample(self.num_samples - 1, ss, ts)
+        sample.registered = True
+
+    def extend(self, samples):
+        self._write_initialization()
+        samples = self._sanitize_samples(samples)
+        current_chunk = self.last_chunk or self._create_new_chunk()
+        enc = self.chunk_id_encoder
+
         while len(samples) > 0:
-            if isinstance(samples[0], SampleTiles) and not samples[0].registered:
-                self.tile_encoder.register_sample(
-                    self.num_samples - 1, samples[0].sample_shape, samples[0].tile_shape
-                )
-                samples[0].registered = True
+            if isinstance(samples[0], SampleTiles):
+                self.register_tiles(samples[0])
             num_samples_added = current_chunk.extend_if_has_space(samples)
 
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
-            elif num_samples_added == 0.5:
-                if samples[0].is_first_write():
+            elif num_samples_added == PARTIAL_NUM_SAMPLES:
+                if samples[0].is_first_write:
                     enc.register_samples(1)
-                if samples[0].is_last_write():
+                if samples[0].is_last_write:
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
@@ -372,8 +380,7 @@ class ChunkEngine:
                 enc.register_samples(num_samples_added)
                 samples = samples[num_samples_added:]
 
-        self._synchronize_cache()
-        self.cache.maybe_flush()
+        self._write_finalization()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
         """Synchronizes cachables with the cache.
@@ -459,8 +466,7 @@ class ChunkEngine:
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
 
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
+        self._write_finalization()
 
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size

@@ -23,9 +23,11 @@ class SampleTiles:
         self.tiles_yielded = 0
         self.tiles_enumerator = np.ndenumerate(self.tiles)
 
+    @property
     def is_first_write(self):
         return self.tiles_yielded == 1
 
+    @property
     def is_last_write(self):
         return self.tiles_yielded == self.num_tiles
 
