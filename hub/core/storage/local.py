@@ -133,13 +133,16 @@ class LocalProvider(StorageProvider):
         """
         return len(self._all_keys())
 
-    def _all_keys(self):
+    def _all_keys(self, refresh: bool = False) -> Set[str]:
         """Lists all the objects present at the root of the Provider.
+
+        Args:
+            refresh (bool): refresh keys
 
         Returns:
             set: set of all the objects found at the root of the Provider.
         """
-        if self.files is None:
+        if self.files is None or refresh:
             full_path = os.path.expanduser(self.root)
             key_set = set()
             for root, dirs, files in os.walk(full_path):
@@ -173,3 +176,7 @@ class LocalProvider(StorageProvider):
         full_path = os.path.expanduser(self.root)
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
+
+    def __contains__(self, key) -> bool:
+        full_path = self._check_is_file(key)
+        return os.path.exists(full_path)
