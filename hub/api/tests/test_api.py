@@ -328,12 +328,12 @@ def test_sequence_samples(ds: Dataset):
     ds.clear_cache()
 
     assert len(tensor) == 2
-
-    expected = np.array([[1, 2, 3], [4, 5, 6]])
+    expected_list = [[1, 2, 3], [4, 5, 6]]
+    expected = np.array(expected_list)
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
     assert type(tensor.numpy(aslist=True)) == list
-    assert_array_lists_equal(tensor.numpy(aslist=True), expected)
+    assert_array_lists_equal(tensor.numpy(aslist=True), expected_list)
 
 
 @enabled_datasets

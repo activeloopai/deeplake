@@ -116,7 +116,7 @@ class Encoder(ABC):
 
         return np.searchsorted(
             self._encoded[:, LAST_SEEN_INDEX_COLUMN], local_sample_index
-        )
+        )  # type: ignore
 
     def register_samples(self, item: Any, num_samples: int):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.

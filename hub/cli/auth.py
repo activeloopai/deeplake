@@ -5,7 +5,7 @@ import click
 from humbug.report import Report
 
 from hub.client.client import HubBackendClient
-from hub.client.utils import write_token, remove_token
+from hub.client.utils import remove_username_from_config, write_token, remove_token
 from hub.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
@@ -51,6 +51,7 @@ def login(username: str, password: str):
 def logout():
     """Log out of Activeloop"""
     remove_token()
+    remove_username_from_config()
     click.echo("Logged out of Activeloop.")
 
 

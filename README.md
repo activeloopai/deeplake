@@ -119,7 +119,7 @@ with ds:
 
 
 
-### 👩‍💻 How to load a Hub Dataset
+### 🚀 How to load a Hub Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -159,7 +159,9 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | Storage for public datasets hosted by Activeloop     | 100GB Free    |
 
 
-## 👨‍ Comparisons to Familiar Tools
+
+## 👩‍💻 Comparisons to Familiar Tools
+
 
 <details>
   <summary><b>Hub vs DVC</b></summary>
