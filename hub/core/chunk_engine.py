@@ -288,12 +288,16 @@ class ChunkEngine:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
+
+        updated_chunks = set()
+
+        if not nbytes:  # extending with empty list
+            return updated_chunks
+
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
         if chunk is None:
             chunk = new_chunk()
-
-        updated_chunks = set()
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:

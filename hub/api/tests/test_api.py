@@ -794,3 +794,13 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+def test_empty_extend(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.append(1)
+        ds.create_tensor("y")
+        ds.y.extend(np.zeros((len(ds), 3)))
+    assert len(ds) == 0
