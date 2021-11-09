@@ -114,6 +114,7 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
+        self._info = None
         self._set_derived_attributes()
 
     def _lock_lost_handler(self):
@@ -176,6 +177,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self._info = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -602,7 +604,7 @@ class Dataset:
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
-        buffer_size: int = 10 * 1000,
+        buffer_size: int = 2048,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
     ):
@@ -625,19 +627,19 @@ class Dataset:
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
         """
-        from hub.integrations import dataset_to_pytorch
+        from hub.integrations import dataset_to_pytorch as to_pytorch
 
-        dataloader = dataset_to_pytorch(
+        dataloader = to_pytorch(
             self,
-            transform,
-            tensors,
+            transform=transform,
+            tensors=tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
@@ -662,7 +664,6 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
 
@@ -670,8 +671,14 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         self.index.validate(self.num_samples)
+
+    @property
+    def info(self):
+        if self._info is None:
+            self._info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+        return self._info
 
     @hub_reporter.record_call
     def tensorflow(self):

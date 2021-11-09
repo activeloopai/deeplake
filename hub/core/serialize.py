@@ -37,7 +37,7 @@ def infer_chunk_num_bytes(
     # NOTE: Assumption: len(version) < 256
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13  # type: ignore
 
 
 def serialize_chunk(
