@@ -282,17 +282,17 @@ class ChunkEngine:
         buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
-    ) -> List[Chunk]:
+    ) -> Set[Chunk]:
         """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
 
-        updated_chunks = set()
+        updated_chunks: Set[Chunk] = set()
 
         if not nbytes:  # extending with empty list
-            return updated_chunks  # type: ignore
+            return updated_chunks
 
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
@@ -329,7 +329,7 @@ class ChunkEngine:
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
-            updated_chunks.add(chunk)
+            updated_chunks.add(chunk)  # type: ignore
             enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
@@ -341,7 +341,7 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
-        return updated_chunks  # type: ignore
+        return updated_chunks
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
