@@ -204,7 +204,6 @@ def test_empty_samples(ds: Dataset):
     expected_list = [a1, *a2, a3, *a4]
 
     assert tensor.meta.sample_compression is None
-
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
     assert tensor.shape_interval.upper == (16, 25, 50, 2)
@@ -315,6 +314,9 @@ def test_scalar_samples(ds: Dataset):
     assert tensor.shape == (22, None)
     assert tensor.shape_interval.lower == (22, 0)
     assert tensor.shape_interval.upper == (22, 3)
+
+    assert tensor.meta.num_compressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert tensor.meta.num_uncompressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
 
     assert len(tensor) == 22
 

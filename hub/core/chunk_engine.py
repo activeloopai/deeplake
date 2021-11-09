@@ -545,16 +545,31 @@ class ChunkEngine:
         for shape in shapes:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
-        tensor_meta.num_compressed_bytes += sum(nbytes)
-        tensor_meta.num_uncompressed_bytes += np.prod(shapes).item() * itemsize
+        tensor_meta.num_uncompressed_bytes += (
+            sum((np.prod(shape).item() for shape in shapes)) * itemsize
+        )
         if tensor_meta.chunk_compression:
             updated_chunks = set()
             for nb, shape in zip(nbytes, shapes):
+                if self.last_chunk:
+                    last_chunk_key = self.last_chunk_key
+                    num_bytes_before = self.last_chunk.num_data_bytes
+                else:
+                    last_chunk_key = None
+                    num_bytes_before = 0
                 chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                num_bytes_after = chunk.num_data_bytes
+                diff = (
+                    num_bytes_after - num_bytes_before
+                    if chunk.key == last_chunk_key
+                    else num_bytes_after
+                )
                 updated_chunks.add(chunk)
                 buff = buff[nb:]
                 updated_chunks.add(chunk)
+                tensor_meta.num_compressed_bytes += diff
         else:
+            tensor_meta.num_compressed_bytes += sum(nbytes)
             updated_chunks = self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
