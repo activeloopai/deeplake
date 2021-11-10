@@ -39,7 +39,13 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import auto_checkout, checkout, commit, commit_has_data, load_meta
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    commit_has_data,
+    load_meta,
+)
 from tqdm import tqdm  # type: ignore
 
 
@@ -420,7 +426,9 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         logger.info("---------------\nHub Version Log\n---------------\n")
         logger.info(f"Current Branch: {self.version_state['branch']}")
-        if not commit_node.children and commit_has_data(self.version_state, self.storage):
+        if not commit_node.children and commit_has_data(
+            self.version_state, self.storage
+        ):
             logger.info("** There are uncommitted changes on this branch.\n")
         else:
             logger.info("\n")
