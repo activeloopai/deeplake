@@ -61,14 +61,13 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.shape == (6, None, None, None)
     assert images.shape_interval.lower == (6, 100, 100, 3)
     assert images.shape_interval.upper == (6, 900, 900, 4)
-    assert images.meta.num_compressed_bytes == 2 * (238091 + 919171 + 313)
+    assert images.num_compressed_bytes == 2 * (238091 + 919171 + 313)
     assert (
-        images.meta.num_uncompressed_bytes
+        images.num_uncompressed_bytes
         == 2 * (900 * 900 * 3 + 513 * 464 * 4 + 100 * 100 * 4) * 1
     )
     assert (
-        images.meta.num_compressed_bytes
-        == images.chunk_engine._get_num_compressed_bytes()
+        images.num_compressed_bytes == images.chunk_engine._get_num_compressed_bytes()
     )
 
 
@@ -180,12 +179,10 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
         assert_images_close(img.numpy(), expected_img)
 
     assert (
-        images.meta.num_compressed_bytes
-        == images.chunk_engine._get_num_compressed_bytes()
+        images.num_compressed_bytes == images.chunk_engine._get_num_compressed_bytes()
     )
     assert (
-        images.meta.num_uncompressed_bytes
-        == (expected_img.nbytes) * 4 + expected_arr.nbytes
+        images.num_uncompressed_bytes == (expected_img.nbytes) * 4 + expected_arr.nbytes
     )
 
     images = ds.create_tensor("images2", htype="image", chunk_compression="png")
@@ -202,12 +199,10 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
         np.testing.assert_array_equal(img, expected_img)
 
     assert (
-        images.meta.num_compressed_bytes
-        == images.chunk_engine._get_num_compressed_bytes()
+        images.num_compressed_bytes == images.chunk_engine._get_num_compressed_bytes()
     )
     assert (
-        images.meta.num_uncompressed_bytes
-        == (expected_img.nbytes) * 4 + expected_arr.nbytes
+        images.num_uncompressed_bytes == (expected_img.nbytes) * 4 + expected_arr.nbytes
     )
 
     labels = ds.create_tensor("labels", chunk_compression="lz4")
@@ -216,10 +211,9 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     for row, label in zip(data, labels):
         np.testing.assert_array_equal(row, label.numpy())
 
-    assert labels.meta.num_uncompressed_bytes == 1850 * np.dtype(int).itemsize
+    assert labels.num_uncompressed_bytes == 1850 * np.dtype(int).itemsize
     assert (
-        labels.meta.num_compressed_bytes
-        == labels.chunk_engine._get_num_compressed_bytes()
+        labels.num_compressed_bytes == labels.chunk_engine._get_num_compressed_bytes()
     )
 
 

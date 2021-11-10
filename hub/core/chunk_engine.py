@@ -158,7 +158,6 @@ class ChunkEngine:
         nbytes = getattr(self.tensor_meta, "num_compressed_bytes", None)
         if nbytes is None:
             nbytes = self._get_num_compressed_bytes()
-            self.tensor_meta.num_compressed_bytes = nbytes
         return nbytes
 
     @property
@@ -166,7 +165,6 @@ class ChunkEngine:
         nbytes = getattr(self.tensor_meta, "num_uncompressed_bytes", None)
         if nbytes is None:
             nbytes = self._get_num_uncompressed_bytes()
-            self.tensor_meta.num_uncompressed_bytes = nbytes
         return nbytes
 
     @property
@@ -538,6 +536,10 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
+        if tensor_meta.num_compressed_bytes is None:
+            tensor_meta.num_compressed_bytes = 0
+        if tensor_meta.num_uncompressed_bytes is None:
+            tensor_meta.num_uncompressed_bytes = 0
         itemsize = np.dtype(tensor_meta.dtype).itemsize
 
         buff, nbytes, shapes = serialize_input_samples(
@@ -908,10 +910,13 @@ class ChunkEngine:
         chunk_names = self.get_chunk_names_for_multiple_indexes(0, n_samples, n_samples)
         commit_id = self.version_state["commit_id"]
         chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
-        chunks = [self.cache[key] for key in chunk_keys]
+        chunks = [self.cache.get_cachable(key, Chunk) for key in chunk_keys]
         return chunks
 
     def _get_num_compressed_bytes(self):
+        if self.num_chunks == 0:
+            return None
+
         chunks = self._get_all_chunks()
         nbytes = 0
 
@@ -930,10 +935,13 @@ class ChunkEngine:
         shapes = [
             chunk.shapes_encoder[i] for i in range(chunk.shapes_encoder.num_samples)
         ]
-        nbytes += np.prod(shapes) * itemsize
+        nbytes += sum([np.prod(shape).item() for shape in shapes]) * itemsize
         return nbytes
 
     def _get_num_uncompressed_bytes(self):
+        if self.num_chunks == 0:
+            return None
+
         chunks = self._get_all_chunks()
         nbytes = 0
 

@@ -79,12 +79,18 @@ def filter_tr(sample_in, sample_out):
 @enabled_non_gcs_datasets
 def test_single_transform_hub_dataset(ds, scheduler):
     data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    expected_imbytes = 0
+    expected_lbytes = 0
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i)))
-            data_in.label.append(i * np.ones((1,)))
+            im = i * np.ones((i, i))
+            l = i * np.ones((1,))
+            data_in.image.append(im)
+            data_in.label.append(l)
+            expected_imbytes += im.nbytes
+            expected_lbytes += l.nbytes
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -107,6 +113,10 @@ def test_single_transform_hub_dataset(ds, scheduler):
         data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
     )
     assert len(ds_out) == 99
+    assert ds_out.image.num_compressed_bytes == expected_imbytes
+    assert ds_out.image.num_uncompressed_bytes == expected_imbytes
+    assert ds_out.label.num_compressed_bytes == expected_lbytes
+    assert ds_out.label.num_uncompressed_bytes == expected_lbytes
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -123,12 +133,18 @@ def test_single_transform_hub_dataset(ds, scheduler):
 @enabled_datasets
 def test_groups(ds):
     with CliRunner().isolated_filesystem():
+        expected_imbytes = 0
+        expected_lbytes = 0
         with hub.dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/image")
             data_in.create_tensor("data/label")
             for i in range(1, 100):
-                data_in.data.image.append(i * np.ones((i, i)))
-                data_in.data.label.append(i * np.ones((1,)))
+                im = i * np.ones((i, i))
+                l = i * np.ones((1,))
+                data_in.data.image.append(im)
+                data_in.data.label.append(l)
+                expected_imbytes += im.nbytes
+                expected_lbytes += l.nbytes
         data_in = hub.dataset("./test/transform_hub_in_generic")
         ds_out = ds
         ds_out.create_tensor("stuff/image")
@@ -150,18 +166,29 @@ def test_groups(ds):
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
+        assert ds_out.image.num_compressed_bytes == expected_imbytes
+        assert ds_out.image.num_uncompressed_bytes == expected_imbytes
+        assert ds_out.label.num_compressed_bytes == expected_lbytes
+        assert ds_out.label.num_uncompressed_bytes == expected_lbytes
+
 
 @enabled_non_gcs_datasets
 @parametrize_num_workers
 @all_schedulers
 def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
+    expected_imbytes = 0
+    expected_lbytes = 0
     data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-            data_in.label.append(i * np.ones((1,), dtype="uint32"))
+            im = i * np.ones((i, i), dtype="uint8")
+            l = i * np.ones((1,), dtype="uint32")
+            expected_imbytes += im.nbytes
+            expected_lbytes += l.nbytes
+            data_in.image.append(im)
+            data_in.label.append(l)
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -182,6 +209,10 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
         data_in, ds_out, num_workers=num_workers, scheduler=scheduler
     )
     assert len(ds_out) == 99
+    assert ds_out.image.num_compressed_bytes == expected_imbytes
+    assert ds_out.image.num_uncompressed_bytes == expected_imbytes
+    assert ds_out.label.num_compressed_bytes == expected_lbytes
+    assert ds_out.label.num_uncompressed_bytes == expected_lbytes
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -217,6 +248,12 @@ def test_chain_transform_list_small(ds, scheduler):
         ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
     )
     assert len(ds_out) == 600
+    assert ds_out.image.num_compressed_bytes == 337 * 200 * np.dtype(int).itemsize * 600
+    assert (
+        ds_out.image.num_uncompressed_bytes == 337 * 200 * np.dtype(int).itemsize * 600
+    )
+    assert ds_out.label.num_compressed_bytes == 1 * np.dtype(int).itemsize * 600
+    assert ds_out.label.num_uncompressed_bytes == 1 * np.dtype(int).itemsize * 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(

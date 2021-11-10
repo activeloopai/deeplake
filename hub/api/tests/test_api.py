@@ -315,8 +315,8 @@ def test_scalar_samples(ds: Dataset):
     assert tensor.shape_interval.lower == (22, 0)
     assert tensor.shape_interval.upper == (22, 3)
 
-    assert tensor.meta.num_compressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
-    assert tensor.meta.num_uncompressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert tensor.num_compressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert tensor.num_uncompressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
 
     assert len(tensor) == 22
 
