@@ -185,7 +185,9 @@ def test_pytorch_transform_dict(ds):
             dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=2, transform = {"image": double, "image2": None}, batch_size=1)
+    dl = ds.pytorch(
+        num_workers=2, transform={"image": double, "image2": None}, batch_size=1
+    )
 
     assert len(dl.dataset) == 16
 

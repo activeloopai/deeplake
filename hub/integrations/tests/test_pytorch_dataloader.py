@@ -18,6 +18,7 @@ from hub.integrations.pytorch.dataset import (
 )
 from hub.integrations.pytorch.common import (
     collate_fn as default_collate_fn,
+    map_tensor_keys,
 )
 
 import torch
@@ -53,8 +54,9 @@ def mock_dataset(cls):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_dataloader(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=2
+        mock_dataset(ds), use_local_cache=False, num_workers=2, tensors=tensors
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 
@@ -67,8 +69,9 @@ def test_dataloader(ds):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_dataloader_batching(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=2
+        mock_dataset(ds), use_local_cache=False, num_workers=2, tensors=tensors
     )
     dataloader = DataLoader(dataset, batch_size=2, collate_fn=default_collate_fn)
 
@@ -81,8 +84,9 @@ def test_dataloader_batching(ds):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_more_workers_than_chunk(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=4
+        mock_dataset(ds), use_local_cache=False, num_workers=4, tensors=tensors
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 
@@ -95,8 +99,13 @@ def test_more_workers_than_chunk(ds):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_big_buffer_size(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=4, buffer_size=512
+        mock_dataset(ds),
+        use_local_cache=False,
+        num_workers=4,
+        buffer_size=512,
+        tensors=tensors,
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 
@@ -113,11 +122,13 @@ def mock_tranform_f(data):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_workers_transform(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
         mock_dataset(ds),
         use_local_cache=False,
         num_workers=4,
         transform=mock_tranform_f,
+        tensors=tensors,
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 
@@ -131,8 +142,9 @@ def test_workers_transform(ds):
 @patch.object(SampleStreaming, "read", throws_exception)
 @patch("hub.core.dataset.Dataset")
 def test_proppagete_exception(ds):
+    tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
-        mock_dataset(ds), use_local_cache=False, num_workers=1
+        mock_dataset(ds), use_local_cache=False, num_workers=1, tensors=tensors
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 
@@ -144,12 +156,14 @@ def test_proppagete_exception(ds):
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("hub.core.dataset.Dataset")
 def test_method2(ds):
+    tensors = map_tensor_keys(ds)
     dataset = SubIterableDataset(
         mock_dataset(ds),
         use_local_cache=False,
         num_workers=2,
         batch_size=2,
         collate_fn=default_collate_fn,
+        tensors=tensors,
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)
 

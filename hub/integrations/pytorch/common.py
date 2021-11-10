@@ -40,7 +40,7 @@ class PytorchTransformFunction:
         return data_out
 
 
-def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]]) -> List[str]:
+def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> List[str]:
     """Sanitizes tensor_keys if not None, else returns all the keys present in the dataset."""
 
     if tensor_keys is None:
