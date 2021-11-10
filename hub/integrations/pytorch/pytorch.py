@@ -109,7 +109,6 @@ def dataset_to_pytorch(
     if isinstance(transform, dict):
         tensors = list(transform.keys())
         transform = PytorchTransformFunction(transform, tensors)
-        # it is possible that the transform further restricted the keys
 
     if shuffle and num_workers > 0:
         return create_dataloader(
