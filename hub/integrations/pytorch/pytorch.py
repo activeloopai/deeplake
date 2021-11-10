@@ -1,7 +1,12 @@
-from typing import Callable, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Union
 from hub.util.dataset import try_flushing
 from hub.constants import MB
-from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
+from .common import (
+    convert_fn as default_convert_fn,
+    collate_fn as default_collate_fn,
+    map_tensor_keys,
+    transform_dict_to_fn,
+)
 
 
 def create_dataloader_nesteddataloader(
@@ -87,7 +92,7 @@ def dataset_to_pytorch(
     shuffle: bool,
     buffer_size: int,
     use_local_cache: bool,
-    transform: Optional[Callable] = None,
+    transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
 ):
 
@@ -100,6 +105,12 @@ def dataset_to_pytorch(
 
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
+
+    tensors = map_tensor_keys(dataset, tensors)
+    if isinstance(transform, dict):
+        tensors = list(transform.keys())
+        transform = transform_dict_to_fn(transform, tensors)
+        # it is possible that the transform further restricted the keys
 
     if shuffle and num_workers > 0:
         return create_dataloader(
