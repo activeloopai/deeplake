@@ -19,6 +19,7 @@ from torch.multiprocessing import Queue, Process
 from torch._utils import ExceptionWrapper
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data._utils.worker import ManagerWatchdog
+from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from torch._C import _remove_worker_pids, _set_worker_pids, _set_worker_signal_handlers
 from torch.utils.data._utils.signal_handling import _set_SIGCHLD_handler
 from warnings import warn
@@ -46,6 +47,8 @@ def cast_type(tensor: np.ndarray):
         return tensor.astype(np.int64)
     if tensor.dtype == np.uint64:
         return tensor.astype(np.int64)
+    if np_str_obj_array_pattern.search(tensor.dtype.str) is not None:
+        return np.array(list(tensor[0].item().encode()), dtype=np.uint8)
 
     return tensor
 
