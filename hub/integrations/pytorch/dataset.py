@@ -345,7 +345,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
 
         streaming = SampleStreaming(
             dataset,
-            tensors=self.tensors,
+            tensors=self.tensors,  # type: ignore
             use_local_cache=use_local_cache,
         )
 
@@ -388,7 +388,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         streaming = SampleStreaming(
             dataset,
-            tensors=self.tensors,
+            tensors=self.tensors,  # type: ignore
             use_local_cache=use_local_cache,
         )
 
