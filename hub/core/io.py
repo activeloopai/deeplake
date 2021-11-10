@@ -291,7 +291,7 @@ class SampleStreaming(Streaming):
     def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
         return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
 
-    def _map_chunk_engines(self, tensors: List[str]) -> Dict[str, ChunkEngine]:
+    def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {
             key: self._create_chunk_engine(key, self.dataset.version_state)
             for key in tensors
