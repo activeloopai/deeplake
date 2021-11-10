@@ -419,8 +419,10 @@ def test_groups(local_ds, compressed_image_paths):
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
 
+
 def restore_string(item):
-    return item['strings'].tobytes().decode()
+    return item["strings"].tobytes().decode()
+
 
 @requires_torch
 def test_string_tensors(local_ds):
