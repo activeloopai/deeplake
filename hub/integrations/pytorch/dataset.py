@@ -1,5 +1,6 @@
 from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
+from hub.integrations.pytorch.common import PytorchTransformFunction
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
@@ -50,7 +51,7 @@ def cast_type(tensor: np.ndarray):
     return tensor
 
 
-def _process(tensor, transform: Optional[Callable]):
+def _process(tensor, transform: Optional[Union[PytorchTransformFunction, Callable]]):
     tensor = IterableOrderedDict((k, cast_type(tensor[k])) for k in tensor)
 
     if transform:

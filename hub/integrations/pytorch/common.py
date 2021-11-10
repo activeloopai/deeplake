@@ -23,21 +23,21 @@ def convert_fn(data):
     return torch.utils.data._utils.collate.default_convert(data)
 
 
-def transform_dict_to_fn(
-    transform: Dict[str, Optional[Callable]], tensors: List[str]
-) -> Callable:
-    """Converts a dictionary of transforms into a function."""
-
-    def transform_fn(data_in: Dict) -> Dict:
-        data_out = {}
-        for tensor, fn in transform.items():
+class PytorchTransformFunction:
+    def __init__(
+        self, transform: Dict[str, Optional[Callable]], tensors: List[str]
+    ) -> None:
+        self.transform = transform
+        for tensor in transform:
             if tensor not in tensors:
                 raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
+
+    def __call__(self, data_in: Dict) -> Dict:
+        data_out = {}
+        for tensor, fn in self.transform.items():
             value = data_in[tensor]
             data_out[tensor] = value if fn is None else fn(value)
         return data_out
-
-    return transform_fn
 
 
 def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]]) -> List[str]:

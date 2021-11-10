@@ -1,11 +1,10 @@
 from typing import Callable, Dict, Optional, Sequence, Union
 from hub.util.dataset import try_flushing
-from hub.constants import MB
 from .common import (
+    PytorchTransformFunction,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
     map_tensor_keys,
-    transform_dict_to_fn,
 )
 
 
@@ -109,7 +108,7 @@ def dataset_to_pytorch(
     tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
         tensors = list(transform.keys())
-        transform = transform_dict_to_fn(transform, tensors)
+        transform = PytorchTransformFunction(transform, tensors)
         # it is possible that the transform further restricted the keys
 
     if shuffle and num_workers > 0:
