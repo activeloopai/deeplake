@@ -79,16 +79,16 @@ create_dataloader = create_dataloader_nesteddataloader
 
 def dataset_to_pytorch(
     dataset,
+    num_workers: int,
+    batch_size: int,
+    drop_last: bool,
+    collate_fn: Optional[Callable],
+    pin_memory: bool,
+    shuffle: bool,
+    buffer_size: int,
+    use_local_cache: bool,
     transform: Optional[Callable] = None,
     tensors: Optional[Sequence[str]] = None,
-    num_workers: int = 1,
-    batch_size: int = 1,
-    drop_last: bool = False,
-    collate_fn: Optional[Callable] = None,
-    pin_memory: bool = False,
-    shuffle: bool = False,
-    buffer_size: int = 512,
-    use_local_cache: bool = False,
 ):
 
     import torch
