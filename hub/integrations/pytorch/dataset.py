@@ -52,7 +52,7 @@ def cast_type(tensor: np.ndarray):
 
 
 def _process(tensor, transform: Optional[Union[PytorchTransformFunction, Callable]]):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k])) for k in tensor)
+    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
 
     if transform:
         tensor = transform(tensor)
