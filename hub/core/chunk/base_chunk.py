@@ -23,7 +23,7 @@ from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = tuple[bytes, Optional[tuple]]
+SerializedOutput = Tuple[bytes, Optional[tuple]]
 
 
 class BaseChunk(Cachable):
@@ -136,7 +136,7 @@ class BaseChunk(Cachable):
         self._make_data_bytearray()
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: tuple[int]
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
