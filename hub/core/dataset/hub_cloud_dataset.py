@@ -81,7 +81,6 @@ class HubCloudDataset(Dataset):
         super().delete(large_ok=large_ok)
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
-        logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     @property
     def agreement(self) -> Optional[str]:
