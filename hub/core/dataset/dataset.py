@@ -1,3 +1,4 @@
+from collections import defaultdict
 import pickle
 import posixpath
 import warnings
