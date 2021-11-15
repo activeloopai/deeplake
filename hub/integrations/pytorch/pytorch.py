@@ -108,7 +108,9 @@ def dataset_to_pytorch(
     tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
         tensors = list(transform.keys())
-        transform = PytorchTransformFunction(transform, tensors)
+        transform = PytorchTransformFunction(transform_dict=transform, tensors=tensors)
+    else:
+        transform = PytorchTransformFunction(composite_transform=transform)
 
     if shuffle and num_workers > 0:
         return create_dataloader(

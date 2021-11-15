@@ -25,19 +25,34 @@ def convert_fn(data):
 
 class PytorchTransformFunction:
     def __init__(
-        self, transform: Dict[str, Optional[Callable]], tensors: List[str]
+        self,
+        transform_dict: Optional[Dict[str, Optional[Callable]]] = None,
+        composite_transform: Optional[Callable] = None,
+        tensors: List[str] = None,
     ) -> None:
-        self.transform = transform
-        for tensor in transform:
-            if tensor not in tensors:
-                raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
+        if transform_dict is None and composite_transform is not None:
+            self.composite_transform = composite_transform
+        elif transform_dict is not None and composite_transform is None:
+            self.transform_dict = transform_dict
+            for tensor in transform_dict:
+                if tensor not in tensors:
+                    raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
+        else:
+            raise ValueError(
+                "Invalid input. Both transform_dict and composite_transform cannot be None."
+            )
 
-    def __call__(self, data_in: Dict) -> Dict:
+    def apply_composite_transform(self, data_in: Dict) -> Dict:
+        if self.composite_transform is not None:
+            return self.composite_transform(data_in)
         data_out = {}
-        for tensor, fn in self.transform.items():
+        for tensor, fn in self.transform_dict.items():
             value = data_in[tensor]
             data_out[tensor] = value if fn is None else fn(value)
         return data_out
+
+    def __call__(self, data_in: Dict) -> Dict:
+        return self.apply_composite_transform(data_in)
 
 
 def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> List[str]:
