@@ -38,7 +38,7 @@ class PytorchTransformFunction:
         self.transform_dict = transform_dict or {}
         tensors = tensors or []
 
-        for tensor in transform_dict:
+        for tensor in self.transform_dict:
             if tensor not in tensors:
                 raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
 
