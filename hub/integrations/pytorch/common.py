@@ -30,26 +30,25 @@ class PytorchTransformFunction:
         composite_transform: Optional[Callable] = None,
         tensors: List[str] = None,
     ) -> None:
-        if transform_dict is None and composite_transform is None:
-            raise ValueError(
-                "Invalid input. Both transform_dict and composite_transform cannot be None."
-            )
         self.composite_transform = composite_transform
-        self.transform_dict = transform_dict or {}
+        self.transform_dict = transform_dict
         tensors = tensors or []
 
-        for tensor in self.transform_dict:
-            if tensor not in tensors:
-                raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
+        if transform_dict is not None:
+            for tensor in transform_dict:
+                if tensor not in tensors:
+                    raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
 
     def __call__(self, data_in: Dict) -> Dict:
         if self.composite_transform is not None:
             return self.composite_transform(data_in)
-        data_out = {}
-        for tensor, fn in self.transform_dict.items():
-            value = data_in[tensor]
-            data_out[tensor] = value if fn is None else fn(value)
-        return data_out
+        elif self.transform_dict is not None:
+            data_out = {}
+            for tensor, fn in self.transform_dict.items():
+                value = data_in[tensor]
+                data_out[tensor] = value if fn is None else fn(value)
+            return data_out
+        return data_in
 
 
 def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> List[str]:
