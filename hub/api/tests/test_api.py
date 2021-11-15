@@ -662,6 +662,13 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
+def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
+    username = hub_cloud_path.split("/")[2]
+    # this dataset doesn't exist
+    new_path = f"hub://{username}/doesntexist123"
+    hub.delete(new_path, token=hub_cloud_dev_token, force=True)
+
+
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("version_state")
