@@ -853,8 +853,6 @@ class Dataset:
     @property
     def parent(self):
         """Returns the parent of this group. Returns None if this is the root dataset"""
-        if self._parent is not None:
-            return self._parent
         if self._is_root():
             return None
         autoflush = self.storage.autoflush
@@ -866,6 +864,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -873,8 +872,6 @@ class Dataset:
 
     @property
     def root(self):
-        if self._parent is not None:
-            return self._parent.root
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
@@ -886,6 +883,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush
