@@ -10,7 +10,7 @@ from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock, unlock
+from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider
 from hub.core.tensor import Tensor, create_tensor
@@ -91,18 +91,8 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
+        self._locked_out = False  # User requested write access but was denied
         base_storage = get_base_storage(storage)
-        if (
-            not read_only and index is None and isinstance(base_storage, S3Provider)
-        ):  # Dataset locking only for S3 datasets
-            try:
-                lock(base_storage, callback=lambda: self._lock_lost_handler)
-            except LockedException:
-                self.read_only = True
-                warnings.warn(
-                    "Opening dataset in read only mode as another machine has locked it for writing."
-                )
-
         self.index: Index = index or Index()
         self.group_index = group_index
         self._token = token
@@ -111,6 +101,7 @@ class Dataset:
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -378,6 +369,28 @@ class Dataset:
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
+    def _lock(self):
+        if (
+            isinstance(self.storage, S3Provider)
+            and self.index.is_trivial()
+            and (not self.read_only or self._locked_out)
+        ):
+            try:
+                lock_version(
+                    get_base_storage(self.storage),
+                    version=self.version_state["commit_id"],
+                    callback=self._lock_lost_handler,
+                )
+            except LockedException:
+                self.read_only = True
+                self._locked_out = True
+                warnings.warn(
+                    "Checking out dataset in read only mode as another machine has locked this version for writing."
+                )
+
+    def _unlock(self):
+        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+
     def commit(self, message: Optional[str] = None) -> None:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
@@ -390,8 +403,9 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         commit_id = self.version_state["commit_id"]
+        self._unlock()
         commit(self.version_state, self.storage, message)
-
+        self._lock()
         # do not store commit message
         hub_reporter.feature_report(
             feature_name="commit",
@@ -411,7 +425,9 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
+        self._unlock()
         checkout(self.version_state, self.storage, address, create)
+        self._lock()
 
         # do not store address
         hub_reporter.feature_report(
@@ -619,7 +635,7 @@ class Dataset:
                 )
                 return
 
-        unlock(self.storage)
+        self._unlock()
         self.storage.clear()
 
     def __str__(self):

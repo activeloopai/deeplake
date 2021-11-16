@@ -11,6 +11,7 @@ from hub.core.storage.cachable import Cachable
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
+from hub.core.lock import Lock
 from hub.util.exceptions import CallbackInitializationError, CheckoutError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -20,7 +21,9 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_tensor_commit_chunk_set_key,
     get_version_control_info_key,
+    get_version_control_info_lock_key,
 )
+from hub.util.remove_cache import get_base_storage
 
 
 def generate_hash() -> str:
@@ -212,13 +215,48 @@ def discard_old_metas(
             pass
 
 
+def _update_version_info(old, new):
+    """Merges 2 version infos by updating `old` version info inplace"""
+    old_commit_node_map = old["commit_node_map"]
+    new_commit_node_map = new["commit_node_map"]
+    for commit, node in new_commit_node_map.items():
+        if commit not in old_commit_node_map:
+            old_commit_node_map[commit] = node
+        else:
+            old_node = old_commit_node_map[commit]
+            if old_node.commit_time is None:
+                old_commit_node_map[commit] = node
+    for commit, node in old_commit_node_map.items():
+        if node.parent is not None:
+            parent = old_commit_node_map[node.parent.commit_id]
+            found = False
+            for child in parent.children:
+                if child.commit_id == commit:
+                    found = True
+                    break
+            if not found:
+                parent.add_child(node)
+    old["branch_commit_map"].update(new["branch_commit_map"])
+
+
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
-    version_info = {
+    storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key())
+    lock.acquire()
+    key = get_version_control_info_key()
+    new_version_info = {
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
     }
-    storage[get_version_control_info_key()] = pickle.dumps(version_info)
+    try:
+        old_version_info = pickle.loads(storage[key])
+        _update_version_info(old_version_info, new_version_info)
+        version_info = old_version_info
+    except KeyError:
+        version_info = new_version_info
+    storage[key] = pickle.dumps(version_info)
+    lock.release()
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
