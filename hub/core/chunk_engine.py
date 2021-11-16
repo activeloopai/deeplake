@@ -552,6 +552,7 @@ class ChunkEngine:
                     otypes=[object],
                 )(required_tile_ids)
                 sample = coalesce_tiles(tiles, tile_shape, self.tensor_meta.dtype)
+                print(sample.shape, sample_index)
                 sample = sample[sample_index]
             samples.append(sample)
             last_shape = sample_shape

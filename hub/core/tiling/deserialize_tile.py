@@ -120,5 +120,5 @@ def translate_slices(
             ts = slice(start // tile_shape[i], (stop - 1) // tile_shape[i] + 1)
             tiles_index.append(ts)
             offset = ts.start * tile_shape[i]
-            smaple_index.append(slice(start - offset, stop - offset))
+            sample_index.append(slice(start - offset, stop - offset))
     return tuple(tiles_index), tuple(sample_index)

@@ -117,10 +117,25 @@ def test_populate_dataset(ds):
 
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
-    memory_ds.image.extend(np.ones((4, 4096, 4096)))
+    x = np.ones((4, 4096, 4096))
+    memory_ds.image.extend(x)
     assert len(memory_ds) == 4
-    assert memory_ds.image.shape == (4, 4096, 4096)
-    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((4, 4096, 4096)))
+    assert memory_ds.image.shape == x.shape
+    np.testing.assert_array_equal(memory_ds.image.numpy(), x)
+    idxs = [
+        0,
+        1,
+        3,
+        -1,
+        slice(0, 3),
+        slice(2, 4),
+        slice(2, None),
+        (0, slice(5, None), slice(None, 714)),
+        (2, 100, 1007),
+        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 4095]),
+    ]
+    for idx in idxs:
+        np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
 def test_stringify(memory_ds):
