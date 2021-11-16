@@ -125,6 +125,7 @@ class ChunkEngine:
         self.cache = cache
         self._meta_cache = meta_cache
         self.version_state = version_state
+        self._last_row = 0
 
         if self.tensor_meta.chunk_compression:
             # Cache samples in the last chunk in uncompressed form.
@@ -231,10 +232,13 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        chunk.key = chunk_key  # type: ignore
         return chunk
 
     def get_chunk(self, chunk_key: str) -> Chunk:
-        return self.cache.get_cachable(chunk_key, Chunk)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
+        return chunk
 
     def get_chunk_commit(self, chunk_name) -> str:
         """Returns the commit id that contains the chunk_name."""
@@ -278,17 +282,18 @@ class ChunkEngine:
         buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
-    ):
+    ) -> List[Chunk]:
         """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
-        num_samples = len(nbytes)
         chunk = self.last_chunk
         new_chunk = self._create_new_chunk
         if chunk is None:
             chunk = new_chunk()
+
+        updated_chunks = set()
 
         # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
@@ -320,6 +325,7 @@ class ChunkEngine:
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
+            updated_chunks.add(chunk)
             enc.register_samples(num_samples_to_current_chunk)
 
             # Remove bytes from buffer that have been added to current chunk
@@ -331,6 +337,7 @@ class ChunkEngine:
 
             if buffer:
                 chunk = new_chunk()
+        return updated_chunks  # type: ignore
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
@@ -365,8 +372,9 @@ class ChunkEngine:
         else:
             # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
             chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
+        return chunk
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]) -> Chunk:
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -374,19 +382,23 @@ class ChunkEngine:
             buffer (memoryview): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            Chunk to which the sample was appended.
         """
 
         # num samples is always 1 when appending
         num_samples = 1
 
         if self.tensor_meta.chunk_compression:
-            self._append_bytes_to_compressed_chunk(buffer, shape)
+            chunk_after_append = self._append_bytes_to_compressed_chunk(buffer, shape)
         else:
-            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
-            if not buffer_consumed:
-                self._append_to_new_chunk(buffer, shape)
+            chunk_after_append = self._try_appending_to_last_chunk(buffer, shape)
+            if not chunk_after_append:
+                chunk_after_append = self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
+        return chunk_after_append
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         """Whether last chunk's data can be set to a buffer of size nbytes."""
@@ -428,9 +440,7 @@ class ChunkEngine:
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
-    def _try_appending_to_last_chunk(
-        self, buffer: memoryview, shape: Tuple[int]
-    ) -> bool:
+    def _try_appending_to_last_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
@@ -439,7 +449,7 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
 
         Returns:
-            bool: True if `buffer` was successfully written to the last chunk, otherwise False.
+            Last chunk if `buffer` was successfully written to the last chunk, otherwise False.
         """
 
         last_chunk = self.last_chunk
@@ -464,7 +474,7 @@ class ChunkEngine:
                 last_chunk.append_sample(
                     buffer[:extra_bytes], self.max_chunk_size, shape
                 )
-                return True
+                return last_chunk
 
         return False
 
@@ -475,11 +485,15 @@ class ChunkEngine:
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            New chunk that was created
         """
 
         # check if `last_chunk_extended` to handle empty samples
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
+        return new_chunk
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -491,6 +505,7 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
+        chunk.key = chunk_key
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -512,12 +527,17 @@ class ChunkEngine:
             tensor_meta.update_shape_interval(shape)
         tensor_meta.length += len(samples)
         if tensor_meta.chunk_compression:
+            updated_chunks = set()
             for nb, shape in zip(nbytes, shapes):
-                self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                chunk = self._append_bytes(buff[:nb], shape[:])  # type: ignore
+                updated_chunks.add(chunk)
                 buff = buff[nb:]
+                updated_chunks.add(chunk)
         else:
-            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
-        self._synchronize_cache()
+            updated_chunks = self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk  # type: ignore
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
@@ -608,7 +628,7 @@ class ChunkEngine:
 
     def numpy(
         self, index: Index, aslist: bool = False
-    ) -> Union[np.ndarray, Sequence[np.ndarray]]:
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
@@ -640,6 +660,30 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
+    def _is_index_in_last_row(self, arr, index) -> bool:
+        """Checks if `index` is in the self._last_row of of chunk_id_encoder."""
+        row = self._last_row
+        return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
+
+    def _get_chunk_id_for_index(self, global_sample_index: int, enc: ChunkIdEncoder):
+        """Takes a look at self._last_row and tries to find chunk id without binary search by looking at the current and next row.
+        Resorts to binary search if the current and next row don't have global_sample_index in them.
+        """
+        found = False
+        arr = enc.array
+        if self._is_index_in_last_row(arr, global_sample_index):
+            chunk_id = arr[self._last_row][0]
+            found = True
+        elif self._last_row < len(arr) - 1:
+            self._last_row += 1
+            if self._is_index_in_last_row(arr, global_sample_index):
+                chunk_id = arr[self._last_row][0]
+                found = True
+
+        if not found:
+            chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
+        return chunk_id
+
     def get_chunk_for_sample(
         self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
     ) -> Chunk:
@@ -652,8 +696,8 @@ class ChunkEngine:
         Returns:
             Chunk: Chunk object that contains `global_sample_index`.
         """
+        chunk_id = self._get_chunk_id_for_index(global_sample_index, enc)
 
-        chunk_id = enc[global_sample_index]
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         current_commit_id = self.version_state["commit_id"]
@@ -676,7 +720,7 @@ class ChunkEngine:
             return b""
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
-        return bytes(buffer[sb:eb])
+        return buffer[sb:eb].tobytes()
 
     def read_sample_from_chunk(
         self,
@@ -824,7 +868,7 @@ class ChunkEngine:
 
 
 def _format_read_samples(
-    samples: Sequence[np.array], index: Index, aslist: bool
+    samples: Sequence[np.ndarray], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
 
@@ -836,7 +880,7 @@ def _format_read_samples(
     samples = index.apply_squeeze(samples)  # type: ignore
 
     if aslist:
-        return samples
+        return samples  # type: ignore
     else:
         return np.array(samples)
 

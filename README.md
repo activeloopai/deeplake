@@ -19,24 +19,24 @@
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/main"><img src="https://codecov.io/gh/activeloopai/Hub/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
   <h3 align="center">
-   <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
-   <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
+   <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentation</b></a> &bull;
+   <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Getting Started</b></a> &bull;
    <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
    <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
-   <a href="https://www.activeloop.ai/resources/"><b>Blog</b></a> &bull;  
+   <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapidly transforming and streaming data while training models at scale. Hub is used Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid tranformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
 
 
 Hub includes the following features:
 
 * **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images and audios in their native compression (full list [here](https://docs.activeloop.ai/getting-started/understanding-compression)), decompressing them only when needed, for e.g., when training a model.
+* **Compressed storage**: Store images and audios in their native compression, decompressing them only when needed, for e.g., when training a model.
 * **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 * **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
 * **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
@@ -47,7 +47,7 @@ Hub includes the following features:
 ## Getting Started with Hub
 
 
-### 👨‍💻 How to install Hub
+### 🚀 How to install Hub
 Hub is written in 100% Python and can be quickly installed using pip.
 
 ```sh
@@ -118,7 +118,7 @@ with ds:
 
 
 
-### 👩‍💻 How to load a Hub Dataset
+### 🚀 How to load a Hub Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -158,7 +158,9 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | Storage for public datasets hosted by Activeloop     | 100GB Free    |
 
 
-## 🤓 Comparisons to Familiar Tools
+
+## 👩‍💻 Comparisons to Familiar Tools
+
 
 <details>
   <summary><b>Hub vs DVC</b></summary>
@@ -169,7 +171,7 @@ Hub and DVC offer dataset version control similar to git for data, but their met
 
 
 <details>
-  <summary><b>Hub vs TensorFlow Datasets (TFDS)</b></summary>
+  <summary><b> Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
 Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/7jWZXOEJwDoNJS25uiforF/tensorflow-tf.data-&-hub:-how-to-implement-your-tensorflow-data-pipelines-with-hub-/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
@@ -178,7 +180,7 @@ Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets 
 
 
 <details>
-  <summary><b>Hub vs HuggingFace</b></summary>
+  <summary><b>Activeloop Hub vs HuggingFace</b></summary>
 
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
 

@@ -1,6 +1,7 @@
+import numpy as np
 import hub
 from hub.htype import HTYPE_CONFIGURATIONS
-from typing import Any, List, Sequence, Tuple, Optional
+from typing import Any, List, Sequence, Tuple, Optional, Union
 
 
 class ExternalCommandError(Exception):
@@ -438,7 +439,7 @@ class TensorMetaInvalidHtypeOverwriteKey(MetaError):
 
 
 class TensorDtypeMismatchError(MetaError):
-    def __init__(self, expected: str, actual: str, htype: str):
+    def __init__(self, expected: Union[np.dtype, str], actual: str, htype: str):
         msg = f"Dtype was expected to be '{expected}' instead it was '{actual}'. If you called `create_tensor` explicitly with `dtype`, your samples should also be of that dtype."
 
         # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)
@@ -531,13 +532,6 @@ class DatasetUnsupportedPytorch(Exception):
         )
 
 
-class DatasetUnsupportedSharedMemoryCache(Exception):
-    def __init__(self, reason):
-        super().__init__(
-            f"The Dataset object passed is incompatible with the PrefetchCache. Reason: {reason}"
-        )
-
-
 class CorruptedMetaError(Exception):
     pass
 
@@ -560,13 +554,6 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
-
-
-class WindowsSharedMemoryError(Exception):
-    def __init__(self):
-        super().__init__(
-            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
-        )
 
 
 class DatasetHandlerError(Exception):
@@ -603,4 +590,24 @@ class GCSDefaultCredsNotFoundError(Exception):
         super().__init__(
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
+        )
+
+
+class AgreementError(Exception):
+    pass
+
+
+class AgreementNotAcceptedError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "This dataset includes an agreement that needs to be accepted before you can use it.\n"
+            "You need to be signed in to accept this agreement.\n"
+            "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )

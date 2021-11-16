@@ -2,6 +2,7 @@
 Supported compressions (formats):
     Image : bmp, dib, gif, ico, jpeg, jp2, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
     Audio : flac, mp3, wav
+    Video : mp4, mkv, avi
     Bytes : lz4
 
 """
@@ -31,6 +32,7 @@ IMAGE_COMPRESSIONS = [
     "xbm",
 ]
 
+VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
@@ -38,11 +40,19 @@ AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 # Just constants
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
+VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
 
 
 COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION, AUDIO_COMPRESSION]
 
+
+COMPRESSION_TYPES = [
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    AUDIO_COMPRESSION,
+    VIDEO_COMPRESSION,
+]
 
 # Pillow plugins for some formats might not be installed:
 Image.init()
@@ -52,7 +62,12 @@ IMAGE_COMPRESSIONS = [
 
 IMAGE_COMPRESSIONS.insert(0, "apng")
 
-SUPPORTED_COMPRESSIONS = [*BYTE_COMPRESSIONS, *IMAGE_COMPRESSIONS, *AUDIO_COMPRESSIONS]
+SUPPORTED_COMPRESSIONS = [
+    *BYTE_COMPRESSIONS,
+    *IMAGE_COMPRESSIONS,
+    *AUDIO_COMPRESSIONS,
+    *VIDEO_COMPRESSIONS,
+]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
@@ -68,6 +83,8 @@ for c in IMAGE_COMPRESSIONS:
     _compression_types[c] = IMAGE_COMPRESSION
 for c in BYTE_COMPRESSIONS:
     _compression_types[c] = BYTE_COMPRESSION
+for c in VIDEO_COMPRESSIONS:
+    _compression_types[c] = VIDEO_COMPRESSION
 for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
 

@@ -104,11 +104,7 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
         self.index.validate(self.num_samples)
-        self.info = load_info(
-            get_tensor_info_key(self.key, version_state["commit_id"]),
-            self.storage,
-            version_state,
-        )
+        self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
@@ -145,6 +141,22 @@ class Tensor:
         """
 
         self.chunk_engine.extend(samples)
+
+    @property
+    def info(self):
+        """Returns the information about the tensor.
+
+        Returns:
+            TensorInfo: Information about the tensor.
+        """
+
+        if self._info is None:
+            self._info = load_info(
+                get_tensor_info_key(self.key, self.version_state["commit_id"]),
+                self.storage,
+                self.version_state,
+            )
+        return self._info
 
     def append(
         self,
@@ -205,7 +217,7 @@ class Tensor:
         return len(self.shape)
 
     @property
-    def dtype(self) -> np.dtype:
+    def dtype(self) -> Optional[np.dtype]:
         if self.htype in ("json", "list"):
             return self.dtype
         if self.meta.dtype:
@@ -312,7 +324,7 @@ class Tensor:
         elif isinstance(val, str):
             return np.array("").dtype
         elif isinstance(val, bool):
-            return np.bool
+            return np.dtype(bool)
         elif isinstance(val, Sequence):
             return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
         else:
@@ -367,7 +379,7 @@ class Tensor:
     __repr__ = __str__
 
     def __array__(self) -> np.ndarray:
-        return self.numpy()
+        return self.numpy()  # type: ignore
 
     @_inplace_op
     def __iadd__(self, other):

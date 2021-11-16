@@ -39,7 +39,13 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    commit_has_data,
+    load_meta,
+)
 from tqdm import tqdm  # type: ignore
 
 
@@ -50,10 +56,11 @@ class Dataset:
         index: Optional[Index] = None,
         group_index: str = "",
         read_only: bool = False,
-        public: Optional[bool] = True,
+        public: Optional[bool] = False,
         token: Optional[str] = None,
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
+        path: Optional[str] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -69,6 +76,7 @@ class Dataset:
             verbose (bool): If True, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             **kwargs: Passing subclass variables through without errors.
+            path: The path to the dataset.
 
 
         Raises:
@@ -80,7 +88,7 @@ class Dataset:
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
         # uniquely identifies dataset
-        self.path = get_path_from_storage(storage)
+        self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
@@ -101,6 +109,7 @@ class Dataset:
         self.public = public
         self.verbose = verbose
         self.version_state: Dict[str, Any] = version_state or {}
+        self._info = None
         self._set_derived_attributes()
 
     def _lock_lost_handler(self):
@@ -163,6 +172,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self._info = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -413,10 +423,15 @@ class Dataset:
 
     def log(self):
         """Displays the details of all the past commits."""
-        # TODO: use logger.info instead of prints
         commit_node = self.version_state["commit_node"]
         logger.info("---------------\nHub Version Log\n---------------\n")
-        logger.info(f"Current Branch: {self.version_state['branch']}\n")
+        logger.info(f"Current Branch: {self.version_state['branch']}")
+        if not commit_node.children and commit_has_data(
+            self.version_state, self.storage
+        ):
+            logger.info("** There are uncommitted changes on this branch.\n")
+        else:
+            logger.info("\n")
         while commit_node:
             if commit_node.commit_time is not None:
                 logger.info(f"{commit_node}\n")
@@ -472,7 +487,7 @@ class Dataset:
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
-        buffer_size: int = 10 * 1000,
+        buffer_size: int = 2048,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
     ):
@@ -495,19 +510,19 @@ class Dataset:
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
         """
-        from hub.integrations import dataset_to_pytorch
+        from hub.integrations import dataset_to_pytorch as to_pytorch
 
-        dataloader = dataset_to_pytorch(
+        dataloader = to_pytorch(
             self,
-            transform,
-            tensors,
+            transform=transform,
+            tensors=tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
@@ -532,7 +547,6 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-
         if self.index.is_trivial() and self._is_root():
             self.storage.autoflush = True
 
@@ -540,8 +554,14 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         self.index.validate(self.num_samples)
+
+    @property
+    def info(self):
+        if self._info is None:
+            self._info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+        return self._info
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -718,13 +738,13 @@ class Dataset:
             return None
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            posixpath.dirname(self.group_index),
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index=posixpath.dirname(self.group_index),
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -736,13 +756,13 @@ class Dataset:
             return self
         autoflush = self.storage.autoflush
         ds = self.__class__(
-            self.storage,
-            self.index,
-            "",
-            self.read_only,
-            self.public,
-            self._token,
-            self.verbose,
+            storage=self.storage,
+            index=self.index,
+            group_index="",
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=self.verbose,
             path=self.path,
         )
         self.storage.autoflush = autoflush
