@@ -12,7 +12,6 @@ from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.index.index import Index, IndexEntry
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample, SampleValue
@@ -552,7 +551,6 @@ class ChunkEngine:
                     otypes=[object],
                 )(required_tile_ids)
                 sample = coalesce_tiles(tiles, tile_shape, self.tensor_meta.dtype)
-                print(sample.shape, sample_index)
                 sample = sample[sample_index]
             samples.append(sample)
             last_shape = sample_shape

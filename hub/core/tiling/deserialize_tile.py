@@ -1,5 +1,4 @@
 from typing import Callable, Tuple, Union, List
-from functools import partial
 import numpy as np
 
 
