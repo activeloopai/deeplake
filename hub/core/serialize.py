@@ -339,6 +339,7 @@ def serialize_sample_object(
             incoming_sample = Sample(array=arr)
         compressed_bytes = incoming_sample.compressed_bytes(sample_compression)
         if len(compressed_bytes) > min_chunk_size:
+            # TODO raise for A/V
             incoming_sample = SampleTiles(
                 incoming_sample.array, sample_compression, min_chunk_size
             )
