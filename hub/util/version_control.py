@@ -1,13 +1,15 @@
+from collections import defaultdict
 import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage.cachable import Cachable
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
@@ -16,6 +18,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_tensor_commit_diff_key,
     get_tensor_info_key,
     get_tensor_meta_key,
     get_tensor_commit_chunk_set_key,
@@ -291,3 +294,102 @@ def load_meta(storage, version_state):
 
     for tensor_name in meta.tensors:
         _tensors[tensor_name] = Tensor(tensor_name, storage, version_state)
+
+
+def compare(
+    commit1: str, commit2: str, version_state: Dict[str, Any], storage: LRUCache
+) -> Tuple[dict, dict]:
+    """Compares two commits and prints the differences.
+
+    Args:
+        commit1 (str): The first commit to compare.
+        commit2 (str): The second commit to compare.
+    """
+    commit_node_1: CommitNode = version_state["commit_node_map"][commit1]
+    commit_node_2: CommitNode = version_state["commit_node_map"][commit2]
+    lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
+    lca = version_state["commit_node_map"][lca_id]
+
+    changes_1 = defaultdict(lambda: defaultdict(set))
+    changes_1["tensors_created"] = set()
+    changes_2 = changes_1.copy()
+
+    for commit_node, changes in [
+        (commit_node_1, changes_1),
+        (commit_node_2, changes_2),
+    ]:
+        while commit_node != lca:
+            commit_id = commit_node.commit_id
+            get_changes_for_id(commit_id, storage, changes)
+            commit_node = commit_node.parent
+        filter_data_updated(changes)
+    return changes_1, changes_2
+
+
+def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
+    """Returns the lowest common ancestor of two commits.
+    Root is the root of nary tree. CommitNode has attributes parent and children"""
+    if p == q:
+        return p
+
+    p_family = []
+    q_family = set()
+
+    while p:
+        p_family.append(p.commit_id)
+        p = p.parent
+
+    while q:
+        q_family.add(q.commit_id)
+        q = q.parent
+    for id in p_family:
+        if id in q_family:
+            return id
+
+
+def display_changes(changes):
+    tensors_created = changes["tensors_created"]
+    del changes["tensors_created"]
+    if tensors_created:
+        print("Tensors created:")
+        for tensor in tensors_created:
+            print(tensor)
+        print()
+    elif not changes:
+        print("No changes.\n")
+        return
+
+    for tensor, change in changes.items():
+        if tensor != "tensors_created" and change:
+            print("------------------------------------")
+            print(f"Tensor: {tensor}\n")
+            if change["data_added"]:
+                print(f"Added indexes: {change['data_added']}")
+            if change["data_updated"]:
+                print(f"Updated indexes: {change['data_updated']}")
+            print("------------------------------------")
+
+
+def get_changes_for_id(
+    commit_id: str, storage: LRUCache, changes: Dict[str, Any]
+) -> None:
+    meta_key = get_dataset_meta_key(commit_id)
+    meta = storage.get_cachable(meta_key, DatasetMeta)
+
+    for tensor in meta.tensors:
+        try:
+            commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
+            commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
+            changes[tensor]["data_added"].update(commit_diff.data_added)
+            changes[tensor]["data_updated"].update(commit_diff.data_updated)
+            if commit_diff.created:
+                changes[tensor]["tensors_created"].add(tensor)
+        except KeyError:
+            pass
+
+
+def filter_data_updated(changes: Dict[str, Any]) -> None:
+    for tensor, change in changes.items():
+        if tensor != "tensors_created":
+            # only show the elements in data_updated that are not in data_added
+            change["data_updated"] = change["data_updated"] - change["data_added"]

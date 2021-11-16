@@ -59,7 +59,7 @@ class CommitDiff(Cachable):
 
     def add_data(self, global_indexes: Set[int]) -> None:
         """Adds new indexes to data added"""
-        self.data_added.union(global_indexes)
+        self.data_added.update(global_indexes)
 
     def update_data(self, global_index: int) -> None:
         """Adds new indexes to data updated"""

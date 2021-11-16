@@ -40,7 +40,16 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    compare,
+    display_changes,
+    filter_data_updated,
+    get_changes_for_id,
+    load_meta,
+)
 from tqdm import tqdm  # type: ignore
 
 
@@ -426,6 +435,38 @@ class Dataset:
             if commit_node.commit_time is not None:
                 logger.info(f"{commit_node}\n")
             commit_node = commit_node.parent
+
+    def diff(
+        self, commit_hash_1: Optional[str] = None, commit_hash_2: Optional[str] = None
+    ) -> str:
+
+        version_state, storage = self.version_state, self.storage
+        if commit_hash_1 is None and commit_hash_2 is None:
+            changes = defaultdict(lambda: defaultdict(set))
+            changes["tensors_created"] = set()
+
+            commit_id = version_state["commit_id"]
+            get_changes_for_id(commit_id, storage, changes)
+            filter_data_updated(changes)
+            print(f"Diff in {commit_id} (current commit):")
+            display_changes(changes)
+
+        elif commit_hash_2 is None:
+            commit1 = version_state["commit_id"]
+            commit2 = commit_hash_1
+            changes1, changes2 = compare(commit1, commit2, version_state, storage)
+            print(f"Diff in {commit1} (current commit):")
+            display_changes(changes1)
+            print(f"Diff in {commit2} (target commit):")
+            display_changes(changes2)
+        else:
+            commit1 = commit_hash_1
+            commit2 = commit_hash_2
+            changes1, changes2 = compare(commit1, commit2, version_state, storage)
+            print(f"Diff in {commit1} (target commit 1):")
+            display_changes(changes1)
+            print(f"Diff in {commit2} (target commit 2):")
+            display_changes(changes2)
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
