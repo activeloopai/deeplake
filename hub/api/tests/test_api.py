@@ -811,3 +811,9 @@ def test_clear(local_ds_generator):
     assert len(image) == 0
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+    ds = local_ds_generator()
+    assert len(ds) == 0
+    assert len(image) == 0
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"

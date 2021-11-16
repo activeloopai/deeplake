@@ -565,7 +565,6 @@ class ChunkEngine:
         self.tensor_meta.length = 0
         self.tensor_meta.min_shape = []
         self.tensor_meta.max_shape = []
-        self.tensor_meta.dtype = None
 
         self._synchronize_cache()
         self.cache.maybe_flush()
