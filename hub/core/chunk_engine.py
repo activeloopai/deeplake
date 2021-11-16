@@ -36,24 +36,6 @@ from functools import partial
 CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
-def _format_read_samples(
-    samples: Sequence[np.array], index: Index, aslist: bool
-) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepares samples being read from the chunk engine in the format the user expects."""
-
-    samples = index.apply(samples)  # type: ignore
-
-    if aslist and all(map(np.isscalar, samples)):
-        samples = list(arr.item() for arr in samples)
-
-    samples = index.apply_squeeze(samples)  # type: ignore
-
-    if aslist:
-        return samples
-    else:
-        return np.array(samples)
-
-
 class ChunkEngine:
     def __init__(
         self,
