@@ -25,20 +25,24 @@ import numcodecs.lz4  # type: ignore
 import os
 import subprocess as sp
 import tempfile
-from miniaudio import (  # type: ignore
-    mp3_read_file_f32,
-    mp3_read_f32,
-    mp3_get_file_info,
-    mp3_get_info,
-    flac_read_file_f32,
-    flac_read_f32,
-    flac_get_file_info,
-    flac_get_info,
-    wav_read_file_f32,
-    wav_read_f32,
-    wav_get_file_info,
-    wav_get_info,
-)
+try:
+    from miniaudio import (  # type: ignore
+        mp3_read_file_f32,
+        mp3_read_f32,
+        mp3_get_file_info,
+        mp3_get_info,
+        flac_read_file_f32,
+        flac_read_f32,
+        flac_get_file_info,
+        flac_get_info,
+        wav_read_file_f32,
+        wav_read_f32,
+        wav_get_file_info,
+        wav_get_info,
+    )
+    _MINIAUDIO_INSTALLED = True
+except ImportError:
+    _MINIAUDIO_INSTALLED = False
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 
@@ -732,6 +736,8 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
 def _decompress_audio(
     file: Union[bytes, memoryview, str], compression: Optional[str]
 ) -> np.ndarray:
+    if not _MINIAUDIO_INSTALLED:
+        raise ModuleNotFoundError("Miniaudio is not installed. Run `pip install hub[audio]`.")
     decompressor = globals()[
         f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
     ]
@@ -754,6 +760,8 @@ def _read_audio_shape(
     file: Union[bytes, memoryview, str], compression: str
 ) -> Tuple[int, ...]:
     f_info = globals()[
+    if not _MINIAUDIO_INSTALLED:
+        raise ModuleNotFoundError("Miniaudio is not installed. Run `pip install hub[audio]`.")
         f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
     ]
     info = f_info(file)
