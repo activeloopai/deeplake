@@ -241,9 +241,7 @@ def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) 
     if not commit_node.commit_time:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
-        logger.info(
-            f"Auto commiting to branch '{branch}' as currently at head node."
-        )
+        logger.info(f"Auto commiting to branch '{branch}' as currently at head node.")
         commit(
             version_state,
             storage,
@@ -350,25 +348,23 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
 def display_changes(changes):
     tensors_created = changes["tensors_created"]
     del changes["tensors_created"]
-    separator = "- " * 51
     if tensors_created:
-        print(separator)
         print("Tensors created:")
         for tensor in tensors_created:
             print(f"* {tensor}")
+        print()
     elif not changes:
         print("No changes.\n")
         return
 
     for tensor, change in changes.items():
         if tensor != "tensors_created" and change:
-            print(separator)
             print(f"Changes in Tensor {tensor}:")
             if change["data_added"]:
                 print(f"* Added indexes: {change['data_added']}")
             if change["data_updated"]:
                 print(f"* Updated indexes: {change['data_updated']}")
-    print(separator)
+            print()
 
 
 def get_changes_for_id(

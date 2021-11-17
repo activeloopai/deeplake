@@ -437,12 +437,12 @@ class Dataset:
             commit_node = commit_node.parent
 
     def diff(
-        self, commit_hash_1: Optional[str] = None, commit_hash_2: Optional[str] = None
+        self, commit_id_1: Optional[str] = None, commit_id_2: Optional[str] = None
     ) -> str:
 
         version_state, storage = self.version_state, self.storage
         separator = "-" * 120
-        if commit_hash_1 is None and commit_hash_2 is None:
+        if commit_id_1 is None and commit_id_2 is None:
             changes = defaultdict(lambda: defaultdict(set))
             changes["tensors_created"] = set()
 
@@ -453,11 +453,12 @@ class Dataset:
             print(separator)
             print(f"Diff in {commit_id} (current commit):\n")
             display_changes(changes)
+            print()
             print(separator)
 
-        elif commit_hash_2 is None:
+        elif commit_id_2 is None:
             commit1 = version_state["commit_id"]
-            commit2 = commit_hash_1
+            commit2 = commit_id_1
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
             print()
             print(separator)
@@ -468,9 +469,10 @@ class Dataset:
             print(f"Diff in {commit2} (target commit):\n")
             display_changes(changes2)
             print(separator)
+            print()
         else:
-            commit1 = commit_hash_1
-            commit2 = commit_hash_2
+            commit1 = commit_id_1
+            commit2 = commit_id_2
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
             print()
             print(separator)
@@ -481,7 +483,7 @@ class Dataset:
             print(f"Diff in {commit2} (target commit 2):\n")
             display_changes(changes2)
             print(separator)
-
+            print()
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
