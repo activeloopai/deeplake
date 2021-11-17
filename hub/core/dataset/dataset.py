@@ -45,6 +45,7 @@ from hub.util.version_control import (
     checkout,
     commit,
     compare,
+    create_changes_dict,
     display_changes,
     filter_data_updated,
     get_changes_for_id,
@@ -438,52 +439,31 @@ class Dataset:
 
     def diff(
         self, commit_id_1: Optional[str] = None, commit_id_2: Optional[str] = None
-    ) -> str:
-
+    ):
         version_state, storage = self.version_state, self.storage
-        separator = "-" * 120
+        message1 = message2 = changes1 = changes2 = None
+
         if commit_id_1 is None and commit_id_2 is None:
-            changes = defaultdict(lambda: defaultdict(set))
-            changes["tensors_created"] = set()
-
+            changes1 = create_changes_dict()
             commit_id = version_state["commit_id"]
-            get_changes_for_id(commit_id, storage, changes)
-            filter_data_updated(changes)
-            print()
-            print(separator)
-            print(f"Diff in {commit_id} (current commit):\n")
-            display_changes(changes)
-            print()
-            print(separator)
-
-        elif commit_id_2 is None:
-            commit1 = version_state["commit_id"]
-            commit2 = commit_id_1
-            changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print()
-            print(separator)
-            print(f"Diff in {commit1} (current commit):\n")
-            display_changes(changes1)
-            print()
-            print(separator)
-            print(f"Diff in {commit2} (target commit):\n")
-            display_changes(changes2)
-            print(separator)
-            print()
+            get_changes_for_id(commit_id, storage, changes1)
+            filter_data_updated(changes1)
+            message1 = f"Diff in {commit_id} (current commit):\n"
         else:
-            commit1 = commit_id_1
-            commit2 = commit_id_2
+            if commit_id_2 is None:
+                commit1 = version_state["commit_id"]
+                commit2 = commit_id_1
+                message1 = f"Diff in {commit1} (current commit):\n"
+                message2 = f"Diff in {commit2} (target commit):\n"
+            else:
+                commit1 = commit_id_1
+                commit2 = commit_id_2
+                message1 = f"Diff in {commit1} (target commit 1):\n"
+                message2 = f"Diff in {commit2} (target commit 2):\n"
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print()
-            print(separator)
-            print(f"Diff in {commit1} (target commit 1):\n")
-            display_changes(changes1)
-            print()
-            print(separator)
-            print(f"Diff in {commit2} (target commit 2):\n")
-            display_changes(changes2)
-            print(separator)
-            print()
+
+        display_changes(changes1, message1)
+        display_changes(changes2, message2)
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""

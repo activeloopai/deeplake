@@ -307,10 +307,8 @@ def compare(
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
     lca = version_state["commit_node_map"][lca_id]
 
-    changes_1 = defaultdict(lambda: defaultdict(set))
-    changes_1["tensors_created"] = set()
-    changes_2 = defaultdict(lambda: defaultdict(set))
-    changes_2["tensors_created"] = set()
+    changes_1 = create_changes_dict()
+    changes_2 = create_changes_dict()
 
     for commit_node, changes in [
         (commit_node_1, changes_1),
@@ -345,7 +343,13 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def display_changes(changes):
+def display_changes(changes, message):
+    if changes is None:
+        return
+    separator = "-" * 120
+    print()
+    print(separator)
+    print(message)
     tensors_created = changes["tensors_created"]
     del changes["tensors_created"]
     if tensors_created:
@@ -366,10 +370,10 @@ def display_changes(changes):
                 print(f"* Updated indexes: {change['data_updated']}")
             print()
 
+    print(separator)
 
-def get_changes_for_id(
-    commit_id: str, storage: LRUCache, changes: Dict[str, Any]
-) -> None:
+
+def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any]):
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_cachable(meta_key, DatasetMeta)
 
@@ -390,3 +394,9 @@ def filter_data_updated(changes: Dict[str, Any]) -> None:
         if tensor != "tensors_created":
             # only show the elements in data_updated that are not in data_added
             change["data_updated"] = change["data_updated"] - change["data_added"]
+
+
+def create_changes_dict():
+    changes = defaultdict(lambda: defaultdict(set))
+    changes["tensors_created"] = set()
+    return changes
