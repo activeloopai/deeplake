@@ -309,7 +309,6 @@ class Dataset:
         ffw_dataset_meta(self.version_state["meta"])
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
-
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
@@ -457,7 +456,9 @@ class Dataset:
                 commit2 = commit_id_2
                 message1 = f"Diff in {commit1} (target commit 1):\n"
                 message2 = f"Diff in {commit2} (target commit 2):\n"
-            changes1, changes2 = compare_commits(commit1, commit2, version_state, storage)
+            changes1, changes2 = compare_commits(
+                commit1, commit2, version_state, storage
+            )
 
         display_all_changes(changes1, message1, changes2, message2)
 

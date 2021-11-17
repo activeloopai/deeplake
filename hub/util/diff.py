@@ -37,10 +37,12 @@ def compare_commits(
         filter_data_updated(changes)
     return changes_1, changes_2
 
+
 def check_commit_exists(commit_id: str, version_state: Dict[str, Any]):
     """Checks if the commit id exists."""
     if commit_id not in version_state["commit_node_map"]:
         raise KeyError(f"Commit {commit_id} does not exist.")
+
 
 def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
     """Returns the lowest common ancestor of two commits."""
