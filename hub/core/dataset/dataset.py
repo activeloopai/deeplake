@@ -40,16 +40,13 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import (
-    auto_checkout,
-    checkout,
-    commit,
+from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from hub.util.diff import (
     compare,
     create_changes_dict,
     display_changes,
     filter_data_updated,
     get_changes_for_id,
-    load_meta,
 )
 from tqdm import tqdm  # type: ignore
 
