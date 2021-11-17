@@ -95,7 +95,9 @@ class GDriveProvider(StorageProvider):
             root(str): The root of the provider. All read/write request keys will be appended to root.
 
         Note:
-            Requires `client_secrets.json` in working directory
+            - Requires `client_secrets.json` in working directory.
+            - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
+            - Users can request to increse their quotas on their google cloud platform.
         """
 
         store = file.Storage("gdrive_creds.json")
