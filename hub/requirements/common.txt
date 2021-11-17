@@ -1,7 +1,6 @@
 numpy
 pillow==8.3.2
 numcodecs~=0.7.3
-lz4
 miniaudio~=1.44
 boto3
 boto3-stubs[essential]

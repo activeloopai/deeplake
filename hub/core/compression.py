@@ -22,7 +22,6 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
-import lz4.frame  # type: ignore
 import os
 import subprocess as sp
 import tempfile
@@ -42,6 +41,12 @@ from miniaudio import (  # type: ignore
 )
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
+
+try:
+    import lz4.frame  # type: ignore
+    _LZ4_INSTALLED = True
+except ImportError:
+    _LZ4_INSTALLED = False
 
 
 if sys.byteorder == "little":
@@ -194,6 +199,8 @@ def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> byte
         if (
             buffer[:4] == b'\x04"M\x18'
         ):  # python-lz4 magic number (backward compatiblity)
+            if not _LZ4_INSTALLED:
+                raise ModuleNotFoundError("Module lz4 not found. Install using `pip install lz4`.")
             return lz4.frame.decompress(buffer)
         return numcodecs.lz4.decompress(buffer)
     else:

@@ -8,3 +8,4 @@ darglint
 kaggle
 types-requests
 types-click
+lz4
