@@ -89,7 +89,7 @@ def checkout(
         version_state["branch"] = version_state["commit_node"].branch
     elif create:
         storage.check_readonly()
-        # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
+        # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
@@ -242,7 +242,7 @@ def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) 
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
         logger.info(
-            f"Auto commiting to branch '{branch}' as currently at head node with uncommitted changes."
+            f"Auto commiting to branch '{branch}' as currently at head node."
         )
         commit(
             version_state,
@@ -311,7 +311,8 @@ def compare(
 
     changes_1 = defaultdict(lambda: defaultdict(set))
     changes_1["tensors_created"] = set()
-    changes_2 = changes_1.copy()
+    changes_2 = defaultdict(lambda: defaultdict(set))
+    changes_2["tensors_created"] = set()
 
     for commit_node, changes in [
         (commit_node_1, changes_1),
@@ -349,24 +350,25 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
 def display_changes(changes):
     tensors_created = changes["tensors_created"]
     del changes["tensors_created"]
+    separator = "- " * 51
     if tensors_created:
+        print(separator)
         print("Tensors created:")
         for tensor in tensors_created:
-            print(tensor)
-        print()
+            print(f"* {tensor}")
     elif not changes:
         print("No changes.\n")
         return
 
     for tensor, change in changes.items():
         if tensor != "tensors_created" and change:
-            print("------------------------------------")
-            print(f"Tensor: {tensor}\n")
+            print(separator)
+            print(f"Changes in Tensor {tensor}:")
             if change["data_added"]:
-                print(f"Added indexes: {change['data_added']}")
+                print(f"* Added indexes: {change['data_added']}")
             if change["data_updated"]:
-                print(f"Updated indexes: {change['data_updated']}")
-            print("------------------------------------")
+                print(f"* Updated indexes: {change['data_updated']}")
+    print(separator)
 
 
 def get_changes_for_id(

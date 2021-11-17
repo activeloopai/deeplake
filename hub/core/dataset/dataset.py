@@ -441,6 +441,7 @@ class Dataset:
     ) -> str:
 
         version_state, storage = self.version_state, self.storage
+        separator = "-" * 120
         if commit_hash_1 is None and commit_hash_2 is None:
             changes = defaultdict(lambda: defaultdict(set))
             changes["tensors_created"] = set()
@@ -448,25 +449,39 @@ class Dataset:
             commit_id = version_state["commit_id"]
             get_changes_for_id(commit_id, storage, changes)
             filter_data_updated(changes)
-            print(f"\nDiff in {commit_id} (current commit):")
+            print()
+            print(separator)
+            print(f"Diff in {commit_id} (current commit):\n")
             display_changes(changes)
+            print(separator)
 
         elif commit_hash_2 is None:
             commit1 = version_state["commit_id"]
             commit2 = commit_hash_1
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print(f"\nDiff in {commit1} (current commit):")
+            print()
+            print(separator)
+            print(f"Diff in {commit1} (current commit):\n")
             display_changes(changes1)
-            print(f"\nDiff in {commit2} (target commit):")
+            print()
+            print(separator)
+            print(f"Diff in {commit2} (target commit):\n")
             display_changes(changes2)
+            print(separator)
         else:
             commit1 = commit_hash_1
             commit2 = commit_hash_2
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print(f"\nDiff in {commit1} (target commit 1):")
+            print()
+            print(separator)
+            print(f"Diff in {commit1} (target commit 1):\n")
             display_changes(changes1)
-            print(f"\nDiff in {commit2} (target commit 2):")
+            print()
+            print(separator)
+            print(f"Diff in {commit2} (target commit 2):\n")
             display_changes(changes2)
+            print(separator)
+
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
