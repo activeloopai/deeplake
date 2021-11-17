@@ -9,4 +9,3 @@ google-auth-oauthlib~=0.4.5
 tqdm
 pathos
 humbug>=0.2.6
-typing_extensions>=3.10.0.0
