@@ -339,25 +339,26 @@ def test_auto_checkout(local_ds):
 
 def test_auto_commit(local_ds):
     initial_commit_id = local_ds.commit_id
+    # auto commit as head of main branch
     local_ds.checkout("pqr", create=True)
     local_ds.checkout("main")
-    # no auto commit as there was no data
-    assert local_ds.commit_id == initial_commit_id
+    second_commit_id = local_ds.commit_id
+    assert second_commit_id != initial_commit_id
     local_ds.create_tensor("abc")
     local_ds.abc.append(1)
-    # auto commit as there was data
+    # auto commit as head of main again
     local_ds.checkout("xyz", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != initial_commit_id
+    assert local_ds.commit_id != second_commit_id
 
     with local_ds:
         local_ds.abc.append(1)
 
-    current_commit_id = local_ds.commit_id
+    third_commit_id = local_ds.commit_id
 
-    # auto commit as there was data
+    # auto commit as head of main again
     local_ds.checkout("tuv", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != current_commit_id
+    assert local_ds.commit_id != third_commit_id
