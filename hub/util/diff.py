@@ -7,7 +7,7 @@ from hub.core.storage import LRUCache
 from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
 
 
-def compare(
+def compare_commits(
     commit1: str, commit2: str, version_state: Dict[str, Any], storage: LRUCache
 ) -> Tuple[dict, dict]:
     """Compares two commits and returns the differences.
@@ -16,6 +16,8 @@ def compare(
         commit1 (str): The first commit to compare.
         commit2 (str): The second commit to compare.
     """
+    check_commit_exists(commit1, version_state)
+    check_commit_exists(commit2, version_state)
     commit_node_1: CommitNode = version_state["commit_node_map"][commit1]
     commit_node_2: CommitNode = version_state["commit_node_map"][commit2]
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
@@ -35,6 +37,10 @@ def compare(
         filter_data_updated(changes)
     return changes_1, changes_2
 
+def check_commit_exists(commit_id: str, version_state: Dict[str, Any]):
+    """Checks if the commit id exists."""
+    if commit_id not in version_state["commit_node_map"]:
+        raise KeyError(f"Commit {commit_id} does not exist.")
 
 def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
     """Returns the lowest common ancestor of two commits."""
@@ -56,12 +62,19 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def display_changes(changes: Optional[Dict], message: str):
-    """Displays the changes made."""
-    if changes is None:
-        return
+def display_all_changes(changes1, message1, changes2, message2):
+    """Displays all changes."""
+    print("\n## Logging Hub Diff")
     separator = "-" * 120
-    print()
+    if changes1 is not None:
+        display_changes(changes1, message1, separator)
+    if changes2 is not None:
+        display_changes(changes2, message2, separator)
+    print(separator)
+
+
+def display_changes(changes: Dict, message: Optional[str], separator: str):
+    """Displays the changes made."""
     print(separator)
     print(message)
     tensors_created = changes["tensors_created"]
@@ -83,8 +96,6 @@ def display_changes(changes: Optional[Dict], message: str):
             if change["data_updated"]:
                 print(f"* Updated indexes: {change['data_updated']}")
             print()
-
-    print(separator)
 
 
 def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any]):

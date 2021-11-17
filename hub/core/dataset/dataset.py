@@ -42,9 +42,9 @@ from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.util.version_control import auto_checkout, checkout, commit, load_meta
 from hub.util.diff import (
-    compare,
+    compare_commits,
     create_changes_dict,
-    display_changes,
+    display_all_changes,
     filter_data_updated,
     get_changes_for_id,
 )
@@ -457,10 +457,9 @@ class Dataset:
                 commit2 = commit_id_2
                 message1 = f"Diff in {commit1} (target commit 1):\n"
                 message2 = f"Diff in {commit2} (target commit 2):\n"
-            changes1, changes2 = compare(commit1, commit2, version_state, storage)
+            changes1, changes2 = compare_commits(commit1, commit2, version_state, storage)
 
-        display_changes(changes1, message1)
-        display_changes(changes2, message2)
+        display_all_changes(changes1, message1, changes2, message2)
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
