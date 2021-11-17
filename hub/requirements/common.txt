@@ -2,9 +2,9 @@ numpy
 pillow>=7.1.2
 numcodecs~=0.7.3
 miniaudio~=1.44
+boto3
 google-cloud-storage~=1.42.0
 google-auth~=2.0.1
 google-auth-oauthlib~=0.4.5
 tqdm
-pathos
 humbug>=0.2.6
