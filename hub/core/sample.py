@@ -1,10 +1,18 @@
 # type: ignore
 from hub.core.compression import (
     compress_array,
+    compress_bytes,
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _to_hub_mkv,
+)
+from hub.compression import (
+    get_compression_type,
+    AUDIO_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
 )
 from hub.compression import get_compression_type, AUDIO_COMPRESSION, IMAGE_COMPRESSION
 from hub.util.exceptions import CorruptedSampleError
@@ -49,7 +57,6 @@ class Sample:
 
         self._compressed_bytes = {}
         self._uncompressed_bytes = None
-        self._convert_grayscale = False
 
         self._array = None
         self._typestr = None
@@ -151,12 +158,20 @@ class Sample:
         compressed_bytes = self._compressed_bytes.get(compression)
         if compressed_bytes is None:
             if self.path is not None:
-                with open(self.path, "rb") as f:
-                    compressed_bytes = f.read()
                 if self._compression is None:
-                    self._compression = get_compression(
-                        compressed_bytes[:32], self.path
-                    )
+                    self._compression = get_compression(path=self.path)
+                if self._compression in (
+                    "mp4",
+                    "mkv",
+                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
+                    compressed_bytes = _to_hub_mkv(self.path)
+                else:
+                    with open(self.path, "rb") as f:
+                        compressed_bytes = f.read()
+                    if self._compression is None:
+                        self._compression = get_compression(
+                            header=compressed_bytes[:32]
+                        )
                 if self._compression == compression:
                     if self._verify:
                         self._shape, self._typestr = verify_compressed_file(
@@ -183,7 +198,10 @@ class Sample:
                 compr = self._compression
                 if compr is None:
                     compr = get_compression(path=self.path)
-                if get_compression_type(compr) == AUDIO_COMPRESSION:
+                if get_compression_type(compr) in (
+                    AUDIO_COMPRESSION,
+                    VIDEO_COMPRESSION,
+                ):
                     self._compression = compr
                     if self._array is None:
                         self._array = decompress_array(self.path, compression=compr)
@@ -207,7 +225,7 @@ class Sample:
             compr = self._compression
             if compr is None:
                 compr = get_compression(path=self.path)
-            if get_compression_type(compr) == AUDIO_COMPRESSION:
+            if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
                 array = decompress_array(self.path or self._buffer, compression=compr)
                 if self._shape is None:

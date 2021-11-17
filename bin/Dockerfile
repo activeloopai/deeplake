@@ -6,13 +6,10 @@ RUN apt-get -y update && \
 
 RUN mkdir /app
 
-RUN git clone https://github.com/activeloopai/Hub.git /app/ && \
-    cd /app/
-
+RUN git clone https://github.com/activeloopai/Hub.git /app/
 WORKDIR /app
 
-ENV PYTHONPATH="/app/Hub:$PYTHONPATH"
-RUN ls hub/
-    pip install -r hub/requirements/common.txt && \
-    pip install -r hub/requirements/tests.txt && \
-    pip install -r hub/requirements/plugins.txt
+RUN pip install -r hub/requirements/plugins.txt && \
+    pip install -r hub/requirements/tests.txt
+
+RUN pip install -e .

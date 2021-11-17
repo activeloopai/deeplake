@@ -22,6 +22,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
 )
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
@@ -185,6 +186,21 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         ):
             raise UnsupportedCompressionError(
                 htype_overwrite["sample_compression"], htype="audio"
+            )
+
+    if htype == "video":
+        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
+            raise UnsupportedCompressionError("Chunk compression", htype=htype)
+        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
+            raise TensorMetaMissingRequiredValue(
+                htype, "sample compression"  # type: ignore
+            )
+        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
+            None,
+            VIDEO_COMPRESSION,
+        ):
+            raise UnsupportedCompressionError(
+                htype_overwrite["sample_compression"], htype="video"
             )
 
 

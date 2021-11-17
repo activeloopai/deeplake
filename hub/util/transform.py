@@ -1,14 +1,15 @@
 import hub
-import posixpath
+from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Tuple
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
+from hub.core.ipc import Client
 
-from hub.constants import MB
+
+from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -17,6 +18,9 @@ from hub.util.exceptions import (
     InvalidTransformDataset,
     TensorMismatchError,
 )
+
+import posixpath
+import time
 
 
 def transform_sample(
@@ -97,6 +101,7 @@ def store_data_slice(
         tensors,
         pipeline,
         version_state,
+        progress_port,
     ) = transform_input
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
@@ -106,7 +111,7 @@ def store_data_slice(
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index
+        data_slice, pipeline, tensors, all_chunk_engines, group_index, progress_port
     )
 
     # retrieve the tensor metas and chunk_id_encoder from the memory
@@ -120,26 +125,62 @@ def store_data_slice(
     return all_tensor_metas, all_chunk_id_encoders
 
 
+def _transform_sample_and_update_chunk_engines(
+    sample,
+    pipeline,
+    tensors: List[str],
+    all_chunk_engines: Dict[str, ChunkEngine],
+    group_index: str,
+):
+    result = transform_sample(sample, pipeline)
+    if is_empty_transform_dataset(result):
+        return
+    result_resolved = {
+        posixpath.join(group_index, k): result[k] for k in result.tensors
+    }
+    result = result_resolved  # type: ignore
+    if set(result.keys()) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result.keys()))
+    for tensor, value in result.items():
+        all_chunk_engines[tensor].extend(value.numpy_compressed())
+
+
 def transform_data_slice_and_append(
     data_slice,
     pipeline,
     tensors: List[str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
+    progress_port: Optional[int] = None,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-    for sample in data_slice:
-        result = transform_sample(sample, pipeline)
-        if is_empty_transform_dataset(result):
-            continue  # empty sample
-        result_resolved = {
-            posixpath.join(group_index, k): result[k] for k in result.tensors
-        }
-        result = result_resolved  # type: ignore
-        if set(result.keys()) != set(tensors):
-            raise TensorMismatchError(list(tensors), list(result.keys()))
-        for tensor, value in result.items():
-            all_chunk_engines[tensor].extend(value.numpy_compressed())
+
+    if progress_port is not None:
+        last_reported_time = time.time()
+        last_reported_num_samples = 0
+        report_interval = TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+        client = Client(progress_port)
+    try:
+        n = len(data_slice)
+        for i, sample in enumerate(data_slice):
+            _transform_sample_and_update_chunk_engines(
+                sample, pipeline, tensors, all_chunk_engines, group_index
+            )
+            if progress_port is not None:
+                curr_time = time.time()
+                if curr_time - last_reported_time > report_interval or i == n - 1:
+                    num_samples = i + 1
+                    client.send(num_samples - last_reported_num_samples)
+                    last_reported_num_samples = num_samples
+                    last_reported_time = curr_time
+    except Exception as e:
+        if progress_port is not None:
+            client.send(str(e))
+        else:
+            raise e
+    finally:
+        if progress_port is not None:
+            client.close()
 
 
 def create_worker_chunk_engines(
@@ -240,3 +281,21 @@ def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
         raise InvalidOutputDatasetError(
             f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
         )
+
+
+def get_pbar_description(transform_functions: List):
+    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `TransformFunction`s."""
+
+    num_funcs = len(transform_functions)
+    if num_funcs == 0:
+        return "Evaluating"
+
+    func_names: List[str] = []
+    for transform_function in transform_functions:
+        func_names.append(transform_function.func.__name__)
+
+    if num_funcs == 1:
+        return f"Evaluating {func_names[0]}"
+
+    names_desc = ", ".join(func_names)
+    return f"Evaluating [{names_desc}]"

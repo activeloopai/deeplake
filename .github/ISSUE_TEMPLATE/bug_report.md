@@ -37,7 +37,7 @@ def function_right():
     - *good*: [e.g. 3.8]
     - **better**: [3.8.6 - Clang 12.0.0 (clang-1200.0.32.27)]
 - `OS`: [e.g. Ubuntu 18.04, OSX 10.13.4, Windows 10]
-- `IDE`: [Vim, VS-Code, Pycharme]
+- `IDE`: [Vim, VS-Code, PyCharm]
 - `Packages`: [ `Tensorflow==2.1.2 - latest`]
 
 
