@@ -9,3 +9,4 @@ kaggle
 types-requests
 types-click
 lz4
+boto3-stubs[essential]
