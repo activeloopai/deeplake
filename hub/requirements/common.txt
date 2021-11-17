@@ -1,5 +1,5 @@
 numpy
-pillow==8.3.2
+pillow>=7.1.2
 numcodecs~=0.7.3
 miniaudio~=1.44
 boto3
