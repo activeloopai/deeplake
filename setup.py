@@ -27,7 +27,10 @@ req_map = {
 }
 
 # Add optional dependencies to this dict without version. Version should be specified in requirements.txt
-extras = {"audio": ["miniaudio"]}
+extras = {
+    "audio": ["miniaudio"],
+    "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+}
 
 all_extras = set(r for v in extras.values() for r in v)
 non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
