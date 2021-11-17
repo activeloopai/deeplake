@@ -11,3 +11,4 @@ tqdm
 pathos
 humbug>=0.2.6
 typing_extensions>=3.10.0.0
+hub_shm; python_version < "3.8" and python_version >= "3.6"
