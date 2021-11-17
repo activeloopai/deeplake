@@ -433,3 +433,53 @@ def test_string_tensors(local_ds):
     ptds2 = local_ds.pytorch(batch_size=None)
     for idx, batch in enumerate(ptds2):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+
+
+def as_dict(sample):
+    return {"image": sample["image"], "label": sample["label"]}
+
+
+def as_tuple(sample):
+    return sample["image"], sample["label"]
+
+
+@requires_torch
+@pytest.mark.parametrize("transform", [as_dict, as_tuple])
+def test_access_as_tuple(local_ds, transform):
+    images = np.ones(3)
+    labels = np.zeros(1)
+
+    with local_ds:
+        local_ds.create_tensor("image")
+        local_ds.create_tensor("label")
+
+        for _ in range(5):
+            local_ds.image.append(images)
+            local_ds.label.append(labels)
+
+    dl = local_ds.pytorch(transform=transform, batch_size=2)
+
+    for r_images, r_lables in dl:
+        np.testing.assert_array_equal(r_images[0], images)
+        np.testing.assert_array_equal(r_lables[0], labels)
+
+
+@requires_torch
+@pytest.mark.parametrize("transform", [as_dict, as_tuple])
+def test_access_as_dict(local_ds, transform):
+    images = np.ones(3)
+    labels = np.zeros(1)
+
+    with local_ds:
+        local_ds.create_tensor("image")
+        local_ds.create_tensor("label")
+
+        for _ in range(5):
+            local_ds.image.append(images)
+            local_ds.label.append(labels)
+
+    dl = local_ds.pytorch(transform=transform, batch_size=2)
+
+    for sample in dl:
+        np.testing.assert_array_equal(sample["image"][0], images)
+        np.testing.assert_array_equal(sample["label"][0], labels)

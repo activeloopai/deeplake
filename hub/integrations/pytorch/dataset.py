@@ -51,10 +51,17 @@ def cast_type(tensor: np.ndarray):
 
 
 def _process(tensor, transform: Optional[Callable]):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
+    keys = [k for k in tensor.keys()]
+    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in keys)
 
     if transform:
         tensor = transform(tensor)
+
+        if isinstance(tensor, dict):
+            tensor = IterableOrderedDict((k, tensor[k]) for k in tensor)
+
+        if isinstance(tensor, tuple):
+            tensor = IterableOrderedDict((k, v) for k, v in zip(keys, tensor))
 
     return tensor
 
