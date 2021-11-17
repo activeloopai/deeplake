@@ -448,24 +448,24 @@ class Dataset:
             commit_id = version_state["commit_id"]
             get_changes_for_id(commit_id, storage, changes)
             filter_data_updated(changes)
-            print(f"Diff in {commit_id} (current commit):")
+            print(f"\nDiff in {commit_id} (current commit):")
             display_changes(changes)
 
         elif commit_hash_2 is None:
             commit1 = version_state["commit_id"]
             commit2 = commit_hash_1
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print(f"Diff in {commit1} (current commit):")
+            print(f"\nDiff in {commit1} (current commit):")
             display_changes(changes1)
-            print(f"Diff in {commit2} (target commit):")
+            print(f"\nDiff in {commit2} (target commit):")
             display_changes(changes2)
         else:
             commit1 = commit_hash_1
             commit2 = commit_hash_2
             changes1, changes2 = compare(commit1, commit2, version_state, storage)
-            print(f"Diff in {commit1} (target commit 1):")
+            print(f"\nDiff in {commit1} (target commit 1):")
             display_changes(changes1)
-            print(f"Diff in {commit2} (target commit 2):")
+            print(f"\nDiff in {commit2} (target commit 2):")
             display_changes(changes2)
 
     def _populate_meta(self):
