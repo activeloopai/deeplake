@@ -7,4 +7,5 @@ google-cloud-storage~=1.42.0
 google-auth~=2.0.1
 google-auth-oauthlib~=0.4.5
 tqdm
+pathos
 humbug>=0.2.6
