@@ -104,11 +104,7 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
         self.index.validate(self.num_samples)
-        self.info = load_info(
-            get_tensor_info_key(self.key, version_state["commit_id"]),
-            self.storage,
-            version_state,
-        )
+        self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
@@ -145,6 +141,22 @@ class Tensor:
         """
 
         self.chunk_engine.extend(samples)
+
+    @property
+    def info(self):
+        """Returns the information about the tensor.
+
+        Returns:
+            TensorInfo: Information about the tensor.
+        """
+
+        if self._info is None:
+            self._info = load_info(
+                get_tensor_info_key(self.key, self.version_state["commit_id"]),
+                self.storage,
+                self.version_state,
+            )
+        return self._info
 
     def append(
         self,
