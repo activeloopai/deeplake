@@ -3,7 +3,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
@@ -296,7 +296,7 @@ def load_meta(storage, version_state):
 def compare(
     commit1: str, commit2: str, version_state: Dict[str, Any], storage: LRUCache
 ) -> Tuple[dict, dict]:
-    """Compares two commits and prints the differences.
+    """Compares two commits and returns the differences.
 
     Args:
         commit1 (str): The first commit to compare.
@@ -323,8 +323,7 @@ def compare(
 
 
 def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
-    """Returns the lowest common ancestor of two commits.
-    Root is the root of nary tree. CommitNode has attributes parent and children"""
+    """Returns the lowest common ancestor of two commits."""
     if p == q:
         return p
 
@@ -343,7 +342,8 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def display_changes(changes, message):
+def display_changes(changes: Optional[Dict], message: str):
+    """Displays the changes made."""
     if changes is None:
         return
     separator = "-" * 120
@@ -374,6 +374,7 @@ def display_changes(changes, message):
 
 
 def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any]):
+    """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_cachable(meta_key, DatasetMeta)
 
@@ -389,14 +390,16 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any
             pass
 
 
-def filter_data_updated(changes: Dict[str, Any]) -> None:
+def filter_data_updated(changes: Dict[str, Any]):
+    """Removes the intersection of data added and data updated from data updated."""
     for tensor, change in changes.items():
         if tensor != "tensors_created":
             # only show the elements in data_updated that are not in data_added
             change["data_updated"] = change["data_updated"] - change["data_added"]
 
 
-def create_changes_dict():
+def create_changes_dict() -> Dict[str, Any]:
+    """Creates the dictionary used to store changes."""
     changes = defaultdict(lambda: defaultdict(set))
     changes["tensors_created"] = set()
     return changes
