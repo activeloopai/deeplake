@@ -23,6 +23,7 @@ from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.keys import dataset_exists, get_dataset_meta_key
 from hub.util.exceptions import (
     DatasetHandlerError,
+    DatasetNotEmptyError,
     InvalidFileExtension,
     InvalidPathException,
     SamePathException,
@@ -303,15 +304,40 @@ class dataset:
         return destination_ds
 
     @staticmethod
-    def copy(src: Union[str, Dataset], dest: Union[str, Dataset]):
+    def copy(
+        src: Union[str, Dataset],
+        dest: Union[str, Dataset],
+        overwrite: bool = False,
+    ) -> Dataset:
+        """Copies `src` dataset to a new location or to an empty dataset.
+
+        Args:
+            src (Union[str, Dataset]): Path or dataset object of dataset to be copied.
+            dest (Union[str, Dataset]): Path where new dataset will be created or empty dataset object to which source dataset is copied.
+
+        Returns:
+            Dataset: Dataset object with copied data.
+
+        Raises:
+            DatasetNotEmptyError: If `dest` dataset object or dataset at `dest` is not empty.
+        """
+
         src_ds: Dataset = dataset.load(src) if isinstance(src, str) else src
 
         if isinstance(dest, str):
-            dest = dataset.empty(dest)
-        dest_ds: Dataset = dest
+            dest_ds: Dataset = (
+                dataset.empty(dest, overwrite=True) if overwrite else dataset(dest)
+            )
+        else:
+            dest_ds: Dataset = (
+                dataset.empty(dest.path, overwrite=True) if overwrite else dest
+            )
 
-        if len(dest_ds.tensors) > 0:
-            raise DatasetHandlerError(f"The dataset at {dest_ds.path} is not empty.")
+        if dest_ds.tensors:
+            raise DatasetNotEmptyError(
+                dest_ds.path,
+                "If you want to copy to a new dataset, specify another path or use overwrite=True to overwrite this dataset.",
+            )
 
         keys = src_ds.storage.keys()
         for key in keys:

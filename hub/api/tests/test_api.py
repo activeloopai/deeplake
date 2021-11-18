@@ -6,6 +6,7 @@ from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
+    DatasetNotEmptyError,
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
@@ -641,6 +642,37 @@ def test_copy(local_path):
     assert dest_ds.info.key == 0
     assert dest_ds.d.info.key == 1
 
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    with pytest.raises(DatasetNotEmptyError):
+        hub.copy(src_ds, dest_path)
+
+    with pytest.raises(DatasetNotEmptyError):
+        hub.copy(src_ds, dest_ds)
+
+    hub.copy(src_ds, dest_ds, overwrite=True)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    dest_ds = hub.dataset(dest_path)
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.copy(src_ds, dest_path, overwrite=True)
+    dest_ds = hub.dataset(dest_path)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    dest_ds.storage.clear()
+    hub.copy(src_ds, dest_path)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 

@@ -561,6 +561,11 @@ class DatasetHandlerError(Exception):
         super().__init__(message)
 
 
+class DatasetNotEmptyError(Exception):
+    def __init__(self, path, more=""):
+        super().__init__(f"The dataset at {path} is not empty." + more)
+
+
 class CallbackInitializationError(Exception):
     pass
 
