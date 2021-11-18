@@ -86,6 +86,7 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
+        self._read_only_set = False
         base_storage = get_base_storage(storage)
         if (
             not read_only and index is None and isinstance(base_storage, S3Provider)
@@ -468,6 +469,7 @@ class Dataset:
         else:
             self.storage.disable_readonly()
         self._read_only = value
+        self._read_only_set = True  # To allow _set_derived_attributes to set read_only once after initializing dataset view.
 
     @hub_reporter.record_call
     def pytorch(
