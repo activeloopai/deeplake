@@ -362,3 +362,104 @@ def test_auto_commit(local_ds):
     local_ds.checkout("main")
 
     assert local_ds.commit_id != third_commit_id
+
+
+def test_diff_linear(local_ds):
+    with local_ds:
+        local_ds.create_tensor("xyz")
+        local_ds.xyz.extend([1, 2, 3])
+        local_ds.create_tensor("pqr")
+        local_ds.pqr.extend([4, 5, 6])
+    a = local_ds.commit()
+    with local_ds:
+        local_ds.xyz[0] = 10
+        local_ds.pqr[2] = 20
+    local_ds.diff()
+    b = local_ds.commit()
+    print("blank")
+    local_ds.diff()
+    print("a")
+    local_ds.diff(a)
+    print("b")
+    local_ds.diff(b)
+    print("a,b")
+    local_ds.diff(a, b)
+    print("b,a")
+    local_ds.diff(b, a)
+
+
+def test_diff_branch(local_ds):
+    with local_ds:
+        local_ds.create_tensor("xyz")
+        local_ds.xyz.extend([1, 2, 3])
+
+    a = local_ds.commit()
+    local_ds.checkout("alt", create=True)
+    with local_ds:
+        local_ds.xyz.extend([4, 5, 6])
+        local_ds.create_tensor("pqr")
+        local_ds.pqr.extend([7, 8, 9])
+    b = local_ds.commit()
+    local_ds.checkout("main")
+    with local_ds:
+        local_ds.xyz.extend([0, 0])
+        local_ds.xyz[2] = 10
+
+    local_ds.diff()
+    c = local_ds.commit()
+    print("blank")
+    local_ds.diff()
+    print("a")
+    local_ds.diff(a)
+    print("b")
+    local_ds.diff(b)
+    print("c")
+    local_ds.diff(c)
+    print("a,b")
+    local_ds.diff(a, b)
+    print("b,a")
+    local_ds.diff(b, a)
+    print("b,c")
+    local_ds.diff(b, c)
+    print("c,b")
+    local_ds.diff(c, b)
+    print("c,a")
+    local_ds.diff(c, a)
+    print("a,c")
+    local_ds.diff(a, c)
+
+
+def test_complex_diff(local_ds):
+    with local_ds:
+        local_ds.create_tensor("xyz")
+        local_ds.xyz.extend([1, 2, 3])
+    a = local_ds.commit()
+    b = local_ds.checkout("alt", create=True)
+    with local_ds:
+        # add some data
+        local_ds.xyz.extend([4, 5, 6])
+    local_ds.commit()
+    c = local_ds.commit_id
+    with local_ds:
+        # add some data
+        local_ds.xyz[4] = 7
+    d = local_ds.checkout("main")
+    with local_ds:
+        local_ds.xyz[1] = 10
+        local_ds.create_tensor("pqr")
+        x = 1
+        # add some data
+    f = local_ds.checkout("another", create=True)
+    with local_ds:
+        local_ds.create_tensor("tuv")
+        local_ds.tuv.extend([1, 2, 3])
+        local_ds.pqr.append(5)
+        # add some data
+    local_ds.commit()
+    g = local_ds.commit_id
+    h = local_ds.checkout("other", create=True)
+    i = local_ds.checkout("another")
+    # ds.log()
+    e = local_ds.checkout("main")
+
+    local_ds.diff(c, i)
