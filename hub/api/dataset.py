@@ -314,6 +314,7 @@ class dataset:
         Args:
             src (Union[str, Dataset]): Path or dataset object of dataset to be copied.
             dest (Union[str, Dataset]): Path where new dataset will be created or empty dataset object to which source dataset is copied.
+            overwrite (bool): WARNING: If set to True, this overwrites destination dataset if it already exists. Defaults to False.
 
         Returns:
             Dataset: Dataset object with copied data.
@@ -325,11 +326,9 @@ class dataset:
         src_ds: Dataset = dataset.load(src) if isinstance(src, str) else src
 
         if isinstance(dest, str):
-            dest_ds: Dataset = (
-                dataset.empty(dest, overwrite=True) if overwrite else dataset(dest)
-            )
+            dest_ds: Dataset = dataset(dest, overwrite=overwrite)  # type: ignore
         else:
-            dest_ds: Dataset = (
+            dest_ds: Dataset = (  # type:ignore
                 dataset.empty(dest.path, overwrite=True) if overwrite else dest
             )
 
