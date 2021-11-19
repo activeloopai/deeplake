@@ -594,6 +594,49 @@ class Dataset:
 
         return dataloader
 
+    @hub_reporter.record_call
+    def filter(
+        self,
+        function: Union[Callable, str],
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
+    ):
+        """Filters the dataset in accordance of filter function `f(x: sample) -> bool`
+
+        Args:
+            function(Callable | str): filter function that takes sample as argument and returns True/False
+                if sample should be included in result. Also supports simplified expression evaluations.
+                See hub.core.query.DatasetQuery for more details.
+            num_workers(int): level of parallelization of filter evaluations.
+                `0` indicates in-place for-loop evaluation, multiprocessing is used otherwise.
+            scheduler(str): scheduler to use for multiprocessing evaluation.
+                `threaded` is default
+            progressbar(bool): display progress bar while filtering. True is default
+
+        Returns:
+            View on Dataset with elements, that satisfy filter function
+
+
+        Example:
+            Following filters are identical and return dataset view where all the samples have label equals to 2.
+            >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
+            >>> dataset.filter('labels == 2')
+        """
+        from hub.core.query import filter_dataset
+        from hub.core.query import DatasetQuery
+
+        if isinstance(function, str):
+            function = DatasetQuery(self, function)
+
+        return filter_dataset(
+            self,
+            function,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+        )
+
     def _get_total_meta(self):
         """Returns tensor metas all together"""
         return {
