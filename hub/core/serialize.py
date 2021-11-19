@@ -286,7 +286,7 @@ def bytes_to_text(buffer, htype):
 
 def serialize_numpy_and_base_types(
     sample: Union[np.ndarray, int, float, bool], dtype, htype, compression
-) -> tuple[bytes, tuple]:
+) -> Tuple[bytes, tuple]:
     sample = intelligent_cast(sample, dtype, htype)
     shape = sample.shape
     sample = compress_array(sample, compression)

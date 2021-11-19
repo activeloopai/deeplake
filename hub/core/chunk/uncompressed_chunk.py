@@ -11,7 +11,7 @@ from .base_chunk import BaseChunk
 import numpy as np
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = tuple[bytes, Optional[tuple]]
+SerializedOutput = Tuple[bytes, Optional[tuple]]
 
 
 class UncompressedChunk(BaseChunk):

@@ -1,9 +1,11 @@
 from abc import abstractmethod
 from typing import List, Optional, Tuple, Union
 import numpy as np
+import warnings
 
 import hub
-from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS
+from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS, get_compression_type
+from hub.constants import CONVERT_GRAYSCALE
 from hub.core.compression import compress_bytes
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -18,13 +20,11 @@ from hub.core.serialize import (
     text_to_bytes,
 )
 from hub.core.storage.cachable import Cachable
-import warnings
 from hub.util.casting import intelligent_cast
-
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = tuple[bytes, Optional[tuple]]
+SerializedOutput = Tuple[bytes, Optional[tuple]]
 
 
 class BaseChunk(Cachable):
@@ -42,23 +42,17 @@ class BaseChunk(Cachable):
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta
-        self.num_dims = (
-            len(tensor_meta.max_shape) if self.tensor_meta.max_shape else None
-        )
+        self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
         self.is_text_like = self.htype in {"json", "list", "text"}
         self.compression = compression
-        self.is_byte_compression = (
-            hub.compression.get_compression_type(self.compression) == BYTE_COMPRESSION
-        )
-        self.uncompressed_samples = []
-
+        self.is_byte_compression = get_compression_type(compression) == BYTE_COMPRESSION
         self.version = hub.__version__
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
         self.is_convert_candidate = (
-            self.htype == "image"
-        ) or compression in IMAGE_COMPRESSIONS
+            self.htype == "image" or compression in IMAGE_COMPRESSIONS
+        )
 
         # These caches are only used for ChunkCompressed chunk.
         self._decompressed_samples: Optional[List[np.ndarray]] = None
@@ -117,11 +111,6 @@ class BaseChunk(Cachable):
     ):
         pass
 
-    # TODO
-    # @abstractmethod
-    # def read_all_samples(self):
-    #     pass
-
     @abstractmethod
     def update_sample(
         self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
@@ -146,7 +135,7 @@ class BaseChunk(Cachable):
         self._make_data_bytearray()
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: tuple[int]
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
@@ -159,11 +148,9 @@ class BaseChunk(Cachable):
         """
 
         self.shapes_encoder.register_samples(sample_shape, 1)
-        if (
-            incoming_num_bytes is not None
-        ):  # incoming_num_bytes is not applicable for image compressions
+        # incoming_num_bytes is not applicable for image compressions
+        if incoming_num_bytes is not None:
             self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
-        # self._clear_decompressed_caches()
 
     def sample_to_bytes(
         self,
@@ -203,7 +190,7 @@ class BaseChunk(Cachable):
         return incoming_sample, shape
 
     def convert_to_rgb(self, shape):
-        if self.is_convert_candidate and hub.constants.CONVERT_GRAYSCALE:
+        if self.is_convert_candidate and CONVERT_GRAYSCALE:
             if self.num_dims is None:
                 self.num_dims = len(shape)
             if len(shape) == 2 and self.num_dims == 3:
