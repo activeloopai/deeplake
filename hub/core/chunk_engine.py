@@ -30,24 +30,6 @@ from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
 CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
-def _format_read_samples(
-    samples: Sequence[np.array], index: Index, aslist: bool
-) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepares samples being read from the chunk engine in the format the user expects."""
-
-    samples = index.apply(samples)  # type: ignore
-
-    if aslist and all(map(np.isscalar, samples)):
-        samples = list(arr.item() for arr in samples)
-
-    samples = index.apply_squeeze(samples)  # type: ignore
-
-    if aslist:
-        return samples
-    else:
-        return np.array(samples)
-
-
 class ChunkEngine:
     def __init__(
         self,
@@ -246,6 +228,7 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        chunk.key = chunk_key  # type: ignore
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
@@ -307,9 +290,11 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
+
         current_chunk = (
             self.last_chunk if self.last_chunk is not None else self._create_new_chunk()
         )
+        updated_chunks = {current_chunk}
 
         enc = self.chunk_id_encoder
         samples = samples.copy()
@@ -321,11 +306,14 @@ class ChunkEngine:
 
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
+                updated_chunks.add(current_chunk)
             else:
                 enc.register_samples(num_samples_added)
                 samples = samples[num_samples_added:]
 
-        self._synchronize_cache()
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk  # type: ignore
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
@@ -371,6 +359,7 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
+        chunk.key = chunk_key
         return chunk
 
     def update(
@@ -475,6 +464,30 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
+    def _is_index_in_last_row(self, arr, index) -> bool:
+        """Checks if `index` is in the self._last_row of of chunk_id_encoder."""
+        row = self._last_row
+        return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
+
+    def _get_chunk_id_for_index(self, global_sample_index: int, enc: ChunkIdEncoder):
+        """Takes a look at self._last_row and tries to find chunk id without binary search by looking at the current and next row.
+        Resorts to binary search if the current and next row don't have global_sample_index in them.
+        """
+        found = False
+        arr = enc.array
+        if self._is_index_in_last_row(arr, global_sample_index):
+            chunk_id = arr[self._last_row][0]
+            found = True
+        elif self._last_row < len(arr) - 1:
+            self._last_row += 1
+            if self._is_index_in_last_row(arr, global_sample_index):
+                chunk_id = arr[self._last_row][0]
+                found = True
+
+        if not found:
+            chunk_id, self._last_row = enc.__getitem__(global_sample_index, True)
+        return chunk_id
+
     def get_chunk_for_sample(
         self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
     ) -> BaseChunk:
@@ -487,8 +500,8 @@ class ChunkEngine:
         Returns:
             BaseChunk: BaseChunk object that contains `global_sample_index`.
         """
+        chunk_id = self._get_chunk_id_for_index(global_sample_index, enc)
 
-        chunk_id = enc[global_sample_index]
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         current_commit_id = self.version_state["commit_id"]
@@ -523,6 +536,24 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+
+def _format_read_samples(
+    samples: Sequence[np.array], index: Index, aslist: bool
+) -> Union[np.ndarray, List[np.ndarray]]:
+    """Prepares samples being read from the chunk engine in the format the user expects."""
+
+    samples = index.apply(samples)  # type: ignore
+
+    if aslist and all(map(np.isscalar, samples)):
+        samples = [arr.item() for arr in samples]
+
+    samples = index.apply_squeeze(samples)  # type: ignore
+
+    if aslist:
+        return samples
+    else:
+        return np.array(samples)
 
 
 def check_samples_type(samples):
