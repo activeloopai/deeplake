@@ -100,6 +100,7 @@ class ChunkEngine:
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
+        self._last_row = 0
 
         if self.tensor_meta.sample_compression:
             self.compression = self.tensor_meta.sample_compression
@@ -382,7 +383,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
-            chunk = self.get_chunk_for_sample(global_sample_index, enc, copy=True)
+            chunk = self.get_chunk_for_sample(global_sample_index, copy=True)
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
@@ -426,6 +427,31 @@ class ChunkEngine:
         getattr(arr, operator)(samples)
         self.update(index, arr)
 
+    def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
+        if self.tensor_meta.chunk_compression:
+            raise Exception(
+                "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
+            )
+        enc = self.chunk_id_encoder
+        chunk = self.get_chunk_for_sample(global_sample_index, enc)
+        buffer = chunk.memoryview_data
+        if not buffer:
+            return b""
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        sb, eb = chunk.byte_positions_encoder[local_sample_index]
+        return buffer[sb:eb].tobytes()
+
+    def read_sample_from_chunk(
+        self,
+        global_sample_index: int,
+        chunk: BaseChunk,
+        cast: bool = True,
+        copy: bool = False,
+    ) -> np.ndarray:
+        enc = self.chunk_id_encoder
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
+
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
@@ -442,17 +468,12 @@ class ChunkEngine:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         length = self.num_samples
-        enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            enc = self.chunk_id_encoder
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
-            sample = chunk.read_sample(local_sample_index)
+            chunk = self.get_chunk_for_sample(global_sample_index)
+            sample = self.read_sample_from_chunk(global_sample_index, chunk)
             shape = sample.shape
 
             if not aslist and last_shape is not None:
@@ -469,10 +490,11 @@ class ChunkEngine:
         row = self._last_row
         return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
 
-    def _get_chunk_id_for_index(self, global_sample_index: int, enc: ChunkIdEncoder):
+    def _get_chunk_id_for_index(self, global_sample_index: int):
         """Takes a look at self._last_row and tries to find chunk id without binary search by looking at the current and next row.
         Resorts to binary search if the current and next row don't have global_sample_index in them.
         """
+        enc = self.chunk_id_encoder
         found = False
         arr = enc.array
         if self._is_index_in_last_row(arr, global_sample_index):
@@ -489,7 +511,7 @@ class ChunkEngine:
         return chunk_id
 
     def get_chunk_for_sample(
-        self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
+        self, global_sample_index: int, copy: bool = False
     ) -> BaseChunk:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
@@ -500,7 +522,7 @@ class ChunkEngine:
         Returns:
             BaseChunk: BaseChunk object that contains `global_sample_index`.
         """
-        chunk_id = self._get_chunk_id_for_index(global_sample_index, enc)
+        chunk_id = self._get_chunk_id_for_index(global_sample_index)
 
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
