@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 import numpy as np
 from hub.core.compression import (
     compress_bytes,
@@ -120,10 +120,6 @@ class ChunkCompressedChunk(BaseChunk):
                     "Chunk.decompressed_bytes() can not be called on chunks compressed with image compressions. Use Chunk.get_samples() instead."
                 )
         return self._decompressed_bytes
-
-    # def _clear_decompressed_caches(self):
-    #     self._decompressed_samples = None
-    #     self._decompressed_bytes = None
 
     def read_sample(
         self, local_sample_index: int, cast: bool = True, copy: bool = False
