@@ -17,7 +17,7 @@ class HubCloudDataset(Dataset):
 
         super().__init__(*args, **kwargs)
 
-        if self.is_actually_cloud:
+        if self.is_actually_cloud and self.is_first_load:
             handle_dataset_agreement(self.agreement, path, self.ds_name, self.org_id)
         else:
             # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`

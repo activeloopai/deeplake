@@ -108,6 +108,7 @@ class Dataset:
         self._token = token
         self.public = public
         self.verbose = verbose
+        self.is_first_load = version_state is None
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
@@ -172,6 +173,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
 
