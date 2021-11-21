@@ -274,10 +274,6 @@ class ChunkEngine:
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
         return FIRST_COMMIT_ID
 
-    def append(self, sample):
-        """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-        self.extend([sample])
-
     def _write_initialization(self):
         self.cache.check_readonly()
         # if not the head node, checkout to an auto branch that is newly created
