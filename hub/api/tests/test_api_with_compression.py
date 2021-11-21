@@ -180,11 +180,12 @@ def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
         images.append(expected_arr)
         images.extend([hub.read(cat_path)] * im_ct)
         expected_img = np.array(hub.read(cat_path))
-        for i, img in enumerate(images):
-            if i == im_ct:
-                assert_images_close(img.numpy(), expected_arr)
-            else:
-                assert_images_close(img.numpy(), expected_img)
+    ds.clear_cache()
+    for i, img in enumerate(images):
+        if i == im_ct:
+            assert_images_close(img.numpy(), expected_arr)
+        else:
+            assert_images_close(img.numpy(), expected_img)
     with ds:
         images = ds.create_tensor(
             "images2", htype="image", chunk_compression="png", max_chunk_size=chunk_size
@@ -194,11 +195,12 @@ def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
         images.append(expected_arr)
         images.extend([hub.read(flower_path)] * im_ct)
         expected_img = np.array(hub.read(flower_path))
-        for i, img in enumerate(images):
-            if i == im_ct:
-                assert_images_close(img.numpy(), expected_arr)
-            else:
-                assert_images_close(img.numpy(), expected_img)
+    ds.clear_cache()
+    for i, img in enumerate(images):
+        if i == im_ct:
+            assert_images_close(img.numpy(), expected_arr)
+        else:
+            assert_images_close(img.numpy(), expected_img)
     with ds:
         labels = ds.create_tensor(
             "labels", chunk_compression="lz4", max_chunk_size=chunk_size
@@ -207,6 +209,7 @@ def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
             np.random.randint(0, 256, (150, 150)).astype("uint8") for _ in range(20)
         ]
         labels.extend(data)
+    ds.clear_cache()
     for row, label in zip(data, labels):
         np.testing.assert_array_equal(row, label.numpy())
 
