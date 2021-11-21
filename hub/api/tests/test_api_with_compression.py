@@ -1,5 +1,5 @@
 from hub.compression import get_compression_type
-from hub.constants import KB
+from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
@@ -36,7 +36,9 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
 @enabled_datasets
 def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
+    images = ds.create_tensor(
+        TENSOR_KEY, htype="image", sample_compression="png", max_chunk_size=2 * MB
+    )
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"

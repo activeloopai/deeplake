@@ -74,8 +74,7 @@ class UncompressedChunk(BaseChunk):
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
 
-        if copy:
-            buffer = bytes(buffer)
+        buffer = bytes(buffer) if copy else buffer
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(
