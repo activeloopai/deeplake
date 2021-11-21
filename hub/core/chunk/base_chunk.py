@@ -23,7 +23,7 @@ from hub.core.storage.cachable import Cachable
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
-SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
+SampleValue = Union[Sample, np.ndarray, int, float, bool, dict, list, str]
 SerializedOutput = Tuple[bytes, Optional[tuple]]
 
 
@@ -73,7 +73,6 @@ class BaseChunk(Cachable):
     @property
     def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-
         return infer_chunk_num_bytes(
             self.version,
             self.shapes_encoder.array,
@@ -99,8 +98,8 @@ class BaseChunk(Cachable):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_sample):
-        pass
+    def extend_if_has_space(self, incoming_samples):
+        """Extends the chunk with the incoming samples."""
 
     @abstractmethod
     def read_sample(
@@ -109,13 +108,13 @@ class BaseChunk(Cachable):
         cast: bool = True,
         copy: bool = False,
     ):
-        pass
+        """Reads a sample from the chunk."""
 
     @abstractmethod
     def update_sample(
         self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
     ):
-        pass
+        """Updates a sample in the chunk."""
 
     @property
     def memoryview_data(self):
@@ -125,7 +124,6 @@ class BaseChunk(Cachable):
 
     def _make_data_bytearray(self):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
-
         # `_data` will be a `memoryview` if `frombuffer` is called.
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
@@ -146,7 +144,6 @@ class BaseChunk(Cachable):
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
-
         self.shapes_encoder.register_samples(sample_shape, 1)
         # incoming_num_bytes is not applicable for image compressions
         if incoming_num_bytes is not None:
