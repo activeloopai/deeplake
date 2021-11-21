@@ -324,7 +324,9 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     channels_shape = shapes[0][2:]
     for shape in shapes:
         if shape[2:] != channels_shape:
-            raise ValueError()
+            raise ValueError(
+                "The data can't be compressed as the number of channels doesn't match."
+            )
     return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape  # type: ignore
 
 

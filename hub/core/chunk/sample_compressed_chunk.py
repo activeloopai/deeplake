@@ -1,5 +1,5 @@
-from typing import List, Optional, Union, Tuple
 import numpy as np
+from typing import List, Union
 from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample
 from hub.core.serialize import (
@@ -8,9 +8,6 @@ from hub.core.serialize import (
     check_sample_size,
 )
 from .base_chunk import BaseChunk
-
-SampleValue = Union[Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = Tuple[bytes, Optional[tuple]]
 
 
 class SampleCompressedChunk(BaseChunk):

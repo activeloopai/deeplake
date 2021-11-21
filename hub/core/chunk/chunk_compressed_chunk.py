@@ -1,5 +1,5 @@
-from typing import List, Optional, Union
 import numpy as np
+from typing import List, Optional, Union
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -10,13 +10,10 @@ from hub.core.sample import Sample
 from hub.core.serialize import (
     bytes_to_text,
     check_sample_shape,
-    check_sample_size,
 )
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk
-
-SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
 
 
 class ChunkCompressedChunk(BaseChunk):
@@ -44,13 +41,10 @@ class ChunkCompressedChunk(BaseChunk):
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
-            check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
             buffer += serialized_sample
             # TODO: optimize this
             compressed_bytes = compress_bytes(buffer, self.compression)
-
             if len(compressed_bytes) > self.min_chunk_size:
-                self._decompressed_bytes = buffer[:-sample_nbytes]
                 break
 
             self.data_bytes = compressed_bytes
