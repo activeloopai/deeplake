@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
@@ -16,14 +16,19 @@ class HubCloudDataset(Dataset):
         self._set_org_and_name()
 
         super().__init__(*args, **kwargs)
+        self.first_load_init()
 
-        if self.is_actually_cloud:
-            handle_dataset_agreement(self.agreement, path, self.ds_name, self.org_id)
-        else:
-            # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
-            warn(
-                f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
-            )
+    def first_load_init(self):
+        if self.is_first_load:
+            if self.is_actually_cloud:
+                handle_dataset_agreement(
+                    self.agreement, self.path, self.ds_name, self.org_id
+                )
+            else:
+                # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
+                warn(
+                    f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
+                )
 
     @property
     def client(self):
@@ -94,3 +99,14 @@ class HubCloudDataset(Dataset):
     def add_agreeement(self, agreement: str):
         self.storage.check_readonly()
         self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")
+
+    def __getstate__(self) -> Dict[str, Any]:
+        state = super().__getstate__()
+        state["org_id"] = self.org_id
+        state["ds_name"] = self.ds_name
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]):
+        super().__setstate__(state)
+        self._client = None
+        self.first_load_init()
