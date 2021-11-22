@@ -305,6 +305,9 @@ class Dataset:
         )
         self.version_state["meta"].tensors.append(name)
         ffw_dataset_meta(self.version_state["meta"])
+        self.storage.dirty_keys.add(
+            get_dataset_meta_key(self.version_state["commit_id"])
+        )
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
 
