@@ -46,7 +46,7 @@ class ChunkCompressedChunk(BaseChunk):
             self.data_bytes = compressed_bytes
             self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
-            self._decompressed_bytes = memoryview(buffer)
+            self._decompressed_bytes = buffer
         return num_samples
 
     def extend_if_has_space_image_compression(
@@ -94,16 +94,16 @@ class ChunkCompressedChunk(BaseChunk):
         return self._decompressed_samples
 
     @property
-    def decompressed_bytes(self) -> memoryview:
+    def decompressed_bytes(self) -> bytes:
         """Applicable only for chunks compressed using a byte compression. Returns the contents of the chunk as a decompressed buffer."""
         if self._decompressed_bytes is None:
             try:
-                self._decompressed_bytes = memoryview(
-                    decompress_bytes(self.data_bytes, self.compression)
+                self._decompressed_bytes = decompress_bytes(
+                    self.data_bytes, self.compression
                 )
             except SampleDecompressionError:
                 raise ValueError(
-                    "Chunk.decompressed_bytes() can not be called on chunks compressed with image compressions. Use Chunk.get_samples() instead."
+                    "Chunk.decompressed_bytes can not be called on chunks compressed with image compressions. Use Chunk.get_samples() instead."
                 )
         return self._decompressed_bytes
 
@@ -115,7 +115,7 @@ class ChunkCompressedChunk(BaseChunk):
 
         sb, eb = self.byte_positions_encoder[local_sample_index]
         shape = self.shapes_encoder[local_sample_index]
-        decompressed = self.decompressed_bytes
+        decompressed = memoryview(self.decompressed_bytes)
         buffer = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(buffer, self.htype)
@@ -149,7 +149,7 @@ class ChunkCompressedChunk(BaseChunk):
         self.data_bytes = bytearray(
             compress_bytes(new_data_uncompressed, compression=self.compression)
         )
-        self._decompressed_bytes = memoryview(new_data_uncompressed)
+        self._decompressed_bytes = new_data_uncompressed
         self.update_in_meta_and_headers(local_sample_index, new_nb, shape)
 
     def update_sample_image_compression(

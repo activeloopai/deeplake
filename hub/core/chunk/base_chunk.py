@@ -68,7 +68,7 @@ class BaseChunk(Cachable):
 
         # These caches are only used for ChunkCompressed chunk.
         self._decompressed_samples: Optional[List[np.ndarray]] = None
-        self._decompressed_bytes: Optional[memoryview] = None
+        self._decompressed_bytes: Optional[bytes] = None
 
     @property
     def num_data_bytes(self) -> int:
