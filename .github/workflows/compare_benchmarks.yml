@@ -8,6 +8,10 @@ on:
       mainref:
           description: 'Ref to compare'
           required: true
+      benchmark-repo-branch:
+          description: 'Hub Benchmark code repo branch to use'
+          required: true
+          default: units
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -29,6 +33,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: activeloopai/hub-benchmark
+          ref: ${{ github.event.inputs.benchmark-repo-branch }}
           token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
           path: benchmark-source
       - name: Checkout the Hub source code to compare
