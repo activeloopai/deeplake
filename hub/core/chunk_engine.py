@@ -280,9 +280,28 @@ class ChunkEngine:
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+    def _write_finalization(self):
+        self._synchronize_cache(chunk_keys=[])
+        self.cache.maybe_flush()
+
+    def _convert_to_list(self, samples):
+        if self.chunk_class != UncompressedChunk:
+            return True
+        elif isinstance(samples, np.ndarray):
+            return samples[0].nbytes >= self.min_chunk_size
+        return True
+
+    def _sanitize_samples(self, samples):
+        check_samples_type(samples)
+        if self.tensor_meta.dtype is None:
+            self.tensor_meta.set_dtype(get_dtype(samples))
+        if self._convert_to_list(samples):
+            samples = list(samples)
+        return samples
+
     def extend(self, samples):
         self._write_initialization()
-        check_samples_type(samples)
+        samples = self._sanitize_samples(samples)
 
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
@@ -314,8 +333,7 @@ class ChunkEngine:
 
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
+        self._write_finalization()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
         """Synchronizes cachables with the cache.
@@ -399,8 +417,7 @@ class ChunkEngine:
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
 
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
+        self._write_finalization()
 
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size

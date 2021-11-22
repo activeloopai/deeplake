@@ -50,7 +50,7 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
-        self.data_bytes = data or bytearray()
+        self.data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta

@@ -8,6 +8,8 @@ import numpy as np
 import struct
 import json
 
+BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
+
 
 def infer_chunk_num_bytes(
     version: str,
@@ -280,7 +282,7 @@ def bytes_to_text(buffer, htype):
 
 
 def serialize_numpy_and_base_types(
-    sample: Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_], dtype, htype, compression
+    sample: BaseTypes, dtype, htype, compression
 ) -> Tuple[bytes, tuple]:
     sample = intelligent_cast(sample, dtype, htype)
     shape = sample.shape

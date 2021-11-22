@@ -46,7 +46,7 @@ class ChunkCompressedChunk(BaseChunk):
             self.data_bytes = compressed_bytes
             self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
-            self._decompressed_bytes = buffer
+            self._decompressed_bytes = memoryview(buffer)
         return num_samples
 
     def extend_if_has_space_image_compression(
@@ -98,8 +98,8 @@ class ChunkCompressedChunk(BaseChunk):
         """Applicable only for chunks compressed using a byte compression. Returns the contents of the chunk as a decompressed buffer."""
         if self._decompressed_bytes is None:
             try:
-                self._decompressed_bytes = decompress_bytes(
-                    self.data_bytes, self.compression
+                self._decompressed_bytes = memoryview(
+                    decompress_bytes(self.data_bytes, self.compression)
                 )
             except SampleDecompressionError:
                 raise ValueError(
@@ -115,10 +115,9 @@ class ChunkCompressedChunk(BaseChunk):
 
         sb, eb = self.byte_positions_encoder[local_sample_index]
         shape = self.shapes_encoder[local_sample_index]
-        decompressed = memoryview(self.decompressed_bytes)
+        decompressed = self.decompressed_bytes
         buffer = decompressed[sb:eb]
         if self.is_text_like:
-            buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
         return np.frombuffer(decompressed[sb:eb], dtype=self.dtype).reshape(shape)
 
