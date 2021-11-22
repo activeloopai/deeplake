@@ -9,6 +9,7 @@ def test_commit(local_ds):
     with local_ds:
         local_ds.create_tensor("abc")
         local_ds.abc.append(1)
+        local_ds.log()
         a = local_ds.commit("first")
         local_ds.abc[0] = 2
         b = local_ds.commit("second")

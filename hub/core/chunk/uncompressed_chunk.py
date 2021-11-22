@@ -1,6 +1,5 @@
 import numpy as np
-from typing import List, Optional, Union, Tuple
-from hub.core.sample import Sample
+from typing import Sequence, Union
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
@@ -8,22 +7,20 @@ from hub.core.serialize import (
 )
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
-from .base_chunk import BaseChunk
-
-SampleValue = Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = Tuple[bytes, Optional[tuple]]
+from .base_chunk import BaseChunk, InputSample
+import numpy as np
 
 
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(
-        self, incoming_samples: Union[List[Union[bytes, Sample, np.array]], np.array]
+        self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
     ) -> int:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
             return self._extend_if_has_space_numpy(incoming_samples)
         return self._extend_if_has_space_sequence(incoming_samples)
 
-    def _extend_if_has_space_numpy(self, incoming_samples: np.array):
+    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray):
         num_samples = 0
         buffer_size = 0
 
@@ -50,9 +47,7 @@ class UncompressedChunk(BaseChunk):
 
         return num_samples
 
-    def _extend_if_has_space_sequence(
-        self, incoming_samples: List[Union[bytes, Sample, np.array]]
-    ):
+    def _extend_if_has_space_sequence(self, incoming_samples: Sequence[InputSample]):
         num_samples = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
@@ -69,7 +64,7 @@ class UncompressedChunk(BaseChunk):
                 check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
                 if not self.can_fit_sample(sample_nbytes):
                     break
-                self.data_bytes += serialized_sample
+                self.data_bytes += serialized_sample # type: ignore
                 self.register_in_meta_and_headers(sample_nbytes, shape)
                 num_samples += 1
         return num_samples
@@ -84,14 +79,13 @@ class UncompressedChunk(BaseChunk):
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
 
-        if copy:
-            buffer = bytes(buffer)
+        buffer = bytes(buffer) if copy else buffer
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(
         self,
         local_sample_index: int,
-        new_sample: Union[bytes, Sample, np.ndarray, int, float, bool, dict, list, str],
+        new_sample: InputSample,
     ):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(new_sample)

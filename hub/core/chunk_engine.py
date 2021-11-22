@@ -7,7 +7,7 @@ from hub.core.tiling.deserialize_tile import coalesce_tiles
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
-from hub.core.chunk.base_chunk import BaseChunk
+from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
@@ -15,7 +15,6 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample, SampleValue
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_node import CommitNode
@@ -32,24 +31,6 @@ from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
 
 # used for warning the user if updating a tensor caused suboptimal chunks
 CHUNK_UPDATE_WARN_PORTION = 0.2
-
-
-def _format_read_samples(
-    samples: Sequence[np.array], index: Index, aslist: bool
-) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepares samples being read from the chunk engine in the format the user expects."""
-
-    samples = index.apply(samples)  # type: ignore
-
-    if aslist and all(map(np.isscalar, samples)):
-        samples = list(arr.item() for arr in samples)
-
-    samples = index.apply_squeeze(samples)  # type: ignore
-
-    if aslist:
-        return samples
-    else:
-        return np.array(samples)
 
 
 class ChunkEngine:
@@ -122,6 +103,7 @@ class ChunkEngine:
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
+        self.chunk_class = BaseChunk
 
         if self.tensor_meta.sample_compression:
             self.compression = self.tensor_meta.sample_compression
@@ -273,6 +255,7 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        chunk.key = chunk_key  # type: ignore
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
@@ -317,10 +300,6 @@ class ChunkEngine:
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
         return FIRST_COMMIT_ID
 
-    def append(self, sample):
-        """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-        self.extend([sample])
-
     def _write_initialization(self):
         self.cache.check_readonly()
         # if not the head node, checkout to an auto branch that is newly created
@@ -328,12 +307,10 @@ class ChunkEngine:
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
     def _write_finalization(self):
-        self._synchronize_cache()
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
-    def convert_to_list(self, samples):
-        if isinstance(samples, list):
-            return False
+    def _convert_to_list(self, samples):
         if self.chunk_class != UncompressedChunk:
             return True
         elif isinstance(samples, np.ndarray):
@@ -344,8 +321,7 @@ class ChunkEngine:
         check_samples_type(samples)
         if self.tensor_meta.dtype is None:
             self.tensor_meta.set_dtype(get_dtype(samples))
-        samples = samples.copy()
-        if self.convert_to_list(samples):
+        if self._convert_to_list(samples):
             samples = list(samples)
         return samples
 
@@ -360,15 +336,20 @@ class ChunkEngine:
         self._write_initialization()
         samples = self._sanitize_samples(samples)
         current_chunk = self.last_chunk or self._create_new_chunk()
+        updated_chunks = {current_chunk}
         enc = self.chunk_id_encoder
 
         while len(samples) > 0:
             if isinstance(samples[0], SampleTiles):
                 self.register_tiles(samples[0])
             num_samples_added = current_chunk.extend_if_has_space(samples)
-
+            
             if num_samples_added == 0:
+                if not current_chunk.data_bytes:
+                    msg = f"Sorry, some samples couldn't fit inside a single chunk of size {self.min_chunk_size}"
+                    raise NotImplementedError(msg)
                 current_chunk = self._create_new_chunk()
+                updated_chunks.add(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 if samples[0].is_first_write:
                     enc.register_samples(1)
@@ -376,10 +357,13 @@ class ChunkEngine:
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
+                    updated_chunks.add(current_chunk)
             else:
                 enc.register_samples(num_samples_added)
                 samples = samples[num_samples_added:]
 
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk  # type: ignore
         self._write_finalization()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
@@ -425,12 +409,13 @@ class ChunkEngine:
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
+        chunk.key = chunk_key
         return chunk
 
     def update(
         self,
         index: Index,
-        samples: Union[Sequence[SampleValue], SampleValue],
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
     ):
         """Update data at `index` with `samples`."""
@@ -475,7 +460,7 @@ class ChunkEngine:
     def _update_with_operator(
         self,
         index: Index,
-        samples: Union[Sequence[SampleValue], SampleValue],
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: str,
     ):
         """Update data at `index` with the output of elem-wise operatorion with samples"""
@@ -493,9 +478,34 @@ class ChunkEngine:
         getattr(arr, operator)(samples)
         self.update(index, arr)
 
+    def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
+        if self.tensor_meta.chunk_compression:
+            raise Exception(
+                "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
+            )
+        enc = self.chunk_id_encoder
+        chunk = self.get_chunk_for_sample(global_sample_index)
+        buffer = chunk.memoryview_data
+        if not buffer:
+            return b""
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        sb, eb = chunk.byte_positions_encoder[local_sample_index]
+        return buffer[sb:eb].tobytes()
+
+    def read_sample_from_chunk(
+        self,
+        global_sample_index: int,
+        chunk: BaseChunk,
+        cast: bool = True,
+        copy: bool = False,
+    ) -> np.ndarray:
+        enc = self.chunk_id_encoder
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
+
     def numpy(
         self, index: Index, aslist: bool = False
-    ) -> Union[np.ndarray, Sequence[np.ndarray]]:
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
@@ -506,10 +516,9 @@ class ChunkEngine:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
 
         Returns:
-            Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
+            Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         length = self.num_samples
-        enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
@@ -566,7 +575,6 @@ class ChunkEngine:
         Returns:
             BaseChunk: BaseChunk object that contains `global_sample_index`.
         """
-
         chunk_ids = enc[global_sample_index]
         chunk_list = []
         for chunk_id in chunk_ids:
@@ -607,30 +615,48 @@ class ChunkEngine:
             )
 
 
+def _format_read_samples(
+    samples: List[np.ndarray], index: Index, aslist: bool
+) -> Union[np.ndarray, List[np.ndarray]]:
+    """Prepares samples being read from the chunk engine in the format the user expects."""
+
+    samples = index.apply(samples)  # type: ignore
+
+    if aslist and all(map(np.isscalar, samples)):
+        samples = [arr.item() for arr in samples]
+
+    samples = index.apply_squeeze(samples)  # type: ignore
+
+    if aslist:
+        return samples
+    else:
+        return np.array(samples)
+
+
 def check_samples_type(samples):
     if not isinstance(samples, (List, np.ndarray)):
         raise TypeError(f"Cannot extend with samples of type {type(samples)}")
 
 
 def _make_sequence(
-    samples: Union[Sequence[SampleValue], SampleValue], index_length: int
-) -> Sequence[SampleValue]:
-    """Make `samples` a sequence of `SampleValue`s.
+    samples: Union[np.ndarray, Sequence[InputSample], InputSample], index_length: int
+) -> Sequence[InputSample]:
+    """Make `samples` a sequence of `InputSample`s.
 
     Args:
-        samples (Union[Sequence[SampleValue], SampleValue]): Incoming samples to be made into a sequence.
+        samples (Union[np.ndarray, Sequence[InputSample]]): Incoming samples to be made into a sequence.
         index_length (int): Number of expected samples in the sequence.
 
     Raises:
         ValueError: If `index_length` is incompatible with the true length of `samples`.
 
     Returns:
-        Sequence[SampleValue]: Sequence of `SampleValue`s with the same length as `index_length`.
+        Sequence[InputSample]: Sequence of `InputSample`s with the same length as `index_length`.
     """
 
     if index_length == 1:
         if hasattr(samples, "__len__"):
-            if len(samples) != 1:
+            if len(samples) != 1:  # type: ignore
                 samples = [samples]
         elif hasattr(samples, "shape"):
             if len(samples.shape) > 0 and samples.shape[0] != 1:  # type: ignore
@@ -639,14 +665,14 @@ def _make_sequence(
             samples = [samples]
 
     if hasattr(samples, "__len__"):
-        if index_length != len(samples):
+        if index_length != len(samples):  # type: ignore
             raise ValueError(
-                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
+                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."  # type: ignore
             )
     else:
         samples = [samples]
 
-    return samples
+    return samples  # type: ignore
 
 
 def _warn_if_suboptimal_chunks(

@@ -10,6 +10,8 @@ import numpy as np
 import struct
 import json
 
+BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
+
 
 def infer_chunk_num_bytes(
     version: str,
@@ -34,7 +36,7 @@ def infer_chunk_num_bytes(
     # NOTE: Assumption: len(version) < 256
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13  # type: ignore
 
 
 def serialize_chunk(
@@ -295,7 +297,7 @@ def serialize_text(
 
 
 def serialize_numpy_and_base_types(
-    incoming_sample: SampleValue,
+    incoming_sample: BaseTypes,
     sample_compression: Optional[str],
     dtype: str,
     htype: str,

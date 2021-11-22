@@ -1,6 +1,7 @@
+import numpy as np
 import hub
 from hub.htype import HTYPE_CONFIGURATIONS
-from typing import Any, List, Sequence, Tuple, Optional
+from typing import Any, List, Sequence, Tuple, Optional, Union
 
 
 class ExternalCommandError(Exception):
@@ -199,7 +200,7 @@ class InvalidHubPathException(Exception):
 class PathNotEmptyException(Exception):
     def __init__(self):
         super().__init__(
-            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+            f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
         )
 
 
@@ -326,7 +327,7 @@ class CompressionError(Exception):
 
 
 class UnsupportedCompressionError(CompressionError):
-    def __init__(self, compression: str, htype: Optional[str] = None):
+    def __init__(self, compression: Optional[str], htype: Optional[str] = None):
         if htype:
             super().__init__(
                 f"Compression '{compression}' is not supported for {htype} htype."
@@ -339,7 +340,10 @@ class UnsupportedCompressionError(CompressionError):
 
 class SampleCompressionError(CompressionError):
     def __init__(
-        self, sample_shape: Tuple[int, ...], compression_format: str, message: str
+        self,
+        sample_shape: Tuple[int, ...],
+        compression_format: Optional[str],
+        message: str,
     ):
         super().__init__(
             f"Could not compress a sample with shape {str(sample_shape)} into '{compression_format}'. Raw error output: '{message}'.",
@@ -438,7 +442,7 @@ class TensorMetaInvalidHtypeOverwriteKey(MetaError):
 
 
 class TensorDtypeMismatchError(MetaError):
-    def __init__(self, expected: str, actual: str, htype: str):
+    def __init__(self, expected: Union[np.dtype, str], actual: str, htype: str):
         msg = f"Dtype was expected to be '{expected}' instead it was '{actual}'. If you called `create_tensor` explicitly with `dtype`, your samples should also be of that dtype."
 
         # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)
@@ -531,13 +535,6 @@ class DatasetUnsupportedPytorch(Exception):
         )
 
 
-class DatasetUnsupportedSharedMemoryCache(Exception):
-    def __init__(self, reason):
-        super().__init__(
-            f"The Dataset object passed is incompatible with the PrefetchCache. Reason: {reason}"
-        )
-
-
 class CorruptedMetaError(Exception):
     pass
 
@@ -560,13 +557,6 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
-
-
-class WindowsSharedMemoryError(Exception):
-    def __init__(self):
-        super().__init__(
-            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
-        )
 
 
 class DatasetHandlerError(Exception):
@@ -603,4 +593,24 @@ class GCSDefaultCredsNotFoundError(Exception):
         super().__init__(
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
+        )
+
+
+class AgreementError(Exception):
+    pass
+
+
+class AgreementNotAcceptedError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "This dataset includes an agreement that needs to be accepted before you can use it.\n"
+            "You need to be signed in to accept this agreement.\n"
+            "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )

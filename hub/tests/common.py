@@ -30,7 +30,8 @@ CHUNK_SIZE_PARAM = "chunk_size"
 NUM_WORKERS_PARAM = "num_workers"
 
 NUM_BATCHES = (1, 5)
-NUM_WORKERS = (4, 2, 1, 0)
+# github actions can only support 2 workers
+NUM_WORKERS = (2, 1, 0)
 
 CHUNK_SIZES = (
     1 * KB,
@@ -74,7 +75,7 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
         return None
 
 
-def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
+def assert_array_lists_equal(l1: List, l2: List):
     """Assert that two lists of numpy arrays are equal"""
     assert len(l1) == len(l2), (len(l1), len(l2))
     for idx, (a1, a2) in enumerate(zip(l1, l2)):
