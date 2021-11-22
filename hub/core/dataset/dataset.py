@@ -40,13 +40,19 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import auto_checkout, checkout, commit, load_meta
 from hub.util.diff import (
     compare_commits,
     create_changes_dict,
     display_all_changes,
     filter_data_updated,
     get_changes_for_id,
+)
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    commit_has_data,
+    load_meta,
 )
 from tqdm import tqdm  # type: ignore
 
@@ -424,10 +430,15 @@ class Dataset:
 
     def log(self):
         """Displays the details of all the past commits."""
-        # TODO: use logger.info instead of prints
         commit_node = self.version_state["commit_node"]
         logger.info("---------------\nHub Version Log\n---------------\n")
-        logger.info(f"Current Branch: {self.version_state['branch']}\n")
+        logger.info(f"Current Branch: {self.version_state['branch']}")
+        if not commit_node.children and commit_has_data(
+            self.version_state, self.storage
+        ):
+            logger.info("** There are uncommitted changes on this branch.\n")
+        else:
+            logger.info("\n")
         while commit_node:
             if commit_node.commit_time is not None:
                 logger.info(f"{commit_node}\n")
