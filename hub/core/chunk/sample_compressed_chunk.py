@@ -43,7 +43,7 @@ class SampleCompressedChunk(BaseChunk):
                     )
                 if not self.can_fit_sample(sample_nbytes):
                     break
-                self.data_bytes += serialized_sample   # type: ignore
+                self.data_bytes += serialized_sample  # type: ignore
                 self.register_in_meta_and_headers(sample_nbytes, shape)
                 num_samples += 1
         return num_samples

@@ -343,7 +343,7 @@ class ChunkEngine:
             if isinstance(samples[0], SampleTiles):
                 self.register_tiles(samples[0])
             num_samples_added = current_chunk.extend_if_has_space(samples)
-            
+
             if num_samples_added == 0:
                 if not current_chunk.data_bytes:
                     msg = f"Sorry, some samples couldn't fit inside a single chunk of size {self.min_chunk_size}"
