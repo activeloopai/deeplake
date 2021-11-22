@@ -787,9 +787,11 @@ def _decompress_video(
             command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
         )
         raw_video = pipe.communicate(input=file)[0]  # type: ignore
-    return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
-        shape
-    )
+    nbytes = len(raw_video)
+    if nbytes == np.prod(shape):
+        return np.frombuffer(raw_video, dtype=np.uint8).reshape(shape)
+    arr = np.zeros(shape, dtype=np.uint8)
+    arr.reshape(-1)[:len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
 
 
 def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
