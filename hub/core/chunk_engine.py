@@ -432,7 +432,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
-            chunks = self.get_chunks_for_sample(global_sample_index, enc, copy=True)
+            chunks = self.get_chunks_for_sample(global_sample_index, copy=True)
             if len(chunks) > 1:
                 raise NotImplementedError
             chunk = chunks[0]
@@ -484,7 +484,10 @@ class ChunkEngine:
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
         enc = self.chunk_id_encoder
-        chunk = self.get_chunk_for_sample(global_sample_index)
+        chunks = self.get_chunks_for_sample(global_sample_index)
+        if len(chunks) > 1:
+            raise NotImplementedError
+        chunk = chunks[0]
         buffer = chunk.memoryview_data
         if not buffer:
             return b""
@@ -521,12 +524,12 @@ class ChunkEngine:
         length = self.num_samples
         last_shape = None
         samples = []
+        enc = self.chunk_id_encoder
 
         for global_sample_index in index.values[0].indices(length):
-            chunks = self.get_chunks_for_sample(global_sample_index, enc)
+            chunks = self.get_chunks_for_sample(global_sample_index)
             if len(chunks) == 1:
                 chunk = chunks[0]
-                enc = self.chunk_id_encoder
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -564,17 +567,16 @@ class ChunkEngine:
         return _format_read_samples(samples, index, aslist)
 
     def get_chunks_for_sample(
-        self, global_sample_index: int, enc: ChunkIdEncoder, copy: bool = False
+        self, global_sample_index: int, copy: bool = False
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
             global_sample_index (int): Index relative to the entire tensor representing the sample.
-            enc (ChunkIdEncoder): Chunk ID encoder. This is an argument because right now it is
-                sub-optimal to use `self.chunk_id_encoder` due to posixpath joins.
             copy (bool): If True and the chunk exists in a different commit to the current commit, it will be copied. Defaults to False.
         Returns:
             BaseChunk: BaseChunk object that contains `global_sample_index`.
         """
+        enc = self.chunk_id_encoder
         chunk_ids = enc[global_sample_index]
         chunk_list = []
         for chunk_id in chunk_ids:

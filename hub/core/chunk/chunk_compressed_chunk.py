@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Optional, Sequence, Union
+from typing import List, Sequence, Union
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
