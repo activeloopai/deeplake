@@ -11,7 +11,7 @@ from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
@@ -23,8 +23,20 @@ from hub.core.storage.cachable import Cachable
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
-SampleValue = Union[Sample, np.ndarray, int, float, bool, dict, list, str]
-SerializedOutput = Tuple[bytes, Optional[tuple]]
+InputSample = Union[
+    Sample,
+    np.ndarray,
+    int,
+    float,
+    bool,
+    dict,
+    list,
+    str,
+    np.integer,
+    np.floating,
+    np.bool_,
+]
+SerializedOutput = Tuple[bytes, Tuple]
 
 
 class BaseChunk(Cachable):
@@ -89,11 +101,11 @@ class BaseChunk(Cachable):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True):
+    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True):  # type: ignore
         if not buffer:
             return cls(*chunk_args)
         version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
-        chunk = cls(*chunk_args, shapes, byte_positions, data=data)
+        chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
         return chunk
 
@@ -112,7 +124,9 @@ class BaseChunk(Cachable):
 
     @abstractmethod
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
+        self,
+        local_sample_index: int,
+        new_sample: InputSample,
     ):
         """Updates a sample in the chunk."""
 
@@ -151,7 +165,7 @@ class BaseChunk(Cachable):
 
     def sample_to_bytes(
         self,
-        incoming_sample: SampleValue,
+        incoming_sample: InputSample,
         sample_compression: Optional[str],
         is_byte_compression,
     ) -> SerializedOutput:
@@ -172,8 +186,6 @@ class BaseChunk(Cachable):
                 incoming_sample = incoming_sample.compressed_bytes(sample_compression)
             else:
                 incoming_sample = incoming_sample.uncompressed_bytes()
-        elif isinstance(incoming_sample, bytes):
-            shape = None
         elif isinstance(
             incoming_sample,
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),

@@ -217,7 +217,7 @@ def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
 
     with pytest.raises(NotImplementedError):
         with ds:
-            ds.labels.append(np.random.randint(0, 256, (1500, 1500)).astype("uint8"))
+            ds.labels.append(np.random.randint(0, 256, (1500, 1500)).astype("uint8"))  # type: ignore
 
 
 @enabled_datasets

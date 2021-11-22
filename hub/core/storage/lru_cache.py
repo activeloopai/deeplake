@@ -63,13 +63,14 @@ class LRUCache(StorageProvider):
             if self.next_storage is not None:
                 self.next_storage.flush()
 
-    def get_cachable(self, path: str, expected_class, meta=None):
+    def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
         Args:
             path (str): Path to the stored cachable.
             expected_class (callable): The expected subclass of `Cachable`.
+            meta (dict, optional): Metadata associated with the stored cachable.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.

@@ -1,16 +1,11 @@
-from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
-from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.core.compression import compress_array, compress_bytes
-from hub.client import config
-from hub.compression import IMAGE_COMPRESSIONS
-from typing import List, Optional, Sequence, Union, Tuple, Iterable
+from hub.core.compression import compress_array
+from typing import List, Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
-import warnings
 import json
 
 
@@ -285,9 +280,9 @@ def bytes_to_text(buffer, htype):
 
 
 def serialize_numpy_and_base_types(
-    sample: Union[np.ndarray, int, float, bool], dtype, htype, compression
+    sample: Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_], dtype, htype, compression
 ) -> Tuple[bytes, tuple]:
     sample = intelligent_cast(sample, dtype, htype)
     shape = sample.shape
-    sample = compress_array(sample, compression)
-    return sample, shape
+    sample_bytes = compress_array(sample, compression)
+    return sample_bytes, shape

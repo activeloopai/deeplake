@@ -178,7 +178,9 @@ def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
     return ret
 
 
-def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+def compress_bytes(
+    buffer: Union[bytes, memoryview], compression: Optional[str]
+) -> bytes:
     if compression == "lz4":
         return numcodecs.lz4.compress(buffer)
     else:
@@ -187,7 +189,9 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
         )
 
 
-def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+def decompress_bytes(
+    buffer: Union[bytes, memoryview], compression: Optional[str]
+) -> bytes:
     if not buffer:
         return b""
     if compression == "lz4":
@@ -200,7 +204,7 @@ def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> byte
         raise SampleDecompressionError()
 
 
-def compress_array(array: np.ndarray, compression: str) -> bytes:
+def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
     """Compress some numpy array using `compression`. All meta information will be contained in the returned buffer.
 
     Note:
@@ -208,7 +212,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
     Args:
         array (np.ndarray): Array to be compressed.
-        compression (str): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
+        compression (str, optional): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
 
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
@@ -330,7 +334,9 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape  # type: ignore
 
 
-def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
+def compress_multiple(
+    arrays: Sequence[np.ndarray], compression: Optional[str]
+) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     dtype = arrays[0].dtype
