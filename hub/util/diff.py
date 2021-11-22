@@ -8,13 +8,21 @@ from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
 
 
 def compare_commits(
-    commit1: str, commit2: str, version_state: Dict[str, Any], storage: LRUCache
+    commit1: Optional[str],
+    commit2: Optional[str],
+    version_state: Dict[str, Any],
+    storage: LRUCache,
 ) -> Tuple[dict, dict]:
     """Compares two commits and returns the differences.
 
     Args:
-        commit1 (str): The first commit to compare.
-        commit2 (str): The second commit to compare.
+        commit1 (str, optional): The first commit to compare.
+        commit2 (str, optional): The second commit to compare.
+        version_state (dict): The version state.
+        storage (LRUCache): The underlying storage of the dataset.
+
+    Returns:
+        Tuple[dict, dict]: The changes made in the first commit and second commit respectively.
     """
     check_commit_exists(commit1, version_state)
     check_commit_exists(commit2, version_state)
@@ -33,12 +41,12 @@ def compare_commits(
         while commit_node != lca:
             commit_id = commit_node.commit_id
             get_changes_for_id(commit_id, storage, changes)
-            commit_node = commit_node.parent
+            commit_node = commit_node.parent  # type: ignore
         filter_data_updated(changes)
     return changes_1, changes_2
 
 
-def check_commit_exists(commit_id: str, version_state: Dict[str, Any]):
+def check_commit_exists(commit_id: Optional[str], version_state: Dict[str, Any]):
     """Checks if the commit id exists."""
     if commit_id not in version_state["commit_node_map"]:
         raise KeyError(f"Commit {commit_id} does not exist.")
@@ -54,11 +62,11 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
 
     while p:
         p_family.append(p.commit_id)
-        p = p.parent
+        p = p.parent  # type: ignore
 
     while q:
         q_family.add(q.commit_id)
-        q = q.parent
+        q = q.parent  # type: ignore
     for id in p_family:
         if id in q_family:
             return id
@@ -127,6 +135,6 @@ def filter_data_updated(changes: Dict[str, Any]):
 
 def create_changes_dict() -> Dict[str, Any]:
     """Creates the dictionary used to store changes."""
-    changes = defaultdict(lambda: defaultdict(set))
+    changes: Dict[str, Any] = defaultdict(lambda: defaultdict(set))
     changes["tensors_created"] = set()
     return changes
