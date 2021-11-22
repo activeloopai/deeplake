@@ -82,7 +82,7 @@ jobs:
           pip install -r hub/requirements/tests.txt
           python setup.py install
       - name: Doing the benchmark and comparing with baseline -> Hub from input ref
-        run:
+        run: |
           cd benchmark-source
           python3 run.py --all --baseline=${BASELINE_REF} --github
           python publish.py ${COMMIT_REF} --github
