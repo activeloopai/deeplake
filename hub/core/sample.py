@@ -53,6 +53,7 @@ class Sample:
             buffer: (bytes): Byte buffer that represents a single sample. If compressed, `compression` argument should be provided.
             compression (str): Specify in case of byte buffer.
             verify (bool): If a path is provided, verifies the sample if True.
+            shape (Tuple[int]): Shape of the sample.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
