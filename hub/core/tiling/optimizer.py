@@ -19,6 +19,9 @@ def get_tile_shape(
 
     Returns:
         Tile shape
+
+    Raises:
+        ValueError: If the chunk_size is too small
     """
     ratio = sample_size / chunk_size
     sample_shape = np.array(sample_shape, dtype=np.float32)  # type: ignore
