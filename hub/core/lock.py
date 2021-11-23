@@ -41,7 +41,6 @@ class Lock(object):
         while self.path in self.storage:
             if time.time() - timestamp >= timeout:
                 if force:
-                    del self.storage[self.path]
                     self.storage[self.path] = _get_lock_bytes()
                     return
                 else:
@@ -80,7 +79,7 @@ class PersistentLock(Lock):
     def __init__(
         self,
         storage: StorageProvider,
-        lock_file_path: Optional[str] = None,
+        path: Optional[str] = None,
         callback: Optional[Callable] = None,
     ):
         self.storage = storage
@@ -88,9 +87,7 @@ class PersistentLock(Lock):
         self.acquired = False
         self._thread_lock = threading.Lock()
         self._previous_update_timestamp = None
-        self._lock_file_path = (
-            get_dataset_lock_key() if lock_file_path is None else lock_file_path
-        )
+        self.path = get_dataset_lock_key() if path is None else path
         self.acquire()
         atexit.register(self.release)
 
@@ -104,7 +101,7 @@ class PersistentLock(Lock):
                         >= hub.constants.DATASET_LOCK_VALIDITY
                     ):
                         # Its been too long since last update, another machine might have locked the storage
-                        lock_bytes = self.storage.get(self._lock_file_path)
+                        lock_bytes = self.storage.get(self.path)
                         if lock_bytes:
                             nodeid, timestamp = _parse_lock_bytes(lock_bytes)
                             if nodeid != uuid.getnode():
@@ -113,7 +110,7 @@ class PersistentLock(Lock):
                                 self.acquired = False
                                 return
                     self._previous_update_timestamp = time.time()
-                    self.storage[self._lock_file_path] = _get_lock_bytes()
+                    self.storage[self.path] = _get_lock_bytes()
                 except Exception:
                     pass
                 time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
@@ -124,7 +121,7 @@ class PersistentLock(Lock):
         if self.acquired:
             return
         self.storage.check_readonly()
-        lock_bytes = self.storage.get(self._lock_file_path)
+        lock_bytes = self.storage.get(self.path)
         if lock_bytes is not None:
             nodeid = None
             try:
@@ -149,7 +146,7 @@ class PersistentLock(Lock):
             terminate_thread(self._thread)
             self._acquired = False
         try:
-            del self.storage[self._lock_file_path]
+            del self.storage[self.path]
         except Exception:
             pass
 
@@ -183,7 +180,6 @@ def lock_version(
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
-
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
@@ -192,6 +188,7 @@ def lock_version(
         lock = PersistentLock(
             storage, path=_get_lock_file_path(version), callback=callback
         )
+        _LOCKS[key] = lock
 
 
 def unlock_version(storage: StorageProvider, version: Optional[str] = None):

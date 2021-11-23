@@ -7,19 +7,34 @@ import time
 import warnings
 
 
+_counter = 0
+
+
+class VM(object):
+    """
+    Emulates a different machine
+    """
+
+    def __init__(self):
+        global _counter
+        self.id = _counter
+        _counter += 1
+
+    def __enter__(self):
+        self._getnode = uuid.getnode
+        uuid.getnode = lambda: self.id
+
+    def __exit__(self, *args, **kwargs):
+        uuid.getnode = self._getnode
+
+
 def test_dataset_locking(s3_ds_generator):
     ds = s3_ds_generator()
     ds.create_tensor("x")
     arr = np.random.random((32, 32))
     ds.x.append(arr)
 
-    # Emulate a different machine
-    getnode = uuid.getnode
-    uuid.getnode = lambda: getnode() + 1
-    hub.core.lock._LOCKS.clear()
-
-    try:
-
+    with VM():
         # Make sure read only warning is raised
         with pytest.warns(UserWarning):
             ds = s3_ds_generator()
@@ -44,5 +59,17 @@ def test_dataset_locking(s3_ds_generator):
             assert ds.read_only == False
         finally:
             hub.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
-    finally:
-        uuid.getnode = getnode
+
+
+def test_vc_locking(s3_ds_generator):
+    ds = s3_ds_generator()
+    ds.create_tensor("x")
+    arr = np.random.random((32, 32))
+    ds.x.append(arr)
+    ds.commit()
+    ds.checkout("branch", create=True)
+    with VM():
+        with warnings.catch_warnings(record=True) as ws:
+            ds = s3_ds_generator()
+        np.testing.assert_array_equal(arr, ds.x[0].numpy())
+        assert not ws, str(ws[0])

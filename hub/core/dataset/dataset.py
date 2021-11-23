@@ -370,14 +370,15 @@ class Dataset:
         self.version_state = version_state
 
     def _lock(self):
+        storage = get_base_storage(self.storage)
         if (
-            isinstance(self.storage, S3Provider)
+            isinstance(storage, S3Provider)
             and self.index.is_trivial()
             and (not self.read_only or self._locked_out)
         ):
             try:
                 lock_version(
-                    get_base_storage(self.storage),
+                    storage,
                     version=self.version_state["commit_id"],
                     callback=self._lock_lost_handler,
                 )
