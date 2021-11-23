@@ -821,13 +821,11 @@ class Dataset:
     def __args__(self):
         return None
 
-    def append(self, *args, **kwargs):
-        if args:
-            sample = args[0]
-        else:
-            sample = kwargs
-        if not sample:
-            return
+    def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+        if not skip_ok:
+            for k in self.tensors:
+                if k not in sample:
+                    raise TensorDoesNotExistError(k)
         for k in sample:
             if k not in self.tensors:
                 raise TensorDoesNotExistError(k)
