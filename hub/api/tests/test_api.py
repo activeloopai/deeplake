@@ -794,3 +794,18 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+def test_ds_append(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.create_tensor("y")
+    ds.create_tensor("z")
+    ds.append(x=np.ones(2), y=np.zeros(3))
+    ds.append(x=np.ones(3), y=np.zeros(2))
+    ds.append({"x": np.ones(4), "y": np.zeros(5)})
+    with pytest.raises(ValueError):
+        ds.append(x=np.ones(2), y=np.zeros(3), z=np.ones(4))
+    assert len(ds.x) == 3
+    assert len(ds.y) == 3
+    assert len(ds.z) == 0

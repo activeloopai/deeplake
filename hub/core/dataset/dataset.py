@@ -820,3 +820,18 @@ class Dataset:
 
     def __args__(self):
         return None
+
+    def append(self, *args, **kwargs):
+        if args:
+            sample = args[0]
+        else:
+            sample = kwargs
+        if not sample:
+            return
+        for k in sample:
+            if k not in self.tensors:
+                raise TensorDoesNotExistError(k)
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError("All tensors are expected to have the same length.")
+        for k, v in sample.items():
+            self[k].append(v)
