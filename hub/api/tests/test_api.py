@@ -224,10 +224,11 @@ def test_safe_downcasting(ds: Dataset):
     int_tensor.append(1)
     int_tensor.extend([2, 3, 4])
     int_tensor.extend([5, 6, np.uint8(7)])
+    int_tensor.append(np.zeros((0,), dtype="uint64"))
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(-8)
     int_tensor.append(np.array([1]))
-    assert len(int_tensor) == 9
+    assert len(int_tensor) == 10
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(np.array([1.0]))
 
