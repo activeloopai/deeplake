@@ -3,8 +3,8 @@ import warnings
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
-from hub.core.tiling.deserialize_tile import coalesce_tiles
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.deserialize_tile import coalesce_tiles  # type: ignore
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
@@ -358,7 +358,7 @@ class ChunkEngine:
                     current_chunk = self._create_new_chunk()
                     updated_chunks.add(current_chunk)
             else:
-                enc.register_samples(num_samples_added)
+                enc.register_samples(int(num_samples_added))
                 samples = samples[num_samples_added:]
 
         for chunk in updated_chunks:

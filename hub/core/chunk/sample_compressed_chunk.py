@@ -1,5 +1,6 @@
-from typing import List, Union, Sequence
 import numpy as np
+from typing import List, Union, Sequence
+
 from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample  # type: ignore
 from hub.core.serialize import (
@@ -7,16 +8,16 @@ from hub.core.serialize import (
     bytes_to_text,
     check_sample_size,
 )
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from .base_chunk import BaseChunk, InputSample
 
 
 class SampleCompressedChunk(BaseChunk):
     def extend_if_has_space(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ) -> int:
+    ) -> float:
         self.prepare_for_write()
-        num_samples = 0
+        num_samples: float = 0
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(

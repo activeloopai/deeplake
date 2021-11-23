@@ -1,11 +1,11 @@
 from hub.compression import BYTE_COMPRESSION, get_compression_type
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array, compress_bytes
-from typing import List, Optional, Sequence, Union, Tuple
+from typing import Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
@@ -314,14 +314,14 @@ def serialize_numpy_and_base_types(
 
     if sample_compression is None:
         if incoming_sample.nbytes > min_chunk_size and break_into_tiles:
-            incoming_sample = SampleTiles(
+            serialized_sample = SampleTiles(
                 incoming_sample,
                 tile_compression,
                 min_chunk_size,
                 store_uncompressed_tiles,
             )
         else:
-            incoming_sample = incoming_sample.tobytes()
+            serialized_sample = incoming_sample.tobytes()
     else:
         compressed_bytes = compress_array(incoming_sample, sample_compression)
         if len(compressed_bytes) > min_chunk_size and break_into_tiles:
@@ -332,12 +332,12 @@ def serialize_numpy_and_base_types(
                 store_uncompressed_tiles,
             )
         else:
-            incoming_sample = compressed_bytes
-    return incoming_sample, shape
+            serialized_sample = compressed_bytes
+    return serialized_sample, shape
 
 
 def serialize_sample_object(
-    incoming_sample: SampleValue,
+    incoming_sample: Sample,
     sample_compression: Optional[str],
     chunk_compression: Optional[str],
     dtype: str,

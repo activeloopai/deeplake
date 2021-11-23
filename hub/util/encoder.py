@@ -95,7 +95,7 @@ def merge_all_tile_encoders(
     all_num_samples: List[Dict[str, int]],
     ds_out: hub.core.dataset.Dataset,
 ) -> None:
-    tensors = list(ds_out.meta.tensors)
+    tensors: List[str] = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
@@ -122,7 +122,7 @@ def combine_tile_encoders(
 
             if new_sample_index in ds_tile_encoder.entries:
                 raise ValueError(
-                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={str(ds_tile_encoder.keys())}"
+                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={ds_tile_encoder.entries()}"
                 )
 
             ds_tile_encoder.entries[

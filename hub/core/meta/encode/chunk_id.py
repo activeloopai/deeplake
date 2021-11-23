@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
@@ -186,7 +186,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         row_index = self.translate_index(local_sample_index)
 
-        output = []
+        output: List[Any] = []
         value = self._derive_value(
             self._encoded[row_index], row_index, local_sample_index
         )

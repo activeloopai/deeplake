@@ -6,12 +6,11 @@ from hub.core.compression import (
     decompress_bytes,
     decompress_multiple,
 )
-from hub.core.sample import Sample  # type: ignore
 from hub.core.serialize import (
     bytes_to_text,
     check_sample_shape,
 )
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
@@ -20,7 +19,7 @@ from .base_chunk import BaseChunk, InputSample
 class ChunkCompressedChunk(BaseChunk):
     def extend_if_has_space(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ) -> int:
+    ) -> float:
         self.prepare_for_write()
         if self.is_byte_compression:
             return self.extend_if_has_space_byte_compression(incoming_samples)
@@ -28,8 +27,8 @@ class ChunkCompressedChunk(BaseChunk):
 
     def extend_if_has_space_byte_compression(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ):
-        num_samples = 0
+    ) -> float:
+        num_samples: float = 0
         buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
@@ -65,8 +64,8 @@ class ChunkCompressedChunk(BaseChunk):
 
     def extend_if_has_space_image_compression(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ):
-        num_samples = 0
+    ) -> float:
+        num_samples: float = 0
         buffer_list = self.decompressed_samples if self.data_bytes else []
         for i, incoming_sample in enumerate(incoming_samples):
             if isinstance(incoming_sample, SampleTiles):

@@ -1,13 +1,10 @@
 import hub
-import math
 import numpy as np
-from hub.constants import ENCODING_DTYPE
 from hub.core.storage.cachable import Cachable
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 
-# TODO: do we want to make this a BaseEncoder subclass?
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
         self.entries = entries or {}
@@ -66,68 +63,6 @@ class TileEncoder(Cachable):
             for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape)
         ]
         return tuple(int(x) for x in layout)
-
-    def order_tiles(
-        self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
-    ) -> np.ndarray:
-        """Given a flat list of `chunk_ids` for the sample at `global_sample_index`,
-        return a new numpy array that has the tiles laid out how they will be
-        spacially if they were on a single tensor.
-
-        Example:
-            Given 16 tiles that represent a 160x160 element sample in c-order:
-                - each tile represents a 10x10 collection of elements.
-                - should return:
-                    [
-                        [ch0, ch1, ch2, ch3],
-                        [ch4, ch5, ch6, ch7],
-                        [ch8, ch9, ch10, ch11],
-                        [ch12, ch13, ch14, ch15],
-                    ]
-        """
-
-        if len(chunk_ids) == 1:
-            return np.array(chunk_ids)
-
-        tile_layout_shape = self.get_tile_layout_shape(global_sample_index)
-
-        ordered_tiles = np.array(chunk_ids, dtype=ENCODING_DTYPE)
-        ordered_tiles = np.reshape(ordered_tiles, tile_layout_shape)
-
-        return ordered_tiles
-
-    def get_tile_shape_mask(
-        self, global_sample_index: int, ordered_tile_ids: np.ndarray
-    ) -> np.ndarray:
-        # TODO: docstring
-
-        if global_sample_index not in self:
-            return np.array([])
-
-        tile_shape = self.get_tile_shape(global_sample_index)
-        tile_shape_mask = np.empty(ordered_tile_ids.shape, dtype=object)
-
-        # right now tile shape is the same for all tiles, but we might want to add dynamic tile shapes
-        # also makes lookup easier later
-        for tile_index, _ in np.ndenumerate(ordered_tile_ids):
-            tile_shape_mask[tile_index] = tile_shape
-
-        return tile_shape_mask
-
-    def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int, ...]):
-        tile_meta = self.entries[sample_index]
-        sample_shape = tile_meta["sample_shape"]
-        tile_shape = tile_meta["tile_shape"]
-        ndims = len(sample_shape)
-
-        # Generalized row-major ordering
-        chunk_idx = 0
-        factor = 1
-        for ax in range(ndims):
-            chunk_idx += (tile_index[ax] // tile_shape[ax]) * factor
-            factor *= math.ceil(tile_shape[ax], sample_shape[ax])
-
-        return chunk_idx
 
     @property
     def nbytes(self):

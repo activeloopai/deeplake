@@ -1,7 +1,8 @@
 import numpy as np
+
 from hub.core.compression import compress_array
-from hub.core.tiling.optimizer import get_tile_shape
-from hub.core.tiling.serialize_tile import break_into_tiles, serialize_tiles
+from hub.core.tiling.optimizer import get_tile_shape  # type: ignore
+from hub.core.tiling.serialize_tile import break_into_tiles, serialize_tiles  # type: ignore
 
 compression_ratios = {None: 1, "jpeg": 0.5, "png": 0.5, "webp": 0.5, "lz4": 0.5}
 
@@ -34,14 +35,14 @@ class SampleTiles:
         )
 
     @property
-    def is_first_write(self):
+    def is_first_write(self) -> bool:
         return self.tiles_yielded == 1
 
     @property
-    def is_last_write(self):
+    def is_last_write(self) -> bool:
         return self.tiles_yielded == self.num_tiles
 
-    def yield_tile(self):
+    def yield_tile(self) -> bytes:
         self.tiles_yielded += 1
         return next(self.tiles_enumerator)[1]
 

@@ -169,7 +169,7 @@ def test_sample_chunk_compression_mutually_exclusive(memory_ds: Dataset):
     )
 
 
-def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
+def test_chunkwise_compression(memory_ds, cat_path, flower_path):
     ds = memory_ds
     im_ct = 5
     chunk_size = 600 * KB

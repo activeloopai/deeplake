@@ -21,7 +21,7 @@ def get_tile_shape(
         Tile shape
     """
     ratio = sample_size / chunk_size
-    sample_shape = np.array(sample_shape, dtype=np.float32)
+    sample_shape = np.array(sample_shape, dtype=np.float32)  # type: ignore
     if isinstance(exclude_axes, int):
         exclude_axes = [exclude_axes]
     elif exclude_axes is None:
@@ -33,7 +33,7 @@ def get_tile_shape(
     sample_shape_masked[exclude_axes] = 0
     while ratio > 1:
         idx = np.argmax(sample_shape_masked)
-        val = sample_shape_masked[idx : idx + 1]
+        val = sample_shape_masked[idx : idx + 1]  # type: ignore
         if val < 2:
             raise ValueError(f"Chunk size is too small: {chunk_size} bytes")
         val /= 2

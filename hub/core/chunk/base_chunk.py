@@ -25,8 +25,7 @@ from hub.core.serialize import (
     serialize_text,
 )
 from hub.core.storage.cachable import Cachable
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.casting import intelligent_cast
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 InputSample = Union[
@@ -125,7 +124,7 @@ class BaseChunk(Cachable):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples):
+    def extend_if_has_space(self, incoming_samples) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod

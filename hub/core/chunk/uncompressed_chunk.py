@@ -1,11 +1,11 @@
 import numpy as np
-from typing import Sequence, Union
+from typing import List, Sequence, Union
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
     check_sample_size,
 )
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
@@ -14,13 +14,13 @@ import numpy as np
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ) -> int:
+    ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
             return self._extend_if_has_space_numpy(incoming_samples)
         return self._extend_if_has_space_sequence(incoming_samples)
 
-    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray):
+    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
         num_samples = 0
         buffer_size = 0
 
@@ -47,13 +47,17 @@ class UncompressedChunk(BaseChunk):
 
         return num_samples
 
-    def _extend_if_has_space_sequence(self, incoming_samples: Sequence[InputSample]):
-        num_samples = 0
+    def _extend_if_has_space_sequence(
+        self, incoming_samples: Sequence[InputSample]
+    ) -> float:
+        num_samples: float = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
-            if isinstance(serialized_sample, SampleTiles):
+            if isinstance(serialized_sample, SampleTiles) and isinstance(
+                incoming_samples, List
+            ):
                 incoming_samples[i] = serialized_sample
                 if not self.data_bytes:
                     self.write_tile(serialized_sample)
