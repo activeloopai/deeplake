@@ -1,3 +1,4 @@
+from hub.compression import BYTE_COMPRESSION, get_compression_type
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -299,26 +300,36 @@ def serialize_text(
 def serialize_numpy_and_base_types(
     incoming_sample: BaseTypes,
     sample_compression: Optional[str],
+    chunk_compression: Optional[str],
     dtype: str,
     htype: str,
     min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_uncompressed_tiles: bool = False,
 ):
     """Converts the sample into bytes"""
     incoming_sample = intelligent_cast(incoming_sample, dtype, htype)
     shape = incoming_sample.shape
+    tile_compression = chunk_compression or sample_compression
 
     if sample_compression is None:
-        if incoming_sample.nbytes > min_chunk_size:
+        if incoming_sample.nbytes > min_chunk_size and break_into_tiles:
             incoming_sample = SampleTiles(
-                incoming_sample, sample_compression, min_chunk_size
+                incoming_sample,
+                tile_compression,
+                min_chunk_size,
+                store_uncompressed_tiles,
             )
         else:
             incoming_sample = incoming_sample.tobytes()
     else:
         compressed_bytes = compress_array(incoming_sample, sample_compression)
-        if len(compressed_bytes) > min_chunk_size:
+        if len(compressed_bytes) > min_chunk_size and break_into_tiles:
             incoming_sample = SampleTiles(
-                incoming_sample, sample_compression, min_chunk_size
+                incoming_sample,
+                tile_compression,
+                min_chunk_size,
+                store_uncompressed_tiles,
             )
         else:
             incoming_sample = compressed_bytes
@@ -327,30 +338,40 @@ def serialize_numpy_and_base_types(
 
 def serialize_sample_object(
     incoming_sample: SampleValue,
-    sample_compression: str,
-    is_byte_compression: bool,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
     dtype: str,
     htype: str,
     min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_uncompressed_tiles: bool = False,
 ):
+    is_byte_compression = get_compression_type(sample_compression) == BYTE_COMPRESSION
     shape = incoming_sample.shape
+    tile_compression = chunk_compression or sample_compression
     if sample_compression:
         if is_byte_compression:
             # Byte compressions don't store dtype, need to cast to expected dtype
             arr = intelligent_cast(incoming_sample.array, dtype, htype)
             incoming_sample = Sample(array=arr)
         compressed_bytes = incoming_sample.compressed_bytes(sample_compression)
-        if len(compressed_bytes) > min_chunk_size:
+        if len(compressed_bytes) > min_chunk_size and break_into_tiles:
             incoming_sample = SampleTiles(
-                incoming_sample.array, sample_compression, min_chunk_size
+                incoming_sample.array,
+                tile_compression,
+                min_chunk_size,
+                store_uncompressed_tiles,
             )
         else:
             incoming_sample = compressed_bytes
     else:
         incoming_sample = incoming_sample.array
-        if incoming_sample.nbytes > min_chunk_size:
+        if incoming_sample.nbytes > min_chunk_size and break_into_tiles:
             incoming_sample = SampleTiles(
-                incoming_sample, sample_compression, min_chunk_size
+                incoming_sample,
+                tile_compression,
+                min_chunk_size,
+                store_uncompressed_tiles,
             )
         else:
             incoming_sample = incoming_sample.tobytes()

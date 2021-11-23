@@ -340,20 +340,19 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         while len(samples) > 0:
-            if isinstance(samples[0], SampleTiles):
-                self.register_tiles(samples[0])
             num_samples_added = current_chunk.extend_if_has_space(samples)
-
             if num_samples_added == 0:
                 if not current_chunk.data_bytes:
                     msg = f"Sorry, some samples couldn't fit inside a single chunk of size {self.min_chunk_size}"
                     raise NotImplementedError(msg)
                 current_chunk = self._create_new_chunk()
                 updated_chunks.add(current_chunk)
+
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 if samples[0].is_first_write:
                     enc.register_samples(1)
                 if samples[0].is_last_write:
+                    self.register_tiles(samples[0])
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
@@ -555,7 +554,7 @@ class ChunkEngine:
                 tile_layout_shape = self.tile_encoder.get_tile_layout_shape(
                     global_sample_index
                 )
-                tiles = np.empty((len(chunks),), dtype=np.object)
+                tiles = np.empty((len(chunks),), dtype=object)
                 for i in range(len(chunks)):
                     tiles[i] = tiled_arrays[i]
                 tiles = np.reshape(tiles, tile_layout_shape)

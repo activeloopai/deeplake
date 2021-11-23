@@ -42,6 +42,8 @@ def intelligent_cast(
 ) -> np.ndarray:
     # TODO: docstring (note: sample can be a scalar)/statictyping
     # TODO: implement better casting here
+    if isinstance(sample, Sample):
+        sample = sample.array
 
     if hasattr(sample, "dtype") and sample.dtype == dtype:
         return sample

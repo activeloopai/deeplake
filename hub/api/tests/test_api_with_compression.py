@@ -215,9 +215,13 @@ def test_chunkwise_compression(memory_ds: Dataset, cat_path, flower_path):
     for row, label in zip(data, labels):
         np.testing.assert_array_equal(row, label.numpy())
 
-    with pytest.raises(NotImplementedError):
-        with ds:
-            ds.labels.append(np.random.randint(0, 256, (1500, 1500)).astype("uint8"))  # type: ignore
+    data = np.random.randint(0, 256, (5, 1500, 1500)).astype("uint8")
+    with ds:
+        ds.labels.extend(data)  # type: ignore
+    ds.clear_cache()
+    assert len(ds.labels) == 25
+    for i in range(5):
+        np.testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
 
 
 @enabled_datasets

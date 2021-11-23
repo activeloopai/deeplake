@@ -20,7 +20,7 @@ class SampleCompressedChunk(BaseChunk):
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
-                incoming_sample, self.compression, self.is_byte_compression
+                incoming_sample, sample_compression=self.compression
             )
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
@@ -73,7 +73,7 @@ class SampleCompressedChunk(BaseChunk):
     ):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(
-            new_sample, self.compression, self.is_byte_compression
+            new_sample, sample_compression=self.compression
         )
 
         self.check_shape_for_update(local_sample_index, shape)

@@ -11,6 +11,7 @@ from hub.core.serialize import (
     bytes_to_text,
     check_sample_shape,
 )
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
@@ -30,21 +31,36 @@ class ChunkCompressedChunk(BaseChunk):
     ):
         num_samples = 0
         buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()
-        for incoming_sample in incoming_samples:
-            serialized_sample, shape = self.serialize_sample(incoming_sample)
+        for i, incoming_sample in enumerate(incoming_samples):
+            serialized_sample, shape = self.serialize_sample(
+                incoming_sample,
+                chunk_compression=self.compression,
+                store_uncompressed_tiles=True,
+            )
             self.num_dims = self.num_dims or len(shape)
-            sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
-            buffer += serialized_sample
-            # TODO: optimize this
-            compressed_bytes = compress_bytes(buffer, self.compression)
-            if len(compressed_bytes) > self.min_chunk_size:
+            if isinstance(serialized_sample, SampleTiles):
+                if isinstance(incoming_samples, List):
+                    incoming_samples[i] = serialized_sample
+                if not self.data_bytes:
+                    self.write_tile(serialized_sample)
+                    num_samples += 0.5
+                    self._decompressed_bytes = (
+                        serialized_sample.yield_uncompressed_tile().tobytes()
+                    )
                 break
+            else:
+                sample_nbytes = len(serialized_sample)
+                buffer += serialized_sample
+                # TODO: optimize this
+                compressed_bytes = compress_bytes(buffer, self.compression)
+                if len(compressed_bytes) > self.min_chunk_size:
+                    break
 
-            self.data_bytes = compressed_bytes
-            self.register_in_meta_and_headers(sample_nbytes, shape)
-            num_samples += 1
-            self._decompressed_bytes = buffer
+                self.data_bytes = compressed_bytes
+                self.register_in_meta_and_headers(sample_nbytes, shape)
+                num_samples += 1
+                self._decompressed_bytes = buffer
         return num_samples
 
     def extend_if_has_space_image_compression(
@@ -52,17 +68,19 @@ class ChunkCompressedChunk(BaseChunk):
     ):
         num_samples = 0
         buffer_list = self.decompressed_samples if self.data_bytes else []
-        for incoming_sample in incoming_samples:
-            if isinstance(incoming_sample, bytes):
-                raise ValueError(
-                    "Chunkwise image compression is not applicable on bytes."
-                )
+        for i, incoming_sample in enumerate(incoming_samples):
+            if isinstance(incoming_sample, SampleTiles):
+                if not self.data_bytes:
+                    self.write_tile(incoming_sample, skip_bytes=True)
+                    num_samples += 0.5
+                    self._decompressed_samples = (
+                        incoming_sample.yield_uncompressed_tile()
+                    )
+                break
+
             incoming_sample = intelligent_cast(incoming_sample, self.dtype, self.htype)
-            if isinstance(incoming_sample, Sample):
-                incoming_sample = incoming_sample.array
             shape = incoming_sample.shape
             shape = self.normalize_shape(shape)
-
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
             buffer_list.append(incoming_sample)
@@ -71,6 +89,13 @@ class ChunkCompressedChunk(BaseChunk):
             compressed_bytes = compress_multiple(buffer_list, self.compression)
 
             if len(compressed_bytes) > self.min_chunk_size:
+                if not self.data_bytes and isinstance(incoming_samples, List):
+                    incoming_samples[i] = SampleTiles(
+                        incoming_sample,
+                        self.compression,
+                        self.min_chunk_size,
+                        store_uncompressed_tiles=True,
+                    )
                 break
 
             self.data_bytes = compressed_bytes
@@ -108,7 +133,7 @@ class ChunkCompressedChunk(BaseChunk):
     def read_sample(
         self, local_sample_index: int, cast: bool = True, copy: bool = False
     ):
-        if not self.is_byte_compression:
+        if self.is_image_compression:
             return self.decompressed_samples[local_sample_index]
 
         sb, eb = self.byte_positions_encoder[local_sample_index]
@@ -135,7 +160,9 @@ class ChunkCompressedChunk(BaseChunk):
         local_sample_index: int,
         new_sample: InputSample,
     ):
-        serialized_sample, shape = self.serialize_sample(new_sample)
+        serialized_sample, shape = self.serialize_sample(
+            new_sample, chunk_compression=self.compression, break_into_tiles=False
+        )
         self.check_shape_for_update(local_sample_index, shape)
 
         new_nb = len(serialized_sample)
@@ -156,8 +183,6 @@ class ChunkCompressedChunk(BaseChunk):
         new_sample: InputSample,
     ):
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
-        if isinstance(new_sample, Sample):
-            new_sample = new_sample.array
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(local_sample_index, shape)

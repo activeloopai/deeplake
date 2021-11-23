@@ -4,7 +4,12 @@ from typing import List, Optional, Tuple, Union
 import warnings
 
 import hub
-from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSIONS, get_compression_type
+from hub.compression import (
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    IMAGE_COMPRESSIONS,
+    get_compression_type,
+)
 from hub.constants import CONVERT_GRAYSCALE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -58,14 +63,17 @@ class BaseChunk(Cachable):
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
         self.is_text_like = self.htype in {"json", "list", "text"}
         self.compression = compression
-        self.is_byte_compression = get_compression_type(compression) == BYTE_COMPRESSION
+        compression_type = get_compression_type(compression)
+        self.is_byte_compression = compression_type == BYTE_COMPRESSION
+        self.is_image_compression = compression_type == IMAGE_COMPRESSION
         self.version = hub.__version__
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
-        self.is_convert_candidate = (
-            self.htype == "image" or compression in IMAGE_COMPRESSIONS
-        )
+        self.is_convert_candidate = self.htype == "image" or self.is_image_compression
+
+        if self.is_text_like and self.is_image_compression:
+            raise ValueError("Can't use image compression with text data.")
 
         # These caches are only used for ChunkCompressed chunk.
         self._decompressed_samples: Optional[List[np.ndarray]] = None
@@ -165,7 +173,9 @@ class BaseChunk(Cachable):
         self,
         incoming_sample: InputSample,
         sample_compression: Optional[str] = None,
-        is_byte_compression: bool = False,
+        chunk_compression: Optional[str] = None,
+        break_into_tiles: bool = True,
+        store_uncompressed_tiles: bool = False,
     ) -> SerializedOutput:
         """Converts the sample into bytes"""
         dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
@@ -177,10 +187,12 @@ class BaseChunk(Cachable):
             incoming_sample, shape = serialize_sample_object(
                 incoming_sample,
                 sample_compression,
-                is_byte_compression,
+                chunk_compression,
                 dt,
                 ht,
                 min_chunk_size,
+                break_into_tiles,
+                store_uncompressed_tiles,
             )
             shape = self.convert_to_rgb(shape)
         elif isinstance(
@@ -188,7 +200,14 @@ class BaseChunk(Cachable):
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
         ):
             incoming_sample, shape = serialize_numpy_and_base_types(
-                incoming_sample, sample_compression, dt, ht, min_chunk_size
+                incoming_sample,
+                sample_compression,
+                chunk_compression,
+                dt,
+                ht,
+                min_chunk_size,
+                break_into_tiles,
+                store_uncompressed_tiles,
             )
         elif isinstance(incoming_sample, SampleTiles):
             shape = incoming_sample.sample_shape
@@ -258,9 +277,9 @@ class BaseChunk(Cachable):
             shape = (1,)
         return shape
 
-    def write_tile(self, sample: SampleTiles):
+    def write_tile(self, sample: SampleTiles, skip_bytes=False):
         data = sample.yield_tile()
-        sample_nbytes = len(data)
+        sample_nbytes = None if skip_bytes else len(data)
         self.data_bytes = data
         tile_shape = sample.tile_shape
         update_meta = sample.is_first_write
