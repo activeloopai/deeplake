@@ -7,6 +7,7 @@ from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -800,12 +801,14 @@ def test_ds_append(memory_ds):
     ds = memory_ds
     ds.create_tensor("x")
     ds.create_tensor("y")
+    ds.append({"x": np.ones(2), "y": np.zeros(3)})
     ds.create_tensor("z")
-    ds.append(x=np.ones(2), y=np.zeros(3))
-    ds.append(x=np.ones(3), y=np.zeros(2))
-    ds.append({"x": np.ones(4), "y": np.zeros(5)})
+    with pytest.raises(TensorDoesNotExistError):
+        ds.append({"x": np.ones(2), "y": np.zeros(3)})
+    ds.append({"x": np.ones(3), "y": np.zeros(2)}, skip_ok=True)
+    ds.append({"x": np.ones(4), "y": np.zeros(5)}, skip_ok=True)
     with pytest.raises(ValueError):
-        ds.append(x=np.ones(2), y=np.zeros(3), z=np.ones(4))
+        ds.append({"x": np.ones(2), "y": np.zeros(3), "z": np.ones(4)})
     assert len(ds.x) == 3
     assert len(ds.y) == 3
     assert len(ds.z) == 0
