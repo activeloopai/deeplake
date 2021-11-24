@@ -4,23 +4,31 @@ from typing import Dict, List
 
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
+from hub.util.keys import (
+    get_tensor_commit_chunk_set_key,
+    get_tensor_meta_key,
+    get_chunk_id_encoder_key,
+)
 import posixpath
 
 
 def merge_all_tensor_metas(
     all_workers_tensor_metas: List[Dict[str, TensorMeta]],
     ds_out: hub.Dataset,
+    overwrite: bool,
 ) -> None:
     """Merges tensor metas from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
-        tensor_meta = ds_out[rel_path].meta  # type: ignore
+        tensor_meta = None if overwrite else ds_out[rel_path].meta  # type: ignore
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
-            combine_metas(tensor_meta, current_meta)
+            if tensor_meta is None:
+                tensor_meta = current_meta
+            else:
+                combine_metas(tensor_meta, current_meta)
         meta_key = get_tensor_meta_key(tensor, commit_id)
         ds_out[rel_path].chunk_engine.cache[meta_key] = tensor_meta  # type: ignore
     ds_out.flush()
@@ -49,16 +57,20 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
 def merge_all_chunk_id_encoders(
     all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]],
     ds_out: hub.Dataset,
+    overwrite: bool,
 ) -> None:
     """Merges chunk_id_encoders from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     commit_id = ds_out.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
-        chunk_id_encoder = ds_out[rel_path].chunk_engine.chunk_id_encoder  # type: ignore
+        chunk_id_encoder = None if overwrite else ds_out[rel_path].chunk_engine.chunk_id_encoder  # type: ignore
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
-            combine_chunk_id_encoders(chunk_id_encoder, current_chunk_id_encoder)
+            if chunk_id_encoder is None:
+                chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
+            else:
+                combine_chunk_id_encoders(chunk_id_encoder, current_chunk_id_encoder)
 
         chunk_id_key = get_chunk_id_encoder_key(tensor, commit_id)
         ds_out[rel_path].chunk_engine.cache[chunk_id_key] = chunk_id_encoder  # type: ignore
@@ -83,3 +95,34 @@ def combine_chunk_id_encoders(
                 ds_chunk_id_encoder._encoded = np.vstack(
                     [ds_chunk_id_encoder._encoded, encoded_id]
                 )
+
+
+def merge_all_commit_chunk_sets(
+    all_workers_commit_chunk_sets: List[Dict[str, set]],
+    ds_out: hub.Dataset,
+    overwrite: bool,
+) -> None:
+    """Merges commit_chunk_sets from all workers into a single one and stores it in ds_out."""
+    tensors = list(ds_out.meta.tensors)
+    commit_id = ds_out.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, ds_out.group_index)  # type: ignore
+        commit_chunk_set = None if overwrite else ds_out[rel_path].chunk_engine.commit_chunk_set  # type: ignore
+        for current_worker_commit_chunk_set in all_workers_commit_chunk_sets:
+            current_commit_chunk_set = current_worker_commit_chunk_set[tensor]
+            if commit_chunk_set is None:
+                commit_chunk_set = current_commit_chunk_set
+            else:
+                combine_commit_chunk_sets(commit_chunk_set, current_commit_chunk_set)
+
+        commit_chunk_key = get_tensor_commit_chunk_set_key(tensor, commit_id)
+        ds_out[rel_path].chunk_engine.cache[commit_chunk_key] = commit_chunk_set  # type: ignore
+    ds_out.flush()
+
+
+def combine_commit_chunk_sets(
+    ds_commit_chunk_set: set,
+    worker_commit_chunk_set: set,
+) -> None:
+    """Combines the dataset's commit_chunk_set with a single worker's commit_chunk_set."""
+    ds_commit_chunk_set.update(worker_commit_chunk_set)

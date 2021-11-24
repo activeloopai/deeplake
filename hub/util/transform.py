@@ -117,12 +117,14 @@ def store_data_slice(
     # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
+    all_chunk_sets = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
-    return all_tensor_metas, all_chunk_id_encoders
+        all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
+    return all_tensor_metas, all_chunk_id_encoders, all_chunk_sets
 
 
 def _transform_sample_and_update_chunk_engines(
