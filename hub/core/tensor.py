@@ -109,7 +109,7 @@ class Tensor:
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
 
-    def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
+    def extend(self, samples: Union[np.ndarray, Sequence[SampleValue], "Tensor"]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
@@ -207,10 +207,10 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        shape = self.shape_interval.astuple()
-        if self.index.values[0].subscriptable():
-            return shape
-        return shape[1:]
+        if not self.index.values[0].subscriptable():
+            return self.chunk_engine.read_shape_for_sample(self.index.values[0].value)
+        else:
+            return self.shape_interval.astuple()[1:]
 
     @property
     def ndim(self) -> int:
@@ -219,7 +219,7 @@ class Tensor:
     @property
     def dtype(self) -> Optional[np.dtype]:
         if self.htype in ("json", "list"):
-            return self.dtype
+            return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None

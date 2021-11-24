@@ -508,7 +508,7 @@ class ChunkEngine:
         chunk.key = chunk_key
         return chunk
 
-    def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
+    def extend(self, samples: Union[np.ndarray, Sequence[SampleValue], "Tensor"]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         self.cache.check_readonly()
@@ -721,6 +721,13 @@ class ChunkEngine:
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         return buffer[sb:eb].tobytes()
+
+    def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
+        enc = self.chunk_id_encoder
+        chunk = self.get_chunk_for_sample(global_sample_index, enc)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        shape = chunk.shapes_encoder[local_sample_index]
+        return shape
 
     def read_sample_from_chunk(
         self,

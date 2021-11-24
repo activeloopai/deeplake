@@ -234,6 +234,17 @@ def _serialize_input_sample(
     htype: str,
 ) -> Tuple[bytes, Tuple[int]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
+    if isinstance(sample, hub.core.tensor.Tensor):
+        if sample.meta.chunk_compression:
+            sample = sample.numpy()
+        elif sample.meta.sample_compression == sample_compression:
+            # Pass through
+            try:
+                return sample.tobytes(), sample.shape
+            except ValueError:  # Slice of sample
+                sample = sample.numpy()
+        else:
+            sample = sample.numpy()
 
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):

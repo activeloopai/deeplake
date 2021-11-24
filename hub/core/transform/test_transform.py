@@ -59,6 +59,14 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
 
 
 @hub.compute
+def fn4(sample_in, samples_out):
+    samples_out.image.append(sample_in.image)
+    samples_out.image.append(sample_in.image.numpy() * 2)
+    samples_out.label.append(sample_in.label)
+    samples_out.label.append(sample_in.label.numpy() * 2)
+
+
+@hub.compute
 def read_image(sample_in, samples_out):
     samples_out.image.append(hub.read(sample_in))
 
@@ -449,3 +457,29 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     test_ds_out()
 
     data_in.delete()
+
+
+def test_transform_pass_through():
+    data_in = hub.dataset("mem://ds1")
+    data_in.create_tensor("image", htype="image", sample_compression="png")
+    data_in.create_tensor("label", htype="class_label")
+    for i in range(1, 100):
+        data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+        data_in.label.append(i * np.ones((1,), dtype="uint32"))
+    ds_out = hub.dataset("mem://ds2")
+    ds_out.create_tensor("image", htype="image", sample_compression="png")
+    ds_out.create_tensor("label", htype="class_label")
+    fn4().eval(data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False)
+    for i in range(len(data_in)):
+        np.testing.assert_array_equal(
+            data_in[i].image.numpy(), ds_out[i * 2].image.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].label.numpy(), ds_out[i * 2].label.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].image.numpy() * 2, ds_out[i * 2 + 1].image.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].label.numpy() * 2, ds_out[i * 2 + 1].label.numpy()
+        )
