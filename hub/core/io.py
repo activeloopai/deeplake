@@ -17,7 +17,6 @@ from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalPro
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
-    TensorDoesNotExistError,
 )
 from hub.util.keys import get_chunk_key
 from hub.util.remove_cache import get_base_storage
@@ -174,7 +173,7 @@ class SampleStreaming(Streaming):
     def __init__(
         self,
         dataset,
-        tensors: Optional[Sequence[str]] = None,
+        tensors: Sequence[str],
         use_local_cache: bool = False,
     ) -> None:
         super().__init__()
@@ -191,9 +190,7 @@ class SampleStreaming(Streaming):
                 "The underlying storage is MemoryProvider which isn't supported."
             )
 
-        self.tensors: Sequence[str] = self._map_tensor_keys(
-            dataset=dataset, tensor_keys=tensors
-        )
+        self.tensors = tensors
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
         self.local_caches: Optional[CachesMap] = (
@@ -295,7 +292,7 @@ class SampleStreaming(Streaming):
     def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
         return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
 
-    def _map_chunk_engines(self, tensors: List[str]) -> Dict[str, ChunkEngine]:
+    def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {
             key: self._create_chunk_engine(key, self.dataset.version_state)
             for key in tensors
@@ -303,23 +300,6 @@ class SampleStreaming(Streaming):
 
     def _create_chunk_engine(self, tensor_key, version_state):
         return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
-
-    def _map_tensor_keys(
-        self, dataset, tensor_keys: Optional[Sequence[str]]
-    ) -> List[str]:
-        """Sanitizes tensor_keys if not None, else returns all the keys present in the dataset."""
-
-        if tensor_keys is None:
-            tensor_keys = list(dataset.tensors)
-        else:
-            for t in tensor_keys:
-                if t not in dataset.tensors:
-                    raise TensorDoesNotExistError(t)
-
-            tensor_keys = list(tensor_keys)
-
-        # Get full path in case of groups
-        return [dataset.tensors[k].key for k in tensor_keys]
 
     def _get_dataset_indicies(self):
         tensor_lengths = [
