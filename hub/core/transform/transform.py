@@ -123,7 +123,7 @@ class Pipeline:
         )
 
         check_transform_data_in(data_in, scheduler)
-        target_ds = ds_out or data_in
+        target_ds = data_in if ds_out is None else ds_out
         check_transform_ds_out(target_ds, scheduler)
         target_ds.flush()
         # if not the head node, checkout to an auto branch that is newly created

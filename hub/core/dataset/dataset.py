@@ -18,6 +18,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.dataset import try_flushing
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -392,6 +393,7 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         commit_id = self.version_state["commit_id"]
+        try_flushing(self)
         commit(self.version_state, self.storage, message)
 
         # do not store commit message
@@ -413,6 +415,7 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
+        try_flushing(self)
         checkout(self.version_state, self.storage, address, create)
 
         # do not store address

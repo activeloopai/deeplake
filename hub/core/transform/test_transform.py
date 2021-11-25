@@ -468,8 +468,8 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     data_in.delete()
 
 
-def test_inplace_transform(local_ds):
-    ds = local_ds
+def test_inplace_transform(local_ds_generator):
+    ds = local_ds_generator()
 
     with ds:
         ds.create_tensor("img")
@@ -494,20 +494,20 @@ def test_inplace_transform(local_ds):
         for i in range(100):
             check_target_array(ds, i, 1)
 
-        ds = hub.dataset("./data/pth_try")
-        assert len(ds) == 200
-        for i in range(200):
-            target = 2 if i % 2 == 0 else 3
-            check_target_array(ds, i, target)
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
 
-        ds.checkout(a)
-        assert len(ds) == 100
-        for i in range(100):
-            check_target_array(ds, i, 1)
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
 
 
-def test_inplace_transform_without_commit(local_ds):
-    ds = local_ds
+def test_inplace_transform_without_commit(local_ds_generator):
+    ds = local_ds_generator()
 
     with ds:
         ds.create_tensor("img")
@@ -526,8 +526,64 @@ def test_inplace_transform_without_commit(local_ds):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        ds = hub.dataset("./data/pth_try")
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+def test_inplace_transform_non_head(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+        a = ds.commit()
+        for _ in range(50):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+        ds.checkout(a)
+
+        # transforming non-head node
+        inplace_transform().eval(ds, num_workers=4)
+        b = ds.commit_id
+
         assert len(ds) == 200
         for i in range(200):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
+
+        ds.checkout(a)
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+        
+        ds.checkout("main")
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+    ds = local_ds_generator()
+    assert len(ds) == 150
+    for i in range(150):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(b)
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
