@@ -244,7 +244,9 @@ def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) 
     if not commit_node.commit_time:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
-        logger.info(f"Auto commiting to branch '{branch}' before checkout as currently at head node.")
+        logger.info(
+            f"Auto commiting to branch '{branch}' before checkout as currently at head node."
+        )
         commit(
             version_state,
             storage,
