@@ -1,5 +1,4 @@
 import hub
-from hub.core.dataset import dataset_factory
 from hub.util.dataset import try_flushing
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
@@ -30,7 +29,7 @@ def get_dataset_with_zero_size_cache(ds):
     try_flushing(ds)
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
-    return dataset_factory(
+    return hub.core.dataset.dataset_factory(
         path=ds.path,
         storage=zero_cache_storage,
         index=ds.index,
