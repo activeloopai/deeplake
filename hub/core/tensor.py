@@ -210,7 +210,7 @@ class Tensor:
         if not self.index.values[0].subscriptable():
             return self.chunk_engine.read_shape_for_sample(self.index.values[0].value)
         else:
-            return self.shape_interval.astuple()[1:]
+            return self.shape_interval.astuple()
 
     @property
     def ndim(self) -> int:

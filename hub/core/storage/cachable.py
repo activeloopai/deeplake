@@ -28,6 +28,7 @@ class Cachable(ABC):
 
     # sortkeys / indent make the json more human readable
     def tobytes(self) -> bytes:
+        print("======")
         return bytes(
             json.dumps(
                 {str(k): v for k, v in self.__getstate__().items()},

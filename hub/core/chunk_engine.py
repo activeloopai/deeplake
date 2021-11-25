@@ -727,6 +727,7 @@ class ChunkEngine:
         chunk = self.get_chunk_for_sample(global_sample_index, enc)
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
+        shape = tuple(map(int, shape))
         return shape
 
     def read_sample_from_chunk(
