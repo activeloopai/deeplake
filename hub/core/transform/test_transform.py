@@ -532,6 +532,7 @@ def test_inplace_transform_without_commit(local_ds_generator):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
 
+
 def test_inplace_transform_non_head(local_ds_generator):
     ds = local_ds_generator()
     with ds:
@@ -566,7 +567,7 @@ def test_inplace_transform_non_head(local_ds_generator):
         assert len(ds) == 100
         for i in range(100):
             check_target_array(ds, i, 1)
-        
+
         ds.checkout("main")
         assert len(ds) == 150
         for i in range(150):
