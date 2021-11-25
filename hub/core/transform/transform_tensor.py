@@ -30,6 +30,8 @@ class TransformTensor:
         return value
 
     def __len__(self) -> int:
+        if not self.slice_list:
+            return len(self.items)
         if self.length is None:
             self.numpy_compressed()  # calculates and sets length
         return self.length  # type: ignore
@@ -43,6 +45,8 @@ class TransformTensor:
 
     def append(self, item):
         """Adds an item to the tensor."""
+        if self.slice_list:
+            raise Exception("Cannot append to a tensor slice.")
         if not isinstance(item, Sample):
             item = np.asarray(item)
             if self.items:
