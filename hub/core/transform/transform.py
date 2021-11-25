@@ -31,7 +31,7 @@ import time
 import threading
 import sys
 
-from hub.util.version_control import load_meta
+from hub.util.version_control import auto_checkout, load_meta
 
 
 class TransformFunction:
@@ -126,6 +126,8 @@ class Pipeline:
         target_ds = ds_out or data_in
         check_transform_ds_out(target_ds, scheduler)
         target_ds.flush()
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(target_ds.version_state, target_ds.storage)
 
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
@@ -205,7 +207,7 @@ class Pipeline:
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
         storage = get_base_storage(target_ds.storage)
-        group_index = target_ds.group_index
+        group_index = target_ds.group_index  # type: ignore
         version_state = target_ds.version_state
 
         tensors = list(target_ds.tensors)
