@@ -15,13 +15,13 @@ import hub
 
 # TODO progressbar is disabled while running tests on mac for now
 if sys.platform == "darwin":
-    defs = hub.core.transform.transform.Pipeline.eval.__defaults__
+    defs = hub.core.transform.transform.Pipeline.eval.__defaults__  # type: ignore
     defs = defs[:-1] + (False,)
-    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs
+    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs  # type: ignore
 
-    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__
+    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__  # type: ignore
     defs = defs[:-1] + (False,)
-    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs
+    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs  # type: ignore
 
 
 # github actions can only support 2 workers
