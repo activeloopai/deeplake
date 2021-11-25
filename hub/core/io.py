@@ -9,7 +9,7 @@ from numpy import array as nparray
 
 
 from hub.constants import MB
-from hub.core.chunk import Chunk
+from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
@@ -215,15 +215,16 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
+                chunk_class = engine.chunk_class
                 try:
                     c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
-                    chunk: Chunk
+                    chunk: BaseChunk
 
                     if self.local_caches is not None:
                         local_cache = self.local_caches[key]
 
                         if c_key in local_cache:
-                            chunk = local_cache.get_cachable(c_key, Chunk)  # type: ignore
+                            chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
                         else:
                             chunk = engine.get_chunk(c_key)
                             local_cache[c_key] = chunk
