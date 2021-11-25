@@ -362,7 +362,7 @@ class ChunkEngine:
             else:
                 enc.register_samples(num_samples_added)
                 samples = samples[num_samples_added:]
-        
+
         self.commit_diff.add_data(indexes_added)
 
         for chunk in updated_chunks:

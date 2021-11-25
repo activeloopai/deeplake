@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -100,11 +100,19 @@ def display_changes(changes: Dict, message: Optional[str], separator: str):
 
     for tensor, change in changes.items():
         if tensor != "tensors_created" and change:
-            print(f"Changes in Tensor {tensor}:")
-            if change["data_added"]:
-                print(f"* Added indexes: {change['data_added']}")
-            if change["data_updated"]:
-                print(f"* Updated indexes: {change['data_updated']}")
+            print(f"Tensor {tensor}:")
+            data_added = change["data_added"]
+            data_updated = change["data_updated"]
+            if data_added:
+                num_samples = len(data_added)
+                range_intervals = compress_into_range_intervals(data_added)
+                output = range_interval_list_to_string(range_intervals)
+                print(f"* Added {num_samples} samples  : {output}")
+            if data_updated:
+                num_samples = len(data_updated)
+                range_intervals = compress_into_range_intervals(data_updated)
+                output = range_interval_list_to_string(range_intervals)
+                print(f"* Updated {num_samples} samples: {output}")
             print()
 
 
@@ -138,3 +146,60 @@ def create_changes_dict() -> Dict[str, Any]:
     changes: Dict[str, Any] = defaultdict(lambda: defaultdict(set))
     changes["tensors_created"] = set()
     return changes
+
+
+def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
+    """Compresses the indexes into range intervals.
+    Examples:
+        compress_into_range_intervals({1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+        >> [(1, 10)]
+        compress_into_range_intervals({1,2,3,5,6,8,10})
+        >> [(1, 3), (5, 6), (8,8), (10,10)]
+
+    Args:
+        indexes (Set[int]): The indexes to compress.
+
+    Returns:
+        List[Tuple[int, int]]: The compressed range intervals.
+    """
+
+    if not indexes:
+        return []
+
+    sorted_indexes = sorted(indexes)
+    compressed_indexes: List[Tuple[int, int]] = []
+    start = sorted_indexes[0]
+    end = sorted_indexes[0]
+    for index in sorted_indexes[1:]:
+        if index != end + 1:
+            compressed_indexes.append((start, end))
+            start = index
+        end = index
+    compressed_indexes.append((start, end))
+    return compressed_indexes
+
+
+def range_interval_list_to_string(range_intervals: List[Tuple[int, int]]) -> str:
+    """Converts the range intervals to a string.
+
+    Examples:
+        range_interval_list_to_string([(1, 10)])
+        >>"1-10"
+        range_interval_list_to_string([(1, 3), (5, 6), (8, 8) (10, 10)])
+        >>"1-3, 5-6, 8, 10"
+
+    Args:
+        range_intervals (List[Tuple[int, int]]): The range intervals to convert.
+
+    Returns:
+        str: The string representation of the range intervals.
+    """
+    if not range_intervals:
+        return ""
+    output = ""
+    for start, end in range_intervals:
+        if start == end:
+            output += f"{start}, "
+        else:
+            output += f"{start}-{end}, "
+    return output[:-2]
