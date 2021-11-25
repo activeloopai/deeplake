@@ -240,7 +240,7 @@ def _serialize_input_sample(
         elif sample.meta.sample_compression == sample_compression:
             # Pass through
             try:
-                return sample.tobytes(), sample.shape
+                return sample.tobytes(), sample.shape  # type: ignore
             except ValueError:  # Slice of sample
                 sample = sample.numpy()
         else:

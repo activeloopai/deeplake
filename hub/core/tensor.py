@@ -208,7 +208,7 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         if not self.index.values[0].subscriptable():
-            return self.chunk_engine.read_shape_for_sample(self.index.values[0].value)
+            return self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
         else:
             return self.shape_interval.astuple()
 

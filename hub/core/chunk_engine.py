@@ -508,7 +508,10 @@ class ChunkEngine:
         chunk.key = chunk_key
         return chunk
 
-    def extend(self, samples: Union[np.ndarray, Sequence[SampleValue], "Tensor"]):
+    def extend(
+        self,
+        samples: Union[np.ndarray, Sequence[SampleValue], "hub.core.tensor.Tensor"],
+    ):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         self.cache.check_readonly()
