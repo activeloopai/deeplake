@@ -89,31 +89,35 @@ def display_changes(changes: Dict, message: Optional[str], separator: str):
     print(message)
     tensors_created = changes["tensors_created"]
     del changes["tensors_created"]
-    if tensors_created:
-        print("Tensors created:")
-        for tensor in tensors_created:
-            print(f"* {tensor}")
-        print()
-    elif not changes:
+    if not changes:
         print("No changes.\n")
         return
 
     for tensor, change in changes.items():
-        if tensor != "tensors_created" and change:
-            print(f"Tensor {tensor}:")
-            data_added = change["data_added"]
-            data_updated = change["data_updated"]
-            if data_added:
-                num_samples = len(data_added)
-                range_intervals = compress_into_range_intervals(data_added)
-                output = range_interval_list_to_string(range_intervals)
-                print(f"* Added {num_samples} samples  : {output}")
-            if data_updated:
-                num_samples = len(data_updated)
-                range_intervals = compress_into_range_intervals(data_updated)
-                output = range_interval_list_to_string(range_intervals)
-                print(f"* Updated {num_samples} samples: {output}")
-            print()
+        if tensor != "tensors_created":
+            if change:
+                print(tensor)
+                if tensor in tensors_created:
+                    print("* Created tensor")
+                data_added = change["data_added"]
+                data_updated = change["data_updated"]
+                if data_added:
+                    num_samples = len(data_added)
+                    range_intervals = compress_into_range_intervals(data_added)
+                    output = range_interval_list_to_string(range_intervals)
+                    sample_string = "sample" if num_samples == 1 else "samples"
+                    print(f"* Added {num_samples} {sample_string}: [{output}]")
+                if data_updated:
+                    num_samples = len(data_updated)
+                    range_intervals = compress_into_range_intervals(data_updated)
+                    output = range_interval_list_to_string(range_intervals)
+                    sample_string = "sample" if num_samples == 1 else "samples"
+                    print(f"* Updated {num_samples} {sample_string}: [{output}]")
+                print()
+            elif tensor in tensors_created:
+                print(tensor)
+                print("* Created tensor")
+                print()
 
 
 def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any]):
