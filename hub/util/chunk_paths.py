@@ -1,12 +1,12 @@
+from typing import List
 import hub
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.util.keys import get_chunk_key
 
 
-def get_chunk_paths(dataset: hub.Dataset):
+def get_chunk_paths(dataset: hub.Dataset, tensors: List[str]):
     commit_id = dataset.commit_id
     chunk_paths = set()
-    tensors = list(dataset.tensors)
     for tensor in tensors:
         chunk_engine = dataset[tensor].chunk_engine
         commit_chunk_set = chunk_engine.commit_chunk_set

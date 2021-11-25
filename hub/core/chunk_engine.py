@@ -134,7 +134,7 @@ class ChunkEngine:
                     compression=self.tensor_meta.chunk_compression,
                     dtype=self.tensor_meta.dtype,
                 )
-                if self.last_chunk
+                if self.last_chunk()
                 else []
             )
 
@@ -222,7 +222,6 @@ class ChunkEngine:
             return 0
         return self.chunk_id_encoder.num_samples
 
-    @property
     def last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
             return None
@@ -288,7 +287,7 @@ class ChunkEngine:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
             )
-        chunk = self.last_chunk
+        chunk = self.last_chunk()
         new_chunk = self._create_new_chunk
         if chunk is None:
             chunk = new_chunk()
@@ -352,7 +351,7 @@ class ChunkEngine:
 
         # Check if last chunk can hold new compressed buffer.
         if self._can_set_to_last_chunk(len(compressed_bytes)):
-            chunk = self.last_chunk
+            chunk = self.last_chunk()
         else:
             # Last chunk full, create new chunk
             chunk = self._create_new_chunk()
@@ -402,7 +401,7 @@ class ChunkEngine:
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         """Whether last chunk's data can be set to a buffer of size nbytes."""
-        last_chunk = self.last_chunk
+        last_chunk = self.last_chunk()
         if last_chunk is None:
             return False
         return nbytes <= self.min_chunk_size
@@ -452,7 +451,7 @@ class ChunkEngine:
             Last chunk if `buffer` was successfully written to the last chunk, otherwise False.
         """
 
-        last_chunk = self.last_chunk
+        last_chunk = self.last_chunk()
         if last_chunk is None:
             return False
 
