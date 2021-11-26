@@ -47,12 +47,7 @@ def commit(
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     save_version_info(version_state, storage)
-    copy_metas(
-        stored_commit_id,
-        version_state["commit_id"],
-        storage,
-        version_state["full_tensors"],
-    )
+    copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     load_meta(storage, version_state)
 
 
@@ -97,12 +92,7 @@ def checkout(
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
-        copy_metas(
-            original_commit_id,
-            new_commit_id,
-            storage,
-            version_state["full_tensors"],
-        )
+        copy_metas(original_commit_id, new_commit_id, storage, version_state)
     else:
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"
@@ -117,10 +107,13 @@ def checkout(
 
 
 def copy_metas(
-    src_commit_id: str, dest_commit_id: str, storage: LRUCache, tensors: Dict
+    src_commit_id: str,
+    dest_commit_id: str,
+    storage: LRUCache,
+    version_state: Dict[str, Any],
 ) -> None:
     """Copies meta data from one commit to another."""
-
+    tensors = version_state["full_tensors"]
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     src_dataset_meta = storage[src_dataset_meta_key]
@@ -134,10 +127,14 @@ def copy_metas(
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         src_dataset_info = storage[src_dataset_info_key]
         if isinstance(src_dataset_info, Cachable):
-            storage[dest_dataset_info_key] = src_dataset_info.copy()
+            new_info = src_dataset_info.copy()
+            new_info.initialize_callback_location(
+                dest_dataset_info_key, storage, version_state
+            )
+            storage[dest_dataset_info_key] = new_info
         else:
             storage[dest_dataset_info_key] = src_dataset_info
-    except (KeyError, CallbackInitializationError):
+    except KeyError:
         pass
 
     tensor_list = list(tensors.keys())
@@ -159,7 +156,7 @@ def copy_metas(
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
             else:
                 storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
-        except (KeyError, CallbackInitializationError):
+        except KeyError:
             pass
 
         try:
@@ -167,10 +164,14 @@ def copy_metas(
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
             if isinstance(src_tensor_info, Cachable):
-                storage[dest_tensor_info_key] = src_tensor_info.copy()
+                new_info = src_tensor_info.copy()
+                new_info.initialize_callback_location(
+                    dest_tensor_info_key, storage, version_state
+                )
+                storage[dest_tensor_info_key] = new_info
             else:
                 storage[dest_tensor_info_key] = src_tensor_info
-        except (KeyError, CallbackInitializationError):
+        except KeyError:
             pass
 
     storage.flush()
