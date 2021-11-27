@@ -41,6 +41,7 @@ from miniaudio import (  # type: ignore
     wav_get_info,
 )
 from numpy.core.fromnumeric import compress  # type: ignore
+from .pyffmpeg._pyffmpeg import ffi, lib
 import math
 
 
@@ -761,121 +762,25 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _strip_hub_mp4_header(buffer: bytes):
-    if buffer[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
-        return memoryview(buffer)[len(_HUB_MKV_HEADER) + 6 :]
-    return buffer
-
-
-def _decompress_video(
-    file: Union[bytes, memoryview, str],
-) -> np.ndarray:
-
+def _decompress_video(file, num_frames=None):
     shape = _read_video_shape(file)
-
-    command = [
-        ffmpeg_binary(),
-        "-i",
-        "pipe:",
-        "-f",
-        "image2pipe",
-        "-pix_fmt",
-        "rgb24",
-        "-vcodec",
-        "rawvideo",
-        "-",
-    ]
-    if isinstance(file, str):
-        command[2] = file
-        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
-        raw_video = pipe.communicate()[0]
-    else:
-        file = _strip_hub_mp4_header(file)
-        pipe = sp.Popen(
-            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
-        )
-        raw_video = pipe.communicate(input=file)[0]  # type: ignore
-    return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
-        shape
-    )
-
-
-def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    info = _get_video_info(file)
-    if info["duration"] is None:
-        nframes = -1
-    else:
-        nframes = math.floor(info["duration"] * info["rate"])
-    return (nframes, info["height"], info["width"], 3)
-
-
-def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
-    duration = None
-    command = [
-        ffprobe_binary(),
-        "-select_streams",
-        "v:0",
-        "-show_entries",
-        "stream=width,height,duration,r_frame_rate",
-        "-of",
-        "default=noprint_wrappers=1",
-        "pipe:",
-    ]
+    if num_frames:
+        shape = (num_frames, *shape[1:])
+    decompressed = ffi.new(f"unsigned char[{np.prod(shape)}]")
 
     if isinstance(file, str):
-        command[-1] = file
-        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
-        raw_info = pipe.stdout.read()  # type: ignore
-        raw_err = pipe.stderr.read()  # type: ignore
-        pipe.communicate()
-        duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])  # type: ignore
-        duration = to_seconds(duration)
+        lib.decompressVideo(file.encode("utf-8"), 0, decompressed, 0, shape[0])
     else:
-        if file[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
-            mv = memoryview(file)
-            n = len(_HUB_MKV_HEADER) + 2
-            duration = struct.unpack("f", mv[n : n + 4])[0]
-            file = mv[n + 4 :]
-        pipe = sp.Popen(
-            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
-        )
-        raw_info = pipe.communicate(input=file)[0]
-    ret = dict(
-        map(lambda kv: (bytes.decode(kv[0]), kv[1]), re.findall(INFO_RE, raw_info))
-    )
-    ret["width"] = int(ret["width"])
-    ret["height"] = int(ret["height"])
-    if "duration" in ret:
-        ret["duration"] = float(ret["duration"])
+        lib.decompressVideo(bytes(file), len(file), decompressed, 1, shape[0])
+
+    video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
+    return video
+
+
+def _read_video_shape(file):
+    shape = ffi.new("int[3]")
+    if isinstance(file, str):
+        lib.getVideoShape(file.encode("utf-8"), 0, shape, 0)
     else:
-        ret["duration"] = duration
-    ret["rate"] = float(eval(ret["rate"]))
-    return ret
-
-
-DURATION_RE = re.compile(rb"Duration: ([0-9:.]+),")
-
-
-def to_seconds(time):
-    return sum([60 ** i * float(j) for (i, j) in enumerate(time.split(":")[::-1])])
-
-
-def _to_hub_mkv(file: str):
-    command = [
-        ffmpeg_binary(),
-        "-i",
-        file,
-        "-codec",
-        "copy",
-        "-f",
-        "matroska",
-        "pipe:",
-    ]
-    pipe = sp.Popen(
-        command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
-    )
-    mkv, raw_info = pipe.communicate()
-    duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])  # type: ignore
-    duration = to_seconds(duration)
-    mkv = _HUB_MKV_HEADER + struct.pack("<Hf", 4, duration) + mkv
-    return mkv
+        lib.getVideoShape(bytes(file), len(file), shape, 1)
+    return (*shape, 3)
