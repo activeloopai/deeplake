@@ -219,7 +219,6 @@ class ChunkEngine:
     def last_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
-    @property
     def last_chunk(self) -> Optional[BaseChunk]:
         if self.num_chunks == 0:
             return None
@@ -307,9 +306,7 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        current_chunk = (
-            self.last_chunk if self.last_chunk is not None else self._create_new_chunk()
-        )
+        current_chunk = self.last_chunk() or self._create_new_chunk()
         updated_chunks = {current_chunk}
 
         enc = self.chunk_id_encoder
