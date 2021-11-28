@@ -364,7 +364,7 @@ def test_auto_commit(local_ds):
     assert local_ds.commit_id != current_commit_id
 
 
-def test_tensor_info(local_ds):
+def test_dataset_info(local_ds):
     assert len(local_ds.info) == 0
     local_ds.info.key = "value"
     assert len(local_ds.info) == 1
