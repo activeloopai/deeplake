@@ -57,10 +57,6 @@ class CommitDiff(Cachable):
         """Returns number of bytes required to store the commit diff"""
         return 17 + (len(self.data_added) + len(self.data_updated)) * 8
 
-    def create_tensor(self) -> None:
-        """If the tensor was"""
-        self.created = True
-
     def add_data(self, global_indexes: Set[int]) -> None:
         """Adds new indexes to data added"""
         self.data_added.update(global_indexes)

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -8,26 +8,23 @@ from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
 
 
 def compare_commits(
-    commit1: Optional[str],
-    commit2: Optional[str],
-    version_state: Dict[str, Any],
-    storage: LRUCache,
+    id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
 ) -> Tuple[dict, dict]:
     """Compares two commits and returns the differences.
 
     Args:
-        commit1 (str, optional): The first commit to compare.
-        commit2 (str, optional): The second commit to compare.
+        id_1 (str): The first commit_id or branch name.
+        id_2 (str): The second commit_id or branch name.
         version_state (dict): The version state.
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
         Tuple[dict, dict]: The changes made in the first commit and second commit respectively.
     """
-    check_commit_exists(commit1, version_state)
-    check_commit_exists(commit2, version_state)
-    commit_node_1: CommitNode = version_state["commit_node_map"][commit1]
-    commit_node_2: CommitNode = version_state["commit_node_map"][commit2]
+    id_1 = sanitize_commit(id_1, version_state)
+    id_2 = sanitize_commit(id_2, version_state)
+    commit_node_1: CommitNode = version_state["commit_node_map"][id_1]
+    commit_node_2: CommitNode = version_state["commit_node_map"][id_2]
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
     lca = version_state["commit_node_map"][lca_id]
 
@@ -46,16 +43,23 @@ def compare_commits(
     return changes_1, changes_2
 
 
-def check_commit_exists(commit_id: Optional[str], version_state: Dict[str, Any]):
-    """Checks if the commit id exists."""
-    if commit_id not in version_state["commit_node_map"]:
-        raise KeyError(f"Commit {commit_id} does not exist.")
+def sanitize_commit(id: str, version_state: Dict[str, Any]) -> str:
+    """Checks the id.
+    If it's a valid commit_id, it is returned.
+    If it's a branch name, the commit_id of the branch's head is returned.
+    Otherwise a ValueError is raised.
+    """
+    if id in version_state["commit_node_map"]:
+        return id
+    elif id in version_state["branch_commit_map"]:
+        return version_state["branch_commit_map"][id]
+    raise KeyError(f"The commit/branch {id} does not exist in the dataset.")
 
 
 def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
     """Returns the lowest common ancestor of two commits."""
     if p == q:
-        return p
+        return p.commit_id
 
     p_family = []
     q_family = set()

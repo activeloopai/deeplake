@@ -446,29 +446,43 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    def diff(
-        self, commit_id_1: Optional[str] = None, commit_id_2: Optional[str] = None
-    ):
+    def diff(self, id_1: Optional[str] = None, id_2: Optional[str] = None):
+        """Displays the differences between commits/branches.
+
+        Args:
+            id_1 (str, optional): The first commit_id or branch name.
+            id_2 (str, optional): The second commit_id or branch name.
+
+        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be displayed.
+        If only id_1 is provided, the differences between the current commit and id_1 will be displayed.
+        If only id_2 is provided, a ValueError will be raised.
+        If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be displayed.
+
+        Raises:
+            ValueError: If both id_1 is None and id_2 is not None.
+        """
         version_state, storage = self.version_state, self.storage
         message1 = message2 = changes1 = changes2 = None
 
-        if commit_id_1 is None and commit_id_2 is None:
+        if id_1 is None and id_2 is None:
             changes1 = create_changes_dict()
             commit_id = version_state["commit_id"]
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
             message1 = f"Diff in {commit_id} (current commit):\n"
         else:
-            if commit_id_2 is None:
-                commit1 = version_state["commit_id"]
-                commit2 = commit_id_1
+            if id_1 is None:
+                raise ValueError("Can't specify id_1 without specifying id_2")
+            elif id_2 is None:
+                commit1: str = version_state["commit_id"]
+                commit2 = id_1
                 message1 = f"Diff in {commit1} (current commit):\n"
-                message2 = f"Diff in {commit2} (target commit):\n"
+                message2 = f"Diff in {commit2} (target id):\n"
             else:
-                commit1 = commit_id_1
-                commit2 = commit_id_2
-                message1 = f"Diff in {commit1} (target commit 1):\n"
-                message2 = f"Diff in {commit2} (target commit 2):\n"
+                commit1 = id_1
+                commit2 = id_2
+                message1 = f"Diff in {commit1} (target id 1):\n"
+                message2 = f"Diff in {commit2} (target id 2):\n"
             changes1, changes2 = compare_commits(
                 commit1, commit2, version_state, storage
             )
