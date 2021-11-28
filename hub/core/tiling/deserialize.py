@@ -1,5 +1,7 @@
 import numpy as np
-from typing import Tuple, Union
+from typing import List, Tuple, Union
+from hub.core.chunk.base_chunk import BaseChunk
+from hub.core.meta.encode.tile import TileEncoder
 from hub.core.tiling.util import tile_bounds, validate_not_serialized, view  # type: ignore
 
 
@@ -37,3 +39,19 @@ def coalesce_tiles(
         sample_view[:] = tile
 
     return sample
+
+
+def combine_chunks(
+    chunks: List[BaseChunk], sample_index: int, tile_encoder: TileEncoder
+) -> np.array:
+    dtype = chunks[0].dtype
+    shape = tile_encoder.get_sample_shape(sample_index)
+    tile_shape = tile_encoder.get_tile_shape(sample_index)
+    layout_shape = tile_encoder.get_tile_layout_shape(sample_index)
+
+    # index is always 0 within a chunk for tiled samples
+    tiled_arrays = [chunk.read_sample(0) for chunk in chunks]
+    tiles = np.empty((len(chunks),), dtype=object)
+    tiles[:] = tiled_arrays[:]
+    tiles = np.reshape(tiles, layout_shape)
+    return coalesce_tiles(tiles, tile_shape, shape, dtype)

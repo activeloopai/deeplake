@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
-from hub.core.tiling.deserialize_tile import coalesce_tiles  # type: ignore
+from hub.core.tiling.deserialize import combine_chunks  # type: ignore
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
@@ -528,40 +528,17 @@ class ChunkEngine:
 
         for global_sample_index in index.values[0].indices(length):
             chunks = self.get_chunks_for_sample(global_sample_index)
+
             if len(chunks) == 1:
                 chunk = chunks[0]
-                local_sample_index = enc.translate_index_relative_to_chunks(
-                    global_sample_index
-                )
-                sample = chunk.read_sample(local_sample_index)
-                shape = sample.shape
-
-                if not aslist and last_shape is not None:
-                    if shape != last_shape:
-                        raise DynamicTensorNumpyError(self.key, index, "shape")
+                idx = enc.translate_index_relative_to_chunks(global_sample_index)
+                sample = chunk.read_sample(idx)
             else:
-                shape = self.tile_encoder.get_sample_shape(global_sample_index)
-                if not aslist and last_shape is not None:
-                    if shape != last_shape:
-                        raise DynamicTensorNumpyError(self.key, index, "shape")
-
-                tiled_arrays = []
-                for chunk in chunks:
-                    local_sample_index = 0
-                    arr = chunk.read_sample(local_sample_index)
-                    tiled_arrays.append(arr)
-
-                tile_shape = self.tile_encoder.get_tile_shape(global_sample_index)
-                tile_layout_shape = self.tile_encoder.get_tile_layout_shape(
-                    global_sample_index
-                )
-                tiles = np.empty((len(chunks),), dtype=object)
-                for i in range(len(chunks)):
-                    tiles[i] = tiled_arrays[i]
-                tiles = np.reshape(tiles, tile_layout_shape)
-                sample = coalesce_tiles(
-                    tiles, tile_shape, shape, self.tensor_meta.dtype
-                )
+                tile_enc = self.tile_encoder
+                sample = combine_chunks(chunks, global_sample_index, tile_enc)
+            shape = sample.shape
+            if not aslist:
+                check_sample_shape(shape, last_shape, self.key, index)
             samples.append(sample)
             last_shape = shape
         return _format_read_samples(samples, index, aslist)
@@ -689,3 +666,8 @@ def _warn_if_suboptimal_chunks(
                 "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
             )
             break
+
+
+def check_sample_shape(shape, last_shape, key, index):
+    if last_shape is not None and shape != last_shape:
+        raise DynamicTensorNumpyError(key, index, "shape")
