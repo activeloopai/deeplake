@@ -43,7 +43,7 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.diff import (
     compare_commits,
     create_changes_dict,
-    display_all_changes,
+    get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
 )
@@ -433,17 +433,17 @@ class Dataset:
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
-        logger.info("---------------\nHub Version Log\n---------------\n")
-        logger.info(f"Current Branch: {self.version_state['branch']}")
+        print("---------------\nHub Version Log\n---------------\n")
+        print(f"Current Branch: {self.version_state['branch']}")
         if not commit_node.children and commit_has_data(
             self.version_state, self.storage
         ):
-            logger.info("** There are uncommitted changes on this branch.\n")
+            print("** There are uncommitted changes on this branch.\n")
         else:
-            logger.info("\n")
+            print()
         while commit_node:
             if commit_node.commit_time is not None:
-                logger.info(f"{commit_node}\n")
+                print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
     def diff(
@@ -473,7 +473,8 @@ class Dataset:
                 commit1, commit2, version_state, storage
             )
 
-        display_all_changes(changes1, message1, changes2, message2)
+        all_changes = get_all_changes_string(changes1, message1, changes2, message2)
+        print(all_changes)
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
