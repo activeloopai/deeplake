@@ -35,7 +35,7 @@ class CommitDiff(Cachable):
         """Creates a CommitDiff object from bytes"""
         commit_diff = cls()
 
-        commit_diff.created = bool(int.from_bytes(data[0], "big"))
+        commit_diff.created = bool(int.from_bytes(data[0:1], "big"))
 
         added_ct = int.from_bytes(data[1:9], "big")
         commit_diff.data_added = {
