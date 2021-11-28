@@ -86,7 +86,7 @@ def get_all_changes_string(changes1, message1, changes2, message2):
     return "\n".join(all_changes)
 
 
-def get_changes_str(changes: Dict, message: Optional[str], separator: str):
+def get_changes_str(changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
     tensors_created = changes["tensors_created"]
