@@ -1,0 +1,24 @@
+name: Publish main to Docker Hub
+on:
+  push:
+    branches:
+      - main
+jobs:
+  publish-main-docker:
+    name: Publish main to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Pushing main to Docker Hub
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: bin/Dockerfile
+          push: true
+          tags: snarkai/hub:latest
