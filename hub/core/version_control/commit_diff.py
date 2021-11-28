@@ -11,13 +11,21 @@ class CommitDiff(Cachable):
         self.data_updated: Set[int] = set()
 
     def tobytes(self) -> bytes:
-        """Returns bytes representation of the commit diff"""
+        """Returns bytes representation of the commit diff
+
+        The format stores the following information in order:
+        1. The first byte is a boolean value indicating whether the tensor was created in the commit or not.
+        2. The next 8 bytes are the number of elements in the data_added set, let's call this n.
+        3. The next 8 * n bytes are the elements of the data_added set.
+        4. The next 8 bytes are the number of elements in the data_updated set, let's call this m.
+        5. The next 8 * m bytes are the elements of the data_updated set.
+        """
         return b"".join(
             [
                 self.created.to_bytes(1, "big"),
-                len(self.data_added).to_bytes(4, "big"),
+                len(self.data_added).to_bytes(8, "big"),
                 *[idx.to_bytes(8, "big") for idx in self.data_added],
-                len(self.data_updated).to_bytes(4, "big"),
+                len(self.data_updated).to_bytes(8, "big"),
                 *[idx.to_bytes(8, "big") for idx in self.data_updated],
             ]
         )
@@ -26,32 +34,28 @@ class CommitDiff(Cachable):
     def frombuffer(cls, data: bytes) -> "CommitDiff":
         """Creates a CommitDiff object from bytes"""
         commit_diff = cls()
-        commit_diff.created = bool(int.from_bytes(data[0:1], "big"))
-        data_added_ct = int.from_bytes(data[1:5], "big")
-        data_added_indexes = [
-            int.from_bytes(data[5 + i * 8 : 5 + (i + 1) * 8], "big")
-            for i in range(data_added_ct)
-        ]
-        commit_diff.data_added = set(data_added_indexes)
-        data_updated_ct = int.from_bytes(
-            data[5 + data_added_ct * 8 : 9 + data_added_ct * 8], "big"
-        )
-        data_updated_indexes = [
-            int.from_bytes(
-                data[
-                    9 + data_added_ct * 8 + i * 8 : 9 + data_added_ct * 8 + (i + 1) * 8
-                ],
-                "big",
-            )
-            for i in range(data_updated_ct)
-        ]
-        commit_diff.data_updated = set(data_updated_indexes)
+
+        commit_diff.created = bool(int.from_bytes(data[0], "big"))
+
+        added_ct = int.from_bytes(data[1:9], "big")
+        commit_diff.data_added = {
+            int.from_bytes(data[9 + i * 8 : 9 + (i + 1) * 8], "big")
+            for i in range(added_ct)
+        }
+
+        updated_ct = int.from_bytes(data[9 + added_ct * 8 : 17 + added_ct * 8], "big")
+        offset = 17 + added_ct * 8
+        commit_diff.data_updated = {
+            int.from_bytes(data[offset + i * 8 : offset + (i + 1) * 8], "big")
+            for i in range(updated_ct)
+        }
+
         return commit_diff
 
     @property
     def nbytes(self):
         """Returns number of bytes required to store the commit diff"""
-        return 1 + 4 + len(self.data_added) * 8 + 4 + len(self.data_updated) * 8
+        return 17 + (len(self.data_added) + len(self.data_updated)) * 8
 
     def create_tensor(self) -> None:
         """If the tensor was"""
