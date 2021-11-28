@@ -57,7 +57,6 @@ int getVideoShape(unsigned char *file, int ioBufferSize, int *shape, int isBytes
     avformat_close_input(&pFormatContext);
     if (isBytes == 1)
     {
-        av_free(ioBuffer);
         avio_context_free(&pioContext);
     }
     return 0;
@@ -145,8 +144,10 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
     av_packet_free(&pPacket);
     av_frame_free(&pFrame);
     avcodec_free_context(&pCodecContext);
-    av_free(ioBuffer);
-    avio_context_free(pioContext);
+    if (isBytes == 1)
+    {
+        avio_context_free(pioContext);
+    }
     return 0;
 }
 
