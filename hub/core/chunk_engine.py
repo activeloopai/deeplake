@@ -103,6 +103,7 @@ class ChunkEngine:
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
+        self._last_row = 0
         self.chunk_class = BaseChunk
 
         if self.tensor_meta.sample_compression:

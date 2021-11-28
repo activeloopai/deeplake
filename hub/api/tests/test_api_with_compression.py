@@ -1,4 +1,3 @@
-from hub.compression import get_compression_type
 from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,

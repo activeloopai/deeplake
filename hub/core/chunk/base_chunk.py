@@ -4,12 +4,7 @@ from typing import List, Optional, Tuple, Union
 import warnings
 
 import hub
-from hub.compression import (
-    BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
-    IMAGE_COMPRESSIONS,
-    get_compression_type,
-)
+from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSION, get_compression_type
 from hub.constants import CONVERT_GRAYSCALE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder

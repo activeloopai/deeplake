@@ -34,7 +34,6 @@ class UncompressedChunk(BaseChunk):
                 break
             buffer_size += sample_nbytes
             num_samples += 1
-
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
         self.data_bytes += samples.tobytes()
