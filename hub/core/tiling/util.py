@@ -35,19 +35,6 @@ def tile_bounds(
     return low, high
 
 
-def get_tile_shapes(tiles: np.ndarray) -> np.ndarray:
-    """Returns a numpy object array with the same shape as `tiles` where each value is a tuple representing each tiles respective shape.
-    Different from the overall `tile_shape`, these tile shapes may be smaller (especially for the corner tiles).
-    """
-
-    validate_not_serialized(tiles, "getting tile shapes")
-
-    tile_shapes = np.empty(tiles.shape, dtype=object)
-    for tile_coord, tile in np.ndenumerate(tiles):
-        tile_shapes[tile_coord] = tile.shape
-    return tile_shapes
-
-
 def view(
     sample: np.ndarray, low: Tuple[int, ...], high: Tuple[int, ...], step=1
 ) -> np.ndarray:

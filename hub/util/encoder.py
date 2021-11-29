@@ -121,7 +121,7 @@ def merge_all_tile_encoders(
             combine_tile_encoders(tile_encoder, current_tile_encoder, offset)
             offset += all_num_samples[i][tensor]
         tile_key = get_tensor_tile_encoder_key(tensor, commit_id)
-        storage[tile_key] = tile_encoder
+        storage[tile_key] = tile_encoder.tobytes()
     target_ds.flush()
 
 

@@ -51,7 +51,14 @@ def combine_chunks(
 
     # index is always 0 within a chunk for tiled samples
     tiled_arrays = [chunk.read_sample(0) for chunk in chunks]
-    tiles = np.empty((len(chunks),), dtype=object)
+    return np_list_to_sample(tiled_arrays, shape, tile_shape, layout_shape, dtype)
+
+
+def np_list_to_sample(
+    tiled_arrays: List[np.ndarray], shape, tile_shape, layout_shape, dtype
+) -> np.ndarray:
+    num_tiles = len(tiled_arrays)
+    tiles = np.empty((num_tiles,), dtype=object)
     tiles[:] = tiled_arrays[:]
     tiles = np.reshape(tiles, layout_shape)
     return coalesce_tiles(tiles, tile_shape, shape, dtype)
