@@ -33,15 +33,16 @@ class SampleCompressedChunk(BaseChunk):
                     num_samples += 0.5
                 break
             else:
-                if serialized_sample and isinstance(incoming_samples, List):
-                    incoming_samples[i] = Sample(
-                        buffer=serialized_sample,
-                        compression=self.compression,
-                        shape=shape,
-                    )
-
                 sample_nbytes = len(serialized_sample)
                 if not self.can_fit_sample(sample_nbytes):
+                    if serialized_sample and isinstance(incoming_samples, List):
+                        dtype = self.dtype if self.is_byte_compression else None
+                        incoming_samples[i] = Sample(
+                            buffer=serialized_sample,
+                            compression=self.compression,
+                            shape=shape,
+                            dtype=dtype,
+                        )
                     break
                 self.data_bytes += serialized_sample  # type: ignore
                 self.register_in_meta_and_headers(sample_nbytes, shape)

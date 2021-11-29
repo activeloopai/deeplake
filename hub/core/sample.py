@@ -39,6 +39,7 @@ class Sample:
         compression: str = None,
         verify: bool = False,
         shape: Tuple[int] = None,
+        dtype: Optional[str] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -54,12 +55,12 @@ class Sample:
             compression (str): Specify in case of byte buffer.
             verify (bool): If a path is provided, verifies the sample if True.
             shape (Tuple[int]): Shape of the sample.
+            dtype (str, optional): Data type of the sample.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
         """
-
-        if not any((path, array, buffer)):
+        if path is None and array is None and buffer is None:
             raise ValueError("Must pass one of `path`, `array` or `buffer`.")
 
         self._compressed_bytes = {}
@@ -68,6 +69,7 @@ class Sample:
         self._array = None
         self._typestr = None
         self._shape = shape or None
+        self._dtype = dtype or None
         self.path = None
         self._buffer = None
 
@@ -99,6 +101,8 @@ class Sample:
 
     @property
     def dtype(self):
+        if self._dtype:
+            return self._dtype
         self._read_meta()
         return np.dtype(self._typestr).name
 
@@ -227,7 +231,9 @@ class Sample:
                 buffer = self._buffer
                 if buffer is None:
                     buffer = self._compressed_bytes[compr]
-                self._array = decompress_array(buffer, compression=compr)
+                self._array = decompress_array(
+                    buffer, compression=compr, shape=self.shape, dtype=self.dtype
+                )
                 self._uncompressed_bytes = self._array.tobytes()
                 self._typestr = self._array.__array_interface__["typestr"]
             else:
