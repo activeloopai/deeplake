@@ -248,7 +248,6 @@ class ChunkEngine:
     def last_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
-    @property
     def last_chunk(self) -> Optional[BaseChunk]:
         if self.num_chunks == 0:
             return None
@@ -331,7 +330,7 @@ class ChunkEngine:
     def extend(self, samples):
         self._write_initialization()
         samples = self._sanitize_samples(samples)
-        current_chunk = self.last_chunk or self._create_new_chunk()
+        current_chunk = self.last_chunk() or self._create_new_chunk()
         updated_chunks = {current_chunk}
         enc = self.chunk_id_encoder
 

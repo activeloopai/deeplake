@@ -75,6 +75,23 @@ def filter_tr(sample_in, sample_out):
         sample_out.image.append(sample_in * np.ones((100, 100)))
 
 
+@hub.compute
+def inplace_transform(sample_in, samples_out):
+    samples_out.img.append(2 * sample_in.img.numpy())
+    samples_out.img.append(3 * sample_in.img.numpy())
+    samples_out.label.append(2 * sample_in.label.numpy())
+    samples_out.label.append(3 * sample_in.label.numpy())
+
+
+def check_target_array(ds, index, target):
+    np.testing.assert_array_equal(
+        ds.img[index].numpy(), target * np.ones((500, 500, 3))
+    )
+    np.testing.assert_array_equal(
+        ds.label[index].numpy(), target * np.ones((100, 100, 3))
+    )
+
+
 @all_schedulers
 @enabled_non_gcs_datasets
 def test_single_transform_hub_dataset(ds, scheduler):
@@ -449,3 +466,125 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     test_ds_out()
 
     data_in.delete()
+
+
+def test_inplace_transform(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        a = ds.commit()
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+        ds.checkout(a)
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
+
+
+def test_inplace_transform_without_commit(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+
+def test_inplace_transform_non_head(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+        a = ds.commit()
+        for _ in range(50):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+        ds.checkout(a)
+
+        # transforming non-head node
+        inplace_transform().eval(ds, num_workers=4)
+        b = ds.commit_id
+
+        assert len(ds) == 200
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+        ds.checkout(a)
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        ds.checkout("main")
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+    ds = local_ds_generator()
+    assert len(ds) == 150
+    for i in range(150):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(b)
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
