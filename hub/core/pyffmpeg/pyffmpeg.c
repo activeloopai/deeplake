@@ -1,15 +1,15 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
 
 static void logging(const char *fmt, ...);
-const int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context);
+static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos);
 int readFunc(void *opaque, uint8_t *buf, int buf_size);
-static void save_gray_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename);
 
 int getVideoShape(unsigned char *file, int ioBufferSize, int *shape, int isBytes)
 {
@@ -128,11 +128,14 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
     struct SwsContext *sws_context = NULL;
 
     int response = 0;
+    int bufpos = 0;
+    unsigned char *start = decompressed;
     while (av_read_frame(pFormatContext, pPacket) >= 0)
     {
         if (pPacket->stream_index == video_stream_index)
         {
-            decompressed += decode_packet(pPacket, pCodecContext, pFrame, &decompressed, &sws_context);
+            response = decode_video_packet(pPacket, pCodecContext, pFrame, &decompressed, &sws_context, &bufpos);
+            decompressed = start + bufpos;
             if (response < 0)
                 break;
             if (--n_packets < 0)
@@ -146,21 +149,24 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
     avcodec_free_context(&pCodecContext);
     if (isBytes == 1)
     {
-        avio_context_free(pioContext);
+        avio_context_free(&pioContext);
     }
     return 0;
 }
 
-const int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context)
+const int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos)
 {
     int response = avcodec_send_packet(pCodecContext, pPacket);
-    int inc = 0;
     while (response >= 0)
     {
         response = avcodec_receive_frame(pCodecContext, pFrame);
         if (response == AVERROR(EAGAIN) || response == AVERROR_EOF)
         {
             break;
+        }
+        else if (response < 0)
+        {
+            return response;
         }
 
         if (response >= 0)
@@ -170,11 +176,11 @@ const int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFram
             const int out_linesize[1] = {3 * width};
             (*sws_context) = sws_getCachedContext((*sws_context), width, height, pFrame->format, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
             sws_scale((*sws_context), (const uint8_t *const *)&pFrame->data, pFrame->linesize, 0, height, (uint8_t *const *)decompressed, out_linesize);
-            inc += height * width * 3;
+            *bufpos += height * width * 3;
         }
         break;
     }
-    return inc;
+    return 0;
 }
 
 int readFunc(void *opaque, uint8_t *buf, int buf_size)
@@ -191,16 +197,4 @@ static void logging(const char *fmt, ...)
     vfprintf(stderr, fmt, args);
     va_end(args);
     fprintf(stderr, "\n");
-}
-
-static void save_gray_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
-{
-    FILE *f;
-    int i;
-    f = fopen(filename, "w");
-    fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
-
-    for (i = 0; i < ysize; i++)
-        fwrite(buf + i * wrap, 1, xsize, f);
-    fclose(f);
 }
