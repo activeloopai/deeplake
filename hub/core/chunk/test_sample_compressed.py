@@ -1,5 +1,5 @@
 from hub.constants import MB, PARTIAL_NUM_SAMPLES
-from hub.core.chunk.uncompressed_chunk import UncompressedChunk
+from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 import numpy as np
 import pytest
 
@@ -12,7 +12,7 @@ from hub.core.tiling.deserialize import np_list_to_sample
 common_args = {
     "min_chunk_size": 16 * MB,
     "max_chunk_size": 32 * MB,
-    "compression": None,
+    "compression": "lz4",
 }
 
 
@@ -29,12 +29,14 @@ def create_tensor_meta():
 def test_read_write_sequence():
     common_args["tensor_meta"] = create_tensor_meta()
     data_in = [np.random.rand(500, 500).astype("float64") for _ in range(10)]
+    data_in2 = data_in.copy()
     while data_in:
-        chunk = UncompressedChunk(**common_args)
+        chunk = SampleCompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
         data_out = [chunk.read_sample(i) for i in range(num_samples)]
-        np.testing.assert_array_equal(data_out, data_in[:num_samples])
+        np.testing.assert_array_equal(data_out, data_in2[:num_samples])
         data_in = data_in[num_samples:]
+        data_in2 = data_in2[num_samples:]
 
 
 def test_read_write_sequence_big(cat_path):
@@ -52,7 +54,7 @@ def test_read_write_sequence_big(cat_path):
     original_length = len(data_in)
 
     while data_in:
-        chunk = UncompressedChunk(**common_args)
+        chunk = SampleCompressedChunk(**common_args)
         num_samples = chunk.extend_if_has_space(data_in)
         if num_samples == PARTIAL_NUM_SAMPLES:
             tiles.append(chunk.read_sample(0))
@@ -70,6 +72,7 @@ def test_read_write_sequence_big(cat_path):
                 np.testing.assert_array_equal(full_data_out, data_in2[index])
                 data_in = data_in[1:]
                 tiles = []
+
         elif num_samples > 0:
             data_out = [chunk.read_sample(i) for i in range(num_samples)]
             for i, item in enumerate(data_out):
@@ -79,41 +82,10 @@ def test_read_write_sequence_big(cat_path):
             data_in = data_in[num_samples:]
 
 
-def test_read_write_numpy():
-    common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(10, 500, 500).astype("float64")
-    while len(data_in) > 0:
-        chunk = UncompressedChunk(**common_args)
-        num_samples = int(chunk.extend_if_has_space(data_in))
-        data_out = np.array([chunk.read_sample(i) for i in range(num_samples)])
-        if num_samples > 0:
-            np.testing.assert_array_equal(data_out, data_in[:num_samples])
-        data_in = data_in[num_samples:]
-
-
-def test_read_write_numpy_big():
-    common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(2, 3000, 3000, 3).astype("float64")
-    prev_num_samples = None
-    with pytest.raises(ValueError):
-        while len(data_in) > 0:
-            chunk = UncompressedChunk(**common_args)
-            num_samples = int(chunk.extend_if_has_space(data_in))
-            if num_samples == 0 and prev_num_samples == 0:
-                raise ValueError(
-                    "Unexpected, bigger numpy arrays should be sent as sequence to chunk"
-                )
-            data_out = np.array([chunk.read_sample(i) for i in range(num_samples)])
-            if num_samples > 0:
-                np.testing.assert_array_equal(data_out, data_in[:num_samples])
-            data_in = data_in[num_samples:]
-            prev_num_samples = num_samples
-
-
 def test_update():
     common_args["tensor_meta"] = create_tensor_meta()
     data_in = np.random.rand(7, 500, 500).astype("float64")
-    chunk = UncompressedChunk(**common_args)
+    chunk = SampleCompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
 
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
