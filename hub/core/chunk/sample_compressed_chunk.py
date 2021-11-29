@@ -6,7 +6,6 @@ from hub.core.sample import Sample  # type: ignore
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
-    check_sample_size,
 )
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from .base_chunk import BaseChunk, InputSample
@@ -25,6 +24,7 @@ class SampleCompressedChunk(BaseChunk):
             )
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
+
             if isinstance(serialized_sample, SampleTiles):
                 if isinstance(incoming_samples, List):
                     incoming_samples[i] = serialized_sample
@@ -33,15 +33,14 @@ class SampleCompressedChunk(BaseChunk):
                     num_samples += 0.5
                 break
             else:
-                sample_nbytes = len(serialized_sample)
-                check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
                 if serialized_sample and isinstance(incoming_samples, List):
-                    # optimization so that even if this sample doesn't fit, it isn't recompressed next time we try
                     incoming_samples[i] = Sample(
                         buffer=serialized_sample,
                         compression=self.compression,
                         shape=shape,
                     )
+
+                sample_nbytes = len(serialized_sample)
                 if not self.can_fit_sample(sample_nbytes):
                     break
                 self.data_bytes += serialized_sample  # type: ignore

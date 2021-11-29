@@ -30,6 +30,7 @@ class ChunkCompressedChunk(BaseChunk):
     ) -> float:
         num_samples: float = 0
         buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()
+
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
                 incoming_sample,
@@ -38,20 +39,19 @@ class ChunkCompressedChunk(BaseChunk):
             )
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
+
             if isinstance(serialized_sample, SampleTiles):
                 if isinstance(incoming_samples, List):
                     incoming_samples[i] = serialized_sample
                 if self.is_empty:
                     self.write_tile(serialized_sample)
                     num_samples += 0.5
-                    self._decompressed_bytes = (
-                        serialized_sample.yield_uncompressed_tile().tobytes()
-                    )
+                    tile = serialized_sample.yield_uncompressed_tile()
+                    self._decompressed_bytes = tile.tobytes()
                 break
             else:
                 sample_nbytes = len(serialized_sample)
                 buffer += serialized_sample
-                # TODO: optimize this
                 compressed_bytes = compress_bytes(buffer, self.compression)
                 if len(compressed_bytes) > self.min_chunk_size:
                     break
@@ -67,14 +67,14 @@ class ChunkCompressedChunk(BaseChunk):
     ) -> float:
         num_samples: float = 0
         buffer_list = self.decompressed_samples if self.data_bytes else []
+
         for i, incoming_sample in enumerate(incoming_samples):
             if isinstance(incoming_sample, SampleTiles):
                 if self.is_empty:
                     self.write_tile(incoming_sample, skip_bytes=True)
                     num_samples += 0.5
-                    self._decompressed_samples = (
-                        incoming_sample.yield_uncompressed_tile()
-                    )
+                    tile = incoming_sample.yield_uncompressed_tile()
+                    self._decompressed_samples = tile
                 break
 
             incoming_sample = intelligent_cast(incoming_sample, self.dtype, self.htype)
@@ -84,7 +84,6 @@ class ChunkCompressedChunk(BaseChunk):
             check_sample_shape(shape, self.num_dims)
             buffer_list.append(incoming_sample)
 
-            # TODO: optimize this
             compressed_bytes = compress_multiple(buffer_list, self.compression)
 
             if len(compressed_bytes) > self.min_chunk_size:
@@ -120,9 +119,8 @@ class ChunkCompressedChunk(BaseChunk):
         """Applicable only for chunks compressed using a byte compression. Returns the contents of the chunk as a decompressed buffer."""
         if self._decompressed_bytes is None:
             try:
-                self._decompressed_bytes = decompress_bytes(
-                    self.data_bytes, self.compression
-                )
+                data = decompress_bytes(self.data_bytes, self.compression)
+                self._decompressed_bytes = data
             except SampleDecompressionError:
                 raise ValueError(
                     "Chunk.decompressed_bytes can not be called on chunks compressed with image compressions. Use Chunk.get_samples() instead."

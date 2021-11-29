@@ -232,17 +232,6 @@ def check_sample_shape(shape, num_dims):
         raise TensorInvalidSampleShapeError(shape, num_dims)
 
 
-def check_sample_size(
-    num_bytes: int, min_chunk_size: int, sample_compression: Optional[str]
-):
-    """Raises an error if the sample size is too large."""
-    if num_bytes > min_chunk_size:
-        msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
-        if sample_compression is None:
-            msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-        raise NotImplementedError(msg)
-
-
 def text_to_bytes(sample, dtype, htype):
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):

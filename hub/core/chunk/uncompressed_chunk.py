@@ -55,7 +55,7 @@ class UncompressedChunk(BaseChunk):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
-            
+
             if isinstance(serialized_sample, SampleTiles) and isinstance(
                 incoming_samples, List
             ):
