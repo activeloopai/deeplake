@@ -20,7 +20,7 @@ class UncompressedChunk(BaseChunk):
         return self._extend_if_has_space_sequence(incoming_samples)
 
     def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
-        num_samples: float = 0
+        num_samples: int = 0
         buffer_size = 0
 
         for sample in incoming_samples:
@@ -44,7 +44,7 @@ class UncompressedChunk(BaseChunk):
             for _ in range(num_samples):
                 self.register_in_meta_and_headers(sample_nbytes, shape)
 
-        return num_samples
+        return float(num_samples)
 
     def _extend_if_has_space_sequence(
         self, incoming_samples: Sequence[InputSample]

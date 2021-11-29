@@ -2,9 +2,9 @@ import os
 import io
 import pytest
 import numpy as np
-from PIL import Image
+from PIL import Image  # type: ignore
 
-from hub.core.tiling.optimizer import get_tile_shape
+from hub.core.tiling.optimizer import get_tile_shape  # type: ignore
 
 
 def test_tile_shape():

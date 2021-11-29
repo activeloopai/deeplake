@@ -3,7 +3,7 @@ import numpy as np
 import gzip
 
 from hub.core.tiling.serialize import break_into_tiles, serialize_tiles  # type: ignore
-from hub.core.tiling.deserialize import coalesce_tiles, np_list_to_sample
+from hub.core.tiling.deserialize import coalesce_tiles, np_list_to_sample  # type: ignore
 
 
 def _get_arange_sample(shape: Tuple[int, ...]) -> np.ndarray:

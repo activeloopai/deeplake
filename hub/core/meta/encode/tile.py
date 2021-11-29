@@ -3,7 +3,7 @@ import numpy as np
 from typing import Any, Dict, Tuple
 
 from hub.core.storage.cachable import Cachable
-from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 
 
 class TileEncoder(Cachable):

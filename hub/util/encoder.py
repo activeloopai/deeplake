@@ -105,7 +105,7 @@ def combine_chunk_id_encoders(
 def merge_all_tile_encoders(
     all_workers_tile_encoders: List[Dict[str, TileEncoder]],
     all_num_samples: List[Dict[str, int]],
-    target_ds: hub.core.dataset.Dataset,
+    target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
 ) -> None:
@@ -114,14 +114,17 @@ def merge_all_tile_encoders(
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
         chunk_engine = target_ds[rel_path].chunk_engine
-        offset = chunk_engine.num_samples
+        offset = 0 if overwrite else chunk_engine.num_samples
         tile_encoder = None if overwrite else chunk_engine.tile_encoder
         for i, current_worker_tile_encoder in enumerate(all_workers_tile_encoders):
             current_tile_encoder = current_worker_tile_encoder[tensor]
-            combine_tile_encoders(tile_encoder, current_tile_encoder, offset)
+            if tile_encoder is None:
+                tile_encoder = current_tile_encoder
+            else:
+                combine_tile_encoders(tile_encoder, current_tile_encoder, offset)
             offset += all_num_samples[i][tensor]
         tile_key = get_tensor_tile_encoder_key(tensor, commit_id)
-        storage[tile_key] = tile_encoder.tobytes()
+        storage[tile_key] = tile_encoder.tobytes()  # type: ignore
     target_ds.flush()
 
 
