@@ -7,7 +7,6 @@ from hub.core.serialize import (
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk, InputSample
-import numpy as np
 
 
 class UncompressedChunk(BaseChunk):
