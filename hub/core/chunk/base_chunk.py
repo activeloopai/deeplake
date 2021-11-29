@@ -50,21 +50,24 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
+        self.version = hub.__version__
+
         self.data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
+
         self.tensor_meta = tensor_meta
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
         self.is_text_like = self.htype in {"json", "list", "text"}
+
         self.compression = compression
         compression_type = get_compression_type(compression)
         self.is_byte_compression = compression_type == BYTE_COMPRESSION
         self.is_image_compression = compression_type == IMAGE_COMPRESSION
-        self.version = hub.__version__
+        self.is_convert_candidate = self.htype == "image" or self.is_image_compression
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
-        self.is_convert_candidate = self.htype == "image" or self.is_image_compression
 
         if self.is_text_like and self.is_image_compression:
             raise ValueError("Can't use image compression with text data.")
@@ -142,7 +145,7 @@ class BaseChunk(Cachable):
 
     def _make_data_bytearray(self):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
-        # `_data` will be a `memoryview` if `frombuffer` is called.
+        # data_bytes will be a memoryview if frombuffer is called.
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
 

@@ -3,7 +3,6 @@ from typing import List, Sequence, Union
 from hub.core.serialize import (
     check_sample_shape,
     bytes_to_text,
-    check_sample_size,
 )
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
@@ -21,7 +20,7 @@ class UncompressedChunk(BaseChunk):
         return self._extend_if_has_space_sequence(incoming_samples)
 
     def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
-        num_samples = 0
+        num_samples: float = 0
         buffer_size = 0
 
         for sample in incoming_samples:
@@ -34,6 +33,7 @@ class UncompressedChunk(BaseChunk):
                 break
             buffer_size += sample_nbytes
             num_samples += 1
+
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
         self.data_bytes += samples.tobytes()
@@ -50,10 +50,12 @@ class UncompressedChunk(BaseChunk):
         self, incoming_samples: Sequence[InputSample]
     ) -> float:
         num_samples: float = 0
+
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
+            
             if isinstance(serialized_sample, SampleTiles) and isinstance(
                 incoming_samples, List
             ):
@@ -64,7 +66,6 @@ class UncompressedChunk(BaseChunk):
                 break
             else:
                 sample_nbytes = len(serialized_sample)
-                check_sample_size(sample_nbytes, self.min_chunk_size, self.compression)
                 if not self.can_fit_sample(sample_nbytes):
                     break
                 self.data_bytes += serialized_sample  # type: ignore
@@ -100,5 +101,4 @@ class UncompressedChunk(BaseChunk):
             local_sample_index, old_data, serialized_sample
         )
 
-        # update encoders and meta
         self.update_in_meta_and_headers(local_sample_index, new_nb, shape)
