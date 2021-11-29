@@ -1,7 +1,6 @@
 from hub.constants import MB, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 import numpy as np
-import pytest
 
 import hub
 from hub.core.meta.tensor_meta import TensorMeta
@@ -18,7 +17,7 @@ common_args = {
 
 def create_tensor_meta():
     tensor_meta = TensorMeta()
-    tensor_meta.dtype = "float64"
+    tensor_meta.dtype = "float32"
     tensor_meta.max_shape = None
     tensor_meta.min_shape = None
     tensor_meta.htype = None
@@ -27,8 +26,10 @@ def create_tensor_meta():
 
 
 def test_read_write_sequence():
-    common_args["tensor_meta"] = create_tensor_meta()
-    data_in = [np.random.rand(500, 500).astype("float64") for _ in range(10)]
+    tensor_meta = create_tensor_meta()
+    common_args["tensor_meta"] = tensor_meta
+    dtype = tensor_meta.dtype
+    data_in = [np.random.rand(1000, 500).astype(dtype) for _ in range(10)]
     data_in2 = data_in.copy()
     while data_in:
         chunk = SampleCompressedChunk(**common_args)
@@ -40,15 +41,17 @@ def test_read_write_sequence():
 
 
 def test_read_write_sequence_big(cat_path):
-    common_args["tensor_meta"] = create_tensor_meta()
+    tensor_meta = create_tensor_meta()
+    common_args["tensor_meta"] = tensor_meta
+    dtype = tensor_meta.dtype
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(3000, 3000, 3).astype("float64"))
+            data_in.append(np.random.rand(6000, 3000, 3).astype(dtype))
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
         else:
-            data_in.append(np.random.rand(500, 500, 3).astype("float64"))
+            data_in.append(np.random.rand(1000, 500, 3).astype(dtype))
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
@@ -67,7 +70,7 @@ def test_read_write_sequence_big(cat_path):
                     sample.sample_shape,
                     sample.tile_shape,
                     sample.tiles.shape,
-                    "float64",
+                    dtype,
                 )
                 np.testing.assert_array_equal(full_data_out, data_in2[index])
                 data_in = data_in[1:]
@@ -83,16 +86,18 @@ def test_read_write_sequence_big(cat_path):
 
 
 def test_update():
-    common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(7, 500, 500).astype("float64")
+    tensor_meta = create_tensor_meta()
+    common_args["tensor_meta"] = tensor_meta
+    dtype = tensor_meta.dtype
+    data_in = np.random.rand(7, 1000, 500).astype(dtype)
     chunk = SampleCompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
 
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.rand(700, 700).astype("float64")
-    data_5 = np.random.rand(3000, 3000).astype("float64")
+    data_3 = np.random.rand(1400, 700).astype(dtype)
+    data_5 = np.random.rand(6000, 3000).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)
