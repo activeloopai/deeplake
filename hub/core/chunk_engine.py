@@ -354,8 +354,9 @@ class ChunkEngine:
                     current_chunk = self._create_new_chunk()
                     updated_chunks.add(current_chunk)
             else:
-                enc.register_samples(int(num_samples_added))
-                samples = samples[num_samples_added:]
+                num = int(num_samples_added)
+                enc.register_samples(num)
+                samples = samples[num:]
 
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
