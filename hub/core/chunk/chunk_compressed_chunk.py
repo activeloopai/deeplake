@@ -41,7 +41,7 @@ class ChunkCompressedChunk(BaseChunk):
             if isinstance(serialized_sample, SampleTiles):
                 if isinstance(incoming_samples, List):
                     incoming_samples[i] = serialized_sample
-                if not self.data_bytes:
+                if self.is_empty:
                     self.write_tile(serialized_sample)
                     num_samples += 0.5
                     self._decompressed_bytes = (
@@ -69,7 +69,7 @@ class ChunkCompressedChunk(BaseChunk):
         buffer_list = self.decompressed_samples if self.data_bytes else []
         for i, incoming_sample in enumerate(incoming_samples):
             if isinstance(incoming_sample, SampleTiles):
-                if not self.data_bytes:
+                if self.is_empty:
                     self.write_tile(incoming_sample, skip_bytes=True)
                     num_samples += 0.5
                     self._decompressed_samples = (
@@ -88,7 +88,7 @@ class ChunkCompressedChunk(BaseChunk):
             compressed_bytes = compress_multiple(buffer_list, self.compression)
 
             if len(compressed_bytes) > self.min_chunk_size:
-                if not self.data_bytes and isinstance(incoming_samples, List):
+                if self.is_empty and isinstance(incoming_samples, List):
                     incoming_samples[i] = SampleTiles(
                         incoming_sample,
                         self.compression,

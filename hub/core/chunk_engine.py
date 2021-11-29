@@ -1,10 +1,8 @@
 import hub
-import warnings
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.tiling.deserialize import combine_chunks  # type: ignore
-from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
@@ -19,6 +17,13 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_node import CommitNode
 from hub.util.casting import get_dtype
+from hub.util.chunk_engine import (
+    check_samples_type,
+    make_sequence,
+    check_suboptimal_chunks,
+    format_read_samples,
+    check_sample_shape,
+)
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -28,9 +33,6 @@ from hub.util.keys import (
 )
 from hub.util.version_control import auto_checkout, commit_chunk_set_exists
 from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
-
-# used for warning the user if updating a tensor caused suboptimal chunks
-CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
 class ChunkEngine:
@@ -326,13 +328,6 @@ class ChunkEngine:
             samples = list(samples)
         return samples
 
-    def register_tiles(self, sample: SampleTiles):
-        if sample.registered:
-            return
-        ss, ts = sample.sample_shape, sample.tile_shape
-        self.tile_encoder.register_sample(self.num_samples - 1, ss, ts)
-        sample.registered = True
-
     def extend(self, samples):
         self._write_initialization()
         samples = self._sanitize_samples(samples)
@@ -343,17 +338,18 @@ class ChunkEngine:
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
-                if not current_chunk.data_bytes:
+                if current_chunk.is_empty:
                     msg = f"Sorry, some samples couldn't fit inside a single chunk of size {self.min_chunk_size}"
                     raise NotImplementedError(msg)
                 current_chunk = self._create_new_chunk()
                 updated_chunks.add(current_chunk)
 
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
-                if samples[0].is_first_write:
+                sample = samples[0]
+                if sample.is_first_write:
                     enc.register_samples(1)
-                if samples[0].is_last_write:
-                    self.register_tiles(samples[0])
+                if sample.is_last_write:
+                    self.tile_encoder.register_sample(sample, self.num_samples - 1)
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
@@ -427,8 +423,8 @@ class ChunkEngine:
         updated_chunks = set()
 
         index_length = index.length(self.num_samples)
-        samples = _make_sequence(samples, index_length)
-        chunks_nbytes_after_updates = []
+        samples = make_sequence(samples, index_length)
+        nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
@@ -445,17 +441,15 @@ class ChunkEngine:
 
             # only care about deltas if it isn't the last chunk
             if chunk.key != self.last_chunk_key:  # type: ignore
-                chunks_nbytes_after_updates.append(chunk.nbytes)
+                nbytes_after_updates.append(chunk.nbytes)
 
         # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
 
         self._write_finalization()
-
-        _warn_if_suboptimal_chunks(
-            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
-        )
+        chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
+        check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
 
     def _update_with_operator(
         self,
@@ -537,11 +531,10 @@ class ChunkEngine:
                 tile_enc = self.tile_encoder
                 sample = combine_chunks(chunks, global_sample_index, tile_enc)
             shape = sample.shape
-            if not aslist:
-                check_sample_shape(shape, last_shape, self.key, index)
+            check_sample_shape(shape, last_shape, self.key, index, aslist)
             samples.append(sample)
             last_shape = shape
-        return _format_read_samples(samples, index, aslist)
+        return format_read_samples(samples, index, aslist)
 
     def get_chunks_for_sample(
         self, global_sample_index: int, copy: bool = False
@@ -592,82 +585,3 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
-
-
-def _format_read_samples(
-    samples: List[np.ndarray], index: Index, aslist: bool
-) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepares samples being read from the chunk engine in the format the user expects."""
-
-    samples = index.apply(samples)  # type: ignore
-
-    if aslist and all(map(np.isscalar, samples)):
-        samples = [arr.item() for arr in samples]
-
-    samples = index.apply_squeeze(samples)  # type: ignore
-
-    if aslist:
-        return samples
-    else:
-        return np.array(samples)
-
-
-def check_samples_type(samples):
-    if not isinstance(samples, (List, np.ndarray)):
-        raise TypeError(f"Cannot extend with samples of type {type(samples)}")
-
-
-def _make_sequence(
-    samples: Union[np.ndarray, Sequence[InputSample], InputSample], index_length: int
-) -> Sequence[InputSample]:
-    """Make `samples` a sequence of `InputSample`s.
-
-    Args:
-        samples (Union[np.ndarray, Sequence[InputSample]]): Incoming samples to be made into a sequence.
-        index_length (int): Number of expected samples in the sequence.
-
-    Raises:
-        ValueError: If `index_length` is incompatible with the true length of `samples`.
-
-    Returns:
-        Sequence[InputSample]: Sequence of `InputSample`s with the same length as `index_length`.
-    """
-
-    if index_length == 1:
-        if hasattr(samples, "__len__"):
-            if len(samples) != 1:  # type: ignore
-                samples = [samples]
-        elif hasattr(samples, "shape"):
-            if len(samples.shape) > 0 and samples.shape[0] != 1:  # type: ignore
-                samples = [samples]
-        else:
-            samples = [samples]
-
-    if hasattr(samples, "__len__"):
-        if index_length != len(samples):  # type: ignore
-            raise ValueError(
-                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."  # type: ignore
-            )
-    else:
-        samples = [samples]
-
-    return samples  # type: ignore
-
-
-def _warn_if_suboptimal_chunks(
-    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
-):
-    upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
-    lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
-
-    for nbytes in chunks_nbytes_after_updates:
-        if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
-            warnings.warn(
-                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
-            )
-            break
-
-
-def check_sample_shape(shape, last_shape, key, index):
-    if last_shape is not None and shape != last_shape:
-        raise DynamicTensorNumpyError(key, index, "shape")

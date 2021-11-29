@@ -58,7 +58,7 @@ class UncompressedChunk(BaseChunk):
                 incoming_samples, List
             ):
                 incoming_samples[i] = serialized_sample
-                if not self.data_bytes:
+                if self.is_empty:
                     self.write_tile(serialized_sample)
                     num_samples += 0.5
                 break

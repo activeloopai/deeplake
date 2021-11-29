@@ -101,6 +101,10 @@ class BaseChunk(Cachable):
             return self.data_bytes
         return memoryview(self.data_bytes)
 
+    @property
+    def is_empty(self):
+        return self.num_data_bytes == 0
+
     def tobytes(self) -> memoryview:
         return serialize_chunk(
             self.version,

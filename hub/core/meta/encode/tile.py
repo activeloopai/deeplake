@@ -1,8 +1,9 @@
 import hub
 import numpy as np
-from hub.core.storage.cachable import Cachable
-
 from typing import Any, Dict, Tuple
+
+from hub.core.storage.cachable import Cachable
+from hub.core.tiling.sample_tiles import SampleTiles
 
 
 class TileEncoder(Cachable):
@@ -10,21 +11,18 @@ class TileEncoder(Cachable):
         self.entries = entries or {}
         self.version = hub.__version__
 
-    def register_sample(
-        self, idx: int, shape: Tuple[int, ...], tile_shape: Tuple[int, ...]
-    ):
+    def register_sample(self, sample: SampleTiles, idx: int):
         """Registers a new tiled sample into the encoder.
 
         Args:
+            sample: The sample to be registered.
             idx: The global sample index.
-            shape: The shape of the sample.
-            tile_shape: The shape of the tiles of the sample.
         """
-        # TODO: htype-based tile ordering?
-        self.entries[str(idx)] = {
-            "sample_shape": shape,
-            "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
-        }
+        if sample.registered:
+            return
+        ss, ts = sample.sample_shape, sample.tile_shape
+        self.entries[str(idx)] = {"sample_shape": ss, "tile_shape": ts}
+        sample.registered = True
 
     def __getitem__(self, global_sample_index: int):
         return self.entries[str(global_sample_index)]
