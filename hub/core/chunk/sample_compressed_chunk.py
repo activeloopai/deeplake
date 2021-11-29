@@ -73,7 +73,7 @@ class SampleCompressedChunk(BaseChunk):
     ):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(
-            new_sample, sample_compression=self.compression
+            new_sample, sample_compression=self.compression, break_into_tiles=False
         )
 
         self.check_shape_for_update(local_sample_index, shape)

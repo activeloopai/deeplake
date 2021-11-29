@@ -354,7 +354,7 @@ def serialize_sample_object(
         else:
             incoming_sample = compressed_bytes
     else:
-        incoming_sample = incoming_sample.array
+        incoming_sample = intelligent_cast(incoming_sample.array, dtype, htype)
         if incoming_sample.nbytes > min_chunk_size and break_into_tiles:
             incoming_sample = SampleTiles(
                 incoming_sample,

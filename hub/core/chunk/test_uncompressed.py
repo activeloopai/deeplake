@@ -19,7 +19,7 @@ common_args = {
 
 def create_tensor_meta():
     tensor_meta = TensorMeta()
-    tensor_meta.dtype = "uint8"
+    tensor_meta.dtype = "float64"
     tensor_meta.max_shape = None
     tensor_meta.min_shape = None
     tensor_meta.htype = None
@@ -29,7 +29,7 @@ def create_tensor_meta():
 
 def test_read_write_sequence():
     common_args["tensor_meta"] = create_tensor_meta()
-    data_in = [np.random.rand(500, 500).astype("uint8") for _ in range(10)]
+    data_in = [np.random.rand(500, 500).astype("float64") for _ in range(10)]
     while data_in:
         chunk = UncompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
@@ -38,16 +38,17 @@ def test_read_write_sequence():
         data_in = data_in[num_samples:]
 
 
-def test_read_write_sequence_big(cat_path):
+def test_read_write_sequence_big():
+    cat_path = "/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/images/cat.jpeg"
     common_args["tensor_meta"] = create_tensor_meta()
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(3000, 3000, 3).astype("uint8"))
+            data_in.append(np.random.rand(3000, 3000, 3).astype("float64"))
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
         else:
-            data_in.append(np.random.rand(500, 500, 3).astype("uint8"))
+            data_in.append(np.random.rand(500, 500, 3).astype("float64"))
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
@@ -64,7 +65,7 @@ def test_read_write_sequence_big(cat_path):
                     sample.sample_shape,
                     sample.tile_shape,
                     sample.tiles.shape,
-                    "uint8",
+                    "float64",
                 )
                 np.testing.assert_array_equal(full_data_out, data_in2[index])
                 data_in = data_in[1:]
@@ -81,9 +82,10 @@ def test_read_write_sequence_big(cat_path):
                 np.testing.assert_array_equal(item, data_in[i])
             data_in = data_in[num_samples:]
 
+
 def test_read_write_numpy():
     common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(10, 500, 500).astype("uint8")
+    data_in = np.random.rand(10, 500, 500).astype("float64")
     while len(data_in) > 0:
         chunk = UncompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
@@ -95,7 +97,7 @@ def test_read_write_numpy():
 
 def test_read_write_numpy_big():
     common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(2, 3000, 3000, 3).astype("uint8")
+    data_in = np.random.rand(2, 3000, 3000, 3).astype("float64")
     prev_num_samples = None
     with pytest.raises(ValueError):
         while len(data_in) > 0:
@@ -114,24 +116,22 @@ def test_read_write_numpy_big():
 
 def test_update():
     common_args["tensor_meta"] = create_tensor_meta()
-    data_in = np.random.rand(10, 500, 500).astype("uint8")
+    data_in = np.random.rand(7, 500, 500).astype("float64")
     chunk = UncompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
 
-    data_out = np.array([chunk.read_sample(i) for i in range(10)])
+    data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    chunk.update_sample(3, np.random.rand(700, 700).astype("uint8"))
-    chunk.update_sample(5, np.random.rand(3000, 3000).astype("uint8"))
-    for i in range(10):
+    data_3 = np.random.rand(700, 700).astype("float64")
+    data_5 = np.random.rand(3000, 3000).astype("float64")
+
+    chunk.update_sample(3, data_3)
+    chunk.update_sample(5, data_5)
+    for i in range(7):
         if i == 3:
-            np.testing.assert_array_equal(
-                chunk.read_sample(i), np.random.rand(700, 700).astype("uint8")
-            )
+            np.testing.assert_array_equal(chunk.read_sample(i), data_3)
         elif i == 5:
-            np.testing.assert_array_equal(
-                chunk.read_sample(i), np.random.rand(3000, 3000).astype("uint8")
-            )
+            np.testing.assert_array_equal(chunk.read_sample(i), data_5)
         else:
             np.testing.assert_array_equal(chunk.read_sample(i), data_in[i])
-

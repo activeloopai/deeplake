@@ -81,7 +81,6 @@ class UncompressedChunk(BaseChunk):
         if self.is_text_like:
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
-
         buffer = bytes(buffer) if copy else buffer
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
@@ -91,7 +90,9 @@ class UncompressedChunk(BaseChunk):
         new_sample: InputSample,
     ):
         self.prepare_for_write()
-        serialized_sample, shape = self.serialize_sample(new_sample)
+        serialized_sample, shape = self.serialize_sample(
+            new_sample, break_into_tiles=False
+        )
         self.check_shape_for_update(local_sample_index, shape)
         new_nb = len(serialized_sample)
 
