@@ -44,7 +44,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     entry_points={"console_scripts": ["activeloop = hub.cli.commands:cli"]},
-    setup_requires=[],
+    setup_requires=["cffi>=1.0.0"],
+    cffi_modules=["hub/core/pyffmpeg/build_ffmpeg_ffi.py:ffibuilder"],
     dependency_links=[],
     project_urls={
         "Documentation": "https://docs.activeloop.ai/",

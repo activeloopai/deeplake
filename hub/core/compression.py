@@ -41,7 +41,7 @@ from miniaudio import (  # type: ignore
     wav_get_info,
 )
 from numpy.core.fromnumeric import compress  # type: ignore
-from .pyffmpeg._pyffmpeg import ffi, lib
+from hub.core.pyffmpeg._pyffmpeg import lib, ffi
 import math
 
 

@@ -1,6 +1,11 @@
 from cffi import FFI
+import os
+
+from hub.core import pyffmpeg
 
 ffibuilder = FFI()
+
+pyffmpeg_include_dir = os.getcwd()
 
 ffibuilder.cdef(
     """
@@ -10,14 +15,15 @@ ffibuilder.cdef(
 )
 
 ffibuilder.set_source(
-    "_pyffmpeg",
+    "hub.core.pyffmpeg._pyffmpeg",
     """
     #include <libavcodec/avcodec.h>
     #include <libavformat/avformat.h>
     #include <libswscale/swscale.h>
-    #include "pyffmpeg.h"
+    #include "hub/core/pyffmpeg/pyffmpeg.h"
     """,
-    sources=["pyffmpeg.c"],
+    sources=["hub/core/pyffmpeg/pyffmpeg.c"],
+    include_dirs=[pyffmpeg_include_dir],
     libraries=["avcodec", "avformat", "swscale"],
 )
 
