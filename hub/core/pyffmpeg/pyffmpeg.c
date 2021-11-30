@@ -1,7 +1,6 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
-#include <libswresample/swresample.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
