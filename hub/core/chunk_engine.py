@@ -330,6 +330,8 @@ class ChunkEngine:
         return samples
 
     def extend(self, samples):
+        if len(samples) == 0:
+            return
         self._write_initialization()
         samples = self._sanitize_samples(samples)
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
