@@ -256,6 +256,8 @@ def test_warnings(memory_ds):
         {"sample_compression": None},
         {"sample_compression": "png"},
         {"chunk_compression": "png"},
+        {"sample_compression": "lz4"},
+        {"chunk_compression": "lz4"},
     ],
 )
 def test_inplace_updates(memory_ds, compression):

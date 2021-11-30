@@ -10,6 +10,7 @@ from hub.core.ipc import Client
 
 
 from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -91,7 +92,11 @@ def is_empty_transform_dataset(dataset: TransformDataset):
 
 def store_data_slice(
     transform_input: Tuple,
-) -> Tuple[Dict[str, TensorMeta], Dict[str, ChunkIdEncoder]]:
+) -> Tuple[
+    Dict[str, TensorMeta],
+    Dict[str, ChunkIdEncoder],
+    Dict[str, Optional[CommitChunkSet]],
+]:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
@@ -117,12 +122,14 @@ def store_data_slice(
     # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
+    all_chunk_sets = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
-    return all_tensor_metas, all_chunk_id_encoders
+        all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
+    return all_tensor_metas, all_chunk_id_encoders, all_chunk_sets
 
 
 def _transform_sample_and_update_chunk_engines(

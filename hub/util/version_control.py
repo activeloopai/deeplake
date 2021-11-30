@@ -53,6 +53,12 @@ def commit(
         storage,
         version_state["full_tensors"],
     )
+    discard_old_metas(
+        stored_commit_id,
+        storage,
+        version_state["full_tensors"],
+    )
+
     load_meta(storage, version_state)
 
 
@@ -86,7 +92,7 @@ def checkout(
         version_state["branch"] = version_state["commit_node"].branch
     elif create:
         storage.check_readonly()
-        # if the original commit is head of the branch and has data, auto commit and checkout to original commit before creating new branch
+        # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
@@ -233,14 +239,13 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 
 def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) -> None:
-    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has uncommitted data."""
+    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
     commit_node = version_state["commit_node"]
-    if not commit_node.commit_time and commit_has_data(version_state, storage):
-
+    if not commit_node.commit_time:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
         logger.info(
-            f"Auto commiting to branch '{branch}' as currently at head node with uncommitted changes."
+            f"Auto commiting to branch '{branch}' before checkout as currently at head node."
         )
         commit(
             version_state,
@@ -284,6 +289,12 @@ def load_meta(storage, version_state):
 
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_cachable(meta_key, DatasetMeta)
+
+    try:
+        # done to add the meta to dirty keys so it keeps on getting updated
+        storage[meta_key] = meta
+    except Exception:
+        pass
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
     _tensors = version_state["full_tensors"]

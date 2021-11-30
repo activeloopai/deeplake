@@ -224,10 +224,11 @@ def test_safe_downcasting(ds: Dataset):
     int_tensor.append(1)
     int_tensor.extend([2, 3, 4])
     int_tensor.extend([5, 6, np.uint8(7)])
+    int_tensor.append(np.zeros((0,), dtype="uint64"))
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(-8)
     int_tensor.append(np.array([1]))
-    assert len(int_tensor) == 9
+    assert len(int_tensor) == 10
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(np.array([1.0]))
 
@@ -660,6 +661,13 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
+    username = hub_cloud_path.split("/")[2]
+    # this dataset doesn't exist
+    new_path = f"hub://{username}/doesntexist123"
+    hub.delete(new_path, token=hub_cloud_dev_token, force=True)
 
 
 def test_invalid_tensor_name(memory_ds):
