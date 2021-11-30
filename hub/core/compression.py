@@ -762,7 +762,7 @@ def _read_audio_shape(
 
 
 def _decompress_video(file, num_frames=None):
-    from hub.core.pyffmpeg._pyffmpeg import lib, ffi
+    from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape(file)
     if num_frames:
@@ -779,7 +779,7 @@ def _decompress_video(file, num_frames=None):
 
 
 def _read_video_shape(file):
-    from hub.core.pyffmpeg._pyffmpeg import lib, ffi
+    from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = ffi.new("int[3]")
     if isinstance(file, str):

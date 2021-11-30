@@ -1,4 +1,4 @@
-from cffi import FFI
+from cffi import FFI  # type: ignore
 import os
 
 from hub.core import pyffmpeg
