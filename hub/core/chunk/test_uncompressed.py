@@ -5,8 +5,8 @@ import pytest
 
 import hub
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample
-from hub.core.tiling.deserialize import np_list_to_sample
+from hub.core.sample import Sample  # type: ignore
+from hub.core.tiling.deserialize import np_list_to_sample  # type: ignore
 
 
 common_args = {

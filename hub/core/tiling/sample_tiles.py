@@ -2,7 +2,7 @@ import numpy as np
 
 from hub.core.compression import compress_array
 from hub.core.tiling.optimizer import get_tile_shape  # type: ignore
-from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
+from hub.core.tiling.serialize import break_into_tiles, serialize_tiles  # type: ignore
 from hub.util.compression import get_compression_ratio  # type: ignore
 
 

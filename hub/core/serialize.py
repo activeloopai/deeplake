@@ -306,7 +306,7 @@ def serialize_numpy_and_base_types(
         if out.nbytes > min_chunk_size and break_into_tiles:
             out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)
         else:
-            out = out.tobytes()
+            out = out.tobytes()  # type: ignore
 
     else:
         ratio = get_compression_ratio(sample_compression)
@@ -316,7 +316,7 @@ def serialize_numpy_and_base_types(
             out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)
         else:
             compressed_bytes = compress_array(out, sample_compression)
-            out = compressed_bytes
+            out = compressed_bytes  # type: ignore
 
     return out, shape
 
@@ -336,7 +336,8 @@ def serialize_sample_object(
 
     out = incoming_sample
     if sample_compression:
-        is_byte_compression = get_compression_type(sample_compression) == BYTE_COMPRESSION
+        compression_type = get_compression_type(sample_compression)
+        is_byte_compression = compression_type == BYTE_COMPRESSION
         if is_byte_compression and out.dtype != dtype:
             # Byte compressions don't store dtype, need to cast to expected dtype
             arr = intelligent_cast(out.array, dtype, htype)
