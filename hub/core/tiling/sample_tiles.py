@@ -2,9 +2,8 @@ import numpy as np
 
 from hub.core.compression import compress_array
 from hub.core.tiling.optimizer import get_tile_shape  # type: ignore
-from hub.core.tiling.serialize import break_into_tiles, serialize_tiles  # type: ignore
-
-compression_ratios = {None: 1, "jpeg": 0.5, "png": 0.5, "webp": 0.5, "lz4": 0.5}
+from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
+from hub.util.compression import get_compression_ratio  # type: ignore
 
 
 class SampleTiles:
@@ -20,7 +19,7 @@ class SampleTiles:
         self.arr = arr
         self.compression = compression
         self.sample_shape = arr.shape
-        ratio = compression_ratios.get(compression, 0.5)
+        ratio = get_compression_ratio(compression)
         self.tile_shape = get_tile_shape(arr.shape, arr.nbytes * ratio, chunk_size, -1)
         tiles = break_into_tiles(arr, self.tile_shape)
         self.tiles = serialize_tiles(

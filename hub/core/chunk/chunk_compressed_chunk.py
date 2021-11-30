@@ -12,6 +12,7 @@ from hub.core.serialize import (
 )
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
+from hub.util.compression import get_compression_ratio
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
 
@@ -69,31 +70,40 @@ class ChunkCompressedChunk(BaseChunk):
         buffer_list = self.decompressed_samples if self.data_bytes else []
 
         for i, incoming_sample in enumerate(incoming_samples):
-            if isinstance(incoming_sample, SampleTiles):
-                if self.is_empty:
-                    self.write_tile(incoming_sample, skip_bytes=True)
-                    num_samples += 0.5
-                    tile = incoming_sample.yield_uncompressed_tile()
-                    self._decompressed_samples = tile
-                break
+            if not isinstance(incoming_sample, SampleTiles):
+                incoming_sample = intelligent_cast(
+                    incoming_sample, self.dtype, self.htype
+                )
+                shape = incoming_sample.shape
+                shape = self.normalize_shape(shape)
+                self.num_dims = self.num_dims or len(shape)
+                check_sample_shape(shape, self.num_dims)
 
-            incoming_sample = intelligent_cast(incoming_sample, self.dtype, self.htype)
-            shape = incoming_sample.shape
-            shape = self.normalize_shape(shape)
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
-            buffer_list.append(incoming_sample)
+                ratio = get_compression_ratio(self.compression)
+                approx_compressed_size = incoming_sample.nbytes * ratio
 
-            compressed_bytes = compress_multiple(buffer_list, self.compression)
-
-            if len(compressed_bytes) > self.min_chunk_size:
-                if self.is_empty and isinstance(incoming_samples, List):
-                    incoming_samples[i] = SampleTiles(
+                if approx_compressed_size > self.min_chunk_size:
+                    incoming_sample = SampleTiles(
                         incoming_sample,
                         self.compression,
                         self.min_chunk_size,
                         store_uncompressed_tiles=True,
                     )
+
+            if isinstance(incoming_sample, SampleTiles):
+                if isinstance(incoming_samples, List):
+                    incoming_samples[i] = incoming_sample
+                if self.is_empty:
+                    self.write_tile(incoming_sample)
+                    num_samples += 0.5
+                    tile = incoming_sample.yield_uncompressed_tile()
+                    self._decompressed_bytes = tile.tobytes()
+                break
+
+            buffer_list.append(incoming_sample)
+            compressed_bytes = compress_multiple(buffer_list, self.compression)
+            if len(compressed_bytes) > self.min_chunk_size:
+                buffer_list.pop()
                 break
 
             self.data_bytes = compressed_bytes
@@ -107,7 +117,7 @@ class ChunkCompressedChunk(BaseChunk):
     @property
     def decompressed_samples(self) -> List[np.ndarray]:
         """Applicable only for compressed chunks. Returns samples contained in this chunk as a list of numpy arrays."""
-        if not self._decompressed_samples:
+        if self._decompressed_samples is None:
             shapes = [
                 self.shapes_encoder[i] for i in range(self.shapes_encoder.num_samples)
             ]

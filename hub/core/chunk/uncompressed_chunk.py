@@ -1,9 +1,6 @@
 import numpy as np
 from typing import List, Sequence, Union
-from hub.core.serialize import (
-    check_sample_shape,
-    bytes_to_text,
-)
+from hub.core.serialize import check_sample_shape, bytes_to_text
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 from hub.util.casting import intelligent_cast
 from .base_chunk import BaseChunk, InputSample

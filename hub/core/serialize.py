@@ -1,5 +1,6 @@
 from hub.compression import BYTE_COMPRESSION, get_compression_type
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
+from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
@@ -312,8 +313,9 @@ def serialize_numpy_and_base_types(
         else:
             serialized_sample = incoming_sample.tobytes()
     else:
-        compressed_bytes = compress_array(incoming_sample, sample_compression)
-        if len(compressed_bytes) > min_chunk_size and break_into_tiles:
+        ratio = get_compression_ratio(sample_compression)
+        approx_compressed_size = incoming_sample.nbytes * ratio
+        if approx_compressed_size > min_chunk_size and break_into_tiles:
             serialized_sample = SampleTiles(
                 incoming_sample,
                 tile_compression,
@@ -321,6 +323,7 @@ def serialize_numpy_and_base_types(
                 store_uncompressed_tiles,
             )
         else:
+            compressed_bytes = compress_array(incoming_sample, sample_compression)
             serialized_sample = compressed_bytes
     return serialized_sample, shape
 
