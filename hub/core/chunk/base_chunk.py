@@ -130,17 +130,11 @@ class BaseChunk(Cachable):
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
-    def read_sample(
-        self, local_sample_index: int, cast: bool = True, copy: bool = False
-    ):
+    def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
         """Reads a sample from the chunk."""
 
     @abstractmethod
-    def update_sample(
-        self,
-        local_sample_index: int,
-        new_sample: InputSample,
-    ):
+    def update_sample(self, local_index: int, new_sample: InputSample):
         """Updates a sample in the chunk."""
 
     def _make_data_bytearray(self):
@@ -240,24 +234,22 @@ class BaseChunk(Cachable):
         self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
-        self, local_sample_index: int, sample_nbytes: Optional[int], shape
+        self, local_index: int, sample_nbytes: Optional[int], shape
     ):
         """Updates an existing sample in meta and headers"""
         if sample_nbytes is not None:
-            self.byte_positions_encoder[local_sample_index] = sample_nbytes
-        self.shapes_encoder[local_sample_index] = shape
+            self.byte_positions_encoder[local_index] = sample_nbytes
+        self.shapes_encoder[local_index] = shape
         self.tensor_meta.update_shape_interval(shape)
 
-    def check_shape_for_update(self, local_sample_index: int, shape):
+    def check_shape_for_update(self, local_index: int, shape):
         """Checks if the shape being assigned at the new index is valid."""
-        expected_dimensionality = len(self.shapes_encoder[local_sample_index])
+        expected_dimensionality = len(self.shapes_encoder[local_index])
         if expected_dimensionality != len(shape):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
-    def create_buffer_with_updated_data(
-        self, local_sample_index: int, old_data, new_sample_bytes: bytes
-    ):
-        old_start_byte, old_end_byte = self.byte_positions_encoder[local_sample_index]
+    def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
+        old_start_byte, old_end_byte = self.byte_positions_encoder[local_index]
         left_data = old_data[:old_start_byte]  # type: ignore
         right_data = old_data[old_end_byte:]  # type: ignore
 
