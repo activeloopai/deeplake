@@ -231,17 +231,9 @@ class ChunkCompressedChunk(BaseChunk):
         new_data_uncompressed = self.create_updated_data(
             local_index, decompressed_buffer, serialized_sample
         )
-<<<<<<< HEAD
         self.decompressed_bytes = new_data_uncompressed
         self._changed = True
-        self.update_in_meta_and_headers(local_sample_index, new_nb, shape)
-=======
-        self.data_bytes = bytearray(
-            compress_bytes(new_data_uncompressed, self.compression)
-        )
-        self._decompressed_bytes = new_data_uncompressed
         self.update_in_meta_and_headers(local_index, new_nb, shape)
->>>>>>> 944e1b399d6efa21949673bd627748b8bd691553
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
@@ -249,10 +241,40 @@ class ChunkCompressedChunk(BaseChunk):
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(local_index, shape)
         decompressed_samples = self.decompressed_samples
-<<<<<<< HEAD
+
         decompressed_samples[local_sample_index] = new_sample
         self._changed = True
         self.update_in_meta_and_headers(local_sample_index, None, shape)
+
+        decompressed_samples[local_index] = new_sample
+        self.data_bytes = bytearray(
+            compress_multiple(decompressed_samples, self.compression)
+        )
+        self.update_in_meta_and_headers(local_index, None, shape)
+
+    def process_sample_img_compr(self, sample):
+        if isinstance(sample, SampleTiles):
+            return sample, sample.tile_shape
+
+        sample = intelligent_cast(sample, self.dtype, self.htype)
+        shape = sample.shape
+        shape = self.normalize_shape(shape)
+        self.num_dims = self.num_dims or len(shape)
+        check_sample_shape(shape, self.num_dims)
+
+        ratio = get_compression_ratio(self.compression)
+        approx_compressed_size = sample.nbytes * ratio
+
+        if approx_compressed_size > self.min_chunk_size:
+            sample = SampleTiles(
+                sample,
+                self.compression,
+                self.min_chunk_size,
+                store_uncompressed_tiles=True,
+            )
+
+        return sample, shape
+
 
     def _compress(self):
         if self.is_byte_compression:
@@ -287,33 +309,3 @@ class ChunkCompressedChunk(BaseChunk):
 
     def prepare_for_write(self):
         ffw_chunk(self)
-=======
-        decompressed_samples[local_index] = new_sample
-        self.data_bytes = bytearray(
-            compress_multiple(decompressed_samples, self.compression)
-        )
-        self.update_in_meta_and_headers(local_index, None, shape)
-
-    def process_sample_img_compr(self, sample):
-        if isinstance(sample, SampleTiles):
-            return sample, sample.tile_shape
-
-        sample = intelligent_cast(sample, self.dtype, self.htype)
-        shape = sample.shape
-        shape = self.normalize_shape(shape)
-        self.num_dims = self.num_dims or len(shape)
-        check_sample_shape(shape, self.num_dims)
-
-        ratio = get_compression_ratio(self.compression)
-        approx_compressed_size = sample.nbytes * ratio
-
-        if approx_compressed_size > self.min_chunk_size:
-            sample = SampleTiles(
-                sample,
-                self.compression,
-                self.min_chunk_size,
-                store_uncompressed_tiles=True,
-            )
-
-        return sample, shape
->>>>>>> 944e1b399d6efa21949673bd627748b8bd691553
