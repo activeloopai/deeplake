@@ -8,7 +8,7 @@ from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
-        self.entries: Dict[int, Tuple[Tuple[int]]] = entries or {}
+        self.entries: Dict[int, Tuple[Tuple[int], Tuple[int]]] = entries or {}
         self.version = hub.__version__
 
     def register_sample(self, sample: SampleTiles, idx: int):
@@ -20,7 +20,8 @@ class TileEncoder(Cachable):
         """
         if sample.registered:
             return
-        ss, ts = sample.sample_shape, sample.tile_shape
+        ss: Tuple[int] = sample.sample_shape
+        ts: Tuple[int] = sample.tile_shape
         self.entries[idx] = (ss, ts)
         sample.registered = True
 
@@ -143,7 +144,7 @@ class TileEncoder(Cachable):
         # Get the number of entries
         num_entries = int.from_bytes(data[:8], byteorder="big")
         if num_entries == 0:
-            return {}
+            return cls()
 
         # Get the number of dimensions of the tuples
         num_dim = int.from_bytes(data[8:16], byteorder="big")
@@ -168,7 +169,7 @@ class TileEncoder(Cachable):
                 )
                 for j in range(num_dim)
             ]
-            first_shape = tuple(first_shape)
+            first_shape = tuple(first_shape)  # type: ignore
             # Get the second shape
             ofs_2 = 24 + ofs + (num_dim * 8)
 
@@ -179,11 +180,11 @@ class TileEncoder(Cachable):
                 )
                 for j in range(num_dim)
             ]
-            second_shape = tuple(second_shape)
+            second_shape = tuple(second_shape)  # type: ignore
             # Add the entry to the dict
             entries[key] = (first_shape, second_shape)
 
-        return entries
+        return cls(entries)
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"entries": self.entries, "version": self.version}

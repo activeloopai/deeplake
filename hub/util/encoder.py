@@ -139,12 +139,12 @@ def combine_tile_encoders(
 
             if new_sample_index in ds_tile_encoder.entries:
                 raise ValueError(
-                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={ds_tile_encoder.entries()}"
+                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={ds_tile_encoder.entries}"
                 )
 
-            ds_tile_encoder.entries[
-                str(new_sample_index)
-            ] = worker_tile_encoder.entries[sample_index]
+            ds_tile_encoder.entries[new_sample_index] = worker_tile_encoder.entries[
+                sample_index
+            ]
 
 
 def merge_all_commit_chunk_sets(

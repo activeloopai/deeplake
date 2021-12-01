@@ -1,18 +1,19 @@
 from hub.constants import MB, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 import numpy as np
+import pytest
 
 import hub
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
-from hub.core.tiling.deserialize import np_list_to_sample
+from hub.core.tiling.deserialize import np_list_to_sample  # type: ignore
 from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 
+compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"])
 
 common_args = {
     "min_chunk_size": 16 * MB,
     "max_chunk_size": 32 * MB,
-    "compression": "png",
 }
 
 
@@ -26,9 +27,11 @@ def create_tensor_meta():
     return tensor_meta
 
 
-def test_read_write_sequence():
+@compressions_paremetrized
+def test_read_write_sequence(compression):
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
+    common_args["compression"] = compression
     dtype = tensor_meta.dtype
     data_in = [
         np.random.randint(0, 255, size=(1000, 500)).astype(dtype) for _ in range(10)
@@ -44,9 +47,11 @@ def test_read_write_sequence():
         data_in2 = data_in2[num_samples:]
 
 
-def test_read_write_sequence_big(cat_path):
+@compressions_paremetrized
+def test_read_write_sequence_big(cat_path, compression):
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
+    common_args["compression"] = compression
     dtype = tensor_meta.dtype
     data_in = []
     for i in range(50):
@@ -92,19 +97,22 @@ def test_read_write_sequence_big(cat_path):
             data_in = data_in[num_samples:]
 
 
-def test_update():
+@compressions_paremetrized
+def test_update(compression):
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
+    common_args["compression"] = compression
     dtype = tensor_meta.dtype
-    data_in = np.random.randint(0, 255, size=(7, 1000, 500)).astype(dtype)
+    arr = np.random.randint(0, 255, size=(7, 300, 200, 3)).astype(dtype)
+    data_in = list(arr)
     chunk = ChunkCompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
 
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.randint(0, 255, size=(1400, 700)).astype(dtype)
-    data_5 = np.random.randint(0, 255, size=(6000, 3000)).astype(dtype)
+    data_3 = np.random.randint(0, 255, size=(1400, 700, 3)).astype(dtype)
+    data_5 = np.random.randint(0, 255, size=(2000, 3000, 3)).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)

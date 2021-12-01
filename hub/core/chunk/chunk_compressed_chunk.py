@@ -45,13 +45,13 @@ class ChunkCompressedChunk(BaseChunk):
                 sample_nbytes = len(serialized_sample)
                 buffer += serialized_sample
                 compressed_bytes = compress_bytes(buffer, self.compression)
-                if len(compressed_bytes) > self.min_chunk_size:
+                if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
+                    self.data_bytes = compressed_bytes
+                    self.register_in_meta_and_headers(sample_nbytes, shape)
+                    num_samples += 1
+                    self._decompressed_bytes = buffer
+                else:
                     break
-
-                self.data_bytes = compressed_bytes
-                self.register_in_meta_and_headers(sample_nbytes, shape)
-                num_samples += 1
-                self._decompressed_bytes = buffer
         return num_samples
 
     def extend_if_has_space_img_compression(self, incoming_samples: List[InputSample]):
@@ -72,16 +72,15 @@ class ChunkCompressedChunk(BaseChunk):
 
             buffer_list.append(incoming_sample)
             compressed_bytes = compress_multiple(buffer_list, self.compression)
-            if len(compressed_bytes) > self.min_chunk_size:
+            if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
+                self.data_bytes = compressed_bytes
+                # Byte positions aren't relevant for chunk wise img compressions
+                self.register_in_meta_and_headers(None, shape)
+                num_samples += 1
+                self._decompressed_samples = buffer_list
+            else:
                 buffer_list.pop()
                 break
-
-            self.data_bytes = compressed_bytes
-
-            # Byte positions aren't relevant for chunk wise img compressions
-            self.register_in_meta_and_headers(None, shape)
-            num_samples += 1
-            self._decompressed_samples = buffer_list
 
         return num_samples
 

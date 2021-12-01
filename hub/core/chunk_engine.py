@@ -249,7 +249,8 @@ class ChunkEngine:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
     def last_chunk(self) -> Optional[BaseChunk]:
-        if self.num_chunks == 0:
+        last_index = self.num_samples - 1
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
         chunk_name = self.last_chunk_name
         chunk_commit_id = self.get_chunk_commit(chunk_name)
@@ -337,9 +338,6 @@ class ChunkEngine:
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
-                if current_chunk.is_empty:
-                    msg = f"Sorry, some samples couldn't fit inside a single chunk of size {self.min_chunk_size}"
-                    raise NotImplementedError(msg)
                 current_chunk = self._create_new_chunk()
                 updated_chunks.add(current_chunk)
 
@@ -389,6 +387,10 @@ class ChunkEngine:
         chunk_id_key = get_chunk_id_encoder_key(self.key, commit_id)
         self.meta_cache[chunk_id_key] = self.chunk_id_encoder
 
+        # synchronize tile encoder
+        tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
+        self.meta_cache[tile_encoder_key] = self.tile_encoder
+
         # first commit doesn't have commit chunk set
         if commit_id != FIRST_COMMIT_ID:
             # synchronize current chunk set, all older ones are immutable
@@ -430,7 +432,9 @@ class ChunkEngine:
             global_sample_index = global_sample_indices[i]  # TODO!
             chunks = self.get_chunks_for_sample(global_sample_index, copy=True)
             if len(chunks) > 1:
-                raise NotImplementedError
+                raise NotImplementedError(
+                    "You can't update a sample that is present in multiple chunks."
+                )
             chunk = chunks[0]
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index

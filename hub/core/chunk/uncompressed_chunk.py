@@ -58,11 +58,13 @@ class UncompressedChunk(BaseChunk):
                 break
             else:
                 sample_nbytes = len(serialized_sample)
-                if not self.can_fit_sample(sample_nbytes):
+                if self.is_empty or self.can_fit_sample(sample_nbytes):
+                    self.data_bytes += serialized_sample  # type: ignore
+                    self.register_in_meta_and_headers(sample_nbytes, shape)
+                    num_samples += 1
+                else:
                     break
-                self.data_bytes += serialized_sample  # type: ignore
-                self.register_in_meta_and_headers(sample_nbytes, shape)
-                num_samples += 1
+
         return num_samples
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
