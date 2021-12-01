@@ -15,13 +15,13 @@ import hub
 
 # TODO progressbar is disabled while running tests on mac for now
 if sys.platform == "darwin":
-    defs = hub.core.transform.transform.Pipeline.eval.__defaults__
+    defs = hub.core.transform.transform.Pipeline.eval.__defaults__  # type: ignore
     defs = defs[:-1] + (False,)
-    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs
+    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs  # type: ignore
 
-    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__
+    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__  # type: ignore
     defs = defs[:-1] + (False,)
-    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs
+    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs  # type: ignore
 
 
 # github actions can only support 2 workers
@@ -81,6 +81,23 @@ def crop_image(sample_in, samples_out, copy=1):
 def filter_tr(sample_in, sample_out):
     if sample_in % 2 == 0:
         sample_out.image.append(sample_in * np.ones((100, 100)))
+
+
+@hub.compute
+def inplace_transform(sample_in, samples_out):
+    samples_out.img.append(2 * sample_in.img.numpy())
+    samples_out.img.append(3 * sample_in.img.numpy())
+    samples_out.label.append(2 * sample_in.label.numpy())
+    samples_out.label.append(3 * sample_in.label.numpy())
+
+
+def check_target_array(ds, index, target):
+    np.testing.assert_array_equal(
+        ds.img[index].numpy(), target * np.ones((500, 500, 3))
+    )
+    np.testing.assert_array_equal(
+        ds.label[index].numpy(), target * np.ones((100, 100, 3))
+    )
 
 
 @all_schedulers
@@ -257,9 +274,9 @@ def test_chain_transform_list_big(ds, scheduler):
     pipeline.eval(
         ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
     )
-    assert len(ds_out) == 8
+    assert len(ds_out) == 12
     for i in range(2):
-        for index in range(4 * i, 4 * i + 4):
+        for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
                 ds_out[index].image.numpy(), 15 * i * np.ones((1310, 2087))
             )
@@ -483,3 +500,123 @@ def test_transform_pass_through():
         np.testing.assert_array_equal(
             data_in[i].label.numpy() * 2, ds_out[i * 2 + 1].label.numpy()
         )
+def test_inplace_transform(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        a = ds.commit()
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+        ds.checkout(a)
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
+
+
+def test_inplace_transform_without_commit(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+    ds = local_ds_generator()
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+
+def test_inplace_transform_non_head(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        for _ in range(100):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+        a = ds.commit()
+        for _ in range(50):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones((100, 100, 3)))
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+        ds.checkout(a)
+
+        # transforming non-head node
+        inplace_transform().eval(ds, num_workers=4)
+        b = ds.commit_id
+
+        assert len(ds) == 200
+        for i in range(200):
+            target = 2 if i % 2 == 0 else 3
+            check_target_array(ds, i, target)
+
+        ds.checkout(a)
+        assert len(ds) == 100
+        for i in range(100):
+            check_target_array(ds, i, 1)
+
+        ds.checkout("main")
+        assert len(ds) == 150
+        for i in range(150):
+            check_target_array(ds, i, 1)
+
+    ds = local_ds_generator()
+    assert len(ds) == 150
+    for i in range(150):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(a)
+    assert len(ds) == 100
+    for i in range(100):
+        check_target_array(ds, i, 1)
+
+    ds.checkout(b)
+    assert len(ds) == 200
+    for i in range(200):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)

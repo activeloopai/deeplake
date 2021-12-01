@@ -153,7 +153,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | <!-- -->    | <!-- -->    |
 | ---------------------------------------------------- | ------------- |
 | Storage for public datasets hosted by Activeloop     | 200GB Free    |
-| Storage for public datasets hosted by Activeloop     | 100GB Free    |
+| Storage for private datasets hosted by Activeloop    | 100GB Free    |
 
 
 

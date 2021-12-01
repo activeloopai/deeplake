@@ -115,7 +115,6 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
     memory_ds.image.extend(np.ones((4, 4096, 4096)))
@@ -663,6 +662,13 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
+def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
+    username = hub_cloud_path.split("/")[2]
+    # this dataset doesn't exist
+    new_path = f"hub://{username}/doesntexist123"
+    hub.delete(new_path, token=hub_cloud_dev_token, force=True)
+
+
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("version_state")
@@ -806,3 +812,13 @@ def test_append_with_tensor():
     ds2.create_tensor("y")
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+
+def test_empty_extend(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.append(1)
+        ds.create_tensor("y")
+        ds.y.extend(np.zeros((len(ds), 3)))
+    assert len(ds) == 0
