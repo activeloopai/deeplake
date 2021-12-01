@@ -50,7 +50,7 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
-        self.data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
+        self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tensor_meta = tensor_meta
@@ -67,8 +67,16 @@ class BaseChunk(Cachable):
         )
 
         # These caches are only used for ChunkCompressed chunk.
-        self._decompressed_samples: Optional[List[np.ndarray]] = None
-        self._decompressed_bytes: Optional[bytes] = None
+        self.decompressed_samples: Optional[List[np.ndarray]] = None
+        self.decompressed_bytes: Optional[bytes] = None
+
+    @property
+    def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
+        return self._data_bytes
+
+    @data_bytes.setter
+    def data_bytes(self, value: Union[bytearray, bytes, memoryview]):
+        self._data_bytes = value
 
     @property
     def num_data_bytes(self) -> int:
