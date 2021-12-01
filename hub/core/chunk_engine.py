@@ -1,6 +1,6 @@
 import hub
 import numpy as np
-from typing import Any, Dict, Optional, Sequence, Union, List
+from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
 from hub.core.version_control.commit_diff import CommitDiff, get_sample_indexes_added
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
@@ -451,7 +451,7 @@ class ChunkEngine:
         chunk.key = chunk_key
         return chunk
 
-    def append(self, sample: SampleValue):
+    def append(self, sample):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
 
@@ -541,7 +541,7 @@ class ChunkEngine:
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        chunk = self.get_chunk_for_sample(global_sample_index, enc)
+        chunk = self.get_chunks_for_sample(global_sample_index)[0]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         shape = tuple(map(int, shape))

@@ -500,6 +500,8 @@ def test_transform_pass_through():
         np.testing.assert_array_equal(
             data_in[i].label.numpy() * 2, ds_out[i * 2 + 1].label.numpy()
         )
+
+
 def test_inplace_transform(local_ds_generator):
     ds = local_ds_generator()
 
