@@ -67,6 +67,7 @@ class ChunkCompressedChunk(BaseChunk):
     ):
         num_samples = 0
         buffer_list = self.decompressed_samples[:] if self.data_bytes else []
+        num_decompressed_bytes = sum(x.nbytes for x in buffer_list)
         for incoming_sample in incoming_samples:
             if isinstance(incoming_sample, bytes):
                 raise ValueError(
@@ -75,6 +76,8 @@ class ChunkCompressedChunk(BaseChunk):
             incoming_sample = intelligent_cast(incoming_sample, self.dtype, self.htype)
             if isinstance(incoming_sample, Sample):
                 incoming_sample = incoming_sample.array
+            if num_decompressed_bytes + incoming_sample.nbytes > self.max_chunk_size:
+                break
             shape = incoming_sample.shape
             shape = self.normalize_shape(shape)
 
