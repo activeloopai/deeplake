@@ -1,5 +1,9 @@
 import hub
 import numpy as np
+from typing import Any, Dict, Optional, Sequence, Union, List
+from hub.core.version_control.commit_diff import CommitDiff, get_sample_indexes_added
+from hub.core.version_control.commit_node import CommitNode  # type: ignore
+from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.tiling.deserialize import combine_chunks  # type: ignore
@@ -14,8 +18,6 @@ from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_node import CommitNode
 from hub.util.casting import get_dtype
 from hub.util.chunk_engine import (
     check_samples_type,
@@ -26,6 +28,8 @@ from hub.util.chunk_engine import (
 )
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_tensor_commit_diff_key,
+    get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
@@ -194,6 +198,33 @@ class ChunkEngine:
         return commit_chunk_set_exists(self.version_state, self.meta_cache, self.key)
 
     @property
+    def commit_diff(self) -> CommitDiff:
+        """Gets the commit diff from cache, if one is not found it creates a blank one.
+
+        Returns:
+            CommitDiff: The commit diff keeps track of all the changes in the current commit.
+        """
+        commit_id = self.version_state["commit_id"]
+        key = get_tensor_commit_diff_key(self.key, commit_id)
+        if not self.commit_diff_exists:
+            diff = CommitDiff()
+            self.meta_cache[key] = diff
+            return diff
+
+        diff = self.meta_cache.get_cachable(key, CommitDiff)
+        return diff
+
+    @property
+    def commit_diff_exists(self) -> bool:
+        try:
+            commit_id = self.version_state["commit_id"]
+            key = get_tensor_commit_diff_key(self.key, commit_id)
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
+
+    @property
     def chunk_id_encoder_exists(self) -> bool:
         try:
             commit_id = self.version_state["commit_id"]
@@ -331,6 +362,8 @@ class ChunkEngine:
     def extend(self, samples):
         self._write_initialization()
         samples = self._sanitize_samples(samples)
+        indexes_added = get_sample_indexes_added(self.num_samples, samples)
+
         current_chunk = self.last_chunk() or self._create_new_chunk()
         updated_chunks = {current_chunk}
         enc = self.chunk_id_encoder
@@ -355,6 +388,8 @@ class ChunkEngine:
                 num = int(num_samples_added)
                 enc.register_samples(num)
                 samples = samples[num:]
+
+        self.commit_diff.add_data(indexes_added)
 
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
@@ -390,6 +425,10 @@ class ChunkEngine:
         # synchronize tile encoder
         tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
         self.meta_cache[tile_encoder_key] = self.tile_encoder
+
+        # synchronize commit diff
+        commit_diff_key = get_tensor_commit_diff_key(self.key, commit_id)
+        self.meta_cache[commit_diff_key] = self.commit_diff
 
         # first commit doesn't have commit chunk set
         if commit_id != FIRST_COMMIT_ID:
@@ -442,6 +481,7 @@ class ChunkEngine:
             # tensor_meta.update_shape_interval(shape)
             chunk.update_sample(local_sample_index, sample)
             updated_chunks.add(chunk)
+            self.commit_diff.update_data(global_sample_index)
 
             # only care about deltas if it isn't the last chunk
             if chunk.key != self.last_chunk_key:  # type: ignore
