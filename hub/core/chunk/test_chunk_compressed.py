@@ -5,7 +5,8 @@ import numpy as np
 import hub
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
-from hub.core.tiling.deserialize import np_list_to_sample  # type: ignore
+from hub.core.tiling.deserialize import np_list_to_sample
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 
 
 common_args = {
@@ -51,7 +52,7 @@ def test_read_write_sequence_big(cat_path):
     for i in range(50):
         if i % 10 == 0:
             data_in.append(
-                np.random.randint(0, 255, size=(6000, 3000, 3)).astype(dtype)
+                np.random.randint(0, 255, size=(6001, 3000, 3)).astype(dtype)
             )
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
@@ -67,6 +68,7 @@ def test_read_write_sequence_big(cat_path):
         if num_samples == PARTIAL_NUM_SAMPLES:
             tiles.append(chunk.read_sample(0))
             sample = data_in[0]
+            assert isinstance(sample, SampleTiles)
             if sample.is_last_write:
                 current_length = len(data_in)
                 index = original_length - current_length
@@ -74,11 +76,9 @@ def test_read_write_sequence_big(cat_path):
                     tiles,
                     sample.sample_shape,
                     sample.tile_shape,
-                    sample.tiles.shape,
+                    sample.layout_shape,
                     dtype,
                 )
-                # find the number of elements that differ between the original and the full data out
-                diff = np.sum(np.abs(full_data_out - data_in2[index]))
                 np.testing.assert_array_equal(full_data_out, data_in2[index])
                 data_in = data_in[1:]
                 tiles = []

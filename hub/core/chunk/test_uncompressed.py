@@ -6,7 +6,8 @@ import pytest
 import hub
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
-from hub.core.tiling.deserialize import np_list_to_sample  # type: ignore
+from hub.core.tiling.deserialize import np_list_to_sample
+from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
 
 
 common_args = {
@@ -46,7 +47,7 @@ def test_read_write_sequence_big(cat_path):
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(3000, 3000, 3).astype(dtype))
+            data_in.append(np.random.rand(3001, 3000, 3).astype(dtype))
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
         else:
@@ -61,6 +62,7 @@ def test_read_write_sequence_big(cat_path):
         if num_samples == PARTIAL_NUM_SAMPLES:
             tiles.append(chunk.read_sample(0))
             sample = data_in[0]
+            assert isinstance(sample, SampleTiles)
             if sample.is_last_write:
                 current_length = len(data_in)
                 index = original_length - current_length
@@ -68,7 +70,7 @@ def test_read_write_sequence_big(cat_path):
                     tiles,
                     sample.sample_shape,
                     sample.tile_shape,
-                    sample.tiles.shape,
+                    sample.layout_shape,
                     dtype,
                 )
                 np.testing.assert_array_equal(full_data_out, data_in2[index])

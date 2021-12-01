@@ -25,6 +25,9 @@ class SampleTiles:
         self.tiles = serialize_tiles(
             tiles, lambda x: memoryview(compress_array(x, self.compression))
         )
+        tile_shapes = serialize_tiles(tiles, lambda x: x.shape)
+        self.shapes_enumerator = np.ndenumerate(tile_shapes)
+        self.layout_shape = self.tiles.shape
         self.registered = False
         self.num_tiles = self.tiles.size
         self.tiles_yielded = 0
@@ -41,9 +44,9 @@ class SampleTiles:
     def is_last_write(self) -> bool:
         return self.tiles_yielded == self.num_tiles
 
-    def yield_tile(self) -> bytes:
+    def yield_tile(self):
         self.tiles_yielded += 1
-        return next(self.tiles_enumerator)[1]
+        return next(self.tiles_enumerator)[1], next(self.shapes_enumerator)[1]
 
     def yield_uncompressed_tile(self):
         if self.uncompressed_tiles_enumerator is not None:

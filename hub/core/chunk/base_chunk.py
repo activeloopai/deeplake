@@ -271,10 +271,9 @@ class BaseChunk(Cachable):
         return shape
 
     def write_tile(self, sample: SampleTiles, skip_bytes=False):
-        data = sample.yield_tile()
+        data, tile_shape = sample.yield_tile()
         sample_nbytes = None if skip_bytes else len(data)
         self.data_bytes = data
-        tile_shape = sample.tile_shape
         update_meta = sample.is_first_write
         self.register_sample_to_headers(sample_nbytes, tile_shape)
         if update_meta:
