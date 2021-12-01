@@ -37,13 +37,26 @@ class ChunkCompressedChunk(BaseChunk):
             self.num_dims = self.num_dims or len(shape)
             sample_nbytes = len(serialized_sample)
             check_sample_shape(shape, self.num_dims)
-            buffer += serialized_sample
+            # buffer += serialized_sample
             # TODO: optimize this
-            compressed_bytes = compress_bytes(buffer, self.compression)
-            if len(compressed_bytes) > self.min_chunk_size:
+
+            if self._compression_ratio is None:
+                buffer += serialized_sample
+                compressed_bytes = compress_bytes(buffer, self.compression)
+                if len(compressed_bytes) > self.min_chunk_size:
+                    break
+            elif (
+                len(self.data_bytes) + sample_nbytes / self._compression_ratio
+                > self.min_chunk_size
+            ):
                 break
+            else:
+                buffer += serialized_sample
+                compressed_bytes = compress_bytes(buffer, self.compression)
 
             self.data_bytes = compressed_bytes
+            self._compression_ratio = len(buffer) / len(compressed_bytes)
+
             self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
             self._decompressed_bytes = buffer
@@ -53,7 +66,7 @@ class ChunkCompressedChunk(BaseChunk):
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
     ):
         num_samples = 0
-        buffer_list = self.decompressed_samples if self.data_bytes else []
+        buffer_list = self.decompressed_samples[:] if self.data_bytes else []
         for incoming_sample in incoming_samples:
             if isinstance(incoming_sample, bytes):
                 raise ValueError(
@@ -69,13 +82,22 @@ class ChunkCompressedChunk(BaseChunk):
             check_sample_shape(shape, self.num_dims)
             buffer_list.append(incoming_sample)
 
-            # TODO: optimize this
-            compressed_bytes = compress_multiple(buffer_list, self.compression)
-
-            if len(compressed_bytes) > self.min_chunk_size:
+            if self._compression_ratio is None:
+                compressed_bytes = compress_multiple(buffer_list, self.compression)
+                if len(compressed_bytes) > self.min_chunk_size:
+                    break
+            elif (
+                len(self.data_bytes) + incoming_sample.nbytes / self._compression_ratio
+                > self.min_chunk_size
+            ):
                 break
-
+            else:
+                compressed_bytes = compress_multiple(buffer_list, self.compression)
             self.data_bytes = compressed_bytes
+            self._compression_ratio = sum(x.nbytes for x in buffer_list) / len(
+                compressed_bytes
+            )
+
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
             self.register_in_meta_and_headers(None, shape)
             num_samples += 1
