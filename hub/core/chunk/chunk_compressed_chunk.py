@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import List, Union, Sequence
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -18,7 +18,6 @@ from hub.core.serialize import infer_chunk_num_bytes
 
 
 class ChunkCompressedChunk(BaseChunk):
-
     def __init__(self, *args, **kwargs):
         super(ChunkCompressedChunk, self).__init__(*args, **kwargs)
         if self.is_byte_compression:
@@ -38,15 +37,17 @@ class ChunkCompressedChunk(BaseChunk):
         self.prepare_for_write()
         if self.is_byte_compression:
             return self.extend_if_has_space_byte_compression(incoming_samples)
-        return self.extend_if_has_space_img_compression(incoming_samples)
+        return self.extend_if_has_space_image_compression(incoming_samples)
 
     def extend_if_has_space_byte_compression(
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
     ):
         num_samples = 0
         for incoming_sample in incoming_samples:
-            serialized_sample, shape = self.sample_to_bytes(
-                incoming_sample, None, False
+            serialized_sample, shape = self.serialize_sample(
+                incoming_sample,
+                chunk_compression=self.compression,
+                store_uncompressed_tiles=True,
             )
 
             self.num_dims = self.num_dims or len(shape)
@@ -78,7 +79,6 @@ class ChunkCompressedChunk(BaseChunk):
                 self._compression_ratio *= 2
                 self._data_bytes = compressed_bytes
                 self._changed = False
-
 
             if not recompressed:
                 self.decompressed_bytes += serialized_sample
@@ -137,7 +137,9 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples += 1
         return num_samples
 
-    def _extend_if_has_space_byte_compression(self, incoming_samples: List[InputSample]):
+    def _extend_if_has_space_byte_compression(
+        self, incoming_samples: List[InputSample]
+    ):
         num_samples: float = 0
         buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()
         for i, incoming_sample in enumerate(incoming_samples):
@@ -274,7 +276,6 @@ class ChunkCompressedChunk(BaseChunk):
             )
 
         return sample, shape
-
 
     def _compress(self):
         if self.is_byte_compression:
