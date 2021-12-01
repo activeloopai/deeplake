@@ -17,8 +17,9 @@ from hub.util.transform import (
 )
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
-    merge_all_commit_chunk_sets,
     merge_all_tensor_metas,
+    merge_all_tile_encoders,
+    merge_all_commit_chunk_sets,
 )
 from hub.util.exceptions import (
     HubComposeEmptyListError,
@@ -241,8 +242,19 @@ class Pipeline:
             # delete_chunks(chunk_paths, storage, compute)
 
         metas_and_encoders = ret["metas_and_encoders"]
-        all_tensor_metas, all_chunk_id_encoders, all_chunk_commit_sets = zip(
-            *metas_and_encoders
+
+        (
+            all_tensor_metas,
+            all_chunk_id_encoders,
+            all_tile_encoders,
+            all_chunk_commit_sets,
+        ) = zip(*metas_and_encoders)
+        all_num_samples = []
+        for tensor_meta_dict in all_tensor_metas:
+            num_samples_dict = {k: v.length for k, v in tensor_meta_dict.items()}
+            all_num_samples.append(num_samples_dict)
+        merge_all_tile_encoders(
+            all_tile_encoders, all_num_samples, target_ds, storage, overwrite
         )
         merge_all_tensor_metas(all_tensor_metas, target_ds, storage, overwrite)
         merge_all_chunk_id_encoders(

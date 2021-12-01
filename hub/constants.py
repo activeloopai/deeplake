@@ -52,7 +52,7 @@ DATASET_LOCK_VALIDITY = 300  # seconds
 META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
-
+ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
 ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
@@ -109,3 +109,5 @@ TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
 
 # If True, and if the rest of the dataset is in color (3D), then reshape a grayscale image by appending a 1 to its shape.
 CONVERT_GRAYSCALE = True
+
+PARTIAL_NUM_SAMPLES = 0.5

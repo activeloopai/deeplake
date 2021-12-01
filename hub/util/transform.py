@@ -2,6 +2,7 @@ import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
@@ -95,6 +96,7 @@ def store_data_slice(
 ) -> Tuple[
     Dict[str, TensorMeta],
     Dict[str, ChunkIdEncoder],
+    Dict[str, TileEncoder],
     Dict[str, Optional[CommitChunkSet]],
 ]:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
@@ -122,14 +124,16 @@ def store_data_slice(
     # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
+    all_tile_encoders = {}
     all_chunk_sets = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
+        all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
-    return all_tensor_metas, all_chunk_id_encoders, all_chunk_sets
+    return all_tensor_metas, all_chunk_id_encoders, all_tile_encoders, all_chunk_sets
 
 
 def _transform_sample_and_update_chunk_engines(

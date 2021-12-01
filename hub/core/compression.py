@@ -261,7 +261,6 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         out.seek(0)
         compressed_bytes = out.read()
         out._close()  # type: ignore
-        decompress_array(compressed_bytes, array.shape)
         return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))

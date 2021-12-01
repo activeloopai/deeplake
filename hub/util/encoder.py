@@ -4,12 +4,15 @@ from typing import Dict, List
 
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
     get_chunk_id_encoder_key,
+    get_chunk_id_encoder_key,
+    get_tensor_tile_encoder_key,
 )
 import posixpath
 
@@ -97,6 +100,51 @@ def combine_chunk_id_encoders(
                 ds_chunk_id_encoder._encoded = np.vstack(
                     [ds_chunk_id_encoder._encoded, encoded_id]
                 )
+
+
+def merge_all_tile_encoders(
+    all_workers_tile_encoders: List[Dict[str, TileEncoder]],
+    all_num_samples: List[Dict[str, int]],
+    target_ds: hub.Dataset,
+    storage: StorageProvider,
+    overwrite: bool,
+) -> None:
+    tensors: List[str] = list(target_ds.meta.tensors)
+    commit_id = target_ds.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        chunk_engine = target_ds[rel_path].chunk_engine
+        offset = 0 if overwrite else chunk_engine.num_samples
+        tile_encoder = None if overwrite else chunk_engine.tile_encoder
+        for i, current_worker_tile_encoder in enumerate(all_workers_tile_encoders):
+            current_tile_encoder = current_worker_tile_encoder[tensor]
+            if tile_encoder is None:
+                tile_encoder = current_tile_encoder
+            else:
+                combine_tile_encoders(tile_encoder, current_tile_encoder, offset)
+            offset += all_num_samples[i][tensor]
+        tile_key = get_tensor_tile_encoder_key(tensor, commit_id)
+        storage[tile_key] = tile_encoder.tobytes()  # type: ignore
+    target_ds.flush()
+
+
+def combine_tile_encoders(
+    ds_tile_encoder: TileEncoder, worker_tile_encoder: TileEncoder, offset: int
+) -> None:
+    """Combines the dataset's tile_encoder with a single worker's tile_encoder."""
+
+    if len(worker_tile_encoder.entries) != 0:
+        for sample_index in worker_tile_encoder.entries.keys():
+            new_sample_index = int(sample_index) + offset
+
+            if new_sample_index in ds_tile_encoder.entries:
+                raise ValueError(
+                    f"Sample index {new_sample_index} already exists inside `ds_tile_encoder`. Keys={ds_tile_encoder.entries}"
+                )
+
+            ds_tile_encoder.entries[new_sample_index] = worker_tile_encoder.entries[
+                sample_index
+            ]
 
 
 def merge_all_commit_chunk_sets(
