@@ -1,3 +1,4 @@
+from collections import defaultdict
 import pickle
 import posixpath
 import warnings
@@ -19,6 +20,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.dataset import try_flushing
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -40,7 +42,20 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.version_control import auto_checkout, checkout, commit, load_meta
+from hub.util.diff import (
+    compare_commits,
+    create_changes_dict,
+    get_all_changes_string,
+    filter_data_updated,
+    get_changes_for_id,
+)
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    commit_has_data,
+    load_meta,
+)
 from tqdm import tqdm  # type: ignore
 
 
@@ -104,6 +119,7 @@ class Dataset:
         self._token = token
         self.public = public
         self.verbose = verbose
+        self.is_first_load = version_state is None
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
@@ -168,6 +184,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
 
@@ -304,7 +321,6 @@ class Dataset:
         ffw_dataset_meta(self.version_state["meta"])
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
-
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
@@ -388,6 +404,7 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         commit_id = self.version_state["commit_id"]
+        try_flushing(self)
         commit(self.version_state, self.storage, message)
 
         # do not store commit message
@@ -409,6 +426,7 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
+        try_flushing(self)
         checkout(self.version_state, self.storage, address, create)
 
         # do not store address
@@ -421,14 +439,63 @@ class Dataset:
 
     def log(self):
         """Displays the details of all the past commits."""
-        # TODO: use logger.info instead of prints
         commit_node = self.version_state["commit_node"]
-        logger.info("---------------\nHub Version Log\n---------------\n")
-        logger.info(f"Current Branch: {self.version_state['branch']}\n")
+        print("---------------\nHub Version Log\n---------------\n")
+        print(f"Current Branch: {self.version_state['branch']}")
+        if not commit_node.children and commit_has_data(
+            self.version_state, self.storage
+        ):
+            print("** There are uncommitted changes on this branch.\n")
+        else:
+            print()
         while commit_node:
             if commit_node.commit_time is not None:
-                logger.info(f"{commit_node}\n")
+                print(f"{commit_node}\n")
             commit_node = commit_node.parent
+
+    def diff(self, id_1: Optional[str] = None, id_2: Optional[str] = None):
+        """Displays the differences between commits/branches.
+
+        Args:
+            id_1 (str, optional): The first commit_id or branch name.
+            id_2 (str, optional): The second commit_id or branch name.
+
+        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be displayed.
+        If only id_1 is provided, the differences between the current commit and id_1 will be displayed.
+        If only id_2 is provided, a ValueError will be raised.
+        If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be displayed.
+
+        Raises:
+            ValueError: If both id_1 is None and id_2 is not None.
+        """
+        version_state, storage = self.version_state, self.storage
+        message1 = message2 = changes1 = changes2 = None
+
+        if id_1 is None and id_2 is None:
+            changes1 = create_changes_dict()
+            commit_id = version_state["commit_id"]
+            get_changes_for_id(commit_id, storage, changes1)
+            filter_data_updated(changes1)
+            message1 = f"Diff in {commit_id} (current commit):\n"
+        else:
+            if id_1 is None:
+                raise ValueError("Can't specify id_1 without specifying id_2")
+            elif id_2 is None:
+                commit1: str = version_state["commit_id"]
+                commit2 = id_1
+                message1 = f"Diff in {commit1} (current commit):\n"
+                message2 = f"Diff in {commit2} (target id):\n"
+            else:
+                commit1 = id_1
+                commit2 = id_2
+                message1 = f"Diff in {commit1} (target id 1):\n"
+                message2 = f"Diff in {commit2} (target id 2):\n"
+            changes1, changes2 = compare_commits(
+                commit1, commit2, version_state, storage
+            )
+
+        all_changes = get_all_changes_string(changes1, message1, changes2, message2)
+        print(all_changes)
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
@@ -532,6 +599,49 @@ class Dataset:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
 
         return dataloader
+
+    @hub_reporter.record_call
+    def filter(
+        self,
+        function: Union[Callable, str],
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
+    ):
+        """Filters the dataset in accordance of filter function `f(x: sample) -> bool`
+
+        Args:
+            function(Callable | str): filter function that takes sample as argument and returns True/False
+                if sample should be included in result. Also supports simplified expression evaluations.
+                See hub.core.query.DatasetQuery for more details.
+            num_workers(int): level of parallelization of filter evaluations.
+                `0` indicates in-place for-loop evaluation, multiprocessing is used otherwise.
+            scheduler(str): scheduler to use for multiprocessing evaluation.
+                `threaded` is default
+            progressbar(bool): display progress bar while filtering. True is default
+
+        Returns:
+            View on Dataset with elements, that satisfy filter function
+
+
+        Example:
+            Following filters are identical and return dataset view where all the samples have label equals to 2.
+            >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
+            >>> dataset.filter('labels == 2')
+        """
+        from hub.core.query import filter_dataset
+        from hub.core.query import DatasetQuery
+
+        if isinstance(function, str):
+            function = DatasetQuery(self, function)
+
+        return filter_dataset(
+            self,
+            function,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+        )
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
