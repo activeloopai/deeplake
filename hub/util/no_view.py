@@ -1,4 +1,4 @@
-from hub.util.exceptions import NoViewError
+from hub.util.exceptions import InvalidOperationError
 from typing import Callable
 from functools import wraps
 import hub
@@ -12,7 +12,7 @@ def no_view(callable: Callable):
             if func == "read_only":
                 if not x._read_only_set:
                     return callable(x, *args, **kwargs)
-            raise NoViewError(
+            raise InvalidOperationError(
                 func,
                 "Dataset" if isinstance(x, hub.Dataset) else "Tensor",
             )

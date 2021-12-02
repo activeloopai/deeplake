@@ -596,7 +596,7 @@ class GCSDefaultCredsNotFoundError(Exception):
         )
 
 
-class NoViewError(Exception):
+class InvalidOperationError(Exception):
     def __init__(self, method, type):
         if method == "read_only":
             super().__init__(

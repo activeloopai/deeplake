@@ -6,7 +6,7 @@ from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
-    NoViewError,
+    InvalidOperationError,
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
@@ -810,22 +810,22 @@ def test_no_view(memory_ds):
     memory_ds.create_tensor("b")
     memory_ds.b.extend([4, 5, 6])
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds[:2].create_tensor("c")
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds[:3].create_tensor_like("c", memory_ds.a)
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds[2].delete()
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds[0].read_only = True
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds.a[:2].append(0)
 
-    with pytest.raises(NoViewError):
+    with pytest.raises(InvalidOperationError):
         memory_ds.b[:3].extend([3, 4])
 
 
