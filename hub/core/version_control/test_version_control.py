@@ -381,10 +381,9 @@ def test_diff_linear(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_a = {
-        "tensors_created": ["abc"],
-        "xyz": {"data_added": {}, "data_updated": {0}},
-        "pqr": {"data_added": {}, "data_updated": {2}},
-        "abc": {"data_added": {0, 1, 2}, "data_updated": {}},
+        "xyz": {"data_added": {}, "data_updated": {0}, "created": False},
+        "pqr": {"data_added": {}, "data_updated": {2}, "created": False},
+        "abc": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
@@ -395,10 +394,9 @@ def test_diff_linear(local_ds, capsys):
     local_ds.diff()
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     changes_empty = {
-        "tensors_created": [],
-        "xyz": {"data_added": {}, "data_updated": {}},
-        "pqr": {"data_added": {}, "data_updated": {}},
-        "abc": {"data_added": {}, "data_updated": {}},
+        "xyz": {"data_added": {}, "data_updated": {}, "created": False},
+        "pqr": {"data_added": {}, "data_updated": {}, "created": False},
+        "abc": {"data_added": {}, "data_updated": {}, "created": False},
     }
     target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
     captured = capsys.readouterr()
@@ -469,14 +467,12 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_branch_off = {
-        "tensors_created": ["pqr"],
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {2}},
-        "pqr": {"data_added": {0, 1, 2}, "data_updated": {}},
+        "xyz": {"data_added": {3, 4, 5}, "data_updated": {2}, "created": False},
+        "pqr": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
     }
     changes_main_from_branch_off = {
-        "tensors_created": [],
-        "xyz": {"data_added": {3, 4}, "data_updated": {0, 2}},
-        "pqr": {"data_added": {}, "data_updated": {}},
+        "xyz": {"data_added": {3, 4}, "data_updated": {0, 2}, "created": False},
+        "pqr": {"data_added": {}, "data_updated": {}, "created": False},
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = (
@@ -490,9 +486,8 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     empty_changes = {
-        "tensors_created": [],
-        "xyz": {"data_added": {}, "data_updated": {}},
-        "pqr": {"data_added": {}, "data_updated": {}},
+        "xyz": {"data_added": {}, "data_updated": {}, "created": False},
+        "pqr": {"data_added": {}, "data_updated": {}, "created": False},
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = get_all_changes_string(empty_changes, message1, None, None) + "\n"
@@ -634,18 +629,14 @@ def test_complex_diff(local_ds, capsys):
 
     # x is LCA of a and g
     changes_c_from_x = {
-        "tensors_created": [],
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {0}},
+        "xyz": {"data_added": {3, 4, 5}, "data_updated": {0}, "created": False},
     }
     changes_g_from_x = {
-        "tensors_created": ["tuv", "pqr"],
-        "pqr": {"data_added": {0}, "data_updated": {}},
-        "tuv": {"data_added": {0, 1, 2}, "data_updated": {}},
-        "xyz": {"data_added": {}, "data_updated": {1}},
+        "pqr": {"data_added": {0}, "data_updated": {}, "created": True},
+        "tuv": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
+        "xyz": {"data_added": {}, "data_updated": {1}, "created": False},
     }
-    empty_changes = {
-        "tensors_created": [],
-    }
+    empty_changes = {}
 
     local_ds.diff(c, g)
     message1 = f"Diff in {c} (target id 1):\n"
@@ -676,9 +667,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
 
     changes_main_from_x = {
-        "tensors_created": ["pqr"],
-        "xyz": {"data_added": {}, "data_updated": {1}},
-        "pqr": {"data_added": {}, "data_updated": {}},
+        "xyz": {"data_added": {}, "data_updated": {1}, "created": False},
+        "pqr": {"data_added": {}, "data_updated": {}, "created": True},
     }
 
     local_ds.diff(c, "main")
