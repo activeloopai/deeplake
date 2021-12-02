@@ -18,7 +18,7 @@ from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
-from hub.util.casting import get_dtype
+from hub.util.casting import get_dtype, get_htype
 from hub.util.chunk_engine import (
     check_samples_type,
     make_sequence,
@@ -344,19 +344,12 @@ class ChunkEngine:
         self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
-    def _convert_to_list(self, samples):
-        if self.chunk_class != UncompressedChunk:
-            return True
-        elif isinstance(samples, np.ndarray):
-            return samples[0].nbytes >= self.min_chunk_size
-        return True
-
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
         if self.tensor_meta.dtype is None:
             self.tensor_meta.set_dtype(get_dtype(samples))
-        if self._convert_to_list(samples):
-            samples = list(samples)
+        if self.tensor_meta.htype is None:
+            self.tensor_meta.set_htype(get_htype(samples))
         return samples
 
     def extend(self, samples):

@@ -26,6 +26,7 @@ from hub.compression import (
 )
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
+    DEFAULT_HTYPE,
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
@@ -57,22 +58,14 @@ class TensorMeta(Meta):
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
 
-        if htype != UNSPECIFIED:
-            _validate_htype_exists(htype)
-            _validate_htype_overwrites(htype, kwargs)
-            _replace_unspecified_values(htype, kwargs)
-            _validate_required_htype_overwrites(htype, kwargs)
-            _format_values(htype, kwargs)
-
-            required_meta = _required_meta_from_htype(htype)
-            required_meta.update(kwargs)
-
-            self._required_meta_keys = tuple(required_meta.keys())
-            self.__dict__.update(required_meta)
-        else:
-            self._required_meta_keys = tuple()
-
         super().__init__()
+
+        if htype != UNSPECIFIED:
+            self.set_htype(htype, **kwargs)
+        else:
+            self.set_htype(DEFAULT_HTYPE, **kwargs)
+            self.htype = None
+
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
@@ -87,6 +80,33 @@ class TensorMeta(Meta):
             raise ValueError("Dtype was None, but length was > 0.")
 
         self.dtype = dtype.name
+
+    def set_htype(self, htype: str, **kwargs):
+        """Should only be called once."""
+        ffw_tensor_meta(self)
+
+        if getattr(self, "htype", None) is not None:
+            raise ValueError(
+                f"Tensor meta already has a htype ({self.htype}). Incoming: {htype}."
+            )
+
+        if getattr(self, "length", 0) > 0:
+            raise ValueError("Htype was None, but length was > 0.")
+
+        if not kwargs:
+            kwargs = HTYPE_CONFIGURATIONS[htype]
+
+        _validate_htype_exists(htype)
+        _validate_htype_overwrites(htype, kwargs)
+        _replace_unspecified_values(htype, kwargs)
+        _validate_required_htype_overwrites(htype, kwargs)
+        _format_values(htype, kwargs)
+
+        required_meta = _required_meta_from_htype(htype)
+        required_meta.update(kwargs)
+
+        self._required_meta_keys = tuple(required_meta.keys())
+        self.__dict__.update(required_meta)
 
     def update_shape_interval(self, shape: Tuple[int, ...]):
         ffw_tensor_meta(self)
@@ -219,7 +239,6 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
 
 def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
-
     sample_compression = htype_overwrite["sample_compression"]
     sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
     if sample_compression not in hub.compressions:

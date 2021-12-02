@@ -37,6 +37,19 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         raise TypeError(f"Cannot infer numpy dtype for {val}")
 
 
+def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
+    if isinstance(val, np.ndarray):
+        return "generic"
+    types = set((map(type, val)))
+    if dict in types:
+        return "json"
+    if types == set((str,)):
+        return "text"
+    if np.object in [np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val]:
+        return "json"
+    return "generic"
+
+
 def intelligent_cast(
     sample: Any, dtype: Union[np.dtype, str], htype: str
 ) -> np.ndarray:
