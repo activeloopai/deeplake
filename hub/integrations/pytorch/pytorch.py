@@ -133,7 +133,7 @@ def dataset_to_pytorch(
                 use_local_cache=use_local_cache,
                 transform=transform,
                 num_workers=num_workers,
-                shuffle=False,
+                shuffle=shuffle,
                 buffer_size=buffer_size,
             ),
             batch_size=batch_size,

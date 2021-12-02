@@ -425,3 +425,59 @@ def test_string_tensors(local_ds):
     ptds2 = local_ds.pytorch(batch_size=None)
     for idx, batch in enumerate(ptds2):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+
+
+def run_ddp(rank, size, ds, q, backend="gloo"):
+    import torch.distributed as dist
+    import os
+
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group(backend=backend, rank=rank, world_size=size)
+
+    s = 0
+    for x in ds.pytorch():
+        s += int(x["image"][0].mean())
+
+    q.put(s)
+
+
+@requires_torch
+@enabled_datasets
+def test_pytorch_ddp(ds):
+    import torch.multiprocessing as mp
+
+    with ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(255)]))
+
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            dl = dataset_to_pytorch(
+                ds, num_workers=0, batch_size=1, python_version_warning=False
+            )
+        return
+
+    size = 2
+    processes = []
+    method = mp.get_start_method()
+    mp.set_start_method("spawn", force=True)
+    q = mp.Queue()
+
+    try:
+        for rank in range(size):
+            p = mp.Process(target=run_ddp, args=(rank, size, ds, q))
+            p.start()
+            processes.append(p)
+
+        s = 0
+        for p in processes:
+            p.join()
+            p.terminate()
+            s += q.get()
+
+        q.close()
+
+        assert s == sum(list(range(254)))
+    finally:
+        mp.set_start_method(method, force=True)
