@@ -762,6 +762,11 @@ def _read_audio_shape(
 
 
 def _decompress_video(file):
+    # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
+    # isBytes should be set to 1 in case of in-memory video else set to 0
+    # if isBytes is 1, size of file and internal buffer size must be set
+    # buffer size currently set to size of compressed data
+
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape(file)
@@ -771,7 +776,7 @@ def _decompress_video(file):
     if isinstance(file, str):
         lib.decompressVideo(file.encode("utf-8"), 0, 0, decompressed, 0, nbytes)
     else:
-        lib.decompressVideo(bytes(file), len(file), 4096, decompressed, 1, nbytes)
+        lib.decompressVideo(bytes(file), len(file), len(file), decompressed, 1, nbytes)
 
     video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
     return video
@@ -784,5 +789,5 @@ def _read_video_shape(file):
     if isinstance(file, str):
         lib.getVideoShape(file.encode("utf-8"), 0, 0, shape, 0)
     else:
-        lib.getVideoShape(bytes(file), len(file), 4096, shape, 1)
+        lib.getVideoShape(bytes(file), len(file), len(file), shape, 1)
     return (*shape, 3)
