@@ -20,7 +20,7 @@ from hub.core.serialize import (
     serialize_text,
 )
 from hub.core.storage.cachable import Cachable
-from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 InputSample = Union[

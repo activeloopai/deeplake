@@ -2,7 +2,7 @@ import numpy as np
 from typing import List, Tuple, Union
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.meta.encode.tile import TileEncoder
-from hub.core.tiling.util import tile_bounds, validate_not_serialized, view  # type: ignore
+from hub.core.tiling.util import tile_bounds, validate_not_serialized, view
 
 
 def coalesce_tiles(
