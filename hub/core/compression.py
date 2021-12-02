@@ -761,18 +761,17 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video(file, num_frames=None):
+def _decompress_video(file):
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape(file)
-    if num_frames:
-        shape = (num_frames, *shape[1:])
-    decompressed = ffi.new(f"unsigned char[{np.prod(shape)}]")
+    nbytes = np.prod(shape)
+    decompressed = ffi.new(f"unsigned char[{nbytes}]")
 
     if isinstance(file, str):
-        lib.decompressVideo(file.encode("utf-8"), 0, decompressed, 0, shape[0])
+        lib.decompressVideo(file.encode("utf-8"), 0, 0, decompressed, 0, nbytes)
     else:
-        lib.decompressVideo(bytes(file), len(file), decompressed, 1, shape[0])
+        lib.decompressVideo(bytes(file), len(file), 4096, decompressed, 1, nbytes)
 
     video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
     return video
@@ -783,7 +782,7 @@ def _read_video_shape(file):
 
     shape = ffi.new("int[3]")
     if isinstance(file, str):
-        lib.getVideoShape(file.encode("utf-8"), 0, shape, 0)
+        lib.getVideoShape(file.encode("utf-8"), 0, 0, shape, 0)
     else:
-        lib.getVideoShape(bytes(file), len(file), shape, 1)
+        lib.getVideoShape(bytes(file), len(file), 4096, shape, 1)
     return (*shape, 3)

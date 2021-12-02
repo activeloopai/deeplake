@@ -10,21 +10,35 @@ static void logging(const char *fmt, ...);
 static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos);
 int readFunc(void *opaque, uint8_t *buf, int buf_size);
 
-int getVideoShape(unsigned char *file, int ioBufferSize, int *shape, int isBytes)
+struct buffer_data
 {
-    AVFormatContext *pFormatContext = avformat_alloc_context();
+    uint8_t *ptr;
+    size_t size;
+};
+
+int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes)
+{
+    av_log_set_level(AV_LOG_QUIET);
+    AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;
+    pFormatContext = avformat_alloc_context();
+    struct buffer_data bd = {0};
+
+    int ret = 0;
+
     if (isBytes == 1)
     {
-        ioBuffer = (unsigned char *)av_malloc(ioBufferSize + AV_INPUT_BUFFER_PADDING_SIZE);
-        pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, (void *)file, &readFunc, NULL, NULL);
+        bd.ptr = file;
+        bd.size = size;
+        ioBuffer = av_malloc(ioBufferSize);
+        pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, &bd, &readFunc, NULL, NULL);
         pFormatContext->pb = pioContext;
-        avformat_open_input(&pFormatContext, "dummyFilename", NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, NULL, NULL, NULL);
     }
     else
     {
-        avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
     }
 
     avformat_find_stream_info(pFormatContext, NULL);
@@ -56,16 +70,26 @@ int getVideoShape(unsigned char *file, int ioBufferSize, int *shape, int isBytes
     avformat_close_input(&pFormatContext);
     if (isBytes == 1)
     {
-        avio_context_free(&pioContext);
+        if (pioContext)
+        {
+            av_freep(&pioContext->buffer);
+            av_freep(&pioContext);
+        }
     }
     return 0;
 }
 
-int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decompressed, int isBytes, int n_packets)
+int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
 {
-    AVFormatContext *pFormatContext = avformat_alloc_context();
-    AVIOContext *pioContext;
+    av_log_set_level(AV_LOG_QUIET);
+    AVFormatContext *pFormatContext = NULL;
+    AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;
+    pFormatContext = avformat_alloc_context();
+    struct buffer_data bd = {0};
+
+    int ret = 0;
+
     if (!pFormatContext)
     {
         logging("ERROR could not allocate memory for Format Context");
@@ -74,14 +98,16 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
 
     if (isBytes == 1)
     {
-        ioBuffer = (unsigned char *)av_malloc(ioBufferSize + AV_INPUT_BUFFER_PADDING_SIZE);
-        pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, (void *)file, &readFunc, NULL, NULL);
+        bd.ptr = file;
+        bd.size = size;
+        ioBuffer = av_malloc(ioBufferSize);
+        pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, &bd, &readFunc, NULL, NULL);
         pFormatContext->pb = pioContext;
-        avformat_open_input(&pFormatContext, "dummyFilename", NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, NULL, NULL, NULL);
     }
     else
     {
-        avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
     }
 
     if (avformat_find_stream_info(pFormatContext, NULL) < 0)
@@ -137,7 +163,7 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
             decompressed = start + bufpos;
             if (response < 0)
                 break;
-            if (--n_packets < 0)
+            if (bufpos >= nbytes)
                 break;
         }
         av_packet_unref(pPacket);
@@ -148,7 +174,11 @@ int decompressVideo(unsigned char *file, int ioBufferSize, unsigned char *decomp
     avcodec_free_context(&pCodecContext);
     if (isBytes == 1)
     {
-        avio_context_free(&pioContext);
+        if (pioContext)
+        {
+            av_freep(&pioContext->buffer);
+            av_freep(&pioContext);
+        }
     }
     return 0;
 }
@@ -184,7 +214,12 @@ const int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, 
 
 int readFunc(void *opaque, uint8_t *buf, int buf_size)
 {
-    memmove((void *)buf, opaque, buf_size);
+    struct buffer_data *bd = (struct buffer_data *)opaque;
+    buf_size = FFMIN(buf_size, bd->size);
+    memcpy(buf, bd->ptr, buf_size);
+    bd->ptr += buf_size;
+    bd->size -= buf_size;
+
     return buf_size;
 }
 
