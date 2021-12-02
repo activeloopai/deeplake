@@ -289,12 +289,6 @@ def load_meta(storage, version_state):
 
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_cachable(meta_key, DatasetMeta)
-
-    try:
-        # done to add the meta to dirty keys so it keeps on getting updated
-        storage[meta_key] = meta
-    except Exception:
-        pass
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
     _tensors = version_state["full_tensors"]

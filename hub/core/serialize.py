@@ -1,5 +1,5 @@
 from hub.compression import BYTE_COMPRESSION, get_compression_type
-from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
+from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -304,7 +304,7 @@ def serialize_numpy_and_base_types(
 
     if sample_compression is None:
         if out.nbytes > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)  # type: ignore
         else:
             out = out.tobytes()  # type: ignore
 
@@ -313,7 +313,7 @@ def serialize_numpy_and_base_types(
         approx_compressed_size = out.nbytes * ratio
 
         if approx_compressed_size > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)  # type: ignore
         else:
             compressed_bytes = compress_array(out, sample_compression)
             out = compressed_bytes  # type: ignore

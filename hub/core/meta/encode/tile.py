@@ -3,12 +3,12 @@ import numpy as np
 from typing import Any, Dict, Tuple
 
 from hub.core.storage.cachable import Cachable
-from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
+from hub.core.tiling.sample_tiles import SampleTiles
 
 
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
-        self.entries: Dict[int, Tuple[Tuple[int], Tuple[int]]] = entries or {}
+        self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
         self.version = hub.__version__
 
     def register_sample(self, sample: SampleTiles, idx: int):
@@ -20,8 +20,8 @@ class TileEncoder(Cachable):
         """
         if sample.registered:
             return
-        ss: Tuple[int] = sample.sample_shape
-        ts: Tuple[int] = sample.tile_shape
+        ss: Tuple[int, ...] = sample.sample_shape
+        ts: Tuple[int, ...] = sample.tile_shape
         self.entries[idx] = (ss, ts)
         sample.registered = True
 
