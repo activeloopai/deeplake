@@ -2,12 +2,11 @@ import hub
 import math
 from typing import List, Callable, Optional
 from itertools import repeat
+from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
-from hub.core.compute.thread import ThreadProvider
-from hub.core.compute.process import ProcessProvider
-from hub.core.compute.serial import SerialProvider
 from hub.core.ipc import Server
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.chunk_paths import get_chunk_paths
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
@@ -16,7 +15,12 @@ from hub.util.transform import (
     get_pbar_description,
     store_data_slice,
 )
-from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
+from hub.util.encoder import (
+    merge_all_chunk_id_encoders,
+    merge_all_tensor_metas,
+    merge_all_tile_encoders,
+    merge_all_commit_chunk_sets,
+)
 from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
@@ -27,6 +31,8 @@ from tqdm import tqdm  # type: ignore
 import time
 import threading
 import sys
+
+from hub.util.version_control import auto_checkout, load_meta
 
 
 class TransformFunction:
@@ -39,7 +45,7 @@ class TransformFunction:
     def eval(
         self,
         data_in,
-        ds_out: hub.Dataset,
+        ds_out: Optional[hub.Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -79,7 +85,7 @@ class Pipeline:
     def eval(
         self,
         data_in,
-        ds_out: hub.Dataset,
+        ds_out: Optional[hub.Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -103,10 +109,12 @@ class Pipeline:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
         """
-        num_workers = max(num_workers, 0)
-        if num_workers == 0:
+        if num_workers <= 0:
             scheduler = "serial"
+        num_workers = max(num_workers, 1)
+        compute_provider = get_compute_provider(scheduler, num_workers)
 
+        original_data_in = data_in
         if isinstance(data_in, hub.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
@@ -116,26 +124,33 @@ class Pipeline:
         )
 
         check_transform_data_in(data_in, scheduler)
-        check_transform_ds_out(ds_out, scheduler)
+        target_ds = data_in if ds_out is None else ds_out
+        check_transform_ds_out(target_ds, scheduler)
+        target_ds.flush()
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(target_ds.version_state, target_ds.storage)
 
-        ds_out.flush()
-        initial_autoflush = ds_out.storage.autoflush
-        ds_out.storage.autoflush = False
+        initial_autoflush = target_ds.storage.autoflush
+        target_ds.storage.autoflush = False
 
-        tensors = list(ds_out.tensors)
-
-        compute_provider = get_compute_provider(scheduler, num_workers)
+        overwrite = ds_out is None
+        if overwrite:
+            original_data_in.clear_cache()
 
         try:
             self.run(
-                data_in, ds_out, tensors, compute_provider, num_workers, progressbar
+                data_in,
+                target_ds,
+                compute_provider,
+                num_workers,
+                progressbar,
+                overwrite,
             )
         except Exception as e:
             raise TransformError(e)
         finally:
             compute_provider.close()
-
-        ds_out.storage.autoflush = initial_autoflush
+        target_ds.storage.autoflush = initial_autoflush
 
     def _run_with_progbar(
         self, func: Callable, ret: dict, total: int, desc: Optional[str] = ""
@@ -181,23 +196,23 @@ class Pipeline:
     def run(
         self,
         data_in,
-        ds_out: hub.Dataset,
-        tensors: List[str],
+        target_ds: hub.Dataset,
         compute: ComputeProvider,
         num_workers: int,
         progressbar: bool = True,
+        overwrite: bool = False,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
-        is_serial = isinstance(compute, SerialProvider)
-        num_workers = max(num_workers, 1)
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+        storage = get_base_storage(target_ds.storage)
+        group_index = target_ds.group_index  # type: ignore
+        version_state = target_ds.version_state
 
-        output_base_storage = get_base_storage(ds_out.storage)
-        version_state = ds_out.version_state
-        tensors = [ds_out.tensors[t].key for t in tensors]
+        tensors = list(target_ds.tensors)
+        tensors = [target_ds.tensors[t].key for t in tensors]
 
         ret = {}
 
@@ -206,7 +221,7 @@ class Pipeline:
                 store_data_slice,
                 zip(
                     slices,
-                    repeat((output_base_storage, ds_out.group_index)),  # type: ignore
+                    repeat((storage, group_index)),  # type: ignore
                     repeat(tensors),
                     repeat(self),
                     repeat(version_state),
@@ -221,11 +236,34 @@ class Pipeline:
         else:
             _run()
 
+        if overwrite:
+            chunk_paths = get_chunk_paths(target_ds, tensors)
+            # TODO:
+            # delete_chunks(chunk_paths, storage, compute)
+
         metas_and_encoders = ret["metas_and_encoders"]
 
-        all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
-        merge_all_tensor_metas(all_tensor_metas, ds_out)
-        merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
+        (
+            all_tensor_metas,
+            all_chunk_id_encoders,
+            all_tile_encoders,
+            all_chunk_commit_sets,
+        ) = zip(*metas_and_encoders)
+        all_num_samples = []
+        for tensor_meta_dict in all_tensor_metas:
+            num_samples_dict = {k: v.length for k, v in tensor_meta_dict.items()}
+            all_num_samples.append(num_samples_dict)
+        merge_all_tile_encoders(
+            all_tile_encoders, all_num_samples, target_ds, storage, overwrite
+        )
+        merge_all_tensor_metas(all_tensor_metas, target_ds, storage, overwrite)
+        merge_all_chunk_id_encoders(
+            all_chunk_id_encoders, target_ds, storage, overwrite
+        )
+        if target_ds.commit_id != FIRST_COMMIT_ID:
+            merge_all_commit_chunk_sets(
+                all_chunk_commit_sets, target_ds, storage, overwrite
+            )
 
 
 def compose(functions: List[TransformFunction]):

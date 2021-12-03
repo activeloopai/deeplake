@@ -332,7 +332,7 @@ class CompressionError(Exception):
 
 
 class UnsupportedCompressionError(CompressionError):
-    def __init__(self, compression: str, htype: Optional[str] = None):
+    def __init__(self, compression: Optional[str], htype: Optional[str] = None):
         if htype:
             super().__init__(
                 f"Compression '{compression}' is not supported for {htype} htype."
@@ -345,7 +345,10 @@ class UnsupportedCompressionError(CompressionError):
 
 class SampleCompressionError(CompressionError):
     def __init__(
-        self, sample_shape: Tuple[int, ...], compression_format: str, message: str
+        self,
+        sample_shape: Tuple[int, ...],
+        compression_format: Optional[str],
+        message: str,
     ):
         super().__init__(
             f"Could not compress a sample with shape {str(sample_shape)} into '{compression_format}'. Raw error output: '{message}'.",
