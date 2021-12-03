@@ -87,7 +87,7 @@ def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
     chunk_engine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
-    chunk_names = [enc.name_from_id(i) for i in range(n_chunks)]
+    chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
     chunk_keys = [
         get_chunk_key(key, chunk_name, version_state["commit_id"])
         for chunk_name in chunk_names
