@@ -115,7 +115,6 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
     memory_ds.image.extend(np.ones((4, 4096, 4096)))
@@ -224,10 +223,11 @@ def test_safe_downcasting(ds: Dataset):
     int_tensor.append(1)
     int_tensor.extend([2, 3, 4])
     int_tensor.extend([5, 6, np.uint8(7)])
+    int_tensor.append(np.zeros((0,), dtype="uint64"))
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(-8)
     int_tensor.append(np.array([1]))
-    assert len(int_tensor) == 9
+    assert len(int_tensor) == 10
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(np.array([1.0]))
 
@@ -662,6 +662,13 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
+def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
+    username = hub_cloud_path.split("/")[2]
+    # this dataset doesn't exist
+    new_path = f"hub://{username}/doesntexist123"
+    hub.delete(new_path, token=hub_cloud_dev_token, force=True)
+
+
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("version_state")
@@ -817,3 +824,13 @@ def test_clear(local_ds_generator):
     assert len(image) == 0
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+
+def test_empty_extend(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.append(1)
+        ds.create_tensor("y")
+        ds.y.extend(np.zeros((len(ds), 3)))
+    assert len(ds) == 0
