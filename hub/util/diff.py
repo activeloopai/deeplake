@@ -96,7 +96,7 @@ def get_changes_str(changes: Dict, message: str, separator: str):
     for tensor, change in changes.items():
         data_added = change["data_added"]
         data_updated = change["data_updated"]
-        created = change["created"] if "created" in change else False
+        created = change.get("created", False)
         has_change = created or data_added or data_updated
         if has_change:
             all_changes.append(tensor)
@@ -128,10 +128,7 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any
             change = changes[tensor]
             change["data_added"].update(commit_diff.data_added)
             change["data_updated"].update(commit_diff.data_updated)
-            if "created" not in change:
-                change["created"] = commit_diff.created
-            else:
-                change["created"] = change["created"] or commit_diff.created
+            change["created"] = change.get("created") or commit_diff.created
         except KeyError:
             pass
 

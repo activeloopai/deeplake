@@ -6,17 +6,9 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import CheckoutError, ReadOnlyModeError
 
 
-def check_dict_equal(d1, d2):
-    for k in d1.keys():
-        if isinstance(d1[k], dict):
-            check_dict_equal(d1[k], d2[k])
-        else:
-            assert d1[k] == d2[k]
-
-
-def commit_details_helper(ds, commits):
+def commit_details_helper(commits, ds):
     for commit in commits:
-        check_dict_equal(ds.get_commit_details(commit.commit_id), commit)
+        assert ds.get_commit_details(commit["commit"]) == commit
 
 
 def test_commit(local_ds):
@@ -403,21 +395,17 @@ def test_diff_linear(local_ds, capsys):
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    check_dict_equal(diff, changes_b_from_a)
+    assert diff == changes_b_from_a
 
     b = local_ds.commit()
     local_ds.diff()
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
-    changes_empty = {
-        "xyz": {"data_added": set(), "data_updated": set(), "created": False},
-        "pqr": {"data_added": set(), "data_updated": set(), "created": False},
-        "abc": {"data_added": set(), "data_updated": set(), "created": False},
-    }
+    changes_empty = {}
     target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    check_dict_equal(diff, changes_empty)
+    assert diff == changes_empty
 
     local_ds.diff(a)
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -430,8 +418,8 @@ def test_diff_linear(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(a, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_b_from_a)
-    check_dict_equal(diff[1], changes_empty)
+    assert diff[0] == changes_b_from_a
+    assert diff[1] == changes_empty
 
     local_ds.diff(b)
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -443,8 +431,8 @@ def test_diff_linear(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(b, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_empty)
-    check_dict_equal(diff[1], changes_empty)
+    assert diff[0] == changes_empty
+    assert diff[1] == changes_empty
 
     local_ds.diff(a, b)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -457,8 +445,8 @@ def test_diff_linear(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(a, b, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_empty)
-    check_dict_equal(diff[1], changes_b_from_a)
+    assert diff[0] == changes_empty
+    assert diff[1] == changes_b_from_a
 
     local_ds.diff(b, a)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -471,8 +459,8 @@ def test_diff_linear(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(b, a, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_b_from_a)
-    check_dict_equal(diff[1], changes_empty)
+    assert diff[0] == changes_b_from_a
+    assert diff[1] == changes_empty
 
 
 def test_diff_branch(local_ds, capsys):
@@ -505,7 +493,6 @@ def test_diff_branch(local_ds, capsys):
     }
     changes_main_from_branch_off = {
         "xyz": {"data_added": {3, 4}, "data_updated": {0, 2}, "created": False},
-        "pqr": {"data_added": set(), "data_updated": set(), "created": False},
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = (
@@ -515,21 +502,18 @@ def test_diff_branch(local_ds, capsys):
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    check_dict_equal(diff, changes_main_from_branch_off)
+    assert diff == changes_main_from_branch_off
 
     c = local_ds.commit()
 
     local_ds.diff()
-    empty_changes = {
-        "xyz": {"data_added": set(), "data_updated": set(), "created": False},
-        "pqr": {"data_added": set(), "data_updated": set(), "created": False},
-    }
+    empty_changes = {}
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = get_all_changes_string(empty_changes, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    check_dict_equal(diff, empty_changes)
+    assert diff == empty_changes
 
     local_ds.diff(a)
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -544,8 +528,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(a, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_main_from_branch_off)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(b)
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -560,8 +544,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(b, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_main_from_branch_off)
-    check_dict_equal(diff[1], changes_b_from_branch_off)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c)
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -573,8 +557,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(c, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], empty_changes)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     local_ds.diff(a, b)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -589,8 +573,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(a, b, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], empty_changes)
-    check_dict_equal(diff[1], changes_b_from_branch_off)
+    assert diff[0] == empty_changes
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(b, a)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -605,8 +589,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(b, a, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_b_from_branch_off)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == changes_b_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(b, c)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -633,8 +617,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(c, b, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_main_from_branch_off)
-    check_dict_equal(diff[1], changes_b_from_branch_off)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c, a)
     message1 = f"Diff in {c} (target id 1):\n"
@@ -649,8 +633,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(c, a, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_main_from_branch_off)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(a, c)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -665,8 +649,8 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(a, c, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], empty_changes)
-    check_dict_equal(diff[1], changes_main_from_branch_off)
+    assert diff[0] == empty_changes
+    assert diff[1] == changes_main_from_branch_off
 
 
 def test_complex_diff(local_ds, capsys):
@@ -718,8 +702,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(c, g, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_c_from_x)
-    check_dict_equal(diff[1], changes_g_from_x)
+    assert diff[0] == changes_c_from_x
+    assert diff[1] == changes_g_from_x
 
     local_ds.diff(e, d)
     message1 = f"Diff in {e} (target id 1):\n"
@@ -731,8 +715,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(e, d, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], empty_changes)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     local_ds.diff(e, e)
     message1 = f"Diff in {e} (target id 1):\n"
@@ -744,8 +728,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(e, e, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], empty_changes)
-    check_dict_equal(diff[1], empty_changes)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     changes_main_from_x = {
         "xyz": {"data_added": set(), "data_updated": {1}, "created": False},
@@ -765,8 +749,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff(c, "main", as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_c_from_x)
-    check_dict_equal(diff[1], changes_main_from_x)
+    assert diff[0] == changes_c_from_x
+    assert diff[1] == changes_main_from_x
 
     local_ds.diff("main", c)
     message1 = "Diff in main (target id 1):\n"
@@ -781,8 +765,8 @@ def test_complex_diff(local_ds, capsys):
     assert captured.out == target
     diff = local_ds.diff("main", c, as_dict=True)
     assert isinstance(diff, tuple)
-    check_dict_equal(diff[0], changes_main_from_x)
-    check_dict_equal(diff[1], changes_c_from_x)
+    assert diff[0] == changes_main_from_x
+    assert diff[1] == changes_c_from_x
 
 
 def test_diff_not_exists(local_ds):

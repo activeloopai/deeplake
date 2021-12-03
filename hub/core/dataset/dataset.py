@@ -514,10 +514,9 @@ class Dataset:
             if changes2 is None:
                 return changes1
             return changes1, changes2
-        else:
-            all_changes = get_all_changes_string(changes1, message1, changes2, message2)
-            print(all_changes)
-            return None
+        all_changes = get_all_changes_string(changes1, message1, changes2, message2)
+        print(all_changes)
+        return None
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
