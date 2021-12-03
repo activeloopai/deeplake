@@ -14,6 +14,11 @@ def check_dict_equal(d1, d2):
             assert d1[k] == d2[k]
 
 
+def commit_details_helper(ds, commits):
+    for commit in commits:
+        check_dict_equal(ds.get_commit_details(commit.commit_id), commit)
+
+
 def test_commit(local_ds):
     with local_ds:
         local_ds.create_tensor("abc")
@@ -799,3 +804,28 @@ def test_branches(local_ds_generator):
     assert local_ds.branches == ["main", "alt"]
     local_ds.checkout("other", create=True)
     assert local_ds.branches == ["main", "alt", "other"]
+
+
+def test_commits(local_ds):
+    commits = local_ds.commits
+    assert len(commits) == 0
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 1
+    commit_details_helper(commits, local_ds)
+    local_ds.checkout("alt", create=True)
+    commits = local_ds.commits
+    assert len(commits) == 2
+    commit_details_helper(commits, local_ds)
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 3
+    commit_details_helper(commits, local_ds)
+    local_ds.checkout("main")
+    commits = local_ds.commits
+    assert len(commits) == 2
+    commit_details_helper(commits, local_ds)
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 3
+    commit_details_helper(commits, local_ds)
