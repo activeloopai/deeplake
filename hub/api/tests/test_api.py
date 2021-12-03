@@ -820,13 +820,16 @@ def test_no_view(memory_ds):
         memory_ds[2].delete()
 
     with pytest.raises(InvalidOperationError):
-        memory_ds[0].read_only = True
-
-    with pytest.raises(InvalidOperationError):
         memory_ds.a[:2].append(0)
 
     with pytest.raises(InvalidOperationError):
         memory_ds.b[:3].extend([3, 4])
+
+    with pytest.raises(InvalidOperationError):
+        memory_ds[1:3].read_only = False
+
+    with pytest.raises(InvalidOperationError):
+        memory_ds[0].read_only = True
 
 
 def test_empty_extend(memory_ds):

@@ -168,6 +168,7 @@ class Dataset:
         return {
             "path": self.path,
             "_read_only": self.read_only,
+            "_read_only_set": self._read_only_set,
             "index": self.index,
             "group_index": self.group_index,
             "public": self.public,
