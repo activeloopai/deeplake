@@ -455,7 +455,8 @@ class Dataset:
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Union[Dict, Tuple[Dict, Dict]]]:
-        """Displays the differences between commits/branches.
+        """Returns/displays the differences between commits/branches.
+        For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created.
 
         Args:
             id_1 (str, optional): The first commit_id or branch name.
@@ -479,6 +480,7 @@ class Dataset:
             {
                 "image": {"data_added": {3, 4, 5}, "data_updated": {0, 2}, "created": False},
                 "label": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
+                "other/stuff" : {data_added: {2, 3}, data_updated: {1,2}, created: True}
             }
 
 
