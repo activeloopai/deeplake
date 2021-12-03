@@ -475,6 +475,13 @@ class Dataset:
                 If both id_1 and id_2 are provided, two dictionaries containing the differences in id_1 and id_2 respectively will be returned.
             None: If as_dict is False.
 
+            Example of a dict returned:
+            {
+                "image": {"data_added": {3, 4, 5}, "data_updated": {0, 2}, "created": False},
+                "label": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
+            }
+
+
         Raises:
             ValueError: If both id_1 is None and id_2 is not None.
         """
