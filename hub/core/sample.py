@@ -26,6 +26,8 @@ from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 from io import BytesIO
+                    
+from hub.core.storage import StorageProvider, LocalProvider
 
 
 class Sample:
@@ -177,8 +179,7 @@ class Sample:
                 ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
                     compressed_bytes = _to_hub_mkv(self.path)
                 else:
-                    with open(self.path, "rb") as f:
-                        compressed_bytes = f.read()
+                    compressed_bytes = LocalProvider(root="/")[self.path]
                     if self._compression is None:
                         self._compression = get_compression(
                             header=compressed_bytes[:32]
@@ -218,7 +219,7 @@ class Sample:
                         self._array = decompress_array(self.path, compression=compr)
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
-                    img = Image.open(self.path)
+                    img = Image.open(BytesIO(LocalProvider(root="./")[self.path]))
                     if img.mode == "1":
                         # Binary images need to be extended from bits to bytes
                         self._uncompressed_bytes = img.tobytes("raw", "L")
