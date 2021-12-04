@@ -26,7 +26,8 @@ from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 from io import BytesIO
-                    
+import posixpath
+
 from hub.core.storage import StorageProvider, LocalProvider
 
 
@@ -42,6 +43,7 @@ class Sample:
         verify: bool = False,
         shape: Tuple[int] = None,
         dtype: Optional[str] = None,
+        storage: StorageProvider = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -77,6 +79,7 @@ class Sample:
 
         if path is not None:
             self.path = path
+            self.storage = storage
             self._compression = None
             self._verified = False
             self._verify = verify
@@ -123,7 +126,12 @@ class Sample:
         if self._shape is not None:
             return
         if f is None:
-            f = self.path if self.path else self.compressed_bytes[self._compression]
+            f = (
+                # posixpath.join(self.storage.root[0], self.path)
+                self.storage[self.path]
+                if self.path
+                else self.compressed_bytes[self._compression]
+            )
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
@@ -177,9 +185,10 @@ class Sample:
                     "mp4",
                     "mkv",
                 ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
-                    compressed_bytes = _to_hub_mkv(self.path)
+                    path = posixpath.join(self.storage.root, self.path)
+                    compressed_bytes = _to_hub_mkv(path)
                 else:
-                    compressed_bytes = LocalProvider(root="/")[self.path]
+                    compressed_bytes = self.storage[self.path]
                     if self._compression is None:
                         self._compression = get_compression(
                             header=compressed_bytes[:32]
@@ -216,10 +225,12 @@ class Sample:
                 ):
                     self._compression = compr
                     if self._array is None:
-                        self._array = decompress_array(self.path, compression=compr)
+                        self._array = decompress_array(
+                            self.storage[self.path], compression=compr
+                        )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
-                    img = Image.open(BytesIO(LocalProvider(root="./")[self.path]))
+                    img = Image.open(BytesIO(self.storage[self.path]))
                     if img.mode == "1":
                         # Binary images need to be extended from bits to bytes
                         self._uncompressed_bytes = img.tobytes("raw", "L")
@@ -251,7 +262,9 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
-                array = decompress_array(self.path or self._buffer, compression=compr)
+                array = decompress_array(
+                    self.storage[self.path] or self._buffer, compression=compr
+                )
                 if self._shape is None:
                     self._shape = array.shape
                     self._typestr = array.__array_interface__["typestr"]
