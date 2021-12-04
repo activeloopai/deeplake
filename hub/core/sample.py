@@ -125,9 +125,10 @@ class Sample:
     def _read_meta(self, f=None):
         if self._shape is not None:
             return
+        
         if f is None:
             f = (
-                # posixpath.join(self.storage.root[0], self.path)
+                # posixpath.join(self.storage.next_storage.root, self.path)
                 self.storage[self.path]
                 if self.path
                 else self.compressed_bytes[self._compression]
@@ -185,7 +186,7 @@ class Sample:
                     "mp4",
                     "mkv",
                 ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
-                    path = posixpath.join(self.storage.root, self.path)
+                    path = posixpath.join(self.storage.next_storage.root, self.path)
                     compressed_bytes = _to_hub_mkv(path)
                 else:
                     compressed_bytes = self.storage[self.path]

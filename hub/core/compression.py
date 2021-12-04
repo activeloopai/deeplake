@@ -441,6 +441,7 @@ def get_compression(header=None, path=None):
             Image.init()
         for fmt in Image.OPEN:
             accept = Image.OPEN[fmt][1]
+            print(header)
             if accept and accept(header):
                 return fmt.lower()
         raise SampleDecompressionError()
