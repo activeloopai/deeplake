@@ -125,7 +125,7 @@ class Sample:
     def _read_meta(self, f=None):
         if self._shape is not None:
             return
-        
+
         if f is None:
             f = (
                 # posixpath.join(self.storage.next_storage.root, self.path)
