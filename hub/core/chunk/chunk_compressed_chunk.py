@@ -30,7 +30,7 @@ class ChunkCompressedChunk(BaseChunk):
             ]
             self.decompressed_samples = decompress_multiple(self._data_bytes, shapes)
         self._changed = False
-        self._compression_ratio = 1
+        self._compression_ratio = 2
 
     def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:
 
@@ -111,7 +111,6 @@ class ChunkCompressedChunk(BaseChunk):
                     self.decompressed_samples = [tile]
                     self._changed = True
                 break
-
             if isinstance(incoming_sample, Sample):
                 incoming_sample = incoming_sample.array
             if (
@@ -123,7 +122,7 @@ class ChunkCompressedChunk(BaseChunk):
                 )
                 if len(compressed_bytes) > self.min_chunk_size:
                     break
-                self._compression_ratio += 1
+                self._compression_ratio *= 2
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
@@ -246,9 +245,9 @@ class ChunkCompressedChunk(BaseChunk):
         self.check_shape_for_update(local_index, shape)
         decompressed_samples = self.decompressed_samples
 
-        decompressed_samples[local_sample_index] = new_sample  # type: ignore
+        decompressed_samples[local_index] = new_sample  # type: ignore
         self._changed = True
-        self.update_in_meta_and_headers(local_sample_index, None, shape)  # type: ignore
+        self.update_in_meta_and_headers(local_index, None, shape)  # type: ignore
 
         decompressed_samples[local_index] = new_sample  # type: ignore
         self.data_bytes = bytearray(  # type: ignore
