@@ -1,5 +1,6 @@
 from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
+from hub.integrations.pytorch.common import PytorchTransformFunction
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
@@ -50,12 +51,9 @@ def cast_type(tensor: np.ndarray):
     return tensor
 
 
-def _process(tensor, transform: Optional[Callable]):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k])) for k in tensor)
-
-    if transform:
-        tensor = transform(tensor)
-
+def _process(tensor, transform: PytorchTransformFunction):
+    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
+    tensor = transform(tensor)
     return tensor
 
 
@@ -90,7 +88,7 @@ def _worker_loop(
     tensors,
     use_local_cache: bool,
     schedule: Schedule,
-    transform: Callable,
+    transform: PytorchTransformFunction,
     request_queue: Queue,
     data_queue: Queue,
     workers_done,
@@ -323,8 +321,8 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         self,
         dataset,
         use_local_cache: bool = False,
-        tensors: Optional[Sequence[str]] = None,
-        transform: Optional[Callable] = None,
+        tensors: Sequence[str] = None,
+        transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 0,
     ) -> None:
@@ -344,7 +342,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
 
         streaming = SampleStreaming(
             dataset,
-            tensors=self.tensors,
+            tensors=self.tensors,  # type: ignore
             use_local_cache=use_local_cache,
         )
 
@@ -367,8 +365,8 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self,
         dataset,
         use_local_cache: bool = False,
-        tensors: Optional[Sequence[str]] = None,
-        transform: Optional[Callable] = None,
+        tensors: Sequence[str] = None,
+        transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
@@ -387,7 +385,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         streaming = SampleStreaming(
             dataset,
-            tensors=self.tensors,
+            tensors=self.tensors,  # type: ignore
             use_local_cache=use_local_cache,
         )
 
@@ -429,7 +427,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Optional[Sequence[str]] = None,
-        transform: Optional[Callable] = None,
+        transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 0,

@@ -1,7 +1,11 @@
-from typing import Callable, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Union
 from hub.util.dataset import try_flushing
-from hub.constants import MB
-from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
+from hub.util.dataset import map_tensor_keys
+from .common import (
+    PytorchTransformFunction,
+    convert_fn as default_convert_fn,
+    collate_fn as default_collate_fn,
+)
 
 
 def create_dataloader_nesteddataloader(
@@ -79,16 +83,16 @@ create_dataloader = create_dataloader_nesteddataloader
 
 def dataset_to_pytorch(
     dataset,
-    transform: Optional[Callable] = None,
+    num_workers: int,
+    batch_size: int,
+    drop_last: bool,
+    collate_fn: Optional[Callable],
+    pin_memory: bool,
+    shuffle: bool,
+    buffer_size: int,
+    use_local_cache: bool,
+    transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
-    num_workers: int = 1,
-    batch_size: int = 1,
-    drop_last: bool = False,
-    collate_fn: Optional[Callable] = None,
-    pin_memory: bool = False,
-    shuffle: bool = False,
-    buffer_size: int = 512,
-    use_local_cache: bool = False,
 ):
 
     import torch
@@ -100,6 +104,13 @@ def dataset_to_pytorch(
 
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
+
+    tensors = map_tensor_keys(dataset, tensors)
+    if isinstance(transform, dict):
+        tensors = list(transform.keys())
+        transform = PytorchTransformFunction(transform_dict=transform, tensors=tensors)
+    else:
+        transform = PytorchTransformFunction(composite_transform=transform)
 
     if shuffle and num_workers > 0:
         return create_dataloader(
