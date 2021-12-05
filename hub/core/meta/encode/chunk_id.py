@@ -209,3 +209,15 @@ class ChunkIdEncoder(Encoder, Cachable):
             else:
                 break
         return output
+
+    def _pop(self) -> List[ENCODING_DTYPE]:
+        chunk_ids_for_last_sampe = self[-1]
+        if len(chunk_ids_for_last_sampe) > 1:
+            self._encoded = self._encoded[: -len(chunk_ids_for_last_sampe)]
+            return chunk_ids_for_last_sampe
+        elif self._encoded[-1][LAST_SEEN_INDEX_COLUMN] == 1:
+            self._encoded = self._encoded[:-1]
+            return []
+        else:
+            self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+            return chunk_ids_for_last_sampe

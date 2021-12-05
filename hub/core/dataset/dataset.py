@@ -994,5 +994,17 @@ class Dataset:
                 raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError("All tensors are expected to have the same length.")
+        ks = []
         for k, v in sample.items():
-            self[k].append(v)
+            try:
+                self[k].append(v)
+                ks.append(k)
+            except Exception as e:
+                for k in ks:
+                    try:
+                        self[k]._pop()
+                    except Exception as e2:
+                        raise Exception(
+                            "Error while attepting to rollback appends"
+                        ) from e2
+                raise e

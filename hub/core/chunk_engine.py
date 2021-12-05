@@ -275,6 +275,11 @@ class ChunkEngine:
         commit_id = self.get_chunk_commit(last_chunk_name)
         return get_chunk_key(self.key, last_chunk_name, commit_id)
 
+    def get_chunk_key_for_id(self, chunk_id) -> str:
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        commit_id = self.get_chunk_commit(chunk_name)
+        return get_chunk_key(self.key, chunk_name, commit_id)
+
     @property
     def last_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
@@ -631,3 +636,22 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+    def _pop(self):
+        num_samples = self.num_samples
+        if num_samples == 0:
+            raise IndexError("pop from empty tensor")
+        self._write_initialization()
+        chunk_ids = self.chunk_id_encoder[-1]
+        chunks_to_delete = list(
+            map(self.get_chunk_key_for_id, self.chunk_id_encoder._pop())
+        )
+        if len(chunks_to_delete) > 1:
+            del self.tile_encoder[num_samples - 1]
+        elif chunks_to_delete == 0:
+            chunk_to_update = self.get_chunk(chunk_ids[0])
+            chunk_to_update._pop_sample()
+        for chunk_key in chunks_to_delete:
+            del self.cache[chunk_key]
+        self.tensor_meta.length -= 1
+        self._write_finalization()

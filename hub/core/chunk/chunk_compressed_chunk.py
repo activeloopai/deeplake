@@ -177,3 +177,7 @@ class ChunkCompressedChunk(BaseChunk):
             )
 
         return sample, shape
+
+    def _pop_sample(self):
+        # Implemented in https://github.com/activeloopai/Hub/pull/1366
+        raise NotImplementedError

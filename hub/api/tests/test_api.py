@@ -804,22 +804,27 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-def test_ds_append(memory_ds):
+@pytest.mark.parametrize("x_args", [{}, {"sample_compression": "lz4"}])
+@pytest.mark.parametrize("y_args", [{}, {"sample_compression": "lz4"}])
+def test_ds_append(memory_ds, x_args, y_args):
     ds = memory_ds
-    ds.create_tensor("x")
-    ds.create_tensor("y")
-    ds.append({"x": np.ones(2), "y": np.zeros(3)})
+    ds.create_tensor("x", **x_args)
+    ds.create_tensor("y", dtype="uint8", **y_args)
+    ds.append({"x": np.ones(2), "y": [1, 2, 3]})
     ds.create_tensor("z")
     with pytest.raises(TensorDoesNotExistError):
-        ds.append({"x": np.ones(2), "y": np.zeros(3)})
-    ds.append({"x": np.ones(3), "y": np.zeros(2)}, skip_ok=True)
-    ds.append({"x": np.ones(4), "y": np.zeros(5)}, skip_ok=True)
+        ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
+    ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
+    ds.append({"x": np.ones(4), "y": [2, 3, 4]}, skip_ok=True)
     with pytest.raises(ValueError):
-        ds.append({"x": np.ones(2), "y": np.zeros(3), "z": np.ones(4)})
+        ds.append({"x": np.ones(2), "y": [4, 5], "z": np.ones(4)})
+    with pytest.raises(TensorDtypeMismatchError):
+        ds.append({"x": np.ones(5), "y": np.zeros(2)}, skip_ok=True)
     assert len(ds.x) == 3
     assert len(ds.y) == 3
     assert len(ds.z) == 0
     assert len(ds) == 0
+
 
 def test_empty_extend(memory_ds):
     ds = memory_ds

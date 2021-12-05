@@ -675,3 +675,9 @@ class Encoder(ABC):
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
+
+    def _pop(self):
+        if self._encoded[-1][LAST_SEEN_INDEX_COLUMN] == 1:
+            self._encoded = self._encoded[:-1]
+        else:
+            self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
