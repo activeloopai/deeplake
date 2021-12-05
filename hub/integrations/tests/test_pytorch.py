@@ -19,6 +19,10 @@ from hub.tests.dataset_fixtures import enabled_datasets
 PYTORCH_TESTS_MAX_CHUNK_SIZE = 5 * KB
 
 
+def double(sample):
+    return sample * 2
+
+
 def to_tuple(sample):
     return sample["image"], sample["image2"]
 
@@ -163,6 +167,39 @@ def test_pytorch_transform(ds):
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
         assert set(all_values) == set(range(16))
+
+
+@requires_torch
+@enabled_datasets
+def test_pytorch_transform_dict(ds):
+    with ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+        ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            dl = ds.pytorch(num_workers=0)
+        return
+
+    dl = ds.pytorch(
+        num_workers=2, transform={"image": double, "image2": None}, batch_size=1
+    )
+
+    assert len(dl.dataset) == 16
+
+    for _ in range(2):
+        for i, batch in enumerate(dl):
+            assert set(batch.keys()) == {"image", "image2"}
+            np.testing.assert_array_equal(
+                batch["image"].numpy(), 2 * i * np.ones((1, i + 1, i + 1))
+            )
+            np.testing.assert_array_equal(
+                batch["image2"].numpy(), i * np.ones((1, 12, 12))
+            )
 
 
 @requires_torch
@@ -418,3 +455,18 @@ def test_groups(local_ds, compressed_image_paths):
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
+
+
+@requires_torch
+def test_string_tensors(local_ds):
+    with local_ds:
+        local_ds.create_tensor("strings", htype="text")
+        local_ds.strings.extend([f"string{idx}" for idx in range(5)])
+
+    ptds = local_ds.pytorch(batch_size=1)
+    for idx, batch in enumerate(ptds):
+        np.testing.assert_array_equal(batch["strings"], [f"string{idx}"])
+
+    ptds2 = local_ds.pytorch(batch_size=None)
+    for idx, batch in enumerate(ptds2):
+        np.testing.assert_array_equal(batch["strings"], f"string{idx}")
