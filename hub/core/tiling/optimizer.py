@@ -4,8 +4,9 @@ from typing import Tuple, Union, List, Optional
 
 def get_tile_shape(
     sample_shape: Tuple[int, ...],
-    sample_size: float,
+    sample_size: Optional[float] = None,
     chunk_size: int = 16 * 2 ** 20,
+    num_tiles: Optional[int] = None,
     exclude_axes: Optional[Union[int, List[int]]] = None,
 ) -> Tuple[int, ...]:
     """
@@ -15,6 +16,7 @@ def get_tile_shape(
         sample_shape: Shape of the sample
         sample_size: Size of the compressed sample in bytes
         chunk_size: Expected size of a compressed tile in bytes
+        num_tile: Overrides chunk size
         exclude_axes: Dimensions to be excluded from tiling. (2 for RGB images)
 
     Returns:
@@ -23,7 +25,7 @@ def get_tile_shape(
     Raises:
         ValueError: If the chunk_size is too small
     """
-    ratio = sample_size / chunk_size
+    ratio = num_tiles if num_tiles is not None else sample_size / chunk_size
     sample_shape = np.array(sample_shape, dtype=np.float32)  # type: ignore
     if isinstance(exclude_axes, int):
         exclude_axes = [exclude_axes]

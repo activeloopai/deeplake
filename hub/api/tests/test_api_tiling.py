@@ -74,6 +74,13 @@ def test_updates(memory_ds, compression):
     arr2 = np.random.randint(0, 255, (500, 500, 3)).astype(np.uint8)
     arr3 = np.random.randint(0, 255, (2503, 2501, 3)).astype(np.uint8)
     arr4 = np.random.randint(0, 255, (250, 250, 3)).astype(np.uint8)
+
+    update_idx = (slice(73, 117), slice(1765, 1901))
+
+    arr5 = arr1 * 2
+    arr6 = arr5[update_idx]
+    arr6 += 1
+
     with memory_ds:
         memory_ds.create_tensor("abc", **compression)
         for i in range(10):
@@ -84,12 +91,15 @@ def test_updates(memory_ds, compression):
 
     with memory_ds:
         for i in range(10):
-            if i % 5 != 0:
+            if i % 5 == 0:
+                memory_ds.abc[i] *= 2
+                memory_ds.abc[i][update_idx] = arr6
+            else:
                 memory_ds.abc[i] = arr3 if i % 2 == 0 else arr4
 
     for i in range(10):
         if i % 5 == 0:
-            np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr1)
+            np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr5)
         elif i % 2 == 0:
             np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr3)
         else:
