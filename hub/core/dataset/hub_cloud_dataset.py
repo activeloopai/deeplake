@@ -24,6 +24,9 @@ class HubCloudDataset(Dataset):
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
+                logger.info(
+                    f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                )
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
                 warn(
@@ -86,7 +89,6 @@ class HubCloudDataset(Dataset):
         super().delete(large_ok=large_ok)
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
-        logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     @property
     def agreement(self) -> Optional[str]:

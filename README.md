@@ -1,7 +1,3 @@
-| :zap:        Hacktoberfest 2021 is here! Contribute and win Activeloop swag. Grab an issue in our  <a href="https://github.com/activeloopai/Hub/projects/11"><b>Hacktoberfest dashboard</b></a>! :zap: |
-|-----------------------------------------|
-
-
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
@@ -153,7 +149,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | <!-- -->    | <!-- -->    |
 | ---------------------------------------------------- | ------------- |
 | Storage for public datasets hosted by Activeloop     | 200GB Free    |
-| Storage for public datasets hosted by Activeloop     | 100GB Free    |
+| Storage for private datasets hosted by Activeloop    | 100GB Free    |
 
 
 
