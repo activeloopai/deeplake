@@ -14,6 +14,7 @@ from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider
+from hub.core.storage.gcs import GCSProvider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
@@ -176,6 +177,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def __getitem__(
         self,
@@ -382,10 +384,10 @@ class Dataset:
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
-    def _lock(self):
+    def _lock(self, err=False):
         storage = get_base_storage(self.storage)
         if (
-            isinstance(storage, S3Provider)
+            isinstance(storage, (S3Provider, GCSProvider))
             and self.index.is_trivial()
             and (not self.read_only or self._locked_out)
         ):
@@ -395,9 +397,11 @@ class Dataset:
                     version=self.version_state["commit_id"],
                     callback=self._lock_lost_handler,
                 )
-            except LockedException:
+            except LockedException as e:
                 self.read_only = True
                 self._locked_out = True
+                if err:
+                    raise e
                 warnings.warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
@@ -573,6 +577,8 @@ class Dataset:
         if value:
             self.storage.enable_readonly()
         else:
+            self._lock(err=True)
+            self._locked_out = False
             self.storage.disable_readonly()
         self._read_only = value
 
@@ -697,7 +703,10 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
+        if self._read_only:
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
         self.index.validate(self.num_samples)
 
     @property

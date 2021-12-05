@@ -249,7 +249,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
     storage = get_base_storage(storage)
     lock = Lock(storage, get_version_control_info_lock_key())
-    lock.acquire()
+    lock.acquire(timeout=10, force=True)
     key = get_version_control_info_key()
     new_version_info = {
         "commit_node_map": version_state["commit_node_map"],
