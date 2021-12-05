@@ -369,7 +369,7 @@ def serialize_tensor(
     break_into_tiles: bool = True,
     store_tiles: bool = False,
 ):
-    def _ret_numpy():
+    def _return_numpy():
         return serialize_numpy_and_base_types(
             incoming_sample.numpy(),
             sample_compression,
@@ -378,16 +378,16 @@ def serialize_tensor(
             htype,
             min_chunk_size,
             break_into_tiles,
-            stoere_tiles,
+            store_tiles,
         )
 
     if incoming_sample.meta.chunk_compression:
-        return _ret_numpy()
+        return _return_numpy()
     elif incoming_sample.meta.sample_compression == sample_compression:
         # Pass through
         try:
             return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
-        except ValueError:  # Slice of sample
-            return _ret_numpy()
+        except (ValueError, NotImplementedError):  # Slice of sample or tiled sample
+            return _return_numpy()
     else:
-        return _ret_numpy()
+        return _return_numpy()

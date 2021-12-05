@@ -451,10 +451,6 @@ class ChunkEngine:
         chunk.key = chunk_key
         return chunk
 
-    def append(self, sample):
-        """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-        self.extend([sample])
-
     def update(
         self,
         index: Index,
@@ -541,10 +537,15 @@ class ChunkEngine:
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        chunk = self.get_chunks_for_sample(global_sample_index)[0]
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        shape = chunk.shapes_encoder[local_sample_index]
-        shape = tuple(map(int, shape))
+        chunks = self.get_chunks_for_sample(global_sample_index)
+        if len(chunks) == 1:
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+            shape = chunks[0].shapes_encoder[local_sample_index]
+            return tuple(map(int, shape))
+        else:
+            return self.tile_encoder.get_sample_shape(global_sample_index)
         return shape
 
     def read_sample_from_chunk(
