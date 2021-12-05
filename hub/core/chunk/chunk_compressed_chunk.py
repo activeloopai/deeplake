@@ -59,7 +59,8 @@ class ChunkCompressedChunk(BaseChunk):
                     self.write_tile(serialized_sample)
                     num_samples += 0.5  # type: ignore
                     tile = serialized_sample.yield_uncompressed_tile()
-                    self._decompressed_bytes = tile.tobytes()
+                    self.decompressed_bytes = tile.tobytes()
+                    self._changed = True
                 break
 
             sample_nbytes = len(serialized_sample)
@@ -76,7 +77,7 @@ class ChunkCompressedChunk(BaseChunk):
                     break
                 recompressed = True
                 self.decompressed_bytes = new_decompressed
-                self._compression_ratio *= 2
+                self._compression_ratio += 1
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
@@ -107,7 +108,8 @@ class ChunkCompressedChunk(BaseChunk):
                     self.write_tile(incoming_sample, skip_bytes=True)
                     num_samples += 0.5  # type: ignore
                     tile = incoming_sample.yield_uncompressed_tile()
-                    self._decompressed_samples = [tile]
+                    self.decompressed_samples = [tile]
+                    self._changed = True
                 break
 
             if isinstance(incoming_sample, Sample):
@@ -121,7 +123,7 @@ class ChunkCompressedChunk(BaseChunk):
                 )
                 if len(compressed_bytes) > self.min_chunk_size:
                     break
-                self._compression_ratio *= 2
+                self._compression_ratio += 1
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
