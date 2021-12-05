@@ -61,8 +61,8 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
 @hub.compute
 def fn4(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
-        samples_out.x.y.z.image.append(sample_in.z.y.x.image.numpy() * mul)
-        samples_out.x.y.z.label.append(sample_in.z.y.x.label.numpy() * mul)
+        samples_out.x["y"].z.image.append(sample_in.z.y.x.image.numpy() * mul)
+        samples_out.x.y.z["label"].append(sample_in.z.y.x.label.numpy() * mul)
 
 
 @hub.compute

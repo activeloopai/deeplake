@@ -37,7 +37,9 @@ class TransformTensor:
         return self.length  # type: ignore
 
     def __getattr__(self, name):
+        # Only applicable for tensor groups
         if self.items:
+            # Samples appended to this tensor, which means this is not a tensor group
             raise AttributeError(name)
         del self.dataset.tensors[self.name]
         return self.dataset["/".join((self.name, name))]
