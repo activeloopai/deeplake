@@ -4,9 +4,8 @@ from typing import Union, Tuple
 
 def ceildiv(
     a: Union[np.ndarray, int, float], b: Union[np.ndarray, int, float]
-) -> Union[np.ndarray, int, float]:
+) -> np.ndarray:
     """General ceiling division."""
-
     return np.ceil(a / b).astype(int)
 
 
