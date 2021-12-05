@@ -163,7 +163,7 @@ def _get_lock_key(storage_path: str, version: Optional[str] = None):
 def _get_lock_file_path(version: Optional[str] = None):
     if version in (None, FIRST_COMMIT_ID):
         return get_dataset_lock_key()
-    return "versions/" + version + "/" + get_dataset_lock_key()
+    return "versions/" + version + "/" + get_dataset_lock_key()  # type: ignore
 
 
 def lock_version(
