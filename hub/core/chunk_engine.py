@@ -6,7 +6,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
-from hub.core.tiling.deserialize import combine_chunks
+from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
@@ -14,7 +14,7 @@ from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.index.index import Index
+from hub.core.index.index import Index, IndexEntry
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
@@ -297,6 +297,12 @@ class ChunkEngine:
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
 
+    def get_chunk_from_chunk_id(self, chunk_id) -> BaseChunk:
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        commit_id = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
+        return self.get_chunk(chunk_key)
+
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
         """Copies the chunk to the current commit.
 
@@ -567,20 +573,53 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         for global_sample_index in index.values[0].indices(length):
-            chunks = self.get_chunks_for_sample(global_sample_index)
-
-            if len(chunks) == 1:
-                chunk = chunks[0]
-                idx = enc.translate_index_relative_to_chunks(global_sample_index)
-                sample = chunk.read_sample(idx)
+            chunk_ids = enc[global_sample_index]
+            if len(chunk_ids) == 1:
+                chunk = self._get_chunk_from_chunk_id(chunk_ids[0])
+                enc = self.chunk_id_encoder
+                local_sample_index = enc.translate_index_relative_to_chunks(
+                    global_sample_index
+                )
+                sample = chunk.read_sample(local_sample_index)[
+                    tuple(entry.value for entry in index.values[1:])
+                ]
+            elif len(index.values) == 1:
+                # Tiled sample, all chunks required
+                chunks = self.get_chunks_for_sample(global_sample_index)
+                sample = combine_chunks(chunks, global_sample_index, self.tile_encoder)
             else:
+                # Tiled sample, only some chunks required
                 tile_enc = self.tile_encoder
-                sample = combine_chunks(chunks, global_sample_index, tile_enc)
-            shape = sample.shape
-            check_sample_shape(shape, last_shape, self.key, index, aslist)
+                sample_shape = tile_enc.get_sample_shape(global_sample_index)
+                tile_shape = tile_enc.get_tile_shape(global_sample_index)
+                ordered_tile_ids = np.array(chunk_ids).reshape(
+                    tile_enc.get_tile_layout_shape(global_sample_index)
+                )
+                tiles_index, sample_index = translate_slices(
+                    [v.value for v in index.values[1:]], sample_shape, tile_shape
+                )
+                required_tile_ids = ordered_tile_ids[tiles_index]
+                tiles = np.vectorize(
+                    lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
+                        0
+                    ),
+                    otypes=[object],
+                )(required_tile_ids)
+                sample = coalesce_tiles(tiles, tile_shape, self.tensor_meta.dtype)
+                sample = sample[sample_index]
             samples.append(sample)
-            last_shape = shape
-        return format_read_samples(samples, index, aslist)
+            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+            last_shape = sample.shape
+
+        if aslist and all(map(np.isscalar, samples)):
+            samples = list(arr.item() for arr in samples)
+
+        if not index.values[0].subscriptable():
+            samples = samples[0]
+
+        if aslist:
+            return samples
+        return np.array(samples)
 
     def get_chunks_for_sample(
         self, global_sample_index: int, copy: bool = False
