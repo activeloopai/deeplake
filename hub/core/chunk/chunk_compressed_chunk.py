@@ -77,7 +77,7 @@ class ChunkCompressedChunk(BaseChunk):
                     break
                 recompressed = True
                 self.decompressed_bytes = new_decompressed
-                self._compression_ratio += 1
+                self._compression_ratio *= 1
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
