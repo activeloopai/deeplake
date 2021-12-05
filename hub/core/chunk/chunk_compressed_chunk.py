@@ -43,7 +43,7 @@ class ChunkCompressedChunk(BaseChunk):
         self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
     ):
         num_samples = 0
-        for incoming_sample in incoming_samples:
+        for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
                 incoming_sample,
                 chunk_compression=self.compression,
@@ -54,10 +54,10 @@ class ChunkCompressedChunk(BaseChunk):
             check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
-                incoming_samples[i] = serialized_sample
+                incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
                     self.write_tile(serialized_sample)
-                    num_samples += 0.5
+                    num_samples += 0.5  # type: ignore
                     tile = serialized_sample.yield_uncompressed_tile()
                     self._decompressed_bytes = tile.tobytes()
                 break
@@ -66,9 +66,9 @@ class ChunkCompressedChunk(BaseChunk):
 
             recompressed = False  # This flag helps avoid double concatenation
             if (
-                len(self.decompressed_bytes) + sample_nbytes
+                len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) / self._compression_ratio > self.min_chunk_size:
-                new_decompressed = self.decompressed_bytes + serialized_sample
+                new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
                 )
@@ -81,7 +81,7 @@ class ChunkCompressedChunk(BaseChunk):
                 self._changed = False
 
             if not recompressed:
-                self.decompressed_bytes += serialized_sample
+                self.decompressed_bytes += serialized_sample  # type: ignore
             self._changed = True
             self.register_in_meta_and_headers(sample_nbytes, shape)
             num_samples += 1
@@ -92,9 +92,9 @@ class ChunkCompressedChunk(BaseChunk):
     ):
         num_samples = 0
         num_decompressed_bytes = sum(
-            x.nbytes for x in self.decompressed_samples
+            x.nbytes for x in self.decompressed_samples  # type: ignore
         )  # TODO cache this
-        for incoming_sample in incoming_samples:
+        for i, incoming_sample in enumerate(incoming_samples):
             if isinstance(incoming_sample, bytes):
                 raise ValueError(
                     "Chunkwise image compression is not applicable on bytes."
@@ -102,10 +102,10 @@ class ChunkCompressedChunk(BaseChunk):
             incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
 
             if isinstance(incoming_sample, SampleTiles):
-                incoming_samples[i] = incoming_sample
+                incoming_samples[i] = incoming_sample  # type: ignore
                 if self.is_empty:
                     self.write_tile(incoming_sample, skip_bytes=True)
-                    num_samples += 0.5
+                    num_samples += 0.5  # type: ignore
                     tile = incoming_sample.yield_uncompressed_tile()
                     self._decompressed_samples = [tile]
                 break
@@ -116,7 +116,7 @@ class ChunkCompressedChunk(BaseChunk):
                 num_decompressed_bytes + incoming_sample.nbytes
             ) / self._compression_ratio > self.min_chunk_size:
                 compressed_bytes = compress_multiple(
-                    self.decompressed_samples + [incoming_sample],
+                    self.decompressed_samples + [incoming_sample],  # type: ignore
                     compression=self.compression,
                 )
                 if len(compressed_bytes) > self.min_chunk_size:
@@ -130,7 +130,7 @@ class ChunkCompressedChunk(BaseChunk):
 
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
-            self.decompressed_samples.append(incoming_sample)
+            self.decompressed_samples.append(incoming_sample)  # type: ignore
             self._changed = True
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
             self.register_in_meta_and_headers(None, shape)
@@ -141,7 +141,7 @@ class ChunkCompressedChunk(BaseChunk):
         self, incoming_samples: List[InputSample]
     ):
         num_samples: float = 0
-        buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()
+        buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()  # type: ignore
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
                 incoming_sample,
@@ -164,7 +164,7 @@ class ChunkCompressedChunk(BaseChunk):
                 buffer += serialized_sample
                 compressed_bytes = compress_bytes(buffer, self.compression)
                 if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
-                    self.data_bytes = compressed_bytes
+                    self.data_bytes = compressed_bytes  # type: ignore
                     self.register_in_meta_and_headers(sample_nbytes, shape)
                     num_samples += 1
                     self._decompressed_bytes = buffer
@@ -188,16 +188,16 @@ class ChunkCompressedChunk(BaseChunk):
                     self._decompressed_samples = [tile]
                 break
 
-            buffer_list.append(incoming_sample)
-            compressed_bytes = compress_multiple(buffer_list, self.compression)
+            buffer_list.append(incoming_sample)  # type: ignore
+            compressed_bytes = compress_multiple(buffer_list, self.compression)  # type: ignore
             if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
-                self.data_bytes = compressed_bytes
+                self.data_bytes = compressed_bytes  # type: ignore
                 # Byte positions aren't relevant for chunk wise img compressions
                 self.register_in_meta_and_headers(None, shape)
                 num_samples += 1
-                self._decompressed_samples = buffer_list
+                self._decompressed_samples = buffer_list  # type: ignore
             else:
-                buffer_list.pop()
+                buffer_list.pop()  # type: ignore
                 break
 
         return num_samples
@@ -208,7 +208,7 @@ class ChunkCompressedChunk(BaseChunk):
 
         sb, eb = self.byte_positions_encoder[local_index]
         shape = self.shapes_encoder[local_index]
-        decompressed = memoryview(self.decompressed_bytes)
+        decompressed = memoryview(self.decompressed_bytes)  # type: ignore
         buffer = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(buffer, self.htype)
@@ -244,13 +244,13 @@ class ChunkCompressedChunk(BaseChunk):
         self.check_shape_for_update(local_index, shape)
         decompressed_samples = self.decompressed_samples
 
-        decompressed_samples[local_sample_index] = new_sample
+        decompressed_samples[local_sample_index] = new_sample  # type: ignore
         self._changed = True
-        self.update_in_meta_and_headers(local_sample_index, None, shape)
+        self.update_in_meta_and_headers(local_sample_index, None, shape)  # type: ignore
 
-        decompressed_samples[local_index] = new_sample
-        self.data_bytes = bytearray(
-            compress_multiple(decompressed_samples, self.compression)
+        decompressed_samples[local_index] = new_sample  # type: ignore
+        self.data_bytes = bytearray(  # type: ignore
+            compress_multiple(decompressed_samples, self.compression)  # type: ignore
         )
         self.update_in_meta_and_headers(local_index, None, shape)
 
@@ -291,6 +291,10 @@ class ChunkCompressedChunk(BaseChunk):
             self._compress()
             self._changed = False
         return self._data_bytes
+
+    @data_bytes.setter
+    def data_bytes(self, value):
+        self._data_bytes = value
 
     @property
     def num_uncompressed_bytes(self):
