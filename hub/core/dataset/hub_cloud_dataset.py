@@ -13,13 +13,12 @@ class HubCloudDataset(Dataset):
         self._client = None
         self.path = path
         self.org_id, self.ds_name = None, None
-        self._set_org_and_name()
-
         super().__init__(*args, **kwargs)
         self.first_load_init()
 
     def first_load_init(self):
         if self.is_first_load:
+            self._set_org_and_name()
             if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
@@ -56,8 +55,9 @@ class HubCloudDataset(Dataset):
 
     def _set_org_and_name(self):
         if self.is_actually_cloud:
-            split_path = self.path.split("/")
-            self.org_id, self.ds_name = split_path[2], split_path[3]
+            if self.org_id is None:
+                split_path = self.path.split("/")
+                self.org_id, self.ds_name = split_path[2], split_path[3]
         else:
             # if this dataset isn't actually pointing to a datset in the cloud
             # a.k.a this dataset is trying to simulate a hub cloud dataset
@@ -67,7 +67,7 @@ class HubCloudDataset(Dataset):
 
     def _register_dataset(self):
         # called in super()._populate_meta
-
+        self._set_org_and_name()
         self.client.create_dataset_entry(
             self.org_id,
             self.ds_name,
@@ -76,11 +76,13 @@ class HubCloudDataset(Dataset):
         )
 
     def make_public(self):
+        self._set_org_and_name()
         if not self.public:
             self.client.update_privacy(self.org_id, self.ds_name, public=True)
             self.public = True
 
     def make_private(self):
+        self._set_org_and_name()
         if self.public:
             self.client.update_privacy(self.org_id, self.ds_name, public=False)
             self.public = False
@@ -103,6 +105,7 @@ class HubCloudDataset(Dataset):
         self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")
 
     def __getstate__(self) -> Dict[str, Any]:
+        self._set_org_and_name()
         state = super().__getstate__()
         state["org_id"] = self.org_id
         state["ds_name"] = self.ds_name
