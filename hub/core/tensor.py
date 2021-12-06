@@ -84,6 +84,7 @@ class Tensor:
         storage: LRUCache,
         version_state: Dict[str, Any],
         index: Optional[Index] = None,
+        is_iteration: bool = False,
     ):
         """Initializes a new tensor.
 
@@ -97,6 +98,7 @@ class Tensor:
             version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
+            is_iteration (bool): If this tensor is being used as an iterator.
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
@@ -111,7 +113,10 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
-        self.index.validate(self.num_samples)
+        self.is_iteration = is_iteration
+
+        if not self.is_iteration:
+            self.index.validate(self.num_samples)
         self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
@@ -296,6 +301,7 @@ class Tensor:
     def __getitem__(
         self,
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+        is_iteration: bool = False,
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
@@ -304,6 +310,7 @@ class Tensor:
             self.storage,
             self.version_state,
             index=self.index[item],
+            is_iteration=is_iteration,
         )
 
     def _get_bigger_dtype(self, d1, d2):
@@ -356,7 +363,7 @@ class Tensor:
 
     def __iter__(self):
         for i in range(len(self)):
-            yield self[i]
+            yield self.__getitem__(i, is_iteration=True)
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
