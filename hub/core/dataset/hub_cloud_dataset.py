@@ -11,7 +11,7 @@ from warnings import warn
 class HubCloudDataset(Dataset):
     def __init__(self, path, *args, **kwargs):
         self._client = None
-        self.path = path
+        kwargs["path"] = self.path = path
         self.org_id, self.ds_name = None, None
         super().__init__(*args, **kwargs)
         self.first_load_init()
