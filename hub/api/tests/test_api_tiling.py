@@ -27,7 +27,7 @@ def test_mixed_small_large(local_ds_generator, compression):
     arr2 = np.random.randint(0, 255, (500, 500, 3)).astype(np.uint8)
     arr3 = np.random.randint(0, 255, (2503, 2501, 3)).astype(np.uint8)
     with ds:
-        ds.create_tensor("abc", **compression)
+        ds.create_tensor("abc", max_chunk_size=2 ** 21.0 ** compression)
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)
@@ -75,7 +75,7 @@ def test_updates(memory_ds, compression):
     arr3 = np.random.randint(0, 255, (2503, 2501, 3)).astype(np.uint8)
     arr4 = np.random.randint(0, 255, (250, 250, 3)).astype(np.uint8)
     with memory_ds:
-        memory_ds.create_tensor("abc", **compression)
+        memory_ds.create_tensor("abc", max_chunk_size=2 ** 21, **compression)
         for i in range(10):
             if i % 5 == 0:
                 memory_ds.abc.append(arr1)
