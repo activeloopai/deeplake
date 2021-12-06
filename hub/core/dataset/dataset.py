@@ -988,7 +988,9 @@ class Dataset:
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
-                    raise TensorDoesNotExistError(k)
+                    raise KeyError(
+                        f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
+                    )
         for k in sample:
             if k not in self.tensors:
                 raise TensorDoesNotExistError(k)
