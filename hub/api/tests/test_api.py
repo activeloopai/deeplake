@@ -812,7 +812,7 @@ def test_ds_append(memory_ds, x_args, y_args):
     ds.create_tensor("y", dtype="uint8", **y_args)
     ds.append({"x": np.ones(2), "y": [1, 2, 3]})
     ds.create_tensor("z")
-    with pytest.raises(TensorDoesNotExistError):
+    with pytest.raises(KeyError):
         ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
     ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
     ds.append({"x": np.ones(4), "y": [2, 3, 4]}, skip_ok=True)
