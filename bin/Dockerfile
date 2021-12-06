@@ -6,8 +6,8 @@ RUN apt-get -y update && \
 
 RUN mkdir /app
 
-RUN git clone https://github.com/activeloopai/Hub.git /app/
 WORKDIR /app
+COPY . .
 
 RUN pip install -r hub/requirements/plugins.txt && \
     pip install -r hub/requirements/tests.txt
