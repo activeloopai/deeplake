@@ -115,7 +115,6 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
     memory_ds.image.extend(np.ones((4, 4096, 4096)))
@@ -802,3 +801,13 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+def test_empty_extend(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.append(1)
+        ds.create_tensor("y")
+        ds.y.extend(np.zeros((len(ds), 3)))
+    assert len(ds) == 0

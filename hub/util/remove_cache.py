@@ -29,10 +29,13 @@ def get_dataset_with_zero_size_cache(ds):
     try_flushing(ds)
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
-    return hub.Dataset(
+    return hub.core.dataset.dataset_factory(
+        path=ds.path,
         storage=zero_cache_storage,
         index=ds.index,
         group_index=ds.group_index,
         read_only=ds.read_only,
+        token=ds.token,
         verbose=False,
+        version_state=ds.version_state,
     )

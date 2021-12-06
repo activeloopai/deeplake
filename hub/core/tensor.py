@@ -1,5 +1,5 @@
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
-from hub.util.version_control import checkout, generate_hash
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
@@ -8,13 +8,18 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
+from hub.util.keys import (
+    get_tensor_commit_diff_key,
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+)
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    TensorDtypeMismatchError,
 )
 
 
@@ -54,6 +59,10 @@ def create_tensor(
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
+
+    diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
+    diff = CommitDiff(created=True)
+    storage[diff_key] = diff  # type: ignore
 
 
 def _inplace_op(f):
