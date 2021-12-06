@@ -109,7 +109,9 @@ class Tensor:
         self.version_state = version_state
         self.is_iteration = is_iteration
 
-        if not self.is_iteration and not tensor_exists(self.key, self.storage, version_state["commit_id"]):
+        if not self.is_iteration and not tensor_exists(
+            self.key, self.storage, version_state["commit_id"]
+        ):
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
