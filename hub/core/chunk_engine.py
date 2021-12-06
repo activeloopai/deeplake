@@ -519,7 +519,7 @@ class ChunkEngine:
                         otypes=[object],
                     )(required_tile_ids)
                     cuurent_sample = coalesce_tiles(
-                        tiles, tile_shape, self.tensor_meta.dtype
+                        tiles, tile_shape, sample_shape, self.tensor_meta.dtype
                     )
                     new_sample = current_sample
                     new_sample[sample_index] = sample
@@ -661,7 +661,7 @@ class ChunkEngine:
                     ),
                     otypes=[object],
                 )(required_tile_ids)
-                sample = coalesce_tiles(tiles, tile_shape, self.tensor_meta.dtype)
+                sample = coalesce_tiles(tiles, tile_shape, sample_shape, self.tensor_meta.dtype)
                 sample = sample[sample_index]
             samples.append(sample)
             check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
