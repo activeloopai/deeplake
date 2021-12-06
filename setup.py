@@ -18,21 +18,21 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
-init_file = os.path.join(project_name, "__init__.py")
+version_file = os.path.join(project_name, "version.py")
 
 
-def get_property(prop):
+def get_property(prop, file_name):
     result = re.search(
-        # find variable with name `prop` in the __init__.py file
+        # find variable with name `prop` in the `file_name`` file
         fr'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
-        open(init_file).read(),
+        open(file_name).read(),
     )
     return result.group(1)
 
 
 setup(
     name=project_name,
-    version=get_property("__version__"),
+    version=get_property("VERSION", version_file),
     description="Activeloop Hub",
     long_description=long_description,
     long_description_content_type="text/markdown",
