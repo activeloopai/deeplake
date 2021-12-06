@@ -102,25 +102,26 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
-        base_storage = get_base_storage(storage)
-        if (
-            not read_only and index is None and isinstance(base_storage, S3Provider)
-        ):  # Dataset locking only for S3 datasets
-            try:
-                lock(base_storage, callback=lambda: self._lock_lost_handler)
-            except LockedException:
-                self.read_only = True
-                warnings.warn(
-                    "Opening dataset in read only mode as another machine has locked it for writing."
-                )
+        self.is_iteration = is_iteration
+        self.is_first_load = version_state is None
+        if not self.is_iteration and not read_only and self.is_first_load:
+            base_storage = get_base_storage(storage)
+
+            # Dataset locking only for S3 datasets
+            if isinstance(base_storage, S3Provider):
+                try:
+                    lock(base_storage, callback=lambda: self._lock_lost_handler)
+                except LockedException:
+                    self.read_only = True
+                    warnings.warn(
+                        "Opening dataset in read only mode as another machine has locked it for writing."
+                    )
 
         self.index: Index = index or Index()
         self.group_index = group_index
         self._token = token
         self.public = public
         self.verbose = verbose
-        self.is_first_load = version_state is None
-        self.is_iteration = is_iteration
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
