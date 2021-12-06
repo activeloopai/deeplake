@@ -103,17 +103,16 @@ class Tensor:
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
-
         self.key = key
         self.storage = storage
         self.index = index or Index()
         self.version_state = version_state
+        self.is_iteration = is_iteration
 
-        if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
+        if not self.is_iteration and not tensor_exists(self.key, self.storage, version_state["commit_id"]):
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
-        self.is_iteration = is_iteration
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
