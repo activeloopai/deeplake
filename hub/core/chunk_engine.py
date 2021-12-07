@@ -494,7 +494,7 @@ class ChunkEngine:
                     # Replace all chunks
                     if tile_enc.get_sample_shape(global_sample_index) == sample.shape:
                         new_tiles = break_into_tiles(
-                            sample, tile_enc.get_tile_shape(global_sample_indices)
+                            sample, tile_enc.get_tile_shape(global_sample_index)
                         )
                     else:
                         # TODO
@@ -509,7 +509,7 @@ class ChunkEngine:
                         tile_enc.get_tile_layout_shape(global_sample_index)
                     )
                     tiles_index, sample_index = translate_slices(
-                        [v.value for v in index.values[1:]], sample_shape, tile_shape
+                        [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
                     )
                     required_tile_ids = ordered_tile_ids[tiles_index]
                     tiles = np.vectorize(
@@ -518,7 +518,7 @@ class ChunkEngine:
                         ).read_sample(0),
                         otypes=[object],
                     )(required_tile_ids)
-                    cuurent_sample = coalesce_tiles(
+                    current_sample = coalesce_tiles(
                         tiles, tile_shape, sample_shape, self.tensor_meta.dtype
                     )
                     new_sample = current_sample
@@ -652,7 +652,7 @@ class ChunkEngine:
                     tile_enc.get_tile_layout_shape(global_sample_index)
                 )
                 tiles_index, sample_index = translate_slices(
-                    [v.value for v in index.values[1:]], sample_shape, tile_shape
+                    [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
                 )
                 required_tile_ids = ordered_tile_ids[tiles_index]
                 tiles = np.vectorize(

@@ -101,8 +101,8 @@ def translate_slices(
                 raise NotImplementedError(
                     "Stepped indexing for tiled samples is not supported yet."
                 )
-            ts = slice(start // tile_shape[i], (stop - 1) // tile_shape[i] + 1)
-            tiles_index.append(ts)
-            offset = ts.start * tile_shape[i]
-            sample_index.append(slice(start - offset, stop - offset))
+            ts = slice(start // tile_shape[i], (stop - 1) // tile_shape[i] + 1)  # type: ignore
+            tiles_index.append(ts)  # type: ignore
+            offset = ts.start * tile_shape[i]  # type: ignore
+            sample_index.append(slice(start - offset, stop - offset))  # type: ignore
     return tuple(tiles_index), tuple(sample_index)
