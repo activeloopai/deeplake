@@ -109,14 +109,15 @@ class ChunkEngine:
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
-        self._last_row = 0
         self.chunk_class = BaseChunk
 
-        if self.tensor_meta.sample_compression:
-            self.compression = self.tensor_meta.sample_compression
+        tensor_meta = self.tensor_meta
+
+        if tensor_meta.sample_compression:
+            self.compression = tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
-        elif self.tensor_meta.chunk_compression:
-            self.compression = self.tensor_meta.chunk_compression
+        elif tensor_meta.chunk_compression:
+            self.compression = tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
         else:
             self.chunk_class = UncompressedChunk
@@ -353,8 +354,9 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
-        if self.tensor_meta.dtype is None:
-            self.tensor_meta.set_dtype(get_dtype(samples))
+        tensor_meta = self.tensor_meta
+        if tensor_meta.dtype is None:
+            tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
         return samples
@@ -512,8 +514,9 @@ class ChunkEngine:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
             )
+        tensor_meta = self.tensor_meta
 
-        dt, ht = self.tensor_meta.dtype, self.tensor_meta.htype
+        dt, ht = tensor_meta.dtype, tensor_meta.htype
         samples = intelligent_cast(samples, dt, ht)
         getattr(arr, operator)(samples)
         self.update(index, arr)
