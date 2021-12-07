@@ -280,10 +280,6 @@ class BaseChunk(Cachable):
             self.tensor_meta.length += 1
             self.tensor_meta.update_shape_interval(sample.sample_shape)
 
-    @abstractmethod
-    def _pop_sample(self):
-        """Remove the last sample from chunk"""
-
     def _pop_sample(self):
         self.prepare_for_write()
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
