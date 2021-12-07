@@ -452,17 +452,37 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    def diff(self, id_1: Optional[str] = None, id_2: Optional[str] = None):
-        """Displays the differences between commits/branches.
+    def diff(
+        self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
+    ) -> Optional[Union[Dict, Tuple[Dict, Dict]]]:
+        """Returns/displays the differences between commits/branches.
+        For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created.
 
         Args:
             id_1 (str, optional): The first commit_id or branch name.
             id_2 (str, optional): The second commit_id or branch name.
+            as_dict (bool, optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
 
-        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be displayed.
-        If only id_1 is provided, the differences between the current commit and id_1 will be displayed.
+        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be calculated.
+        If only id_1 is provided, the differences between the current commit and id_1 will be calculated.
         If only id_2 is provided, a ValueError will be raised.
-        If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be displayed.
+        If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be calculated.
+
+        Returns:
+            Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
+                If id_1 and id_2 are None, a single dictionary containing the differences between the current commit and the previous commit will be returned.
+                If only id_1 is provided, two dictionaries containing the differences in the current commit and id_1 respectively will be returned.
+                If only id_2 is provided, a ValueError will be raised.
+                If both id_1 and id_2 are provided, two dictionaries containing the differences in id_1 and id_2 respectively will be returned.
+            None: If as_dict is False.
+
+            Example of a dict returned:
+            {
+                "image": {"data_added": {3, 4, 5}, "data_updated": {0, 2}, "created": False},
+                "label": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
+                "other/stuff" : {data_added: {2, 3}, data_updated: {1,2}, created: True}
+            }
+
 
         Raises:
             ValueError: If both id_1 is None and id_2 is not None.
@@ -492,9 +512,13 @@ class Dataset:
             changes1, changes2 = compare_commits(
                 commit1, commit2, version_state, storage
             )
-
+        if as_dict:
+            if changes2 is None:
+                return changes1
+            return changes1, changes2
         all_changes = get_all_changes_string(changes1, message1, changes2, message2)
         print(all_changes)
+        return None
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
@@ -797,6 +821,45 @@ class Dataset:
                 self.index
             ]
             for t in self._all_tensors_filtered
+        }
+
+    @property
+    def branches(self):
+        """Lists all the branches of the dataset.
+        Returns:
+            List of branches.
+        """
+        return list(self.version_state["branch_commit_map"])
+
+    @property
+    def commits(self) -> List[Dict]:
+        """Lists all the commits leading to the current dataset state.
+        Returns:
+            List of dictionaries containing commit information.
+        """
+        commits = []
+        commit_node = self.version_state["commit_node"]
+        while commit_node:
+            if commit_node.commit_time is not None:
+                commit_info = {
+                    "commit": commit_node.commit_id,
+                    "author": commit_node.commit_user_name,
+                    "time": str(commit_node.commit_time)[:-7],
+                    "message": commit_node.commit_message,
+                }
+                commits.append(commit_info)
+            commit_node = commit_node.parent
+        return commits
+
+    def get_commit_details(self, commit_id) -> Dict:
+        commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
+        if commit_node is None:
+            raise KeyError(f"Commit {commit_id} not found in dataset.")
+        return {
+            "commit": commit_node.commit_id,
+            "author": commit_node.commit_user_name,
+            "time": str(commit_node.commit_time)[:-7],
+            "message": commit_node.commit_message,
         }
 
     @property

@@ -93,17 +93,14 @@ def get_all_changes_string(changes1, message1, changes2, message2):
 def get_changes_str(changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
-    tensors_created = changes["tensors_created"]
-
     for tensor, change in changes.items():
-        if tensor == "tensors_created":
-            continue
         data_added = change["data_added"]
         data_updated = change["data_updated"]
-        has_change = tensor in tensors_created or data_added or data_updated
+        created = change.get("created", False)
+        has_change = created or data_added or data_updated
         if has_change:
             all_changes.append(tensor)
-            if tensor in tensors_created:
+            if created:
                 all_changes.append("* Created tensor")
 
             if data_added:
@@ -128,26 +125,24 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any
         try:
             commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
-            changes[tensor]["data_added"].update(commit_diff.data_added)
-            changes[tensor]["data_updated"].update(commit_diff.data_updated)
-            if commit_diff.created:
-                changes["tensors_created"].add(tensor)
+            change = changes[tensor]
+            change["data_added"].update(commit_diff.data_added)
+            change["data_updated"].update(commit_diff.data_updated)
+            change["created"] = change.get("created") or commit_diff.created
         except KeyError:
             pass
 
 
 def filter_data_updated(changes: Dict[str, Any]):
     """Removes the intersection of data added and data updated from data updated."""
-    for tensor, change in changes.items():
-        if tensor != "tensors_created":
-            # only show the elements in data_updated that are not in data_added
-            change["data_updated"] = change["data_updated"] - change["data_added"]
+    for change in changes.values():
+        # only show the elements in data_updated that are not in data_added
+        change["data_updated"] = change["data_updated"] - change["data_added"]
 
 
 def create_changes_dict() -> Dict[str, Any]:
     """Creates the dictionary used to store changes."""
     changes: Dict[str, Any] = defaultdict(lambda: defaultdict(set))
-    changes["tensors_created"] = set()
     return changes
 
 
