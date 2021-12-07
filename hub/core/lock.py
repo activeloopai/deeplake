@@ -175,8 +175,8 @@ def lock_version(
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
-        callback (Callable, optional): Called if the lock is lost after acquiring.
-
+        callback (Callable, Optional): Called if the lock is lost after acquiring.
+        version (str, Optional): Commit id of the version to lock.
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
@@ -196,6 +196,7 @@ def unlock_version(storage: StorageProvider, version: Optional[str] = None):
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
+        version (str, Optional): Commit id of the version to unlock.
     """
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
