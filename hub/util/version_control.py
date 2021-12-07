@@ -233,15 +233,12 @@ def _update_version_info(old, new):
             if old_node.commit_time is None:
                 old_commit_node_map[commit] = node
     for commit, node in old_commit_node_map.items():
-        if node.parent is not None:
-            parent = old_commit_node_map[node.parent.commit_id]
-            found = False
-            for child in parent.children:
-                if child.commit_id == commit:
-                    found = True
-                    break
-            if not found:
-                parent.add_child(node)
+        while node.parent:
+            node.prant = old_commit_node_map[node.parent.commit_id]
+            node = node.parent
+    for commit, node in old_commit_node_map.items():
+        for i, child in enumerate(node.children):
+            node.children[i] = old_commit_node_map[child.commit_id]
     old["branch_commit_map"].update(new["branch_commit_map"])
 
 
@@ -259,6 +256,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
         old_version_info = pickle.loads(storage[key])
         _update_version_info(old_version_info, new_version_info)
         version_info = old_version_info
+        # version_info = new_version_info
     except KeyError:
         version_info = new_version_info
     storage[key] = pickle.dumps(version_info)
