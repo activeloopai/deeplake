@@ -638,9 +638,17 @@ class ChunkEngine:
             )
 
     def _pop(self):
+        """Used only for Dataset.append"""
         num_samples = self.num_samples
         if num_samples == 0:
             raise IndexError("pop from empty tensor")
+        data_added = self.commit_diff.data_added
+        last_idx = num_samples - 1
+        if last_idx not in data_added:
+            raise NotImplementedError(
+                "Can not pop sample which was added in a previous commit."
+            )
+        data_added.remove(last_idx)
         self._write_initialization()
         chunk_ids = self.chunk_id_encoder[-1]
         chunks_to_delete = list(

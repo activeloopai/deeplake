@@ -823,6 +823,9 @@ def test_ds_append(memory_ds, x_args, y_args):
     assert len(ds.x) == 3
     assert len(ds.y) == 3
     assert len(ds.z) == 0
+    assert len(ds.x.chunk_engine.commit_diff.data_added) == 3
+    assert len(ds.y.chunk_engine.commit_diff.data_added) == 3
+    assert len(ds.z.chunk_engine.commit_diff.data_added) == 0
     assert len(ds) == 0
 
 

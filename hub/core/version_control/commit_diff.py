@@ -69,7 +69,4 @@ class CommitDiff(Cachable):
 
 def get_sample_indexes_added(initial_num_samples: int, samples) -> Set[int]:
     """Returns a set of indexes added to the tensor"""
-    if initial_num_samples == 0:
-        return set(range(len(samples)))
-    else:
-        return set(range(initial_num_samples, initial_num_samples + len(samples)))
+    return set(range(initial_num_samples, initial_num_samples + len(samples)))
