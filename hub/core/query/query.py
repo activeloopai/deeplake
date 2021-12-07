@@ -7,6 +7,8 @@ import numpy as np
 
 from hub.core.tensor import Tensor
 
+enable_cache = True
+
 
 class DatasetQuery:
     """Dataset query function which is defined by the query string.
@@ -25,13 +27,14 @@ class DatasetQuery:
         self._dataset = dataset
         self._query = query
         self.global_vars: Dict[str, Any] = dict()
+        self.cache = dict()
 
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
     def _call_eval(self, sample_in: hub.Dataset):
         return eval(
-            self._query, {}, self._export_tensors(sample_in)
+            self._query, self.global_vars, self._export_tensors(sample_in)
         )  # TODO export tensors create new bindings. Can we update instead ?
 
     def _export_tensors(self, sample_in):
@@ -39,22 +42,22 @@ class DatasetQuery:
 
         for key, tensor in sample_in.tensors.items():
             if tensor.htype == "class_label":
-                bindings[key] = EvalLabelClassTensor(tensor)
+                bindings[key] = EvalLabelClassTensor(self, tensor)
                 for label in tensor.info["class_names"]:
                     bindings[label] = label
             elif tensor.htype == "text":
-                bindings[key] = EvalTextTesor(tensor)
+                bindings[key] = EvalTextTesor(self, tensor)
             elif tensor.htype == "json":
-                bindings[key] = EvalJsonTensor(tensor)
+                bindings[key] = EvalJsonTensor(self, tensor)
             elif "/" in key:
                 group, tensor_name = key.split("/")
 
                 if not group in bindings:
-                    bindings[group] = EvalGroupTensor(group)
+                    bindings[group] = EvalGroupTensor(self, group)
                 bindings[group].extend(tensor_name, tensor)
 
             else:
-                bindings[key] = EvalGenericTensor(tensor)
+                bindings[key] = EvalGenericTensor(self, tensor)
 
         return bindings
 
@@ -63,12 +66,13 @@ class DatasetQuery:
 
 
 class EvalObject(ABC):
-    pass
+    def __init__(self, query: DatasetQuery) -> None:
+        self.query = query
 
 
 class EvalTensorObject(EvalObject):
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__()
+    def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
+        super().__init__(query)
         self._tensor = tensor
         self._cached_value: Any = None
         self._is_cached_value: bool = False
@@ -82,10 +86,32 @@ class EvalTensorObject(EvalObject):
         else:
             raise ValueError("Not a scalar")
 
+    def _get_cached_numpy(self):
+        cache = self.query.cache
+        if self._tensor.key not in cache:
+            full_tensor = Tensor(
+                self._tensor.key,
+                self._tensor.storage,
+                self._tensor.version_state,
+                None,
+                False,
+                chunk_engine=self._tensor.chunk_engine,
+            )
+            cache[self._tensor.key] = full_tensor.numpy()
+
+        return cache[self._tensor.key]
+
     def numpy(self):
         """Retrives and caches value"""
         if not self._is_cached_value:
-            self._cached_value = self._tensor.numpy()
+            if self._tensor.chunk_engine.is_data_cachable and enable_cache:
+                cache = self._get_cached_numpy()
+
+                idx = self._tensor.index.values[0].value
+                self._cached_value = cache[idx]
+            else:
+                self._cached_value = self._tensor.numpy()
+
             self._is_cached_value = True
 
         return self._cached_value
@@ -137,8 +163,8 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
     True
     """
 
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__(tensor)
+    def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
+        super().__init__(query, tensor)
 
     @property
     def min(self):
@@ -173,7 +199,7 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
         val = self.numpy()[item]
 
         if isinstance(val, np.ndarray):
-            return EvalGenericTensor(self._tensor[item])
+            return EvalGenericTensor(self.query, self._tensor[item])
         else:
             return val
 
@@ -186,8 +212,8 @@ class EvalLabelClassTensor(EvalTensorObject, ScalarTensorObject):
         >>> query('labels == "dog"')
     """
 
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__(tensor)
+    def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
+        super().__init__(query, tensor)
 
         # FIXME tensor.info should be resolvable class
         self._class_names = tensor.info["class_names"]  # type: ignore
@@ -214,8 +240,8 @@ class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
         >>> query('len(text) == 0')
     """
 
-    def __init__(self, tensor) -> None:
-        super().__init__(tensor)
+    def __init__(self, query: DatasetQuery, tensor) -> None:
+        super().__init__(query, tensor)
 
     def contains(self, o: object) -> bool:
         return any(self.numpy() == o)  # type: ignore
@@ -235,8 +261,8 @@ class EvalJsonTensor(EvalTensorObject):
         >>> query('json["attribute"]["nested_attribute"] == "some_value"')
     """
 
-    def __init__(self, tensor) -> None:
-        super().__init__(tensor)
+    def __init__(self, query: DatasetQuery, tensor) -> None:
+        super().__init__(query, tensor)
 
     def as_scalar(self):
         assert self.is_scalar()
@@ -253,20 +279,20 @@ class EvalGroupTensor(EvalObject):
         >>> query('images.image1.mean == images.image2.mean')
     """
 
-    def __init__(self, group) -> None:
-        super().__init__()
+    def __init__(self, query: DatasetQuery, group) -> None:
+        super().__init__(query)
         self.group = group
         self._map: Dict[str, EvalObject] = dict()
 
     def extend(self, name: str, tensor: Tensor):
         if tensor.htype == "class_label":
-            self._map[name] = EvalLabelClassTensor(tensor)
+            self._map[name] = EvalLabelClassTensor(self.query, tensor)
         elif tensor.htype == "text":
-            self._map[name] = EvalTextTesor(tensor)
+            self._map[name] = EvalTextTesor(self.query, tensor)
         elif tensor.htype == "json":
-            self._map[name] = EvalJsonTensor(tensor)
+            self._map[name] = EvalJsonTensor(self.query, tensor)
         else:
-            self._map[name] = EvalGenericTensor(tensor)
+            self._map[name] = EvalGenericTensor(self.query, tensor)
 
     def __getattr__(self, name):
         return self._map[name]
