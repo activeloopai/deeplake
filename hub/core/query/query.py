@@ -5,6 +5,7 @@ import hub
 import json
 import numpy as np
 
+from hub.core.index.index import Index
 from hub.core.tensor import Tensor
 
 enable_cache = True
@@ -28,17 +29,21 @@ class DatasetQuery:
         self._query = query
         self.global_vars: Dict[str, Any] = dict()
         self.cache = dict()
+        self.locals = self._export_tensors(dataset)
+        self.index: Index = Index()
 
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
     def _call_eval(self, sample_in: hub.Dataset):
+        self.index = sample_in.index
+
         return eval(
-            self._query, self.global_vars, self._export_tensors(sample_in)
+            self._query, self.global_vars, self.locals
         )  # TODO export tensors create new bindings. Can we update instead ?
 
     def _export_tensors(self, sample_in):
-        bindings = {"dataset": sample_in}
+        bindings: Dict[str, EvalObject] = {"dataset": EvalDataset(self)}
 
         for key, tensor in sample_in.tensors.items():
             if tensor.htype == "class_label":
@@ -70,12 +75,18 @@ class EvalObject(ABC):
         self.query = query
 
 
+class EvalDataset(EvalObject):
+    def __init__(self, query: DatasetQuery) -> None:
+        super().__init__(query)
+
+    def __getitem__(self, item):
+        return self.query._dataset[self.query.index].__getitem__(item)
+
+
 class EvalTensorObject(EvalObject):
     def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
         super().__init__(query)
         self._tensor = tensor
-        self._cached_value: Any = None
-        self._is_cached_value: bool = False
 
     def is_scalar(self):
         return self.numpy().size == 1  # type: ignore
@@ -93,7 +104,7 @@ class EvalTensorObject(EvalObject):
                 self._tensor.key,
                 self._tensor.storage,
                 self._tensor.version_state,
-                None,
+                self.query._dataset.index,  # type: ignore
                 False,
                 chunk_engine=self._tensor.chunk_engine,
             )
@@ -102,19 +113,14 @@ class EvalTensorObject(EvalObject):
         return cache[self._tensor.key]
 
     def numpy(self):
-        """Retrives and caches value"""
-        if not self._is_cached_value:
-            if self._tensor.chunk_engine.is_data_cachable and enable_cache:
-                cache = self._get_cached_numpy()
+        """Retrives np.ndarray or scalar value"""
+        if self._tensor.chunk_engine.is_data_cachable and enable_cache:
+            cache = self._get_cached_numpy()
 
-                idx = self._tensor.index.values[0].value
-                self._cached_value = cache[idx]
-            else:
-                self._cached_value = self._tensor.numpy()
-
-            self._is_cached_value = True
-
-        return self._cached_value
+            idx = self.query.index.values[0].value
+            return cache[idx]
+        else:
+            return self._tensor[self.query.index].numpy()
 
 
 class ScalarTensorObject(EvalObject):
@@ -199,7 +205,55 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
         val = self.numpy()[item]
 
         if isinstance(val, np.ndarray):
-            return EvalGenericTensor(self.query, self._tensor[item])
+            return EvalNumpyObject(val)
+        else:
+            return val
+
+
+class EvalNumpyObject(ScalarTensorObject):
+    def __init__(self, arr: np.ndarray) -> None:
+        self.arr = arr
+
+    def as_scalar(self) -> Any:
+        return self.arr[0]
+
+    @property
+    def min(self):
+        """Returns numpy.min() for the wrapped np.ndarray"""
+        return np.amin(self.arr)
+
+    @property
+    def max(self):
+        """Returns numpy.max() for the wrapped np.ndarray"""
+        return np.amax(self.arr)
+
+    @property
+    def mean(self):
+        """Returns numpy.mean() for the wrapped np.ndarray"""
+        return np.mean(self.arr)
+
+    @property
+    def shape(self):
+        """Returns shape of the underlying numpy array"""
+        return self.arr.shape  # type: ignore
+
+    @property
+    def size(self):
+        """Returns size of the underlying numpy array"""
+        return self.arr.size  # type: ignore
+
+    def contains(self, o: object) -> bool:
+        return any(self.arr == o)  # type: ignore
+
+    def __getitem__(self, item):
+        """Returns subscript of underlying numpy array or a scalar"""
+        val = self.arr[item]
+
+        if isinstance(val, np.ndarray):
+            if val.size == 1:
+                return val[0]
+            else:
+                return EvalNumpyObject(val)
         else:
             return val
 
