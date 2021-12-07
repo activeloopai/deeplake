@@ -487,12 +487,10 @@ class ChunkEngine:
             global_sample_index = global_sample_indices[i]  # TODO!
             chunk_ids = enc[global_sample_index]
             if len(chunk_ids) > 1:
-                print("TILING + UPDATE")
                 tile_enc = self.tile_encoder
                 if not isinstance(sample, np.ndarray):
                     sample = np.array(sample)
                 if len(index.values) == 1:
-                    print("LOGIC 1")
                     # Replace all chunks
                     if tile_enc.get_sample_shape(global_sample_index) == sample.shape:
                         new_tiles = break_into_tiles(
@@ -504,7 +502,6 @@ class ChunkEngine:
                             "Tiled samples can be only be updated with samples of same shape."
                         )
                 else:
-                    print("LOGIC 2")
                     # Update some chunks
                     sample_shape = tile_enc.get_sample_shape(global_sample_index)
                     tile_shape = tile_enc.get_tile_shape(global_sample_index)
