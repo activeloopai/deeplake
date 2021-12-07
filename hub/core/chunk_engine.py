@@ -140,6 +140,10 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
+        self.is_data_cachable = (tensor_meta.max_shape == tensor_meta.min_shape) and (self.chunk_class == UncompressedChunk) and (np.prod(tensor_meta.max_shape) < 20) and (tensor_meta.htype not in ["text", "json", "list"])
+        self.cached_data = None
+        self.cache_range = None
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -173,7 +177,6 @@ class ChunkEngine:
             self._tensor_meta = self.meta_cache.get_cachable(
                 tensor_meta_key, TensorMeta
             )
-            self._tensor_tile_encoder_chunk_id
         self._tensor_meta_commit_id = commit_id
         return self._tensor_meta
 
@@ -310,9 +313,7 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
-        return self.chunk_id_encoder.num_samples
+        return self.tensor_meta.length
 
     @property
     def last_chunk_key(self) -> str:
@@ -613,20 +614,39 @@ class ChunkEngine:
         samples = []
         enc = self.chunk_id_encoder
 
-        for global_sample_index in index.values[0].indices(length):
-            chunks = self.get_chunks_for_sample(global_sample_index)
+        if self.is_data_cachable:
+            for global_sample_index in index.values[0].indices(length):
+                if self.cached_data is None or global_sample_index not in self.cache_range:
+                    enc = self.chunk_id_encoder
+                    ids_and_rows = enc.__getitem__(global_sample_index, True)
+                    _, row = ids_and_rows[0]
+                    chunks = self.get_chunks_for_sample(global_sample_index)
+                    assert len(chunks) == 1
+                    chunk = chunks[0]
+                    first_sample = 0 if row == 0 else self.chunk_id_encoder.array[row-1][1] + 1
+                    last_sample = self.chunk_id_encoder.array[row][1]
+                    data_bytes = chunk.memoryview_data
+                    num_samples = last_sample - first_sample + 1
+                    full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
+                    arr = np.frombuffer(data_bytes, dtype=self.tensor_meta.dtype).reshape(full_shape)
+                    self.cached_data = arr
+                    self.cache_range = range(first_sample, last_sample + 1)
+                samples.append(self.cached_data[global_sample_index - self.cache_range.start])
+        else:
+            for global_sample_index in index.values[0].indices(length):
+                chunks = self.get_chunks_for_sample(global_sample_index)
 
-            if len(chunks) == 1:
-                chunk = chunks[0]
-                idx = enc.translate_index_relative_to_chunks(global_sample_index)
-                sample = chunk.read_sample(idx)
-            else:
-                tile_enc = self.tile_encoder
-                sample = combine_chunks(chunks, global_sample_index, tile_enc)
-            shape = sample.shape
-            check_sample_shape(shape, last_shape, self.key, index, aslist)
-            samples.append(sample)
-            last_shape = shape
+                if len(chunks) == 1:
+                    chunk = chunks[0]
+                    idx = enc.translate_index_relative_to_chunks(global_sample_index)
+                    sample = chunk.read_sample(idx)
+                else:
+                    tile_enc = self.tile_encoder
+                    sample = combine_chunks(chunks, global_sample_index, tile_enc)
+                shape = sample.shape
+                check_sample_shape(shape, last_shape, self.key, index, aslist)
+                samples.append(sample)
+                last_shape = shape
         return format_read_samples(samples, index, aslist)
 
     def get_chunks_for_sample(
