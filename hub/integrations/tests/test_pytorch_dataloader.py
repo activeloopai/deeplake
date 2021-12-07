@@ -1,6 +1,5 @@
 import pytest
 import platform
-from hub.constants import MB
 from hub.util.check_installation import pytorch_installed
 
 if not pytorch_installed():
@@ -16,11 +15,8 @@ from hub.integrations.pytorch.dataset import (
     ShufflingIterableDataset,
     SubIterableDataset,
 )
-from hub.integrations.pytorch.common import (
-    collate_fn as default_collate_fn,
-    map_tensor_keys,
-)
-
+from hub.integrations.pytorch.common import collate_fn as default_collate_fn
+from hub.util.dataset import map_tensor_keys
 import torch
 from torch.utils.data.dataloader import DataLoader
 import numpy
