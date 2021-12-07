@@ -98,6 +98,7 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
+        self._client = self.org_id = self.ds_name = None
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
@@ -125,6 +126,7 @@ class Dataset:
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
+        self.first_load_init()
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -552,7 +554,10 @@ class Dataset:
 
     def _register_dataset(self):
         # overridden in HubCloudDataset
+        pass
 
+    def first_load_init(self):
+        # overridden in HubCloudDataset
         pass
 
     @property
@@ -681,14 +686,11 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
-        if self.index.is_trivial() and self._is_root():
+        if self.is_first_load:
             self.storage.autoflush = True
-
-        if not self.version_state:
             self._load_version_info()
-
-        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
         if not self.is_iteration:
+            self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
             self.index.validate(self.num_samples)
 

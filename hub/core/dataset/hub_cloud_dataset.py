@@ -9,13 +9,6 @@ from warnings import warn
 
 
 class HubCloudDataset(Dataset):
-    def __init__(self, path, *args, **kwargs):
-        self._client = None
-        kwargs["path"] = self.path = path
-        self.org_id, self.ds_name = None, None
-        super().__init__(*args, **kwargs)
-        self.first_load_init()
-
     def first_load_init(self):
         if self.is_first_load:
             self._set_org_and_name()
