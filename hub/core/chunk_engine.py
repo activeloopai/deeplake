@@ -344,12 +344,21 @@ class ChunkEngine:
         self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
+    def _convert_to_list(self, samples):
+        if self.chunk_class != UncompressedChunk:
+            return True
+        elif isinstance(samples, np.ndarray):
+            return samples[0].nbytes >= self.min_chunk_size
+        return True
+
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
-        if self.tensor_meta.dtype is None:
-            self.tensor_meta.set_dtype(get_dtype(samples))
         if self.tensor_meta.htype is None:
             self.tensor_meta.set_htype(get_htype(samples))
+        if self.tensor_meta.dtype is None:
+            self.tensor_meta.set_dtype(get_dtype(samples))
+        if self._convert_to_list(samples):
+            samples = list(samples)
         return samples
 
     def extend(self, samples):
@@ -362,7 +371,6 @@ class ChunkEngine:
         current_chunk = self.last_chunk() or self._create_new_chunk()
         updated_chunks = {current_chunk}
         enc = self.chunk_id_encoder
-
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:

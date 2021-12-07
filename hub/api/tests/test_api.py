@@ -811,3 +811,17 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_auto_htype(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds.x.append("hello")
+        ds.y.append({"a": [1, 2]})
+        ds.z.append([1, 2, 3])
+    assert ds.x.htype == "text"
+    assert ds.y.htype == "json"
+    assert ds.z.htype == "generic"

@@ -66,7 +66,6 @@ class TensorMeta(Meta):
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None
 
-
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
         ffw_tensor_meta(self)
@@ -106,6 +105,11 @@ class TensorMeta(Meta):
         required_meta.update(kwargs)
 
         self._required_meta_keys = tuple(required_meta.keys())
+
+        for k in self._required_meta_keys:
+            if getattr(self, k, None):
+                required_meta.pop(k, None)
+
         self.__dict__.update(required_meta)
 
     def update_shape_interval(self, shape: Tuple[int, ...]):
