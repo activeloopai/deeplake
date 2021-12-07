@@ -787,12 +787,19 @@ class Dataset:
         """Gets a tensor from the root dataset.
         Acesses storage only for the first call.
         """
-        return self.version_state["full_tensors"].get(name)
+        ret = self.version_state["full_tensors"].get(name)
+        if ret is None:
+            load_meta(self.storage, self.version_state)
+            ret = self.version_state["full_tensors"].get(name)
+        return ret
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
         This is faster than checking `if group in self._groups:`
         """
+        if name in self.version_state["meta"].groups:
+            return True
+        load_meta(self.storage, self.version_state)
         return name in self.version_state["meta"].groups
 
     @property
