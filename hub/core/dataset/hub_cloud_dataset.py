@@ -28,7 +28,7 @@ class HubCloudDataset(Dataset):
     @property
     def client(self):
         if self._client is None:
-            self._client = HubBackendClient(token=self._token)
+            self.__dict__["_client"] = HubBackendClient(token=self._token)
         return self._client
 
     @property
@@ -36,27 +36,28 @@ class HubCloudDataset(Dataset):
         """Datasets that are connected to hub cloud can still technically be stored anywhere.
         If a dataset is hub cloud but stored without `hub://` prefix, it should only be used for testing.
         """
-
         return is_hub_cloud_path(self.path)
 
     @property
     def token(self):
         """Get attached token of the dataset"""
         if self._token is None:
-            self._token = self.client.get_token()
+            self.__dict__["_token"] = self.client.get_token()
         return self._token
 
     def _set_org_and_name(self):
         if self.is_actually_cloud:
             if self.org_id is None:
                 split_path = self.path.split("/")
-                self.org_id, self.ds_name = split_path[2], split_path[3]
+                org_id, ds_name = split_path[2], split_path[3]
         else:
             # if this dataset isn't actually pointing to a datset in the cloud
             # a.k.a this dataset is trying to simulate a hub cloud dataset
             # it's safe to assume they want to use the dev org
-            self.org_id = HUB_CLOUD_DEV_USERNAME
-            self.ds_name = self.path.replace("/", "_").replace(".", "")
+            org_id = HUB_CLOUD_DEV_USERNAME
+            ds_name = self.path.replace("/", "_").replace(".", "")
+        self.__dict__["org_id"] = org_id
+        self.__dict__["ds_name"] = ds_name
 
     def _register_dataset(self):
         # called in super()._populate_meta
@@ -72,13 +73,13 @@ class HubCloudDataset(Dataset):
         self._set_org_and_name()
         if not self.public:
             self.client.update_privacy(self.org_id, self.ds_name, public=True)
-            self.public = True
+            self.__dict__["public"] = True
 
     def make_private(self):
         self._set_org_and_name()
         if self.public:
             self.client.update_privacy(self.org_id, self.ds_name, public=False)
-            self.public = False
+            self.__dict__["public"] = False
 
     def delete(self, large_ok=False):
         super().delete(large_ok=large_ok)
@@ -100,8 +101,6 @@ class HubCloudDataset(Dataset):
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()
         state = super().__getstate__()
-        state["org_id"] = self.org_id
-        state["ds_name"] = self.ds_name
         return state
 
     def __setstate__(self, state: Dict[str, Any]):

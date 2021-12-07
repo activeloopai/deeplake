@@ -98,14 +98,15 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        self._client = self.org_id = self.ds_name = None
+        d = {}
+        d["_client"] = d["org_id"] = d["ds_name"] = None
         # uniquely identifies dataset
-        self.path = path or get_path_from_storage(storage)
-        self.storage = storage
-        self._read_only = read_only
-        self.is_iteration = is_iteration
-        self.is_first_load = version_state is None
-        if not self.is_iteration and not read_only and self.is_first_load:
+        d["path"] = path or get_path_from_storage(storage)
+        d["storage"] = storage
+        d["_read_only"] = read_only
+        d["is_iteration"] = is_iteration
+        d["is_first_load"] = is_first_load = version_state is None
+        if not is_iteration and not read_only and is_first_load:
             base_storage = get_base_storage(storage)
 
             # Dataset locking only for S3 datasets
@@ -118,13 +119,14 @@ class Dataset:
                         "Opening dataset in read only mode as another machine has locked it for writing."
                     )
 
-        self.index: Index = index or Index()
-        self.group_index = group_index
-        self._token = token
-        self.public = public
-        self.verbose = verbose
-        self.version_state: Dict[str, Any] = version_state or {}
-        self._info = None
+        d["index"] = index or Index()
+        d["group_index"] = group_index
+        d["_token"] = token
+        d["public"] = public
+        d["verbose"] = verbose
+        d["version_state"] = version_state or {}
+        d["_info"] = None
+        self.__dict__.update(d)
         self._set_derived_attributes()
         self.first_load_init()
 
@@ -171,7 +173,7 @@ class Dataset:
             raise MemoryDatasetCanNotBePickledError
         return {
             "path": self.path,
-            "_read_only": self.read_only,
+            "_read_only": self._read_only,
             "index": self.index,
             "group_index": self.group_index,
             "public": self.public,
@@ -179,6 +181,8 @@ class Dataset:
             "_token": self.token,
             "verbose": self.verbose,
             "version_state": self.version_state,
+            "org_id": self.org_id,
+            "ds_name": self.ds_name,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -187,10 +191,10 @@ class Dataset:
         Args:
             state (dict): The pickled state used to restore the dataset.
         """
+        state["is_first_load"] = True
+        state["_info"] = None
+        state["is_iteration"] = False
         self.__dict__.update(state)
-        self.is_first_load = True
-        self._info = None
-        self.is_iteration = False
         self._set_derived_attributes()
 
     def __getitem__(
@@ -226,7 +230,7 @@ class Dataset:
                 storage=self.storage,
                 index=self.index[item],
                 group_index=self.group_index,
-                read_only=self.read_only,
+                read_only=self._read_only,
                 token=self._token,
                 verbose=False,
                 version_state=self.version_state,
@@ -398,7 +402,7 @@ class Dataset:
             version_state["branch_commit_map"][branch] = commit_id
             version_state["commit_node_map"][commit_id] = commit_node
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
-        self.version_state = version_state
+        self.__dict__["version_state"] = version_state
 
     def commit(self, message: Optional[str] = None) -> None:
         """Stores a snapshot of the current state of the dataset.
@@ -535,8 +539,7 @@ class Dataset:
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
-            if self.is_first_load:
-                load_meta(self.storage, self.version_state)
+            load_meta(self.storage, self.version_state)
 
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
@@ -570,7 +573,7 @@ class Dataset:
             self.storage.enable_readonly()
         else:
             self.storage.disable_readonly()
-        self._read_only = value
+        self.__dict__["_read_only"] = value
 
     @hub_reporter.record_call
     def pytorch(
@@ -689,15 +692,15 @@ class Dataset:
         if self.is_first_load:
             self.storage.autoflush = True
             self._load_version_info()
-        if not self.is_iteration:
             self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
+        if not self.is_iteration:
             self.index.validate(self.num_samples)
 
     @property
     def info(self):
         if self._info is None:
-            self._info = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
         return self._info
 
     @hub_reporter.record_call
