@@ -85,6 +85,7 @@ class Tensor:
         version_state: Dict[str, Any],
         index: Optional[Index] = None,
         is_iteration: bool = False,
+        chunk_engine: Optional[ChunkEngine] = None,
     ):
         """Initializes a new tensor.
 
@@ -99,6 +100,7 @@ class Tensor:
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
             is_iteration (bool): If this tensor is being used as an iterator.
+            chunk_engine (ChunkEngine, optional): The underlying chunk_engine for the tensor
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
@@ -114,7 +116,9 @@ class Tensor:
         ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
+        self.chunk_engine = chunk_engine or ChunkEngine(
+            self.key, self.storage, self.version_state
+        )
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
@@ -275,7 +279,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return self.chunk_engine.num_samples
+        return self.chunk_engine.tensor_meta.length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -312,6 +316,7 @@ class Tensor:
             self.version_state,
             index=self.index[item],
             is_iteration=is_iteration,
+            chunk_engine=self.chunk_engine,
         )
 
     def _get_bigger_dtype(self, d1, d2):
