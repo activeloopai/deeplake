@@ -646,7 +646,7 @@ class ChunkEngine:
         last_idx = num_samples - 1
         if last_idx not in data_added:
             raise NotImplementedError(
-                "Can not pop sample which was added in a previous commit."
+                "Cannot pop sample which was added in a previous commit."
             )
         data_added.remove(last_idx)
         self._write_initialization()
