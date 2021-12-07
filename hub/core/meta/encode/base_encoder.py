@@ -11,6 +11,24 @@ LAST_SEEN_INDEX_COLUMN = -1
 
 
 class Encoder(ABC):
+    last_row = 0
+
+    def is_index_in_last_row(self, arr, index) -> bool:
+        """Checks if `index` is in the self.last_row of of encoder."""
+        row = self.last_row
+        return arr[row][1] >= index and (row == 0 or arr[row - 1][1] < index)
+
+    def check_last_row(self, global_sample_index: int):
+        """Takes a look at self.last_row and tries to find chunk id without binary search by looking at the current and next row."""
+        arr = self.array
+        if self.is_index_in_last_row(arr, global_sample_index):
+            return self.last_row
+        elif self.last_row < len(arr) - 1:
+            self.last_row += 1
+            if self.is_index_in_last_row(arr, global_sample_index):
+                return self.last_row
+        return None
+
     def __init__(self, encoded=None):
         """Base class for custom encoders that allow reading meta information from sample indices without decoding the entire encoded state.
 
@@ -114,9 +132,14 @@ class Encoder(ABC):
         if local_sample_index < 0:
             local_sample_index += self.num_samples
 
-        return np.searchsorted(
-            self._encoded[:, LAST_SEEN_INDEX_COLUMN], local_sample_index
-        )  # type: ignore
+        row_index = self.check_last_row(local_sample_index)
+        if row_index is None:
+            row_index = np.searchsorted(
+                self._encoded[:, LAST_SEEN_INDEX_COLUMN], local_sample_index
+            )
+            self.last_row = row_index
+
+        return row_index  # type: ignore
 
     def register_samples(self, item: Any, num_samples: int):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.

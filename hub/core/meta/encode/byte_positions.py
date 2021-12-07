@@ -8,6 +8,11 @@ START_BYTE_COLUMN = 1
 
 
 class BytePositionsEncoder(Encoder):
+    def is_index_in_last_row(self, arr, index) -> bool:
+        """Checks if `index` is in the self.last_row of of encoder."""
+        row = self.last_row
+        return arr[row][2] >= index and (row == 0 or arr[row - 1][2] < index)
+
     def get_sum_of_bytes(self, until_row_index: int = -1) -> int:
         """Get the total number of bytes that are accounted for.
         This operation is O(1).
