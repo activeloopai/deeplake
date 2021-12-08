@@ -1007,7 +1007,7 @@ class Dataset:
         # TODO
         # Process path arg here (add hashes etc)
 
-        ds = hub.dataset(path, **ds_args)
+        ds = hub.empty(path, **ds_args)
 
         info = {
             "description": "Virtual Datasource",
