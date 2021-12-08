@@ -16,7 +16,7 @@ class Encoder(ABC):
     def is_index_in_last_row(self, arr, index) -> bool:
         """Checks if `index` is in the self.last_row of of encoder."""
         row = self.last_row
-        return arr[row, 1] >= index and (row == 0 or arr[row - 1, 1] < index)
+        return arr[row, -1] >= index and (row == 0 or arr[row - 1, -1] < index)
 
     def check_last_row(self, global_sample_index: int):
         """Takes a look at self.last_row and tries to find chunk id without binary search by looking at the current and next row."""
