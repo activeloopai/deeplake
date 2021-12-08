@@ -21,7 +21,9 @@ class Encoder(ABC):
     def check_last_row(self, global_sample_index: int):
         """Takes a look at self.last_row and tries to find chunk id without binary search by looking at the current and next row."""
         arr = self.array
-        if self.is_index_in_last_row(arr, global_sample_index):
+        if self.last_row < len(arr) and self.is_index_in_last_row(
+            arr, global_sample_index
+        ):
             return self.last_row
         elif self.last_row < len(arr) - 1:
             self.last_row += 1

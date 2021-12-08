@@ -140,14 +140,18 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
-        self.is_data_cachable = (
-            (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (self.chunk_class == UncompressedChunk)
-            and (np.prod(tensor_meta.max_shape) < 20)
-            and (tensor_meta.htype not in ["text", "json", "list"])
-        )
         self.cached_data = None
         self.cache_range = None
+
+    @property
+    def is_data_cachable(self):
+        tensor_meta = self.tensor_meta
+        return (
+            self.chunk_class == UncompressedChunk
+            and tensor_meta.htype not in ["text", "json", "list"]
+            and (tensor_meta.max_shape == tensor_meta.min_shape)
+            and (np.prod(tensor_meta.max_shape) < 20)
+        )
 
     @property
     def max_chunk_size(self):
@@ -511,6 +515,7 @@ class ChunkEngine:
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
+        self.cached_data = None
         if operator is not None:
             return self._update_with_operator(index, samples, operator)
 
@@ -635,7 +640,7 @@ class ChunkEngine:
                         0 if row == 0 else self.chunk_id_encoder.array[row - 1][1] + 1
                     )
                     last_sample = self.chunk_id_encoder.array[row][1]
-                    data_bytes = chunk.memoryview_data
+                    data_bytes = bytearray(chunk.data_bytes)
                     num_samples = last_sample - first_sample + 1
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
                     arr = np.frombuffer(
@@ -643,9 +648,13 @@ class ChunkEngine:
                     ).reshape(full_shape)
                     self.cached_data = arr
                     self.cache_range = range(first_sample, last_sample + 1)
-                samples.append(
-                    self.cached_data[global_sample_index - self.cache_range.start]
-                )
+
+                sample = self.cached_data[global_sample_index - self.cache_range.start]
+
+                # need to copy if aslist otherwise user might modify the returned data
+                # if not aslist, we already do np.array(samples) while formatting which copies
+                sample = sample.copy() if aslist else sample
+                samples.append(sample)
         else:
             for global_sample_index in index.values[0].indices(length):
                 chunks = self.get_chunks_for_sample(global_sample_index)
