@@ -185,7 +185,6 @@ class ChunkIdEncoder(Encoder, Cachable):
         """
 
         row_index = self.translate_index(local_sample_index)
-
         output: List[Any] = []
         value = self._derive_value(
             self._encoded[row_index], row_index, local_sample_index
@@ -198,6 +197,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         while row_index < len(self._encoded):
             if self._encoded[row_index][1] == local_sample_index:
+                self.last_row = row_index
                 value = self._derive_value(
                     self._encoded[row_index], row_index, local_sample_index
                 )

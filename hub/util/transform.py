@@ -246,13 +246,18 @@ def add_cache_to_dataset_slice(
     # TODO: adjust this size once we get rid of cachable
     cache_size = 64 * len(tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-    dataset_slice = hub.Dataset(
-        cached_store,
+    commit_id = dataset_slice.commit_id
+    # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
+    dataset_slice = hub.core.dataset.dataset_factory(
+        path=dataset_slice.path,
+        storage=cached_store,
         index=dataset_slice.index,
-        group_index=dataset_slice.group_index,  # type: ignore
+        group_index=dataset_slice.group_index,
         read_only=dataset_slice.read_only,
+        token=dataset_slice.token,
         verbose=False,
     )
+    dataset_slice.checkout(commit_id)
     return dataset_slice
 
 
