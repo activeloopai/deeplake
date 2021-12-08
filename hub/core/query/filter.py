@@ -6,6 +6,8 @@ from hub.core.io import SampleStreaming
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import map_tensor_keys
 
+import inspect
+
 
 def filter_dataset(
     dataset: hub.Dataset,
@@ -23,7 +25,19 @@ def filter_dataset(
     else:
         index_map = filter_inplace(dataset, filter_function, progressbar)
 
-    return dataset[index_map]  # type: ignore [this is fine]
+    ds = dataset[index_map]
+    ds._is_filtered_view = True
+    if isinstance(filter_function, hub.core.query.DatasetQuery):
+        query = filter_function._query
+    else:
+        try:
+            query = inspect.getsource(filter_function)
+        except OSError:
+            query = getattr(
+                filter_function, "__name__", filter_function.__class__.__name__
+            )
+    ds._query = query
+    return ds  # type: ignore [this is fine]
 
 
 def filter_with_compute(

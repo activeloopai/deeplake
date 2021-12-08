@@ -402,6 +402,10 @@ class Dataset:
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
+        if getattr(self, "_is_filterd_view", False):
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
         commit_id = self.version_state["commit_id"]
         try_flushing(self)
         commit(self.version_state, self.storage, message)
@@ -426,6 +430,10 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
+        if getattr(self, "_is_filterd_view", False):
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
         try_flushing(self)
         checkout(self.version_state, self.storage, address, create)
         self._info = None
@@ -985,3 +993,36 @@ class Dataset:
 
     def __args__(self):
         return None
+
+    def store(self, path, **ds_args):
+        if len(self.index.values) > 1:
+            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
+
+        # TODO
+        # Process path arg here (add hashes etc)
+
+        ds = hub.dataset(path, **ds_args)
+
+        info = {
+            "description": "Virtual Datasource",
+            "virtual-datasource": True,
+            "source-dataset": self.path,
+            "source-dataset-version": self.version_state["commit_id"],
+        }
+
+        query = getattr(self, "_query", None)
+        if query:
+            info["query"] = query
+        with ds:
+            ds.info.update(info)
+            ds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                list(self.index.values[0].indices(len(self)))
+            )
+        ds._view = self
+        return ds
+
+    def _get_view(self):
+        # Only applicable for virtual datasets
+        ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
+        ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
+        return ds

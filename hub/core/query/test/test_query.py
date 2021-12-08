@@ -5,6 +5,8 @@ import numpy as np
 from hub.core.query import DatasetQuery
 from hub.core.query.query import EvalGenericTensor, EvalLabelClassTensor
 
+import hub
+
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
 second_row = {"images": [6, 7, 5], "labels": [1]}
@@ -12,9 +14,8 @@ rows = [first_row, second_row]
 class_names = ["dog", "cat", "fish"]
 
 
-@pytest.fixture
-def sample_ds(memory_ds):
-    with memory_ds as ds:
+def _populate_data(ds):
+    with ds:
         ds.create_tensor("images")
         ds.create_tensor("labels", htype="class_label", class_names=class_names)
 
@@ -22,6 +23,10 @@ def sample_ds(memory_ds):
             ds.images.append(row["images"])
             ds.labels.append(row["labels"])
 
+
+@pytest.fixture
+def sample_ds(memory_ds):
+    _populate_data(memory_ds)
     return memory_ds
 
 
@@ -169,3 +174,13 @@ def test_query_scheduler(local_ds):
         )
         == 3141
     )
+
+
+def test_dataset_view_save(sample_ds):
+    with hub.dataset(".tests/ds", overwrite=True) as ds:
+        _populate_data(ds)
+    view = ds.filter("labels == 'dog'")
+    view.store(".tests/ds_view", overwrite=True)
+    view2 = hub.dataset(".tests/ds_view")
+    for t in view.tensors:
+        np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())

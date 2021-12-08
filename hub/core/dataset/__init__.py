@@ -12,7 +12,6 @@ def dataset_factory(path, *args, **kwargs):
     """Returns a Dataset object from the appropriate class. For example: If `path` is a hub
     cloud path (prefixed with `hub://`), the returned Dataset object will be of HubCloudDataset.
     """
-
     if FORCE_CLASS is not None:
         clz = FORCE_CLASS
     elif is_hub_cloud_path(path):
@@ -21,5 +20,8 @@ def dataset_factory(path, *args, **kwargs):
         clz = Dataset
 
     if clz in {Dataset, HubCloudDataset}:
-        return clz(path=path, *args, **kwargs)
+        ds = clz(path=path, *args, **kwargs)
+        if "VDS_INDEX" in ds.tensors:
+            ds = ds._get_view()
+        return ds
     raise TypeError(f"Invalid dataset class {clz}")

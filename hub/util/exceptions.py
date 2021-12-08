@@ -69,7 +69,7 @@ class TensorMetaMissingKey(Exception):
         super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
-class TensorDoesNotExistError(KeyError):
+class TensorDoesNotExistError(KeyError, AttributeError):
     def __init__(self, tensor_name: str):
         super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
