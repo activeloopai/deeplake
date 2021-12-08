@@ -564,7 +564,7 @@ class ChunkEngine:
         try:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
-            arr = self.numpy(index)
+            arr = self.numpy(index, use_data_cache=False)
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
@@ -605,13 +605,14 @@ class ChunkEngine:
         return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
 
     def numpy(
-        self, index: Index, aslist: bool = False
+        self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
             aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
+            use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -624,7 +625,7 @@ class ChunkEngine:
         samples = []
         enc = self.chunk_id_encoder
 
-        if self.is_data_cachable:
+        if use_data_cache and self.is_data_cachable:
             for global_sample_index in index.values[0].indices(length):
                 if (
                     self.cached_data is None
