@@ -477,10 +477,17 @@ class Dataset:
 
             Example of a dict returned:
             {
-                "image": {"data_added": {3, 4, 5}, "data_updated": {0, 2}, "created": False},
-                "label": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
-                "other/stuff" : {data_added: {2, 3}, data_updated: {1,2}, created: True}
+                "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False},
+                "label": {"data_added": [0, 3], "data_updated": {}, "created": True},
+                "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True}
             }
+
+            Here the data_adeded is a range of sample indexes that were added to the tensor.
+            For example [3, 6] means that sample 3, 4 and 5 were added.
+            Another example [3, 3] means that no samples were added as the range is empty
+
+            data_updated on the other hand is a set of sample indexes that were updated.
+            For example {0, 2} means that sample 0 and 2 were updated.
 
 
         Raises:
