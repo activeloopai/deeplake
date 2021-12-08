@@ -401,6 +401,9 @@ class Dataset:
 
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
+
+        Raises:
+            Exception: if dataset is a filtered view.
         """
         if getattr(self, "_is_filterd_view", False):
             raise Exception(
@@ -429,6 +432,9 @@ class Dataset:
 
         Returns:
             str: The commit_id of the dataset after checkout.
+
+        Raises:
+            Exception: if dataset is a filtered view.
         """
         if getattr(self, "_is_filterd_view", False):
             raise Exception(
