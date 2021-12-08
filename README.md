@@ -19,7 +19,7 @@
    <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
-  <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
+  <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
 
 ## About Hub
@@ -35,9 +35,13 @@ Hub includes the following features:
 * **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
 * **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 * **Distributed transforms**: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
+* **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
+<div align="center">
+<a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+</div>
 
-
+    
 ## Getting Started with Hub
 
 
@@ -48,7 +52,7 @@ Hub is written in 100% Python and can be quickly installed using pip.
 pip3 install hub
 ```
 
-### 🧠 Training a pytorch model on a hub datasset
+### 🧠 Training a PyTorch model on a Hub dataset
 
 #### Load CIFAR-10, one of the readily available datasets in Hub:
 
