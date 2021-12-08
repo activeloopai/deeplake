@@ -1,7 +1,7 @@
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List
-from hub.core.version_control.commit_diff import CommitDiff, get_sample_indexes_added
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -207,7 +207,7 @@ class ChunkEngine:
         commit_id = self.version_state["commit_id"]
         key = get_tensor_commit_diff_key(self.key, commit_id)
         if not self.commit_diff_exists:
-            diff = CommitDiff()
+            diff = CommitDiff(first_index=self.num_samples)
             self.meta_cache[key] = diff
             return diff
 
@@ -267,7 +267,7 @@ class ChunkEngine:
     def num_samples(self) -> int:
         if not self.chunk_id_encoder_exists:
             return 0
-        return self.chunk_id_encoder.num_samples
+        return int(np.uint32(self.chunk_id_encoder.num_samples))
 
     @property
     def last_chunk_key(self) -> str:
@@ -364,12 +364,10 @@ class ChunkEngine:
             return
         self._write_initialization()
         samples = self._sanitize_samples(samples)
-        indexes_added = get_sample_indexes_added(self.num_samples, samples)
-
         current_chunk = self.last_chunk() or self._create_new_chunk()
         updated_chunks = {current_chunk}
         enc = self.chunk_id_encoder
-
+        commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
@@ -383,6 +381,7 @@ class ChunkEngine:
                 if sample.is_last_write:
                     self.tile_encoder.register_sample(sample, self.num_samples - 1)
                     samples = samples[1:]
+                    commit_diff.add(1)
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
                     updated_chunks.add(current_chunk)
@@ -390,8 +389,7 @@ class ChunkEngine:
                 num = int(num_samples_added)
                 enc.register_samples(num)
                 samples = samples[num:]
-
-        self.commit_diff.add_data(indexes_added)
+                commit_diff.add_data(num)
 
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
@@ -621,7 +619,7 @@ class ChunkEngine:
         tensor_meta_length = self.tensor_meta.length
 
         # compare chunk ID encoder and tensor meta
-        chunk_id_num_samples = (
+        chunk_id_num_samples = np.uint32(
             self.chunk_id_encoder.num_samples if self.chunk_id_encoder_exists else 0
         )
         if tensor_meta_length != chunk_id_num_samples:
