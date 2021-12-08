@@ -73,8 +73,8 @@ def translate_slices(
     Raises:
         NotImplementedError: For stepping slices
     """
-    tiles_index = []
-    sample_index = []
+    tiles_index: List[slice] = []
+    sample_index: List[Union[int, slice, List[int]]] = []
     for i, s in enumerate(slices):
         if isinstance(s, int):
             ts = (s + sample_shape[i] if s < 0 else s) // tile_shape[i]
