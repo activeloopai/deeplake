@@ -381,7 +381,7 @@ class ChunkEngine:
                 if sample.is_last_write:
                     self.tile_encoder.register_sample(sample, self.num_samples - 1)
                     samples = samples[1:]
-                    commit_diff.add(1)
+                    commit_diff.add_data(1)
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
                     updated_chunks.add(current_chunk)

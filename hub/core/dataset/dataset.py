@@ -43,7 +43,6 @@ from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.util.diff import (
     compare_commits,
-    create_changes_dict,
     get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
@@ -491,7 +490,7 @@ class Dataset:
         message1 = message2 = changes1 = changes2 = None
 
         if id_1 is None and id_2 is None:
-            changes1 = create_changes_dict()
+            changes1 = defaultdict(dict)
             commit_id = version_state["commit_id"]
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
