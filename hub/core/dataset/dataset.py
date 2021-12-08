@@ -106,6 +106,7 @@ class Dataset:
         d["_read_only"] = read_only
         d["is_iteration"] = is_iteration
         d["is_first_load"] = is_first_load = version_state is None
+        self.__dict__.update(d)
         if not is_iteration and not read_only and is_first_load:
             base_storage = get_base_storage(storage)
 
@@ -118,7 +119,7 @@ class Dataset:
                     warnings.warn(
                         "Opening dataset in read only mode as another machine has locked it for writing."
                     )
-
+        d.clear()
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
