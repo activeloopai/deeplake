@@ -17,6 +17,7 @@ from hub.util.transform import (
 )
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
+    merge_all_commit_diffs,
     merge_all_tensor_metas,
     merge_all_tile_encoders,
     merge_all_commit_chunk_sets,
@@ -248,6 +249,7 @@ class Pipeline:
             all_chunk_id_encoders,
             all_tile_encoders,
             all_chunk_commit_sets,
+            all_commit_diffs,
         ) = zip(*metas_and_encoders)
         all_num_samples = []
         for tensor_meta_dict in all_tensor_metas:
@@ -260,6 +262,7 @@ class Pipeline:
         merge_all_chunk_id_encoders(
             all_chunk_id_encoders, target_ds, storage, overwrite
         )
+        merge_all_commit_diffs(all_commit_diffs, target_ds, storage, overwrite)
         if target_ds.commit_id != FIRST_COMMIT_ID:
             merge_all_commit_chunk_sets(
                 all_chunk_commit_sets, target_ds, storage, overwrite

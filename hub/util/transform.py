@@ -121,11 +121,12 @@ def store_data_slice(
         data_slice, pipeline, tensors, all_chunk_engines, group_index, progress_port
     )
 
-    # retrieve the tensor metas and chunk_id_encoder from the memory
+    # retrieve relevant objects from memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_chunk_sets = {}
+    all_commit_diffs = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
@@ -133,7 +134,14 @@ def store_data_slice(
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
-    return all_tensor_metas, all_chunk_id_encoders, all_tile_encoders, all_chunk_sets
+        all_commit_diffs[tensor] = chunk_engine.commit_diff
+    return (
+        all_tensor_metas,
+        all_chunk_id_encoders,
+        all_tile_encoders,
+        all_chunk_sets,
+        all_commit_diffs,
+    )
 
 
 def _transform_sample_and_update_chunk_engines(
