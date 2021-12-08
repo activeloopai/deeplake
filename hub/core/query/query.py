@@ -28,15 +28,15 @@ class DatasetQuery:
         self._dataset = dataset
         self._query = query
         self.global_vars: Dict[str, Any] = dict()
-        self.cache = dict()
-        self.locals = self._export_tensors(dataset)
+        self.cache: Dict[str, np.ndarray] = dict()
+        self.locals: Dict[str, Any] = self._export_tensors(dataset)
         self.index: Index = Index()
 
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
     def _call_eval(self, sample_in: hub.Dataset):
-        self.index = sample_in.index
+        self.index = sample_in.index  # type: ignore
 
         return eval(
             self._query, self.global_vars, self.locals
@@ -59,7 +59,7 @@ class DatasetQuery:
 
                 if not group in bindings:
                     bindings[group] = EvalGroupTensor(self, group)
-                bindings[group].extend(tensor_name, tensor)
+                bindings[group].extend(tensor_name, tensor)  # type: ignore
 
             else:
                 bindings[key] = EvalGenericTensor(self, tensor)
