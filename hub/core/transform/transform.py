@@ -20,6 +20,7 @@ from hub.util.encoder import (
     merge_all_tensor_metas,
     merge_all_tile_encoders,
     merge_all_commit_chunk_sets,
+    reset_cachables,
 )
 from hub.util.exceptions import (
     HubComposeEmptyListError,
@@ -264,6 +265,8 @@ class Pipeline:
             merge_all_commit_chunk_sets(
                 all_chunk_commit_sets, target_ds, storage, overwrite
             )
+
+        reset_cachables(target_ds)
 
 
 def compose(functions: List[TransformFunction]):

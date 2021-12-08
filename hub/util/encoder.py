@@ -176,3 +176,16 @@ def combine_commit_chunk_sets(
 ) -> None:
     """Combines the dataset's commit_chunk_set with a single worker's commit_chunk_set."""
     ds_commit_chunk_set.chunks.update(worker_commit_chunk_set.chunks)
+
+
+def reset_cachables(target_ds: hub.Dataset) -> None:
+    tensors = list(target_ds.meta.tensors)
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        chunk_engine = target_ds[rel_path].chunk_engine
+        chunk_engine._tensor_meta = None
+        chunk_engine._chunk_id_encoder = None
+        chunk_engine._tile_encoder = None
+        chunk_engine._max_chunk_size = None
+        chunk_engine._commit_chunk_set = None
+        chunk_engine._commit_diff = None
