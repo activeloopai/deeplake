@@ -47,9 +47,10 @@ class HubCloudDataset(Dataset):
 
     def _set_org_and_name(self):
         if self.is_actually_cloud:
-            if self.org_id is None:
-                split_path = self.path.split("/")
-                org_id, ds_name = split_path[2], split_path[3]
+            if self.org_id is not None:
+                return
+            split_path = self.path.split("/")
+            org_id, ds_name = split_path[2], split_path[3]
         else:
             # if this dataset isn't actually pointing to a datset in the cloud
             # a.k.a this dataset is trying to simulate a hub cloud dataset
