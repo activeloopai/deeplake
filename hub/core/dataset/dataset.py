@@ -487,14 +487,13 @@ class Dataset:
             ValueError: If both id_1 is None and id_2 is not None.
         """
         version_state, storage = self.version_state, self.storage
-        message1 = message2 = changes1 = changes2 = None
-
         if id_1 is None and id_2 is None:
-            changes1 = defaultdict(dict)
+            changes1: Dict[str, Dict] = defaultdict(dict)
             commit_id = version_state["commit_id"]
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
             message1 = f"Diff in {commit_id} (current commit):\n"
+            message2 = changes2 = None
         else:
             if id_1 is None:
                 raise ValueError("Can't specify id_1 without specifying id_2")

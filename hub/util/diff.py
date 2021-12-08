@@ -28,8 +28,8 @@ def compare_commits(
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
     lca = version_state["commit_node_map"][lca_id]
 
-    changes_1 = defaultdict(dict)
-    changes_2 = defaultdict(dict)
+    changes_1: Dict[str, Dict] = defaultdict(dict)
+    changes_2: Dict[str, Dict] = defaultdict(dict)
 
     for commit_node, changes in [
         (commit_node_1, changes_1),
@@ -136,7 +136,7 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
                 change["data_updated"] = commit_diff.data_updated.copy()
             else:
                 change["data_updated"].update(commit_diff.data_updated)
-        
+
             change["created"] = change.get("created") or commit_diff.created
         except KeyError:
             pass
@@ -149,6 +149,7 @@ def filter_data_updated(changes: Dict[str, Dict]):
         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
         upd = {data for data in change["data_updated"] if data not in data_added_range}
         change["data_updated"] = upd
+
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
     """Compresses the indexes into range intervals.
