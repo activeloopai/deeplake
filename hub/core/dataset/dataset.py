@@ -1,4 +1,4 @@
-from collections import defaultdict
+# type: ignore
 import pickle
 import posixpath
 import warnings
@@ -98,7 +98,7 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        d = {}
+        d: Dict[str, Any] = {}
         d["_client"] = d["org_id"] = d["ds_name"] = None
         # uniquely identifies dataset
         d["path"] = path or get_path_from_storage(storage)

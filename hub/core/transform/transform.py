@@ -209,7 +209,7 @@ class Pipeline:
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
         storage = get_base_storage(target_ds.storage)
-        group_index = target_ds.group_index  # type: ignore
+        group_index = target_ds.group_index
         version_state = target_ds.version_state
 
         tensors = list(target_ds.tensors)

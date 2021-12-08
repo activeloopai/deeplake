@@ -111,23 +111,20 @@ class ChunkEngine:
         self.compression = None
         self.chunk_class = BaseChunk
 
-        self._tensor_meta = None
-        self._tensor_meta_commit_id = None
+        self._tensor_meta: Optional[TensorMeta] = None
+        self._tensor_meta_commit_id: Optional[str] = None
 
-        self._chunk_id_encoder = None
-        self._chunk_id_encoder_commit_id = None
+        self._chunk_id_encoder: Optional[ChunkIdEncoder] = None
+        self._chunk_id_encoder_commit_id: Optional[str] = None
 
-        self._tile_encoder = None
-        self._tile_encoder_commit_id = None
+        self._tile_encoder: Optional[TileEncoder] = None
+        self._tile_encoder_commit_id: Optional[str] = None
 
-        self._max_chunk_size = None
-        self._max_chunk_size_commit_id = None
+        self._commit_chunk_set: Optional[CommitChunkSet] = None
+        self._commit_chunk_set_commit_id: Optional[str] = None
 
-        self._commit_chunk_set = None
-        self._commit_chunk_set_commit_id = None
-
-        self._commit_diff = None
-        self._commit_diff_commit_id = None
+        self._commit_diff: Optional[CommitDiff] = None
+        self._commit_diff_commit_id: Optional[str] = None
 
         tensor_meta = self.tensor_meta
 
@@ -140,8 +137,8 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
-        self.cached_data = None
-        self.cache_range = None
+        self.cached_data: Optional[np.ndarray] = None
+        self.cache_range: range = range(0)
 
     @property
     def is_data_cachable(self):
@@ -156,13 +153,9 @@ class ChunkEngine:
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        commit_id = self.version_state["commit_id"]
-        if self._max_chunk_size is None or self._max_chunk_size_commit_id != commit_id:
-            self._max_chunk_size = (
-                getattr(self.tensor_meta, "max_chunk_size", None)
-                or DEFAULT_MAX_CHUNK_SIZE
-            )
-        return self._max_chunk_size
+        return (
+            getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+        )
 
     @property
     def chunk_args(self):
@@ -650,7 +643,7 @@ class ChunkEngine:
                     self.cached_data = arr
                     self.cache_range = range(first_sample, last_sample + 1)
 
-                sample = self.cached_data[global_sample_index - self.cache_range.start]
+                sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
 
                 # need to copy if aslist otherwise user might modify the returned data
                 # if not aslist, we already do np.array(samples) while formatting which copies

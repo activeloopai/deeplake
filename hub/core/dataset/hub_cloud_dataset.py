@@ -36,7 +36,7 @@ class HubCloudDataset(Dataset):
         """Datasets that are connected to hub cloud can still technically be stored anywhere.
         If a dataset is hub cloud but stored without `hub://` prefix, it should only be used for testing.
         """
-        return is_hub_cloud_path(self.path)
+        return is_hub_cloud_path(self.path)  # type: ignore
 
     @property
     def token(self):
@@ -90,14 +90,14 @@ class HubCloudDataset(Dataset):
     @property
     def agreement(self) -> Optional[str]:
         try:
-            agreement_bytes = self.storage[AGREEMENT_FILENAME]
+            agreement_bytes = self.storage[AGREEMENT_FILENAME]  # type: ignore
             return agreement_bytes.decode("utf-8")
         except KeyError:
             return None
 
     def add_agreeement(self, agreement: str):
-        self.storage.check_readonly()
-        self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")
+        self.storage.check_readonly()  # type: ignore
+        self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")  # type: ignore
 
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()
