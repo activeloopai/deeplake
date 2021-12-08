@@ -405,6 +405,7 @@ class Dataset:
         commit_id = self.version_state["commit_id"]
         try_flushing(self)
         commit(self.version_state, self.storage, message)
+        self._info = None
 
         # do not store commit message
         hub_reporter.feature_report(
@@ -427,6 +428,7 @@ class Dataset:
         """
         try_flushing(self)
         checkout(self.version_state, self.storage, address, create)
+        self._info = None
 
         # do not store address
         hub_reporter.feature_report(
