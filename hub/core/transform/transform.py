@@ -15,12 +15,12 @@ from hub.util.transform import (
     get_pbar_description,
     store_data_slice,
 )
+from hub.util.cachable import reset_cachables
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
     merge_all_tensor_metas,
     merge_all_tile_encoders,
     merge_all_commit_chunk_sets,
-    reset_cachables,
 )
 from hub.util.exceptions import (
     HubComposeEmptyListError,
