@@ -3,8 +3,6 @@ import pandas as pd
 from .base import StructuredDataset
 from hub.core.dataset import Dataset
 from tqdm import tqdm
-import os
-import hub
 
 
 class CSVFile(StructuredDataset):
