@@ -403,7 +403,8 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         commit_id = self.version_state["commit_id"]
-        try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         commit(self.version_state, self.storage, message)
         self._info = None
 
@@ -413,6 +414,7 @@ class Dataset:
             parameters={},
         )
 
+        self.storage.autoflush = initial_autoflush
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -426,7 +428,8 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
-        try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         checkout(self.version_state, self.storage, address, create)
         self._info = None
 
@@ -436,6 +439,7 @@ class Dataset:
             parameters={"Create": str(create)},
         )
 
+        self.storage.autoflush = initial_autoflush
         return self.version_state["commit_id"]
 
     def log(self):
