@@ -1,6 +1,7 @@
 import os
 import hub
 from typing import Optional, Union
+from hub.auto.structured.csv import CSVFile
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
@@ -408,8 +409,6 @@ class dataset:
                 "Summary": summary,
             },
         )
-        if not os.path.isdir(src):
-            raise InvalidPathException(src)
 
         if os.path.isdir(dest) and os.path.samefile(src, dest):
             raise SamePathException(src)
@@ -420,6 +419,11 @@ class dataset:
                 raise InvalidFileExtension(src)
 
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+
+        if src.endswith(".csv"):
+            structured = CSVFile(source=src)
+            structured.fill_dataset(ds, progress_bar)
+            return ds
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
