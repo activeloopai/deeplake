@@ -333,10 +333,10 @@ class dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
 
         Note:
-            - Currently only local source paths and image classification datasets are supported for automatic ingestion.
-            - Supported filetypes: png/jpeg/jpg.
+            - Currently only local source paths and image classification datasets / csv files are supported for automatic ingestion.
+            - Supported filetypes: png/jpeg/jpg/csv.
             - All files and sub-directories with unsupported filetypes are ignored.
-            - Valid source directory structures look like:
+            - Valid source directory structures for image classification look like:
 
             ```
                 data/
@@ -378,7 +378,7 @@ class dataset:
             - Mapping filenames to classes from an external file is currently not supported.
 
         Args:
-            src (str): Local path to where the unstructured dataset is stored.
+            src (str): Local path to where the unstructured dataset is stored or path to csv file.
             dest (str): Destination path where the structured dataset will be stored. Can be:-
                 - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.

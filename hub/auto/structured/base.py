@@ -10,8 +10,8 @@ class StructuredDataset(ABC):
         if os.path.isdir(self.source):
             self.source = Path(find_root(self.source))
 
-    """Initializes an structured dataset.
+    """Initializes a structured dataset.
     
     Args:
-        source (str): The local path to folder containing an unstructured dataset and of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+        source (str): The local path to folder or file containing a structured dataset and of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
     """
