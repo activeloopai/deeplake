@@ -65,6 +65,7 @@ def fn4(sample_in, samples_out):
     samples_out.label.append(sample_in.label)
     samples_out.label.append(sample_in.label.numpy() * 2)
 
+
 @hub.compute
 def fn5(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
