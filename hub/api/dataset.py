@@ -413,17 +413,23 @@ class dataset:
         if os.path.isdir(dest) and os.path.samefile(src, dest):
             raise SamePathException(src)
 
+        if src.endswith(".csv"):
+            if not os.path.isfile(src):
+                raise InvalidPathException(src)
+            ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+            structured = CSVFile(source=src)
+            structured.fill_dataset(ds, progress_bar)  # type: ignore
+            return ds  # type: ignore
+
+        if not os.path.isdir(src):
+            raise InvalidPathException(src)
+
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)
             if images_compression is None:
                 raise InvalidFileExtension(src)
 
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
-
-        if src.endswith(".csv"):
-            structured = CSVFile(source=src)
-            structured.fill_dataset(ds, progress_bar)  # type: ignore
-            return ds  # type: ignore
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)

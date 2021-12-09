@@ -8,7 +8,7 @@ from hub.util.exceptions import (
 import numpy as np
 import pytest
 import hub
-import pandas as pd
+import pandas as pd  # type: ignore
 
 
 def test_ingestion_simple(memory_ds: Dataset):
