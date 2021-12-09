@@ -268,9 +268,9 @@ class Pipeline:
             )
 
 
-def compose(functions: List[TransformFunction]):
+def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
     """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval
-    
+
     Example::
 
         pipeline = hub.compose([my_fn(a=3), another_function(b=2)])
@@ -306,7 +306,7 @@ def compose(functions: List[TransformFunction]):
     return Pipeline(functions)
 
 
-def compute(fn):
+def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
     """Compute is a decorator for functions.
     The functions should have atleast 2 argument, the first two will correspond to sample_in and samples_out.
     There can be as many other arguments as required.
