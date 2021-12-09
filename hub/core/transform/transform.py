@@ -280,17 +280,17 @@ def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201
 
     It has the following arguments:-
 
-    - data_in: Input passed to the transform to generate output dataset.  
+    - data_in: Input passed to the transform to generate output dataset.
     It should support \__getitem__ and \__len__. This can be a Hub dataset.
-    - ds_out (Dataset, optional): The dataset object to which the transform will get written.  
-    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.  
-    It should have all keys being generated in output already present as tensors.  
+    - ds_out (Dataset, optional): The dataset object to which the transform will get written.
+    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+    It should have all keys being generated in output already present as tensors.
     It's initial state should be either:-
         - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
         - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
-    - num_workers (int): The number of workers to use for performing the transform.  
+    - num_workers (int): The number of workers to use for performing the transform.
     Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-    - scheduler (str): The scheduler to be used to compute the transformation.  
+    - scheduler (str): The scheduler to be used to compute the transformation.
     Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
     - progressbar (bool): Displays a progress bar if True (default).
 
@@ -337,17 +337,17 @@ def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
 
     It has the following arguments:-
 
-    - data_in: Input passed to the transform to generate output dataset.    
+    - data_in: Input passed to the transform to generate output dataset.
     It should support \__getitem__ and \__len__. This can be a Hub dataset.
-    - ds_out (Dataset, optional): The dataset object to which the transform will get written.  
-    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.  
-    It should have all keys being generated in output already present as tensors.  
+    - ds_out (Dataset, optional): The dataset object to which the transform will get written.
+    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+    It should have all keys being generated in output already present as tensors.
     It's initial state should be either:-
         - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
         - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
-    - num_workers (int): The number of workers to use for performing the transform.  
+    - num_workers (int): The number of workers to use for performing the transform.
     Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-    - scheduler (str): The scheduler to be used to compute the transformation.  
+    - scheduler (str): The scheduler to be used to compute the transformation.
     Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
     - progressbar (bool): Displays a progress bar if True (default).
 
