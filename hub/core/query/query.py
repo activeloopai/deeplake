@@ -29,7 +29,6 @@ class DatasetQuery:
         self._query = query
         self.global_vars: Dict[str, Any] = dict()
         self.cache: Dict[str, np.ndarray] = dict()
-        self.cache_range: Dict[str, range] = dict()
         self.locals: Dict[str, Any] = self._export_tensors(dataset)
         self.index: Index = Index()
 

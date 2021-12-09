@@ -39,16 +39,16 @@ def filter_with_compute(
 
     def filter_slice(indices: Sequence[int]):
         result = list()
-        for i in indices:
-            if filter_function(dataset[i]):
+        for idx, i in enumerate(indices):
+            if filter_function(dataset[i], idx):
                 result.append(i)
 
         return result
 
     def pg_filter_slice(pg_callback, indices: Sequence[int]):
         result = list()
-        for i in indices:
-            if filter_function(dataset[i]):
+        for idx, i in enumerate(indices):
+            if filter_function(dataset[i], idx):
                 result.append(i)
             pg_callback(1)
 
