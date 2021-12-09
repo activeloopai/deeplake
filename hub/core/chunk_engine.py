@@ -368,6 +368,9 @@ class ChunkEngine:
         if len(samples) == 0:
             return
         self._write_initialization()
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+
         samples = self._sanitize_samples(samples)
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
         current_chunk = self.last_chunk() or self._create_new_chunk()
@@ -393,6 +396,7 @@ class ChunkEngine:
                 samples = samples[num:]
 
         self.commit_diff.add_data(indexes_added)
+        self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
     def add_cachables_to_cache(self):
@@ -446,6 +450,9 @@ class ChunkEngine:
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+
         if operator is not None:
             return self._update_with_operator(index, samples, operator)
 
@@ -474,6 +481,7 @@ class ChunkEngine:
             if chunk.key != self.last_chunk_key:  # type: ignore
                 nbytes_after_updates.append(chunk.nbytes)
 
+        self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
         chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
         check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
