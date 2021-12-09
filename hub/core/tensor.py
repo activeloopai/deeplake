@@ -454,9 +454,13 @@ class Tensor:
         """Returns the bytes of the tensor. Only works for a single sample of tensor.
         If the tensor is compressed, it returns the compressed bytes.
 
+        Returns:
+            bytes: The bytes of the tensor.
+
         Raises:
             ValueError: If the tensor has multiple samples.
         """
+
         if self.index.values[0].subscriptable():
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
