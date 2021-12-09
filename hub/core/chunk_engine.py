@@ -399,8 +399,6 @@ class ChunkEngine:
         """Adds all the cachables to the cache as dirty keys."""
         if self.cachables_initialized:
             return
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
 
         commit_id = self.version_state["commit_id"]
 
@@ -425,8 +423,6 @@ class ChunkEngine:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
-
-        self.cache.autoflush = initial_autoflush
         self.cachables_initialized = True
 
     def _create_new_chunk(self):
