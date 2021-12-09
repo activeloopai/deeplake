@@ -121,7 +121,7 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
-        self.add_cachables_to_cache()
+        self.cachables_initialized = False
 
     @property
     def max_chunk_size(self):
@@ -344,6 +344,7 @@ class ChunkEngine:
 
     def _write_initialization(self):
         self.cache.check_readonly()
+        self.add_cachables_to_cache()
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -395,7 +396,9 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def add_cachables_to_cache(self):
-        """Adds all the cachables to the cache at the initialization."""
+        """Adds all the cachables to the cache as dirty keys."""
+        if self.cachables_initialized:
+            return
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
@@ -424,6 +427,7 @@ class ChunkEngine:
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
         self.cache.autoflush = initial_autoflush
+        self.cachables_initialized = True
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
