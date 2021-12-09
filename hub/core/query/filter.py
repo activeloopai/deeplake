@@ -83,7 +83,7 @@ def filter_inplace(
         it = tqdm(it, total=len(dataset))
 
     for i, sample_in in it:
-        if filter_function(sample_in):
+        if filter_function(sample_in, i):
             index_map.append(i)
 
     return index_map

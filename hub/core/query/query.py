@@ -29,14 +29,16 @@ class DatasetQuery:
         self._query = query
         self.global_vars: Dict[str, Any] = dict()
         self.cache: Dict[str, np.ndarray] = dict()
+        self.cache_range: Dict[str, range] = dict()
         self.locals: Dict[str, Any] = self._export_tensors(dataset)
         self.index: Index = Index()
 
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
-    def _call_eval(self, sample_in: hub.Dataset):
+    def _call_eval(self, sample_in: hub.Dataset, index: int):
         self.index = sample_in.index  # type: ignore
+        self.cache_offset = index
 
         return eval(
             self._query, self.global_vars, self.locals
@@ -116,8 +118,7 @@ class EvalTensorObject(EvalObject):
         """Retrives np.ndarray or scalar value"""
         if self._tensor.chunk_engine.is_data_cachable and enable_cache:
             cache = self._get_cached_numpy()
-
-            idx = self.query.index.values[0].value
+            idx = self.query.cache_offset
             return cache[idx]
         else:
             return self._tensor[self.query.index].numpy()
