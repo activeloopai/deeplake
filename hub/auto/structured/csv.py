@@ -59,7 +59,7 @@ class CSVFile(StructuredDataset):
                 except Exception as e:
                     skipped_keys.append(key)
                     iterator.set_description(
-                        'Ingesting "%s" (%i files skipped)'
+                        'Ingesting "%s" (%i keys skipped)'
                         % (self.source.name, len(skipped_keys))
                     )
                     continue
