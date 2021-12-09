@@ -63,9 +63,8 @@ ds = hub.load('hub://activeloop/cifar10-train')
 
 #### Inspect tensors in the dataset:
 
-```
+```python
 print(list(ds.tensors.keys()))
-
 # ['images', 'labels']
 ```
 
@@ -73,13 +72,11 @@ print(list(ds.tensors.keys()))
 
 ```python
 print(ds.images.shape)
-
 # (50000, 32, 32, 3)
 ```
 
 ```python
-print(ds.labels.shape)
-
+> print(ds.labels.shape)
 # (50000, 1)
 ```
 
