@@ -213,10 +213,19 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        if not self.index.values[0].subscriptable():
-            return self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
-        else:
-            return self.shape_interval.astuple()
+        shape = self.shape_interval.astuple()
+        if None in shape:
+            if not self.index.values[0].subscriptable():
+                shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
+        elif not self.index.values[0].subscriptable():
+            shape = shape[1:]
+        shape = list(shape)
+        squeeze_dims = []
+        for i, idx in enumerate(self.index.values[1:]):
+            shape[i] = len(list(idx.indices(shape[i])))
+            if not idx.subscriptable():
+                squeeze_dims.append(i)
+        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     @property
     def ndim(self) -> int:
