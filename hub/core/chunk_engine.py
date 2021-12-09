@@ -396,6 +396,8 @@ class ChunkEngine:
 
     def add_cachables_to_cache(self):
         """Adds all the cachables to the cache at the initialization."""
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
 
         commit_id = self.version_state["commit_id"]
 
@@ -420,6 +422,8 @@ class ChunkEngine:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
+
+        self.cache.autoflush = initial_autoflush
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
