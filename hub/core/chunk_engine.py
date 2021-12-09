@@ -365,16 +365,21 @@ class ChunkEngine:
         self._write_initialization()
         samples = self._sanitize_samples(samples)
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
+        current_chunk = self.last_chunk()
 
-        current_chunk = self.last_chunk() or self._create_new_chunk()
-        updated_chunks = {current_chunk}
+        if current_chunk:
+            # adding last chunk to cache to ensure samples added to last chunk persist
+            if current_chunk.key not in self.cache.dirty_keys:
+                self.cache[current_chunk.key] = current_chunk
+        else:
+            current_chunk = self._create_new_chunk()
+
         enc = self.chunk_id_encoder
 
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
-                updated_chunks.add(current_chunk)
 
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -385,16 +390,12 @@ class ChunkEngine:
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk()
-                    updated_chunks.add(current_chunk)
             else:
                 num = int(num_samples_added)
                 enc.register_samples(num)
                 samples = samples[num:]
 
         self.commit_diff.add_data(indexes_added)
-
-        for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk  # type: ignore
         self._write_finalization()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
