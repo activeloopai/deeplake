@@ -59,7 +59,8 @@ class TransformFunction:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
 
 
@@ -67,7 +68,7 @@ class TransformFunction:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
         """
 
         pipeline = Pipeline([self])
@@ -99,14 +100,15 @@ class Pipeline:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded', 'processed' and 'ray'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
         """
         if num_workers <= 0:
@@ -267,7 +269,28 @@ class Pipeline:
 
 
 def compose(functions: List[TransformFunction]):
-    """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval"""
+    """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval
+    
+    Example::
+
+        pipeline = hub.compose([my_fn(a=3), another_function(b=2)])
+        pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
+
+    The eval method used above has the following arguments:-
+
+    - data_in: Input passed to the transform to generate output dataset.  
+    Should support \__getitem__ and \__len__. Can be a Hub dataset.
+    - ds_out (Dataset): The dataset object to which the transform will get written.  
+    It should have all keys being generated in output already present as tensors.  
+    It's initial state should be either:-
+        - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+        - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
+    - num_workers (int): The number of workers to use for performing the transform.  
+    Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+    - scheduler (str): The scheduler to be used to compute the transformation.  
+    Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+    - progressbar (bool): Displays a progress bar if True (default).
+    """
     if not functions:
         raise HubComposeEmptyListError
     for index, fn in enumerate(functions):
@@ -286,8 +309,33 @@ def compute(fn):
     Example::
 
         @hub.compute
-        def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
-            samples_out.your_tensor.append(your_arg0 * your_arg1)
+        def my_fn(sample_in: Any, samples_out, my_arg0, my_arg1=0):
+            samples_out.my_tensor.append(my_arg0 * my_arg1)
+
+        # This transform can be used using the eval method in one of these 2 ways:-
+
+        # Directly evaluating the method
+        # here arg0 and arg1 correspond to the 3rd and 4th argument in my_fn
+        my_fn(arg0, arg1).eval(data_in, ds_out, scheduler="threaded", num_workers=5)
+
+        # As a part of a Transform pipeline containing other functions
+        pipeline = hub.compose([my_fn(a, b), another_function(x=2)])
+        pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
+
+    The eval method used above has the following arguments:-
+
+    - data_in: Input passed to the transform to generate output dataset.  
+    Should support \__getitem__ and \__len__. Can be a Hub dataset.
+    - ds_out (Dataset): The dataset object to which the transform will get written.  
+    It should have all keys being generated in output already present as tensors.  
+    It's initial state should be either:-
+        - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+        - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
+    - num_workers (int): The number of workers to use for performing the transform.  
+    Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+    - scheduler (str): The scheduler to be used to compute the transformation.  
+    Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+    - progressbar (bool): Displays a progress bar if True (default).
     """
 
     def inner(*args, **kwargs):
