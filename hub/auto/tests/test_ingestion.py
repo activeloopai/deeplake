@@ -128,6 +128,15 @@ def test_overwrite(local_ds: Dataset):
 
 def test_csv(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    with pytest.raises(InvalidPathException):
+        hub.ingest(
+            src="tests_auto/csv/cities.csv",
+            dest=memory_ds.path,
+            progress_bar=False,
+            summary=False,
+            overwrite=False,
+        )
+
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,

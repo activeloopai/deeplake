@@ -6,9 +6,10 @@ import os
 
 class StructuredDataset(ABC):
     def __init__(self, source: str):
-        self.source = Path(source)
-        if os.path.isdir(self.source):
-            self.source = Path(find_root(self.source))
+        if os.path.isdir(source):
+            self.source = Path(find_root(source))
+        else:
+            self.source = Path(source)
 
     """Initializes a structured dataset.
     

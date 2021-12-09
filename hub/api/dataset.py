@@ -422,8 +422,8 @@ class dataset:
 
         if src.endswith(".csv"):
             structured = CSVFile(source=src)
-            structured.fill_dataset(ds, progress_bar)
-            return ds
+            structured.fill_dataset(ds, progress_bar)  # type: ignore
+            return ds  # type: ignore
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
