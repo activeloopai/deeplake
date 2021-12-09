@@ -121,6 +121,8 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
+        self.add_cachables_to_cache()
+
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -290,7 +292,13 @@ class ChunkEngine:
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.key = chunk_key  # type: ignore
+        self.add_chunk_to_dirty_keys(chunk)
         return chunk
+
+    def add_chunk_to_dirty_keys(self, chunk: BaseChunk):
+        """Adds the chunk to cache if not in dirty keys to ensure persistence."""
+        if chunk.key not in self.cache.dirty_keys:
+            self.cache[chunk.key] = chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
         return self.cache.get_cachable(
@@ -340,10 +348,6 @@ class ChunkEngine:
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
-    def _write_finalization(self):
-        self._synchronize_cache(chunk_keys=[])
-        self.cache.maybe_flush()
-
     def _convert_to_list(self, samples):
         if self.chunk_class != UncompressedChunk:
             return True
@@ -365,15 +369,7 @@ class ChunkEngine:
         self._write_initialization()
         samples = self._sanitize_samples(samples)
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
-        current_chunk = self.last_chunk()
-
-        if current_chunk:
-            # adding last chunk to cache to ensure samples added to last chunk persist
-            if current_chunk.key not in self.cache.dirty_keys:
-                self.cache[current_chunk.key] = current_chunk
-        else:
-            current_chunk = self._create_new_chunk()
-
+        current_chunk = self.last_chunk() or self._create_new_chunk()
         enc = self.chunk_id_encoder
 
         while len(samples) > 0:
@@ -396,24 +392,10 @@ class ChunkEngine:
                 samples = samples[num:]
 
         self.commit_diff.add_data(indexes_added)
-        self._write_finalization()
+        self.cache.maybe_flush()
 
-    def _synchronize_cache(self, chunk_keys: List[str] = None):
-        """Synchronizes cachables with the cache.
-
-        Args:
-            chunk_keys (List[str]): List of chunk keys to be synchronized. If None, only the last chunk will be synchronized. Defaults to None.
-        """
-
-        # TODO implement tests for cache size compute
-        # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
-
-        # synchronize chunks
-        if chunk_keys is None:
-            chunk_keys = [self.last_chunk_key]
-        for chunk_key in chunk_keys:
-            chunk = self.get_chunk(chunk_key)
-            self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
+    def add_cachables_to_cache(self):
+        """Adds all the cachables to the cache at the initialization."""
 
         commit_id = self.version_state["commit_id"]
 
@@ -464,8 +446,6 @@ class ChunkEngine:
             return self._update_with_operator(index, samples, operator)
 
         enc = self.chunk_id_encoder
-        updated_chunks = set()
-
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
@@ -478,23 +458,19 @@ class ChunkEngine:
                     "You can't update a sample that is present in multiple chunks."
                 )
             chunk = chunks[0]
+            self.add_chunk_to_dirty_keys(chunk)
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
             # tensor_meta.update_shape_interval(shape)
             chunk.update_sample(local_sample_index, sample)
-            updated_chunks.add(chunk)
             self.commit_diff.update_data(global_sample_index)
 
             # only care about deltas if it isn't the last chunk
             if chunk.key != self.last_chunk_key:  # type: ignore
                 nbytes_after_updates.append(chunk.nbytes)
 
-        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
-        for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk  # type: ignore
-
-        self._write_finalization()
+        self.cache.maybe_flush()
         chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
         check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
 
