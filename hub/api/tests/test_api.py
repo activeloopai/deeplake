@@ -816,7 +816,7 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds1.create_tensor("x", **src_args)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
-    ds2.create_tensor("y", **src_args)
+    ds2.create_tensor("y", **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
@@ -829,3 +829,14 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_sample_shape(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(np.zeros((5, 4, 3, 2)))
+        ds.y.extend(np.ones((5, 4000, 3000)))
+    assert ds.x[0].shape == (4, 3, 2)
+    assert ds.y[0].shape == (4000, 3000)

@@ -526,7 +526,9 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         chunks = self.get_chunks_for_sample(global_sample_index)
         if len(chunks) > 1:
-            raise NotImplementedError
+            raise NotImplementedError(
+                "read_bytes_for_sample() is not implemented for tiled samples."
+            )
         chunk = chunks[0]
         buffer = chunk.memoryview_data
         if not buffer:
@@ -542,11 +544,9 @@ class ChunkEngine:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
-            shape = chunks[0].shapes_encoder[local_sample_index]
-            return tuple(map(int, shape))
+            return tuple(map(int, chunks[0].shapes_encoder[local_sample_index]))
         else:
             return self.tile_encoder.get_sample_shape(global_sample_index)
-        return shape
 
     def read_sample_from_chunk(
         self,

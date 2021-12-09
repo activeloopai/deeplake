@@ -4,7 +4,9 @@ import numpy as np
 
 
 class TransformTensor:
-    def __init__(self, base_tensor=None, slice_list=None) -> None:
+    def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
+        self.name = name
+        self.dataset = dataset
         self.items = [] if base_tensor is None else base_tensor.items
         self.base_tensor = base_tensor or self
         self.slice_list = slice_list or []
@@ -35,12 +37,28 @@ class TransformTensor:
             self.numpy_compressed()  # calculates and sets length
         return self.length  # type: ignore
 
+    def __getattr__(self, name):
+        # Only applicable for tensor groups
+        if self.items:
+            # Samples appended to this tensor, which means this is not a tensor group
+            raise AttributeError(name)
+        del self.dataset.tensors[self.name]
+        return self.dataset["/".join((self.name, name))]
+
     def __getitem__(self, index):
+        if isinstance(index, str):
+            return self.__getattr__(index)
+
         if isinstance(index, list):
             new_slice_list = self.slice_list + index
         else:
             new_slice_list = self.slice_list + [index]
-        return TransformTensor(base_tensor=self.base_tensor, slice_list=new_slice_list)
+        return TransformTensor(
+            name=self.name,
+            dataset=self.dataset,
+            base_tensor=self.base_tensor,
+            slice_list=new_slice_list,
+        )
 
     def append(self, item):
         """Adds an item to the tensor."""
