@@ -598,8 +598,8 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            buffer_size (int): The size of the buffer used to shuffle the data in number of samples. Defaults to 2048 samples. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
