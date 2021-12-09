@@ -1,4 +1,3 @@
-from hub.util.auto import ingestion_summary
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
 from hub.util.exceptions import (
@@ -7,7 +6,6 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
 )
 import numpy as np
-from numpy.core.numeric import array_equal
 import pytest
 import hub
 import pandas as pd
