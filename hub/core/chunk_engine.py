@@ -297,8 +297,8 @@ class ChunkEngine:
 
     def add_chunk_to_dirty_keys(self, chunk: BaseChunk):
         """Adds the chunk to cache if not in dirty keys to ensure persistence."""
-        if chunk.key not in self.cache.dirty_keys:
-            self.cache[chunk.key] = chunk
+        if chunk.key not in self.cache.dirty_keys:  # type: ignore
+            self.cache[chunk.key] = chunk  # type: ignore
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
         return self.cache.get_cachable(
