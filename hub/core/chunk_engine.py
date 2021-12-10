@@ -121,7 +121,7 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
-        self.cachables_initialized = False
+        self.cachables_in_dirty_keys = False
 
     @property
     def max_chunk_size(self):
@@ -344,7 +344,7 @@ class ChunkEngine:
 
     def _write_initialization(self):
         self.cache.check_readonly()
-        self.add_cachables_to_cache()
+        self.add_cachables_to_cache_dirty_keys()
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -399,9 +399,9 @@ class ChunkEngine:
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def add_cachables_to_cache(self):
+    def add_cachables_to_cache_dirty_keys(self):
         """Adds all the cachables to the cache as dirty keys."""
-        if self.cachables_initialized:
+        if self.cachables_in_dirty_keys:
             return
 
         commit_id = self.version_state["commit_id"]
@@ -427,7 +427,7 @@ class ChunkEngine:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
-        self.cachables_initialized = True
+        self.cachables_in_dirty_keys = True
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
