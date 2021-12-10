@@ -452,7 +452,9 @@ class Tensor:
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor. Only works for a single sample of tensor.
-        If the tensor is compressed, it returns the compressed bytes.
+        If the tensor is uncompressed, this returns the bytes of the numpy array.
+        If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        If the tensor is chunk compressed, this raises an error.
 
         Returns:
             bytes: The bytes of the tensor.

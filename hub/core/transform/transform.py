@@ -54,7 +54,7 @@ class TransformFunction:
 
         Args:
             data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Hub dataset.
-            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
                 It should have all keys being generated in output already present as tensors. It's initial state should be either:-
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
@@ -95,7 +95,7 @@ class Pipeline:
 
         Args:
             data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Hub dataset.
-            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
                 It should have all keys being generated in output already present as tensors. It's initial state should be either:-
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
@@ -283,7 +283,7 @@ def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201
     - data_in: Input passed to the transform to generate output dataset.
     It should support \__getitem__ and \__len__. This can be a Hub dataset.
     - ds_out (Dataset, optional): The dataset object to which the transform will get written.
-    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+    If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
     It should have all keys being generated in output already present as tensors.
     It's initial state should be either:-
         - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
@@ -340,7 +340,7 @@ def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
     - data_in: Input passed to the transform to generate output dataset.
     It should support \__getitem__ and \__len__. This can be a Hub dataset.
     - ds_out (Dataset, optional): The dataset object to which the transform will get written.
-    If this isn't provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+    If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
     It should have all keys being generated in output already present as tensors.
     It's initial state should be either:-
         - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
