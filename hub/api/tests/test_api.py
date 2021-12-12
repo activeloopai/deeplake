@@ -721,7 +721,8 @@ def test_htypes_list():
         "keypoints_coco",
         "list",
         "segment_mask",
-        "segment_mask_video" "text",
+        "segment_mask_video",
+        "text",
         "video",
     ]
 
