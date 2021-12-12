@@ -59,7 +59,11 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
     "segment_mask": {"dtype": "uint32", "class_names": [], "_info": ["class_names"]},
-    "segment_mask_video": {"dtype": "uint32", "class_names": [], "_info": ["class_names"]},
+    "segment_mask_video": {
+        "dtype": "uint32",
+        "class_names": [],
+        "_info": ["class_names"],
+    },
     "keypoints_coco": {"dtype": "int32"},
     "json": {
         "dtype": "Any",

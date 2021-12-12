@@ -459,7 +459,9 @@ def test_htype(memory_ds: Dataset):
     video = memory_ds.create_tensor("video", htype="video", sample_compression="mkv")
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
-    segment_mask_video = memory_ds.create_tensor("segment_mask_video", htype="segment_mask_video")
+    segment_mask_video = memory_ds.create_tensor(
+        "segment_mask_video", htype="segment_mask_video"
+    )
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
@@ -719,8 +721,7 @@ def test_htypes_list():
         "keypoints_coco",
         "list",
         "segment_mask",
-        "segment_mask_video"
-        "text",
+        "segment_mask_video" "text",
         "video",
     ]
 
