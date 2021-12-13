@@ -58,6 +58,9 @@ pip3 install hub
 
 ```python
 import hub
+import torch
+from torchvision import transforms, models
+
 ds = hub.load('hub://activeloop/cifar10-train')
 ```
 
@@ -68,62 +71,40 @@ print(list(ds.tensors.keys()))
 # ['images', 'labels']
 ```
 
-#### Inspect the shapes of the images and labels tensors:
-
-```python
-print(ds.images.shape)
-# (50000, 32, 32, 3)
-```
-
-```python
-> print(ds.labels.shape)
-# (50000, 1)
-```
-
 #### Train a PyTorch model on the Cifar-10 dataset without the need to download it
 
-Define model, loss and optimizer:
+First, define the model, loss and optimizer:
 
 ```python
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = torch.transpose(x, 1, 3)  # NHWC -> NCHW
-        x = x / 255.  # Normalize
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1) # flatten all dimensions except batch
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-net = Net()
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+net = models.resnet18(pretrained=False)
+net.fc = torch.nn.Linear(net.fc.in_features, len(ds.labels.info.class_names))
+    
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 ```
+
+Next, define a transform for the images and use Hub's built-in PyTorch dataloader to connect the data to the compute:
+
+```python
+tform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+])
+
+hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform = {'images': tform, 'labels': None}, shuffle=True)
+
+```
+
 Finally, the training loop:
 
 ```python
+# Train for 2 epochs
 for epoch in range(2):
     running_loss = 0.0
-    for i, data in enumerate(ds.pytorch(num_workers=0, batch_size=4, shuffle=True)):
-        images, labels = data
+    for i, data in enumerate(hub_loader):
+        images = data['images']
+        labels = data['labels']
+        
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -134,9 +115,9 @@ for epoch in range(2):
         optimizer.step()
         # print statistics
         running_loss += loss.item()
-        if i % 2000 == 1999:    # print every 2000 mini-batches
+        if i % 100 == 99:    # print every 100 mini-batches
             print('[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / 2000))
+                (epoch + 1, i + 1, running_loss / 100))
             running_loss = 0.0
 ```
 
