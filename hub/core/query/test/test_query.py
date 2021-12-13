@@ -14,14 +14,14 @@ rows = [first_row, second_row]
 class_names = ["dog", "cat", "fish"]
 
 
-def _populate_data(ds):
+def _populate_data(ds, n=1):
     with ds:
         ds.create_tensor("images")
         ds.create_tensor("labels", htype="class_label", class_names=class_names)
-
-        for row in rows:
-            ds.images.append(row["images"])
-            ds.labels.append(row["labels"])
+        for _ in range(n):
+            for row in rows:
+                ds.images.append(row["images"])
+                ds.labels.append(row["labels"])
 
 
 @pytest.fixture
@@ -189,7 +189,7 @@ def test_dataset_view_save(sample_ds):
 def test_inplace_dataset_view_save(s3_ds_generator):
     ds = s3_ds_generator()
     with ds:
-        _populate_data(ds)
+        _populate_data(ds, n=2)
     view = ds.filter("labels == 'dog'")
     vds_path = view.store()
     view2 = hub.dataset(vds_path)

@@ -1050,7 +1050,7 @@ class Dataset:
         if query:
             info["query"] = query
         with ds:
-            ds.info.update(info)
+            # ds.info.update(info)
             ds.create_tensor("VDS_INDEX", dtype="uint64")
             ds.VDS_INDEX.extend(list(self.index.values[0].indices(len(self))))
 
