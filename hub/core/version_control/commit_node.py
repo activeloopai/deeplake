@@ -31,4 +31,9 @@ class CommitNode:
     def __repr__(self) -> str:
         return f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"
 
+    @property
+    def is_head_node(self) -> bool:
+        """Returns True if the node is the head node of the branch."""
+        return self.commit_time is None
+
     __str__ = __repr__

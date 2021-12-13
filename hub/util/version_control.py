@@ -229,7 +229,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/info updates."""
-    if version_state["commit_node"].commit_time is not None:
+    if not version_state["commit_node"].is_head_node:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
         logger.info(
@@ -241,7 +241,7 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
 def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
     commit_node = version_state["commit_node"]
-    if not commit_node.commit_time:
+    if commit_node.is_head_node:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
         logger.info(
