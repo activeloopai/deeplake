@@ -15,7 +15,7 @@ from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider
 
-# from hub.core.storage.gcs import GCSProvider
+from hub.core.storage.gcs import GCSProvider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
@@ -388,7 +388,7 @@ class Dataset:
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
         if (
-            isinstance(storage, (S3Provider,))
+            isinstance(storage, (S3Provider, GCSProvider))
             and self.is_first_load
             and (not self.read_only or self._locked_out)
         ):
