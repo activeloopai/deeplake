@@ -1,10 +1,10 @@
-from typing import Union
+from typing import Union, Set
 from hub.core.dataset import Dataset
 from datasets import Dataset as hfDataset
 from datasets import ClassLabel, Sequence, DatasetDict, Value
 import posixpath
 import hub
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 
 def _is_seq_convertible(seq: Union[Sequence, list]):
@@ -61,14 +61,14 @@ def from_huggingface(
     if isinstance(dest, str):
         ds = hub.dataset(dest)
     else:
-        ds = dest
+        ds = dest  # type: ignore
 
     if isinstance(src, DatasetDict):
         for split, src_ds in src.items():
             for key, feature in src_ds.features.items():
                 _create_tensor_from_feature(f"{split}/{key}", feature, src_ds, ds)
     else:
-        skipped_keys = set()
+        skipped_keys: Set[str] = set()
         features = tqdm(
             src.features.items(),
             desc=f"Converting...({len(skipped_keys)} skipped",
@@ -78,6 +78,4 @@ def from_huggingface(
             if not _create_tensor_from_feature(key, feature, src, ds):
                 skipped_keys.add(key)
                 features.set_description(f"Converting...({len(skipped_keys)} skipped)")
-        return ds
-
-    return ds
+    return ds  # type: ignore

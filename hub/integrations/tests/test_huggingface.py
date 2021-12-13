@@ -1,6 +1,7 @@
 from datasets import load_dataset
-from datasets import Dataset
+from datasets import Dataset, Value
 from hub.integrations.huggingface import from_huggingface
+from hub.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
 
 
@@ -43,3 +44,10 @@ def test_seq():
 
     assert set(hub_ds.meta.tensors) == {"id", "seq"}
     assert_array_equal(hub_ds["seq"], [arr1, arr2])
+
+    arr = [["abcd"], ["efgh"]]
+
+    data = {"id": [0, 1], "seq": arr}
+    ds = Dataset.from_dict(data)
+
+    assert not _is_seq_convertible(ds.features["seq"])
