@@ -1001,7 +1001,9 @@ class Dataset:
             if k not in self.tensors:
                 raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
-            raise ValueError("When appending using Dataset.append, all tensors are expected to have the same length.")
+            raise ValueError(
+                "When appending using Dataset.append, all tensors are expected to have the same length."
+            )
         tensors_appended = []
         with self:
             for k, v in sample.items():
