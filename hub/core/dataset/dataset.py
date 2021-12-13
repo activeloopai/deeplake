@@ -9,17 +9,19 @@ import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock, unlock
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider
+from hub.core.storage import LRUCache, S3Provider, MemoryProvider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
+from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -56,6 +58,7 @@ from hub.util.version_control import (
     load_meta,
 )
 from tqdm import tqdm  # type: ignore
+import hashlib
 
 
 class Dataset:
@@ -1005,14 +1008,36 @@ class Dataset:
     def __args__(self):
         return None
 
-    def store(self, path, **ds_args):
+    def _view_hash(self):
+        return hashlib.sha1(
+            (
+                f"{self.path}[{':'.join(str(e.value) for e in self.index.values)}]@{self.version_state['commit_id']}&{getattr(self, '_query', None)}"
+            ).encode()
+        ).hexdigest()
+
+    def store(self, path: Optional[str] = None, **ds_args):
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
-        # TODO
-        # Process path arg here (add hashes etc)
-
-        ds = hub.empty(path, **ds_args)
+        if path is None:
+            if isinstance(self, MemoryProvider):
+                raise NotImplementedError(
+                    "Saving views inplace is not supported for in-memory datasets."
+                )
+            if self.read_only:
+                raise Exception(
+                    "Cannot save view in read only dataset. Speicify a path to store the view in a different location."
+                )
+            self.flush()
+            storage = get_base_storage(self.storage).subdir(
+                f"queries/{self._view_hash()}"
+            )
+            storage = generate_chain(
+                storage, DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, self.path
+            )
+            ds = hub.Dataset(storage)
+        else:
+            ds = hub.empty(path, **ds_args)
 
         info = {
             "description": "Virtual Datasource",
@@ -1026,11 +1051,11 @@ class Dataset:
             info["query"] = query
         with ds:
             ds.info.update(info)
-            ds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                list(self.index.values[0].indices(len(self)))
-            )
-        ds._view = self
-        return ds
+            ds.create_tensor("VDS_INDEX", dtype="uint64")
+            ds.VDS_INDEX.extend(list(self.index.values[0].indices(len(self))))
+
+        print(f"Virtual dataset stored at {ds.path}")
+        return ds.path
 
     def _get_view(self):
         # Only applicable for virtual datasets

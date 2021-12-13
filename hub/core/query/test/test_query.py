@@ -184,3 +184,14 @@ def test_dataset_view_save(sample_ds):
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+
+
+def test_inplace_dataset_view_save(s3_ds_generator):
+    ds = s3_ds_generator()
+    with ds:
+        _populate_data(ds)
+    view = ds.filter("labels == 'dog'")
+    vds_path = view.store()
+    view2 = hub.dataset(vds_path)
+    for t in view.tensors:
+        np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())

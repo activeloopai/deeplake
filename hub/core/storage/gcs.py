@@ -215,6 +215,13 @@ class GCSProvider(StorageProvider):
         )
         self._initialize_provider()
 
+    def subdir(self, path: str):
+        return self.__class__(
+            root=posixpath.join(self.root, path),
+            token=self.token,
+            project=self.project,
+        )
+
     def _initialize_provider(self):
         self._set_bucket_and_path()
         if not self.token:
