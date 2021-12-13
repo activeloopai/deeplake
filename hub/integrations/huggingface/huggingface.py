@@ -62,29 +62,31 @@ def from_huggingface(
     use_progressbar: bool = True,
 ) -> Dataset:
     """Converts hugging face datasets to hub format.
+
     Args:
         src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
             DatasetDict will be stored under respective tensor groups.
-            Eg:
-                if DatasetDict looks like:
-                    {
-                        train: Dataset({
-                            features: ['data']
-                        }),
-                        validation: Dataset({
-                            features: ['data']
-                        }),
-                        test: Dataset({
-                            features: ['data']
-                        }),
-                    }
-
-                it will be converted to a Hub dataset with tensors ['train/data', 'validation/data', 'test/data'].
         dest (Dataset, str): Destination dataset or path to it.
         use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
 
     Returns:
         Dataset: The destination Hub dataset.
+
+    Example:
+        if DatasetDict looks like:
+            {
+                train: Dataset({
+                    features: ['data']
+                }),
+                validation: Dataset({
+                    features: ['data']
+                }),
+                test: Dataset({
+                    features: ['data']
+                }),
+            }
+
+        it will be converted to a Hub dataset with tensors ['train/data', 'validation/data', 'test/data'].
 
     Note:
         Features of the type Sequence(feature=Value(dtype='string')) are not supported. Columns of such type are skipped.
