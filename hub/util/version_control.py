@@ -70,6 +70,8 @@ def checkout(
             return
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
+        if not storage.read_only:
+            storage.flush()
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
@@ -80,6 +82,8 @@ def checkout(
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
+        if not storage.read_only:
+            storage.flush()
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
