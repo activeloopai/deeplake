@@ -30,7 +30,7 @@ class ChunkCompressedChunk(BaseChunk):
             ]
             self.decompressed_samples = decompress_multiple(self._data_bytes, shapes)
         self._changed = False
-        self._compression_ratio = 2
+        self._compression_ratio = 0.5
 
     def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:
 
@@ -62,13 +62,13 @@ class ChunkCompressedChunk(BaseChunk):
                     self.decompressed_bytes = tile.tobytes()
                     self._changed = True
                 break
-
             sample_nbytes = len(serialized_sample)
 
             recompressed = False  # This flag helps avoid double concatenation
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
-            ) / self._compression_ratio > self.min_chunk_size:
+            ) * self._compression_ratio > self.min_chunk_size:
+                print("OK")
                 new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
@@ -77,10 +77,9 @@ class ChunkCompressedChunk(BaseChunk):
                     break
                 recompressed = True
                 self.decompressed_bytes = new_decompressed
-                self._compression_ratio *= 2
+                self._compression_ratio /= 2
                 self._data_bytes = compressed_bytes
                 self._changed = False
-
             if not recompressed:
                 self.decompressed_bytes += serialized_sample  # type: ignore
             self._changed = True
@@ -94,7 +93,7 @@ class ChunkCompressedChunk(BaseChunk):
         num_samples = 0
         num_decompressed_bytes = sum(
             x.nbytes for x in self.decompressed_samples  # type: ignore
-        )  # TODO cache this
+        )
         for i, incoming_sample in enumerate(incoming_samples):
             if isinstance(incoming_sample, bytes):
                 raise ValueError(
@@ -115,14 +114,14 @@ class ChunkCompressedChunk(BaseChunk):
                 incoming_sample = incoming_sample.array
             if (
                 num_decompressed_bytes + incoming_sample.nbytes
-            ) / self._compression_ratio > self.min_chunk_size:
+            ) * self._compression_ratio > self.min_chunk_size:
                 compressed_bytes = compress_multiple(
                     self.decompressed_samples + [incoming_sample],  # type: ignore
                     compression=self.compression,
                 )
                 if len(compressed_bytes) > self.min_chunk_size:
                     break
-                self._compression_ratio *= 2
+                self._compression_ratio /= 2
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
@@ -136,71 +135,6 @@ class ChunkCompressedChunk(BaseChunk):
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
             self.register_in_meta_and_headers(None, shape)
             num_samples += 1
-        return num_samples
-
-    def _extend_if_has_space_byte_compression(
-        self, incoming_samples: List[InputSample]
-    ):
-        num_samples: float = 0
-        buffer = bytearray(self.decompressed_bytes) if self.data_bytes else bytearray()  # type: ignore
-        for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.serialize_sample(
-                incoming_sample,
-                chunk_compression=self.compression,
-                store_uncompressed_tiles=True,
-            )
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
-
-            if isinstance(serialized_sample, SampleTiles):
-                incoming_samples[i] = serialized_sample
-                if self.is_empty:
-                    self.write_tile(serialized_sample)
-                    num_samples += 0.5
-                    tile = serialized_sample.yield_uncompressed_tile()
-                    self._decompressed_bytes = tile.tobytes()
-                break
-            else:
-                sample_nbytes = len(serialized_sample)
-                buffer += serialized_sample
-                compressed_bytes = compress_bytes(buffer, self.compression)
-                if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
-                    self.data_bytes = compressed_bytes  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape)
-                    num_samples += 1
-                    self._decompressed_bytes = buffer
-                else:
-                    break
-        return num_samples
-
-    def _extend_if_has_space_img_compression(self, incoming_samples: List[InputSample]):
-        num_samples: float = 0
-        buffer_list = self.decompressed_samples if self.data_bytes else []
-
-        for i, incoming_sample in enumerate(incoming_samples):
-            incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
-
-            if isinstance(incoming_sample, SampleTiles):
-                incoming_samples[i] = incoming_sample
-                if self.is_empty:
-                    self.write_tile(incoming_sample, skip_bytes=True)
-                    num_samples += 0.5
-                    tile = incoming_sample.yield_uncompressed_tile()
-                    self._decompressed_samples = [tile]
-                break
-
-            buffer_list.append(incoming_sample)  # type: ignore
-            compressed_bytes = compress_multiple(buffer_list, self.compression)  # type: ignore
-            if self.is_empty or len(compressed_bytes) < self.min_chunk_size:
-                self.data_bytes = compressed_bytes  # type: ignore
-                # Byte positions aren't relevant for chunk wise img compressions
-                self.register_in_meta_and_headers(None, shape)
-                num_samples += 1
-                self._decompressed_samples = buffer_list  # type: ignore
-            else:
-                buffer_list.pop()  # type: ignore
-                break
-
         return num_samples
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
@@ -310,7 +244,7 @@ class ChunkCompressedChunk(BaseChunk):
             self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            len_data=min(self.num_uncompressed_bytes // 4, 100),
+            len_data=min(self.num_uncompressed_bytes, self.min_chunk_size),
         )
 
     def prepare_for_write(self):
