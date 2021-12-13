@@ -391,18 +391,21 @@ def test_diff_linear(local_ds, capsys):
             "data_updated": {0},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "pqr": {
             "data_added": [3, 3],
             "data_updated": {2},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "abc": {
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -508,12 +511,14 @@ def test_diff_branch(local_ds, capsys):
             "data_updated": {2},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "pqr": {
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
     changes_main_from_branch_off = {
@@ -522,6 +527,7 @@ def test_diff_branch(local_ds, capsys):
             "data_updated": {0, 2},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
@@ -717,6 +723,7 @@ def test_complex_diff(local_ds, capsys):
             "data_updated": {0},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
     changes_g_from_x = {
@@ -725,18 +732,21 @@ def test_complex_diff(local_ds, capsys):
             "data_updated": set(),
             "created": True,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "tuv": {
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "xyz": {
             "data_added": [3, 3],
             "data_updated": {1},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
     empty_changes = {}
@@ -787,12 +797,14 @@ def test_complex_diff(local_ds, capsys):
             "data_updated": {1},
             "created": False,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
         "pqr": {
             "data_added": [0, 0],
             "data_updated": set(),
             "created": True,
             "info_updated": False,
+            "data_transformed_in_place": False,
         },
     }
 

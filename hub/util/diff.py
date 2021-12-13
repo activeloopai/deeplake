@@ -136,6 +136,15 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
             commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
             change = changes[tensor]
 
+            change["created"] = change.get("created") or commit_diff.created
+            change["info_updated"] = (
+                change.get("info_updated") or commit_diff.info_updated
+            )
+
+            # this means that the data was transformed inplace in a newer commit, so we can ignore older diffs
+            if change.get("data_transformed_in_place", False):
+                continue
+
             if "data_added" not in change:
                 change["data_added"] = commit_diff.data_added.copy()
             else:
@@ -145,10 +154,8 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
                 change["data_updated"] = commit_diff.data_updated.copy()
             else:
                 change["data_updated"].update(commit_diff.data_updated)
-
-            change["created"] = change.get("created") or commit_diff.created
-            change["info_updated"] = (
-                change.get("info_updated") or commit_diff.info_updated
+            change["data_transformed_in_place"] = (
+                change.get("data_transformed_in_place") or commit_diff.data_transformed
             )
         except KeyError:
             pass

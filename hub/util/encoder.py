@@ -196,6 +196,7 @@ def merge_all_commit_diffs(
             current_commit_diff = current_worker_commit_diffs[tensor]
             if commit_diff is None:
                 commit_diff = current_commit_diff
+                commit_diff.transform_data()
             else:
                 combine_commit_diffs(commit_diff, current_commit_diff)
 
@@ -207,5 +208,4 @@ def combine_commit_diffs(
     ds_commit_diff: CommitDiff, worker_commit_diff: CommitDiff
 ) -> None:
     """Combines the dataset's commit_diff with a single worker's commit_diff."""
-    ds_commit_diff.data_updated.update(worker_commit_diff.data_updated)
     ds_commit_diff.add_data(worker_commit_diff.num_samples_added)

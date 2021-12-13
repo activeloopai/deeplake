@@ -11,20 +11,25 @@ class CommitDiff(Cachable):
         self.data_updated: Set[int] = set()
         self.info_updated = False
 
+        # this is stored for in place transforms in which we no longer need to considered older diffs about added/updated data
+        self.data_transformed = False
+
     def tobytes(self) -> bytes:
         """Returns bytes representation of the commit diff
 
         The format stores the following information in order:
         1. The first byte is a boolean value indicating whether the tensor was created in the commit or not.
         2. The second byte is a boolean value indicating whether the info has been updated or not.
-        3. The next 8 + 8 bytes are the two elements of the data_added list.
-        4. The next 8 bytes are the number of elements in the data_updated set, let's call this m.
-        5. The next 8 * m bytes are the elements of the data_updated set.
+        3. The third byte is a boolean value indicating whether the data has been transformed using an inplace transform or not.
+        4. The next 8 + 8 bytes are the two elements of the data_added list.
+        5. The next 8 bytes are the number of elements in the data_updated set, let's call this m.
+        6. The next 8 * m bytes are the elements of the data_updated set.
         """
         return b"".join(
             [
                 self.created.to_bytes(1, "big"),
                 self.info_updated.to_bytes(1, "big"),
+                self.data_transformed.to_bytes(1, "big"),
                 self.data_added[0].to_bytes(8, "big"),
                 self.data_added[1].to_bytes(8, "big"),
                 len(self.data_updated).to_bytes(8, "big"),
@@ -39,13 +44,14 @@ class CommitDiff(Cachable):
 
         commit_diff.created = bool(int.from_bytes(data[:1], "big"))
         commit_diff.info_updated = bool(int.from_bytes(data[1:2], "big"))
+        commit_diff.data_transformed = bool(int.from_bytes(data[2:3], "big"))
         commit_diff.data_added = [
-            int.from_bytes(data[2:10], "big"),
-            int.from_bytes(data[10:18], "big"),
+            int.from_bytes(data[3:11], "big"),
+            int.from_bytes(data[11:19], "big"),
         ]
-        num_updates = int.from_bytes(data[18:26], "big")
+        num_updates = int.from_bytes(data[19:27], "big")
         commit_diff.data_updated = {
-            int.from_bytes(data[26 + i * 8 : 34 + i * 8], "big")
+            int.from_bytes(data[27 + i * 8 : 35 + i * 8], "big")
             for i in range(num_updates)
         }
 
@@ -54,7 +60,7 @@ class CommitDiff(Cachable):
     @property
     def nbytes(self):
         """Returns number of bytes required to store the commit diff"""
-        return 26 + 8 * len(self.data_updated)
+        return 27 + 8 * len(self.data_updated)
 
     @property
     def num_samples_added(self) -> int:
@@ -73,3 +79,7 @@ class CommitDiff(Cachable):
         """Adds new indexes to data updated"""
         if global_index not in self.data_added:
             self.data_updated.add(global_index)
+
+    def transform_data(self) -> None:
+        """Stores information that the data has been transformed using an inplace transform."""
+        self.data_transformed = True
