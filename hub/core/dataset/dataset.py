@@ -477,9 +477,9 @@ class Dataset:
 
             Example of a dict returned:
             {
-                "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False},
-                "label": {"data_added": [0, 3], "data_updated": {}, "created": True},
-                "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True}
+                "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
+                "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
+                "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True, "info_updated": False, "data_transformed_in_place": False}
             }
 
             Here the data_adeded is a range of sample indexes that were added to the tensor.
@@ -488,6 +488,12 @@ class Dataset:
 
             data_updated on the other hand is a set of sample indexes that were updated.
             For example {0, 2} means that sample 0 and 2 were updated.
+
+            created is a boolean that is True if the tensor was created.
+
+            info_updated is a boolean that is True if the info of the tensor was updated.
+
+            data_transformed_in_place is a boolean that is True if the data of the tensor was transformed in place.
 
 
         Raises:
