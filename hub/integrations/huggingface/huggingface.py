@@ -4,41 +4,41 @@ from datasets import Dataset as hfDataset
 from datasets import ClassLabel, Sequence, DatasetDict, Value
 import posixpath
 import hub
+from tqdm import tqdm
 
 
-def _is_seq_convertible(feature: Sequence, dtype=None):
-    features = feature.feature
-    for feature in features:
-        if isinstance(feature, Sequence):
-            if not _is_seq_convertible(feature, dtype):
-                return False
-        elif isinstance(feature, Value):
-            if not dtype:
-                dtype = feature.dtype
-            else:
-                if feature.dtype != dtype:
-                    return False
-        else:
-            return False
+def _is_seq_convertible(seq: Union[Sequence, list]):
+    if isinstance(seq, Sequence):
+        feature = seq.feature
+    else:
+        feature = seq[0]
+    if isinstance(feature, dict):
+        return False
+    if feature.dtype in ("string", "large_string"):
+        return False
+    if isinstance(feature, Sequence):
+        return _is_seq_convertible(feature)
     return True
 
 
 def _create_tensor_from_feature(key, feature, src, ds):
     curr = posixpath.split(key)[-1]
-    if isinstance(feature, (dict, Sequence)):
+    if isinstance(feature, (dict, Sequence, list)):
         if isinstance(feature, dict):
             for x in feature:
                 _create_tensor_from_feature(f"{key}/{x}", feature[x], src[curr], ds)
-        if isinstance(feature, Sequence):
-            if isinstance(feature.feature, dict):
-                for x in feature.feature:
-                    _create_tensor_from_feature(
-                        f"{key}/{x}", feature.feature[x], src[curr], ds
-                    )
+        elif isinstance(feature, (Sequence, list)):
+            if isinstance(feature, Sequence):
+                inner = feature.feature
+            else:
+                inner = feature[0]
+            if isinstance(inner, dict):
+                _create_tensor_from_feature(key, feature.feature, src, ds)
             elif _is_seq_convertible(feature):
                 ds.create_tensor(key)
-        return
-    elif feature.dtype == "string":
+            else:
+                return False
+    elif feature.dtype in ("string", "large_string"):
         ds.create_tensor(key, htype="text")
     elif isinstance(feature, ClassLabel):
         ds.create_tensor(key, htype="class_label", class_names=feature.names)
@@ -48,31 +48,36 @@ def _create_tensor_from_feature(key, feature, src, ds):
     if isinstance(src, (hfDataset, dict)):
         ds[key].extend(src[curr])
     else:
-        values = []
-        for i in range(len(src)):
-            values.extend(src[i][curr])
+        values = [src[i][curr] for i in range(len(src))]
         ds[key].extend(values)
-    return
-
-
-def _from_huggingface_ds(src: hfDataset, ds: Dataset) -> Dataset:
-    for key, feature in src.features.items():
-        _create_tensor_from_feature(key, feature, src, ds)
-    return ds
+    return True
 
 
 def from_huggingface(
-    src: Union[hfDataset, DatasetDict], dest: Union[Dataset, str]
+    src: Union[hfDataset, DatasetDict],
+    dest: Union[Dataset, str],
+    use_progressbar: bool = True,
 ) -> Dataset:
     if isinstance(dest, str):
         ds = hub.dataset(dest)
     else:
         ds = dest
 
-    if isinstance(src, dict):
-        # _from_hugging_face_multiple(src, ds)
-        pass
+    if isinstance(src, DatasetDict):
+        for split, src_ds in src.items():
+            for key, feature in src_ds.features.items():
+                _create_tensor_from_feature(f"{split}/{key}", feature, src_ds, ds)
     else:
-        _from_huggingface_ds(src, ds)
+        skipped_keys = set()
+        features = tqdm(
+            src.features.items(),
+            desc=f"Converting...({len(skipped_keys)} skipped",
+            disable=not use_progressbar,
+        )
+        for key, feature in features:
+            if not _create_tensor_from_feature(key, feature, src, ds):
+                skipped_keys.add(key)
+                features.set_description(f"Converting...({len(skipped_keys)} skipped)")
+        return ds
 
     return ds
