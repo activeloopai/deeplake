@@ -225,6 +225,8 @@ def _update_version_info(old, new):
     """Merges 2 version infos by updating `old` version info inplace"""
     old_commit_node_map = old["commit_node_map"]
     new_commit_node_map = new["commit_node_map"]
+
+    # Copy new nodes
     for commit, node in new_commit_node_map.items():
         if commit not in old_commit_node_map:
             old_commit_node_map[commit] = node
@@ -232,13 +234,18 @@ def _update_version_info(old, new):
             old_node = old_commit_node_map[commit]
             if old_node.commit_time is None:
                 old_commit_node_map[commit] = node
+
+    # Reset parents
     for commit, node in old_commit_node_map.items():
         while node.parent:
-            node.prant = old_commit_node_map[node.parent.commit_id]
+            node.parent = old_commit_node_map[node.parent.commit_id]
             node = node.parent
+
+    # Reset children
     for commit, node in old_commit_node_map.items():
         for i, child in enumerate(node.children):
             node.children[i] = old_commit_node_map[child.commit_id]
+
     old["branch_commit_map"].update(new["branch_commit_map"])
 
 

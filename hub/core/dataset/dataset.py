@@ -388,7 +388,7 @@ class Dataset:
         storage = get_base_storage(self.storage)
         if (
             isinstance(storage, (S3Provider, GCSProvider))
-            and self.index.is_trivial()
+            and self.is_first_load
             and (not self.read_only or self._locked_out)
         ):
             try:

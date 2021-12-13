@@ -154,15 +154,13 @@ class PersistentLock(Lock):
 _LOCKS: Dict[str, Lock] = {}
 
 
-def _get_lock_key(storage_path: str, version: Optional[str] = None):
-    if version is None:
-        version = FIRST_COMMIT_ID
-    return storage_path + ":" + version
+def _get_lock_key(storage_path: str, commit_id: Optional[str] = None):
+    return storage_path + ":" + commit_id
 
 
 def _get_lock_file_path(version: Optional[str] = None):
     if version in (None, FIRST_COMMIT_ID):
-        return get_dataset_lock_key()
+        return get_dataset_lock_key(FIRST_COMMIT_ID)
     return "versions/" + version + "/" + get_dataset_lock_key()  # type: ignore
 
 
@@ -177,6 +175,7 @@ def lock_version(
         storage (StorageProvider): The storage provder to be locked.
         callback (Callable, Optional): Called if the lock is lost after acquiring.
         version (str, Optional): Commit id of the version to lock.
+
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
