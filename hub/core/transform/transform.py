@@ -4,7 +4,6 @@ from typing import List, Callable, Optional
 from itertools import repeat
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
-from hub.core.ipc import Server
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.chunk_paths import get_chunk_paths
 from hub.util.compute import get_compute_provider
@@ -14,6 +13,7 @@ from hub.util.transform import (
     check_transform_ds_out,
     get_pbar_description,
     store_data_slice,
+    store_data_slice_with_progress_bar,
 )
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
@@ -28,10 +28,6 @@ from hub.util.exceptions import (
 )
 
 from tqdm import tqdm  # type: ignore
-import time
-import threading
-import sys
-
 from hub.util.version_control import auto_checkout, load_meta
 
 
@@ -152,47 +148,6 @@ class Pipeline:
             compute_provider.close()
         target_ds.storage.autoflush = initial_autoflush
 
-    def _run_with_progbar(
-        self, func: Callable, ret: dict, total: int, desc: Optional[str] = ""
-    ):
-        """
-        Args:
-            func (Callable): Function to be executed
-            ret (dict): `func` should place its return value in this dictionary
-            total (int): Total number of steps in the progress bar
-            desc (str, Optional): Description for the progress bar
-
-        Raises:
-            Exception: If any worker encounters an error, it is raised
-        """
-        ismac = sys.platform == "darwin"
-        progress = {"value": 0, "error": None}
-
-        def callback(data):
-            if isinstance(data, str):
-                progress["error"] = data
-            else:
-                progress["value"] += data
-
-        server = Server(callback)
-        port = server.port
-        thread = threading.Thread(target=func, args=(port,), daemon=ismac)
-        thread.start()
-        try:
-            for i in tqdm(range(total), desc=desc):
-                while i + 1 > progress["value"]:
-                    time.sleep(1)
-                    err = progress["error"]
-                    if err:
-                        raise Exception(err)
-        finally:
-            if ismac:
-                while not ret:  # thread.join() takes forever on mac
-                    time.sleep(1)
-            else:
-                thread.join()
-            server.stop()
-
     def run(
         self,
         data_in,
@@ -213,35 +168,31 @@ class Pipeline:
 
         tensors = list(target_ds.tensors)
         tensors = [target_ds.tensors[t].key for t in tensors]
-
-        ret = {}
-
-        def _run(progress_port=None):
-            ret["metas_and_encoders"] = compute.map(
-                store_data_slice,
-                zip(
-                    slices,
-                    repeat((storage, group_index)),  # type: ignore
-                    repeat(tensors),
-                    repeat(self),
-                    repeat(version_state),
-                    repeat(progress_port),
-                ),
-            )
+        input_to_map = zip(
+            slices,
+            repeat((storage, group_index)),  # type: ignore
+            repeat(tensors),
+            repeat(self),
+            repeat(version_state),
+        )
 
         if progressbar:
-            self._run_with_progbar(
-                _run, ret, len(data_in), get_pbar_description(self.functions)
+            metas_and_encoders = compute.map_with_progressbar(
+                store_data_slice_with_progress_bar,
+                input_to_map,
+                total_length=len(data_in),
+                desc=get_pbar_description(self.functions),
             )
         else:
-            _run()
+            metas_and_encoders = compute.map(
+                store_data_slice,
+                input_to_map,
+            )
 
         if overwrite:
             chunk_paths = get_chunk_paths(target_ds, tensors)
             # TODO:
             # delete_chunks(chunk_paths, storage, compute)
-
-        metas_and_encoders = ret["metas_and_encoders"]
 
         (
             all_tensor_metas,
