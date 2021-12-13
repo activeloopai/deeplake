@@ -154,13 +154,13 @@ class PersistentLock(Lock):
 _LOCKS: Dict[str, Lock] = {}
 
 
-def _get_lock_key(storage_path: str, commit_id: Optional[str] = None):
+def _get_lock_key(storage_path: str, commit_id: str):
     return storage_path + ":" + commit_id
 
 
-def _get_lock_file_path(version: Optional[str] = None):
+def _get_lock_file_path(version: Optional[str] = None) -> str:
     if version in (None, FIRST_COMMIT_ID):
-        return get_dataset_lock_key(FIRST_COMMIT_ID)
+        return get_dataset_lock_key()
     return "versions/" + version + "/" + get_dataset_lock_key()  # type: ignore
 
 
