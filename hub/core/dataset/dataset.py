@@ -422,15 +422,20 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         self._unlock()
         commit(self.version_state, self.storage, message)
         self._lock()
+        self._info = None
+
         # do not store commit message
         hub_reporter.feature_report(
             feature_name="commit",
             parameters={},
         )
 
+        self.storage.autoflush = initial_autoflush
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -445,9 +450,12 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         self._unlock()
         checkout(self.version_state, self.storage, address, create)
         self._lock()
+        self._info = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -455,6 +463,7 @@ class Dataset:
             parameters={"Create": str(create)},
         )
 
+        self.storage.autoflush = initial_autoflush
         return self.version_state["commit_id"]
 
     def log(self):

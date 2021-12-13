@@ -371,6 +371,101 @@ def test_auto_commit(local_ds):
     assert local_ds.commit_id != third_commit_id
 
 
+def test_dataset_info(local_ds):
+    assert len(local_ds.info) == 0
+    local_ds.info.key = "value"
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    a = local_ds.commit("added key, value")
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    local_ds.info.key2 = "value2"
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    b = local_ds.commit("added key2, value2")
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    local_ds.checkout(a)
+    assert local_ds.info.key == "value"
+
+    local_ds.checkout("alt", create=True)
+    local_ds.info.key = "notvalue"
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+    c = local_ds.commit("changed key to notvalue")
+
+    local_ds.checkout(a)
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    local_ds.checkout(b)
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    local_ds.checkout("alt")
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+
+    local_ds.checkout(c)
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+
+
+def test_tensor_info(local_ds):
+    local_ds.create_tensor("abc")
+    assert len(local_ds.abc.info) == 0
+    local_ds.abc.info.key = "value"
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    a = local_ds.commit("added key, value")
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.abc.info.key2 = "value2"
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    b = local_ds.commit("added key2, value2")
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    local_ds.checkout(a)
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.checkout("alt", create=True)
+    local_ds.abc.info.key = "notvalue"
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
+    c = local_ds.commit("changed key to notvalue")
+
+    local_ds.checkout(a)
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.checkout(b)
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    local_ds.checkout("alt")
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
+
+    local_ds.checkout(c)
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
+
+
 def test_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("xyz")
