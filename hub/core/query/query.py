@@ -88,6 +88,7 @@ class EvalTensorObject(EvalObject):
     def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
         super().__init__(query)
         self._tensor = tensor
+        self._is_data_cacheable = self._tensor.chunk_engine.is_data_cachable
 
     def is_scalar(self):
         return self.numpy().size == 1  # type: ignore
@@ -115,7 +116,7 @@ class EvalTensorObject(EvalObject):
 
     def numpy(self):
         """Retrives np.ndarray or scalar value"""
-        if self._tensor.chunk_engine.is_data_cachable and enable_cache:
+        if self._is_data_cacheable and enable_cache:
             cache = self._get_cached_numpy()
             idx = self.query.cache_offset
             return cache[idx]
