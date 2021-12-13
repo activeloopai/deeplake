@@ -166,7 +166,7 @@ def _get_lock_file_path(version: Optional[str] = None) -> str:
 
 def lock_version(
     storage: StorageProvider,
-    version: Optional[str] = None,
+    version: str,
     callback: Optional[Callable] = None,
 ):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
@@ -190,7 +190,7 @@ def lock_version(
         _LOCKS[key] = lock
 
 
-def unlock_version(storage: StorageProvider, version: Optional[str] = None):
+def unlock_version(storage: StorageProvider, version: str):
     """Unlocks a storage provider that was locked by this machine.
 
     Args:
