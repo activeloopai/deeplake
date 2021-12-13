@@ -1,7 +1,7 @@
 from typing import Union, Set
 from hub.core.dataset import Dataset
-from datasets import Dataset as hfDataset
-from datasets import ClassLabel, Sequence, DatasetDict, Value
+from datasets import Dataset as hfDataset  # type: ignore
+from datasets import ClassLabel, Sequence, DatasetDict  # type: ignore
 import posixpath
 import hub
 from tqdm import tqdm  # type: ignore
@@ -14,7 +14,10 @@ def _is_seq_convertible(seq: Union[Sequence, list]):
         feature = seq[0]
     if isinstance(feature, dict):
         return False
-    if feature.dtype in ("string", "large_string"):
+    if feature.dtype in (
+        "string",
+        "large_string",
+    ):  # no support for sequences of strings.
         return False
     if isinstance(feature, Sequence):
         return _is_seq_convertible(feature)
@@ -58,6 +61,34 @@ def from_huggingface(
     dest: Union[Dataset, str],
     use_progressbar: bool = True,
 ) -> Dataset:
+    """Converts hugging face datasets to hub format.
+    Args:
+        src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
+            DatasetDict will be stored under respective tensor groups.
+            Eg:
+                if DatasetDict looks like:
+                    {
+                        train: Dataset({
+                            features: ['data']
+                        }),
+                        validation: Dataset({
+                            features: ['data']
+                        }),
+                        test: Dataset({
+                            features: ['data']
+                        }),
+                    }
+
+                it will be converted to a Hub dataset with tensors ['train/data', 'validation/data', 'test/data'].
+        dest (Dataset, str): Destination dataset or path to it.
+        use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
+
+    Returns:
+        Dataset: The destination Hub dataset.
+
+    Note:
+        Features of the type Sequence(feature=Value(dtype='string')) are not supported. Columns of such type are skipped.
+    """
     if isinstance(dest, str):
         ds = hub.dataset(dest)
     else:

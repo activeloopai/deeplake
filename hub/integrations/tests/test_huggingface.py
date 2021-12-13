@@ -1,5 +1,5 @@
-from datasets import load_dataset
-from datasets import Dataset, Value
+from datasets import load_dataset  # type: ignore
+from datasets import Dataset  # type: ignore
 from hub.integrations.huggingface import from_huggingface
 from hub.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
