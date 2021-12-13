@@ -220,11 +220,11 @@ class Tensor:
         elif not self.index.values[0].subscriptable():
             shape = shape[1:]
         shape = list(shape)
-        squeeze_dims = []
+        squeeze_dims = set()
         for i, idx in enumerate(self.index.values[1:]):
             shape[i] = len(list(idx.indices(shape[i])))
             if not idx.subscriptable():
-                squeeze_dims.append(i)
+                squeeze_dims.add(i)
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     @property
