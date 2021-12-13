@@ -93,7 +93,8 @@ def checkout(
         auto_commit(version_state, storage, address)
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
-        version_state["commit_node"].add_child(new_node)
+        version_state["commit_node_map"][version_state["commit_id"]].add_child(new_node)
+        # version_state["commit_node"].add_child(new_node)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address
@@ -221,32 +222,54 @@ def discard_old_metas(
             pass
 
 
-def _update_version_info(old, new):
-    """Merges 2 version infos by updating `old` version info inplace"""
-    old_commit_node_map = old["commit_node_map"]
-    new_commit_node_map = new["commit_node_map"]
+def _verify_commit_node_map(commit_node_map):
+    for commit, node in commit_node_map.items():
+        if node.parent:
+            assert node.parent == commit_node_map[node.parent.commit_id]
 
-    # Copy new nodes
-    for commit, node in new_commit_node_map.items():
-        if commit not in old_commit_node_map:
-            old_commit_node_map[commit] = node
+
+def _merge_commit_node_maps(map1, map2):
+    merged_map = {}
+
+    def _merge_node(commit_id):
+        if commit_id in map1 and commit_id in map2:
+            node1 = map1[commit_id]
+            node2 = map2[commit_id]
+            merged_node = CommitNode(node1.branch, node2.commit_id)
+
+            for attr in ("commit_message", "commit_user_name", "commit_time"):
+                setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
+            for child in set(
+                [node.commit_id for node in node1.children]
+                + [node.commit_id for node in node2.children]
+            ):
+                merged_node.add_child(_merge_node(child))
         else:
-            old_node = old_commit_node_map[commit]
-            if old_node.commit_time is None:
-                old_commit_node_map[commit] = node
+            if commit_id in map1:
+                orig_node = map1[commit_id]
+            else:
+                orig_node = map2[commit_id]
+            merged_node = orig_node.copy()
+            for child in [node.commit_id for node in orig_node.children]:
+                merged_node.add_child(_merge_node(child))
+        merged_map[commit_id] = merged_node
+        return merged_node
 
-    # Reset parents
-    for commit, node in old_commit_node_map.items():
-        while node.parent:
-            node.parent = old_commit_node_map[node.parent.commit_id]
-            node = node.parent
+    _merge_node(FIRST_COMMIT_ID)
+    return merged_map
 
-    # Reset children
-    for commit, node in old_commit_node_map.items():
-        for i, child in enumerate(node.children):
-            node.children[i] = old_commit_node_map[child.commit_id]
 
-    old["branch_commit_map"].update(new["branch_commit_map"])
+def _merge_version_info(info1, info2):
+    commit_node_map = _merge_commit_node_maps(
+        info1["commit_node_map"], info2["commit_node_map"]
+    )
+    branch_commit_map = {}
+    branch_commit_map.update(info1["branch_commit_map"])
+    branch_commit_map.update(info2["branch_commit_map"])
+    return {
+        "commit_node_map": commit_node_map,
+        "branch_commit_map": branch_commit_map,
+    }
 
 
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
@@ -261,9 +284,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     }
     try:
         old_version_info = pickle.loads(storage[key])
-        _update_version_info(old_version_info, new_version_info)
-        version_info = old_version_info
-        # version_info = new_version_info
+        version_info = _merge_version_info(old_version_info, new_version_info)
     except KeyError:
         version_info = new_version_info
     storage[key] = pickle.dumps(version_info)
