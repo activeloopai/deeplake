@@ -210,19 +210,24 @@ class ChunkIdEncoder(Encoder, Cachable):
                 break
         return output
 
+    def _num_samples_in_last_chunk(self):
+        if len(self._encoded) == 0:
+            return 0
+        elif len(self._encoded) == 1:
+            return self._encoded[-1][LAST_SEEN_INDEX_COLUMN] + 1
+        else:
+            return (
+                self._encoded[-1][LAST_SEEN_INDEX_COLUMN]
+                - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
+            )
+
     def _pop(self) -> List[ENCODING_DTYPE]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage."""
         chunk_ids_for_last_sampe = self[-1]
         if len(chunk_ids_for_last_sampe) > 1:
             self._encoded = self._encoded[: -len(chunk_ids_for_last_sampe)]
             return chunk_ids_for_last_sampe
-        elif (
-            len(self._encoded) == 1
-            and self._encoded[-1][LAST_SEEN_INDEX_COLUMN] == 1
-            or self._encoded[-1][LAST_SEEN_INDEX_COLUMN]
-            - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
-            == 1
-        ):
+        elif self._num_samples_in_last_chunk() == 1:
             self._encoded = self._encoded[:-1]
             return chunk_ids_for_last_sampe
         else:
