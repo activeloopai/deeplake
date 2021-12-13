@@ -219,7 +219,7 @@ class Tensor:
                 shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
         elif not self.index.values[0].subscriptable():
             shape = shape[1:]
-        shape = list(shape)   # type: ignore
+        shape = list(shape)  # type: ignore
         squeeze_dims = set()
         for i, idx in enumerate(self.index.values[1:]):
             shape[i] = len(list(idx.indices(shape[i])))  # type: ignore
