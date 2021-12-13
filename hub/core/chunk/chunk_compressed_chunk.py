@@ -139,7 +139,7 @@ class ChunkCompressedChunk(BaseChunk):
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
         if self.is_image_compression:
-            return self.decompressed_samples[local_index]
+            return self.decompressed_samples[local_index]  # type: ignore
 
         sb, eb = self.byte_positions_encoder[local_index]
         shape = self.shapes_encoder[local_index]
