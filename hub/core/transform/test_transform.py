@@ -58,6 +58,7 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
         samples_out.label.append(np.ones((13,)) * sample_in * mul)
 
 
+@hub.compute
 def fn4(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.x["y"].z.image.append(sample_in.z.y.x.image.numpy() * mul)
