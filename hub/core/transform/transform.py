@@ -1,6 +1,6 @@
 import hub
 import math
-from typing import List, Callable, Optional
+from typing import List, Optional
 from itertools import repeat
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
@@ -175,7 +175,6 @@ class Pipeline:
             repeat(self),
             repeat(version_state),
         )
-
         if progressbar:
             metas_and_encoders = compute.map_with_progressbar(
                 store_data_slice_with_progress_bar,
