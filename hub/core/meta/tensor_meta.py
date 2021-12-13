@@ -64,7 +64,7 @@ class TensorMeta(Meta):
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
-            self.htype = None
+            self.htype = None  # type: ignore
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
