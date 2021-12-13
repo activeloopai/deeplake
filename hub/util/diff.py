@@ -94,11 +94,17 @@ def get_changes_str(changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
     for tensor, change in changes.items():
+
         data_added = change["data_added"]
         data_added_str = convert_adds_to_string(data_added)
+
         data_updated = change["data_updated"]
+
         created = change.get("created", False)
-        has_change = created or data_added_str or data_updated
+
+        info_updated = change.get("info_updated", False)
+
+        has_change = created or data_added_str or data_updated or info_updated
         if has_change:
             all_changes.append(tensor)
             if created:
@@ -110,6 +116,9 @@ def get_changes_str(changes: Dict, message: str, separator: str):
             if data_updated:
                 output = convert_updates_to_string(data_updated)
                 all_changes.append(output)
+
+            if info_updated:
+                all_changes.append("* Info updated")
             all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
@@ -138,6 +147,9 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
                 change["data_updated"].update(commit_diff.data_updated)
 
             change["created"] = change.get("created") or commit_diff.created
+            change["info_updated"] = (
+                change.get("info_updated") or commit_diff.info_updated
+            )
         except KeyError:
             pass
 
