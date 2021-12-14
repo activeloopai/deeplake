@@ -391,7 +391,7 @@ class Dataset:
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
-    def commit(self, message: Optional[str] = None) -> None:
+    def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
@@ -411,7 +411,7 @@ class Dataset:
         hub_reporter.feature_report(feature_name="commit", parameters={})
 
         self.storage.autoflush = initial_autoflush
-        return self.commit_id
+        return self.commit_id  # type: ignore
 
     def checkout(self, address: str, create: bool = False) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
