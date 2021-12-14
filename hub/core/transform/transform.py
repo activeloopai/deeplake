@@ -13,7 +13,7 @@ from hub.util.transform import (
     check_transform_ds_out,
     get_pbar_description,
     store_data_slice,
-    store_data_slice_with_progress_bar,
+    store_data_slice_with_pbar,
 )
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
@@ -26,9 +26,7 @@ from hub.util.exceptions import (
     HubComposeIncompatibleFunction,
     TransformError,
 )
-
-from tqdm import tqdm  # type: ignore
-from hub.util.version_control import auto_checkout, load_meta
+from hub.util.version_control import auto_checkout
 
 
 class TransformFunction:
@@ -177,7 +175,7 @@ class Pipeline:
         )
         if progressbar:
             metas_and_encoders = compute.map_with_progressbar(
-                store_data_slice_with_progress_bar,
+                store_data_slice_with_pbar,
                 input_to_map,
                 total_length=len(data_in),
                 desc=get_pbar_description(self.functions),

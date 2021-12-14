@@ -22,6 +22,13 @@ from hub.util.exceptions import (
 import posixpath
 import time
 
+TransformOut = Tuple[
+    Dict[str, TensorMeta],
+    Dict[str, ChunkIdEncoder],
+    Dict[str, TileEncoder],
+    Dict[str, Optional[CommitChunkSet]],
+]
+
 
 def transform_sample(
     sample: Any,
@@ -89,28 +96,14 @@ def is_empty_transform_dataset(dataset: TransformDataset):
     return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
-def store_data_slice(
-    transform_input: Tuple,
-) -> Tuple[
-    Dict[str, TensorMeta],
-    Dict[str, ChunkIdEncoder],
-    Dict[str, TileEncoder],
-    Dict[str, Optional[CommitChunkSet]],
-]:
+def store_data_slice(transform_input: Tuple):
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
-    return _store_data_slice_with_progress_bar(None, transform_input)
+    return store_data_slice_with_pbar(None, transform_input)
 
 
-def store_data_slice_with_progress_bar(pg_callback, transform_input):
-    """Takes a slice of the original data and iterates through it and stores it in the actual storage.
-    The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
-    They are instead stored in memory and returned."""
-    return _store_data_slice_with_progress_bar(pg_callback, transform_input)
-
-
-def _store_data_slice_with_progress_bar(pg_callback, transform_input):
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     (
         data_slice,
         (output_storage, group_index),
