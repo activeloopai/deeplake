@@ -465,15 +465,15 @@ class Dataset:
             id_2 (str, optional): The second commit_id or branch name.
             as_dict (bool, optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
 
-        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be calculated.
-        If only id_1 is provided, the differences between the current commit and id_1 will be calculated.
+        If both id_1 and id_2 are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
+        If only id_1 is provided, the differences between the current state and id_1 will be calculated. If you're at the head of the branch, this will take into account the uncommitted changes, if any.
         If only id_2 is provided, a ValueError will be raised.
         If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be calculated.
 
         Returns:
             Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
-                If id_1 and id_2 are None, a single dictionary containing the differences between the current commit and the previous commit will be returned.
-                If only id_1 is provided, two dictionaries containing the differences in the current commit and id_1 respectively will be returned.
+                If id_1 and id_2 are None, a single dictionary containing the differences between the current state and the previous commit will be returned.
+                If only id_1 is provided, two dictionaries containing the differences in the current state and id_1 respectively will be returned.
                 If only id_2 is provided, a ValueError will be raised.
                 If both id_1 and id_2 are provided, two dictionaries containing the differences in id_1 and id_2 respectively will be returned.
             None: If as_dict is False.

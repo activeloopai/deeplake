@@ -558,6 +558,27 @@ def test_diff_linear(local_ds, capsys):
     assert diff[0] == changes_b_from_a
     assert diff[1] == changes_empty
 
+    local_ds.checkout(b)
+    local_ds.diff()
+    message1 = f"Diff in {b} (current commit):\n"
+    target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_b_from_a
+
+    local_ds.diff(a)
+    message1 = f"Diff in {b} (current commit):\n"
+    message2 = f"Diff in {a} (target id):\n"
+    target = (
+        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        + "\n"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert isinstance(diff, tuple)
+
 
 def test_diff_branch(local_ds, capsys):
     with local_ds:
