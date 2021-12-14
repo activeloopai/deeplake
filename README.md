@@ -69,7 +69,6 @@ ds = hub.load('hub://activeloop/cifar10-train')
 ```python
 ds.tensors.keys()    # dict_keys(['images', 'labels'])
 ds.images.shape      # (50000, 32, 32, 3)
-ds.labels.dtype      # dtype('uint32')
 ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
