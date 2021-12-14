@@ -176,7 +176,6 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
     @property
     def min(self):
         """Returns numpy.min() for the tensor"""
-        return np.amin(self.numpy())
 
     @property
     def max(self):
@@ -186,7 +185,7 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
     @property
     def mean(self):
         """Returns numpy.mean() for the tensor"""
-        return np.mean(self.numpy())
+        return self.numpy().mean()  # type: ignore
 
     @property
     def shape(self):
@@ -299,6 +298,12 @@ class EvalLabelClassTensor(EvalTensorObject, ScalarTensorObject):
 
     def __iter__(self):
         return iter(self.numpy())
+
+    def __getitem__(self, item):
+        if not self.is_scalar():
+            return EvalLabelClassTensor(self.query, self._tensor[item])
+        else:
+            raise ValueError("Scalar not subscriptable")
 
 
 class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
