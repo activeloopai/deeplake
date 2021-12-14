@@ -108,7 +108,7 @@ def from_huggingface(
         skipped_keys: Set[str] = set()
         features = tqdm(
             src.features.items(),
-            desc=f"Converting...({len(skipped_keys)} skipped",
+            desc=f"Converting...({len(skipped_keys)} skipped)",
             disable=not use_progressbar,
         )
         for key, feature in features:
