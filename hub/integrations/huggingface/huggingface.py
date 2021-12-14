@@ -30,6 +30,7 @@ def _create_tensor_from_feature(key, feature, src, ds):
         if isinstance(feature, dict):
             for x in feature:
                 _create_tensor_from_feature(f"{key}/{x}", feature[x], src[curr], ds)
+            return True
         elif isinstance(feature, (Sequence, list)):
             if isinstance(feature, Sequence):
                 inner = feature.feature
@@ -37,6 +38,7 @@ def _create_tensor_from_feature(key, feature, src, ds):
                 inner = feature[0]
             if isinstance(inner, dict):
                 _create_tensor_from_feature(key, feature.feature, src, ds)
+                return True
             elif _is_seq_convertible(feature):
                 ds.create_tensor(key)
             else:
@@ -51,7 +53,9 @@ def _create_tensor_from_feature(key, feature, src, ds):
     if isinstance(src, (hfDataset, dict)):
         ds[key].extend(src[curr])
     else:
-        values = [src[i][curr] for i in range(len(src))]
+        values = []
+        for i in range(len(src)):
+            values.extend(src[i][curr])
         ds[key].extend(values)
     return True
 
