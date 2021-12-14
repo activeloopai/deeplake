@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import hub
 import json
@@ -199,7 +199,11 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
         return self.numpy().size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        return (self.numpy() == o).any()  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -244,7 +248,11 @@ class EvalNumpyObject(ScalarTensorObject):
         return self.arr.size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        return (self.arr == o).any()  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -283,7 +291,14 @@ class EvalLabelClassTensor(EvalTensorObject, ScalarTensorObject):
             return super().__eq__(o)
 
     def contains(self, o: object) -> bool:
-        return (self.numpy() == o).any()  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
+
+    def __iter__(self):
+        return iter(self.numpy())
 
 
 class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
@@ -299,7 +314,11 @@ class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
         super().__init__(query, tensor)
 
     def contains(self, o: object) -> bool:
-        return (self.numpy() == o).any()  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def as_scalar(self):
         assert self.is_scalar()
