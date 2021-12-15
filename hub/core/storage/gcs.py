@@ -289,7 +289,13 @@ class GCSProvider(StorageProvider):
         return stats
 
     def __getstate__(self):
-        return (self.root, self.token, self.missing_exceptions, self.project, self.read_only)
+        return (
+            self.root,
+            self.token,
+            self.missing_exceptions,
+            self.project,
+            self.read_only,
+        )
 
     def __setstate__(self, state):
         self.root = state[0]

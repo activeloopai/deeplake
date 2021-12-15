@@ -562,11 +562,11 @@ class Dataset:
         storage = self.storage
         if value:
             storage.enable_readonly()
-            if isinstance(storage, LRUCache):
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
         else:
             storage.disable_readonly()
-            if isinstance(storage, LRUCache):
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.disable_readonly()
         self._read_only = value
 
