@@ -818,6 +818,24 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
+@pytest.mark.parametrize(
+    "src_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
+)
+@pytest.mark.parametrize(
+    "dest_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
+)
+@pytest.mark.parametrize("size", [(30, 40, 3), (5041, 3037, 3)])
+def test_append_with_tensor(src_args, dest_args, size):
+    ds1 = hub.dataset("mem://ds1")
+    ds2 = hub.dataset("mem://ds2")
+    ds1.create_tensor("x", **src_args)
+    x = np.random.randint(0, 256, size, dtype=np.uint8)
+    ds1.x.append(x)
+    ds2.create_tensor("y", **dest_args)
+    ds2.y.append(ds1.x[0])
+    np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+
 def test_empty_extend(memory_ds):
     ds = memory_ds
     with ds:
@@ -826,3 +844,24 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_sample_shape(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("w")
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds.w.extend(np.zeros((5, 4, 3, 2)))
+        ds.x.extend(np.ones((5, 4000, 5000)))
+        ds.y.extend([np.zeros((2, 3)), np.ones((3, 2))])
+        ds.z.extend([np.ones((5, 4000, 3000)), np.ones((5, 3000, 4000))])
+    assert ds.w[0].shape == (4, 3, 2)
+    assert ds.x[0].shape == (4000, 5000)
+    assert ds.y[0].shape == (2, 3)
+    assert ds.y[1].shape == (3, 2)
+    assert ds.z[0].shape == (5, 4000, 3000)
+    assert ds.z[1].shape == (5, 3000, 4000)
+    assert ds.w[0][0, :2].shape == (2, 2)
+    assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
