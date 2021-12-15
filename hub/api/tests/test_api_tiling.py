@@ -94,3 +94,15 @@ def test_updates(memory_ds, compression):
             np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr3)
         else:
             np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr4)
+
+
+def test_cachable_overflow(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(np.ones((3, 4000, 3000)))
+        ds.y.extend(np.ones((3, 4000, 3000)))
+    assert len(ds) == 3
+    assert len(ds.x) == 3
+    assert len(ds.y) == 3
