@@ -58,7 +58,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             return 0
         return len(self._encoded)
 
-    def generate_chunk_id(self, register: bool = True) -> ENCODING_DTYPE:
+    def generate_chunk_id(self, register: Optional[bool] = True) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
 
