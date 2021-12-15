@@ -18,6 +18,7 @@ from hub.core.serialize import (
     serialize_numpy_and_base_types,
     serialize_sample_object,
     serialize_text,
+    serialize_tensor,
 )
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -197,6 +198,17 @@ class BaseChunk(Cachable):
                 store_uncompressed_tiles,
             )
             shape = self.convert_to_rgb(shape)
+        elif isinstance(incoming_sample, hub.core.tensor.Tensor):
+            incoming_sample, shape = serialize_tensor(
+                incoming_sample,
+                sample_compression,
+                chunk_compression,
+                dt,
+                ht,
+                min_chunk_size,
+                break_into_tiles,
+                store_uncompressed_tiles,
+            )
         elif isinstance(
             incoming_sample,
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
