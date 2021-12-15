@@ -10,7 +10,7 @@ from .base_chunk import BaseChunk, InputSample
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:
+    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None

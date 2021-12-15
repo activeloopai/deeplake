@@ -483,14 +483,14 @@ class ChunkEngine:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register)
-        chunk = self.chunk_class(*self.chunk_args)
+        chunk = self.chunk_class(*self.chunk_args)  # type: ignore
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
-        chunk.key = chunk_key
-        chunk.id = chunk_id
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = chunk_id  # type: ignore
         chunk._update_meta = register
         return chunk
 
