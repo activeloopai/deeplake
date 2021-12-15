@@ -240,10 +240,7 @@ class ChunkIdEncoder(Encoder, Cachable):
                 self._encoded = self._encoded[:-1]
                 return chunk_ids_for_last_sample, True
             elif num_samples_in_last_chunk > 1:
-                print("=====")
-                print(self._encoded[-1, LAST_SEEN_INDEX_COLUMN])
                 self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-                print(self._encoded[-1, LAST_SEEN_INDEX_COLUMN])
                 return chunk_ids_for_last_sample, False
             else:
                 raise IndexError("pop from empty encoder")
