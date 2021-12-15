@@ -222,12 +222,6 @@ def discard_old_metas(
             pass
 
 
-def _verify_commit_node_map(commit_node_map):
-    for commit, node in commit_node_map.items():
-        if node.parent:
-            assert node.parent == commit_node_map[node.parent.commit_id]
-
-
 def _merge_commit_node_maps(map1, map2):
     merged_map = {}
 
