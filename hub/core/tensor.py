@@ -451,6 +451,18 @@ class Tensor:
             return self.numpy()
 
     def tobytes(self) -> bytes:
+        """Returns the bytes of the tensor. Only works for a single sample of tensor.
+        If the tensor is uncompressed, this returns the bytes of the numpy array.
+        If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        If the tensor is chunk compressed, this raises an error.
+
+        Returns:
+            bytes: The bytes of the tensor.
+
+        Raises:
+            ValueError: If the tensor has multiple samples.
+        """
+
         if self.index.values[0].subscriptable():
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore

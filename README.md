@@ -67,13 +67,26 @@ ds = hub.load('hub://activeloop/cifar10-train')
 #### Inspect tensors in the dataset:
 
 ```python
-print(list(ds.tensors.keys()))
-# ['images', 'labels']
+ds.tensors.keys()    # dict_keys(['images', 'labels'])
+ds.images.shape      # (50000, 32, 32, 3)
+ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
 #### Train a PyTorch model on the Cifar-10 dataset without the need to download it
 
-First, define the model, loss and optimizer:
+First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
+
+```python
+tform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+])
+
+hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
+                        'images': tform, 'labels': None}, shuffle=True)
+```
+
+Next, define the model, loss and optimizer:
 
 ```python
 net = models.resnet18(pretrained=False)
@@ -83,27 +96,13 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 ```
 
-Next, define a transform for the images and use Hub's built-in PyTorch dataloader to connect the data to the compute:
+Finally, the training loop for 2 epochs:
 
 ```python
-tform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-])
-
-hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform = {'images': tform, 'labels': None}, shuffle=True)
-
-```
-
-Finally, the training loop:
-
-```python
-# Train for 2 epochs
 for epoch in range(2):
     running_loss = 0.0
     for i, data in enumerate(hub_loader):
-        images = data['images']
-        labels = data['labels']
+        images, labels = data['images'], data['labels']
         
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -113,6 +112,7 @@ for epoch in range(2):
         loss = criterion(outputs, labels.reshape(-1))
         loss.backward()
         optimizer.step()
+        
         # print statistics
         running_loss += loss.item()
         if i % 100 == 99:    # print every 100 mini-batches

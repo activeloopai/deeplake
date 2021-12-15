@@ -61,6 +61,7 @@ __all__ = [
     "compressions",
     "htypes",
     "config",
+    "delete",
 ]
 
 __version__ = "2.1.2"
