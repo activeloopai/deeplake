@@ -559,10 +559,15 @@ class Dataset:
 
     @read_only.setter
     def read_only(self, value: bool):
+        storage = self.storage
         if value:
-            self.storage.enable_readonly()
+            storage.enable_readonly()
+            if isinstance(storage, LRUCache):
+                storage.next_storage.enable_readonly()
         else:
-            self.storage.disable_readonly()
+            storage.disable_readonly()
+            if isinstance(storage, LRUCache):
+                storage.next_storage.disable_readonly()
         self._read_only = value
 
     @hub_reporter.record_call
