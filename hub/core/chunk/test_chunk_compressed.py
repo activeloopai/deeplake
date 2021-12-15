@@ -12,8 +12,8 @@ from hub.core.tiling.sample_tiles import SampleTiles
 compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"])
 
 common_args = {
-    "min_chunk_size": 100 * KB,
-    "max_chunk_size": 200 * KB,
+    "min_chunk_size": 16 * MB,
+    "max_chunk_size": 32 * MB,
 }
 
 
@@ -71,11 +71,13 @@ def test_read_write_sequence_big(cat_path, compression, random):
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
-
+    tiled = False
     while data_in:
         chunk = ChunkCompressedChunk(**common_args)
+        chunk._compression_ratio = 10  # start with a bad compression ratio to hit exponential back off code path
         num_samples = chunk.extend_if_has_space(data_in)
         if num_samples == PARTIAL_NUM_SAMPLES:
+            tiled = True
             tiles.append(chunk.read_sample(0))
             sample = data_in[0]
             assert isinstance(sample, SampleTiles)
@@ -100,6 +102,7 @@ def test_read_write_sequence_big(cat_path, compression, random):
                     item = item.array
                 np.testing.assert_array_equal(item, data_in[i])
             data_in = data_in[num_samples:]
+    assert tiled
 
 
 @compressions_paremetrized
