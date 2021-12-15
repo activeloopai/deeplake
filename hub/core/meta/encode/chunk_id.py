@@ -62,6 +62,9 @@ class ChunkIdEncoder(Encoder, Cachable):
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
 
+        Args:
+            register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True. 
+
         Returns:
             ENCODING_DTYPE: The random chunk ID.
         """
