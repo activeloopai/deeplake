@@ -298,7 +298,7 @@ class ChunkEngine:
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.key = chunk_key  # type: ignore
-        chunk.id = self.last_chunk_id
+        chunk.id = self.last_chunk_id  # type: ignore
         self.add_chunk_to_dirty_keys(chunk)
         return chunk
 
@@ -398,7 +398,7 @@ class ChunkEngine:
         tiles = {}
         nsamples = len(samples)
         while len(samples) > 0:
-            num_samples_added = current_chunk.extend_if_has_space(samples)
+            num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
@@ -478,7 +478,7 @@ class ChunkEngine:
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
         self.cachables_in_dirty_keys = True
 
-    def _create_new_chunk(self, register=True):
+    def _create_new_chunk(self, register=True) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register)

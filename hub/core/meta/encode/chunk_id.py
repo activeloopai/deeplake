@@ -219,7 +219,7 @@ class ChunkIdEncoder(Encoder, Cachable):
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
     ):
-        current_chunk_ids_and_rows = self.__getitem__(
+        current_chunk_ids_and_rows = self.__getitem__(  # type: ignore
             global_sample_index, return_row_index=True
         )
         if len(current_chunk_ids_and_rows) == chunk_ids:
