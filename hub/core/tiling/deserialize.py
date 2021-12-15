@@ -33,7 +33,10 @@ def coalesce_tiles(
         low, high = tile_bounds(np.asarray(tile_coords), tile_shape)
         sample_view = view(sample, low, high)
 
-        sample_view[: len(tile)] = tile
+        # dock to top left corner
+        idxs = tuple(slice(0, tile.shape[i]) for i in range(tile.ndim))
+
+        sample_view[idxs] = tile
 
     return sample
 
