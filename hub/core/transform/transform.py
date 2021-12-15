@@ -168,7 +168,8 @@ class Pipeline:
         tensors = [target_ds.tensors[t].key for t in tensors]
         input_to_map = zip(
             slices,
-            repeat((storage, group_index)),  # type: ignore
+            repeat(storage),
+            repeat(group_index),
             repeat(tensors),
             repeat(self),
             repeat(version_state),

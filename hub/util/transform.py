@@ -106,7 +106,8 @@ def store_data_slice(transform_input: Tuple):
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     (
         data_slice,
-        (output_storage, group_index),
+        output_storage,
+        group_index,
         tensors,
         pipeline,
         version_state,
