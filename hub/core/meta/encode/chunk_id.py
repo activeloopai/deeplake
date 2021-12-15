@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Tuple
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
@@ -224,7 +224,7 @@ class ChunkIdEncoder(Encoder, Cachable):
                 - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
             )
 
-    def _pop(self) -> List[ENCODING_DTYPE]:
+    def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
             Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
