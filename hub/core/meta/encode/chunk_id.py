@@ -63,7 +63,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         This method should be called once per chunk created.
 
         Args:
-            register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True. 
+            register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True.
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
