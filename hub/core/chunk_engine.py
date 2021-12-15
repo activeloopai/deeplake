@@ -650,16 +650,14 @@ class ChunkEngine:
             )
         data_added.remove(last_idx)
         self._write_initialization()
-        chunk_ids = self.chunk_id_encoder[-1]
-        chunks_to_delete = list(
-            map(self.get_chunk_key_for_id, self.chunk_id_encoder._pop())
-        )
-        if len(chunks_to_delete) > 1:
+        chunk_ids, delete = self.chunk_id_encoder._pop()
+        if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[num_samples - 1]
-        elif chunks_to_delete == 0:
-            chunk_to_update = self.get_chunk(chunk_ids[0])
+        elif not delete:  # There are other samples in the last chunk
+            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
             chunk_to_update._pop_sample()
-        for chunk_key in chunks_to_delete:
-            del self.cache[chunk_key]
+        if delete:
+            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
+                del self.cache[chunk_key]
         self.tensor_meta.length -= 1
         self._write_finalization()

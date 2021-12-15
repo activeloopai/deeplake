@@ -1008,9 +1008,22 @@ class Dataset:
         with self:
             for k, v in sample.items():
                 try:
-                    self[k].append(v)
+                    tensor = self[k]
+                    enc = tensor.chunk_engine.chunk_id_encoder
+                    num_chunks = enc.num_chunks
+                    tensor.append(v)
                     tensors_appended.append(k)
                 except Exception as e:
+                    new_num_chunks = enc.num_chunks
+                    num_chunks_added = new_num_chunks - num_chunks
+                    if num_chunks_added > 1:
+                        # This is unlikely to happen, i.e the sample passed the validation
+                        # steps and tiling but some error occured while writing tiles to chunks
+                        raise NotImplementedError(
+                            "Unable to recover from error while writing tiles."
+                        ) from e
+                    elif num_chunks_added == 1:
+                        enc._encoded = enc._encoded[:-1]
                     for k in tensors_appended:
                         try:
                             self[k]._pop()

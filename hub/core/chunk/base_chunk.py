@@ -283,5 +283,5 @@ class BaseChunk(Cachable):
     def _pop_sample(self):
         self.prepare_for_write()
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
-        self.shape_encoder._pop()
+        self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
