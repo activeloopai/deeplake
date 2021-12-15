@@ -9,23 +9,8 @@ from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.transform import get_pbar_description
-import sys
 import hub
 
-
-# TODO progressbar is disabled while running tests on mac for now
-if sys.platform == "darwin":
-    defs = hub.core.transform.transform.Pipeline.eval.__defaults__  # type: ignore
-    defs = defs[:-1] + (False,)
-    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs  # type: ignore
-
-    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__  # type: ignore
-    defs = defs[:-1] + (False,)
-    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs  # type: ignore
-
-
-# github actions can only support 2 workers
-TRANSFORM_TEST_NUM_WORKERS = 2
 
 # github actions can only support 2 workers
 TRANSFORM_TEST_NUM_WORKERS = 2
@@ -128,7 +113,11 @@ def test_single_transform_hub_dataset(ds, scheduler):
         return
 
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        scheduler=scheduler,
+        progressbar=False,
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
