@@ -93,8 +93,7 @@ def checkout(
         auto_commit(version_state, storage, address)
         new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
-        version_state["commit_node_map"][version_state["commit_id"]].add_child(new_node)
-        # version_state["commit_node"].add_child(new_node)
+        version_state["commit_node"].add_child(new_node)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address
