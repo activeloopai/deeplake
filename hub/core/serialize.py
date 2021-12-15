@@ -307,7 +307,6 @@ def serialize_numpy_and_base_types(
             out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)  # type: ignore
         else:
             out = out.tobytes()  # type: ignore
-
     else:
         ratio = get_compression_ratio(sample_compression)
         approx_compressed_size = out.nbytes * ratio

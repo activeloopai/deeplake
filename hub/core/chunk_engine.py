@@ -439,7 +439,7 @@ class ChunkEngine:
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_chunk() or self._create_new_chunk(),
+            start_chunk=self.last_chunk(),
             register=True,
         )
 

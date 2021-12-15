@@ -24,12 +24,12 @@ def test_simple(memory_ds):
 def test_mixed_small_large(local_ds_generator, compression):
     ds = local_ds_generator()
     arr1 = np.random.randint(0, 255, (3003, 2001, 3)).astype(np.uint8)
-    arr2 = np.random.randint(0, 255, (5001, 5007, 3)).astype(np.uint8)
-    arr3 = np.random.randint(0, 255, (2503, 2501, 3)).astype(np.uint8)
+    arr2 = np.random.randint(0, 255, (500, 500, 3)).astype(np.uint8)
+    arr3 = np.random.randint(0, 255, (250, 250, 3)).astype(np.uint8)
 
     idxs = [
-        (slice(73, 117), slice(1765, 1901)),
-        4,
+        (slice(73, 117), slice(9, 17)),
+        slice(4, 5),
         slice(
             10,
         ),
@@ -37,7 +37,7 @@ def test_mixed_small_large(local_ds_generator, compression):
     ]
 
     with ds:
-        ds.create_tensor("abc", max_chunk_size=2 ** 10, **compression)
+        ds.create_tensor("abc", **compression)
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)
