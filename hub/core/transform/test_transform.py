@@ -74,7 +74,7 @@ def fn5(sample_in, samples_out, mul=1, copy=1):
 
 
 @hub.compute
-def fn5(sample_in, samples_out, mul=1, copy=1):
+def fn6(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.append(
             {
@@ -539,7 +539,7 @@ def test_ds_append_in_transform(memory_ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
 
-    fn5(copy=1, mul=2).eval(
+    fn6(copy=1, mul=2).eval(
         data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False
     )
     assert len(ds_out) == 99
