@@ -1,4 +1,4 @@
-from hub.constants import MB, PARTIAL_NUM_SAMPLES
+from hub.constants import MB, KB, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 import numpy as np
 import pytest
@@ -12,8 +12,8 @@ from hub.core.tiling.sample_tiles import SampleTiles
 compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"])
 
 common_args = {
-    "min_chunk_size": 1 * MB,
-    "max_chunk_size": 2 * MB,
+    "min_chunk_size": 100 * KB,
+    "max_chunk_size": 200 * KB,
 }
 
 

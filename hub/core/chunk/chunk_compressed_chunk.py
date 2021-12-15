@@ -109,8 +109,6 @@ class ChunkCompressedChunk(BaseChunk):
                     self.decompressed_samples = [tile]
                     self._changed = True
                 break
-            if isinstance(incoming_sample, Sample):
-                incoming_sample = incoming_sample.array
             if (
                 num_decompressed_bytes + incoming_sample.nbytes
             ) * self._compression_ratio > self.min_chunk_size:
@@ -248,7 +246,7 @@ class ChunkCompressedChunk(BaseChunk):
             self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            len_data=min(self.num_uncompressed_bytes, self.min_chunk_size),
+            len_data=min(self.num_uncompressed_bytes, self.max_chunk_size),
         )
 
     def prepare_for_write(self):
