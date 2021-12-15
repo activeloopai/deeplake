@@ -1,6 +1,5 @@
 import pytest
 from hub.util.check_installation import ray_installed
-
 from hub.util.compute import get_compute_provider
 
 schedulers = ["threaded", "processed", "serial"]

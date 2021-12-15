@@ -166,25 +166,20 @@ class Pipeline:
 
         tensors = list(target_ds.tensors)
         tensors = [target_ds.tensors[t].key for t in tensors]
-        input_to_map = zip(
-            slices,
-            repeat(storage),
-            repeat(group_index),
-            repeat(tensors),
-            repeat(self),
-            repeat(version_state),
+        map_inp = zip(
+            slices, repeat((storage, group_index, tensors, self, version_state))
         )
         if progressbar:
             metas_and_encoders = compute.map_with_progressbar(
                 store_data_slice_with_pbar,
-                input_to_map,
+                map_inp,
                 total_length=len(data_in),
                 desc=get_pbar_description(self.functions),
             )
         else:
             metas_and_encoders = compute.map(
                 store_data_slice,
-                input_to_map,
+                map_inp,
             )
 
         if overwrite:
