@@ -281,6 +281,10 @@ class ChunkEngine:
     def last_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
+    @property
+    def last_chunk_id(self) -> str:
+        return self.chunk_id_encoder.get_id_for_chunk(-1)
+
     def last_chunk(self) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
         if self.num_chunks == 0 or last_index in self.tile_encoder:
@@ -292,6 +296,7 @@ class ChunkEngine:
         if chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.key = chunk_key  # type: ignore
+        chunk.id = self.last_chunk_id
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
@@ -309,6 +314,7 @@ class ChunkEngine:
         chunk.key = chunk_key
         if copy and chunk_commit_id != self.version_state["commit_id"]:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        chunk.id = chunk_id
         return chunk
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
@@ -319,8 +325,10 @@ class ChunkEngine:
         new_chunk_key = get_chunk_key(
             self.key, chunk_name, self.version_state["commit_id"]
         )
+        chunk_id = chunk.id
         chunk = chunk.copy(self.chunk_args)
         chunk.key = new_chunk_key
+        chunk.id = chunk_id
         self.cache[new_chunk_key] = chunk
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
@@ -373,41 +381,63 @@ class ChunkEngine:
             samples = list(samples)
         return samples
 
+    def _samples_to_chunks(
+        self, samples, start_chunk: Optional[BaseChunk] = None, register: bool = True
+    ):
+        current_chunk = start_chunk
+        updated_chunks = []
+        if current_chunk is None:
+            current_chunk = self._create_new_chunk(register)
+            updated_chunks.append(current_chunk)
+        enc = self.chunk_id_encoder
+        tiles = {}
+        nsamples = len(samples)
+        while len(samples) > 0:
+            num_samples_added = current_chunk.extend_if_has_space(samples)
+            if num_samples_added == 0:
+                current_chunk = self._create_new_chunk(register)
+                updated_chunks.append(current_chunk)
+            elif num_samples_added == PARTIAL_NUM_SAMPLES:
+                sample = samples[0]
+                if register and sample.is_first_write:
+                    enc.register_samples(1)
+                if sample.is_last_write:
+                    if register:
+                        self.tile_encoder.register_sample(sample, self.num_samples - 1)
+                    else:
+                        tiles[nsamples - len(samples)] = (
+                            sample.sample_shape,
+                            sample.tile_shape,
+                        )
+                    samples = samples[1:]
+                if len(samples) > 0:
+                    current_chunk = self._create_new_chunk()
+                    updated_chunks.append(current_chunk)
+            else:
+                if not updated_chunks:
+                    updated_chunks.append(current_chunk)
+                num = int(num_samples_added)
+                enc.register_samples(num)
+                samples = samples[num:]
+        if register:
+            return updated_chunks
+        return updated_chunks, tiles
+
     def extend(self, samples):
         if len(samples) == 0:
             return
         self._write_initialization()
         samples = self._sanitize_samples(samples)
         indexes_added = get_sample_indexes_added(self.num_samples, samples)
-
-        current_chunk = self.last_chunk() or self._create_new_chunk()
-        updated_chunks = {current_chunk}
-        enc = self.chunk_id_encoder
-
-        while len(samples) > 0:
-            num_samples_added = current_chunk.extend_if_has_space(samples)
-            if num_samples_added == 0:
-                current_chunk = self._create_new_chunk()
-                updated_chunks.add(current_chunk)
-
-            elif num_samples_added == PARTIAL_NUM_SAMPLES:
-                sample = samples[0]
-                if sample.is_first_write:
-                    enc.register_samples(1)
-                if sample.is_last_write:
-                    self.tile_encoder.register_sample(sample, self.num_samples - 1)
-                    samples = samples[1:]
-                if len(samples) > 0:
-                    current_chunk = self._create_new_chunk()
-                    updated_chunks.add(current_chunk)
-            else:
-                num = int(num_samples_added)
-                enc.register_samples(num)
-                samples = samples[num:]
+        chunks = self._samples_to_chunks(
+            samples,
+            start_chunk=self.last_chunk() or self._create_new_chunk(),
+            register=True,
+        )
 
         self.commit_diff.add_data(indexes_added)
 
-        for chunk in updated_chunks:
+        for chunk in chunks:
             self.cache[chunk.key] = chunk  # type: ignore
         self._write_finalization()
 
@@ -452,10 +482,10 @@ class ChunkEngine:
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
-    def _create_new_chunk(self):
+    def _create_new_chunk(self, register=True):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
-        chunk_id = self.chunk_id_encoder.generate_chunk_id()
+        chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register)
         chunk = self.chunk_class(*self.chunk_args)
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
@@ -463,7 +493,59 @@ class ChunkEngine:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
         chunk.key = chunk_key
+        chunk.id = chunk_id
         return chunk
+
+    def _replace_tiled_sample(self, global_sample_index: int, sample):
+        new_chunks, tiles = self._samples_to_chunks(
+            [sample], start_chunk=None, register=False
+        )
+        new_chunk_ids = [chunk.id for chunk in new_chunks]
+        self.chunk_id_encoder._replace_chunks_for_tiled_sample(
+            global_sample_index, new_chunk_ids
+        )
+        if tiles:
+            self.tile_encoder.entries[global_sample_index] = tiles[0]
+        else:
+            del self.tile_encoder.entries[global_sample_index]
+
+    def _update_tiled_sample(self, global_sample_index: int, index: Index, sample):
+        if len(index.values) == 1:
+            self._replace_tiled_sample(global_sample_index, sample)
+            return []
+        enc = self.chunk_id_encoder
+        tile_enc = self.tile_encoder
+        chunk_ids = enc[global_sample_index]
+        sample_shape = tile_enc.get_sample_shape(global_sample_index)
+        tile_shape = tile_enc.get_tile_shape(global_sample_index)
+        ordered_tile_ids = np.array(chunk_ids).reshape(
+            tile_enc.get_tile_layout_shape(global_sample_index)
+        )
+        tiles_index, sample_index = translate_slices(
+            [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
+        )
+        required_tile_ids = ordered_tile_ids[tiles_index]
+        tiles = np.vectorize(
+            lambda chunk_id: self.get_chunk_from_chunk_id(
+                chunk_id, copy=True
+            ).read_sample(0),
+            otypes=[object],
+        )(required_tile_ids)
+        current_sample = coalesce_tiles(
+            tiles, tile_shape, sample_shape, self.tensor_meta.dtype
+        )
+        new_sample = current_sample
+        new_sample[sample_index] = sample
+        new_tiles = break_into_tiles(
+            new_sample, tile_enc.get_tile_shape(global_sample_index)
+        )
+        chunk_ids = required_tile_ids
+        updated_chunks = []
+        for chunk_id, tile in zip(chunk_ids, new_tiles.reshape(-1)):
+            chunk = self.get_chunk_from_chunk_id(int(chunk_id), copy=True)
+            chunk.update_sample(0, tile)
+            updated_chunks.append(chunk)
+        return updated_chunks
 
     def update(
         self,
@@ -477,62 +559,20 @@ class ChunkEngine:
             return self._update_with_operator(index, samples, operator)
 
         enc = self.chunk_id_encoder
-        updated_chunks = set()
-
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
-            chunk_ids = enc[global_sample_index]
-            if len(chunk_ids) > 1:
-                tile_enc = self.tile_encoder
-                if not isinstance(sample, np.ndarray):
-                    sample = np.array(sample)
-                if len(index.values) == 1:
-                    # Replace all chunks
-                    if tile_enc.get_sample_shape(global_sample_index) == sample.shape:
-                        new_tiles = break_into_tiles(
-                            sample, tile_enc.get_tile_shape(global_sample_index)
-                        )
-                    else:
-                        # TODO
-                        raise NotImplementedError(
-                            "Tiled samples can be only be updated with samples of same shape."
-                        )
-                else:
-                    # Update some chunks
-                    sample_shape = tile_enc.get_sample_shape(global_sample_index)
-                    tile_shape = tile_enc.get_tile_shape(global_sample_index)
-                    ordered_tile_ids = np.array(chunk_ids).reshape(
-                        tile_enc.get_tile_layout_shape(global_sample_index)
-                    )
-                    tiles_index, sample_index = translate_slices(
-                        [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
-                    )
-                    required_tile_ids = ordered_tile_ids[tiles_index]
-                    tiles = np.vectorize(
-                        lambda chunk_id: self.get_chunk_from_chunk_id(
-                            chunk_id, copy=True
-                        ).read_sample(0),
-                        otypes=[object],
-                    )(required_tile_ids)
-                    current_sample = coalesce_tiles(
-                        tiles, tile_shape, sample_shape, self.tensor_meta.dtype
-                    )
-                    new_sample = current_sample
-                    new_sample[sample_index] = sample
-                    new_tiles = break_into_tiles(
-                        new_sample, tile_enc.get_tile_shape(global_sample_index)
-                    )
-                    chunk_ids = required_tile_ids
-                for chunk_id, tile in zip(chunk_ids, new_tiles.reshape(-1)):
-                    chunk = self.get_chunk_from_chunk_id(chunk_id, copy=True)
-                    chunk.update_sample(0, tile)
-                    updated_chunks.add(chunk)
+            if global_sample_index in self.tile_encoder:
+                updated_chunks = self._update_tiled_sample(
+                    global_sample_index, index, sample
+                )
             else:
-                chunk = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
+                chunk = self.get_chunk_from_chunk_id(
+                    enc[global_sample_index][0], copy=True
+                )
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -544,7 +584,7 @@ class ChunkEngine:
                     curr_data[tuple(e.value for e in index.values[1:])] = sample
                     sample = curr_data
                 chunk.update_sample(local_sample_index, sample)
-                updated_chunks.add(chunk)
+                updated_chunks = [chunk]
                 self.commit_diff.update_data(global_sample_index)
 
                 # only care about deltas if it isn't the last chunk
