@@ -214,15 +214,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         return output
 
     def _num_samples_in_last_chunk(self):
-        if len(self._encoded) == 0:
-            return 0
-        elif len(self._encoded) == 1:
-            return self._encoded[-1][LAST_SEEN_INDEX_COLUMN] + 1
-        else:
-            return (
-                self._encoded[-1][LAST_SEEN_INDEX_COLUMN]
-                - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
-            )
+        return self._num_samples_in_last_row()
 
     def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
