@@ -33,7 +33,7 @@ def coalesce_tiles(
         low, high = tile_bounds(np.asarray(tile_coords), tile_shape)
         sample_view = view(sample, low, high)
 
-        sample_view[:] = tile
+        sample_view[: len(tile)] = tile
 
     return sample
 

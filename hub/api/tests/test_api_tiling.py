@@ -30,6 +30,7 @@ def test_mixed_small_large(local_ds_generator, compression):
     idxs = [
         (slice(73, 117), slice(9, 17)),
         4,
+        -1,
         slice(
             10,
         ),
