@@ -101,8 +101,9 @@ def test_cachable_overflow(memory_ds):
     with ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
-        ds.x.extend(np.ones((5, 4000, 5000)))
-        ds.y.extend(np.ones((5, 4000, 3000)))
-    assert len(ds) == 5
-    assert len(ds.x) == 5
-    assert len(ds.y) == 5
+        ds.x.extend(np.ones((3, 4000, 3000)))
+        ds.y.extend(np.ones((3, 4000, 3000)))
+    assert len(ds) == 3
+    assert len(ds.x) == 3
+    assert len(ds.y) == 3
+
