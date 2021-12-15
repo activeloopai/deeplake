@@ -77,6 +77,9 @@ class BaseChunk(Cachable):
         self._decompressed_samples: Optional[List[np.ndarray]] = None
         self._decompressed_bytes: Optional[bytes] = None
 
+        # Whether tensor meta is updated by chunk. Used by chunk engine.
+        self._update_meta: bool = True
+
     @property
     def num_data_bytes(self) -> int:
         return len(self.data_bytes)
@@ -127,7 +130,7 @@ class BaseChunk(Cachable):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples) -> float:
+    def extend_if_has_space(self, incoming_samples, update_meta: bool = True) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
@@ -242,8 +245,9 @@ class BaseChunk(Cachable):
     def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
-        self.tensor_meta.length += 1
-        self.tensor_meta.update_shape_interval(shape)
+        if self._update_meta:
+            self.tensor_meta.length += 1
+            self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -286,7 +290,7 @@ class BaseChunk(Cachable):
         data, tile_shape = sample.yield_tile()
         sample_nbytes = None if skip_bytes else len(data)
         self.data_bytes = data
-        update_meta = sample.is_first_write
+        update_meta = self._update_meta and sample.is_first_write
         self.register_sample_to_headers(sample_nbytes, tile_shape)
         if update_meta:
             self.tensor_meta.length += 1

@@ -79,7 +79,6 @@ class ChunkIdEncoder(Encoder, Cachable):
                     dtype=ENCODING_DTYPE,
                 )
                 self._encoded = np.concatenate([self._encoded, new_entry])
-
         return id
 
     def register_samples(self, num_samples: int):  # type: ignore
@@ -126,7 +125,9 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
 
-        assert len(ls) == 1  # this method should only be called for non tiled samples
+        assert len(ls) == 1, len(
+            ls
+        )  # this method should only be called for non tiled samples
         chunk_index = ls[0][1]
 
         if chunk_index == 0:
@@ -200,6 +201,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             output.append((value, row_index))
         else:
             output.append(value)
+
         row_index += 1
 
         while row_index < len(self._encoded):
@@ -207,11 +209,11 @@ class ChunkIdEncoder(Encoder, Cachable):
                 value = self._derive_value(
                     self._encoded[row_index], row_index, local_sample_index
                 )
-                row_index += 1
                 if return_row_index:
                     output.append((value, row_index))
                 else:
                     output.append(value)
+                row_index += 1
             else:
                 break
         return output
@@ -222,13 +224,14 @@ class ChunkIdEncoder(Encoder, Cachable):
         current_chunk_ids_and_rows = self.__getitem__(  # type: ignore
             global_sample_index, return_row_index=True
         )
-        if len(current_chunk_ids_and_rows) == chunk_ids:
+        start_row = current_chunk_ids_and_rows[0][1]
+        end_row = current_chunk_ids_and_rows[-1][1]
+        if len(current_chunk_ids_and_rows) == len(chunk_ids):
             # inplace update
-            for i, chunk_id in enumerate(chunk_ids):
-                self._encoded[current_chunk_ids_and_rows[i][1]] = chunk_id
+            self._encoded[start_row : end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
         else:
-            top = self._encoded[: current_chunk_ids_and_rows[0][1]]
-            bottom = self._encoded[current_chunk_ids_and_rows[-1][1] + 1 :]
+            top = self._encoded[:start_row]
+            bottom = self._encoded[end_row + 1 :]
             mid = np.empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index

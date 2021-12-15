@@ -416,13 +416,14 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    current_chunk = self._create_new_chunk()
+                    current_chunk = self._create_new_chunk(register)
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
-                enc.register_samples(num)
+                if register:
+                    enc.register_samples(num)
                 samples = samples[num:]
         if register:
             return updated_chunks
@@ -490,6 +491,7 @@ class ChunkEngine:
         self.cache[chunk_key] = chunk
         chunk.key = chunk_key
         chunk.id = chunk_id
+        chunk._update_meta = register
         return chunk
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
@@ -536,7 +538,7 @@ class ChunkEngine:
             new_sample, tile_enc.get_tile_shape(global_sample_index)
         )
         chunk_ids = required_tile_ids
-        for chunk_id, tile in zip(chunk_ids, new_tiles.reshape(-1)):
+        for chunk_id, tile in zip(chunk_ids.reshape(-1), new_tiles.reshape(-1)):
             chunk = self.get_chunk_from_chunk_id(int(chunk_id), copy=True)
             chunk.update_sample(0, tile)
             self.add_chunk_to_dirty_keys(chunk)
@@ -667,7 +669,7 @@ class ChunkEngine:
 
         for global_sample_index in index.values[0].indices(length):
             chunk_ids = enc[global_sample_index]
-            if len(chunk_ids) == 1:
+            if global_sample_index not in self.tile_encoder:
                 chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                 enc = self.chunk_id_encoder
                 local_sample_index = enc.translate_index_relative_to_chunks(

@@ -108,11 +108,11 @@ def test_updates(memory_ds, compression):
                 memory_ds.abc.append(arr1)
             else:
                 memory_ds.abc.append(arr2)
-
+            len(memory_ds)
     with memory_ds:
         for i in range(10):
             if i % 5 == 0:
-                memory_ds.abc[i] *= 2
+                memory_ds.abc[i] = arr1 * 2
                 memory_ds.abc[i][update_idx] = arr6
             else:
                 memory_ds.abc[i] = arr3 if i % 2 == 0 else arr4
