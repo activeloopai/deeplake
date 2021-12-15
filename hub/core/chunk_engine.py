@@ -447,7 +447,6 @@ class ChunkEngine:
         self.cache.autoflush = initial_autoflush
 
         self.cache.maybe_flush()
-        self._write_finalization()
 
     def add_cachables_to_cache_dirty_keys(self):
         """Adds all the cachables to the cache as dirty keys."""
@@ -509,7 +508,7 @@ class ChunkEngine:
     def _update_tiled_sample(self, global_sample_index: int, index: Index, sample):
         if len(index.values) == 1:
             self._replace_tiled_sample(global_sample_index, sample)
-            return []
+            return
         enc = self.chunk_id_encoder
         tile_enc = self.tile_encoder
         chunk_ids = enc[global_sample_index]
@@ -566,7 +565,7 @@ class ChunkEngine:
             if global_sample_index in self.tile_encoder:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
-                chunk = chunks[0]
+                chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
                 self.add_chunk_to_dirty_keys(chunk)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
