@@ -403,8 +403,10 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         commit_id = self.version_state["commit_id"]
-        try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         commit(self.version_state, self.storage, message)
+        self._info = None
 
         # do not store commit message
         hub_reporter.feature_report(
@@ -412,6 +414,7 @@ class Dataset:
             parameters={},
         )
 
+        self.storage.autoflush = initial_autoflush
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -425,8 +428,10 @@ class Dataset:
         Returns:
             str: The commit_id of the dataset after checkout.
         """
-        try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         checkout(self.version_state, self.storage, address, create)
+        self._info = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -434,6 +439,7 @@ class Dataset:
             parameters={"Create": str(create)},
         )
 
+        self.storage.autoflush = initial_autoflush
         return self.version_state["commit_id"]
 
     def log(self):
@@ -592,8 +598,8 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 

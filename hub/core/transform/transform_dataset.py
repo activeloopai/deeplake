@@ -14,7 +14,7 @@ class TransformDataset:
 
     def __getattr__(self, name):
         if name not in self.tensors:
-            self.tensors[name] = TransformTensor()
+            self.tensors[name] = TransformTensor(name=name, dataset=self)
         return self.tensors[name][self.slice_list]
 
     def __getitem__(self, slice_):
