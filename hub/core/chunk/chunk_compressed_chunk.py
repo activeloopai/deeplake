@@ -164,7 +164,6 @@ class ChunkCompressedChunk(BaseChunk):
         )
         self.check_shape_for_update(local_index, shape)
 
-        new_nb = len(serialized_sample)
         decompressed_buffer = self.decompressed_bytes
 
         new_data_uncompressed = self.create_updated_data(
@@ -172,6 +171,9 @@ class ChunkCompressedChunk(BaseChunk):
         )
         self.decompressed_bytes = new_data_uncompressed
         self._changed = True
+        new_nb = (
+            None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
+        )
         self.update_in_meta_and_headers(local_index, new_nb, shape)
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):
