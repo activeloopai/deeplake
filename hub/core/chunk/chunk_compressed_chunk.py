@@ -12,6 +12,7 @@ from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
+import hub
 
 
 class ChunkCompressedChunk(BaseChunk):
@@ -158,7 +159,8 @@ class ChunkCompressedChunk(BaseChunk):
     def process_sample_img_compr(self, sample):
         if isinstance(sample, SampleTiles):
             return sample, sample.tile_shape
-
+        if isinstance(sample, hub.core.tensor.Tensor):
+            sample = sample.numpy()
         sample = intelligent_cast(sample, self.dtype, self.htype)
         shape = sample.shape
         shape = self.normalize_shape(shape)

@@ -117,7 +117,8 @@ class Tensor:
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
 
-    def extend(self, samples: Union[np.ndarray, Sequence[InputSample]]):
+    def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
+
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
@@ -213,9 +214,18 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         shape = self.shape_interval.astuple()
-        if self.index.values[0].subscriptable():
-            return shape
-        return shape[1:]
+        if None in shape:
+            if not self.index.values[0].subscriptable():
+                shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
+        elif not self.index.values[0].subscriptable():
+            shape = shape[1:]
+        shape = list(shape)  # type: ignore
+        squeeze_dims = set()
+        for i, idx in enumerate(self.index.values[1:]):
+            shape[i] = len(list(idx.indices(shape[i])))  # type: ignore
+            if not idx.subscriptable():
+                squeeze_dims.add(i)
+        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     @property
     def ndim(self) -> int:
@@ -224,7 +234,7 @@ class Tensor:
     @property
     def dtype(self) -> Optional[np.dtype]:
         if self.htype in ("json", "list"):
-            return self.dtype
+            return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None
@@ -462,8 +472,7 @@ class Tensor:
         Raises:
             ValueError: If the tensor has multiple samples.
         """
-
-        if self.index.values[0].subscriptable():
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
 
