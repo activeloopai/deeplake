@@ -585,7 +585,6 @@ class ChunkEngine:
                     sample = curr_data
                 chunk.update_sample(local_sample_index, sample)
                 updated_chunks = [chunk]
-                self.commit_diff.update_data(global_sample_index)
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
@@ -594,7 +593,7 @@ class ChunkEngine:
             # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
             for chunk in updated_chunks:
                 self.cache[chunk.key] = chunk  # type: ignore
-
+        self.commit_diff.update_data(global_sample_index)
         self._write_finalization()
         chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
         check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
