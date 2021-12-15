@@ -675,3 +675,6 @@ class Encoder(ABC):
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
+
+    def is_empty(self) -> bool:
+        return len(self._encoded) == 0

@@ -12,8 +12,8 @@ from hub.core.tiling.sample_tiles import SampleTiles
 compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"])
 
 common_args = {
-    "min_chunk_size": 16 * MB,
-    "max_chunk_size": 32 * MB,
+    "min_chunk_size": 1 * MB,
+    "max_chunk_size": 2 * MB,
 }
 
 

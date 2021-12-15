@@ -56,7 +56,7 @@ class ChunkCompressedChunk(BaseChunk):
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
-                    self.write_tile(serialized_sample)
+                    self.write_tile(serialized_sample, skip_bytes=True)
                     num_samples += 0.5  # type: ignore
                     tile = serialized_sample.yield_uncompressed_tile()
                     self.decompressed_bytes = tile.tobytes()
@@ -68,7 +68,6 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
-                print("OK")
                 new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
@@ -141,13 +140,16 @@ class ChunkCompressedChunk(BaseChunk):
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
-        sb, eb = self.byte_positions_encoder[local_index]
         shape = self.shapes_encoder[local_index]
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        buffer = decompressed[sb:eb]
+        if (
+            not self.byte_positions_encoder.is_empty()
+        ):  # Will be empty for tiled samples
+            sb, eb = self.byte_positions_encoder[local_index]
+            decompressed = decompressed[sb:eb]
         if self.is_text_like:
-            return bytes_to_text(buffer, self.htype)
-        return np.frombuffer(decompressed[sb:eb], dtype=self.dtype).reshape(shape)
+            return bytes_to_text(decompressed, self.htype)
+        return np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
 
     def update_sample(self, local_index: int, new_sample: InputSample):
         self.prepare_for_write()
