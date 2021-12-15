@@ -77,9 +77,11 @@ def translate_slices(
     sample_index: List[Union[int, slice, List[int]]] = []
     for i, s in enumerate(slices):
         if isinstance(s, int):
-            ts = (s + sample_shape[i] if s < 0 else s) // tile_shape[i]
+            if s < 0:
+                s += sample_shape[i]
+            ts = s // tile_shape[i]
             tiles_index.append(slice(ts, ts + 1))
-            sample_index.append(0)
+            sample_index.append(s % tile_shape[i])
         elif isinstance(s, list):
             s = [x + sample_shape[i] if x < 0 else x for x in s]
             mn, mx = min(s), max(s)
