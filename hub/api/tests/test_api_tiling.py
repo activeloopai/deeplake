@@ -24,10 +24,20 @@ def test_simple(memory_ds):
 def test_mixed_small_large(local_ds_generator, compression):
     ds = local_ds_generator()
     arr1 = np.random.randint(0, 255, (3003, 2001, 3)).astype(np.uint8)
-    arr2 = np.random.randint(0, 255, (500, 500, 3)).astype(np.uint8)
+    arr2 = np.random.randint(0, 255, (5001, 5007, 3)).astype(np.uint8)
     arr3 = np.random.randint(0, 255, (2503, 2501, 3)).astype(np.uint8)
+
+    idxs = [
+        (slice(73, 117), slice(1765, 1901)),
+        4,
+        slice(
+            10,
+        ),
+        slice(20, 37),
+    ]
+
     with ds:
-        ds.create_tensor("abc", max_chunk_size=2 ** 21, **compression)
+        ds.create_tensor("abc", max_chunk_size=2 ** 10, **compression)
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)
@@ -37,15 +47,24 @@ def test_mixed_small_large(local_ds_generator, compression):
     for i in range(10):
         if i % 5 == 0:
             np.testing.assert_array_equal(ds.abc[i].numpy(), arr1)
+            for idx in idxs:
+                np.testing.assert_array_equal(ds.abc[i][idx].numpy(), arr1[idx])
         else:
             np.testing.assert_array_equal(ds.abc[i].numpy(), arr2)
+            for idx in idxs:
+                np.testing.assert_array_equal(ds.abc[i][idx].numpy(), arr2[idx])
 
     ds = local_ds_generator()
+
     for i in range(10):
         if i % 5 == 0:
             np.testing.assert_array_equal(ds.abc[i].numpy(), arr1)
+            for idx in idxs:
+                np.testing.assert_array_equal(ds.abc[i][idx].numpy(), arr1[idx])
         else:
             np.testing.assert_array_equal(ds.abc[i].numpy(), arr2)
+            for idx in idxs:
+                np.testing.assert_array_equal(ds.abc[i][idx].numpy(), arr2[idx])
 
     with ds:
         ds.abc.extend([arr3] * 3)
@@ -104,6 +123,11 @@ def test_updates(memory_ds, compression):
             np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr3)
         else:
             np.testing.assert_array_equal(memory_ds.abc[i].numpy(), arr4)
+
+    # update tiled sample with small sample
+    arr7 = np.random.randint(0, 255, (3, 2, 3)).astype(np.uint8)
+    memory_ds.abc[0] = arr7
+    np.testing.assert_array_equal(memory_ds.abc[0].numpy(), arr7)
 
 
 def test_cachable_overflow(memory_ds):
