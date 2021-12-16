@@ -10,6 +10,7 @@ from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -27,6 +28,7 @@ TransformOut = Tuple[
     Dict[str, ChunkIdEncoder],
     Dict[str, TileEncoder],
     Dict[str, Optional[CommitChunkSet]],
+    Dict[str, CommitDiff],
 ]
 
 
@@ -96,7 +98,7 @@ def is_empty_transform_dataset(dataset: TransformDataset):
     return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
-def store_data_slice(transform_input: Tuple):
+def store_data_slice(transform_input: Tuple) -> TransformOut:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
@@ -117,11 +119,12 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback
     )
 
-    # retrieve the tensor metas and chunk_id_encoder from the memory
+    # retrieve relevant objects from memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_chunk_sets = {}
+    all_commit_diffs = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
@@ -129,7 +132,14 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
-    return all_tensor_metas, all_chunk_id_encoders, all_tile_encoders, all_chunk_sets
+        all_commit_diffs[tensor] = chunk_engine.commit_diff
+    return (
+        all_tensor_metas,
+        all_chunk_id_encoders,
+        all_tile_encoders,
+        all_chunk_sets,
+        all_commit_diffs,
+    )
 
 
 def _transform_sample_and_update_chunk_engines(

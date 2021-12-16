@@ -481,9 +481,27 @@ def test_diff_linear(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_a = {
-        "xyz": {"data_added": set(), "data_updated": {0}, "created": False},
-        "pqr": {"data_added": set(), "data_updated": {2}, "created": False},
-        "abc": {"data_added": {0, 1, 2}, "data_updated": set(), "created": True},
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {0},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [3, 3],
+            "data_updated": {2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "abc": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
@@ -583,11 +601,29 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_branch_off = {
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {2}, "created": False},
-        "pqr": {"data_added": {0, 1, 2}, "data_updated": set(), "created": True},
+        "xyz": {
+            "data_added": [3, 6],
+            "data_updated": {2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     changes_main_from_branch_off = {
-        "xyz": {"data_added": {3, 4}, "data_updated": {0, 2}, "created": False},
+        "xyz": {
+            "data_added": [3, 5],
+            "data_updated": {0, 2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = (
@@ -777,12 +813,36 @@ def test_complex_diff(local_ds, capsys):
 
     # x is LCA of a and g
     changes_c_from_x = {
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {0}, "created": False},
+        "xyz": {
+            "data_added": [3, 6],
+            "data_updated": {0},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     changes_g_from_x = {
-        "pqr": {"data_added": {0}, "data_updated": set(), "created": True},
-        "tuv": {"data_added": {0, 1, 2}, "data_updated": set(), "created": True},
-        "xyz": {"data_added": set(), "data_updated": {1}, "created": False},
+        "pqr": {
+            "data_added": [0, 1],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "tuv": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {1},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     empty_changes = {}
 
@@ -827,8 +887,20 @@ def test_complex_diff(local_ds, capsys):
     assert diff[1] == empty_changes
 
     changes_main_from_x = {
-        "xyz": {"data_added": set(), "data_updated": {1}, "created": False},
-        "pqr": {"data_added": set(), "data_updated": set(), "created": True},
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {1},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [0, 0],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
 
     local_ds.diff(c, "main")
