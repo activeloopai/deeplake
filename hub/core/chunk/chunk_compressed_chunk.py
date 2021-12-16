@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Union, Sequence
+from typing import List
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -39,9 +39,7 @@ class ChunkCompressedChunk(BaseChunk):
             return self.extend_if_has_space_byte_compression(incoming_samples)
         return self.extend_if_has_space_image_compression(incoming_samples)
 
-    def extend_if_has_space_byte_compression(
-        self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
-    ):
+    def extend_if_has_space_byte_compression(self, incoming_samples: List[InputSample]):
         num_samples = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
@@ -56,7 +54,7 @@ class ChunkCompressedChunk(BaseChunk):
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
-                    self.write_tile(serialized_sample, skip_bytes=True)
+                    self.write_tile(serialized_sample)
                     num_samples += 0.5  # type: ignore
                     tile = serialized_sample.yield_uncompressed_tile()
                     self.decompressed_bytes = tile.tobytes()
@@ -87,23 +85,19 @@ class ChunkCompressedChunk(BaseChunk):
         return num_samples
 
     def extend_if_has_space_image_compression(
-        self, incoming_samples: Union[Sequence[InputSample], np.ndarray]
+        self, incoming_samples: List[InputSample]
     ):
         num_samples = 0
         num_decompressed_bytes = sum(
             x.nbytes for x in self.decompressed_samples  # type: ignore
         )
         for i, incoming_sample in enumerate(incoming_samples):
-            if isinstance(incoming_sample, bytes):
-                raise ValueError(
-                    "Chunkwise image compression is not applicable on bytes."
-                )
             incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
 
             if isinstance(incoming_sample, SampleTiles):
                 incoming_samples[i] = incoming_sample  # type: ignore
                 if self.is_empty:
-                    self.write_tile(incoming_sample, skip_bytes=True)
+                    self.write_tile(incoming_sample)
                     num_samples += 0.5  # type: ignore
                     tile = incoming_sample.yield_uncompressed_tile()
                     self.decompressed_samples = [tile]
@@ -140,9 +134,7 @@ class ChunkCompressedChunk(BaseChunk):
 
         shape = self.shapes_encoder[local_index]
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        if (
-            not self.byte_positions_encoder.is_empty()
-        ):  # Will be empty for tiled samples
+        if not self.is_tile:
             sb, eb = self.byte_positions_encoder[local_index]
             decompressed = decompressed[sb:eb]
         if self.is_text_like:

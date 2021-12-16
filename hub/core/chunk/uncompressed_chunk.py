@@ -68,8 +68,10 @@ class UncompressedChunk(BaseChunk):
         return num_samples
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
-        sb, eb = self.byte_positions_encoder[local_index]
-        buffer = self.memoryview_data[sb:eb]
+        buffer = self.memoryview_data
+        if not self.is_tile:
+            sb, eb = self.byte_positions_encoder[local_index]
+            buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
         if self.is_text_like:
             buffer = bytes(buffer)

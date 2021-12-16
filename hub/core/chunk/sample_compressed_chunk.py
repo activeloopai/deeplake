@@ -24,7 +24,7 @@ class SampleCompressedChunk(BaseChunk):
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample
                 if self.is_empty:
-                    self.write_tile(serialized_sample, skip_bytes=True)
+                    self.write_tile(serialized_sample)
                     num_samples += 0.5
                 break
 
@@ -46,7 +46,7 @@ class SampleCompressedChunk(BaseChunk):
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
         buffer = self.memoryview_data
-        if not self.byte_positions_encoder.is_empty():
+        if not self.is_tile:
             sb, eb = self.byte_positions_encoder[local_index]
             buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
