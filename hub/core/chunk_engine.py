@@ -672,7 +672,7 @@ class ChunkEngine:
 
         for global_sample_index in index.values[0].indices(length):
             chunk_ids = enc[global_sample_index]
-            if self._is_tiled_sample(global_sample_index):
+            if not self._is_tiled_sample(global_sample_index):
                 chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                 enc = self.chunk_id_encoder
                 local_sample_index = enc.translate_index_relative_to_chunks(
