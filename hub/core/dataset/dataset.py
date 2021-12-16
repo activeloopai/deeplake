@@ -526,6 +526,35 @@ class Dataset:
         print(all_changes)
         return None
 
+    def merge(self, id: str) -> str:
+        """Merges the changes from id into the current commit.
+
+        Args:
+            id (str): The commit_id or branch name to merge from.
+
+        Returns:
+            str: The commit_id of the dataset after the merge.
+
+        Raises:
+            ValueError: If the id is the current commit.
+
+        """
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
+
+        change1, change2 = self.diff(id)
+        merge(self.version_state, self.storage, id)
+        self._info = None
+
+        # do not store id
+        hub_reporter.feature_report(
+            feature_name="merge",
+            parameters={"id": id},
+        )
+
+        self.storage.autoflush = initial_autoflush
+        return self.version_state["commit_id"]
+
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
 
