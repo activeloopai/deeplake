@@ -388,14 +388,14 @@ class Dataset:
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
 
-        # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
-        storage.disable_readonly()
         if (
             isinstance(storage, (S3Provider, GCSProvider))
             and self.is_first_load
             and (not self.read_only or self._locked_out)
         ):
             try:
+                # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
+                storage.disable_readonly()
                 lock_version(
                     storage,
                     version=self.version_state["commit_id"],
