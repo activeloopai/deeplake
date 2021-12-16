@@ -3,6 +3,7 @@ import time
 import hashlib
 import pickle
 from typing import Any, Dict
+import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
@@ -296,3 +297,16 @@ def load_meta(storage, version_state):
 
     for tensor_name in meta.tensors:
         _tensors[tensor_name] = Tensor(tensor_name, storage, version_state)
+
+
+def warn_node_checkout(commit_node: CommitNode, create: bool):
+    """Throws a warning if there are no commits in a branch after checkout.
+    This warning isn't thrown if the branch was newly created.
+    """
+    if not create and commit_node.is_head_node:
+        branch = commit_node.branch
+        parent = commit_node.parent
+        if parent is None or parent.branch != branch:
+            warnings.warn(
+                f"The branch ({branch}) that you have checked out to, has no commits."
+            )

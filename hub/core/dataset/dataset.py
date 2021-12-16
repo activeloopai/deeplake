@@ -54,6 +54,7 @@ from hub.util.version_control import (
     commit,
     commit_has_data,
     load_meta,
+    warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
 
@@ -434,6 +435,8 @@ class Dataset:
         hub_reporter.feature_report(
             feature_name="checkout", parameters={"Create": str(create)}
         )
+        commit_node = self.version_state["commit_node"]
+        warn_node_checkout(commit_node, create)
 
         self.storage.autoflush = initial_autoflush
         return self.commit_id
