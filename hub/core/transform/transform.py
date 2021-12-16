@@ -173,17 +173,15 @@ class Pipeline:
             slices, repeat((storage, group_index, tensors, self, version_state))
         )
         if progressbar:
+            desc = get_pbar_description(self.functions)
             metas_and_encoders = compute.map_with_progressbar(
                 store_data_slice_with_pbar,
                 map_inp,
                 total_length=len(data_in),
-                desc=get_pbar_description(self.functions),
+                desc=desc,
             )
         else:
-            metas_and_encoders = compute.map(
-                store_data_slice,
-                map_inp,
-            )
+            metas_and_encoders = compute.map(store_data_slice, map_inp)
 
         if overwrite:
             chunk_paths = get_chunk_paths(target_ds, tensors)
