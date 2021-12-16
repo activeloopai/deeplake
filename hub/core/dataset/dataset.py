@@ -387,6 +387,9 @@ class Dataset:
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
+
+        # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
+        storage.disable_readonly()
         if (
             isinstance(storage, (S3Provider, GCSProvider))
             and self.is_first_load
