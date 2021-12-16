@@ -69,7 +69,7 @@ class UncompressedChunk(BaseChunk):
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
         buffer = self.memoryview_data
-        if not self.is_tile:
+        if not self.byte_postions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
             buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
@@ -83,7 +83,9 @@ class UncompressedChunk(BaseChunk):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(sample, break_into_tiles=False)
         self.check_shape_for_update(local_index, shape)
-        new_nb = None if self.is_tile else len(serialized_sample)
+        new_nb = (
+            None if self.byte_postions_encoder.is_empty() else len(serialized_sample)
+        )
 
         old_data = self.data_bytes
         self.data_bytes = self.create_updated_data(

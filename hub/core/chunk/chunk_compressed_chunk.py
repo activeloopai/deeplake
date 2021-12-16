@@ -135,7 +135,7 @@ class ChunkCompressedChunk(BaseChunk):
 
         shape = self.shapes_encoder[local_index]
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        if not self.is_tile:
+        if not self.byte_postions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
             decompressed = decompressed[sb:eb]
         if self.is_text_like:
@@ -162,7 +162,9 @@ class ChunkCompressedChunk(BaseChunk):
         )
         self.decompressed_bytes = new_data_uncompressed
         self._changed = True
-        new_nb = None if self.is_tile else len(serialized_sample)
+        new_nb = (
+            None if self.byte_postions_encoder.is_empty() else len(serialized_sample)
+        )
         self.update_in_meta_and_headers(local_index, new_nb, shape)
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):

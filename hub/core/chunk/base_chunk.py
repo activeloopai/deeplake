@@ -76,8 +76,6 @@ class BaseChunk(Cachable):
         self.decompressed_samples: Optional[List[np.ndarray]] = None
         self.decompressed_bytes: Optional[bytes] = None
 
-        self.is_tile = False
-
     @property
     def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
         return self._data_bytes
@@ -294,7 +292,6 @@ class BaseChunk(Cachable):
     def write_tile(self, sample: SampleTiles):
         data, tile_shape = sample.yield_tile()
         self.data_bytes = data
-        self.is_tile = True
         update_meta = sample.is_first_write
         self.register_sample_to_headers(None, tile_shape)
         if update_meta:
