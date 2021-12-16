@@ -11,6 +11,7 @@ class TransformTensor:
         self.base_tensor = base_tensor or self
         self.slice_list = slice_list or []
         self.length = None
+        self._ndim = None
 
     def numpy(self) -> None:
         """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using hub.read are converted to numpy arrays in this."""
@@ -61,13 +62,14 @@ class TransformTensor:
 
     def append(self, item):
         """Adds an item to the tensor."""
-        if not isinstance(item, Sample):
-            item = np.asarray(item)
-            if self.items:
-                expected_dims = self.items[-1].ndim
-                dims = item.ndim
-                if expected_dims != dims:
-                    raise TensorInvalidSampleShapeError(item.shape, expected_dims)
+        shape = getattr(item, "shape", None)
+        if shape is None:
+            shape = np.asarray(item).shape
+        if self._ndim is None:
+            self._ndim = len(shape)
+        else:
+            if len(shape) != self._ndim:
+                raise TensorInvalidSampleShapeError(shape, self._ndim)
 
         self.items.append(item)
 
