@@ -238,6 +238,9 @@ class ChunkEngine:
         except KeyError:
             return False
 
+    def _is_tiled_sample(self, global_sample_index):
+        return self.tile_encoder_exists and global_sample_index in self.tile_encoder
+
     @property
     def tile_encoder(self) -> TileEncoder:
         """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
@@ -564,7 +567,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
-            if global_sample_index in self.tile_encoder:
+            if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
@@ -669,7 +672,7 @@ class ChunkEngine:
 
         for global_sample_index in index.values[0].indices(length):
             chunk_ids = enc[global_sample_index]
-            if global_sample_index not in self.tile_encoder:
+            if self._is_tiled_sample(global_sample_index):
                 chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                 enc = self.chunk_id_encoder
                 local_sample_index = enc.translate_index_relative_to_chunks(
