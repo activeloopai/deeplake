@@ -133,7 +133,8 @@ def test_auto_checkout_bug(local_ds):
     local_ds.abc[0] = 2
     b = local_ds.commit("it is 2")
     c = local_ds.checkout(a)
-    d = local_ds.checkout("other", True)
+    local_ds.checkout("other", True)
+    d = local_ds.pending_commit_id
     local_ds.abc[0] = 3
     e = local_ds.commit("it is 3")
     local_ds.checkout(b)
@@ -345,30 +346,33 @@ def test_auto_checkout(local_ds):
 
 
 def test_auto_commit(local_ds):
-    initial_commit_id = local_ds.commit_id
+    initial_commit_id = local_ds.pending_commit_id
     # auto commit as head of main branch
     local_ds.checkout("pqr", create=True)
     local_ds.checkout("main")
-    second_commit_id = local_ds.commit_id
+    second_commit_id = local_ds.pending_commit_id
     assert second_commit_id != initial_commit_id
+    assert local_ds.commit_id == initial_commit_id
     local_ds.create_tensor("abc")
     local_ds.abc.append(1)
     # auto commit as head of main again
     local_ds.checkout("xyz", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != second_commit_id
+    assert local_ds.pending_commit_id != second_commit_id
+    assert local_ds.commit_id == second_commit_id
 
     with local_ds:
         local_ds.abc.append(1)
 
-    third_commit_id = local_ds.commit_id
+    third_commit_id = local_ds.pending_commit_id
 
     # auto commit as head of main again
     local_ds.checkout("tuv", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != third_commit_id
+    assert local_ds.pending_commit_id != third_commit_id
+    assert local_ds.commit_id == third_commit_id
 
 
 def test_dataset_info(local_ds):
@@ -503,7 +507,7 @@ def test_diff_linear(local_ds, capsys):
             "data_transformed_in_place": False,
         },
     }
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
+    message1 = "Diff in HEAD:\n"
     target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
@@ -512,7 +516,6 @@ def test_diff_linear(local_ds, capsys):
 
     b = local_ds.commit()
     local_ds.diff()
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     changes_empty = {}
     target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
     captured = capsys.readouterr()
@@ -521,7 +524,6 @@ def test_diff_linear(local_ds, capsys):
     assert diff == changes_empty
 
     local_ds.diff(a)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
@@ -535,7 +537,6 @@ def test_diff_linear(local_ds, capsys):
     assert diff[1] == changes_empty
 
     local_ds.diff(b)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(changes_empty, message1, changes_empty, message2) + "\n"
@@ -574,6 +575,27 @@ def test_diff_linear(local_ds, capsys):
     assert isinstance(diff, tuple)
     assert diff[0] == changes_b_from_a
     assert diff[1] == changes_empty
+
+    local_ds.checkout(b)
+    local_ds.diff()
+    message1 = f"Diff in {b} (current commit):\n"
+    target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_b_from_a
+
+    local_ds.diff(a)
+    message1 = f"Diff in {b} (current commit):\n"
+    message2 = f"Diff in {a} (target id):\n"
+    target = (
+        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        + "\n"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert isinstance(diff, tuple)
 
 
 def test_diff_branch(local_ds, capsys):
@@ -625,7 +647,7 @@ def test_diff_branch(local_ds, capsys):
             "data_transformed_in_place": False,
         },
     }
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
+    message1 = "Diff in HEAD:\n"
     target = (
         get_all_changes_string(changes_main_from_branch_off, message1, None, None)
         + "\n"
@@ -639,7 +661,6 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     empty_changes = {}
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     target = get_all_changes_string(empty_changes, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
@@ -647,7 +668,6 @@ def test_diff_branch(local_ds, capsys):
     assert diff == empty_changes
 
     local_ds.diff(a)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
@@ -663,7 +683,6 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(b)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(
@@ -679,7 +698,6 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {c} (target id):\n"
     target = (
         get_all_changes_string(empty_changes, message1, empty_changes, message2) + "\n"
@@ -793,11 +811,12 @@ def test_complex_diff(local_ds, capsys):
     with local_ds:
         local_ds.xyz.extend([4, 5, 6])
     local_ds.commit()
-    c = local_ds.commit_id
+    c = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[4] = 7
         local_ds.xyz[0] = 0
-    d = local_ds.checkout("main")
+    local_ds.checkout("main")
+    d = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[1] = 10
         local_ds.create_tensor("pqr")
@@ -808,7 +827,7 @@ def test_complex_diff(local_ds, capsys):
         local_ds.tuv.extend([1, 2, 3])
         local_ds.pqr.append(5)
     local_ds.commit()
-    g = local_ds.commit_id
+    g = local_ds.pending_commit_id
     e = local_ds.checkout("main")
 
     # x is LCA of a and g

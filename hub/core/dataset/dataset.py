@@ -55,6 +55,7 @@ from hub.util.version_control import (
     commit,
     commit_has_data,
     load_meta,
+    warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
 
@@ -409,7 +410,7 @@ class Dataset:
     def _unlock(self):
         unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
 
-    def commit(self, message: Optional[str] = None) -> None:
+    def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
@@ -420,7 +421,6 @@ class Dataset:
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
-        commit_id = self.version_state["commit_id"]
         try_flushing(self)
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
@@ -430,15 +430,12 @@ class Dataset:
         self._info = None
 
         # do not store commit message
-        hub_reporter.feature_report(
-            feature_name="commit",
-            parameters={},
-        )
+        hub_reporter.feature_report(feature_name="commit", parameters={})
 
         self.storage.autoflush = initial_autoflush
-        return commit_id
+        return self.commit_id  # type: ignore
 
-    def checkout(self, address: str, create: bool = False) -> str:
+    def checkout(self, address: str, create: bool = False) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
         Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
 
@@ -447,7 +444,8 @@ class Dataset:
             create (bool): If True, creates a new branch with name as address.
 
         Returns:
-            str: The commit_id of the dataset after checkout.
+            str, optional: The commit_id of the branch/commit that was checked out.
+                If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
         try_flushing(self)
         initial_autoflush = self.storage.autoflush
@@ -459,12 +457,13 @@ class Dataset:
 
         # do not store address
         hub_reporter.feature_report(
-            feature_name="checkout",
-            parameters={"Create": str(create)},
+            feature_name="checkout", parameters={"Create": str(create)}
         )
+        commit_node = self.version_state["commit_node"]
+        warn_node_checkout(commit_node, create)
 
         self.storage.autoflush = initial_autoflush
-        return self.version_state["commit_id"]
+        return self.commit_id
 
     def log(self):
         """Displays the details of all the past commits."""
@@ -478,7 +477,7 @@ class Dataset:
         else:
             print()
         while commit_node:
-            if commit_node.commit_time is not None:
+            if not commit_node.is_head_node:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
@@ -493,15 +492,15 @@ class Dataset:
             id_2 (str, optional): The second commit_id or branch name.
             as_dict (bool, optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
 
-        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be calculated.
-        If only id_1 is provided, the differences between the current commit and id_1 will be calculated.
+        If both id_1 and id_2 are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
+        If only id_1 is provided, the differences between the current state and id_1 will be calculated. If you're at the head of the branch, this will take into account the uncommitted changes, if any.
         If only id_2 is provided, a ValueError will be raised.
         If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be calculated.
 
         Returns:
             Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
-                If id_1 and id_2 are None, a single dictionary containing the differences between the current commit and the previous commit will be returned.
-                If only id_1 is provided, two dictionaries containing the differences in the current commit and id_1 respectively will be returned.
+                If id_1 and id_2 are None, a single dictionary containing the differences between the current state and the previous commit will be returned.
+                If only id_1 is provided, two dictionaries containing the differences in the current state and id_1 respectively will be returned.
                 If only id_2 is provided, a ValueError will be raised.
                 If both id_1 and id_2 are provided, two dictionaries containing the differences in id_1 and id_2 respectively will be returned.
             None: If as_dict is False.
@@ -531,20 +530,27 @@ class Dataset:
             ValueError: If both id_1 is None and id_2 is not None.
         """
         version_state, storage = self.version_state, self.storage
+        commit_node = version_state["commit_node"]
         if id_1 is None and id_2 is None:
             changes1: Dict[str, Dict] = defaultdict(dict)
-            commit_id = version_state["commit_id"]
+            commit_id = commit_node.commit_id
+            if commit_node.is_head_node:
+                message1 = "Diff in HEAD:\n"
+            else:
+                message1 = f"Diff in {commit_id} (current commit):\n"
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
-            message1 = f"Diff in {commit_id} (current commit):\n"
-            message2 = changes2 = None
+            changes2 = message2 = None
         else:
             if id_1 is None:
                 raise ValueError("Can't specify id_1 without specifying id_2")
             elif id_2 is None:
-                commit1: str = version_state["commit_id"]
+                commit1: str = commit_node.commit_id
                 commit2 = id_1
-                message1 = f"Diff in {commit1} (current commit):\n"
+                if commit_node.is_head_node:
+                    message1 = "Diff in HEAD:\n"
+                else:
+                    message1 = f"Diff in {commit1} (current commit):\n"
                 message2 = f"Diff in {commit2} (target id):\n"
             else:
                 commit1 = id_1
@@ -916,7 +922,7 @@ class Dataset:
         commits = []
         commit_node = self.version_state["commit_node"]
         while commit_node:
-            if commit_node.commit_time is not None:
+            if not commit_node.is_head_node:
                 commit_info = {
                     "commit": commit_node.commit_id,
                     "author": commit_node.commit_user_name,
@@ -960,8 +966,24 @@ class Dataset:
         return {g: self[g] for g in self._groups_filtered}
 
     @property
-    def commit_id(self) -> str:
-        """The current commit_id of the dataset."""
+    def commit_id(self) -> Optional[str]:
+        """The lasted committed commit_id of the dataset. If there are no commits, this returns None."""
+        commit_node = self.version_state["commit_node"]
+        if not commit_node.is_head_node:
+            return commit_node.commit_id
+
+        parent = commit_node.parent
+
+        if parent is None:
+            return None
+        else:
+            return parent.commit_id
+
+    @property
+    def pending_commit_id(self) -> str:
+        """The commit_id of the next commit that will be made to the dataset.
+        If you're not at the head of the current branch, this will be the same as the commit_id.
+        """
         return self.version_state["commit_id"]
 
     @property

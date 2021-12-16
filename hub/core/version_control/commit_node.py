@@ -47,4 +47,9 @@ class CommitNode:
         if "pseudo_parents" not in state:
             self.pseudo_parents = []
 
+    @property
+    def is_head_node(self) -> bool:
+        """Returns True if the node is the head node of the branch."""
+        return self.commit_time is None
+
     __str__ = __repr__

@@ -700,7 +700,7 @@ def test_inplace_transform_non_head(local_ds_generator):
 
         # transforming non-head node
         inplace_transform().eval(ds, num_workers=4)
-        b = ds.commit_id
+        br = ds.branch
 
         assert len(ds) == 200
         for i in range(200):
@@ -727,7 +727,7 @@ def test_inplace_transform_non_head(local_ds_generator):
     for i in range(100):
         check_target_array(ds, i, 1)
 
-    ds.checkout(b)
+    ds.checkout(br)
     assert len(ds) == 200
     for i in range(200):
         target = 2 if i % 2 == 0 else 3
