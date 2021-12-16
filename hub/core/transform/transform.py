@@ -130,7 +130,7 @@ class Pipeline:
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
 
-        # if it is None, then we've already data_in which is target_ds now
+        # if it is None, then we've already flushed data_in which is target_ds now
         if ds_out is not None:
             target_ds.flush()
 
