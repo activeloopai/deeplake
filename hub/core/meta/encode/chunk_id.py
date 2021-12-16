@@ -137,7 +137,7 @@ class ChunkIdEncoder(Encoder, Cachable):
                 f"Cannot register negative num samples. Got: {num_samples}"
             )
 
-        if self.num_samples == 0:
+        if len(self.array) == 0:
             raise ChunkIdEncoderError(
                 "Cannot register samples because no chunk IDs exist."
             )
