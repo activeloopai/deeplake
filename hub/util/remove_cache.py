@@ -26,10 +26,7 @@ def get_base_storage(storage: StorageProvider):
 
 def get_dataset_with_zero_size_cache(ds):
     """Returns a dataset with same storage but cache size set to zero."""
-    initial_autoflush = ds.storage.autoflush
-    ds.storage.autoflush = False
     try_flushing(ds)
-    ds.storage.autoflush = initial_autoflush
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     return hub.core.dataset.dataset_factory(
