@@ -6,6 +6,11 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import CheckoutError, ReadOnlyModeError
 
 
+def commit_details_helper(commits, ds):
+    for commit in commits:
+        assert ds.get_commit_details(commit["commit"]) == commit
+
+
 def test_commit(local_ds):
     with local_ds:
         local_ds.create_tensor("abc")
@@ -128,7 +133,8 @@ def test_auto_checkout_bug(local_ds):
     local_ds.abc[0] = 2
     b = local_ds.commit("it is 2")
     c = local_ds.checkout(a)
-    d = local_ds.checkout("other", True)
+    local_ds.checkout("other", True)
+    d = local_ds.pending_commit_id
     local_ds.abc[0] = 3
     e = local_ds.commit("it is 3")
     local_ds.checkout(b)
@@ -340,30 +346,128 @@ def test_auto_checkout(local_ds):
 
 
 def test_auto_commit(local_ds):
-    initial_commit_id = local_ds.commit_id
+    initial_commit_id = local_ds.pending_commit_id
     # auto commit as head of main branch
     local_ds.checkout("pqr", create=True)
     local_ds.checkout("main")
-    second_commit_id = local_ds.commit_id
+    second_commit_id = local_ds.pending_commit_id
     assert second_commit_id != initial_commit_id
+    assert local_ds.commit_id == initial_commit_id
     local_ds.create_tensor("abc")
     local_ds.abc.append(1)
     # auto commit as head of main again
     local_ds.checkout("xyz", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != second_commit_id
+    assert local_ds.pending_commit_id != second_commit_id
+    assert local_ds.commit_id == second_commit_id
 
     with local_ds:
         local_ds.abc.append(1)
 
-    third_commit_id = local_ds.commit_id
+    third_commit_id = local_ds.pending_commit_id
 
     # auto commit as head of main again
     local_ds.checkout("tuv", create=True)
     local_ds.checkout("main")
 
-    assert local_ds.commit_id != third_commit_id
+    assert local_ds.pending_commit_id != third_commit_id
+    assert local_ds.commit_id == third_commit_id
+
+
+def test_dataset_info(local_ds):
+    assert len(local_ds.info) == 0
+    local_ds.info.key = "value"
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    a = local_ds.commit("added key, value")
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    local_ds.info.key2 = "value2"
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    b = local_ds.commit("added key2, value2")
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    local_ds.checkout(a)
+    assert local_ds.info.key == "value"
+
+    local_ds.checkout("alt", create=True)
+    local_ds.info.key = "notvalue"
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+    c = local_ds.commit("changed key to notvalue")
+
+    local_ds.checkout(a)
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "value"
+
+    local_ds.checkout(b)
+    assert len(local_ds.info) == 2
+    assert local_ds.info.key == "value"
+    assert local_ds.info.key2 == "value2"
+
+    local_ds.checkout("alt")
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+
+    local_ds.checkout(c)
+    assert len(local_ds.info) == 1
+    assert local_ds.info.key == "notvalue"
+
+
+def test_tensor_info(local_ds):
+    local_ds.create_tensor("abc")
+    assert len(local_ds.abc.info) == 0
+    local_ds.abc.info.key = "value"
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    a = local_ds.commit("added key, value")
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.abc.info.key2 = "value2"
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    b = local_ds.commit("added key2, value2")
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    local_ds.checkout(a)
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.checkout("alt", create=True)
+    local_ds.abc.info.key = "notvalue"
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
+    c = local_ds.commit("changed key to notvalue")
+
+    local_ds.checkout(a)
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "value"
+
+    local_ds.checkout(b)
+    assert len(local_ds.abc.info) == 2
+    assert local_ds.abc.info.key == "value"
+    assert local_ds.abc.info.key2 == "value2"
+
+    local_ds.checkout("alt")
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
+
+    local_ds.checkout(c)
+    assert len(local_ds.abc.info) == 1
+    assert local_ds.abc.info.key == "notvalue"
 
 
 def test_delete(local_ds):
@@ -417,31 +521,45 @@ def test_diff_linear(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_a = {
-        "tensors_created": ["abc"],
-        "xyz": {"data_added": {}, "data_updated": {0}},
-        "pqr": {"data_added": {}, "data_updated": {2}},
-        "abc": {"data_added": {0, 1, 2}, "data_updated": {}},
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {0},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [3, 3],
+            "data_updated": {2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "abc": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
+    message1 = "Diff in HEAD:\n"
     target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_b_from_a
 
     b = local_ds.commit()
     local_ds.diff()
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
-    changes_empty = {
-        "tensors_created": [],
-        "xyz": {"data_added": {}, "data_updated": {}},
-        "pqr": {"data_added": {}, "data_updated": {}},
-        "abc": {"data_added": {}, "data_updated": {}},
-    }
+    changes_empty = {}
     target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_empty
 
     local_ds.diff(a)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
@@ -449,15 +567,22 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_b_from_a
+    assert diff[1] == changes_empty
 
     local_ds.diff(b)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(changes_empty, message1, changes_empty, message2) + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(b, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_empty
+    assert diff[1] == changes_empty
 
     local_ds.diff(a, b)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -468,6 +593,10 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(a, b, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_empty
+    assert diff[1] == changes_b_from_a
 
     local_ds.diff(b, a)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -478,6 +607,31 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(b, a, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_b_from_a
+    assert diff[1] == changes_empty
+
+    local_ds.checkout(b)
+    local_ds.diff()
+    message1 = f"Diff in {b} (current commit):\n"
+    target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_b_from_a
+
+    local_ds.diff(a)
+    message1 = f"Diff in {b} (current commit):\n"
+    message2 = f"Diff in {a} (target id):\n"
+    target = (
+        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        + "\n"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert isinstance(diff, tuple)
 
 
 def test_diff_branch(local_ds, capsys):
@@ -505,38 +659,51 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     changes_b_from_branch_off = {
-        "tensors_created": ["pqr"],
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {2}},
-        "pqr": {"data_added": {0, 1, 2}, "data_updated": {}},
+        "xyz": {
+            "data_added": [3, 6],
+            "data_updated": {2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     changes_main_from_branch_off = {
-        "tensors_created": [],
-        "xyz": {"data_added": {3, 4}, "data_updated": {0, 2}},
-        "pqr": {"data_added": {}, "data_updated": {}},
+        "xyz": {
+            "data_added": [3, 5],
+            "data_updated": {0, 2},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
+    message1 = "Diff in HEAD:\n"
     target = (
         get_all_changes_string(changes_main_from_branch_off, message1, None, None)
         + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == changes_main_from_branch_off
 
     c = local_ds.commit()
 
     local_ds.diff()
-    empty_changes = {
-        "tensors_created": [],
-        "xyz": {"data_added": {}, "data_updated": {}},
-        "pqr": {"data_added": {}, "data_updated": {}},
-    }
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
+    empty_changes = {}
     target = get_all_changes_string(empty_changes, message1, None, None) + "\n"
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == empty_changes
 
     local_ds.diff(a)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
@@ -546,9 +713,12 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(b)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(
@@ -558,15 +728,22 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(b, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c)
-    message1 = f"Diff in {local_ds.commit_id} (current commit):\n"
     message2 = f"Diff in {c} (target id):\n"
     target = (
         get_all_changes_string(empty_changes, message1, empty_changes, message2) + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(c, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     local_ds.diff(a, b)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -579,6 +756,10 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(a, b, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == empty_changes
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(b, a)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -591,6 +772,10 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(b, a, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_b_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(b, c)
     message1 = f"Diff in {b} (target id 1):\n"
@@ -615,6 +800,10 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(c, b, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c, a)
     message1 = f"Diff in {c} (target id 1):\n"
@@ -627,6 +816,10 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(c, a, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_main_from_branch_off
+    assert diff[1] == empty_changes
 
     local_ds.diff(a, c)
     message1 = f"Diff in {a} (target id 1):\n"
@@ -639,6 +832,10 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(a, c, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == empty_changes
+    assert diff[1] == changes_main_from_branch_off
 
 
 def test_complex_diff(local_ds, capsys):
@@ -650,11 +847,12 @@ def test_complex_diff(local_ds, capsys):
     with local_ds:
         local_ds.xyz.extend([4, 5, 6])
     local_ds.commit()
-    c = local_ds.commit_id
+    c = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[4] = 7
         local_ds.xyz[0] = 0
-    d = local_ds.checkout("main")
+    local_ds.checkout("main")
+    d = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[1] = 10
         local_ds.create_tensor("pqr")
@@ -665,23 +863,43 @@ def test_complex_diff(local_ds, capsys):
         local_ds.tuv.extend([1, 2, 3])
         local_ds.pqr.append(5)
     local_ds.commit()
-    g = local_ds.commit_id
+    g = local_ds.pending_commit_id
     e = local_ds.checkout("main")
 
     # x is LCA of a and g
     changes_c_from_x = {
-        "tensors_created": [],
-        "xyz": {"data_added": {3, 4, 5}, "data_updated": {0}},
+        "xyz": {
+            "data_added": [3, 6],
+            "data_updated": {0},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
     changes_g_from_x = {
-        "tensors_created": ["tuv", "pqr"],
-        "pqr": {"data_added": {0}, "data_updated": {}},
-        "tuv": {"data_added": {0, 1, 2}, "data_updated": {}},
-        "xyz": {"data_added": {}, "data_updated": {1}},
+        "pqr": {
+            "data_added": [0, 1],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "tuv": {
+            "data_added": [0, 3],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {1},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
-    empty_changes = {
-        "tensors_created": [],
-    }
+    empty_changes = {}
 
     local_ds.diff(c, g)
     message1 = f"Diff in {c} (target id 1):\n"
@@ -692,6 +910,10 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(c, g, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_c_from_x
+    assert diff[1] == changes_g_from_x
 
     local_ds.diff(e, d)
     message1 = f"Diff in {e} (target id 1):\n"
@@ -701,6 +923,10 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(e, d, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     local_ds.diff(e, e)
     message1 = f"Diff in {e} (target id 1):\n"
@@ -710,11 +936,26 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(e, e, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == empty_changes
+    assert diff[1] == empty_changes
 
     changes_main_from_x = {
-        "tensors_created": ["pqr"],
-        "xyz": {"data_added": {}, "data_updated": {1}},
-        "pqr": {"data_added": {}, "data_updated": {}},
+        "xyz": {
+            "data_added": [3, 3],
+            "data_updated": {1},
+            "created": False,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "pqr": {
+            "data_added": [0, 0],
+            "data_updated": set(),
+            "created": True,
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
     }
 
     local_ds.diff(c, "main")
@@ -728,6 +969,10 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff(c, "main", as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_c_from_x
+    assert diff[1] == changes_main_from_x
 
     local_ds.diff("main", c)
     message1 = "Diff in main (target id 1):\n"
@@ -740,8 +985,53 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
+    diff = local_ds.diff("main", c, as_dict=True)
+    assert isinstance(diff, tuple)
+    assert diff[0] == changes_main_from_x
+    assert diff[1] == changes_c_from_x
 
 
 def test_diff_not_exists(local_ds):
     with pytest.raises(KeyError):
         local_ds.diff("12345", "5678")
+
+
+def test_branches(local_ds_generator):
+    local_ds = local_ds_generator()
+    assert local_ds.branches == ["main"]
+    local_ds.checkout("alt", create=True)
+    assert local_ds.branches == ["main", "alt"]
+    local_ds.checkout("main")
+    assert local_ds.branches == ["main", "alt"]
+
+    local_ds = local_ds_generator()
+    assert local_ds.branches == ["main", "alt"]
+    local_ds.checkout("alt")
+    assert local_ds.branches == ["main", "alt"]
+    local_ds.checkout("other", create=True)
+    assert local_ds.branches == ["main", "alt", "other"]
+
+
+def test_commits(local_ds):
+    commits = local_ds.commits
+    assert len(commits) == 0
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 1
+    commit_details_helper(commits, local_ds)
+    local_ds.checkout("alt", create=True)
+    commits = local_ds.commits
+    assert len(commits) == 2
+    commit_details_helper(commits, local_ds)
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 3
+    commit_details_helper(commits, local_ds)
+    local_ds.checkout("main")
+    commits = local_ds.commits
+    assert len(commits) == 2
+    commit_details_helper(commits, local_ds)
+    local_ds.commit()
+    commits = local_ds.commits
+    assert len(commits) == 3
+    commit_details_helper(commits, local_ds)

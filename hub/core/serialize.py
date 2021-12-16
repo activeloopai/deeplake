@@ -357,3 +357,40 @@ def serialize_sample_object(
         else:
             out = out.tobytes()
     return out, shape
+
+
+def serialize_tensor(
+    incoming_sample: "hub.core.tensor.Tensor",
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_tiles: bool = False,
+):
+    def _return_numpy():
+        return serialize_numpy_and_base_types(
+            incoming_sample.numpy(),
+            sample_compression,
+            chunk_compression,
+            dtype,
+            htype,
+            min_chunk_size,
+            break_into_tiles,
+            store_tiles,
+        )
+
+    if incoming_sample.meta.chunk_compression or chunk_compression:
+        return _return_numpy()
+    elif incoming_sample.meta.sample_compression == sample_compression:
+        # Pass through
+        try:
+            return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
+        except (
+            ValueError,
+            NotImplementedError,
+        ) as e:  # Slice of sample or tiled sample
+            return _return_numpy()
+    else:
+        return _return_numpy()
