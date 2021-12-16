@@ -66,6 +66,7 @@ from hub.util.version_control import (
     warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
+from collections import defaultdict
 
 
 class Dataset:
