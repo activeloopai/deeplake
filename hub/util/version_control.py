@@ -3,6 +3,7 @@ import time
 import hashlib
 import pickle
 from typing import Any, Dict
+import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
@@ -286,7 +287,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/info updates."""
-    if version_state["commit_node"].commit_time is not None:
+    if not version_state["commit_node"].is_head_node:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
         logger.info(
@@ -298,7 +299,7 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
 def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
     commit_node = version_state["commit_node"]
-    if not commit_node.commit_time:
+    if commit_node.is_head_node:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
         logger.info(
@@ -353,3 +354,16 @@ def load_meta(storage, version_state):
 
     for tensor_name in meta.tensors:
         _tensors[tensor_name] = Tensor(tensor_name, storage, version_state)
+
+
+def warn_node_checkout(commit_node: CommitNode, create: bool):
+    """Throws a warning if there are no commits in a branch after checkout.
+    This warning isn't thrown if the branch was newly created.
+    """
+    if not create and commit_node.is_head_node:
+        branch = commit_node.branch
+        parent = commit_node.parent
+        if parent is None or parent.branch != branch:
+            warnings.warn(
+                f"The branch ({branch}) that you have checked out to, has no commits."
+            )

@@ -265,7 +265,7 @@ class Pipeline:
         merge_all_chunk_id_encoders(
             all_chunk_id_encoders, target_ds, storage, overwrite
         )
-        if target_ds.commit_id != FIRST_COMMIT_ID:
+        if target_ds.commit_id is not None:
             merge_all_commit_chunk_sets(
                 all_chunk_commit_sets, target_ds, storage, overwrite
             )
