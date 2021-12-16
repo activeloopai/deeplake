@@ -73,7 +73,5 @@ class SampleCompressedChunk(BaseChunk):
         )
 
         # update encoders and meta
-        new_nb = (
-            None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
-        )
+        new_nb = None if self.is_tile else len(serialized_sample)
         self.update_in_meta_and_headers(local_index, new_nb, shape)

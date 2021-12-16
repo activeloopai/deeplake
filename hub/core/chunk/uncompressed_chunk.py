@@ -83,7 +83,7 @@ class UncompressedChunk(BaseChunk):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(sample, break_into_tiles=False)
         self.check_shape_for_update(local_index, shape)
-        new_nb = len(serialized_sample)
+        new_nb = None if self.is_tile else len(serialized_sample)
 
         old_data = self.data_bytes
         self.data_bytes = self.create_updated_data(
