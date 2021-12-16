@@ -20,6 +20,13 @@ class CommitNode:
         node.parent = self
         self.children.append(node)
 
+    def copy(self):
+        node = CommitNode(self.branch, self.commit_id)
+        node.commit_message = self.commit_message
+        node.commit_user_name = self.commit_user_name
+        node.commit_time = self.commit_time
+        return node
+
     def add_successor(self, node: "CommitNode", message: Optional[str] = None):
         """Adds a successor (a type of child) to the node, used for commits."""
         node.parent = self

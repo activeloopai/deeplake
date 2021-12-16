@@ -11,9 +11,11 @@ from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock, unlock
+from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider
+
+from hub.core.storage.gcs import GCSProvider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
@@ -99,18 +101,8 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
+        self._locked_out = False  # User requested write access but was denied
         base_storage = get_base_storage(storage)
-        if (
-            not read_only and index is None and isinstance(base_storage, S3Provider)
-        ):  # Dataset locking only for S3 datasets
-            try:
-                lock(base_storage, callback=lambda: self._lock_lost_handler)
-            except LockedException:
-                self.read_only = True
-                warnings.warn(
-                    "Opening dataset in read only mode as another machine has locked it for writing."
-                )
-
         self.index: Index = index or Index()
         self.group_index = group_index
         self._token = token
@@ -120,6 +112,7 @@ class Dataset:
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -184,6 +177,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def __getitem__(
         self,
@@ -390,6 +384,31 @@ class Dataset:
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
+    def _lock(self, err=False):
+        storage = get_base_storage(self.storage)
+        if (
+            isinstance(storage, (S3Provider, GCSProvider))
+            and self.is_first_load
+            and (not self.read_only or self._locked_out)
+        ):
+            try:
+                lock_version(
+                    storage,
+                    version=self.version_state["commit_id"],
+                    callback=self._lock_lost_handler,
+                )
+            except LockedException as e:
+                self.read_only = True
+                self._locked_out = True
+                if err:
+                    raise e
+                warnings.warn(
+                    "Checking out dataset in read only mode as another machine has locked this version for writing."
+                )
+
+    def _unlock(self):
+        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+
     def commit(self, message: Optional[str] = None) -> None:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
@@ -403,7 +422,12 @@ class Dataset:
         """
         commit_id = self.version_state["commit_id"]
         try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
+        self._unlock()
         commit(self.version_state, self.storage, message)
+        self._lock()
+        self._info = None
 
         # do not store commit message
         hub_reporter.feature_report(
@@ -411,6 +435,7 @@ class Dataset:
             parameters={},
         )
 
+        self.storage.autoflush = initial_autoflush
         return commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -425,7 +450,12 @@ class Dataset:
             str: The commit_id of the dataset after checkout.
         """
         try_flushing(self)
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
+        self._unlock()
         checkout(self.version_state, self.storage, address, create)
+        self._lock()
+        self._info = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -433,6 +463,7 @@ class Dataset:
             parameters={"Create": str(create)},
         )
 
+        self.storage.autoflush = initial_autoflush
         return self.version_state["commit_id"]
 
     def log(self):
@@ -567,6 +598,8 @@ class Dataset:
         if value:
             self.storage.enable_readonly()
         else:
+            self._lock(err=True)
+            self._locked_out = False
             self.storage.disable_readonly()
         self._read_only = value
 
@@ -603,8 +636,8 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
@@ -691,7 +724,10 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
+        if self._read_only:
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
         self.index.validate(self.num_samples)
 
     @property
@@ -756,7 +792,7 @@ class Dataset:
                 )
                 return
 
-        unlock(self.storage)
+        self._unlock()
         self.storage.clear()
 
     def __str__(self):

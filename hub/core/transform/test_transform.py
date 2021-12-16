@@ -60,6 +60,21 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
 
 
 @hub.compute
+def fn4(sample_in, samples_out):
+    samples_out.image.append(sample_in.image)
+    samples_out.image.append(sample_in.image.numpy() * 2)
+    samples_out.label.append(sample_in.label)
+    samples_out.label.append(sample_in.label.numpy() * 2)
+
+
+@hub.compute
+def fn5(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.x["y"].z.image.append(sample_in.z.y.x.image.numpy() * mul)
+        samples_out.x.y.z["label"].append(sample_in.z.y.x.label.numpy() * mul)
+
+
+@hub.compute
 def read_image(sample_in, samples_out):
     samples_out.image.append(hub.read(sample_in))
 
@@ -167,6 +182,38 @@ def test_groups(ds):
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
+
+
+@enabled_datasets
+def test_groups_2(ds):
+    with CliRunner().isolated_filesystem():
+        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+            data_in.create_tensor("data/z/y/x/image")
+            data_in.create_tensor("data/z/y/x/label")
+            for i in range(1, 100):
+                data_in.data.z.y.x.image.append(i * np.ones((i, i)))
+                data_in.data.z.y.x.label.append(i * np.ones((1,)))
+        data_in = hub.dataset("./test/transform_hub_in_generic")
+        ds_out = ds
+        ds_out.create_tensor("stuff/x/y/z/image")
+        ds_out.create_tensor("stuff/x/y/z/label")
+
+        data_in = data_in.data
+        ds_out = ds_out.stuff
+
+        fn5(copy=1, mul=2).eval(data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out.x.y.z.image[index - 1].numpy(),
+                2 * index * np.ones((index, index)),
+            )
+            np.testing.assert_array_equal(
+                ds_out.x.y.z.label[index - 1].numpy(), 2 * index * np.ones((1,))
+            )
+
+        assert ds_out.x.y.z.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.x.y.z.image.shape_interval.upper == (99, 99, 99)
 
 
 @enabled_non_gcs_datasets
@@ -512,6 +559,32 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     test_ds_out()
 
     data_in.delete()
+
+
+def test_transform_pass_through():
+    data_in = hub.dataset("mem://ds1")
+    data_in.create_tensor("image", htype="image", sample_compression="png")
+    data_in.create_tensor("label", htype="class_label")
+    for i in range(1, 100):
+        data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+        data_in.label.append(i * np.ones((1,), dtype="uint32"))
+    ds_out = hub.dataset("mem://ds2")
+    ds_out.create_tensor("image", htype="image", sample_compression="png")
+    ds_out.create_tensor("label", htype="class_label")
+    fn4().eval(data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False)
+    for i in range(len(data_in)):
+        np.testing.assert_array_equal(
+            data_in[i].image.numpy(), ds_out[i * 2].image.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].label.numpy(), ds_out[i * 2].label.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].image.numpy() * 2, ds_out[i * 2 + 1].image.numpy()
+        )
+        np.testing.assert_array_equal(
+            data_in[i].label.numpy() * 2, ds_out[i * 2 + 1].label.numpy()
+        )
 
 
 def test_inplace_transform(local_ds_generator):
