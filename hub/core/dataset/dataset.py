@@ -103,7 +103,6 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
-        # self._read_only_set = False
         self._locked_out = False  # User requested write access but was denied
         base_storage = get_base_storage(storage)
         self.index: Index = index or Index()
@@ -161,7 +160,6 @@ class Dataset:
         return {
             "path": self.path,
             "_read_only": self.read_only,
-            # "_read_only_set": self._read_only_set,
             "index": self.index,
             "group_index": self.group_index,
             "public": self.public,
@@ -622,7 +620,6 @@ class Dataset:
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.disable_readonly()
         self._read_only = value
-        # self._read_only_set = True  # To allow _set_derived_attributes to set read_only once after initializing dataset view.
 
     @hub_reporter.record_call
     def pytorch(
