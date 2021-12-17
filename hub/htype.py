@@ -27,6 +27,10 @@ Supported htypes and their respective defaults are:
 | binary_mask    |  bool     |  none         |
 | segment_mask   |  uint32   |  none         |
 | keypoints_coco |  int32    |  none         |
+| audio          |  float64  |  none         |
+| text           |  str      |  none         |
+| json           |  Any      |  none         |
+| list           |  List     |  none         |
 
 """
 

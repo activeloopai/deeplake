@@ -14,7 +14,7 @@ from hub.compression import (
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
-
+from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
@@ -178,7 +178,9 @@ def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
     return ret
 
 
-def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+def compress_bytes(
+    buffer: Union[bytes, memoryview], compression: Optional[str]
+) -> bytes:
     if compression == "lz4":
         return numcodecs.lz4.compress(buffer)
     else:
@@ -187,7 +189,9 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
         )
 
 
-def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+def decompress_bytes(
+    buffer: Union[bytes, memoryview], compression: Optional[str]
+) -> bytes:
     if not buffer:
         return b""
     if compression == "lz4":
@@ -200,7 +204,7 @@ def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> byte
         raise SampleDecompressionError()
 
 
-def compress_array(array: np.ndarray, compression: str) -> bytes:
+def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
     """Compress some numpy array using `compression`. All meta information will be contained in the returned buffer.
 
     Note:
@@ -208,7 +212,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
     Args:
         array (np.ndarray): Array to be compressed.
-        compression (str): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
+        compression (str, optional): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
 
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
@@ -257,7 +261,6 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         out.seek(0)
         compressed_bytes = out.read()
         out._close()  # type: ignore
-        decompress_array(compressed_bytes, array.shape)
         return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
@@ -324,18 +327,22 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     channels_shape = shapes[0][2:]
     for shape in shapes:
         if shape[2:] != channels_shape:
-            raise ValueError()
+            raise ValueError(
+                "The data can't be compressed as the number of channels doesn't match."
+            )
     return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape  # type: ignore
 
 
-def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
+def compress_multiple(
+    arrays: Sequence[np.ndarray], compression: Optional[str]
+) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     dtype = arrays[0].dtype
     for arr in arrays:
         if arr.dtype != dtype:
             raise SampleCompressionError(
-                [arr.shape for shape in arr],  # type: ignore
+                arr.shape,
                 compression,
                 message="All arrays expected to have same dtype.",
             )
@@ -365,6 +372,8 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
+    if not buffer:
+        return []
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
@@ -566,7 +575,7 @@ def read_meta_from_compressed_file(
     file, compression: Optional[str] = None
 ) -> Tuple[str, Tuple[int], str]:
     """Reads shape, dtype and format without decompressing or verifying the sample."""
-    if isinstance(file, str):
+    if isinstance(file, (str, Path)):
         f = open(file, "rb")
         isfile = True
         close = True
