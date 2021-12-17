@@ -300,7 +300,6 @@ class BaseChunk(Cachable):
     def write_tile(self, sample: SampleTiles):
         data, tile_shape = sample.yield_tile()
         self.data_bytes = data
-        update_meta = self._update_tensor_meta_length and sample.is_first_write
         self.register_sample_to_headers(None, tile_shape)
         if sample.is_first_write:
             self.tensor_meta.update_shape_interval(sample.sample_shape)
