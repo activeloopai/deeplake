@@ -9,9 +9,6 @@ def no_view(callable: Callable):
     def inner(x, *args, **kwargs):
         func = callable.__name__
         if not x.index.is_trivial():
-            if func == "read_only":
-                if not x._read_only_set:
-                    return callable(x, *args, **kwargs)
             raise InvalidOperationError(
                 func,
                 "Dataset" if isinstance(x, hub.Dataset) else "Tensor",

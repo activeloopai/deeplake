@@ -4,14 +4,14 @@ from typing import Tuple, Union, List, Optional
 
 def get_tile_shape(
     sample_shape: Tuple[int, ...],
-    sample_size: int,
+    sample_size: float,
     chunk_size: int = 16 * 2 ** 20,
     exclude_axes: Optional[Union[int, List[int]]] = None,
 ) -> Tuple[int, ...]:
     """
     Get tile shape for a given sample shape that will fit in chunk_size
 
-    Arguments:
+    Args:
         sample_shape: Shape of the sample
         sample_size: Size of the compressed sample in bytes
         chunk_size: Expected size of a compressed tile in bytes

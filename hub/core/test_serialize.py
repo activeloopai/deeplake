@@ -4,8 +4,8 @@ import hub
 from hub.core.compression import decompress_array
 from hub.core.serialize import serialize_numpy_and_base_types, serialize_sample_object
 from hub.constants import KB, MB
-from hub.core.tiling.deserialize import np_list_to_sample  # type: ignore
-from hub.core.tiling.sample_tiles import SampleTiles  # type: ignore
+from hub.core.tiling.deserialize import np_list_to_sample
+from hub.core.tiling.sample_tiles import SampleTiles
 
 
 def test_numpy_and_base_types():

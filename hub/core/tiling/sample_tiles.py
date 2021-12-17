@@ -1,9 +1,10 @@
+from typing import Optional
 import numpy as np
 
 from hub.core.compression import compress_array
-from hub.core.tiling.optimizer import get_tile_shape  # type: ignore
-from hub.core.tiling.serialize import break_into_tiles, serialize_tiles  # type: ignore
-from hub.util.compression import get_compression_ratio  # type: ignore
+from hub.core.tiling.optimizer import get_tile_shape
+from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
+from hub.util.compression import get_compression_ratio
 
 
 class SampleTiles:
@@ -12,7 +13,7 @@ class SampleTiles:
     def __init__(
         self,
         arr: np.ndarray,
-        compression: str,
+        compression: Optional[str],
         chunk_size: int,
         store_uncompressed_tiles: bool = False,
     ):
@@ -22,10 +23,12 @@ class SampleTiles:
         ratio = get_compression_ratio(compression)
         self.tile_shape = get_tile_shape(arr.shape, arr.nbytes * ratio, chunk_size, -1)
         tiles = break_into_tiles(arr, self.tile_shape)
+
         self.tiles = serialize_tiles(
             tiles, lambda x: memoryview(compress_array(x, self.compression))
         )
-        tile_shapes = serialize_tiles(tiles, lambda x: x.shape)
+        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
+
         self.shapes_enumerator = np.ndenumerate(tile_shapes)
         self.layout_shape = self.tiles.shape
         self.registered = False
