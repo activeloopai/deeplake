@@ -999,3 +999,21 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
+
+
+def test_clear(local_ds):
+    local_ds.create_tensor("abc")
+    local_ds.abc.append([1, 2, 3])
+    a = local_ds.commit("first")
+    local_ds.abc.clear()
+    b = local_ds.commit("second")
+
+    assert len(local_ds.abc.numpy()) == 0
+
+    local_ds.checkout(a)
+
+    assert (local_ds.abc.numpy()[0] == np.array([1, 2, 3])).all()
+
+    local_ds.checkout(b)
+
+    assert len(local_ds.abc.numpy()) == 0

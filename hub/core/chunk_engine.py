@@ -458,7 +458,10 @@ class ChunkEngine:
         del self.meta_cache[enc_key]
 
         for key in chunk_keys:
-            del self.cache[key]
+            try:
+                del self.cache[key]
+            except KeyError:
+                pass
 
         self.tensor_meta.length = 0
         self.tensor_meta.min_shape = []
