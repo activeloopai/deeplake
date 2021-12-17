@@ -414,13 +414,13 @@ class ChunkEngine:
                 if sample.is_last_write:
                     if register:
                         self.tile_encoder.register_sample(sample, self.num_samples - 1)
+                        commit_diff.add_data(1)
                     else:
                         tiles[nsamples - len(samples)] = (
                             sample.sample_shape,
                             sample.tile_shape,
                         )
                     samples = samples[1:]
-                    commit_diff.add_data(1)
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(register)
                     updated_chunks.append(current_chunk)
@@ -511,7 +511,6 @@ class ChunkEngine:
             self.tile_encoder.entries[global_sample_index] = tiles[0]
         else:
             del self.tile_encoder.entries[global_sample_index]
-        self.tensor_meta.update_shape_interval(shape)
 
     def _update_tiled_sample(self, global_sample_index: int, index: Index, sample):
         if len(index.values) == 1:
@@ -580,12 +579,11 @@ class ChunkEngine:
                 )
                 # tensor_meta.update_shape_interval(shape)
                 chunk.update_sample(local_sample_index, sample)
-                self.commit_diff.update_data(global_sample_index)
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
-
+            self.commit_diff.update_data(global_sample_index)
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
