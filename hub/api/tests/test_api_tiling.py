@@ -18,6 +18,8 @@ def test_simple(memory_ds):
         memory_ds.create_tensor("abc")
         memory_ds.abc.extend(np.ones((3, 1003, 2001, 5)))
     np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
+    memory_ds.commit()
+    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
 
 
 @compressions_paremetrized
