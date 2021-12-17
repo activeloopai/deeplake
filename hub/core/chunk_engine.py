@@ -496,7 +496,7 @@ class ChunkEngine:
         self.cache[chunk_key] = chunk
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
-        chunk._update_meta = register
+        chunk._update_tensor_meta_length = register
         return chunk
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
@@ -511,6 +511,7 @@ class ChunkEngine:
             self.tile_encoder.entries[global_sample_index] = tiles[0]
         else:
             del self.tile_encoder.entries[global_sample_index]
+        self.tensor_meta.update_shape_interval(shape)
 
     def _update_tiled_sample(self, global_sample_index: int, index: Index, sample):
         if len(index.values) == 1:

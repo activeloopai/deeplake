@@ -76,8 +76,10 @@ class BaseChunk(Cachable):
         self.decompressed_samples: Optional[List[np.ndarray]] = None
         self.decompressed_bytes: Optional[bytes] = None
 
-        # Whether tensor meta is updated by chunk. Used by chunk engine.
-        self._update_meta: bool = True
+        # Whether tensor meta length is updated by chunk. Used by chunk engine while replacing chunks.
+        self._update_tensor_meta_length: bool = (
+            True  # Note: tensor meta shape interval is updated regardless.
+        )
 
     @property
     def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
@@ -252,9 +254,9 @@ class BaseChunk(Cachable):
     def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
-        if self._update_meta:
+        if self._update_tensor_meta_length:
             self.tensor_meta.length += 1
-            self.tensor_meta.update_shape_interval(shape)
+        self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -296,8 +298,9 @@ class BaseChunk(Cachable):
     def write_tile(self, sample: SampleTiles):
         data, tile_shape = sample.yield_tile()
         self.data_bytes = data
-        update_meta = self._update_meta and sample.is_first_write
+        update_meta = self._update_tensor_meta_length and sample.is_first_write
         self.register_sample_to_headers(None, tile_shape)
-        if update_meta:
-            self.tensor_meta.length += 1
+        if sample.is_first_write:
             self.tensor_meta.update_shape_interval(sample.sample_shape)
+            if self._update_tensor_meta_length:
+                self.tensor_meta.length += 1

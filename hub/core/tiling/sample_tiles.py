@@ -17,14 +17,21 @@ class SampleTiles:
         compression: Optional[str],
         chunk_size: int,
         store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
     ):
         self.arr = arr
         self.compression = compression
         self.sample_shape = arr.shape
         ratio = get_compression_ratio(compression)
+
+        # Exclude channels axis from tiling for image, video and audio
         exclude_axis = (
-            None if not compression or compression in BYTE_COMPRESSIONS else -1
+            None
+            if htype == "generic"
+            and (not compression or compression in BYTE_COMPRESSIONS)
+            else -1
         )
+
         self.tile_shape = get_tile_shape(
             arr.shape, arr.nbytes * ratio, chunk_size, exclude_axis
         )
