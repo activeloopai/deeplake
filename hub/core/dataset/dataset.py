@@ -8,7 +8,7 @@ import hub
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
-from hub.constants import FIRST_COMMIT_ID
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version
@@ -21,6 +21,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.cache_chain import generate_chain
 from hub.util.dataset import try_flushing
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -41,6 +42,7 @@ from hub.util.keys import (
     get_version_control_info_key,
     tensor_exists,
 )
+from hub.util.merge import merge
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.util.diff import (
@@ -48,6 +50,7 @@ from hub.util.diff import (
     get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
+    sanitize_commit,
 )
 from hub.util.version_control import (
     auto_checkout,
@@ -167,6 +170,19 @@ class Dataset:
             "verbose": self.verbose,
             "version_state": self.version_state,
         }
+
+    def _copy(self):
+        """Creates another instance of the same dataset, with a different cache."""
+        base_storage = get_base_storage(self.storage)
+        cached_storage = generate_chain(base_storage, DEFAULT_MEMORY_CACHE_SIZE, 0)
+        return Dataset(
+            storage=cached_storage,
+            read_only=self.read_only,
+            public=self.public,
+            token=self.token,
+            verbose=False,
+            path=self.path,
+        )
 
     def __setstate__(self, state: Dict[str, Any]):
         """Restores dataset from a pickled state.
@@ -581,11 +597,19 @@ class Dataset:
             ValueError: If the id is the current commit.
 
         """
+        initial_id = id
+        id = sanitize_commit(id, self.version_state)
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
 
-        change1, change2 = self.diff(id)
-        merge(self.version_state, self.storage, id)
+        _, change2 = self.diff(id, as_dict=True)
+        changed = merge(self, change2, id)
+        self.diff(id)
+        if changed:
+            self.version_state["commit_node"].pseudo_parents.append(id)
+            self.commit("Merged changes from " + initial_id)
+        else:
+            print("Nothing to merge.")
         self._info = None
 
         # do not store id
