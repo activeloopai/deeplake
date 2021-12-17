@@ -274,6 +274,8 @@ class BaseChunk(Cachable):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
+        if self.byte_positions_encoder.is_empty():  # tiled sample
+            return new_sample_bytes
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_index]
         left_data = old_data[:old_start_byte]  # type: ignore
         right_data = old_data[old_end_byte:]  # type: ignore
