@@ -38,7 +38,7 @@ def test_mixed_small_large(local_ds_generator, compression):
     ]
 
     with ds:
-        ds.create_tensor("abc", **compression)
+        ds.create_tensor("abc", max_chunk_size=2 ** 21, **compression)
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)

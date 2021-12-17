@@ -51,9 +51,8 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
+        self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.version = hub.__version__
-
-        self.data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
 
@@ -74,11 +73,19 @@ class BaseChunk(Cachable):
             raise ValueError("Can't use image compression with text data.")
 
         # These caches are only used for ChunkCompressed chunk.
-        self._decompressed_samples: Optional[List[np.ndarray]] = None
-        self._decompressed_bytes: Optional[bytes] = None
+        self.decompressed_samples: Optional[List[np.ndarray]] = None
+        self.decompressed_bytes: Optional[bytes] = None
 
         # Whether tensor meta is updated by chunk. Used by chunk engine.
         self._update_meta: bool = True
+
+    @property
+    def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
+        return self._data_bytes
+
+    @data_bytes.setter
+    def data_bytes(self, value: Union[bytearray, bytes, memoryview]):
+        self._data_bytes = value
 
     @property
     def num_data_bytes(self) -> int:
@@ -286,12 +293,11 @@ class BaseChunk(Cachable):
             shape = (1,)
         return shape
 
-    def write_tile(self, sample: SampleTiles, skip_bytes=False):
+    def write_tile(self, sample: SampleTiles):
         data, tile_shape = sample.yield_tile()
-        sample_nbytes = None if skip_bytes else len(data)
         self.data_bytes = data
         update_meta = self._update_meta and sample.is_first_write
-        self.register_sample_to_headers(sample_nbytes, tile_shape)
+        self.register_sample_to_headers(None, tile_shape)
         if update_meta:
             self.tensor_meta.length += 1
             self.tensor_meta.update_shape_interval(sample.sample_shape)
