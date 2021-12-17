@@ -804,8 +804,12 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-@pytest.mark.parametrize("x_args", [{}, {"sample_compression": "lz4"}])
-@pytest.mark.parametrize("y_args", [{}, {"sample_compression": "lz4"}])
+@pytest.mark.parametrize(
+    "x_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+@pytest.mark.parametrize(
+    "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
 @pytest.mark.parametrize("x_size", [5, (32 * 5000)])
 def test_ds_append(memory_ds, x_args, y_args, x_size):
     ds = memory_ds
@@ -826,9 +830,9 @@ def test_ds_append(memory_ds, x_args, y_args, x_size):
     assert len(ds.x) == 3
     assert len(ds.y) == 3
     assert len(ds.z) == 0
-    assert len(ds.x.chunk_engine.commit_diff.data_added) == 3
-    assert len(ds.y.chunk_engine.commit_diff.data_added) == 3
-    assert len(ds.z.chunk_engine.commit_diff.data_added) == 0
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
     assert len(ds) == 0
 
 

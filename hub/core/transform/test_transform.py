@@ -35,6 +35,7 @@ all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "
 schedulers = ["threaded", "processed"]
 schedulers = schedulers + ["ray"] if ray_installed() else schedulers
 all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
+commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
 
 
 @hub.compute
@@ -303,24 +304,12 @@ def test_chain_transform_list_small(ds, scheduler):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
-@pytest.mark.xfail(raises=TransformError, strict=False)
-def test_chain_transform_list_big(ds, scheduler):
+def test_chain_transform_list_big(local_ds, scheduler):
     ls = [i for i in range(2)]
-    ds_out = ds
+    ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(
-                ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
-            )
-        return
     pipeline.eval(
         ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
     )
@@ -333,6 +322,63 @@ def test_chain_transform_list_big(ds, scheduler):
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((13,))
             )
+
+
+@all_schedulers
+@commit_or_not
+def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
+    ls = [i for i in range(100)]
+    ds_out = local_ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    with ds_out:
+        for i in range(10):
+            ds_out.image.append(i * np.ones((10, 10)))
+            ds_out.label.append(i * np.ones((1,)))
+        if do_commit:
+            ds_out.commit()
+
+    pipeline.eval(
+        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+    )
+    assert len(ds_out) == 610
+    for i in range(10):
+        np.testing.assert_array_equal(ds_out[i].image.numpy(), i * np.ones((10, 10)))
+        np.testing.assert_array_equal(ds_out[i].label.numpy(), i * np.ones((1,)))
+    for i in range(100):
+        for index in range(10 + 6 * i, 10 + 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
+            )
+
+    diff = ds_out.diff(as_dict=True)
+    change = {
+        "image": {
+            "data_updated": set(),
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+        "label": {
+            "data_updated": set(),
+            "info_updated": False,
+            "data_transformed_in_place": False,
+        },
+    }
+    if do_commit:
+        change["image"]["created"] = False
+        change["label"]["created"] = False
+        change["image"]["data_added"] = [10, 610]
+        change["label"]["data_added"] = [10, 610]
+    else:
+        change["image"]["created"] = True
+        change["label"]["created"] = True
+        change["image"]["data_added"] = [0, 610]
+        change["label"]["data_added"] = [0, 610]
+    assert diff == change
 
 
 @all_schedulers
@@ -588,13 +634,19 @@ def test_inplace_transform(local_ds_generator):
     with ds:
         ds.create_tensor("img")
         ds.create_tensor("label")
-        for _ in range(100):
-            ds.img.append(np.ones((500, 500, 3)))
+        for i in range(100):
+            if i == 55:
+                ds.img.append(np.zeros((500, 500, 3)))
+            else:
+                ds.img.append(np.ones((500, 500, 3)))
             ds.label.append(np.ones((100, 100, 3)))
         a = ds.commit()
         assert len(ds) == 100
         for i in range(100):
-            check_target_array(ds, i, 1)
+            if i != 55:
+                check_target_array(ds, i, 1)
+        ds.img[55] = np.ones((500, 500, 3))
+        b = ds.commit()
 
         inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
         assert ds.img.chunk_engine.num_samples == len(ds) == 200
@@ -603,7 +655,26 @@ def test_inplace_transform(local_ds_generator):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        ds.checkout(a)
+        diff = ds.diff(as_dict=True)
+        change = {
+            "img": {
+                "created": False,
+                "data_added": [0, 200],
+                "data_updated": set(),
+                "data_transformed_in_place": True,
+                "info_updated": False,
+            },
+            "label": {
+                "created": False,
+                "data_added": [0, 200],
+                "data_updated": set(),
+                "data_transformed_in_place": True,
+                "info_updated": False,
+            },
+        }
+        assert diff == change
+
+        ds.checkout(b)
         assert len(ds) == 100
         for i in range(100):
             check_target_array(ds, i, 1)
@@ -614,7 +685,7 @@ def test_inplace_transform(local_ds_generator):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
 
-    ds.checkout(a)
+    ds.checkout(b)
     assert len(ds) == 100
     for i in range(100):
         check_target_array(ds, i, 1)
@@ -670,7 +741,7 @@ def test_inplace_transform_non_head(local_ds_generator):
 
         # transforming non-head node
         inplace_transform().eval(ds, num_workers=4)
-        b = ds.commit_id
+        br = ds.branch
 
         assert len(ds) == 200
         for i in range(200):
@@ -697,7 +768,7 @@ def test_inplace_transform_non_head(local_ds_generator):
     for i in range(100):
         check_target_array(ds, i, 1)
 
-    ds.checkout(b)
+    ds.checkout(br)
     assert len(ds) == 200
     for i in range(200):
         target = 2 if i % 2 == 0 else 3

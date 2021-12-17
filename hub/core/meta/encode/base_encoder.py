@@ -695,3 +695,6 @@ class Encoder(ABC):
             self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
         else:
             raise IndexError("pop from empty encoder")
+
+    def is_empty(self) -> bool:
+        return len(self._encoded) == 0

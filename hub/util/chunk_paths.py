@@ -6,7 +6,7 @@ from hub.util.keys import get_chunk_key
 
 def get_chunk_paths(dataset: hub.Dataset, tensors: List[str]) -> Set[str]:
     """Returns the paths to the chunks present in the current commit of the dataset"""
-    commit_id = dataset.commit_id
+    commit_id = dataset.pending_commit_id
     chunk_paths = set()
     for tensor in tensors:
         chunk_engine = dataset[tensor].chunk_engine
