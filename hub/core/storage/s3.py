@@ -292,6 +292,7 @@ class S3Provider(StorageProvider):
             self.tag,
             self.token,
             self.loaded_creds_from_environment,
+            self.read_only,
         )
 
     def __setstate__(self, state):
@@ -306,6 +307,7 @@ class S3Provider(StorageProvider):
         self.tag = state[8]
         self.token = state[9]
         self.loaded_creds_from_environment = state[10]
+        self.read_only = state[11]
 
         self._initialize_s3_parameters()
 

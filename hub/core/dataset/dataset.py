@@ -387,12 +387,15 @@ class Dataset:
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
+
         if (
             isinstance(storage, (S3Provider, GCSProvider))
             and self.is_first_load
             and (not self.read_only or self._locked_out)
         ):
             try:
+                # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
+                storage.disable_readonly()
                 lock_version(
                     storage,
                     version=self.version_state["commit_id"],
@@ -601,12 +604,17 @@ class Dataset:
 
     @read_only.setter
     def read_only(self, value: bool):
+        storage = self.storage
         if value:
-            self.storage.enable_readonly()
+            storage.enable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.enable_readonly()
         else:
             self._lock(err=True)
             self._locked_out = False
             self.storage.disable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.disable_readonly()
         self._read_only = value
 
     @hub_reporter.record_call
