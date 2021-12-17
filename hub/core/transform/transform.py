@@ -240,7 +240,7 @@ class Pipeline:
 
         if overwrite:
             for tensor in target_ds.tensors.values():
-                storage.delete_all(tensor.chunk_engine.list_all_chunks_path())
+                storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
 
         metas_and_encoders = ret["metas_and_encoders"]
 

@@ -167,7 +167,7 @@ class StorageProvider(ABC, MutableMapping):
     def clear(self):
         """Delete the contents of the provider."""
 
-    def delete_all(self, paths: Sequence[str]):
+    def delete_multiple(self, paths: Sequence[str]):
         for path in paths:
             self.__delitem__(path)
 

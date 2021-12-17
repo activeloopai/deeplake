@@ -671,7 +671,7 @@ class ChunkEngine:
         ]
 
     def clear_unusd_chunks(self, storage: StorageProvider):
-        # storage.delete_all(self.list_orphaned_chunks(storage))
+        # storage.delete_multiple(self.list_orphaned_chunks(storage))
         raise NotImplementedError(
             "requires StorageProvider to be able to list all chunks"
         )
