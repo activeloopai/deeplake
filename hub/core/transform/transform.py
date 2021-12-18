@@ -115,8 +115,6 @@ class Pipeline:
         if num_workers <= 0:
             scheduler = "serial"
         num_workers = max(num_workers, 1)
-        compute_provider = get_compute_provider(scheduler, num_workers)
-
         original_data_in = data_in
         if isinstance(data_in, hub.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
@@ -140,6 +138,7 @@ class Pipeline:
         if overwrite:
             original_data_in.clear_cache()
 
+        compute_provider = get_compute_provider(scheduler, num_workers)
         try:
             self.run(
                 data_in,
