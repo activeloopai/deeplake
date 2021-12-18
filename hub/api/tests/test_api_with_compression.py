@@ -1,3 +1,4 @@
+from io import BytesIO
 from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -8,7 +9,10 @@ from hub.util.exceptions import (
 import pytest
 from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_images_close
-from hub.tests.dataset_fixtures import enabled_datasets
+from hub.tests.dataset_fixtures import (
+    enabled_datasets,
+    enabled_persistent_dataset_generators,
+)
 import numpy as np
 
 import hub
@@ -63,14 +67,6 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.shape == (6, None, None, None)
     assert images.shape_interval.lower == (6, 100, 100, 3)
     assert images.shape_interval.upper == (6, 900, 900, 4)
-    assert images.num_compressed_bytes == 2 * (238091 + 919171 + 313)
-    assert (
-        images.num_uncompressed_bytes
-        == 2 * (900 * 900 * 3 + 513 * 464 * 4 + 100 * 100 * 4) * 1
-    )
-    assert (
-        images.num_compressed_bytes == images.chunk_engine._get_num_compressed_bytes()
-    )
 
 
 @enabled_datasets
@@ -250,3 +246,76 @@ def test_audio(ds: Dataset, compression, audio_paths):
             ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
         np.testing.assert_array_equal(ds.audio[i].numpy(), arr)  # type: ignore
+
+
+def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
+    from PIL import Image
+
+    cat_shape = (900, 900, 3)
+    flower_shape = (513, 464, 4)
+    ones_shape = (100, 100, 4)
+
+    shapes = [cat_shape, flower_shape, ones_shape]
+
+    with open(flower_path, "rb") as f:  # already png
+        flower_png_size = len(f.read())
+
+    for path in (cat_path, "ones"):  # requires converting to png to get size
+        if path == "ones":
+            image = Image.fromarray(np.ones(ones_shape, dtype="uint8"))
+        else:
+            hub_image = hub.read(path)
+            image = Image.fromarray(
+                hub_image.array
+            )  # size is different from array and from file. need to use array here for consistency.
+
+        with BytesIO() as output:
+            image.save(output, "PNG")
+            if path == cat_path:
+                cat_png_size = len(output.getvalue())
+            else:
+                ones_png_size = len(output.getvalue())
+
+    image = memory_ds.create_tensor("image", sample_compression="png")
+    _populate_compressed_samples(image, cat_path, flower_path)
+
+    assert (
+        image.num_compressed_bytes
+        == (cat_png_size + flower_png_size + ones_png_size) * 2
+    )
+    assert (
+        image.num_uncompressed_bytes
+        == sum([np.prod(shape).item() for shape in shapes]) * 2
+    )
+    assert image.chunk_engine._get_num_compressed_bytes() == image.num_compressed_bytes
+    assert (
+        image.chunk_engine._get_num_uncompressed_bytes() == image.num_uncompressed_bytes
+    )
+
+    chunk_size = 600 * KB
+    image = memory_ds.create_tensor(
+        "ch_image", htype="image", chunk_compression="jpg", max_chunk_size=chunk_size
+    )
+    image.extend([hub.read(cat_path)] * 5)
+
+    assert image.num_uncompressed_bytes == np.prod(cat_shape) * 5
+
+
+@enabled_persistent_dataset_generators
+def test_tracked_sizes_persistence(ds_generator: Dataset, flower_path):
+    ds = ds_generator()
+    flower_shape = (513, 464, 4)
+    with open(flower_path, "rb") as f:
+        flower_png_size = len(f.read())
+
+    image = ds.create_tensor("image", sample_compression="png")
+    image.append(hub.read(flower_path))
+
+    assert image.num_compressed_bytes == flower_png_size
+    assert image.num_uncompressed_bytes == np.prod(flower_shape)
+
+    ds = ds_generator()
+    image = ds["image"]
+
+    assert image.num_compressed_bytes == flower_png_size
+    assert image.num_uncompressed_bytes == np.prod(flower_shape)

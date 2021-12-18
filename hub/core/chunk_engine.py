@@ -161,6 +161,7 @@ class ChunkEngine:
             nbytes = self._get_num_uncompressed_bytes()
         return nbytes
 
+    @property
     def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
@@ -392,11 +393,23 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         commit_diff = self.commit_diff
         while len(samples) > 0:
+            num_compressed_bytes_current = current_chunk.num_data_bytes
+            num_uncompressed_bytes_current = self._get_chunk_uncompressed_size(
+                current_chunk
+            )
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
+                continue
 
-            elif num_samples_added == PARTIAL_NUM_SAMPLES:
+            self.tensor_meta.num_compressed_bytes -= num_compressed_bytes_current
+            self.tensor_meta.num_uncompressed_bytes -= num_uncompressed_bytes_current
+            self.tensor_meta.num_compressed_bytes += current_chunk.num_data_bytes
+            self.tensor_meta.num_uncompressed_bytes += (
+                self._get_chunk_uncompressed_size(current_chunk)
+            )
+
+            if num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
                 if sample.is_first_write:
                     enc.register_samples(1)
@@ -651,16 +664,16 @@ class ChunkEngine:
             )
 
     def _get_all_chunks(self):
-        n_samples = self.num_samples
-        chunk_names = self.get_chunk_names_for_multiple_indexes(0, n_samples, n_samples)
-        commit_id = self.version_state["commit_id"]
-        chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
-        chunks = [self.cache.get_cachable(key, Chunk) for key in chunk_keys]
+        chunks = [
+            chunk
+            for i in range(self.num_chunks)
+            for chunk in self.get_chunks_for_sample(i)
+        ]
         return chunks
 
     def _get_num_compressed_bytes(self):
         if self.num_chunks == 0:
-            return None
+            return 0
 
         chunks = self._get_all_chunks()
         nbytes = 0
@@ -673,19 +686,18 @@ class ChunkEngine:
     def _get_chunk_uncompressed_size(self, chunk):
         dtype = self.tensor_meta.dtype
         if not dtype:
-            return
+            return 0
         itemsize = np.dtype(dtype).itemsize
-        nbytes = 0
 
         shapes = [
             chunk.shapes_encoder[i] for i in range(chunk.shapes_encoder.num_samples)
         ]
-        nbytes += sum([np.prod(shape).item() for shape in shapes]) * itemsize
+        nbytes = sum([np.prod(shape).item() for shape in shapes]) * itemsize
         return nbytes
 
     def _get_num_uncompressed_bytes(self):
         if self.num_chunks == 0:
-            return None
+            return 0
 
         chunks = self._get_all_chunks()
         nbytes = 0

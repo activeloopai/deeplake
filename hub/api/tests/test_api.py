@@ -315,9 +315,6 @@ def test_scalar_samples(ds: Dataset):
     assert tensor.shape_interval.lower == (22, 0)
     assert tensor.shape_interval.upper == (22, 3)
 
-    assert tensor.num_compressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
-    assert tensor.num_uncompressed_bytes == 24 * np.dtype(MAX_INT_DTYPE).itemsize
-
     assert len(tensor) == 22
 
 
@@ -852,3 +849,12 @@ def test_sample_shape(memory_ds):
     assert ds.z[1].shape == (5, 3000, 4000)
     assert ds.w[0][0, :2].shape == (2, 2)
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
+
+
+def test_tracked_sizes(memory_ds: Dataset):
+    memory_ds.create_tensor("abc")
+    memory_ds.abc.extend([1, 2, 3, 4])
+    memory_ds.abc.append([5, 6, 7, 8])
+
+    assert memory_ds.abc.num_compressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert memory_ds.abc.num_uncompressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
