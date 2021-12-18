@@ -101,7 +101,7 @@ def inplace_transform(sample_in, samples_out):
 
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
-        ds.img[index].numpy(), target * np.ones((500, 500, 3))
+        ds.img[index].numpy(), target * np.ones((200, 200, 3))
     )
     np.testing.assert_array_equal(
         ds.label[index].numpy(), target * np.ones((100, 100, 3))
@@ -131,13 +131,18 @@ def test_single_transform_hub_dataset(ds, scheduler):
                 data_in,
                 ds_out,
                 num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                progressbar=False,
                 scheduler=scheduler,
             )
         data_in.delete()
         return
 
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
@@ -170,7 +175,9 @@ def test_groups(ds):
         data_in = data_in.data
         ds_out = ds_out.stuff
 
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        fn2(copy=1, mul=2).eval(
+            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -201,7 +208,9 @@ def test_groups_2(ds):
         data_in = data_in.data
         ds_out = ds_out.stuff
 
-        fn5(copy=1, mul=2).eval(data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        fn5(copy=1, mul=2).eval(
+            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -239,12 +248,16 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
         # num_workers = 0 automatically does single threaded irrespective of the scheduler
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(
-                data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+                data_in,
+                ds_out,
+                num_workers=num_workers,
+                progressbar=False,
+                scheduler=scheduler,
             )
         data_in.delete()
         return
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+        data_in, ds_out, num_workers=num_workers, progressbar=False, scheduler=scheduler
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
@@ -275,11 +288,19 @@ def test_chain_transform_list_small(ds, scheduler):
         # any scheduler other than `threaded` will not work with a dataset stored in memory
         with pytest.raises(InvalidOutputDatasetError):
             pipeline.eval(
-                ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+                ls,
+                ds_out,
+                num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                progressbar=False,
+                scheduler=scheduler,
             )
         return
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 600
     for i in range(100):
@@ -300,7 +321,11 @@ def test_chain_transform_list_big(local_ds, scheduler):
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 12
     for i in range(2):
@@ -329,7 +354,11 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
             ds_out.commit()
 
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 610
     for i in range(10):
@@ -388,12 +417,17 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
                 data_in,
                 ds_out,
                 num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                progressbar=False,
                 scheduler=scheduler,
             )
         return
 
     read_image().eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 10
     for i in range(10):
@@ -419,11 +453,16 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
                 data_in,
                 ds_out,
                 num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                progressbar=False,
                 scheduler=scheduler,
             )
         return
     pipeline.eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 20
     for i in range(20):
@@ -452,11 +491,16 @@ def test_hub_like(ds, scheduler="threaded"):
                     data_in,
                     ds_out,
                     num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                    progressbar=False,
                     scheduler=scheduler,
                 )
             return
         fn2(copy=1, mul=2).eval(
-            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+            data_in,
+            ds_out,
+            num_workers=TRANSFORM_TEST_NUM_WORKERS,
+            progressbar=False,
+            scheduler=scheduler,
         )
         assert len(ds_out) == 99
         for index in range(1, 100):
@@ -475,7 +519,7 @@ def test_transform_empty(local_ds):
     local_ds.create_tensor("image")
 
     ls = list(range(10))
-    filter_tr().eval(ls, local_ds)
+    filter_tr().eval(ls, local_ds, progressbar=False)
 
     assert len(local_ds) == 5
 
@@ -510,7 +554,7 @@ def test_bad_transform(memory_ds):
         return sample_out
 
     with pytest.raises(TransformError):
-        fn_filter().eval(ds, ds2, progressbar=True)
+        fn_filter().eval(ds, ds2, progressbar=False)
 
 
 def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="threaded"):
@@ -533,12 +577,16 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
         # num_workers = 0 automatically does single threaded irrespective of the scheduler
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(
-                data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+                data_in,
+                ds_out,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=False,
             )
         data_in.delete()
         return
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+        data_in, ds_out, num_workers=num_workers, scheduler=scheduler, progressbar=False
     )
 
     def test_ds_out():
@@ -595,19 +643,21 @@ def test_inplace_transform(local_ds_generator):
         ds.create_tensor("label")
         for i in range(100):
             if i == 55:
-                ds.img.append(np.zeros((500, 500, 3)))
+                ds.img.append(np.zeros((200, 200, 3)))
             else:
-                ds.img.append(np.ones((500, 500, 3)))
+                ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(np.ones((100, 100, 3)))
         a = ds.commit()
         assert len(ds) == 100
         for i in range(100):
             if i != 55:
                 check_target_array(ds, i, 1)
-        ds.img[55] = np.ones((500, 500, 3))
+        ds.img[55] = np.ones((200, 200, 3))
         b = ds.commit()
 
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert ds.img.chunk_engine.num_samples == len(ds) == 200
 
         for i in range(200):
@@ -657,13 +707,15 @@ def test_inplace_transform_without_commit(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(100):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(np.ones((100, 100, 3)))
         assert len(ds) == 100
         for i in range(100):
             check_target_array(ds, i, 1)
 
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert ds.img.chunk_engine.num_samples == len(ds) == 200
 
         for i in range(200):
@@ -683,14 +735,14 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(100):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(np.ones((100, 100, 3)))
         assert len(ds) == 100
         for i in range(100):
             check_target_array(ds, i, 1)
         a = ds.commit()
         for _ in range(50):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(np.ones((100, 100, 3)))
         assert len(ds) == 150
         for i in range(150):
@@ -699,7 +751,7 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.checkout(a)
 
         # transforming non-head node
-        inplace_transform().eval(ds, num_workers=4)
+        inplace_transform().eval(ds, num_workers=4, progressbar=False)
         br = ds.branch
 
         assert len(ds) == 200
