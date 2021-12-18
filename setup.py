@@ -1,6 +1,4 @@
 import os
-import re
-
 from setuptools import find_packages, setup
 import versioneer
 
@@ -17,19 +15,6 @@ with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
 
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
-
-
-version_file = os.path.join(project_name, "version.py")
-
-
-def get_property(prop, file_name):
-    result = re.search(
-        # find variable with name `prop` in the `file_name`` file
-        fr'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
-        open(file_name).read(),
-    )
-    return result.group(1)
-
 
 setup(
     name=project_name,
