@@ -853,8 +853,10 @@ def test_sample_shape(memory_ds):
 
 def test_tracked_sizes(memory_ds: Dataset):
     memory_ds.create_tensor("abc")
-    memory_ds.abc.extend([1, 2, 3, 4])
-    memory_ds.abc.append([5, 6, 7, 8])
+    memory_ds["abc"].extend([1, 2, 3, 4])
+    memory_ds["abc"].append([5, 6, 7, 8])
 
-    assert memory_ds.abc.num_compressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
-    assert memory_ds.abc.num_uncompressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert memory_ds["abc"].num_compressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+    assert (
+        memory_ds["abc"].num_uncompressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+    )

@@ -249,7 +249,7 @@ def test_audio(ds: Dataset, compression, audio_paths):
 
 
 def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
-    from PIL import Image
+    from PIL import Image  # type: ignore
 
     cat_shape = (900, 900, 3)
     flower_shape = (513, 464, 4)
@@ -303,7 +303,7 @@ def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
 
 @enabled_persistent_dataset_generators
 def test_tracked_sizes_persistence(ds_generator: Dataset, flower_path):
-    ds = ds_generator()
+    ds = ds_generator()  # type: ignore
     flower_shape = (513, 464, 4)
     with open(flower_path, "rb") as f:
         flower_png_size = len(f.read())
@@ -314,7 +314,7 @@ def test_tracked_sizes_persistence(ds_generator: Dataset, flower_path):
     assert image.num_compressed_bytes == flower_png_size
     assert image.num_uncompressed_bytes == np.prod(flower_shape)
 
-    ds = ds_generator()
+    ds = ds_generator()  # type: ignore
     image = ds["image"]
 
     assert image.num_compressed_bytes == flower_png_size
