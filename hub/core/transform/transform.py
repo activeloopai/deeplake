@@ -152,7 +152,7 @@ class Pipeline:
             raise TransformError(e)
         finally:
             compute_provider.close()
-        target_ds.storage.autoflush = initial_autoflush
+            target_ds.storage.autoflush = initial_autoflush
 
     def _run_with_progbar(
         self, func: Callable, ret: dict, total: int, desc: Optional[str] = ""
