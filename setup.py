@@ -2,6 +2,7 @@ import os
 import re
 
 from setuptools import find_packages, setup
+import versioneer
 
 project_name = "hub"
 
@@ -32,7 +33,8 @@ def get_property(prop, file_name):
 
 setup(
     name=project_name,
-    version=get_property("VERSION", version_file),
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description="Activeloop Hub",
     long_description=long_description,
     long_description_content_type="text/markdown",
