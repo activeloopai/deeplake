@@ -103,9 +103,7 @@ def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((500, 500, 3))
     )
-    np.testing.assert_array_equal(
-        ds.label[index].numpy(), target * np.ones((1,))
-    )
+    np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
 
 
 @all_schedulers
