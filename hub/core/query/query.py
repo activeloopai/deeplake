@@ -35,13 +35,10 @@ class DatasetQuery:
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
-    def _call_eval(self, sample_in: hub.Dataset, index: int):
+    def _call_eval(self, sample_in: hub.Dataset):
         self.index = sample_in.index  # type: ignore
-        self.cache_offset = index
 
-        return eval(
-            self._query, self.global_vars, self.locals
-        )  # TODO export tensors create new bindings. Can we update instead ?
+        return eval(self._query, self.global_vars, self.locals)
 
     def _export_tensors(self, sample_in):
         bindings: Dict[str, EvalObject] = {"dataset": EvalDataset(self)}
@@ -90,6 +87,9 @@ class EvalTensorObject(EvalObject):
         self._tensor = tensor
         self._is_data_cacheable = self._tensor.chunk_engine.is_data_cachable
 
+    def at_index(self, index):
+        self.query.index = index
+
     def is_scalar(self):
         return self.numpy().size == 1  # type: ignore
 
@@ -99,6 +99,7 @@ class EvalTensorObject(EvalObject):
         else:
             raise ValueError("Not a scalar")
 
+    # FIXME bad code here
     def _get_cached_numpy(self):
         cache = self.query.cache
         if self._tensor.key not in cache:
@@ -106,7 +107,7 @@ class EvalTensorObject(EvalObject):
                 self._tensor.key,
                 self._tensor.storage,
                 self._tensor.version_state,
-                self.query._dataset.index,  # type: ignore
+                Index(),
                 False,
                 chunk_engine=self._tensor.chunk_engine,
             )
@@ -118,7 +119,7 @@ class EvalTensorObject(EvalObject):
         """Retrives np.ndarray or scalar value"""
         if self._is_data_cacheable and enable_cache:
             cache = self._get_cached_numpy()
-            idx = self.query.cache_offset
+            idx = self.query.index.values[0].value
             return cache[idx]
         else:
             return self._tensor[self.query.index].numpy()
@@ -176,6 +177,7 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
     @property
     def min(self):
         """Returns numpy.min() for the tensor"""
+        return np.amin(self.numpy())
 
     @property
     def max(self):
