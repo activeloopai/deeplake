@@ -38,7 +38,7 @@ jobs:
         if: always() # Run even if previous check failed
         run: |
           darglint --version
-          darglint .
+          find . -type f -name "*.py" ! -path "./.venv/*" ! -path "./versioneer.py" | xargs darglint
       - name: Check typing with mypy
         if: always() # Run even if previous check failed
         run: |
