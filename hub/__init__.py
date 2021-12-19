@@ -2,6 +2,7 @@ from botocore.config import Config
 import numpy as np
 import multiprocessing
 import sys
+from . import _version
 
 if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
@@ -64,7 +65,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.1.2"
+__version__ = _version.get_versions()["version"]
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50)}
 

@@ -1,6 +1,5 @@
 import os
-import re
-
+import versioneer
 from setuptools import find_packages, setup
 
 project_name = "hub"
@@ -17,22 +16,10 @@ with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
-
-init_file = os.path.join(project_name, "__init__.py")
-
-
-def get_property(prop):
-    result = re.search(
-        # find variable with name `prop` in the __init__.py file
-        fr'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
-        open(init_file).read(),
-    )
-    return result.group(1)
-
-
 setup(
     name=project_name,
-    version=get_property("__version__"),
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description="Activeloop Hub",
     long_description=long_description,
     long_description_content_type="text/markdown",
