@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Set tag name as environment variable
         run: |
-              echo "VERSION_PUBLISHED=$(echo $GITHUB_REF | sed 's/refs\/tags\/v/snarkai\/hub:/g')" >> $GITHUB_ENV
+              echo "VERSION_PUBLISHED=$(echo $GITHUB_REF | sed 's/refs\/tags\/v/activeloop\/hub:/g')" >> $GITHUB_ENV
       - name: Publish distribution to Docker Hub
         uses: docker/build-push-action@v2
         with:

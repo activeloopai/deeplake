@@ -22,4 +22,4 @@ jobs:
           context: .
           file: bin/Dockerfile
           push: true
-          tags: snarkai/hub:latest
+          tags: activeloop/hub:latest
