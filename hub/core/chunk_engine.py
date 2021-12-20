@@ -269,7 +269,10 @@ class ChunkEngine:
     def num_samples(self) -> int:
         if not self.chunk_id_encoder_exists:
             return 0
-        return int(np.uint32(self.chunk_id_encoder.num_samples))
+        num = self.chunk_id_encoder.num_samples
+        # chunk id encoder starts out by putting -1 when there are no samples, this gets converted to 2^32 - 1.
+        # when we call num_samples, it adds 1 to the last entry (2^32 - 1) and returns 2^32, when actual sample count is 0.
+        return 0 if num == 2 ** 32 else num
 
     @property
     def last_chunk_key(self) -> str:
@@ -623,9 +626,10 @@ class ChunkEngine:
         tensor_meta_length = self.tensor_meta.length
 
         # compare chunk ID encoder and tensor meta
-        chunk_id_num_samples = np.uint32(
-            self.chunk_id_encoder.num_samples if self.chunk_id_encoder_exists else 0
-        )
+
+        # update this if we change self.num_samples implementation later to use tensor meta length instead of chunk_id_encoder
+        chunk_id_num_samples = self.num_samples
+
         if tensor_meta_length != chunk_id_num_samples:
             commit_id = self.version_state["commit_id"]
             tkey = get_tensor_meta_key(self.key, commit_id)
