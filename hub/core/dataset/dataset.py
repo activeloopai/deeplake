@@ -12,9 +12,9 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock, unlock
+from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider, MemoryProvider
+from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
@@ -45,7 +45,6 @@ from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.util.diff import (
     compare_commits,
-    create_changes_dict,
     get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
@@ -56,6 +55,7 @@ from hub.util.version_control import (
     commit,
     commit_has_data,
     load_meta,
+    warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
 import hashlib
@@ -103,18 +103,8 @@ class Dataset:
         self.path = path or get_path_from_storage(storage)
         self.storage = storage
         self._read_only = read_only
+        self._locked_out = False  # User requested write access but was denied
         base_storage = get_base_storage(storage)
-        if (
-            not read_only and index is None and isinstance(base_storage, S3Provider)
-        ):  # Dataset locking only for S3 datasets
-            try:
-                lock(base_storage, callback=lambda: self._lock_lost_handler)
-            except LockedException:
-                self.read_only = True
-                warnings.warn(
-                    "Opening dataset in read only mode as another machine has locked it for writing."
-                )
-
         self.index: Index = index or Index()
         self.group_index = group_index
         self._token = token
@@ -124,6 +114,7 @@ class Dataset:
         self.version_state: Dict[str, Any] = version_state or {}
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -188,6 +179,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def __getitem__(
         self,
@@ -394,7 +386,35 @@ class Dataset:
         version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
         self.version_state = version_state
 
-    def commit(self, message: Optional[str] = None) -> None:
+    def _lock(self, err=False):
+        storage = get_base_storage(self.storage)
+
+        if (
+            isinstance(storage, (S3Provider, GCSProvider))
+            and self.is_first_load
+            and (not self.read_only or self._locked_out)
+        ):
+            try:
+                # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
+                storage.disable_readonly()
+                lock_version(
+                    storage,
+                    version=self.version_state["commit_id"],
+                    callback=self._lock_lost_handler,
+                )
+            except LockedException as e:
+                self.read_only = True
+                self._locked_out = True
+                if err:
+                    raise e
+                warnings.warn(
+                    "Checking out dataset in read only mode as another machine has locked this version for writing."
+                )
+
+    def _unlock(self):
+        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+
+    def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
@@ -413,21 +433,21 @@ class Dataset:
                 "Cannot perform version control operations on a filtered dataset view."
             )
         commit_id = self.version_state["commit_id"]
+        try_flushing(self)
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
+        self._unlock()
         commit(self.version_state, self.storage, message)
+        self._lock()
         self._info = None
 
         # do not store commit message
-        hub_reporter.feature_report(
-            feature_name="commit",
-            parameters={},
-        )
+        hub_reporter.feature_report(feature_name="commit", parameters={})
 
         self.storage.autoflush = initial_autoflush
-        return commit_id
+        return self.commit_id  # type: ignore
 
-    def checkout(self, address: str, create: bool = False) -> str:
+    def checkout(self, address: str, create: bool = False) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
         Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
 
@@ -448,17 +468,20 @@ class Dataset:
         try_flushing(self)
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
+        self._unlock()
         checkout(self.version_state, self.storage, address, create)
+        self._lock()
         self._info = None
 
         # do not store address
         hub_reporter.feature_report(
-            feature_name="checkout",
-            parameters={"Create": str(create)},
+            feature_name="checkout", parameters={"Create": str(create)}
         )
+        commit_node = self.version_state["commit_node"]
+        warn_node_checkout(commit_node, create)
 
         self.storage.autoflush = initial_autoflush
-        return self.version_state["commit_id"]
+        return self.commit_id
 
     def log(self):
         """Displays the details of all the past commits."""
@@ -472,7 +495,7 @@ class Dataset:
         else:
             print()
         while commit_node:
-            if commit_node.commit_time is not None:
+            if not commit_node.is_head_node:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
@@ -487,46 +510,65 @@ class Dataset:
             id_2 (str, optional): The second commit_id or branch name.
             as_dict (bool, optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
 
-        If both id_1 and id_2 are None, the differences between the current commit and the previous commit will be calculated.
-        If only id_1 is provided, the differences between the current commit and id_1 will be calculated.
+        If both id_1 and id_2 are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
+        If only id_1 is provided, the differences between the current state and id_1 will be calculated. If you're at the head of the branch, this will take into account the uncommitted changes, if any.
         If only id_2 is provided, a ValueError will be raised.
         If both id_1 and id_2 are provided, the differences between id_1 and id_2 will be calculated.
 
         Returns:
             Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
-                If id_1 and id_2 are None, a single dictionary containing the differences between the current commit and the previous commit will be returned.
-                If only id_1 is provided, two dictionaries containing the differences in the current commit and id_1 respectively will be returned.
+                If id_1 and id_2 are None, a single dictionary containing the differences between the current state and the previous commit will be returned.
+                If only id_1 is provided, two dictionaries containing the differences in the current state and id_1 respectively will be returned.
                 If only id_2 is provided, a ValueError will be raised.
                 If both id_1 and id_2 are provided, two dictionaries containing the differences in id_1 and id_2 respectively will be returned.
             None: If as_dict is False.
 
             Example of a dict returned:
             {
-                "image": {"data_added": {3, 4, 5}, "data_updated": {0, 2}, "created": False},
-                "label": {"data_added": {0, 1, 2}, "data_updated": {}, "created": True},
-                "other/stuff" : {data_added: {2, 3}, data_updated: {1,2}, created: True}
+                "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
+                "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
+                "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True, "info_updated": False, "data_transformed_in_place": False}
             }
+
+            Here the data_adeded is a range of sample indexes that were added to the tensor.
+            For example [3, 6] means that sample 3, 4 and 5 were added.
+            Another example [3, 3] means that no samples were added as the range is empty
+
+            data_updated on the other hand is a set of sample indexes that were updated.
+            For example {0, 2} means that sample 0 and 2 were updated.
+
+            created is a boolean that is True if the tensor was created.
+
+            info_updated is a boolean that is True if the info of the tensor was updated.
+
+            data_transformed_in_place is a boolean that is True if the data of the tensor was transformed in place.
 
 
         Raises:
             ValueError: If both id_1 is None and id_2 is not None.
         """
         version_state, storage = self.version_state, self.storage
-        message1 = message2 = changes1 = changes2 = None
-
+        commit_node = version_state["commit_node"]
         if id_1 is None and id_2 is None:
-            changes1 = create_changes_dict()
-            commit_id = version_state["commit_id"]
+            changes1: Dict[str, Dict] = defaultdict(dict)
+            commit_id = commit_node.commit_id
+            if commit_node.is_head_node:
+                message1 = "Diff in HEAD:\n"
+            else:
+                message1 = f"Diff in {commit_id} (current commit):\n"
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
-            message1 = f"Diff in {commit_id} (current commit):\n"
+            changes2 = message2 = None
         else:
             if id_1 is None:
                 raise ValueError("Can't specify id_1 without specifying id_2")
             elif id_2 is None:
-                commit1: str = version_state["commit_id"]
+                commit1: str = commit_node.commit_id
                 commit2 = id_1
-                message1 = f"Diff in {commit1} (current commit):\n"
+                if commit_node.is_head_node:
+                    message1 = "Diff in HEAD:\n"
+                else:
+                    message1 = f"Diff in {commit1} (current commit):\n"
                 message2 = f"Diff in {commit2} (target id):\n"
             else:
                 commit1 = id_1
@@ -577,10 +619,17 @@ class Dataset:
 
     @read_only.setter
     def read_only(self, value: bool):
+        storage = self.storage
         if value:
-            self.storage.enable_readonly()
+            storage.enable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.enable_readonly()
         else:
+            self._lock(err=True)
+            self._locked_out = False
             self.storage.disable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.disable_readonly()
         self._read_only = value
 
     @hub_reporter.record_call
@@ -616,8 +665,8 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
-            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 2 GB. Increasing the buffer_size will increase the extent of shuffling.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
 
@@ -704,7 +753,10 @@ class Dataset:
             self._load_version_info()
 
         self._populate_meta()  # TODO: use the same scheme as `load_info`
-        self.read_only = self._read_only  # TODO: weird fix for dataset unpickling
+        if self._read_only:
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
         self.index.validate(self.num_samples)
 
     @property
@@ -769,7 +821,7 @@ class Dataset:
                 )
                 return
 
-        unlock(self.storage)
+        self._unlock()
         self.storage.clear()
 
     def __str__(self):
@@ -864,7 +916,7 @@ class Dataset:
         commits = []
         commit_node = self.version_state["commit_node"]
         while commit_node:
-            if commit_node.commit_time is not None:
+            if not commit_node.is_head_node:
                 commit_info = {
                     "commit": commit_node.commit_id,
                     "author": commit_node.commit_user_name,
@@ -908,8 +960,24 @@ class Dataset:
         return {g: self[g] for g in self._groups_filtered}
 
     @property
-    def commit_id(self) -> str:
-        """The current commit_id of the dataset."""
+    def commit_id(self) -> Optional[str]:
+        """The lasted committed commit_id of the dataset. If there are no commits, this returns None."""
+        commit_node = self.version_state["commit_node"]
+        if not commit_node.is_head_node:
+            return commit_node.commit_id
+
+        parent = commit_node.parent
+
+        if parent is None:
+            return None
+        else:
+            return parent.commit_id
+
+    @property
+    def pending_commit_id(self) -> str:
+        """The commit_id of the next commit that will be made to the dataset.
+        If you're not at the head of the current branch, this will be the same as the commit_id.
+        """
         return self.version_state["commit_id"]
 
     @property
