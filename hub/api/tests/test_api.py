@@ -792,6 +792,32 @@ def test_groups(local_ds_generator):
     assert ds.storage.autoflush
 
 
+def test_tensor_delete(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    ds.delete_tensor("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+    ds.create_tensor("x/y")
+    ds.delete_tensor("x/y")
+    ds.create_tensor("x/y")
+    ds["x"].delete_tensor("y")
+    ds.delete_group("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+    ds.create_tensor("x/y/z")
+    ds.delete_group("x")
+    ds.create_tensor("x/y/z")
+    ds["x"].delete_group("y")
+    ds.create_tensor("x/y/z")
+    ds["x/y"].delete_tensor("z")
+    ds.delete_group("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")
