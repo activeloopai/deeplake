@@ -207,6 +207,19 @@ class ChunkCompressedChunk(BaseChunk):
 
         return sample, shape
 
+    def _pop_sample(self):
+        if self.is_byte_compression:
+            self.decompressed_bytes = self.decompressed_bytes[
+                : self.byte_positions_encoder[-1][0]
+            ]
+            self._data_bytes = compress_bytes(self.decompressed_bytes, self.compression)
+        else:
+            self.decompressed_samples.pop()
+            self._data_bytes = compress_multiple(
+                self.decompressed_samples, self.compression
+            )
+        self._changed = False
+
     def _compress(self):
         if self.is_byte_compression:
             self._data_bytes = compress_bytes(self.decompressed_bytes, self.compression)

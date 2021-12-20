@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
@@ -194,6 +194,9 @@ class ChunkIdEncoder(Encoder, Cachable):
             Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
         """
 
+        if local_sample_index < 0:
+            local_sample_index += self.num_samples
+
         row_index = self.translate_index(local_sample_index)
 
         output: List[Any] = []
@@ -220,6 +223,30 @@ class ChunkIdEncoder(Encoder, Cachable):
             else:
                 break
         return output
+
+    def _num_samples_in_last_chunk(self):
+        return self._num_samples_in_last_row()
+
+    def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
+        """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
+        Returns:
+            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
+        """
+        chunk_ids_for_last_sample = self[-1]
+        if len(chunk_ids_for_last_sample) > 1:
+            self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
+            return chunk_ids_for_last_sample, True
+        else:
+            num_samples_in_last_chunk = self._num_samples_in_last_chunk()
+
+            if num_samples_in_last_chunk == 1:
+                self._encoded = self._encoded[:-1]
+                return chunk_ids_for_last_sample, True
+            elif num_samples_in_last_chunk > 1:
+                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+                return chunk_ids_for_last_sample, False
+            else:
+                raise IndexError("pop from empty encoder")
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]

@@ -675,5 +675,25 @@ class Encoder(ABC):
 
         return True
 
+    def _num_samples_in_last_row(self):
+        if len(self._encoded) == 0:
+            return 0
+        elif len(self._encoded) == 1:
+            return self._encoded[-1][LAST_SEEN_INDEX_COLUMN] + 1
+        else:
+            return (
+                self._encoded[-1][LAST_SEEN_INDEX_COLUMN]
+                - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
+            )
+
+    def _pop(self):
+        num_samples_in_last_row = self._num_samples_in_last_row()
+        if num_samples_in_last_row == 1:
+            self._encoded = self._encoded[:-1]
+        elif num_samples_in_last_row > 1:
+            self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+        else:
+            raise IndexError("pop from empty encoder")
+
     def is_empty(self) -> bool:
         return len(self._encoded) == 0
