@@ -285,6 +285,11 @@ class ChunkEngine:
         commit_id = self.get_chunk_commit(last_chunk_name)
         return get_chunk_key(self.key, last_chunk_name, commit_id)
 
+    def get_chunk_key_for_id(self, chunk_id) -> str:
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        commit_id = self.get_chunk_commit(chunk_name)
+        return get_chunk_key(self.key, chunk_name, commit_id)
+
     @property
     def last_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
@@ -761,3 +766,25 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+    def _pop(self):
+        """Used only for Dataset.append"""
+        num_samples = self.num_samples
+        if num_samples == 0:
+            raise IndexError("pop from empty tensor")
+        self.commit_diff._pop()  # This will fail if the last sample was added in a previous commit
+        self._write_initialization()
+        chunk_ids, delete = self.chunk_id_encoder._pop()
+        if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
+            del self.tile_encoder[num_samples - 1]
+        elif not delete:  # There are other samples in the last chunk
+            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update._pop_sample()
+        if delete:
+            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
+                del self.cache[chunk_key]
+        tensor_meta = self.tensor_meta
+        tensor_meta.length -= 1
+        if tensor_meta.length == 0:
+            tensor_meta.min_shape = []
+            tensor_meta.max_shape = []

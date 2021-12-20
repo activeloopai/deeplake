@@ -33,6 +33,8 @@ class TransformTensor:
         return value
 
     def __len__(self) -> int:
+        if not self.slice_list:
+            return len(self.items)
         if self.length is None:
             self.numpy_compressed()  # calculates and sets length
         return self.length  # type: ignore
@@ -64,7 +66,8 @@ class TransformTensor:
         """Adds an item to the tensor."""
         shape = getattr(item, "shape", None)
         if shape is None:
-            shape = np.asarray(item).shape
+            item = np.asarray(item)
+            shape = item.shape
         if self._ndim is None:
             self._ndim = len(shape)
         else:

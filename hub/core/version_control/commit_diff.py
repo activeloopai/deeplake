@@ -83,3 +83,11 @@ class CommitDiff(Cachable):
     def transform_data(self) -> None:
         """Stores information that the data has been transformed using an inplace transform."""
         self.data_transformed = True
+
+    def _pop(self) -> None:
+        """Remove index for the last data added. Used by ChunkEngine._pop()"""
+        if self.data_added[1] == self.data_added[0]:
+            raise NotImplementedError(
+                "Cannot pop sample which was added in a previous commit."
+            )
+        self.data_added[1] -= 1

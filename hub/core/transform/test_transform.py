@@ -60,6 +60,17 @@ def fn5(sample_in, samples_out, mul=1, copy=1):
 
 
 @hub.compute
+def fn6(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.append(
+            {
+                "image": sample_in.image.numpy() * mul,
+                "label": sample_in.label.numpy() * mul,
+            }
+        )
+
+
+@hub.compute
 def read_image(sample_in, samples_out):
     samples_out.image.append(hub.read(sample_in))
 
@@ -545,6 +556,36 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     ds_out = local_ds_generator()
     test_ds_out()
 
+    data_in.delete()
+
+
+def test_ds_append_in_transform(memory_ds):
+    ds = memory_ds
+    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    with data_in:
+        data_in.create_tensor("image")
+        data_in.create_tensor("label")
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i)))
+            data_in.label.append(i * np.ones((1,)))
+    ds_out = ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+
+    fn6(copy=1, mul=2).eval(
+        data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False
+    )
+    assert len(ds_out) == 99
+    for index in range(1, 100):
+        np.testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        )
+        np.testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        )
+
+    assert ds_out.image.shape_interval.lower == (99, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99)
     data_in.delete()
 
 
