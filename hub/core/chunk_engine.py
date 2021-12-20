@@ -659,4 +659,8 @@ class ChunkEngine:
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 del self.cache[chunk_key]
-        self.tensor_meta.length -= 1
+        tensor_meta = self.tensor_meta
+        tensor_meta.length -= 1
+        if tensor_meta.length == 0:
+            tensor_meta.min_shape = []
+            tensor_meta.max_shape = []
