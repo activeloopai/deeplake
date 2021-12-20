@@ -33,7 +33,7 @@ def filter_dataset(
             )
 
     vds = (
-        dataset._get_empty_vds(result_path, result_ds_args, query=query)
+        dataset._get_empty_vds(result_path, query=query, **(result_ds_args or {}))
         if save_result
         else None
     )
@@ -60,6 +60,9 @@ def filter_dataset(
 
     ds._query = query
     ds._source_ds_idx = dataset.index.to_json()
+
+    if vds:
+        ds._vds = vds
     return ds  # type: ignore [this is fine]
 
 
@@ -80,20 +83,20 @@ def filter_with_compute(
         vds.autoflush = False
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
+        last_update_time = {"value": time()}
 
     def filter_slice(indices: Sequence[int]):
         result = list()
 
-        last_update_time = time()
         for i in indices:
             if filter_function(dataset[i]):
                 result.append(i)
                 if vds:
-                    vds.VDS_INDEX.append(i)
+                    vds.VDS_INDEX.append(i)  # type: ignore
                     vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                    if time() - last_update_time > vds_update_frequency:
+                    if time() - last_update_time["value"] > vds_update_frequency:
                         vds.flush()
-                        last_update_time = time()
+                        last_update_time["value"] = time()
         if vds:
             vds.autoflush = True
         return result
@@ -138,6 +141,7 @@ def filter_inplace(
         vds.autoflush = False
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
+        last_update_time = {"value": time()}
 
     if progressbar:
         from tqdm import tqdm  # type: ignore
@@ -148,11 +152,11 @@ def filter_inplace(
         if filter_function(sample_in):
             index_map.append(i)
             if vds:
-                vds.VDS_INDEX.append(i)
+                vds.VDS_INDEX.append(i)  # type: ignore
                 vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                if time() - last_update_time > vds_update_frequency:
+                if time() - last_update_time["value"] > vds_update_frequency:
                     vds.flush()
-                    last_update_time = time()
+                    last_update_time["value"] = time()
 
     if vds:
         vds.autoflush = True

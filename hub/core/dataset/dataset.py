@@ -703,18 +703,24 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
+        save_result: bool = False,
+        result_path: Optional[str] = None,
+        result_ds_args: Optional[dict] = None,
     ):
         """Filters the dataset in accordance of filter function `f(x: sample) -> bool`
 
         Args:
-            function(Callable | str): filter function that takes sample as argument and returns True/False
+            function(Callable | str): Filter function that takes sample as argument and returns True/False
                 if sample should be included in result. Also supports simplified expression evaluations.
                 See hub.core.query.DatasetQuery for more details.
-            num_workers(int): level of parallelization of filter evaluations.
+            num_workers(int): Level of parallelization of filter evaluations.
                 `0` indicates in-place for-loop evaluation, multiprocessing is used otherwise.
-            scheduler(str): scheduler to use for multiprocessing evaluation.
+            scheduler(str): Scheduler to use for multiprocessing evaluation.
                 `threaded` is default
-            progressbar(bool): display progress bar while filtering. True is default
+            progressbar(bool): Display progress bar while filtering. True is default
+            save_result (bool): If True, result of the filter will be saved to a dataset asynchronously.
+            result_path (Optional, str): Path to save the filter result. Only applicable if `save_result` is True.
+            result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `save_result` is True.
 
         Returns:
             View on Dataset with elements, that satisfy filter function
@@ -737,6 +743,9 @@ class Dataset:
             num_workers=num_workers,
             scheduler=scheduler,
             progressbar=progressbar,
+            save_result=save_result,
+            result_path=result_path,
+            result_ds_args=result_ds_args,
         )
 
     def _get_total_meta(self):
@@ -1085,11 +1094,13 @@ class Dataset:
             ).encode()
         ).hexdigest()
 
-    def store(self, path: Optional[str] = None, **ds_args):
+    def store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
         if path is None:
+            if hasattr(self, "_vds"):
+                return self._vds if _ret_ds else self._vds.path
             if isinstance(self, MemoryProvider):
                 raise NotImplementedError(
                     "Saving views inplace is not supported for in-memory datasets."
@@ -1108,7 +1119,7 @@ class Dataset:
                 self.storage.flush()
                 base_storage = get_base_storage(self.storage)
                 path = base_storage.subdir(f"queries/{hash}").root
-                ds = hub.dataset(path, **ds_args)
+                ds = hub.dataset(path, **ds_args)  # type: ignore
                 lock = Lock(base_storage, get_queries_lock_key())
                 lock.acquire(timeout=10, force=True)
                 queries_key = get_queries_key()
@@ -1136,11 +1147,12 @@ class Dataset:
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         with ds:
             ds.info.update(info)
-            ds.create_tensor("VDS_INDEX", dtype="uint64")
-            ds.VDS_INDEX.extend(list(self.index.values[0].indices(len(self))))
+            ds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                list(self.index.values[0].indices(len(self)))
+            )
 
         print(f"Virtual dataset stored at {ds.path}")
-        return ds.path
+        return ds if _ret_ds else ds.path
 
     def _get_view(self):
         # Only applicable for virtual datasets
@@ -1153,4 +1165,4 @@ class Dataset:
         view = self[:0]
         if query:
             view._query = query
-        return view.store(vds_path, **vds_args)
+        return view.store(vds_path, _ret_ds=True, **vds_args)
