@@ -33,8 +33,7 @@ class ChunkCompressedChunk(BaseChunk):
         self._changed = False
         self._compression_ratio = 0.5
 
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:
-
+    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
         self.prepare_for_write()
         if self.is_byte_compression:
             return self.extend_if_has_space_byte_compression(incoming_samples)
