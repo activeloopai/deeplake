@@ -201,7 +201,6 @@ class Encoder(ABC):
         Returns:
             Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
         """
-
         row_index = self.translate_index(local_sample_index)
         value = self._derive_value(
             self._encoded[row_index], row_index, local_sample_index
