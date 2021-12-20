@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import hub
 import json
@@ -35,13 +35,10 @@ class DatasetQuery:
     def __call__(self, *args: Any) -> bool:
         return self._call_eval(*args)
 
-    def _call_eval(self, sample_in: hub.Dataset, index: int):
+    def _call_eval(self, sample_in: hub.Dataset):
         self.index = sample_in.index  # type: ignore
-        self.cache_offset = index
 
-        return eval(
-            self._query, self.global_vars, self.locals
-        )  # TODO export tensors create new bindings. Can we update instead ?
+        return eval(self._query, self.global_vars, self.locals)
 
     def _export_tensors(self, sample_in):
         bindings: Dict[str, EvalObject] = {"dataset": EvalDataset(self)}
@@ -88,6 +85,10 @@ class EvalTensorObject(EvalObject):
     def __init__(self, query: DatasetQuery, tensor: Tensor) -> None:
         super().__init__(query)
         self._tensor = tensor
+        self._is_data_cacheable = self._tensor.chunk_engine.is_data_cachable
+
+    def at_index(self, index):
+        self.query.index = index
 
     def is_scalar(self):
         return self.numpy().size == 1  # type: ignore
@@ -98,6 +99,7 @@ class EvalTensorObject(EvalObject):
         else:
             raise ValueError("Not a scalar")
 
+    # FIXME bad code here
     def _get_cached_numpy(self):
         cache = self.query.cache
         if self._tensor.key not in cache:
@@ -105,7 +107,7 @@ class EvalTensorObject(EvalObject):
                 self._tensor.key,
                 self._tensor.storage,
                 self._tensor.version_state,
-                self.query._dataset.index,  # type: ignore
+                Index(),
                 False,
                 chunk_engine=self._tensor.chunk_engine,
             )
@@ -115,9 +117,9 @@ class EvalTensorObject(EvalObject):
 
     def numpy(self):
         """Retrives np.ndarray or scalar value"""
-        if self._tensor.chunk_engine.is_data_cachable and enable_cache:
+        if self._is_data_cacheable and enable_cache:
             cache = self._get_cached_numpy()
-            idx = self.query.cache_offset
+            idx = self.query.index.values[0].value
             return cache[idx]
         else:
             return self._tensor[self.query.index].numpy()
@@ -185,7 +187,7 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
     @property
     def mean(self):
         """Returns numpy.mean() for the tensor"""
-        return np.mean(self.numpy())
+        return self.numpy().mean()  # type: ignore
 
     @property
     def shape(self):
@@ -198,7 +200,11 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
         return self.numpy().size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -243,7 +249,11 @@ class EvalNumpyObject(ScalarTensorObject):
         return self.arr.size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        return any(self.arr == o)  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -282,7 +292,20 @@ class EvalLabelClassTensor(EvalTensorObject, ScalarTensorObject):
             return super().__eq__(o)
 
     def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
+
+    def __iter__(self):
+        return iter(self.numpy())
+
+    def __getitem__(self, item):
+        if not self.is_scalar():
+            return EvalLabelClassTensor(self.query, self._tensor[item])
+        else:
+            raise ValueError("Scalar not subscriptable")
 
 
 class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
@@ -298,7 +321,11 @@ class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
         super().__init__(query, tensor)
 
     def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
+        v = self.numpy() == o
+        if isinstance(v, np.ndarray):
+            return v.any()  # type: ignore
+        else:
+            return v
 
     def as_scalar(self):
         assert self.is_scalar()

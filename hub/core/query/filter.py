@@ -39,16 +39,16 @@ def filter_with_compute(
 
     def filter_slice(indices: Sequence[int]):
         result = list()
-        for idx, i in enumerate(indices):
-            if filter_function(dataset[i], idx):
+        for i in indices:
+            if filter_function(dataset[i]):
                 result.append(i)
 
         return result
 
     def pg_filter_slice(pg_callback, indices: Sequence[int]):
         result = list()
-        for idx, i in enumerate(indices):
-            if filter_function(dataset[i], idx):
+        for i in indices:
+            if filter_function(dataset[i]):
                 result.append(i)
             pg_callback(1)
 
@@ -83,7 +83,7 @@ def filter_inplace(
         it = tqdm(it, total=len(dataset))
 
     for i, sample_in in it:
-        if filter_function(sample_in, i):
+        if filter_function(sample_in):
             index_map.append(i)
 
     return index_map
