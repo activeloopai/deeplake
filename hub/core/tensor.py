@@ -11,6 +11,8 @@ from hub.core.storage import StorageProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import (
+    get_chunk_id_encoder_key,
+    get_chunk_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     tensor_exists,
@@ -23,6 +25,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
+from hub.constants import TENSOR_META_FILENAME, TENSOR_INFO_FILENAME
 
 
 def create_tensor(
@@ -65,6 +68,62 @@ def create_tensor(
     diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
     diff = CommitDiff(created=True)
     storage[diff_key] = diff  # type: ignore
+
+
+def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
+    """Delete tensor from storage.
+
+    Args:
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
+        storage (LRUCache): StorageProvider that all tensor data is written to.
+        version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+
+    Raises:
+        TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+    """
+
+    if not tensor_exists(key, storage, version_state["commit_id"]):
+        raise TensorDoesNotExistError(key)
+
+    tensor = Tensor(key, storage, version_state)
+    chunk_engine = tensor.chunk_engine
+    enc = chunk_engine.chunk_id_encoder
+    n_chunks = chunk_engine.num_chunks
+    chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
+    chunk_keys = [
+        get_chunk_key(key, chunk_name, version_state["commit_id"])
+        for chunk_name in chunk_names
+    ]
+    for chunk_key in chunk_keys:
+        try:
+            del storage[chunk_key]
+        except KeyError:
+            pass
+
+    commit_id = version_state["commit_id"]
+    meta_key = get_tensor_meta_key(key, commit_id)
+    try:
+        del storage[meta_key]
+    except KeyError:
+        pass
+
+    info_key = get_tensor_info_key(key, commit_id)
+    try:
+        del storage[info_key]
+    except KeyError:
+        pass
+
+    diff_key = get_tensor_commit_diff_key(key, commit_id)
+    try:
+        del storage[diff_key]
+    except KeyError:
+        pass
+
+    chunk_id_encoder_key = get_chunk_id_encoder_key(key, commit_id)
+    try:
+        del storage[chunk_id_encoder_key]
+    except KeyError:
+        pass
 
 
 def _inplace_op(f):
@@ -482,3 +541,6 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
+
+    def _pop(self):
+        self.chunk_engine._pop()
