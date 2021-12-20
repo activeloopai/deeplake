@@ -703,7 +703,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
-        save_result: bool = False,
+        store_result: bool = False,
         result_path: Optional[str] = None,
         result_ds_args: Optional[dict] = None,
     ):
@@ -718,9 +718,9 @@ class Dataset:
             scheduler(str): Scheduler to use for multiprocessing evaluation.
                 `threaded` is default
             progressbar(bool): Display progress bar while filtering. True is default
-            save_result (bool): If True, result of the filter will be saved to a dataset asynchronously.
-            result_path (Optional, str): Path to save the filter result. Only applicable if `save_result` is True.
-            result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `save_result` is True.
+            store_result (bool): If True, result of the filter will be saved to a dataset asynchronously.
+            result_path (Optional, str): Path to save the filter result. Only applicable if `store_result` is True.
+            result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `store_result` is True.
 
         Returns:
             View on Dataset with elements, that satisfy filter function
@@ -743,7 +743,7 @@ class Dataset:
             num_workers=num_workers,
             scheduler=scheduler,
             progressbar=progressbar,
-            save_result=save_result,
+            store_result=store_result,
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
@@ -1119,6 +1119,10 @@ class Dataset:
                 self.storage.flush()
                 base_storage = get_base_storage(self.storage)
                 path = base_storage.subdir(f"queries/{hash}").root
+                if hasattr(base_storage, "_args"):
+                    args = base_storage._args()
+                    args.update(ds_args)
+                    ds_args = args
                 ds = hub.dataset(path, **ds_args)  # type: ignore
                 lock = Lock(base_storage, get_queries_lock_key())
                 lock.acquire(timeout=10, force=True)
@@ -1166,3 +1170,22 @@ class Dataset:
         if query:
             view._query = query
         return view.store(vds_path, _ret_ds=True, **vds_args)
+
+    def _get_query_history(self) -> List[str]:
+        """
+        Internal. Returns a list of hashes which can be passed to Dataset._get_stored_vds to get a dataset view.
+        """
+        try:
+            queries = json.loads(self.storage[get_queries_key()].decode("utf-8"))
+            return queries
+        except KeyError:
+            return []
+
+    def _get_stored_vds(self, hash: str):
+        """
+        Internal.
+        """
+        base_storage = get_base_storage(self.storage)
+        path = base_storage.subdir(f"queries/{hash}").root
+        ds_args = base_storage._args() if hasattr(base_storage, "_args") else {}
+        return hub.dataset(path, **ds_args)._vds

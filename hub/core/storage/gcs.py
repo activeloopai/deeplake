@@ -311,3 +311,9 @@ class GCSProvider(StorageProvider):
         self.project = state[3]
         self.read_only = state[4]
         self._initialize_provider()
+
+    def _args(self) -> Union[str, Dict]:
+        """
+        Internal. Arguments other than the path required to initialize this storage.
+        """
+        return {"creds": self.token}

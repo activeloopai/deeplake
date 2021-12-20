@@ -191,8 +191,10 @@ def test_inplace_dataset_view_save(s3_ds_generator, stream):
     ds = s3_ds_generator()
     with ds:
         _populate_data(ds, n=2)
-    view = ds.filter("labels == 'dog'", save_result=stream)
+    view = ds.filter("labels == 'dog'", store_result=stream)
+    assert len(ds._get_query_history()) == int(stream)
     vds_path = view.store()
+    assert len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
