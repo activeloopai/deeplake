@@ -348,7 +348,9 @@ class Index:
             base = self
             for index in item.values:
                 value = index.value
-                if isinstance(value, tuple):
+                if isinstance(value, tuple) and not (
+                    value and isinstance(value[0], slice)
+                ):
                     value = (value,)  # type: ignore
                 base = base[value]
             return base

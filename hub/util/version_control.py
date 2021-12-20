@@ -21,6 +21,7 @@ from hub.util.keys import (
     get_tensor_info_key,
     get_tensor_meta_key,
     get_tensor_commit_chunk_set_key,
+    get_tensor_tile_encoder_key,
     get_version_control_info_key,
     get_version_control_info_lock_key,
 )
@@ -169,6 +170,17 @@ def copy_metas(
             pass
 
         try:
+            src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
+            dest_tile_encoder_key = get_tensor_tile_encoder_key(tensor, dest_commit_id)
+            src_tile_encoder = storage[src_tile_encoder_key]
+            if isinstance(src_tile_encoder, Cachable):
+                storage[dest_tile_encoder_key] = src_tile_encoder.copy()
+            else:
+                storage[dest_tile_encoder_key] = src_tile_encoder
+        except KeyError:
+            pass
+
+        try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
@@ -207,6 +219,9 @@ def discard_old_metas(
 
         src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
         all_src_keys.append(src_chunk_id_encoder_key)
+
+        src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
+        all_src_keys.append(src_tile_encoder_key)
 
         src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
         all_src_keys.append(src_tensor_info_key)
@@ -286,7 +301,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
-    """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/info updates."""
+    """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
     if not version_state["commit_node"].is_head_node:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"

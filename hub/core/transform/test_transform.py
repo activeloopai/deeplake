@@ -9,23 +9,8 @@ from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.transform import get_pbar_description
-import sys
 import hub
 
-
-# TODO progressbar is disabled while running tests on mac for now
-if sys.platform == "darwin":
-    defs = hub.core.transform.transform.Pipeline.eval.__defaults__  # type: ignore
-    defs = defs[:-1] + (False,)
-    hub.core.transform.transform.Pipeline.eval.__defaults__ = defs  # type: ignore
-
-    defs = hub.core.transform.transform.TransformFunction.eval.__defaults__  # type: ignore
-    defs = defs[:-1] + (False,)
-    hub.core.transform.transform.TransformFunction.eval.__defaults__ = defs  # type: ignore
-
-
-# github actions can only support 2 workers
-TRANSFORM_TEST_NUM_WORKERS = 2
 
 # github actions can only support 2 workers
 TRANSFORM_TEST_NUM_WORKERS = 2
@@ -75,6 +60,17 @@ def fn5(sample_in, samples_out, mul=1, copy=1):
 
 
 @hub.compute
+def fn6(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.append(
+            {
+                "image": sample_in.image.numpy() * mul,
+                "label": sample_in.label.numpy() * mul,
+            }
+        )
+
+
+@hub.compute
 def read_image(sample_in, samples_out):
     samples_out.image.append(hub.read(sample_in))
 
@@ -103,9 +99,7 @@ def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
     )
-    np.testing.assert_array_equal(
-        ds.label[index].numpy(), target * np.ones((100, 100, 3))
-    )
+    np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
 
 
 @all_schedulers
@@ -141,8 +135,8 @@ def test_single_transform_hub_dataset(ds, scheduler):
         data_in,
         ds_out,
         num_workers=TRANSFORM_TEST_NUM_WORKERS,
-        progressbar=False,
         scheduler=scheduler,
+        progressbar=False,
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
@@ -609,6 +603,36 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     data_in.delete()
 
 
+def test_ds_append_in_transform(memory_ds):
+    ds = memory_ds
+    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    with data_in:
+        data_in.create_tensor("image")
+        data_in.create_tensor("label")
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i)))
+            data_in.label.append(i * np.ones((1,)))
+    ds_out = ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+
+    fn6(copy=1, mul=2).eval(
+        data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False
+    )
+    assert len(ds_out) == 99
+    for index in range(1, 100):
+        np.testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        )
+        np.testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        )
+
+    assert ds_out.image.shape_interval.lower == (99, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    data_in.delete()
+
+
 def test_transform_pass_through():
     data_in = hub.dataset("mem://ds1")
     data_in.create_tensor("image", htype="image", sample_compression="png")
@@ -641,16 +665,16 @@ def test_inplace_transform(local_ds_generator):
     with ds:
         ds.create_tensor("img")
         ds.create_tensor("label")
-        for i in range(100):
-            if i == 55:
-                ds.img.append(np.zeros((200, 200, 3)))
+        for i in range(10):
+            if i == 5:
+                ds.img.append(np.zeros((500, 500, 3)))
             else:
-                ds.img.append(np.ones((200, 200, 3)))
-            ds.label.append(np.ones((100, 100, 3)))
+                ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(1)
         a = ds.commit()
-        assert len(ds) == 100
-        for i in range(100):
-            if i != 55:
+        assert len(ds) == 10
+        for i in range(10):
+            if i != 5:
                 check_target_array(ds, i, 1)
         ds.img[55] = np.ones((200, 200, 3))
         b = ds.commit()
@@ -658,9 +682,9 @@ def test_inplace_transform(local_ds_generator):
         inplace_transform().eval(
             ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
         )
-        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+        assert ds.img.chunk_engine.num_samples == len(ds) == 20
 
-        for i in range(200):
+        for i in range(20):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
@@ -668,14 +692,14 @@ def test_inplace_transform(local_ds_generator):
         change = {
             "img": {
                 "created": False,
-                "data_added": [0, 200],
+                "data_added": [0, 20],
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
             },
             "label": {
                 "created": False,
-                "data_added": [0, 200],
+                "data_added": [0, 20],
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
@@ -684,19 +708,19 @@ def test_inplace_transform(local_ds_generator):
         assert diff == change
 
         ds.checkout(b)
-        assert len(ds) == 100
-        for i in range(100):
+        assert len(ds) == 10
+        for i in range(10):
             check_target_array(ds, i, 1)
 
     ds = local_ds_generator()
-    assert len(ds) == 200
-    for i in range(200):
+    assert len(ds) == 20
+    for i in range(20):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
 
     ds.checkout(b)
-    assert len(ds) == 100
-    for i in range(100):
+    assert len(ds) == 10
+    for i in range(10):
         check_target_array(ds, i, 1)
 
 
@@ -716,15 +740,15 @@ def test_inplace_transform_without_commit(local_ds_generator):
         inplace_transform().eval(
             ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
         )
-        assert ds.img.chunk_engine.num_samples == len(ds) == 200
+        assert ds.img.chunk_engine.num_samples == len(ds) == 20
 
-        for i in range(200):
+        for i in range(20):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
     ds = local_ds_generator()
-    assert len(ds) == 200
-    for i in range(200):
+    assert len(ds) == 20
+    for i in range(20):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
 
@@ -734,53 +758,53 @@ def test_inplace_transform_non_head(local_ds_generator):
     with ds:
         ds.create_tensor("img")
         ds.create_tensor("label")
-        for _ in range(100):
-            ds.img.append(np.ones((200, 200, 3)))
-            ds.label.append(np.ones((100, 100, 3)))
-        assert len(ds) == 100
-        for i in range(100):
+        for _ in range(10):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(1)
+        assert len(ds) == 10
+        for i in range(10):
             check_target_array(ds, i, 1)
         a = ds.commit()
-        for _ in range(50):
-            ds.img.append(np.ones((200, 200, 3)))
-            ds.label.append(np.ones((100, 100, 3)))
-        assert len(ds) == 150
-        for i in range(150):
+        for _ in range(5):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(1)
+        assert len(ds) == 15
+        for i in range(15):
             check_target_array(ds, i, 1)
 
         ds.checkout(a)
 
         # transforming non-head node
-        inplace_transform().eval(ds, num_workers=4, progressbar=False)
+        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False)
         br = ds.branch
 
-        assert len(ds) == 200
-        for i in range(200):
+        assert len(ds) == 20
+        for i in range(20):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
         ds.checkout(a)
-        assert len(ds) == 100
-        for i in range(100):
+        assert len(ds) == 10
+        for i in range(10):
             check_target_array(ds, i, 1)
 
         ds.checkout("main")
-        assert len(ds) == 150
-        for i in range(150):
+        assert len(ds) == 15
+        for i in range(15):
             check_target_array(ds, i, 1)
 
     ds = local_ds_generator()
-    assert len(ds) == 150
-    for i in range(150):
+    assert len(ds) == 15
+    for i in range(15):
         check_target_array(ds, i, 1)
 
     ds.checkout(a)
-    assert len(ds) == 100
-    for i in range(100):
+    assert len(ds) == 10
+    for i in range(10):
         check_target_array(ds, i, 1)
 
     ds.checkout(br)
-    assert len(ds) == 200
-    for i in range(200):
+    assert len(ds) == 20
+    for i in range(20):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
