@@ -185,6 +185,7 @@ def test_dataset_view_save():
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
+
 @pytest.mark.parametrize("stream", [True, False])
 def test_inplace_dataset_view_save(s3_ds_generator, stream):
     ds = s3_ds_generator()
