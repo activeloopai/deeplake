@@ -1,4 +1,5 @@
-from collections import defaultdict
+import hub
+from tqdm import tqdm  # type: ignore
 import pickle
 import posixpath
 import warnings
@@ -14,8 +15,12 @@ from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.tensor import (
+    create_tensor,
+    Tensor,
+    delete_tensor,
+)
 from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
-from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
@@ -32,6 +37,10 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    TensorGroupDoesNotExistError,
+    InvalidTensorNameError,
+    InvalidTensorGroupNameError,
+    LockedException,
     TensorGroupAlreadyExistsError,
 )
 from hub.util.keys import (
@@ -62,6 +71,7 @@ from hub.util.version_control import (
 from tqdm import tqdm  # type: ignore
 import hashlib
 import json
+from collections import defaultdict
 
 
 class Dataset:
@@ -109,6 +119,7 @@ class Dataset:
         self._locked_out = False  # User requested write access but was denied
         self.index: Index = index or Index()
         self.group_index = group_index
+        self._parent = None
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -321,6 +332,123 @@ class Dataset:
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
+
+    @hub_reporter.record_call
+    def delete_tensor(self, name: str, large_ok: bool = False):
+        """Delete a tensor from the dataset.
+
+        Args:
+            name (str): The name of tensor to be deleted.
+            large_ok (bool): Delete tensors larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
+            InvalidTensorNameError: If `name` is in dataset attributes.
+        """
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+            raise TensorDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorNameError(name)
+
+        if not self._is_root():
+            return self.root.delete_tensor(full_path, large_ok)
+
+        if not large_ok:
+            chunk_engine = self.version_state["full_tensors"][name].chunk_engine
+            size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Tensor {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
+
+        delete_tensor(name, self.storage, self.version_state)
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        meta.tensors.remove(name)
+        self.storage[meta_key] = meta
+        self.storage.maybe_flush()
+        self.version_state["meta"] = meta
+        self.version_state["full_tensors"].pop(name)
+        return None
+
+    @hub_reporter.record_call
+    def delete_group(self, name: str, large_ok: bool = False):
+        """Delete a tensor group from the dataset.
+
+        Args:
+            name (str): The name of tensor group to be deleted.
+            large_ok (bool): Delete tensor groups larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
+        """
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if full_path not in self._groups:
+            raise TensorGroupDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorGroupNameError(name)
+
+        if not self._is_root():
+            return self.root.delete_group(full_path, large_ok)
+
+        if not large_ok:
+            size_approx = self[name].size_approx()
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Group {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
+
+        tensors = [
+            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
+        ]
+
+        for tensor in tensors:
+            delete_tensor(tensor, self.storage, self.version_state)
+
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        groups = meta.groups.copy()
+        for group in groups:
+            if group.startswith(name):
+                meta.groups.remove(group)
+
+        tensors = meta.tensors.copy()
+        for tensor in tensors:
+            if tensor.startswith(name):
+                meta.tensors.remove(tensor)
+                self.version_state["full_tensors"].pop(tensor)
+        self.storage[meta_key] = meta
+        self.storage.maybe_flush()
+        self.version_state["meta"] = meta
+        return None
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
@@ -813,6 +941,8 @@ class Dataset:
         tensors = self.version_state["full_tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+        for group in self._groups_filtered:
+            size += self[group].size_approx()
         return size
 
     @hub_reporter.record_call
@@ -1013,6 +1143,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -1031,6 +1162,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush

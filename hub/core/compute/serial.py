@@ -8,13 +8,18 @@ class SerialProvider(ComputeProvider):
     def map(self, func, iterable):
         return list(map(func, iterable))
 
-    def map_with_progressbar(self, func, iterable, total_length: int):
+    def map_with_progressbar(self, func, iterable, total_length: int, desc=None):
         from tqdm.std import tqdm  # type: ignore
 
-        result = list()
+        pbar = tqdm(total=total_length, desc=desc)
 
-        for x in tqdm(iterable, total=total_length):
-            result.append(func(x))
+        def sub_func(*args, **kwargs):
+            def pg_callback(value: int):
+                pbar.update(value)
+
+            return func(pg_callback, *args, **kwargs)
+
+        result = self.map(sub_func, iterable)
 
         return result
 
