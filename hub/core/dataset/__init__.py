@@ -21,7 +21,7 @@ def dataset_factory(path, *args, **kwargs):
 
     if clz in {Dataset, HubCloudDataset}:
         ds = clz(path=path, *args, **kwargs)
-        if "VDS_INDEX" in ds.tensors:
+        if ds.info.get("virtual-datasource", False):
             ds = ds._get_view()
         return ds
     raise TypeError(f"Invalid dataset class {clz}")

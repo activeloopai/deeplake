@@ -32,7 +32,11 @@ def filter_dataset(
                 filter_function, "__name__", filter_function.__class__.__name__
             )
 
-    vds = dataset._get_empty_vds(result_path, result_ds_args, query=query) if save_result else None
+    vds = (
+        dataset._get_empty_vds(result_path, result_ds_args, query=query)
+        if save_result
+        else None
+    )
 
     if num_workers > 0:
         index_map = filter_with_compute(
@@ -87,7 +91,7 @@ def filter_with_compute(
                 if vds:
                     vds.VDS_INDEX.append(i)
                     vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                    if time()  - last_update_time > vds_update_frequency:
+                    if time() - last_update_time > vds_update_frequency:
                         vds.flush()
                         last_update_time = time()
         if vds:
@@ -135,7 +139,6 @@ def filter_inplace(
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
 
-
     if progressbar:
         from tqdm import tqdm  # type: ignore
 
@@ -147,7 +150,7 @@ def filter_inplace(
             if vds:
                 vds.VDS_INDEX.append(i)
                 vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                if time()  - last_update_time > vds_update_frequency:
+                if time() - last_update_time > vds_update_frequency:
                     vds.flush()
                     last_update_time = time()
 
