@@ -534,9 +534,7 @@ class ChunkEngine:
             ).read_sample(0),
             otypes=[object],
         )(required_tile_ids)
-        current_sample = coalesce_tiles(
-            tiles, tile_shape, sample_shape, self.tensor_meta.dtype
-        )
+        current_sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
         new_sample = current_sample
         new_sample[sample_index] = sample
         new_tiles = break_into_tiles(
@@ -545,6 +543,8 @@ class ChunkEngine:
         chunk_ids = required_tile_ids
         for chunk_id, tile in zip(chunk_ids.reshape(-1), new_tiles.reshape(-1)):
             chunk = self.get_chunk_from_chunk_id(int(chunk_id), copy=True)
+            curr_shape = chunk.shapes_encoder[-1]
+            assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             self.add_chunk_to_dirty_keys(chunk)
 
@@ -704,9 +704,7 @@ class ChunkEngine:
                     ),
                     otypes=[object],
                 )(required_tile_ids)
-                sample = coalesce_tiles(
-                    tiles, tile_shape, sample_shape, self.tensor_meta.dtype
-                )
+                sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
                 sample = sample[sample_index]
             samples.append(sample)
             check_sample_shape(sample.shape, last_shape, self.key, index, aslist)

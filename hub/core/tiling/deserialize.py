@@ -1,43 +1,44 @@
 import numpy as np
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.meta.encode.tile import TileEncoder
-from hub.core.tiling.util import tile_bounds, validate_not_serialized, view
 
 
 def coalesce_tiles(
     tiles: np.ndarray,
     tile_shape: Tuple[int, ...],
-    sample_shape: Tuple[int, ...],
+    sample_shape: Optional[Tuple[int, ...]],
     dtype: Union[str, np.dtype],
 ) -> np.ndarray:
     """Coalesce tiles into a single array of shape `sample_shape`.
     Args:
         tiles (np.ndarray): numpy object array of tiles.
         tile_shape (Tuple[int, ...]): Tile shape. Corner tiles may be smaller than this.
-        sample_shape (Tuple[int, ...]): Shape of the output array. The sum of all actual tile shapes are expected to be equal to this.
+        sample_shape (Optional, Tuple[int, ...]): Shape of the output array. The sum of all actual tile shapes are expected to be equal to this.
         dtype (Union[str, np.dtype]): Dtype of the output array. Should match dtype of tiles.
     Raises:
         TypeError: If `tiles` is not deserialized.
     Returns:
         np.ndarray: Sample array from tiles.
     """
-
+    ndim = tiles.ndim
+    sample_shape = sample_shape or tuple(  # Infer sample shape from tile shapes
+        sum(
+            tile.shape[i]
+            for tile in tiles[tuple(slice(None) if j == i else 0 for j in range(ndim))]
+        )
+        for i in range(ndim)
+    )
     sample = np.empty(sample_shape, dtype=dtype)
     if tiles.size <= 0:
         return sample
 
-    validate_not_serialized(tiles, "coalescing tiles")
-
     for tile_coords, tile in np.ndenumerate(tiles):
-        low, high = tile_bounds(np.asarray(tile_coords), tile_shape)
-        sample_view = view(sample, low, high)
-        idxs = tuple(
-            slice(0, min(tile.shape[i], tile_shape[i], sample_view.shape[i]))
-            for i in range(tile.ndim)
-        )
-        sample_view[idxs] = tile[idxs]
-
+        low = np.multiply(tile_coords, tile_shape)
+        high = low + tile.shape
+        idx = tuple(slice(l, h) for l, h in zip(low, high))
+        view = sample[idx]
+        view[:] = tile
     return sample
 
 

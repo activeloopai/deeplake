@@ -15,7 +15,8 @@ from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider
 
-from hub.core.storage.gcs import GCSProvider
+# from hub.core.storage.gcs import GCSProvider
+GCSProvider = S3Provider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
