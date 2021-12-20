@@ -176,7 +176,7 @@ def test_query_scheduler(local_ds):
     )
 
 
-def test_dataset_view_save(sample_ds):
+def test_dataset_view_save():
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")

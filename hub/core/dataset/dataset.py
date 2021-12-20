@@ -12,9 +12,11 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock_version, unlock_version
+from hub.core.lock import lock_version, unlock_version, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
+from hub.core.storage import LRUCache, S3Provider, MemoryProvider  # GCSProvider
+
+GCSProvider = S3Provider
 from hub.core.tensor import Tensor, create_tensor
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
@@ -40,6 +42,8 @@ from hub.util.keys import (
     get_dataset_meta_key,
     get_version_control_info_key,
     tensor_exists,
+    get_queries_key,
+    get_queries_lock_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -59,6 +63,7 @@ from hub.util.version_control import (
 )
 from tqdm import tqdm  # type: ignore
 import hashlib
+import json
 
 
 class Dataset:
@@ -104,7 +109,6 @@ class Dataset:
         self.storage = storage
         self._read_only = read_only
         self._locked_out = False  # User requested write access but was denied
-        base_storage = get_base_storage(storage)
         self.index: Index = index or Index()
         self.group_index = group_index
         self._token = token
@@ -1093,17 +1097,31 @@ class Dataset:
                     "Saving views inplace is not supported for in-memory datasets."
                 )
             if self.read_only:
-                raise Exception(
-                    "Cannot save view in read only dataset. Speicify a path to store the view in a different location."
-                )
-            self.flush()
-            storage = get_base_storage(self.storage).subdir(
-                f"queries/{self._view_hash()}"
-            )
-            storage = generate_chain(
-                storage, DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, self.path
-            )
-            ds = hub.Dataset(storage)
+                if isinstance(self, hub.core.dataset.HubCloudDataset):
+                    path = f"hub://{self.org_id}/_query_{self._view_hash}"
+                    ds = hub.empty(path, **ds_args)
+                else:
+                    raise Exception(
+                        "Cannot save view in read only dataset. Speicify a path to store the view in a different location."
+                    )
+            else:
+                self.flush()
+                hash = self._view_hash()
+                self.storage.flush()
+                base_storage = get_base_storage(self.storage)
+                path = base_storage.subdir(f"queries/{hash}").root
+                ds = hub.dataset(path, **ds_args)
+                lock = Lock(base_storage, get_queries_lock_key())
+                lock.acquire(timeout=10, force=True)
+                queries_key = get_queries_key()
+                try:
+                    queries = json.loads(base_storage[queries_key].decode("utf-8"))
+                except KeyError:
+                    queries = []
+                queries.append(hash)
+                base_storage[queries_key] = json.dumps(queries).encode("utf-8")
+                lock.release()
+
         else:
             ds = hub.empty(path, **ds_args)
 
@@ -1117,8 +1135,9 @@ class Dataset:
         query = getattr(self, "_query", None)
         if query:
             info["query"] = query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         with ds:
-            # ds.info.update(info)
+            ds.info.update(info)
             ds.create_tensor("VDS_INDEX", dtype="uint64")
             ds.VDS_INDEX.extend(list(self.index.values[0].indices(len(self))))
 
@@ -1129,4 +1148,11 @@ class Dataset:
         # Only applicable for virtual datasets
         ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
         ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
+        ds._vds = self
         return ds
+
+    def _get_empty_vds(self, vds_path=None, query=None, **vds_args):
+        view = self[:0]
+        if query:
+            view._query = query
+        return view.store(vds_path, **vds_args)
