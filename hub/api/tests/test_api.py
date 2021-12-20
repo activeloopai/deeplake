@@ -7,6 +7,7 @@ from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -117,10 +118,25 @@ def test_populate_dataset(ds):
 
 def test_larger_data_memory(memory_ds):
     memory_ds.create_tensor("image")
-    memory_ds.image.extend(np.ones((4, 4096, 4096)))
+    x = np.ones((4, 4096, 4096))
+    memory_ds.image.extend(x)
     assert len(memory_ds) == 4
-    assert memory_ds.image.shape == (4, 4096, 4096)
-    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((4, 4096, 4096)))
+    assert memory_ds.image.shape == x.shape
+    np.testing.assert_array_equal(memory_ds.image.numpy(), x)
+    idxs = [
+        0,
+        1,
+        3,
+        -1,
+        slice(0, 3),
+        slice(2, 4),
+        slice(2, None),
+        (0, slice(5, None), slice(None, 714)),
+        (2, 100, 1007),
+        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 4095]),
+    ]
+    for idx in idxs:
+        np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
 def test_stringify(memory_ds):
@@ -776,6 +792,32 @@ def test_groups(local_ds_generator):
     assert ds.storage.autoflush
 
 
+def test_tensor_delete(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    ds.delete_tensor("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+    ds.create_tensor("x/y")
+    ds.delete_tensor("x/y")
+    ds.create_tensor("x/y")
+    ds["x"].delete_tensor("y")
+    ds.delete_group("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+    ds.create_tensor("x/y/z")
+    ds.delete_group("x")
+    ds.create_tensor("x/y/z")
+    ds["x"].delete_group("y")
+    ds.create_tensor("x/y/z")
+    ds["x/y"].delete_tensor("z")
+    ds.delete_group("x")
+    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert ds.tensors == {}
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")
@@ -824,6 +866,38 @@ def test_clear(local_ds_generator):
     assert len(image) == 0
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+
+@pytest.mark.parametrize(
+    "x_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+@pytest.mark.parametrize(
+    "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+@pytest.mark.parametrize("x_size", [5, (32 * 5000)])
+def test_ds_append(memory_ds, x_args, y_args, x_size):
+    ds = memory_ds
+    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20)
+    ds.create_tensor("y", dtype="uint8", **y_args)
+    with pytest.raises(TensorDtypeMismatchError):
+        ds.append({"x": np.ones(2), "y": np.zeros(1)})
+    ds.append({"x": np.ones(2), "y": [1, 2, 3]})
+    ds.create_tensor("z")
+    with pytest.raises(KeyError):
+        ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
+    ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
+    ds.append({"x": np.ones(4), "y": [2, 3, 4]}, skip_ok=True)
+    with pytest.raises(ValueError):
+        ds.append({"x": np.ones(2), "y": [4, 5], "z": np.ones(4)})
+    with pytest.raises(TensorDtypeMismatchError):
+        ds.append({"x": np.ones(x_size), "y": np.zeros(2)}, skip_ok=True)
+    assert len(ds.x) == 3
+    assert len(ds.y) == 3
+    assert len(ds.z) == 0
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
+    assert len(ds) == 0
 
 
 @pytest.mark.parametrize(

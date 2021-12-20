@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
@@ -35,6 +35,12 @@ class ChunkIdEncoder(Encoder, Cachable):
         chunk_id = self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
         return ChunkIdEncoder.name_from_id(chunk_id)
 
+    def get_id_for_chunk(self, chunk_index: int) -> str:
+        """Gets the if for the chunk at index `chunk_index`. If you need to get the name for a chunk from a sample index, instead
+        use `__getitem__`, then `name_from_id`."""
+
+        return self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
+
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
@@ -52,28 +58,30 @@ class ChunkIdEncoder(Encoder, Cachable):
             return 0
         return len(self._encoded)
 
-    def generate_chunk_id(self) -> ENCODING_DTYPE:
+    def generate_chunk_id(self, register: Optional[bool] = True) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
+
+        Args:
+            register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True.
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
         """
 
         id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
+        if register:
+            if self.num_samples == 0:
+                self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
 
-        if self.num_samples == 0:
-            self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
+            else:
+                last_index = self.num_samples - 1
 
-        else:
-            last_index = self.num_samples - 1
-
-            new_entry = np.array(
-                [[id, last_index]],
-                dtype=ENCODING_DTYPE,
-            )
-            self._encoded = np.concatenate([self._encoded, new_entry])
-
+                new_entry = np.array(
+                    [[id, last_index]],
+                    dtype=ENCODING_DTYPE,
+                )
+                self._encoded = np.concatenate([self._encoded, new_entry])
         return id
 
     def register_samples(self, num_samples: int):  # type: ignore
@@ -120,7 +128,9 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
 
-        assert len(ls) == 1  # this method should only be called for non tiled samples
+        assert len(ls) == 1, len(
+            ls
+        )  # this method should only be called for non tiled samples
         chunk_index = ls[0][1]
 
         if chunk_index == 0:
@@ -184,6 +194,9 @@ class ChunkIdEncoder(Encoder, Cachable):
             Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
         """
 
+        if local_sample_index < 0:
+            local_sample_index += self.num_samples
+
         row_index = self.translate_index(local_sample_index)
 
         output: List[Any] = []
@@ -194,18 +207,62 @@ class ChunkIdEncoder(Encoder, Cachable):
             output.append((value, row_index))
         else:
             output.append(value)
+
         row_index += 1
 
         while row_index < len(self._encoded):
-            if self._encoded[row_index][1] == local_sample_index:
+            if self._encoded[row_index][LAST_SEEN_INDEX_COLUMN] == local_sample_index:
                 value = self._derive_value(
                     self._encoded[row_index], row_index, local_sample_index
                 )
-                row_index += 1
                 if return_row_index:
                     output.append((value, row_index))
                 else:
                     output.append(value)
+                row_index += 1
             else:
                 break
         return output
+
+    def _num_samples_in_last_chunk(self):
+        return self._num_samples_in_last_row()
+
+    def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
+        """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
+        Returns:
+            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
+        """
+        chunk_ids_for_last_sample = self[-1]
+        if len(chunk_ids_for_last_sample) > 1:
+            self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
+            return chunk_ids_for_last_sample, True
+        else:
+            num_samples_in_last_chunk = self._num_samples_in_last_chunk()
+
+            if num_samples_in_last_chunk == 1:
+                self._encoded = self._encoded[:-1]
+                return chunk_ids_for_last_sample, True
+            elif num_samples_in_last_chunk > 1:
+                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+                return chunk_ids_for_last_sample, False
+            else:
+                raise IndexError("pop from empty encoder")
+
+    def _replace_chunks_for_tiled_sample(
+        self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
+    ):
+        current_chunk_ids_and_rows = self.__getitem__(  # type: ignore
+            global_sample_index, return_row_index=True
+        )
+        start_row = current_chunk_ids_and_rows[0][1]
+        end_row = current_chunk_ids_and_rows[-1][1]
+        if len(current_chunk_ids_and_rows) == len(chunk_ids):
+            # inplace update
+            self._encoded[start_row : end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
+        else:
+            top = self._encoded[:start_row]
+            bottom = self._encoded[end_row + 1 :]
+            mid = np.empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
+            mid[:, CHUNK_ID_COLUMN] = chunk_ids
+            mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
+            self._encoded = np.concatenate([top, mid, bottom], axis=0)

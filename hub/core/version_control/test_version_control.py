@@ -470,6 +470,42 @@ def test_tensor_info(local_ds):
     assert local_ds.abc.info.key == "notvalue"
 
 
+def test_delete(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        local_ds.abc.append(1)
+        a = local_ds.commit("first")
+        local_ds.delete_tensor("abc")
+        b = local_ds.commit("second")
+        local_ds.checkout(a)
+        assert local_ds.abc[0].numpy() == 1
+        local_ds.checkout(b)
+        assert local_ds.tensors == {}
+
+        local_ds.create_tensor("x/y/z")
+        local_ds["x/y/z"].append(1)
+        c = local_ds.commit("third")
+        local_ds["x"].delete_tensor("y/z")
+        d = local_ds.commit("fourth")
+        local_ds.checkout(c)
+        assert local_ds["x/y/z"][0].numpy() == 1
+        local_ds.checkout(d)
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
+        local_ds.delete_group("x")
+        assert list(local_ds.groups) == []
+
+        local_ds.checkout(c)
+        local_ds["x"].delete_group("y")
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
+
+        local_ds.checkout(c)
+        local_ds.delete_group("x/y")
+        assert local_ds.tensors == {}
+        assert list(local_ds.groups) == ["x"]
+
+
 def test_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("xyz")

@@ -7,7 +7,7 @@ from .base_chunk import BaseChunk, InputSample
 
 
 class UncompressedChunk(BaseChunk):
-    def extend_if_has_space(
+    def extend_if_has_space(  # type: ignore
         self, incoming_samples: Union[List[InputSample], np.ndarray]
     ) -> float:
         self.prepare_for_write()
