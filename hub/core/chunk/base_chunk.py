@@ -76,6 +76,11 @@ class BaseChunk(Cachable):
         self.decompressed_samples: Optional[List[np.ndarray]] = None
         self.decompressed_bytes: Optional[bytes] = None
 
+        # Whether tensor meta length is updated by chunk. Used by chunk engine while replacing chunks.
+        self._update_tensor_meta_length: bool = (
+            True  # Note: tensor meta shape interval is updated regardless.
+        )
+
     @property
     def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
         return self._data_bytes
@@ -134,7 +139,7 @@ class BaseChunk(Cachable):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples) -> float:
+    def extend_if_has_space(self, incoming_samples, update_meta: bool = True) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
@@ -249,7 +254,8 @@ class BaseChunk(Cachable):
     def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
-        self.tensor_meta.length += 1
+        if self._update_tensor_meta_length:
+            self.tensor_meta.length += 1
         self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -268,6 +274,8 @@ class BaseChunk(Cachable):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
+        if self.byte_positions_encoder.is_empty():  # tiled sample
+            return new_sample_bytes
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_index]
         left_data = old_data[:old_start_byte]  # type: ignore
         right_data = old_data[old_end_byte:]  # type: ignore
@@ -292,8 +300,14 @@ class BaseChunk(Cachable):
     def write_tile(self, sample: SampleTiles):
         data, tile_shape = sample.yield_tile()
         self.data_bytes = data
-        update_meta = sample.is_first_write
         self.register_sample_to_headers(None, tile_shape)
-        if update_meta:
-            self.tensor_meta.length += 1
+        if sample.is_first_write:
             self.tensor_meta.update_shape_interval(sample.sample_shape)
+            if self._update_tensor_meta_length:
+                self.tensor_meta.length += 1
+
+    def _pop_sample(self):
+        self.prepare_for_write()
+        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
+        self.shapes_encoder._pop()
+        self.byte_positions_encoder._pop()

@@ -1,8 +1,6 @@
 from typing import Callable, Tuple
 import numpy as np
 
-from hub.core.tiling.util import ceildiv, tile_bounds, view, validate_not_serialized
-
 
 def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndarray:
     """Get a new tile-ordered numpy object array that is the shape of the tile grid.
@@ -35,15 +33,13 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
             of the actual tile at the tile coordinate.
     """
 
-    tiles_per_dim = ceildiv(np.array(sample.shape), np.array(tile_shape))
+    tiles_per_dim = np.ceil(np.divide(sample.shape, tile_shape)).astype(int)
     tiles = np.empty(tiles_per_dim, dtype=object)
-
-    for tile_coord, _ in np.ndenumerate(tiles):
-        tile_coord_arr = np.asarray(tile_coord)
-        low, high = tile_bounds(tile_coord_arr, tile_shape)
-        tile = view(sample, low, high)
-        tiles[tile_coord] = tile
-
+    for tile_coords, _ in np.ndenumerate(tiles):
+        low = np.multiply(tile_coords, tile_shape)
+        high = low + tile_shape
+        idx = tuple(slice(l, h) for l, h in zip(low, high))
+        tiles[tile_coords] = sample[idx]
     return tiles
 
 
@@ -61,6 +57,4 @@ def serialize_tiles(
     Returns:
         np.ndarray: numpy object array of serialized tiles. Each element of the array is a memoryview object.
     """
-
-    validate_not_serialized(tiles, "serialize_tiles")
     return np.vectorize(serialize_func, otypes=[object])(tiles)
