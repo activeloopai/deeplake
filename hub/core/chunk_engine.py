@@ -724,47 +724,49 @@ class ChunkEngine:
         """
         length = self.num_samples
         last_shape = None
+        enc = self.chunk_id_encoder
 
         if use_data_cache and self.is_data_cachable:
             samples = self.numpy_from_data_cache(index, length, aslist)
         else:
-            chunk_ids = enc[global_sample_index]
-            if not self._is_tiled_sample(global_sample_index):
-                chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
-                enc = self.chunk_id_encoder
-                local_sample_index = enc.translate_index_relative_to_chunks(
-                    global_sample_index
-                )
-                sample = chunk.read_sample(local_sample_index)[
-                    tuple(entry.value for entry in index.values[1:])
-                ]
-            elif len(index.values) == 1:
-                # Tiled sample, all chunks required
-                chunks = self.get_chunks_for_sample(global_sample_index)
-                sample = combine_chunks(chunks, global_sample_index, self.tile_encoder)
-            else:
-                # Tiled sample, only some chunks required
-                tile_enc = self.tile_encoder
-                sample_shape = tile_enc.get_sample_shape(global_sample_index)
-                tile_shape = tile_enc.get_tile_shape(global_sample_index)
-                ordered_tile_ids = np.array(chunk_ids).reshape(
-                    tile_enc.get_tile_layout_shape(global_sample_index)
-                )
-                tiles_index, sample_index = translate_slices(
-                    [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
-                )
-                required_tile_ids = ordered_tile_ids[tiles_index]
-                tiles = np.vectorize(
-                    lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
-                        0
-                    ),
-                    otypes=[object],
-                )(required_tile_ids)
-                sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
-                sample = sample[sample_index]
-            samples.append(sample)
-            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-            last_shape = sample.shape
+            samples = []
+            for global_sample_index in index.values[0].indices(length):
+                chunk_ids = enc[global_sample_index]
+                if not self._is_tiled_sample(global_sample_index):
+                    chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
+                    local_sample_index = enc.translate_index_relative_to_chunks(
+                        global_sample_index
+                    )
+                    sample = chunk.read_sample(local_sample_index)[
+                        tuple(entry.value for entry in index.values[1:])
+                    ]
+                elif len(index.values) == 1:
+                    # Tiled sample, all chunks required
+                    chunks = self.get_chunks_for_sample(global_sample_index)
+                    sample = combine_chunks(chunks, global_sample_index, self.tile_encoder)
+                else:
+                    # Tiled sample, only some chunks required
+                    tile_enc = self.tile_encoder
+                    sample_shape = tile_enc.get_sample_shape(global_sample_index)
+                    tile_shape = tile_enc.get_tile_shape(global_sample_index)
+                    ordered_tile_ids = np.array(chunk_ids).reshape(
+                        tile_enc.get_tile_layout_shape(global_sample_index)
+                    )
+                    tiles_index, sample_index = translate_slices(
+                        [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
+                    )
+                    required_tile_ids = ordered_tile_ids[tiles_index]
+                    tiles = np.vectorize(
+                        lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
+                            0
+                        ),
+                        otypes=[object],
+                    )(required_tile_ids)
+                    sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
+                    sample = sample[sample_index]
+                samples.append(sample)
+                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                last_shape = sample.shape
 
         if aslist and all(map(np.isscalar, samples)):
             samples = list(arr.item() for arr in samples)
