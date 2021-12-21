@@ -667,16 +667,16 @@ def test_inplace_transform(local_ds_generator):
         ds.create_tensor("label")
         for i in range(10):
             if i == 5:
-                ds.img.append(np.zeros((500, 500, 3)))
+                ds.img.append(np.zeros((200, 200, 3)))
             else:
-                ds.img.append(np.ones((500, 500, 3)))
+                ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         a = ds.commit()
         assert len(ds) == 10
         for i in range(10):
             if i != 5:
                 check_target_array(ds, i, 1)
-        ds.img[55] = np.ones((200, 200, 3))
+        ds.img[5] = np.ones((200, 200, 3))
         b = ds.commit()
 
         inplace_transform().eval(
@@ -730,11 +730,11 @@ def test_inplace_transform_without_commit(local_ds_generator):
     with ds:
         ds.create_tensor("img")
         ds.create_tensor("label")
-        for _ in range(100):
+        for _ in range(10):
             ds.img.append(np.ones((200, 200, 3)))
-            ds.label.append(np.ones((100, 100, 3)))
-        assert len(ds) == 100
-        for i in range(100):
+            ds.label.append(1)
+        assert len(ds) == 10
+        for i in range(10):
             check_target_array(ds, i, 1)
 
         inplace_transform().eval(
@@ -759,14 +759,14 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(10):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 10
         for i in range(10):
             check_target_array(ds, i, 1)
         a = ds.commit()
         for _ in range(5):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 15
         for i in range(15):
