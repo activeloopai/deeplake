@@ -743,7 +743,9 @@ class ChunkEngine:
                 elif len(index.values) == 1:
                     # Tiled sample, all chunks required
                     chunks = self.get_chunks_for_sample(global_sample_index)
-                    sample = combine_chunks(chunks, global_sample_index, self.tile_encoder)
+                    sample = combine_chunks(
+                        chunks, global_sample_index, self.tile_encoder
+                    )
                 else:
                     # Tiled sample, only some chunks required
                     tile_enc = self.tile_encoder
@@ -757,12 +759,14 @@ class ChunkEngine:
                     )
                     required_tile_ids = ordered_tile_ids[tiles_index]
                     tiles = np.vectorize(
-                        lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
-                            0
-                        ),
+                        lambda chunk_id: self.get_chunk_from_chunk_id(
+                            chunk_id
+                        ).read_sample(0),
                         otypes=[object],
                     )(required_tile_ids)
-                    sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
+                    sample = coalesce_tiles(
+                        tiles, tile_shape, None, self.tensor_meta.dtype
+                    )
                     sample = sample[sample_index]
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
@@ -777,7 +781,7 @@ class ChunkEngine:
         if aslist:
             return samples
         return np.array(samples)
-      
+
     def numpy_from_data_cache(self, index, length, aslist):
         samples = []
         enc = self.chunk_id_encoder
