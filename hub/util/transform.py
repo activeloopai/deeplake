@@ -7,11 +7,10 @@ from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
-from hub.core.ipc import Client
-
 
 from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -23,6 +22,14 @@ from hub.util.exceptions import (
 
 import posixpath
 import time
+
+TransformOut = Tuple[
+    Dict[str, TensorMeta],
+    Dict[str, ChunkIdEncoder],
+    Dict[str, TileEncoder],
+    Dict[str, Optional[CommitChunkSet]],
+    Dict[str, CommitDiff],
+]
 
 
 def transform_sample(
@@ -91,25 +98,16 @@ def is_empty_transform_dataset(dataset: TransformDataset):
     return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
-def store_data_slice(
-    transform_input: Tuple,
-) -> Tuple[
-    Dict[str, TensorMeta],
-    Dict[str, ChunkIdEncoder],
-    Dict[str, TileEncoder],
-    Dict[str, Optional[CommitChunkSet]],
-]:
+def store_data_slice(transform_input: Tuple) -> TransformOut:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
-    (
-        data_slice,
-        (output_storage, group_index),
-        tensors,
-        pipeline,
-        version_state,
-        progress_port,
-    ) = transform_input
+    return store_data_slice_with_pbar(None, transform_input)
+
+
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
+    data_slice, inp = transform_input
+    output_storage, group_index, tensors, pipeline, version_state = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -118,14 +116,15 @@ def store_data_slice(
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index, progress_port
+        data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback
     )
 
-    # retrieve the tensor metas and chunk_id_encoder from the memory
+    # retrieve relevant objects from memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_chunk_sets = {}
+    all_commit_diffs = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
@@ -133,7 +132,14 @@ def store_data_slice(
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
-    return all_tensor_metas, all_chunk_id_encoders, all_tile_encoders, all_chunk_sets
+        all_commit_diffs[tensor] = chunk_engine.commit_diff
+    return (
+        all_tensor_metas,
+        all_chunk_id_encoders,
+        all_tile_encoders,
+        all_chunk_sets,
+        all_commit_diffs,
+    )
 
 
 def _transform_sample_and_update_chunk_engines(
@@ -162,36 +168,27 @@ def transform_data_slice_and_append(
     tensors: List[str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
-    progress_port: Optional[int] = None,
+    pg_callback=None,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
 
-    if progress_port is not None:
-        last_reported_time = time.time()
-        last_reported_num_samples = 0
-        report_interval = TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-        client = Client(progress_port)
-    try:
-        n = len(data_slice)
-        for i, sample in enumerate(data_slice):
-            _transform_sample_and_update_chunk_engines(
-                sample, pipeline, tensors, all_chunk_engines, group_index
-            )
-            if progress_port is not None:
-                curr_time = time.time()
-                if curr_time - last_reported_time > report_interval or i == n - 1:
-                    num_samples = i + 1
-                    client.send(num_samples - last_reported_num_samples)
-                    last_reported_num_samples = num_samples
-                    last_reported_time = curr_time
-    except Exception as e:
-        if progress_port is not None:
-            client.send(str(e))
-        else:
-            raise e
-    finally:
-        if progress_port is not None:
-            client.close()
+    n = len(data_slice)
+    last_reported_time = time.time()
+    last_reported_num_samples = 0
+    for i, sample in enumerate(data_slice):
+        _transform_sample_and_update_chunk_engines(
+            sample, pipeline, tensors, all_chunk_engines, group_index
+        )
+        if pg_callback is not None:
+            curr_time = time.time()
+            if (
+                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                or i == n - 1
+            ):
+                num_samples = i + 1
+                pg_callback(num_samples - last_reported_num_samples)
+                last_reported_num_samples = num_samples
+                last_reported_time = curr_time
 
 
 def create_worker_chunk_engines(

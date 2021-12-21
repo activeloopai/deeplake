@@ -372,6 +372,8 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
+    if not buffer:
+        return []
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
