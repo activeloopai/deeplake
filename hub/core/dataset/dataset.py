@@ -757,7 +757,7 @@ class Dataset:
             self.storage.disable_readonly()
             self.__dict__["_read_only"] = False
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
-                storage.next_storage.disable_readonly() 
+                storage.next_storage.disable_readonly()
 
     @read_only.setter
     def read_only(self, value: bool):
@@ -880,7 +880,9 @@ class Dataset:
         if self.is_first_load:
             self.storage.autoflush = True
             self._load_version_info()
-            self._set_read_only(self._read_only, False)  # TODO: weird fix for dataset unpickling
+            self._set_read_only(
+                self._read_only, False
+            )  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
         if not self.is_iteration:
             self.index.validate(self.num_samples)
