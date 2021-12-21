@@ -1,3 +1,4 @@
+# type: ignore
 import hub
 from tqdm import tqdm  # type: ignore
 import pickle
