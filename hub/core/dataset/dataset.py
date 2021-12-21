@@ -369,13 +369,18 @@ class Dataset:
                 )
                 return
 
-        delete_tensor(name, self.storage, self.version_state)
+        initial_autoflush = self.autoflush
+        self.autoflush = False
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)
         meta.tensors.remove(name)
         self.storage[meta_key] = meta
+        delete_tensor(name, self.storage, self.version_state)
+        self.autoflush = initial_autoflush
+
         self.storage.maybe_flush()
+
         self.version_state["meta"] = meta
         self.version_state["full_tensors"].pop(name)
         return None
