@@ -8,6 +8,8 @@ from hub.util.dataset import map_tensor_keys
 from time import time
 
 import inspect
+import threading
+import queue
 
 
 def filter_dataset(
@@ -21,6 +23,8 @@ def filter_dataset(
     result_ds_args: Optional[dict] = None,
 ) -> hub.Dataset:
     index_map: List[int]
+
+    tm = time()
 
     if isinstance(filter_function, hub.core.query.DatasetQuery):
         query = filter_function._query
@@ -38,32 +42,56 @@ def filter_dataset(
         else None
     )
 
-    if num_workers > 0:
-        index_map = filter_with_compute(
-            dataset,
-            filter_function,
-            num_workers,
-            scheduler,
-            progressbar,
-            vds,
-        )
-    else:
-        index_map = filter_inplace(
-            dataset,
-            filter_function,
-            progressbar,
-            vds,
-        )
+    index_map = None
+    try:
+        if num_workers > 0:
+            index_map = filter_with_compute(
+                dataset,
+                filter_function,
+                num_workers,
+                scheduler,
+                progressbar,
+                vds,
+            )
+        else:
+            index_map = filter_inplace(
+                dataset,
+                filter_function,
+                progressbar,
+                vds,
+            )
+    except Exception as e:
+        vds.info["error"] = str(e)
+        raise (e)
 
     ds = dataset[index_map]
     ds._is_filtered_view = True
 
     ds._query = query
     ds._source_ds_idx = dataset.index.to_json()
-
+    ds._created_at = tm
     if vds:
         ds._vds = vds
     return ds  # type: ignore [this is fine]
+
+
+def _get_vds_thread(vds, queue, num_samples, vds_update_frequency):
+    def loop():
+        processed = 0
+        last_flushed_time = time()
+        while True:
+            index, include = queue.get()
+            vds.info["samples_processed"] += 1
+            if include:
+                vds.VDS_INDEX.append(index)
+            processed += 1
+            if processed == num_samples:
+                vds.flush()
+                break
+            if time() - last_flushed_time > vds_update_frequency:
+                vds.flush()
+
+    return threading.Thread(target=loop)
 
 
 def filter_with_compute(
@@ -83,25 +111,20 @@ def filter_with_compute(
         vds.autoflush = False
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
-        last_update_time = {"value": time()}
+        vds_queue = compute.create_queue()
+        vds_thread = _get_vds_thread(vds, vds_queue, len(dataset), vds_update_frequency)
+        vds_thread.start()
 
     def filter_slice(indices: Sequence[int]):
         result = list()
-        num_samples = len(indices)
-        for idx, i in enumerate(indices):
+        for i in indices:
             if filter_function(dataset[i]):
                 result.append(i)
                 if vds:
-                    vds.VDS_INDEX.append(i)  # type: ignore
-                    vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                    if (
-                        idx == num_samples - 1
-                        or time() - last_update_time["value"] > vds_update_frequency
-                    ):
-                        vds.flush()
-                        last_update_time["value"] = time()
-        if vds:
-            vds.autoflush = True
+                    vds_queue.put((i, True))
+            elif vds:
+                vds_queue.put((i, False))
+
         return result
 
     def pg_filter_slice(pg_callback, indices: Sequence[int]):
@@ -110,6 +133,10 @@ def filter_with_compute(
             pg_callback(1)
             if filter_function(dataset[i]):
                 result.append(i)
+                if vds:
+                    vds_queue.put((i, True))
+            elif vds:
+                vds_queue.put((i, False))
 
         return result
 
@@ -125,7 +152,11 @@ def filter_with_compute(
 
     finally:
         compute.close()
-
+        if vds:
+            vds.autoflush = True
+            vds_thread.join()
+            if hasattr(vds_queue, "close"):
+                vds_queue.close()
     return index_map
 
 
@@ -144,8 +175,9 @@ def filter_inplace(
         vds.autoflush = False
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
-        last_update_time = {"value": time()}
-
+        vds_queue = queue.Queue()
+        vds_thread = _get_vds_thread(vds, vds_queue, num_samples, vds_update_frequency)
+        vds_thread.start()
     if progressbar:
         from tqdm import tqdm  # type: ignore
 
@@ -155,16 +187,11 @@ def filter_inplace(
         if filter_function(sample_in):
             index_map.append(i)
             if vds:
-                vds.VDS_INDEX.append(i)  # type: ignore
-                vds.info["samples_processed"] = vds.info["samples_processed"] + 1
-                if (
-                    i == num_samples - 1
-                    or time() - last_update_time["value"] > vds_update_frequency
-                ):
-                    vds.flush()
-                    last_update_time["value"] = time()
-
+                vds_queue.put((i, True))
+        elif vds:
+            vds_queue.put((i, False))
     if vds:
         vds.autoflush = True
+        vds_thread.join()
 
     return index_map

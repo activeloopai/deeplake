@@ -69,6 +69,7 @@ from hub.util.version_control import (
     warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
+from time import time
 import hashlib
 import json
 from collections import defaultdict
@@ -1219,6 +1220,9 @@ class Dataset:
     def __args__(self):
         return None
 
+    def __bool__(self):
+        return True
+
     def _view_hash(self):
         return hashlib.sha1(
             (
@@ -1227,12 +1231,29 @@ class Dataset:
         ).hexdigest()
 
     def store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+        tm = getattr(self, "_created_at", time())
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
+        if path is None and hasattr(self, "_vds"):
+            return self._vds if _ret_ds else self._vds.path
+
+        hash = self._view_hash()
+        info = {
+            "id": hash,
+            "description": "Virtual Datasource",
+            "virtual-datasource": True,
+            "source-dataset": self.path,
+            "source-dataset-version": self.version_state["commit_id"],
+            "created_at": tm,
+        }
+
+        query = getattr(self, "_query", None)
+        if query:
+            info["query"] = query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+
         if path is None:
-            if hasattr(self, "_vds"):
-                return self._vds if _ret_ds else self._vds.path
             if isinstance(self, MemoryProvider):
                 raise NotImplementedError(
                     "Saving views inplace is not supported for in-memory datasets."
@@ -1247,10 +1268,9 @@ class Dataset:
                     )
             else:
                 self.flush()
-                hash = self._view_hash()
                 self.storage.flush()
                 base_storage = get_base_storage(self.storage)
-                path = base_storage.subdir(f"queries/{hash}").root
+                path = base_storage.subdir(f".queries/{hash}").root
                 if hasattr(base_storage, "_args"):
                     args = base_storage._args()
                     args.update(ds_args)
@@ -1263,32 +1283,22 @@ class Dataset:
                     queries = json.loads(base_storage[queries_key].decode("utf-8"))
                 except KeyError:
                     queries = []
-                queries.append(hash)
+                queries.append(info)
                 base_storage[queries_key] = json.dumps(queries).encode("utf-8")
                 lock.release()
-
         else:
             ds = hub.empty(path, **ds_args)
-
-        info = {
-            "description": "Virtual Datasource",
-            "virtual-datasource": True,
-            "source-dataset": self.path,
-            "source-dataset-version": self.version_state["commit_id"],
-        }
-
-        query = getattr(self, "_query", None)
-        if query:
-            info["query"] = query
-            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         with ds:
             ds.info.update(info)
             ds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                 list(self.index.values[0].indices(len(self)))
             )
-
-        print(f"Virtual dataset stored at {ds.path}")
-        return ds if _ret_ds else ds.path
+        if isinstance(self, hub.core.dataset.HubCloudDataset):
+            path = f"{self.path}/.queries/{hash}"
+        else:
+            path = ds.path
+        print(f"Virtual dataset stored at {path}")
+        return ds if _ret_ds else path
 
     def _get_view(self):
         # Only applicable for virtual datasets
@@ -1313,11 +1323,14 @@ class Dataset:
         except KeyError:
             return []
 
-    def _get_stored_vds(self, hash: str):
+    def _get_stored_vds(self, hash: str, as_view: bool = False):
         """
         Internal.
         """
         base_storage = get_base_storage(self.storage)
-        path = base_storage.subdir(f"queries/{hash}").root
+        path = base_storage.subdir(f".queries/{hash}").root
         ds_args = base_storage._args() if hasattr(base_storage, "_args") else {}
-        return hub.dataset(path, **ds_args)._vds
+        view = hub.dataset(path, **ds_args)
+        if as_view:
+            return view
+        return view._vds
