@@ -1,10 +1,9 @@
 import hub
 import math
-from typing import List, Callable, Optional
+from typing import List, Optional
 from itertools import repeat
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
-from hub.core.ipc import Server
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
@@ -13,6 +12,7 @@ from hub.util.transform import (
     check_transform_ds_out,
     get_pbar_description,
     store_data_slice,
+    store_data_slice_with_pbar,
 )
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
@@ -26,13 +26,7 @@ from hub.util.exceptions import (
     HubComposeIncompatibleFunction,
     TransformError,
 )
-
-from tqdm import tqdm  # type: ignore
-import time
-import threading
-import sys
-
-from hub.util.version_control import auto_checkout, load_meta
+from hub.util.version_control import auto_checkout
 
 
 class TransformFunction:
@@ -114,8 +108,6 @@ class Pipeline:
         if num_workers <= 0:
             scheduler = "serial"
         num_workers = max(num_workers, 1)
-        compute_provider = get_compute_provider(scheduler, num_workers)
-
         original_data_in = data_in
         if isinstance(data_in, hub.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
@@ -139,6 +131,7 @@ class Pipeline:
         if overwrite:
             original_data_in.clear_cache()
 
+        compute_provider = get_compute_provider(scheduler, num_workers)
         try:
             self.run(
                 data_in,
@@ -152,48 +145,7 @@ class Pipeline:
             raise TransformError(e)
         finally:
             compute_provider.close()
-        target_ds.storage.autoflush = initial_autoflush
-
-    def _run_with_progbar(
-        self, func: Callable, ret: dict, total: int, desc: Optional[str] = ""
-    ):
-        """
-        Args:
-            func (Callable): Function to be executed
-            ret (dict): `func` should place its return value in this dictionary
-            total (int): Total number of steps in the progress bar
-            desc (str, Optional): Description for the progress bar
-
-        Raises:
-            Exception: If any worker encounters an error, it is raised
-        """
-        ismac = sys.platform == "darwin"
-        progress = {"value": 0, "error": None}
-
-        def callback(data):
-            if isinstance(data, str):
-                progress["error"] = data
-            else:
-                progress["value"] += data
-
-        server = Server(callback)
-        port = server.port
-        thread = threading.Thread(target=func, args=(port,), daemon=ismac)
-        thread.start()
-        try:
-            for i in tqdm(range(total), desc=desc):
-                while i + 1 > progress["value"]:
-                    time.sleep(1)
-                    err = progress["error"]
-                    if err:
-                        raise Exception(err)
-        finally:
-            if ismac:
-                while not ret:  # thread.join() takes forever on mac
-                    time.sleep(1)
-            else:
-                thread.join()
-            server.stop()
+            target_ds.storage.autoflush = initial_autoflush
 
     def run(
         self,
@@ -215,34 +167,23 @@ class Pipeline:
 
         tensors = list(target_ds.tensors)
         tensors = [target_ds.tensors[t].key for t in tensors]
-
-        ret = {}
-
-        def _run(progress_port=None):
-            ret["metas_and_encoders"] = compute.map(
-                store_data_slice,
-                zip(
-                    slices,
-                    repeat((storage, group_index)),  # type: ignore
-                    repeat(tensors),
-                    repeat(self),
-                    repeat(version_state),
-                    repeat(progress_port),
-                ),
-            )
-
+        map_inp = zip(
+            slices, repeat((storage, group_index, tensors, self, version_state))
+        )
         if progressbar:
-            self._run_with_progbar(
-                _run, ret, len(data_in), get_pbar_description(self.functions)
+            desc = get_pbar_description(self.functions)
+            metas_and_encoders = compute.map_with_progressbar(
+                store_data_slice_with_pbar,
+                map_inp,
+                total_length=len(data_in),
+                desc=desc,
             )
         else:
-            _run()
+            metas_and_encoders = compute.map(store_data_slice, map_inp)
 
         if overwrite:
             for tensor in target_ds.tensors.values():
                 storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
-
-        metas_and_encoders = ret["metas_and_encoders"]
 
         (
             all_tensor_metas,

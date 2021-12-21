@@ -1,4 +1,5 @@
-from collections import defaultdict
+import hub
+from tqdm import tqdm  # type: ignore
 import pickle
 import posixpath
 import warnings
@@ -13,10 +14,12 @@ from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider
-
-from hub.core.storage.gcs import GCSProvider
-from hub.core.tensor import Tensor, create_tensor
+from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
+from hub.core.tensor import (
+    create_tensor,
+    Tensor,
+    delete_tensor,
+)
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
@@ -32,6 +35,10 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    TensorGroupDoesNotExistError,
+    InvalidTensorNameError,
+    InvalidTensorGroupNameError,
+    LockedException,
     TensorGroupAlreadyExistsError,
 )
 from hub.util.keys import (
@@ -58,6 +65,7 @@ from hub.util.version_control import (
     warn_node_checkout,
 )
 from tqdm import tqdm  # type: ignore
+from collections import defaultdict
 
 
 class Dataset:
@@ -106,6 +114,7 @@ class Dataset:
         base_storage = get_base_storage(storage)
         self.index: Index = index or Index()
         self.group_index = group_index
+        self._parent = None
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -320,6 +329,123 @@ class Dataset:
         return tensor
 
     @hub_reporter.record_call
+    def delete_tensor(self, name: str, large_ok: bool = False):
+        """Delete a tensor from the dataset.
+
+        Args:
+            name (str): The name of tensor to be deleted.
+            large_ok (bool): Delete tensors larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
+            InvalidTensorNameError: If `name` is in dataset attributes.
+        """
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+            raise TensorDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorNameError(name)
+
+        if not self._is_root():
+            return self.root.delete_tensor(full_path, large_ok)
+
+        if not large_ok:
+            chunk_engine = self.version_state["full_tensors"][name].chunk_engine
+            size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Tensor {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
+
+        delete_tensor(name, self.storage, self.version_state)
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        meta.tensors.remove(name)
+        self.storage[meta_key] = meta
+        self.storage.maybe_flush()
+        self.version_state["meta"] = meta
+        self.version_state["full_tensors"].pop(name)
+        return None
+
+    @hub_reporter.record_call
+    def delete_group(self, name: str, large_ok: bool = False):
+        """Delete a tensor group from the dataset.
+
+        Args:
+            name (str): The name of tensor group to be deleted.
+            large_ok (bool): Delete tensor groups larger than 1GB. Disabled by default.
+
+        Returns:
+            None
+
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
+        """
+        auto_checkout(self.version_state, self.storage)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
+        full_path = posixpath.join(self.group_index, name)
+
+        if full_path not in self._groups:
+            raise TensorGroupDoesNotExistError(name)
+
+        if not name or name in dir(self):
+            raise InvalidTensorGroupNameError(name)
+
+        if not self._is_root():
+            return self.root.delete_group(full_path, large_ok)
+
+        if not large_ok:
+            size_approx = self[name].size_approx()
+            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Group {name} was too large to delete. Try again with large_ok=True."
+                )
+                return
+
+        tensors = [
+            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
+        ]
+
+        for tensor in tensors:
+            delete_tensor(tensor, self.storage, self.version_state)
+
+        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+        meta = self.storage.get_cachable(meta_key, DatasetMeta)
+        ffw_dataset_meta(meta)
+        groups = meta.groups.copy()
+        for group in groups:
+            if group.startswith(name):
+                meta.groups.remove(group)
+
+        tensors = meta.tensors.copy()
+        for tensor in tensors:
+            if tensor.startswith(name):
+                meta.tensors.remove(tensor)
+                self.version_state["full_tensors"].pop(tensor)
+        self.storage[meta_key] = meta
+        self.storage.maybe_flush()
+        self.version_state["meta"] = meta
+        return None
+
+    @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
@@ -387,12 +513,15 @@ class Dataset:
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
+
         if (
             isinstance(storage, (S3Provider, GCSProvider))
             and self.is_first_load
             and (not self.read_only or self._locked_out)
         ):
             try:
+                # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
+                storage.disable_readonly()
                 lock_version(
                     storage,
                     version=self.version_state["commit_id"],
@@ -601,12 +730,17 @@ class Dataset:
 
     @read_only.setter
     def read_only(self, value: bool):
+        storage = self.storage
         if value:
-            self.storage.enable_readonly()
+            storage.enable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.enable_readonly()
         else:
             self._lock(err=True)
             self._locked_out = False
             self.storage.disable_readonly()
+            if isinstance(storage, LRUCache) and storage.next_storage is not None:
+                storage.next_storage.disable_readonly()
         self._read_only = value
 
     @hub_reporter.record_call
@@ -779,6 +913,8 @@ class Dataset:
         tensors = self.version_state["full_tensors"].values()
         chunk_engines = [tensor.chunk_engine for tensor in tensors]
         size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+        for group in self._groups_filtered:
+            size += self[group].size_approx()
         return size
 
     @hub_reporter.record_call
@@ -979,6 +1115,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -997,6 +1134,7 @@ class Dataset:
             public=self.public,
             token=self._token,
             verbose=self.verbose,
+            version_state=self.version_state,
             path=self.path,
         )
         self.storage.autoflush = autoflush
@@ -1052,3 +1190,46 @@ class Dataset:
 
     def __args__(self):
         return None
+
+    def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+        if not skip_ok:
+            for k in self.tensors:
+                if k not in sample:
+                    raise KeyError(
+                        f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
+                    )
+        for k in sample:
+            if k not in self.tensors:
+                raise TensorDoesNotExistError(k)
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError(
+                "When appending using Dataset.append, all tensors are expected to have the same length."
+            )
+        tensors_appended = []
+        with self:
+            for k, v in sample.items():
+                try:
+                    tensor = self[k]
+                    enc = tensor.chunk_engine.chunk_id_encoder
+                    num_chunks = enc.num_chunks
+                    tensor.append(v)
+                    tensors_appended.append(k)
+                except Exception as e:
+                    new_num_chunks = enc.num_chunks
+                    num_chunks_added = new_num_chunks - num_chunks
+                    if num_chunks_added > 1:
+                        # This is unlikely to happen, i.e the sample passed the validation
+                        # steps and tiling but some error occured while writing tiles to chunks
+                        raise NotImplementedError(
+                            "Unable to recover from error while writing tiles."
+                        ) from e
+                    elif num_chunks_added == 1:
+                        enc._encoded = enc._encoded[:-1]
+                    for k in tensors_appended:
+                        try:
+                            self[k]._pop()
+                        except Exception as e2:
+                            raise Exception(
+                                "Error while attepting to rollback appends"
+                            ) from e2
+                    raise e
