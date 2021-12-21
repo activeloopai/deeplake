@@ -200,11 +200,7 @@ class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
         return self.numpy().size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        v = self.numpy() == o
-        if isinstance(v, np.ndarray):
-            return v.any()  # type: ignore
-        else:
-            return v
+        return bool(np.any(self.numpy() == o))
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -249,11 +245,7 @@ class EvalNumpyObject(ScalarTensorObject):
         return self.arr.size  # type: ignore
 
     def contains(self, o: object) -> bool:
-        v = self.numpy() == o
-        if isinstance(v, np.ndarray):
-            return v.any()  # type: ignore
-        else:
-            return v
+        return bool(np.any(self.arr == o))
 
     def __getitem__(self, item):
         """Returns subscript of underlying numpy array or a scalar"""
@@ -321,11 +313,7 @@ class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
         super().__init__(query, tensor)
 
     def contains(self, o: object) -> bool:
-        v = self.numpy() == o
-        if isinstance(v, np.ndarray):
-            return v.any()  # type: ignore
-        else:
-            return v
+        return bool(np.any(self.numpy() == o))
 
     def as_scalar(self):
         assert self.is_scalar()

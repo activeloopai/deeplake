@@ -754,7 +754,7 @@ class Dataset:
                 storage.next_storage.enable_readonly()
         else:
             self._lock(err=True)
-            self.__dict__["locked_out"] = False
+            self.__dict__["_locked_out"] = False
             self.storage.disable_readonly()
             self.__dict__["_read_only"] = False
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
