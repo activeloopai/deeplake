@@ -775,7 +775,9 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.checkout(a)
 
         # transforming non-head node
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         br = ds.branch
 
         assert len(ds) == 20
