@@ -369,21 +369,20 @@ class Dataset:
                 )
                 return
 
-        initial_autoflush = self.autoflush
-        self.autoflush = False
+        initial_autoflush = self.storage.autoflush
+        self.storage.autoflush = False
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)
         meta.tensors.remove(name)
         self.storage[meta_key] = meta
         delete_tensor(name, self.storage, self.version_state)
-        self.autoflush = initial_autoflush
+        self.storage.autoflush = initial_autoflush
 
         self.storage.maybe_flush()
 
         self.version_state["meta"] = meta
         self.version_state["full_tensors"].pop(name)
-        return None
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -425,30 +424,22 @@ class Dataset:
                 )
                 return
 
-        tensors = [
-            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
-        ]
-
-        for tensor in tensors:
-            delete_tensor(tensor, self.storage, self.version_state)
-
+        initial_autoflush = self.storage.autoflush
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)
-        groups = meta.groups.copy()
-        for group in groups:
-            if group.startswith(name):
-                meta.groups.remove(group)
-
-        tensors = meta.tensors.copy()
-        for tensor in tensors:
-            if tensor.startswith(name):
-                meta.tensors.remove(tensor)
-                self.version_state["full_tensors"].pop(tensor)
+        tensors = [
+            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
+        ]
+        meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
+        meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
         self.storage[meta_key] = meta
+        for tensor in tensors:
+            delete_tensor(tensor, self.storage, self.version_state)
+            self.version_state["full_tensors"].pop(tensor)
+        self.storage.autoflush = initial_autoflush
         self.storage.maybe_flush()
         self.version_state["meta"] = meta
-        return None
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
