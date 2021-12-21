@@ -305,3 +305,9 @@ class BaseChunk(Cachable):
             self.tensor_meta.update_shape_interval(sample.sample_shape)
             if self._update_tensor_meta_length:
                 self.tensor_meta.length += 1
+
+    def _pop_sample(self):
+        self.prepare_for_write()
+        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
+        self.shapes_encoder._pop()
+        self.byte_positions_encoder._pop()

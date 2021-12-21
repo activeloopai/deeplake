@@ -25,6 +25,9 @@ class TileEncoder(Cachable):
         self.entries[idx] = (ss, ts)
         sample.registered = True
 
+    def __delitem__(self, global_sample_index: int):
+        del self.entries[global_sample_index]
+
     def __getitem__(self, global_sample_index: int):
         return self.entries[global_sample_index]
 

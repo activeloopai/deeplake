@@ -7,6 +7,7 @@ from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -842,6 +843,38 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+@pytest.mark.parametrize(
+    "x_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+@pytest.mark.parametrize(
+    "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+@pytest.mark.parametrize("x_size", [5, (32 * 5000)])
+def test_ds_append(memory_ds, x_args, y_args, x_size):
+    ds = memory_ds
+    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20)
+    ds.create_tensor("y", dtype="uint8", **y_args)
+    with pytest.raises(TensorDtypeMismatchError):
+        ds.append({"x": np.ones(2), "y": np.zeros(1)})
+    ds.append({"x": np.ones(2), "y": [1, 2, 3]})
+    ds.create_tensor("z")
+    with pytest.raises(KeyError):
+        ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
+    ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
+    ds.append({"x": np.ones(4), "y": [2, 3, 4]}, skip_ok=True)
+    with pytest.raises(ValueError):
+        ds.append({"x": np.ones(2), "y": [4, 5], "z": np.ones(4)})
+    with pytest.raises(TensorDtypeMismatchError):
+        ds.append({"x": np.ones(x_size), "y": np.zeros(2)}, skip_ok=True)
+    assert len(ds.x) == 3
+    assert len(ds.y) == 3
+    assert len(ds.z) == 0
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
+    assert len(ds) == 0
 
 
 @pytest.mark.parametrize(

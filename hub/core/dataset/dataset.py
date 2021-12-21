@@ -15,12 +15,12 @@ from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
 from hub.core.tensor import (
     create_tensor,
     Tensor,
     delete_tensor,
 )
-from hub.core.storage import LRUCache, S3Provider, MemoryProvider, GCSProvider
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
@@ -1334,3 +1334,46 @@ class Dataset:
         if as_view:
             return view
         return view._vds
+
+    def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+        if not skip_ok:
+            for k in self.tensors:
+                if k not in sample:
+                    raise KeyError(
+                        f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
+                    )
+        for k in sample:
+            if k not in self.tensors:
+                raise TensorDoesNotExistError(k)
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError(
+                "When appending using Dataset.append, all tensors are expected to have the same length."
+            )
+        tensors_appended = []
+        with self:
+            for k, v in sample.items():
+                try:
+                    tensor = self[k]
+                    enc = tensor.chunk_engine.chunk_id_encoder
+                    num_chunks = enc.num_chunks
+                    tensor.append(v)
+                    tensors_appended.append(k)
+                except Exception as e:
+                    new_num_chunks = enc.num_chunks
+                    num_chunks_added = new_num_chunks - num_chunks
+                    if num_chunks_added > 1:
+                        # This is unlikely to happen, i.e the sample passed the validation
+                        # steps and tiling but some error occured while writing tiles to chunks
+                        raise NotImplementedError(
+                            "Unable to recover from error while writing tiles."
+                        ) from e
+                    elif num_chunks_added == 1:
+                        enc._encoded = enc._encoded[:-1]
+                    for k in tensors_appended:
+                        try:
+                            self[k]._pop()
+                        except Exception as e2:
+                            raise Exception(
+                                "Error while attepting to rollback appends"
+                            ) from e2
+                    raise e
