@@ -12,3 +12,6 @@ def reset_cachables(target_ds: hub.Dataset) -> None:
         chunk_engine._tile_encoder = None
         chunk_engine._commit_chunk_set = None
         chunk_engine._commit_diff = None
+        chunk_engine.cached_data = None
+        chunk_engine.cachables_in_dirty_keys = False
+        chunk_engine.cache_range = range(0)

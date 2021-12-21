@@ -29,7 +29,7 @@ def get_dataset_with_zero_size_cache(ds):
     try_flushing(ds)
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
-    commit_id = ds.commit_id
+    commit_id = ds.pending_commit_id
 
     # pass the version state as we want the original object to get altered
     ds = hub.core.dataset.dataset_factory(

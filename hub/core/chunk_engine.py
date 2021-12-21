@@ -257,7 +257,7 @@ class ChunkEngine:
         if self._commit_diff is None or self._commit_diff_commit_id != commit_id:
             key = get_tensor_commit_diff_key(self.key, commit_id)
             if not self.commit_diff_exists:
-                diff = CommitDiff()
+                diff = CommitDiff(self.num_samples)
                 self.meta_cache[key] = diff
             else:
                 diff = self.meta_cache.get_cachable(key, CommitDiff)
