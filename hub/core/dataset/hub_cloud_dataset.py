@@ -94,7 +94,7 @@ class HubCloudDataset(Dataset):
         event_dict = {
             "id": event_id,
             "event_group": event_group,
-            "ts": datetime.now(),
+            "ts": str(datetime.utcnow()),
             "hub_meta": hub_meta,
             "creator": "Hub",
         }
@@ -160,7 +160,7 @@ class HubCloudDataset(Dataset):
         # newly created commit can't have head_changes
         hub_meta = {
             "commit_message": commit_message,
-            "commit_time": commit_time,
+            "commit_time": str(commit_time),
             "author": author,
         }
         event_id = f"{self.path}.commit"
