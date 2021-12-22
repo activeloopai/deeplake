@@ -362,7 +362,10 @@ class Index:
         as the first entry in the Index.
         """
         index_values = tuple(item.value for item in self.values[1:])
-        samples = list(arr[index_values] for arr in samples)
+        if index_values:
+            samples = [arr[index_values] for arr in samples]
+        else:
+            samples = list(samples)
         return samples
 
     def apply_squeeze(self, samples: List[np.ndarray]):
