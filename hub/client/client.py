@@ -186,7 +186,7 @@ class HubBackendClient:
         Args:
             event_json (dict): The event to be sent.
         """
-        self.request("POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint)
+        self.request("POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint())
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
         tag = f"{username}/{dataset_name}"
