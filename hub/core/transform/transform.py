@@ -5,7 +5,6 @@ from itertools import repeat
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.chunk_paths import get_chunk_paths
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
@@ -184,9 +183,8 @@ class Pipeline:
             metas_and_encoders = compute.map(store_data_slice, map_inp)
 
         if overwrite:
-            chunk_paths = get_chunk_paths(target_ds, tensors)
-            # TODO:
-            # delete_chunks(chunk_paths, storage, compute)
+            for tensor in target_ds.tensors.values():
+                storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
 
         (
             all_tensor_metas,
