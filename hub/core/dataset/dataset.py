@@ -123,6 +123,9 @@ class Dataset:
         self._info = None
         self._set_derived_attributes()
         self._lock()
+        self._initial_autoflush: List[
+            bool
+        ] = []  # This is a stack to support nested with contexts
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -132,12 +135,12 @@ class Dataset:
         )
 
     def __enter__(self):
-        self._initial_autoflush = self.storage.autoflush
+        self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = self._initial_autoflush
+        self.storage.autoflush = self._initial_autoflush.pop()
         if self.storage.autoflush:
             self.flush()
 
