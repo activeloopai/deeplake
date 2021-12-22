@@ -188,6 +188,7 @@ class Dataset:
             state (dict): The pickled state used to restore the dataset.
         """
         self.__dict__.update(state)
+        self._initial_autoflush = []
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
