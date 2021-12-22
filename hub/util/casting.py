@@ -5,6 +5,7 @@ from hub.util.exceptions import TensorDtypeMismatchError
 from hub.core.sample import Sample  # type: ignore
 import hub
 
+
 def _get_bigger_dtype(d1, d2):
     if np.can_cast(d1, d2):
         if np.can_cast(d2, d1):

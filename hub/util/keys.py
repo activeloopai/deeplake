@@ -12,6 +12,7 @@ from hub.constants import (
     TENSOR_COMMIT_CHUNK_SET_FILENAME,
     TENSOR_COMMIT_DIFF_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
+    VERSION_CONTROL_INFO_LOCK_FILENAME,
 )
 
 
@@ -39,6 +40,10 @@ def get_dataset_info_key(commit_id: str) -> str:
 
 def get_version_control_info_key() -> str:
     return VERSION_CONTROL_INFO_FILENAME
+
+
+def get_version_control_info_lock_key() -> str:
+    return VERSION_CONTROL_INFO_LOCK_FILENAME
 
 
 def get_dataset_lock_key() -> str:
