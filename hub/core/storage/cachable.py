@@ -108,6 +108,7 @@ class CachableCallback(Cachable):
             key: The key for where in `cache` bytes are serialized with each callback call.
             cache: The cache for where bytes are serialized with each callback call.
             dataset: The dataset that this callback is associated with.
+        
         Raises:
             CallbackInitializationError: Cannot re-initialize.
         """
