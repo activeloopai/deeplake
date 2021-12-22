@@ -130,7 +130,6 @@ class Dataset:
         self.__dict__.update(d)
         self._set_derived_attributes()
         self.first_load_init()
-        self._lock()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
@@ -205,7 +204,6 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
-        self._lock()
 
     def __getitem__(
         self,
@@ -550,6 +548,8 @@ class Dataset:
                 warnings.warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
+                return False
+        return True
 
     def _unlock(self):
         unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
@@ -745,18 +745,26 @@ class Dataset:
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
+        self.__dict__["_read_only"] = value
         if value:
             storage.enable_readonly()
-            self.__dict__["_read_only"] = True
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
         else:
-            self._lock(err=err)
-            self.__dict__["_locked_out"] = False
-            self.storage.disable_readonly()
-            self.__dict__["_read_only"] = False
-            if isinstance(storage, LRUCache) and storage.next_storage is not None:
-                storage.next_storage.disable_readonly()
+            try:
+                locked = self._lock(err=err)
+                if locked:
+                    self.storage.disable_readonly()
+                    if (
+                        isinstance(storage, LRUCache)
+                        and storage.next_storage is not None
+                    ):
+                        storage.next_storage.disable_readonly()
+                else:
+                    self.__dict__["_read_only"] = True
+            except LockedException as e:
+                self.__dict__["_read_only"] = True
+                raise e
 
     @read_only.setter
     def read_only(self, value: bool):
