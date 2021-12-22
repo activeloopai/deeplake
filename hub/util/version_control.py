@@ -35,9 +35,7 @@ def generate_hash() -> str:
     return hsh.hexdigest()
 
 
-def commit(
-    dataset, message: str = None
-) -> None:
+def commit(dataset, message: str = None) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state
@@ -54,7 +52,9 @@ def commit(
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     save_version_info(version_state, storage)
-    copy_metas(dataset, stored_commit_id, version_state["commit_id"], storage, version_state)
+    copy_metas(
+        dataset, stored_commit_id, version_state["commit_id"], storage, version_state
+    )
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
     dataset.send_commit_event()
@@ -332,7 +332,7 @@ def auto_commit(dataset, address: str) -> None:
         checkout(dataset, original_commit_id, False)
 
 
-def commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
+def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
     for tensor in version_state["full_tensors"].keys():

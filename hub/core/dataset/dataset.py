@@ -61,7 +61,7 @@ from hub.util.version_control import (
     auto_checkout,
     checkout,
     commit,
-    commit_has_data,
+    current_commit_has_data,
     load_meta,
     warn_node_checkout,
 )
@@ -612,12 +612,9 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         print("---------------\nHub Version Log\n---------------\n")
         print(f"Current Branch: {self.version_state['branch']}")
-        if not commit_node.children and commit_has_data(
-            self.version_state, self.storage
-        ):
-            print("** There are uncommitted changes on this branch.\n")
-        else:
-            print()
+        if self.has_head_changes:
+            print("** There are uncommitted changes on this branch.")
+        print()
         while commit_node:
             if not commit_node.is_head_node:
                 print(f"{commit_node}\n")
@@ -771,6 +768,13 @@ class Dataset:
     @property
     def read_only(self):
         return self._read_only
+
+    @property
+    def has_head_changes(self):
+        """Returns True if currently at head node and uncommitted changes are present."""
+        return not commit_node.children and current_commit_has_data(
+            self.version_state, self.storage
+        )
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
