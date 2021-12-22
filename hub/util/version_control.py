@@ -62,7 +62,9 @@ def commit(dataset, message: str = None) -> None:
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
-    dataset.send_commit_event(commit_message=commit_message, commit_time=commit_time, author=author)
+    dataset.send_commit_event(
+        commit_message=commit_message, commit_time=commit_time, author=author
+    )
 
 
 def checkout(
