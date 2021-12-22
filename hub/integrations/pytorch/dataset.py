@@ -470,7 +470,12 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 batch_keys = list(next_batch.keys())
 
                 for i in range(len(next_batch[batch_keys[0]])):
-                    val = IterableOrderedDict({k: next_batch[k][i] for k in batch_keys})
+                    val = IterableOrderedDict(
+                        {
+                            k: next_batch[k][i].clone().detach().share_memory_()
+                            for k in batch_keys
+                        }
+                    )
 
                     if buffer is not None:
                         result = buffer.exchange(val)
