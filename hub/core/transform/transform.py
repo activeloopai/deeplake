@@ -69,6 +69,9 @@ class TransformFunction:
         pipeline = Pipeline([self])
         pipeline.eval(data_in, ds_out, num_workers, scheduler, progressbar)
 
+    def __call__(self, sample_in):
+        return self.func(sample_in, *self.args, **self.kwargs)
+
 
 class Pipeline:
     def __init__(self, functions: List[TransformFunction]):
