@@ -132,12 +132,14 @@ class Dataset:
         )
 
     def __enter__(self):
+        self._initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = True
-        self.flush()
+        self.storage.autoflush = self._initial_autoflush
+        if self.storage.autoflush:
+            self.flush()
 
     @property
     def num_samples(self) -> int:
@@ -369,15 +371,13 @@ class Dataset:
                 )
                 return
 
-        initial_autoflush = self.storage.autoflush
-        self.storage.autoflush = False
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        ffw_dataset_meta(meta)
-        meta.tensors.remove(name)
-        self.storage[meta_key] = meta
-        delete_tensor(name, self.storage, self.version_state)
-        self.storage.autoflush = initial_autoflush
+        with self:
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            meta.tensors.remove(name)
+            self.storage[meta_key] = meta
+            delete_tensor(name, self.storage, self.version_state)
 
         self.storage.maybe_flush()
 
@@ -424,20 +424,21 @@ class Dataset:
                 )
                 return
 
-        initial_autoflush = self.storage.autoflush
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        ffw_dataset_meta(meta)
-        tensors = [
-            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
-        ]
-        meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
-        meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
-        self.storage[meta_key] = meta
-        for tensor in tensors:
-            delete_tensor(tensor, self.storage, self.version_state)
-            self.version_state["full_tensors"].pop(tensor)
-        self.storage.autoflush = initial_autoflush
+        with self:
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            tensors = [
+                posixpath.join(name, tensor)
+                for tensor in self[name]._all_tensors_filtered
+            ]
+            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
+            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
+            self.storage[meta_key] = meta
+            for tensor in tensors:
+                delete_tensor(tensor, self.storage, self.version_state)
+                self.version_state["full_tensors"].pop(tensor)
+
         self.storage.maybe_flush()
         self.version_state["meta"] = meta
 
@@ -547,17 +548,16 @@ class Dataset:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
         try_flushing(self)
-        initial_autoflush = self.storage.autoflush
-        self.storage.autoflush = False
-        self._unlock()
-        commit(self.version_state, self.storage, message)
-        self._lock()
+
+        with self:
+            self._unlock()
+            commit(self.version_state, self.storage, message)
+            self._lock()
         self._info = None
 
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
 
-        self.storage.autoflush = initial_autoflush
         return self.commit_id  # type: ignore
 
     def checkout(self, address: str, create: bool = False) -> Optional[str]:
@@ -573,11 +573,10 @@ class Dataset:
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
         try_flushing(self)
-        initial_autoflush = self.storage.autoflush
-        self.storage.autoflush = False
-        self._unlock()
-        checkout(self.version_state, self.storage, address, create)
-        self._lock()
+        with self:
+            self._unlock()
+            checkout(self.version_state, self.storage, address, create)
+            self._lock()
         self._info = None
 
         # do not store address
@@ -587,7 +586,6 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         warn_node_checkout(commit_node, create)
 
-        self.storage.autoflush = initial_autoflush
         return self.commit_id
 
     def log(self):
