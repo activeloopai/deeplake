@@ -5,7 +5,11 @@ from typing import Any, Dict, Optional
 import uuid
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
-from hub.util.bugout_token import BUGOUT_TOKEN
+
+try:
+    from hub.util.bugout_token_production import BUGOUT_TOKEN
+except ImportError:
+    from hub.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
 
