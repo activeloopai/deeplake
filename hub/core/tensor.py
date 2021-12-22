@@ -156,6 +156,7 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
+            dataset (Dataset): The dataset that this tensor is located in.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
             is_iteration (bool): If this tensor is being used as an iterator.
