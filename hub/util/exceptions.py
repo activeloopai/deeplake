@@ -481,6 +481,8 @@ class ReadOnlyModeError(Exception):
 class TransformError(Exception):
     pass
 
+class FilterError(Exception):
+    pass
 
 class InvalidInputDataError(TransformError):
     def __init__(self, operation):

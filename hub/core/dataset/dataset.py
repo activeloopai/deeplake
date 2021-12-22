@@ -278,7 +278,7 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
         # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -336,7 +336,7 @@ class Dataset:
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         self.storage[meta_key] = meta
         self.storage.maybe_flush()
-        tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
+        tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
@@ -356,7 +356,7 @@ class Dataset:
             TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
             InvalidTensorNameError: If `name` is in dataset attributes.
         """
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -382,7 +382,7 @@ class Dataset:
                 )
                 return
 
-        delete_tensor(name, self.storage, self.version_state)
+        delete_tensor(self, name)
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
         ffw_dataset_meta(meta)
@@ -408,7 +408,7 @@ class Dataset:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
             InvalidTensorGroupNameError: If `name` is in dataset attributes.
         """
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -438,7 +438,7 @@ class Dataset:
         ]
 
         for tensor in tensors:
-            delete_tensor(tensor, self.storage, self.version_state)
+            delete_tensor(self, tensor)
 
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         meta = self.storage.get_cachable(meta_key, DatasetMeta)
@@ -567,7 +567,7 @@ class Dataset:
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
         self._unlock()
-        commit(self.version_state, self.storage, message)
+        commit(self, message)
         self._lock()
         self._info = None
 
@@ -593,7 +593,7 @@ class Dataset:
         initial_autoflush = self.storage.autoflush
         self.storage.autoflush = False
         self._unlock()
-        checkout(self.version_state, self.storage, address, create)
+        checkout(self, address, create)
         self._lock()
         self._info = None
 
@@ -716,7 +716,7 @@ class Dataset:
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
-            load_meta(self.storage, self.version_state)
+            load_meta(self)
 
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
@@ -733,6 +733,34 @@ class Dataset:
             self._register_dataset()
 
     def _register_dataset(self):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_query_progress(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_compute_progress(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_pytorch_progress(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_filter_progress(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_commit_event(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_dataset_creation_event(self, *args, **kwargs):
+        # overridden in HubCloudDataset
+        pass
+
+    def send_branch_creation_event(self, *args, **kwargs):
         # overridden in HubCloudDataset
         pass
 
@@ -858,7 +886,10 @@ class Dataset:
         from hub.core.query import DatasetQuery
 
         if isinstance(function, str):
+            query_text = function
             function = DatasetQuery(self, function)
+        else:
+            query_text = "UDF"
 
         return filter_dataset(
             self,
@@ -890,7 +921,7 @@ class Dataset:
     @property
     def info(self):
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
         return self._info
 
     @hub_reporter.record_call
@@ -981,7 +1012,7 @@ class Dataset:
         """
         ret = self.version_state["full_tensors"].get(name)
         if ret is None:
-            load_meta(self.storage, self.version_state)
+            load_meta(self)
             ret = self.version_state["full_tensors"].get(name)
         return ret
 
@@ -991,7 +1022,7 @@ class Dataset:
         """
         if name in self.version_state["meta"].groups:
             return True
-        load_meta(self.storage, self.version_state)
+        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1012,7 +1043,7 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self.storage, self.version_state)
+        load_meta(self)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]

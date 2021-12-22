@@ -16,7 +16,7 @@ from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.index.index import Index, IndexEntry
+from hub.core.index.index import Index
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
@@ -25,7 +25,6 @@ from hub.util.chunk_engine import (
     check_samples_type,
     make_sequence,
     check_suboptimal_chunks,
-    format_read_samples,
     check_sample_shape,
 )
 from hub.util.keys import (
@@ -37,7 +36,6 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
 )
-from hub.util.version_control import auto_checkout, commit_chunk_set_exists
 from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
 
 
@@ -244,7 +242,14 @@ class ChunkEngine:
 
     @property
     def commit_chunk_set_exists(self) -> bool:
-        return commit_chunk_set_exists(self.version_state, self.meta_cache, self.key)
+        """Checks if the commit chunk set exists for the given tensor in the current commit."""
+        try:
+            commit_id = self.version_state["commit_id"]
+            key = get_tensor_commit_chunk_set_key(self.key, commit_id)
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
 
     @property
     def commit_diff(self) -> CommitDiff:
@@ -420,10 +425,7 @@ class ChunkEngine:
         return FIRST_COMMIT_ID
 
     def _write_initialization(self):
-        self.cache.check_readonly()
         self.add_cachables_to_cache_dirty_keys()
-        # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(self.version_state, self.cache)
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
     def _convert_to_list(self, samples):

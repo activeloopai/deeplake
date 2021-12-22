@@ -1,5 +1,4 @@
 from typing import Any, Dict, Optional
-from uuid import uuid4
 from hub.client.utils import get_user_name
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
@@ -72,7 +71,7 @@ class HubCloudDataset(Dataset):
             self.version_state["meta"].__getstate__(),
             public=self.public,
         )
-        
+        self.send_dataset_creation_event()
 
     def send_event(
         self,
@@ -108,6 +107,7 @@ class HubCloudDataset(Dataset):
         start: bool = False,
         end: bool = False,
         progress: int = 0,
+        status="",
     ):
         hub_meta = {
             "query_id": query_id,
@@ -115,6 +115,7 @@ class HubCloudDataset(Dataset):
             "progress": progress,
             "start": start,
             "end": end,
+            "status": status,
         }
         event_id = f"{self.path}.query"
         self.send_event(event_id=event_id, event_group="query", hub_meta=hub_meta)
@@ -125,22 +126,32 @@ class HubCloudDataset(Dataset):
         start: bool = False,
         end: bool = False,
         progress: int = 0,
+        status="",
     ):
         hub_meta = {
             "compute_id": compute_id,
             "progress": progress,
             "start": start,
             "end": end,
+            "status": status,
         }
         event_id = f"{self.path}.compute"
         self.send_event(event_id=event_id, event_group="hub_compute", hub_meta=hub_meta)
 
-    def send_pytorch_progress(self, pytorch_id: str = "", start: bool = False, end: bool = False, progress: int = 0):
+    def send_pytorch_progress(
+        self,
+        pytorch_id: str = "",
+        start: bool = False,
+        end: bool = False,
+        progress: int = 0,
+        status="",
+    ):
         hub_meta = {
             "pytorch_id": pytorch_id,
             "progress": progress,
             "start": start,
             "end": end,
+            "status": status,
         }
         event_id = f"{self.path}.pytorch"
         self.send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
@@ -152,6 +163,16 @@ class HubCloudDataset(Dataset):
         self.send_event(
             event_id=event_id,
             event_group="dataset_commit",
+            hub_meta=hub_meta,
+            has_head_changes=False,
+        )
+
+    def send_branch_creation_event(self, branch_name: str):
+        hub_meta = {"branch_name": branch_name}
+        event_id = f"{self.path}.branch_created"
+        self.send_event(
+            event_id=event_id,
+            event_group="dataset_branch_creation",
             hub_meta=hub_meta,
             has_head_changes=False,
         )
