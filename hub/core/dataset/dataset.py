@@ -1272,7 +1272,7 @@ class Dataset:
                             "Cannot save view in read only dataset. Speicify a path to store the view in a different location, or login using command `activeloop login` to store the view under your hub account."
                         )
                     queries_ds_path = f"hub://{username}/queries"
-                    queries_ds = hub.dataset(queries_ds_path)
+                    hub.dataset(queries_ds_path)  # create if doesn't exist
                     path = f"{queries_ds_path}/{self._view_hash}"
                     ds = hub.empty(path, **ds_args)
                 else:
