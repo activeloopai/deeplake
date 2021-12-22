@@ -1,7 +1,7 @@
 """
-"htype" is the class of a tensor: image, bounding box, generic tensor, etc.
+"htype" is the hub type of a tensor: image, audio, video, bounding box, generic tensor, etc.
 
-When not specified, the unspecified options will be inferred from the data:
+When not specified, the htype will be inferred from the first input sample, when possible:
 ```
 >>> ds.create_tensor("my_tensor")
 >>> ds.my_tensor.append(1)
@@ -9,7 +9,7 @@ When not specified, the unspecified options will be inferred from the data:
 int64
 ```
 
-If you know beforehand, you can use htype at creation:
+If you know the htype in advance, you can specify it at tensor creation:
 ```
 >>> ds.create_tensor("my_tensor", htype="image", sample_compression=None)
 ```
@@ -19,7 +19,7 @@ Specifying an htype allows for strict settings and error handling, and it is cri
 Supported htypes and their respective defaults are:
 
 | HTYPE              |  DTYPE    |  COMPRESSION  |
-| ------------       |  -------  |  -----------  |
+| -----------------  |  -------  |  -----------  |
 | image              |  uint8    |  none         |
 | class_label        |  uint32   |  none         |
 | bbox               |  float32  |  none         |
@@ -28,6 +28,10 @@ Supported htypes and their respective defaults are:
 | segment_mask       |  uint32   |  none         |
 | segment_mask_video |  uint32   |  none         |
 | keypoints_coco     |  int32    |  none         |
+| audio              |  float64  |  none         |
+| text               |  str      |  none         |
+| json               |  Any      |  none         |
+| list               |  List     |  none         |
 
 """
 

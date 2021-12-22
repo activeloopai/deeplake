@@ -4,7 +4,7 @@ from typing import Tuple, Union, List, Optional
 
 def get_tile_shape(
     sample_shape: Tuple[int, ...],
-    sample_size: float,
+    sample_size: Optional[float] = None,
     chunk_size: int = 16 * 2 ** 20,
     exclude_axes: Optional[Union[int, List[int]]] = None,
 ) -> Tuple[int, ...]:
@@ -23,7 +23,7 @@ def get_tile_shape(
     Raises:
         ValueError: If the chunk_size is too small
     """
-    ratio = sample_size / chunk_size
+    ratio = sample_size / chunk_size  # type: ignore
     sample_shape = np.array(sample_shape, dtype=np.float32)  # type: ignore
     if isinstance(exclude_axes, int):
         exclude_axes = [exclude_axes]

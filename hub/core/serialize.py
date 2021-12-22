@@ -304,16 +304,15 @@ def serialize_numpy_and_base_types(
 
     if sample_compression is None:
         if out.nbytes > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)  # type: ignore
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
             out = out.tobytes()  # type: ignore
-
     else:
         ratio = get_compression_ratio(sample_compression)
         approx_compressed_size = out.nbytes * ratio
 
         if approx_compressed_size > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)  # type: ignore
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
             compressed_bytes = compress_array(out, sample_compression)
             out = compressed_bytes  # type: ignore
@@ -346,14 +345,53 @@ def serialize_sample_object(
         compressed_bytes = out.compressed_bytes(sample_compression)
 
         if len(compressed_bytes) > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out.array, tile_compression, min_chunk_size, store_tiles)
+            out = SampleTiles(
+                out.array, tile_compression, min_chunk_size, store_tiles, htype
+            )
         else:
             out = compressed_bytes
     else:
         out = intelligent_cast(out.array, dtype, htype)
 
         if out.nbytes > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles)
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)
         else:
             out = out.tobytes()
     return out, shape
+
+
+def serialize_tensor(
+    incoming_sample: "hub.core.tensor.Tensor",
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_tiles: bool = False,
+):
+    def _return_numpy():
+        return serialize_numpy_and_base_types(
+            incoming_sample.numpy(),
+            sample_compression,
+            chunk_compression,
+            dtype,
+            htype,
+            min_chunk_size,
+            break_into_tiles,
+            store_tiles,
+        )
+
+    if incoming_sample.meta.chunk_compression or chunk_compression:
+        return _return_numpy()
+    elif incoming_sample.meta.sample_compression == sample_compression:
+        # Pass through
+        try:
+            return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
+        except (
+            ValueError,
+            NotImplementedError,
+        ) as e:  # Slice of sample or tiled sample
+            return _return_numpy()
+    else:
+        return _return_numpy()
