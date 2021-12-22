@@ -42,6 +42,7 @@ def commit(dataset, message: str = None) -> None:
     storage.check_readonly()
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(dataset)
+    stored_commit_node: CommitNode = version_state["commit_node"]
     stored_commit_id = version_state["commit_id"]
     version_state["commit_id"] = generate_hash()
     new_node = CommitNode(version_state["branch"], version_state["commit_id"])
@@ -57,7 +58,11 @@ def commit(dataset, message: str = None) -> None:
     )
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
-    dataset.send_commit_event()
+
+    commit_time = stored_commit_node.commit_time
+    commit_message = stored_commit_node.commit_message
+    author = stored_commit_node.commit_user_name
+    dataset.send_commit_event(commit_message=commit_message, commit_time=commit_time, author=author)
 
 
 def checkout(

@@ -156,9 +156,13 @@ class HubCloudDataset(Dataset):
         event_id = f"{self.path}.pytorch"
         self.send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
 
-    def send_commit_event(self):
+    def send_commit_event(self, commit_message: str, commit_time, author: str):
         # newly created commit can't have head_changes
-        hub_meta = {}
+        hub_meta = {
+            "commit_message": commit_message,
+            "commit_time": commit_time,
+            "author": author,
+        }
         event_id = f"{self.path}.commit"
         self.send_event(
             event_id=event_id,
