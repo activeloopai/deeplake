@@ -15,6 +15,7 @@ from hub.util.transform import (
     store_data_slice,
     store_data_slice_with_pbar,
 )
+from hub.util.cachable import reset_cachables
 from hub.util.encoder import (
     merge_all_chunk_id_encoders,
     merge_all_commit_diffs,
@@ -163,7 +164,7 @@ class Pipeline:
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
         storage = get_base_storage(target_ds.storage)
-        group_index = target_ds.group_index  # type: ignore
+        group_index = target_ds.group_index
         version_state = target_ds.version_state
 
         tensors = list(target_ds.tensors)
@@ -210,6 +211,8 @@ class Pipeline:
             merge_all_commit_chunk_sets(
                 all_chunk_commit_sets, target_ds, storage, overwrite
             )
+
+        reset_cachables(target_ds)
 
 
 def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
