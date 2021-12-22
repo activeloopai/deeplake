@@ -130,6 +130,7 @@ class Dataset:
         self.__dict__.update(d)
         self._set_derived_attributes()
         self.first_load_init()
+        self._lock()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
@@ -204,6 +205,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
+        self._lock()
 
     def __getitem__(
         self,
