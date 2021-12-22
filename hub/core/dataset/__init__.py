@@ -2,7 +2,6 @@ from .dataset import Dataset
 from .hub_cloud_dataset import HubCloudDataset
 
 from hub.util.path import is_hub_cloud_path
-import hub
 
 # NOTE: experimentation helper
 FORCE_CLASS = None
@@ -16,9 +15,14 @@ def dataset_factory(path, *args, **kwargs):
         clz = FORCE_CLASS
     elif is_hub_cloud_path(path):
         clz = HubCloudDataset
+        if "/queries/" in path:
+            path, query_hash = path.split("/queries/", 1)
+            return dataset_factory(
+                f"{path}/queries/.queries/{query_hash}", *args, **kwargs
+            )
         if "/.queries/" in path:
             path, query_hash = path.split("/.queries/", 1)
-            return hub.dataset(path, *args, **kwargs)._get_stored_vds(
+            return dataset_factory(path, *args, **kwargs)._get_stored_vds(
                 query_hash, as_view=True
             )
     else:

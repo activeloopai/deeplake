@@ -42,6 +42,7 @@ from hub.util.exceptions import (
     InvalidTensorGroupNameError,
     LockedException,
     TensorGroupAlreadyExistsError,
+    ReadOnlyModeError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -68,6 +69,9 @@ from hub.util.version_control import (
     load_meta,
     warn_node_checkout,
 )
+from hub.client.utils import get_user_name
+
+
 from tqdm import tqdm  # type: ignore
 from time import time
 import hashlib
@@ -1260,10 +1264,19 @@ class Dataset:
                 )
             if self.read_only:
                 if isinstance(self, hub.core.dataset.HubCloudDataset):
-                    path = f"hub://{self.org_id}/_query_{self._view_hash}"
+
+                    # This is a special dataset that stores queries that the user ran on datasets they don't have write access to.
+                    username = get_user_name()
+                    if username == "public":
+                        raise ReadOnlyModeError(
+                            "Cannot save view in read only dataset. Speicify a path to store the view in a different location, or login using command `activeloop login` to store the view under your hub account."
+                        )
+                    queries_ds_path = f"hub://{username}/queries"
+                    queries_ds = hub.dataset(queries_ds_path)
+                    path = f"{queries_ds_path}/{self._view_hash}"
                     ds = hub.empty(path, **ds_args)
                 else:
-                    raise Exception(
+                    raise ReadOnlyModeError(
                         "Cannot save view in read only dataset. Speicify a path to store the view in a different location."
                     )
             else:

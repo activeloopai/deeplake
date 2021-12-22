@@ -187,11 +187,12 @@ def test_dataset_view_save():
 
 
 @pytest.mark.parametrize("stream", [True, False])
-def test_inplace_dataset_view_save(s3_ds_generator, stream):
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_inplace_dataset_view_save(s3_ds_generator, stream, num_workers):
     ds = s3_ds_generator()
     with ds:
         _populate_data(ds, n=2)
-    view = ds.filter("labels == 'dog'", store_result=stream)
+    view = ds.filter("labels == 'dog'", store_result=stream, num_workers=num_workers)
     assert len(ds._get_query_history()) == int(stream)
     vds_path = view.store()
     assert len(ds._get_query_history()) == 1
