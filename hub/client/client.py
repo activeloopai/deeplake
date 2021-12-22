@@ -15,6 +15,7 @@ from hub.client.config import (
     DATASET_SUFFIX,
     LIST_DATASETS,
     GET_USER_PROFILE,
+    SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
 )
 from hub.client.log import logger
@@ -178,6 +179,14 @@ class HubBackendClient:
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
+
+    def send_event(self, event_json: dict):
+        """Sends an event to the backend.
+
+        Args:
+            event_json (dict): The event to be sent.
+        """
+        self.request("POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint)
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
         tag = f"{username}/{dataset_name}"
