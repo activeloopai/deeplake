@@ -772,6 +772,7 @@ class Dataset:
     @property
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
+        commit_node = self.version_state["commit_node"]
         return not commit_node.children and current_commit_has_data(
             self.version_state, self.storage
         )
