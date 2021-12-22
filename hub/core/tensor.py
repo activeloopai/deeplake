@@ -192,7 +192,6 @@ class Tensor:
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.dataset)
 
-
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -239,7 +238,7 @@ class Tensor:
             self._info = load_info(
                 get_tensor_info_key(self.key, self.version_state["commit_id"]),
                 self.storage,
-                self.dataset
+                self.dataset,
             )
         return self._info
 

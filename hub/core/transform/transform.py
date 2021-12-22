@@ -147,9 +147,13 @@ class Pipeline:
                 progressbar,
                 overwrite,
             )
-            target_ds.send_compute_progress(compute_id=compute_id, end=True, progress=100, status="success")
+            target_ds.send_compute_progress(
+                compute_id=compute_id, end=True, progress=100, status="success"
+            )
         except Exception as e:
-            target_ds.send_compute_progress(compute_id=compute_id, end=True, progress=100, status="failed")
+            target_ds.send_compute_progress(
+                compute_id=compute_id, end=True, progress=100, status="failed"
+            )
             raise TransformError(e)
         finally:
             compute_provider.close()
