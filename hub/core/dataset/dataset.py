@@ -141,8 +141,7 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        if self.storage.autoflush:
-            self.flush()
+        self.storage.maybe_flush()
 
     @property
     def num_samples(self) -> int:
