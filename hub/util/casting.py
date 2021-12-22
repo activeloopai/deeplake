@@ -38,6 +38,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
 
 
 def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
+    """Get the htype of a non-uniform mixed dtype sequence of samples."""
     if isinstance(val, np.ndarray):
         return "generic"
     types = set((map(type, val)))
