@@ -565,11 +565,14 @@ class Dataset:
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
+        return self._commit(message)
+
+    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         try_flushing(self)
 
         with self:
             self._unlock()
-            commit(self.version_state, self.storage, message)
+            commit(self.version_state, self.storage, message, hash)
             self._lock()
         self._info = None
 
@@ -590,10 +593,15 @@ class Dataset:
             str, optional: The commit_id of the branch/commit that was checked out.
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
+        self._checkout(address, create)
+
+    def _checkout(
+        self, address: str, create: bool = False, hash: Optional[str] = None
+    ) -> Optional[str]:
         try_flushing(self)
         with self:
             self._unlock()
-            checkout(self.version_state, self.storage, address, create)
+            checkout(self.version_state, self.storage, address, create, hash)
             self._lock()
         self._info = None
 
