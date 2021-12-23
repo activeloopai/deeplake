@@ -107,7 +107,7 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     data_slice, inp = transform_input
-    output_storage, group_index, tensors, pipeline, version_state = inp
+    output_storage, group_index, tensors, pipeline, version_state, skip_ok = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -116,7 +116,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback
+        data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback, skip_ok
     )
 
     # retrieve relevant objects from memory
@@ -148,6 +148,7 @@ def _transform_sample_and_update_chunk_engines(
     tensors: List[str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
+    skip_ok: bool = False,
 ):
     result = transform_sample(sample, pipeline)
     if is_empty_transform_dataset(result):
@@ -156,8 +157,14 @@ def _transform_sample_and_update_chunk_engines(
         posixpath.join(group_index, k): result[k] for k in result.tensors
     }
     result = result_resolved  # type: ignore
-    if set(result.keys()) != set(tensors):
-        raise TensorMismatchError(list(tensors), list(result.keys()))
+    result_keys = set(result.keys())
+
+    if skip_ok:
+        if not result_keys.issubset(tensors):
+            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+    
     for tensor, value in result.items():
         all_chunk_engines[tensor].extend(value.numpy_compressed())
 
@@ -169,6 +176,7 @@ def transform_data_slice_and_append(
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     pg_callback=None,
+    skip_ok=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
 
@@ -177,7 +185,7 @@ def transform_data_slice_and_append(
     last_reported_num_samples = 0
     for i, sample in enumerate(data_slice):
         _transform_sample_and_update_chunk_engines(
-            sample, pipeline, tensors, all_chunk_engines, group_index
+            sample, pipeline, tensors, all_chunk_engines, group_index, skip_ok
         )
         if pg_callback is not None:
             curr_time = time.time()

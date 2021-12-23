@@ -499,11 +499,17 @@ class UnsupportedSchedulerError(TransformError):
 
 
 class TensorMismatchError(TransformError):
-    def __init__(self, tensors, output_keys):
-        super().__init__(
-            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
-            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
-        )
+    def __init__(self, tensors, output_keys, skip_ok=False):
+        if skip_ok:
+            super().__init__(
+                f"One or more tensors generated during hub compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
+        else:
+            super().__init__(
+                f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
 
 
 class InvalidOutputDatasetError(TransformError):
