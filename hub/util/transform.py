@@ -1,3 +1,4 @@
+import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
@@ -116,7 +117,13 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback, skip_ok
+        data_slice,
+        pipeline,
+        tensors,
+        all_chunk_engines,
+        group_index,
+        pg_callback,
+        skip_ok,
     )
 
     # retrieve relevant objects from memory
@@ -164,7 +171,7 @@ def _transform_sample_and_update_chunk_engines(
             raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
     elif set(result_keys) != set(tensors):
         raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
-    
+
     for tensor, value in result.items():
         all_chunk_engines[tensor].extend(value.numpy_compressed())
 
@@ -283,16 +290,20 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
+def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str, skip_ok=False) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
-    for tensor in tensors:
-        if len(ds_out[tensor]) != len(ds_out):
-            raise InvalidOutputDatasetError(
-                "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-            )
+
+    if skip_ok:
+        warnings.warn("Skipping checks for initial tensor lengths as skip_ok is True.")
+    else:
+        for tensor in tensors:
+            if len(ds_out[tensor]) != len(ds_out):
+                raise InvalidOutputDatasetError(
+                    "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+                )
 
     output_base_storage = get_base_storage(ds_out.storage)
     if isinstance(output_base_storage, MemoryProvider) and scheduler not in [

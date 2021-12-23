@@ -128,7 +128,7 @@ class Pipeline:
 
         check_transform_data_in(data_in, scheduler)
         target_ds = data_in if ds_out is None else ds_out
-        check_transform_ds_out(target_ds, scheduler)
+        check_transform_ds_out(target_ds, scheduler, skip_ok)
         target_ds.flush()
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(target_ds.version_state, target_ds.storage)
@@ -179,7 +179,8 @@ class Pipeline:
         tensors = list(target_ds.tensors)
         tensors = [target_ds.tensors[t].key for t in tensors]
         map_inp = zip(
-            slices, repeat((storage, group_index, tensors, self, version_state, skip_ok))
+            slices,
+            repeat((storage, group_index, tensors, self, version_state, skip_ok)),
         )
         if progressbar:
             desc = get_pbar_description(self.functions)
