@@ -252,7 +252,7 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: str = DEFAULT_HTYPE,
+        htype: str = UNSPECIFIED,
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
@@ -310,8 +310,8 @@ class Dataset:
 
         # Seperate meta and info
 
-        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
-        info_keys = htype_config.pop("_info", [])
+        htype_config = HTYPE_CONFIGURATIONS.get(htype, {})
+        info_keys = htype_config.copy().pop("_info", [])
         info_kwargs = {}
         meta_kwargs = {}
         for k, v in kwargs.items():
