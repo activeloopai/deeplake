@@ -618,7 +618,7 @@ def test_like(local_path):
     assert dest_ds.a.meta.htype == "image"
     assert dest_ds.a.meta.sample_compression == "png"
     assert dest_ds.b.meta.htype == "class_label"
-    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.c.meta.htype is None
     assert dest_ds.d.dtype == bool
 
     assert dest_ds.info.key == 0
