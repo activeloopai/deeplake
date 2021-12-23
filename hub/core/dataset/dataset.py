@@ -1234,14 +1234,8 @@ class Dataset:
             ).encode()
         ).hexdigest()
 
-    def store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+    def _get_view_info(self):
         tm = getattr(self, "_created_at", time())
-        if len(self.index.values) > 1:
-            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-
-        if path is None and hasattr(self, "_vds"):
-            return self._vds if _ret_ds else self._vds.path
-
         hash = self._view_hash()
         info = {
             "id": hash,
@@ -1256,7 +1250,17 @@ class Dataset:
         if query:
             info["query"] = query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        return info
 
+    def store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+        if len(self.index.values) > 1:
+            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
+
+        if path is None and hasattr(self, "_vds"):
+            return self._vds if _ret_ds else self._vds.path
+
+        info = self._get_view_info()
+        hash = info["id"]
         if path is None:
             if isinstance(self, MemoryProvider):
                 raise NotImplementedError(
@@ -1272,8 +1276,10 @@ class Dataset:
                             "Cannot save view in read only dataset. Speicify a path to store the view in a different location, or login using command `activeloop login` to store the view under your hub account."
                         )
                     queries_ds_path = f"hub://{username}/queries"
-                    hub.dataset(queries_ds_path)  # create if doesn't exist
-                    path = f"{queries_ds_path}/{self._view_hash}"
+                    base_storage = get_base_storage(
+                        hub.dataset(queries_ds_path).storage
+                    )  # create if doesn't exist
+                    path = f"{queries_ds_path}/{hash}"
                     ds = hub.empty(path, **ds_args)
                 else:
                     raise ReadOnlyModeError(
@@ -1289,27 +1295,27 @@ class Dataset:
                     args.update(ds_args)
                     ds_args = args
                 ds = hub.dataset(path, **ds_args)  # type: ignore
-                lock = Lock(base_storage, get_queries_lock_key())
-                lock.acquire(timeout=10, force=True)
-                queries_key = get_queries_key()
-                try:
-                    queries = json.loads(base_storage[queries_key].decode("utf-8"))
-                except KeyError:
-                    queries = []
-                queries.append(info)
-                base_storage[queries_key] = json.dumps(queries).encode("utf-8")
-                lock.release()
+                if isinstance(self, hub.core.dataset.HubCloudDataset):
+                    path = f"{self.path}/.queries/{hash}"
+            lock = Lock(base_storage, get_queries_lock_key())
+            lock.acquire(timeout=10, force=True)
+            queries_key = get_queries_key()
+            try:
+                queries = json.loads(base_storage[queries_key].decode("utf-8"))
+            except KeyError:
+                queries = []
+            info = self._get_view_info()
+            queries.append(info)
+            base_storage[queries_key] = json.dumps(queries).encode("utf-8")
+            lock.release()
         else:
             ds = hub.empty(path, **ds_args)
         with ds:
-            ds.info.update(info)
+            ds.info.update(info or self._get_view_info())
             ds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                 list(self.index.values[0].indices(len(self)))
             )
-        if isinstance(self, hub.core.dataset.HubCloudDataset):
-            path = f"{self.path}/.queries/{hash}"
-        else:
-            path = ds.path
+
         print(f"Virtual dataset stored at {path}")
         return ds if _ret_ds else path
 
