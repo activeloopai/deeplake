@@ -593,7 +593,7 @@ class Dataset:
             str, optional: The commit_id of the branch/commit that was checked out.
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
-        self._checkout(address, create)
+        return self._checkout(address, create)
 
     def _checkout(
         self, address: str, create: bool = False, hash: Optional[str] = None
