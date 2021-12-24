@@ -22,7 +22,7 @@ from hub.core.index.index import Index, IndexEntry
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
-from hub.util.casting import get_dtype
+from hub.util.casting import get_dtype, get_htype
 from hub.util.chunk_engine import (
     check_samples_type,
     make_sequence,
@@ -438,6 +438,8 @@ class ChunkEngine:
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
         tensor_meta = self.tensor_meta
+        if tensor_meta.htype is None:
+            tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):

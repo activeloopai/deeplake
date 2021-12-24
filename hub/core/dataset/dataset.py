@@ -148,7 +148,8 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        if not self._read_only:
+            self.storage.maybe_flush()
 
     @property
     def num_samples(self) -> int:
@@ -252,7 +253,7 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: str = DEFAULT_HTYPE,
+        htype: str = UNSPECIFIED,
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
@@ -310,8 +311,8 @@ class Dataset:
 
         # Seperate meta and info
 
-        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
-        info_keys = htype_config.pop("_info", [])
+        htype_config = HTYPE_CONFIGURATIONS.get(htype, {})
+        info_keys = htype_config.copy().pop("_info", [])
         info_kwargs = {}
         meta_kwargs = {}
         for k, v in kwargs.items():
@@ -570,10 +571,14 @@ class Dataset:
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         try_flushing(self)
 
-        with self:
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
             commit(self.version_state, self.storage, message, hash)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store commit message
@@ -599,10 +604,15 @@ class Dataset:
         self, address: str, create: bool = False, hash: Optional[str] = None
     ) -> Optional[str]:
         try_flushing(self)
-        with self:
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
             checkout(self.version_state, self.storage, address, create, hash)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store address

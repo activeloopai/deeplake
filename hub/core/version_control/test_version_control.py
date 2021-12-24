@@ -1052,3 +1052,14 @@ def test_custom_commit_hash(local_ds):
         ("main", "xyz")
     )
     assert local_ds.version_state["branch_commit_map"]["xyz"] == "efgh"
+
+
+def test_read_only_checkout(local_ds):
+    with local_ds:
+        local_ds.create_tensor("x")
+        local_ds.x.append([1, 2, 3])
+        local_ds.checkout("branch", create=True)
+        local_ds.checkout("main")
+    assert local_ds.storage.autoflush == True
+    local_ds.read_only = True
+    local_ds.checkout("main")
