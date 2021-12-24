@@ -1035,3 +1035,14 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
+
+
+def test_read_only_checkout(local_ds):
+    with local_ds:
+        local_ds.create_tensor("x")
+        local_ds.x.append([1, 2, 3])
+        local_ds.checkout("branch", create=True)
+        local_ds.checkout("main")
+    assert local_ds.storage.autoflush == True
+    local_ds.read_only = True
+    local_ds.checkout("main")

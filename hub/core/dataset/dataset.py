@@ -148,7 +148,8 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        if not self._read_only:
+            self.storage.maybe_flush()
 
     @property
     def num_samples(self) -> int:
@@ -567,10 +568,14 @@ class Dataset:
         """
         try_flushing(self)
 
-        with self:
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
             commit(self.version_state, self.storage, message)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store commit message
@@ -591,10 +596,15 @@ class Dataset:
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
         try_flushing(self)
-        with self:
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
             checkout(self.version_state, self.storage, address, create)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store address
