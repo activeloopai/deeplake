@@ -7,8 +7,10 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
+    get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_chunk_id_encoder_key,
     get_chunk_id_encoder_key,
@@ -27,8 +29,8 @@ def merge_all_tensor_metas(
     tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
-        tensor_meta = None if overwrite else target_ds[rel_path].meta  # type: ignore
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        tensor_meta = None if overwrite else target_ds[rel_path].meta
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
             if tensor_meta is None:
@@ -69,8 +71,10 @@ def merge_all_chunk_id_encoders(
     tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
-        chunk_id_encoder = None if overwrite else target_ds[rel_path].chunk_engine.chunk_id_encoder  # type: ignore
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        chunk_id_encoder = (
+            None if overwrite else target_ds[rel_path].chunk_engine.chunk_id_encoder
+        )
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
             if chunk_id_encoder is None:
@@ -112,7 +116,7 @@ def merge_all_tile_encoders(
     tensors: List[str] = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
         chunk_engine = target_ds[rel_path].chunk_engine
         offset = 0 if overwrite else chunk_engine.num_samples
         tile_encoder = None if overwrite else chunk_engine.tile_encoder
@@ -157,8 +161,10 @@ def merge_all_commit_chunk_sets(
     tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
-        commit_chunk_set = None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_set  # type: ignore
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        commit_chunk_set = (
+            None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_set
+        )
         for current_worker_commit_chunk_set in all_workers_commit_chunk_sets:
             current_commit_chunk_set = current_worker_commit_chunk_set[tensor]
             if commit_chunk_set is None:
@@ -176,3 +182,34 @@ def combine_commit_chunk_sets(
 ) -> None:
     """Combines the dataset's commit_chunk_set with a single worker's commit_chunk_set."""
     ds_commit_chunk_set.chunks.update(worker_commit_chunk_set.chunks)
+
+
+def merge_all_commit_diffs(
+    all_workers_commit_diffs: List[Dict[str, CommitDiff]],
+    target_ds: hub.Dataset,
+    storage: StorageProvider,
+    overwrite: bool,
+) -> None:
+    """Merges commit_diffs from all workers into a single one and stores it in target_ds."""
+    tensors = list(target_ds.meta.tensors)
+    commit_id = target_ds.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        commit_diff = None if overwrite else target_ds[rel_path].chunk_engine.commit_diff  # type: ignore
+        for current_worker_commit_diffs in all_workers_commit_diffs:
+            current_commit_diff = current_worker_commit_diffs[tensor]
+            if commit_diff is None:
+                commit_diff = current_commit_diff
+                commit_diff.transform_data()
+            else:
+                combine_commit_diffs(commit_diff, current_commit_diff)
+
+        commit_chunk_key = get_tensor_commit_diff_key(tensor, commit_id)
+        storage[commit_chunk_key] = commit_diff.tobytes()  # type: ignore
+
+
+def combine_commit_diffs(
+    ds_commit_diff: CommitDiff, worker_commit_diff: CommitDiff
+) -> None:
+    """Combines the dataset's commit_diff with a single worker's commit_diff."""
+    ds_commit_diff.add_data(worker_commit_diff.num_samples_added)
