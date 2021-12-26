@@ -32,11 +32,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-      - name: publish-to-conda
-        uses: fcakyon/conda-publish-action@v1.3
-        with:
-          anacondatoken: ${{ secrets.ANACONDA_TOKEN }}
-          platforms: 'win osx linux'
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
@@ -52,3 +47,19 @@ jobs:
           file: bin/Dockerfile
           push: true
           tags: ${{ env.VERSION_PUBLISHED }}
+      - name: Install Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: 3.8
+      - name: Publish to Conda
+        run: |
+          export VERSION_ON_PYPI=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//g')
+          cp .github/conda-template.yaml meta.yaml
+          sed -i "s|REPLACE_VERSION|$VERSION_ON_PYPI|g" meta.yaml
+          cat meta.yaml
+          conda install conda-build anaconda-client patch -y
+          conda config --add channels conda-forge
+          conda config --set anaconda_upload yes
+          pip install -e .
+          conda build .
