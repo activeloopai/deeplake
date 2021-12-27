@@ -69,28 +69,30 @@ def filter_with_compute(
     idx: List[List[int]] = [block.indices() for block in blocks]
 
     query_id = str(uuid4())
-    # dataset.send_query_progress(query_text=query_text, query_id=query_id, start=True, progress=0)
+    dataset.send_query_progress(
+        query_text=query_text, query_id=query_id, start=True, progress=0
+    )
     try:
         if progressbar:
             result = compute.map_with_progressbar(pg_filter_slice, idx, total_length=len(dataset))  # type: ignore
         else:
             result = compute.map(filter_slice, idx)  # type: ignore
         index_map = [k for x in result for k in x]  # unfold the result map
-        # dataset.send_query_progress(
-        #     query_text=query_text,
-        #     query_id=query_id,
-        #     end=True,
-        #     progress=100,
-        #     status="success",
-        # )
+        dataset.send_query_progress(
+            query_text=query_text,
+            query_id=query_id,
+            end=True,
+            progress=100,
+            status="success",
+        )
     except Exception as e:
-        # dataset.send_query_progress(
-        #     query_text=query_text,
-        #     query_id=query_id,
-        #     end=True,
-        #     progress=100,
-        #     status="failed",
-        # )
+        dataset.send_query_progress(
+            query_text=query_text,
+            query_id=query_id,
+            end=True,
+            progress=100,
+            status="failed",
+        )
         raise FilterError(e)
 
     finally:
@@ -112,26 +114,28 @@ def filter_inplace(
         it = tqdm(it, total=len(dataset))
 
     query_id = str(uuid4())
-    # dataset.send_query_progress(query_text=query_text, query_id=query_id, start=True, progress=0)
+    dataset.send_query_progress(
+        query_text=query_text, query_id=query_id, start=True, progress=0
+    )
     try:
         for i, sample_in in it:
             if filter_function(sample_in):
                 index_map.append(i)
-        # dataset.send_query_progress(
-        #     query_text=query_text,
-        #     query_id=query_id,
-        #     end=True,
-        #     progress=100,
-        #     status="success",
-        # )
+        dataset.send_query_progress(
+            query_text=query_text,
+            query_id=query_id,
+            end=True,
+            progress=100,
+            status="success",
+        )
     except Exception as e:
-        # dataset.send_query_progress(
-        #     query_text=query_text,
-        #     query_id=query_id,
-        #     end=True,
-        #     progress=100,
-        #     status="failed",
-        # )
+        dataset.send_query_progress(
+            query_text=query_text,
+            query_id=query_id,
+            end=True,
+            progress=100,
+            status="failed",
+        )
         raise FilterError(e)
 
     return index_map
