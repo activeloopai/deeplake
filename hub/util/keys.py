@@ -12,7 +12,7 @@ from hub.constants import (
     TENSOR_COMMIT_CHUNK_SET_FILENAME,
     TENSOR_COMMIT_DIFF_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
-    VERSION_CONTROL_INFO_FILENAME_OLD,    
+    VERSION_CONTROL_INFO_FILENAME_OLD,
     VERSION_CONTROL_INFO_LOCK_FILENAME,
 )
 
@@ -127,4 +127,3 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
-

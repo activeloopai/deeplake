@@ -32,7 +32,10 @@ import json
 
 
 def version_info_to_json(info):
-    commit_node_map, branch_commit_map = info["commit_node_map"], info["branch_commit_map"]
+    commit_node_map, branch_commit_map = (
+        info["commit_node_map"],
+        info["branch_commit_map"],
+    )
     commits = {}
     for commit, node in commit_node_map.items():
         commits[commit] = {
@@ -59,7 +62,9 @@ def version_info_from_json(info):
         node = CommitNode(commit_id, commit_data["branch"])
         node.commit_message = commit_data["commit_message"]
         commit_time = commit_data["commit_time"]
-        node.commit_time = None if commit_time is None else datetime.fromtimestamp(commit_time)
+        node.commit_time = (
+            None if commit_time is None else datetime.fromtimestamp(commit_time)
+        )
         node.commit_user_name = commit_data["commit_user_name"]
         parent = commit_data["parent"]
         if parent:
@@ -70,7 +75,6 @@ def version_info_from_json(info):
         "commit_node_map": commit_node_map,
         "branch_commit_map": branch_commit_map,
     }
-        
 
 
 def generate_hash() -> str:
@@ -351,11 +355,15 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
         "branch_commit_map": version_state["branch_commit_map"],
     }
     try:
-        old_version_info = version_info_from_json(json.loads(storage[key].decode("utf-8")))
+        old_version_info = version_info_from_json(
+            json.loads(storage[key].decode("utf-8"))
+        )
         version_info = _merge_version_info(old_version_info, new_version_info)
     except KeyError:
         try:
-            old_version_info = pickle.loads(storage[get_version_control_info_key_old()])  # backward compatiblity
+            old_version_info = pickle.loads(
+                storage[get_version_control_info_key_old()]
+            )  # backward compatiblity
             version_info = _merge_version_info(old_version_info, new_version_info)
         except KeyError:
             version_info = new_version_info
@@ -365,9 +373,13 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
 
 def load_version_info(storage: LRUCache) -> None:
     try:
-        return version_info_from_json(json.loads(storage[get_version_control_info_key()].decode("utf-8")))
+        return version_info_from_json(
+            json.loads(storage[get_version_control_info_key()].decode("utf-8"))
+        )
     except KeyError:
-        return pickle.loads(storage[get_version_control_info_key_old()])  # backward compatiblity
+        return pickle.loads(
+            storage[get_version_control_info_key_old()]
+        )  # backward compatiblity
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
