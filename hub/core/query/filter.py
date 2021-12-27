@@ -4,6 +4,7 @@ from uuid import uuid4
 import hub
 
 from hub.core.io import SampleStreaming
+from hub.core.query.query import DatasetQuery
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import map_tensor_keys
 from hub.util.exceptions import FilterError
@@ -146,5 +147,30 @@ def filter_inplace(
             status="failed",
         )
         raise FilterError(e)
+
+    return index_map
+
+
+def query_dataset(
+    dataset: hub.Dataset,
+    query: str,
+    num_workers: int = 0,
+    scheduler: str = "threaded",
+    progressbar: bool = True,
+) -> hub.Dataset:
+    index_map: List[int]
+
+    if num_workers > 0:
+        index_map = query_inplace(dataset, query, progressbar)
+    else:
+        index_map = query_inplace(dataset, query, progressbar)
+
+    return dataset[index_map]  # type: ignore [this is fine]
+
+
+def query_inplace(dataset: hub.Dataset, query: str, progressbar: bool):
+
+    ds_query = DatasetQuery(dataset, query, progressbar)
+    index_map = ds_query.execute()
 
     return index_map
