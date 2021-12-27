@@ -620,7 +620,8 @@ class Dataset:
             feature_name="checkout", parameters={"Create": str(create)}
         )
         commit_node = self.version_state["commit_node"]
-        warn_node_checkout(commit_node, create)
+        if self.verbose:
+            warn_node_checkout(commit_node, create)
 
         return self.commit_id
 
