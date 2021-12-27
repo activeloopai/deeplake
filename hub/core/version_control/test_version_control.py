@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from hub.util.diff import get_all_changes_string
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import CheckoutError, ReadOnlyModeError
+from hub.util.exceptions import CheckoutError, CommitError, ReadOnlyModeError
 
 
 def commit_details_helper(commits, ds):
@@ -1035,3 +1035,31 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
+
+
+def test_custom_commit_hash(local_ds):
+    commits = local_ds.commits
+    assert len(commits) == 0
+    local_ds._commit(hash="abcd")
+    assert local_ds.version_state["commit_id"] == "abcd"
+    with pytest.raises(CommitError):
+        local_ds._commit(hash="abcd")
+    with pytest.raises(CommitError):
+        local_ds._checkout("xyz", create=True, hash="abcd")
+    local_ds._checkout("xyz", create=True, hash="efgh")
+    assert local_ds.version_state["commit_id"] == "efgh"
+    assert set(local_ds.version_state["branch_commit_map"].keys()) == set(
+        ("main", "xyz")
+    )
+    assert local_ds.version_state["branch_commit_map"]["xyz"] == "efgh"
+
+
+def test_read_only_checkout(local_ds):
+    with local_ds:
+        local_ds.create_tensor("x")
+        local_ds.x.append([1, 2, 3])
+        local_ds.checkout("branch", create=True)
+        local_ds.checkout("main")
+    assert local_ds.storage.autoflush == True
+    local_ds.read_only = True
+    local_ds.checkout("main")

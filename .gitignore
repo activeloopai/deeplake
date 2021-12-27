@@ -193,6 +193,8 @@ logs/
 .vscode/
 .creds/
 .idea/
+.nvimrc
+.vimrc
 waymo/
 output/
 cov.xml

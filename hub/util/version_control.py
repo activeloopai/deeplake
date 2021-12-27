@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -13,7 +13,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
 from hub.core.lock import Lock
-from hub.util.exceptions import CallbackInitializationError, CheckoutError
+from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -81,14 +81,22 @@ def generate_hash() -> str:
 
 
 def commit(
-    version_state: Dict[str, Any], storage: LRUCache, message: str = None
+    version_state: Dict[str, Any],
+    storage: LRUCache,
+    message: str = None,
+    hash: Optional[str] = None,
 ) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage.check_readonly()
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(version_state, storage)
     stored_commit_id = version_state["commit_id"]
-    version_state["commit_id"] = generate_hash()
+    if hash:
+        if hash in version_state["commit_node_map"]:
+            raise CommitError(f"Commit {hash} already exists")
+        version_state["commit_id"] = hash
+    else:
+        version_state["commit_id"] = generate_hash()
     new_node = CommitNode(version_state["branch"], version_state["commit_id"])
     version_state["commit_node"].add_successor(new_node, message)
     version_state["commit_node"] = new_node
@@ -107,6 +115,7 @@ def checkout(
     storage: LRUCache,
     address: str,
     create: bool = False,
+    hash: Optional[str] = None,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     original_commit_id = version_state["commit_id"]
@@ -138,7 +147,12 @@ def checkout(
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
-        new_commit_id = generate_hash()
+        if hash:
+            if hash in version_state["commit_node_map"]:
+                raise CommitError(f"Commit {hash} already exists")
+            new_commit_id = hash
+        else:
+            new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
         version_state["commit_node"].add_child(new_node)
         version_state["commit_id"] = new_commit_id

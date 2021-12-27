@@ -618,7 +618,7 @@ def test_like(local_path):
     assert dest_ds.a.meta.htype == "image"
     assert dest_ds.a.meta.sample_compression == "png"
     assert dest_ds.b.meta.htype == "class_label"
-    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.c.meta.htype is None
     assert dest_ds.d.dtype == bool
 
     assert dest_ds.info.key == 0
@@ -903,6 +903,29 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_auto_htype(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("a")
+        ds.create_tensor("b")
+        ds.create_tensor("c")
+        ds.create_tensor("d")
+        ds.create_tensor("e")
+        ds.create_tensor("f")
+        ds.a.append("hello")
+        ds.b.append({"a": [1, 2]})
+        ds.c.append([1, 2, 3])
+        ds.d.append(np.array([{"x": ["a", 1, 2.5]}]))
+        ds.e.append(["a", 1, {"x": "y"}, "b"])
+        ds.f.append(ds.e[0])
+    assert ds.a.htype == "text"
+    assert ds.b.htype == "json"
+    assert ds.c.htype == "generic"
+    assert ds.d.htype == "json"
+    assert ds.e.htype == "json"
+    assert ds.f.htype == "json"
 
 
 def test_sample_shape(memory_ds):
