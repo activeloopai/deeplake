@@ -69,12 +69,12 @@ def create_tensor(
     storage[diff_key] = diff  # type: ignore
 
 
-def delete_tensor(dataset, key: str):
+def delete_tensor(key: str, dataset):
     """Delete tensor from storage.
 
     Args:
-        dataset (Dataset): Dataset that the tensor is located in.
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
+        dataset (Dataset): Dataset that the tensor is located in.
 
     Raises:
         TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.

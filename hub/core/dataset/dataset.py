@@ -453,7 +453,7 @@ class Dataset:
             meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
             self.storage[meta_key] = meta
             for tensor in tensors:
-                delete_tensor(tensor, self.storage, self.version_state)
+                delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
