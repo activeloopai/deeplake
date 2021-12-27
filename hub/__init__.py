@@ -88,4 +88,4 @@ def send_event():
             pass
 
 
-threading.Thread(target=send_event).start()
+threading.Thread(target=send_event, daemon=True).start()
