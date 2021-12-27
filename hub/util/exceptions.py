@@ -597,6 +597,10 @@ class CheckoutError(VersionControlError):
     pass
 
 
+class CommitError(VersionControlError):
+    pass
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(

@@ -130,7 +130,9 @@ class Dataset:
         self.__dict__.update(d)
         self._set_derived_attributes()
         self.first_load_init()
-        self._lock()
+        self._initial_autoflush: List[
+            bool
+        ] = []  # This is a stack to support nested with contexts
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -140,12 +142,14 @@ class Dataset:
         )
 
     def __enter__(self):
+        self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = True
-        self.flush()
+        self.storage.autoflush = self._initial_autoflush.pop()
+        if not self._read_only:
+            self.storage.maybe_flush()
 
     @property
     def num_samples(self) -> int:
@@ -197,8 +201,10 @@ class Dataset:
         state["_info"] = None
         state["is_iteration"] = False
         self.__dict__.update(state)
+        self._initial_autoflush = []
+        self.is_first_load = True
+        self._info = None
         self._set_derived_attributes()
-        self._lock()
 
     def __getitem__(
         self,
@@ -247,7 +253,7 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: str = DEFAULT_HTYPE,
+        htype: str = UNSPECIFIED,
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
@@ -305,8 +311,8 @@ class Dataset:
 
         # Seperate meta and info
 
-        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
-        info_keys = htype_config.pop("_info", [])
+        htype_config = HTYPE_CONFIGURATIONS.get(htype, {})
+        info_keys = htype_config.copy().pop("_info", [])
         info_kwargs = {}
         meta_kwargs = {}
         for k, v in kwargs.items():
@@ -382,16 +388,18 @@ class Dataset:
                 )
                 return
 
-        delete_tensor(self, name)
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        ffw_dataset_meta(meta)
-        meta.tensors.remove(name)
-        self.storage[meta_key] = meta
+        with self:
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            meta.tensors.remove(name)
+            self.storage[meta_key] = meta
+            delete_tensor(name, self.storage, self.version_state)
+
         self.storage.maybe_flush()
+
         self.version_state["meta"] = meta
         self.version_state["full_tensors"].pop(name)
-        return None
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -433,30 +441,23 @@ class Dataset:
                 )
                 return
 
-        tensors = [
-            posixpath.join(name, tensor) for tensor in self[name]._all_tensors_filtered
-        ]
-
-        for tensor in tensors:
-            delete_tensor(self, tensor)
-
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        ffw_dataset_meta(meta)
-        groups = meta.groups.copy()
-        for group in groups:
-            if group.startswith(name):
-                meta.groups.remove(group)
-
-        tensors = meta.tensors.copy()
-        for tensor in tensors:
-            if tensor.startswith(name):
-                meta.tensors.remove(tensor)
+        with self:
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            tensors = [
+                posixpath.join(name, tensor)
+                for tensor in self[name]._all_tensors_filtered
+            ]
+            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
+            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
+            self.storage[meta_key] = meta
+            for tensor in tensors:
+                delete_tensor(tensor, self.storage, self.version_state)
                 self.version_state["full_tensors"].pop(tensor)
-        self.storage[meta_key] = meta
+
         self.storage.maybe_flush()
         self.version_state["meta"] = meta
-        return None
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
@@ -548,6 +549,8 @@ class Dataset:
                 warnings.warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
+                return False
+        return True
 
     def _unlock(self):
         unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
@@ -563,18 +566,24 @@ class Dataset:
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
+        return self._commit(message)
+
+    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         try_flushing(self)
-        initial_autoflush = self.storage.autoflush
+
+        self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        self._unlock()
-        commit(self, message)
-        self._lock()
+        try:
+            self._unlock()
+            commit(self.version_state, self.storage, message, hash)
+            self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
 
-        self.storage.autoflush = initial_autoflush
         return self.commit_id  # type: ignore
 
     def checkout(self, address: str, create: bool = False) -> Optional[str]:
@@ -589,12 +598,21 @@ class Dataset:
             str, optional: The commit_id of the branch/commit that was checked out.
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
+        return self._checkout(address, create)
+
+    def _checkout(
+        self, address: str, create: bool = False, hash: Optional[str] = None
+    ) -> Optional[str]:
         try_flushing(self)
-        initial_autoflush = self.storage.autoflush
+
+        self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        self._unlock()
-        checkout(self, address, create)
-        self._lock()
+        try:
+            self._unlock()
+            checkout(self.version_state, self.storage, address, create, hash)
+            self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store address
@@ -604,7 +622,6 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         warn_node_checkout(commit_node, create)
 
-        self.storage.autoflush = initial_autoflush
         return self.commit_id
 
     def log(self):
@@ -779,18 +796,26 @@ class Dataset:
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
+        self.__dict__["_read_only"] = value
         if value:
             storage.enable_readonly()
-            self.__dict__["_read_only"] = True
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
         else:
-            self._lock(err=err)
-            self.__dict__["_locked_out"] = False
-            self.storage.disable_readonly()
-            self.__dict__["_read_only"] = False
-            if isinstance(storage, LRUCache) and storage.next_storage is not None:
-                storage.next_storage.disable_readonly()
+            try:
+                locked = self._lock(err=err)
+                if locked:
+                    self.storage.disable_readonly()
+                    if (
+                        isinstance(storage, LRUCache)
+                        and storage.next_storage is not None
+                    ):
+                        storage.next_storage.disable_readonly()
+                else:
+                    self.__dict__["_read_only"] = True
+            except LockedException as e:
+                self.__dict__["_read_only"] = True
+                raise e
 
     @read_only.setter
     def read_only(self, value: bool):

@@ -6,6 +6,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
+from hub.core.storage.provider import StorageProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
@@ -17,10 +18,10 @@ from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
-from hub.util.casting import get_dtype
+from hub.util.casting import get_dtype, get_htype
 from hub.util.chunk_engine import (
     check_samples_type,
     make_sequence,
@@ -438,6 +439,8 @@ class ChunkEngine:
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
         tensor_meta = self.tensor_meta
+        if tensor_meta.htype is None:
+            tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
@@ -853,6 +856,47 @@ class ChunkEngine:
             raise CorruptedMetaError(
                 f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
             )
+
+    def list_all_chunks(self) -> List[str]:
+        """Return list of all chunks for current `version_state['commit_id']` and tensor"""
+        commit_id = self.version_state["commit_id"]
+
+        if commit_id == FIRST_COMMIT_ID:
+            return [ChunkIdEncoder.name_from_id(chunk_id) for chunk_id in self.chunk_id_encoder.array[:, CHUNK_ID_COLUMN]]  # type: ignore
+        else:
+            return list(self.commit_chunk_set.chunks)  # type: ignore
+
+    def list_all_chunks_path(self) -> List[str]:
+        """Return list of paths to all chunks"""
+        commit_id = self.version_state["commit_id"]
+        return [
+            get_chunk_key(self.key, chunk, commit_id)
+            for chunk in self.list_all_chunks()
+        ]
+
+    def list_orphaned_chunks(self, storage):
+        """Return paths for orphaned chunks (chunks what are not linked to the `current_version`)"""
+
+        commit_id = self.version_state["commit_id"]
+        prefix: str = f"{self.key}/chunks/"
+
+        if commit_id != FIRST_COMMIT_ID:
+            prefix = f"versions/{commit_id}/{prefix}"
+
+        all_chunks = [
+            item.replace(prefix, "") for item in storage if item.startswith(prefix)
+        ]
+        linked_chunks = self.list_all_chunks()
+
+        return [
+            f"{prefix}{chunk}" for chunk in all_chunks if chunk not in linked_chunks
+        ]
+
+    def clear_unusd_chunks(self, storage: StorageProvider):
+        # storage.delete_multiple(self.list_orphaned_chunks(storage))
+        raise NotImplementedError(
+            "requires StorageProvider to be able to list all chunks"
+        )
 
     def _pop(self):
         """Used only for Dataset.append"""

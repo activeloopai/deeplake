@@ -810,3 +810,45 @@ def test_inplace_transform_non_head(local_ds_generator):
     for i in range(20):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
+
+
+def test_inplace_transform_clear_chunks(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+
+        for _ in range(10):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones(3))
+
+    prev_chunks = set(
+        [
+            f"{tensor.key}/chunks/{chunk}"
+            for tensor in [ds.img, ds.label]
+            for chunk in tensor.chunk_engine.list_all_chunks()
+        ]
+    )
+    inplace_transform().eval(ds)
+    after_chunks = set(
+        [
+            f"{tensor.key}/chunks/{chunk}"
+            for tensor in [ds.img, ds.label]
+            for chunk in tensor.chunk_engine.list_all_chunks()
+        ]
+    )
+
+    # all chunks where replaced
+    assert len(after_chunks.intersection(prev_chunks)) == 0
+
+    # test all new chunks where created
+    for chunk in after_chunks:
+        assert ds.storage[chunk] is not None
+
+    # test all old chunks where removed
+    for chunk in prev_chunks:
+        try:
+            assert ds.storage[chunk] is None
+        except KeyError:
+            pass
