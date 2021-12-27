@@ -204,8 +204,6 @@ class SampleStreaming(Streaming):
             yield from self.stream(block)
 
     def stream(self, block: IOBlock):
-        commit_id = self.dataset.version_state["commit_id"]
-
         for idx in block.indices():
 
             sample = dict()
@@ -214,6 +212,7 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 chunk_class = engine.chunk_class
                 try:
+                    commit_id = engine.get_chunk_commit(block.chunk_name(keyid))
                     c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
                     chunk: BaseChunk
 
