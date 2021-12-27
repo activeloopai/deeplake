@@ -23,9 +23,54 @@ from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_tile_encoder_key,
     get_version_control_info_key,
+    get_version_control_info_key_old,
     get_version_control_info_lock_key,
 )
 from hub.util.remove_cache import get_base_storage
+from datetime import datetime
+import json
+
+
+def version_info_to_json(info):
+    commit_node_map, branch_commit_map = info["commit_node_map"], info["branch_commit_map"]
+    commits = {}
+    for commit, node in commit_node_map.items():
+        commits[commit] = {
+            "branch": node.branch,
+            "parent": node.parent.commit_id if node.parent else None,
+            "children": [c.commit_id for c in node.children],
+            "commit_message": node.commit_message,
+            "commit_time": node.commit_time.timestamp() if node.commit_time else None,
+            "commit_user_name": node.commit_user_name,
+        }
+    return {
+        "commits": commits,
+        "branches": branch_commit_map,
+    }
+
+
+def version_info_from_json(info):
+    commits, branch_commit_map = info["commits"], info["branches"]
+    commit_node_map = {}
+    stack = [FIRST_COMMIT_ID]
+    while stack:
+        commit_id = stack.pop()
+        commit_data = commits[commit_id]
+        node = CommitNode(commit_id, commit_data["branch"])
+        node.commit_message = commit_data["commit_message"]
+        commit_time = commit_data["commit_time"]
+        node.commit_time = None if commit_time is None else datetime.fromtimestamp(commit_time)
+        node.commit_user_name = commit_data["commit_user_name"]
+        parent = commit_data["parent"]
+        if parent:
+            commit_node_map[parent].add_child(node)
+        commit_node_map[commit_id] = node
+        stack += commit_data["children"]
+    return {
+        "commit_node_map": commit_node_map,
+        "branch_commit_map": branch_commit_map,
+    }
+        
 
 
 def generate_hash() -> str:
@@ -292,12 +337,23 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
         "branch_commit_map": version_state["branch_commit_map"],
     }
     try:
-        old_version_info = pickle.loads(storage[key])
+        old_version_info = version_info_from_json(json.loads(storage[key].decode("utf-8")))
         version_info = _merge_version_info(old_version_info, new_version_info)
     except KeyError:
-        version_info = new_version_info
-    storage[key] = pickle.dumps(version_info)
+        try:
+            old_version_info = pickle.loads(storage[get_version_control_info_key_old()])  # backward compatiblity
+            version_info = _merge_version_info(old_version_info, new_version_info)
+        except KeyError:
+            version_info = new_version_info
+    storage[key] = json.dumps(version_info_to_json(version_info)).encode("utf-8")
     lock.release()
+
+
+def load_version_info(storage: LRUCache) -> None:
+    try:
+        return version_info_from_json(json.loads(storage[get_version_control_info_key()].decode("utf-8")))
+    except KeyError:
+        return pickle.loads(storage[get_version_control_info_key_old()])  # backward compatiblity
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
