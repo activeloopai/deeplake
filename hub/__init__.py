@@ -1,5 +1,5 @@
 import threading
-import queue
+from queue import Queue
 from botocore.config import Config
 import numpy as np
 import multiprocessing
@@ -75,7 +75,7 @@ hub_reporter.tags.append(f"version:{__version__}")
 hub_reporter.system_report(publish=True)
 hub_reporter.setup_excepthook(publish=True)
 
-event_queue = queue.Queue()
+event_queue: Queue = Queue()
 
 
 def send_event():
