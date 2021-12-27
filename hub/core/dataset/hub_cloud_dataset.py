@@ -8,6 +8,7 @@ from hub.util.agreement import handle_dataset_agreement
 from hub.util.path import is_hub_cloud_path
 from warnings import warn
 from datetime import datetime
+import hub
 
 
 class HubCloudDataset(Dataset):
@@ -98,7 +99,7 @@ class HubCloudDataset(Dataset):
             "hub_meta": hub_meta,
             "creator": "Hub",
         }
-        self.client.send_event(event_dict)
+        hub.event_queue.put((self.client, event_dict))
 
     def send_query_progress(
         self,
