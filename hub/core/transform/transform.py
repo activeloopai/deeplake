@@ -125,12 +125,16 @@ class Pipeline:
         check_transform_data_in(data_in, scheduler)
         target_ds = data_in if ds_out is None else ds_out
         check_transform_ds_out(target_ds, scheduler)
-        target_ds.flush()
-        # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(target_ds)
 
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
+
+        # if it is None, then we've already flushed data_in which is target_ds now
+        if ds_out is not None:
+            target_ds.flush()
+
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(target_ds)
 
         overwrite = ds_out is None
         if overwrite:
