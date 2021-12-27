@@ -575,7 +575,7 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self.version_state, self.storage, message, hash)
+            commit(self, message, hash)
             self._lock()
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
@@ -609,7 +609,7 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            checkout(self.version_state, self.storage, address, create, hash)
+            checkout(self, address, create, hash)
             self._lock()
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
