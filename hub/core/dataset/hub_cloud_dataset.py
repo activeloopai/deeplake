@@ -7,7 +7,7 @@ from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.path import is_hub_cloud_path
 from warnings import warn
-from datetime import datetime
+import time
 import hub
 
 
@@ -95,7 +95,7 @@ class HubCloudDataset(Dataset):
         event_dict = {
             "id": event_id,
             "event_group": event_group,
-            "ts": str(datetime.utcnow()),
+            "ts": time.time(),
             "hub_meta": hub_meta,
             "creator": "Hub",
         }
@@ -118,7 +118,7 @@ class HubCloudDataset(Dataset):
             "end": end,
             "status": status,
         }
-        event_id = f"{self.path}.query"
+        event_id = f"{self.org_id}/{self.ds_name}.query"
         self.send_event(event_id=event_id, event_group="query", hub_meta=hub_meta)
 
     def send_compute_progress(
@@ -136,7 +136,7 @@ class HubCloudDataset(Dataset):
             "end": end,
             "status": status,
         }
-        event_id = f"{self.path}.compute"
+        event_id = f"{self.org_id}/{self.ds_name}.compute"
         self.send_event(event_id=event_id, event_group="hub_compute", hub_meta=hub_meta)
 
     def send_pytorch_progress(
@@ -154,7 +154,7 @@ class HubCloudDataset(Dataset):
             "end": end,
             "status": status,
         }
-        event_id = f"{self.path}.pytorch"
+        event_id = f"{self.org_id}/{self.ds_name}.pytorch"
         self.send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
 
     def send_commit_event(self, commit_message: str, commit_time, author: str):
@@ -164,7 +164,7 @@ class HubCloudDataset(Dataset):
             "commit_time": str(commit_time),
             "author": author,
         }
-        event_id = f"{self.path}.commit"
+        event_id = f"{self.org_id}/{self.ds_name}.commit"
         self.send_event(
             event_id=event_id,
             event_group="dataset_commit",
@@ -174,7 +174,7 @@ class HubCloudDataset(Dataset):
 
     def send_branch_creation_event(self, branch_name: str):
         hub_meta = {"branch_name": branch_name}
-        event_id = f"{self.path}.branch_created"
+        event_id = f"{self.org_id}/{self.ds_name}.branch_created"
         self.send_event(
             event_id=event_id,
             event_group="dataset_branch_creation",
@@ -184,7 +184,7 @@ class HubCloudDataset(Dataset):
 
     def send_dataset_creation_event(self):
         hub_meta = {}
-        event_id = f"{self.path}.dataset_created"
+        event_id = f"{self.org_id}/{self.ds_name}.dataset_created"
         self.send_event(
             event_id=event_id,
             event_group="dataset_creation",
