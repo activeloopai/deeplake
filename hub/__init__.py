@@ -80,9 +80,12 @@ event_queue: Queue = Queue()
 
 def send_event():
     while True:
-        r = event_queue.get()
-        client, event_dict = r
-        client.send_event(event_dict)
+        try:
+            event = event_queue.get()
+            client, event_dict = event
+            client.send_event(event_dict)
+        except Exception:
+            pass
 
 
 threading.Thread(target=send_event).start()
