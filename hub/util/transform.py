@@ -1,4 +1,3 @@
-import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
@@ -290,20 +289,17 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str, skip_ok=False) -> None:
+def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
 
-    if skip_ok:
-        warnings.warn("Skipping checks for initial tensor lengths as skip_ok is True.")
-    else:
-        for tensor in tensors:
-            if len(ds_out[tensor]) != len(ds_out):
-                raise InvalidOutputDatasetError(
-                    "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-                )
+    for tensor in tensors:
+        if len(ds_out[tensor]) != len(ds_out):
+            raise InvalidOutputDatasetError(
+                "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+            )
 
     output_base_storage = get_base_storage(ds_out.storage)
     if isinstance(output_base_storage, MemoryProvider) and scheduler not in [

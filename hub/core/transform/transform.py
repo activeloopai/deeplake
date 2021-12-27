@@ -130,7 +130,7 @@ class Pipeline:
 
         check_transform_data_in(data_in, scheduler)
         target_ds = data_in if ds_out is None else ds_out
-        check_transform_ds_out(target_ds, scheduler, skip_ok)
+        check_transform_ds_out(target_ds, scheduler)
         target_ds.flush()
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(target_ds.version_state, target_ds.storage)
@@ -195,10 +195,6 @@ class Pipeline:
         else:
             metas_and_encoders = compute.map(store_data_slice, map_inp)
 
-        if overwrite:
-            for tensor in target_ds.tensors.values():
-                storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
-
         (
             all_tensor_metas,
             all_chunk_id_encoders,
@@ -230,6 +226,11 @@ class Pipeline:
             for tensor, length in all_tensors_generated_length.items()
             if length > 0
         ]
+
+        if overwrite:
+            for key, tensor in target_ds.tensors.items():
+                if key in generated_tensors:
+                    storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
         merge_all_commit_diffs(
             all_commit_diffs, target_ds, storage, overwrite, generated_tensors
         )
