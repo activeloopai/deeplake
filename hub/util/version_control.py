@@ -2,7 +2,8 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
@@ -11,7 +12,8 @@ from hub.core.storage.cachable import Cachable
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
-from hub.util.exceptions import CallbackInitializationError, CheckoutError
+from hub.core.lock import Lock
+from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -19,8 +21,11 @@ from hub.util.keys import (
     get_tensor_info_key,
     get_tensor_meta_key,
     get_tensor_commit_chunk_set_key,
+    get_tensor_tile_encoder_key,
     get_version_control_info_key,
+    get_version_control_info_lock_key,
 )
+from hub.util.remove_cache import get_base_storage
 
 
 def generate_hash() -> str:
@@ -31,14 +36,22 @@ def generate_hash() -> str:
 
 
 def commit(
-    version_state: Dict[str, Any], storage: LRUCache, message: str = None
+    version_state: Dict[str, Any],
+    storage: LRUCache,
+    message: str = None,
+    hash: Optional[str] = None,
 ) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage.check_readonly()
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(version_state, storage)
     stored_commit_id = version_state["commit_id"]
-    version_state["commit_id"] = generate_hash()
+    if hash:
+        if hash in version_state["commit_node_map"]:
+            raise CommitError(f"Commit {hash} already exists")
+        version_state["commit_id"] = hash
+    else:
+        version_state["commit_id"] = generate_hash()
     new_node = CommitNode(version_state["branch"], version_state["commit_id"])
     version_state["commit_node"].add_successor(new_node, message)
     version_state["commit_node"] = new_node
@@ -57,6 +70,7 @@ def checkout(
     storage: LRUCache,
     address: str,
     create: bool = False,
+    hash: Optional[str] = None,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     original_commit_id = version_state["commit_id"]
@@ -88,7 +102,12 @@ def checkout(
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
         auto_commit(version_state, storage, address)
-        new_commit_id = generate_hash()
+        if hash:
+            if hash in version_state["commit_node_map"]:
+                raise CommitError(f"Commit {hash} already exists")
+            new_commit_id = hash
+        else:
+            new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
         version_state["commit_node"].add_child(new_node)
         version_state["commit_id"] = new_commit_id
@@ -165,6 +184,17 @@ def copy_metas(
             pass
 
         try:
+            src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
+            dest_tile_encoder_key = get_tensor_tile_encoder_key(tensor, dest_commit_id)
+            src_tile_encoder = storage[src_tile_encoder_key]
+            if isinstance(src_tile_encoder, Cachable):
+                storage[dest_tile_encoder_key] = src_tile_encoder.copy()
+            else:
+                storage[dest_tile_encoder_key] = src_tile_encoder
+        except KeyError:
+            pass
+
+        try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
@@ -204,6 +234,9 @@ def discard_old_metas(
         src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
         all_src_keys.append(src_chunk_id_encoder_key)
 
+        src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
+        all_src_keys.append(src_tile_encoder_key)
+
         src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
         all_src_keys.append(src_tensor_info_key)
 
@@ -218,18 +251,72 @@ def discard_old_metas(
             pass
 
 
+def _merge_commit_node_maps(map1, map2):
+    merged_map = {}
+
+    def _merge_node(commit_id):
+        if commit_id in map1 and commit_id in map2:
+            node1 = map1[commit_id]
+            node2 = map2[commit_id]
+            merged_node = CommitNode(node1.branch, node2.commit_id)
+
+            for attr in ("commit_message", "commit_user_name", "commit_time"):
+                setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
+            for child in set(
+                [node.commit_id for node in node1.children]
+                + [node.commit_id for node in node2.children]
+            ):
+                merged_node.add_child(_merge_node(child))
+        else:
+            if commit_id in map1:
+                orig_node = map1[commit_id]
+            else:
+                orig_node = map2[commit_id]
+            merged_node = orig_node.copy()
+            for child in [node.commit_id for node in orig_node.children]:
+                merged_node.add_child(_merge_node(child))
+        merged_map[commit_id] = merged_node
+        return merged_node
+
+    _merge_node(FIRST_COMMIT_ID)
+    return merged_map
+
+
+def _merge_version_info(info1, info2):
+    commit_node_map = _merge_commit_node_maps(
+        info1["commit_node_map"], info2["commit_node_map"]
+    )
+    branch_commit_map = {}
+    branch_commit_map.update(info1["branch_commit_map"])
+    branch_commit_map.update(info2["branch_commit_map"])
+    return {
+        "commit_node_map": commit_node_map,
+        "branch_commit_map": branch_commit_map,
+    }
+
+
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
-    version_info = {
+    storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key())
+    lock.acquire(timeout=10, force=True)
+    key = get_version_control_info_key()
+    new_version_info = {
         "commit_node_map": version_state["commit_node_map"],
         "branch_commit_map": version_state["branch_commit_map"],
     }
-    storage[get_version_control_info_key()] = pickle.dumps(version_info)
+    try:
+        old_version_info = pickle.loads(storage[key])
+        version_info = _merge_version_info(old_version_info, new_version_info)
+    except KeyError:
+        version_info = new_version_info
+    storage[key] = pickle.dumps(version_info)
+    lock.release()
 
 
 def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
-    """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/info updates."""
-    if version_state["commit_node"].commit_time is not None:
+    """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
+    if not version_state["commit_node"].is_head_node:
         current_branch = version_state["branch"]
         auto_branch = f"auto_{generate_hash()}"
         logger.info(
@@ -241,7 +328,7 @@ def auto_checkout(version_state: Dict[str, Any], storage: LRUCache) -> None:
 def auto_commit(version_state: Dict[str, Any], storage: LRUCache, address: str) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
     commit_node = version_state["commit_node"]
-    if not commit_node.commit_time:
+    if commit_node.is_head_node:
         original_commit_id = version_state["commit_id"]
         branch = version_state["branch"]
         logger.info(
@@ -296,3 +383,16 @@ def load_meta(storage, version_state):
 
     for tensor_name in meta.tensors:
         _tensors[tensor_name] = Tensor(tensor_name, storage, version_state)
+
+
+def warn_node_checkout(commit_node: CommitNode, create: bool):
+    """Throws a warning if there are no commits in a branch after checkout.
+    This warning isn't thrown if the branch was newly created.
+    """
+    if not create and commit_node.is_head_node:
+        branch = commit_node.branch
+        parent = commit_node.parent
+        if parent is None or parent.branch != branch:
+            warnings.warn(
+                f"The branch ({branch}) that you have checked out to, has no commits."
+            )

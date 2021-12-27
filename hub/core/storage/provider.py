@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from typing import Optional, Set
+from typing import Optional, Set, Sequence
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
@@ -166,6 +166,10 @@ class StorageProvider(ABC, MutableMapping):
     @abstractmethod
     def clear(self):
         """Delete the contents of the provider."""
+
+    def delete_multiple(self, paths: Sequence[str]):
+        for path in paths:
+            self.__delitem__(path)
 
     def empty(self) -> bool:
         lock_key = get_dataset_lock_key()

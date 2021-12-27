@@ -61,9 +61,10 @@ __all__ = [
     "compressions",
     "htypes",
     "config",
+    "delete",
 ]
 
-__version__ = "2.1.2"
+__version__ = "2.2.1"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50)}
 
