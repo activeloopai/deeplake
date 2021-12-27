@@ -216,7 +216,6 @@ def test_dynamic(local_ds):
 
 
 def test_different_lengths(local_ds):
-    print("test_different_lengths")
     with local_ds:
         local_ds.create_tensor("img")
         local_ds.create_tensor("abc")
@@ -283,7 +282,6 @@ def test_different_lengths(local_ds):
         return
 
     # reloading the dataset to check persistence
-    print("hub.dataset(path)...")
     local_ds = hub.dataset(path)
     assert len(local_ds.tensors) == 2
     assert len(local_ds.img) == 8
