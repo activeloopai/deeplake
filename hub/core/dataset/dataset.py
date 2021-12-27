@@ -394,7 +394,7 @@ class Dataset:
             ffw_dataset_meta(meta)
             meta.tensors.remove(name)
             self.storage[meta_key] = meta
-            delete_tensor(name, self.storage, self.version_state)
+            delete_tensor(name, self)
 
         self.storage.maybe_flush()
 
