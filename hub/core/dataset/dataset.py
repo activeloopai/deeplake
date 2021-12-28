@@ -748,40 +748,31 @@ class Dataset:
             self._register_dataset()
 
     def _register_dataset(self):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_query_progress(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_compute_progress(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_pytorch_progress(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_filter_progress(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_commit_event(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_dataset_creation_event(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def send_branch_creation_event(self, *args, **kwargs):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     def first_load_init(self):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
     @property
     def read_only(self):
