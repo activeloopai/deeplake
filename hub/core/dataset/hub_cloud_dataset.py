@@ -138,7 +138,9 @@ class HubCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.compute"
-        self._send_event(event_id=event_id, event_group="hub_compute", hub_meta=hub_meta)
+        self._send_event(
+            event_id=event_id, event_group="hub_compute", hub_meta=hub_meta
+        )
 
     def _send_pytorch_progress(
         self,
