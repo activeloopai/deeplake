@@ -40,7 +40,11 @@ from hub.util.keys import (
     get_tensor_tile_encoder_key,
 )
 from hub.util.version_control import auto_checkout, commit_chunk_set_exists
-from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
+from hub.util.exceptions import (
+    CorruptedMetaError,
+    DynamicTensorNumpyError,
+    ReadOnlyModeError,
+)
 
 
 class ChunkEngine:
@@ -212,7 +216,10 @@ class ChunkEngine:
             key = get_chunk_id_encoder_key(self.key, commit_id)
             if not self.chunk_id_encoder_exists:
                 enc = ChunkIdEncoder()
-                self.meta_cache[key] = enc
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
             else:
                 enc = self.meta_cache.get_cachable(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
@@ -237,7 +244,10 @@ class ChunkEngine:
             key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             if not self.commit_chunk_set_exists:
                 cset = CommitChunkSet()
-                self.meta_cache[key] = cset
+                try:
+                    self.meta_cache[key] = cset
+                except ReadOnlyModeError:
+                    pass
             else:
                 cset = self.meta_cache.get_cachable(key, CommitChunkSet)
             self._commit_chunk_set = cset
@@ -246,6 +256,12 @@ class ChunkEngine:
 
     @property
     def commit_chunk_set_exists(self) -> bool:
+        commit_id = self.version_state["commit_id"]
+        if (
+            self._commit_chunk_set is not None
+            and self._commit_chunk_set_commit_id == commit_id
+        ):
+            return True
         return commit_chunk_set_exists(self.version_state, self.meta_cache, self.key)
 
     @property
@@ -260,7 +276,10 @@ class ChunkEngine:
             key = get_tensor_commit_diff_key(self.key, commit_id)
             if not self.commit_diff_exists:
                 diff = CommitDiff(self.num_samples)
-                self.meta_cache[key] = diff
+                try:
+                    self.meta_cache[key] = diff
+                except ReadOnlyModeError:
+                    pass
             else:
                 diff = self.meta_cache.get_cachable(key, CommitDiff)
             self._commit_diff = diff
@@ -269,8 +288,10 @@ class ChunkEngine:
 
     @property
     def commit_diff_exists(self) -> bool:
+        commit_id = self.version_state["commit_id"]
+        if self._commit_diff is not None and self._commit_diff_commit_id == commit_id:
+            return True
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_tensor_commit_diff_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -279,8 +300,13 @@ class ChunkEngine:
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
+        commit_id = self.version_state["commit_id"]
+        if (
+            self._chunk_id_encoder is not None
+            and self._chunk_id_encoder_commit_id == commit_id
+        ):
+            return True
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_chunk_id_encoder_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -288,7 +314,7 @@ class ChunkEngine:
             return False
 
     def _is_tiled_sample(self, global_sample_index):
-        return self.tile_encoder_exists and global_sample_index in self.tile_encoder
+        return global_sample_index in self.tile_encoder
 
     @property
     def tile_encoder(self) -> TileEncoder:
@@ -298,7 +324,10 @@ class ChunkEngine:
             key = get_tensor_tile_encoder_key(self.key, commit_id)
             if not self.tile_encoder_exists:
                 enc = TileEncoder()
-                self.meta_cache[key] = enc
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
             else:
                 enc = self.meta_cache.get_cachable(key, TileEncoder)
             self._tile_encoder = enc
@@ -307,8 +336,11 @@ class ChunkEngine:
 
     @property
     def tile_encoder_exists(self) -> bool:
+        commit_id = self.version_state["commit_id"]
+        if self._tile_encoder is not None and self._tile_encoder_commit_id == commit_id:
+            return True
+
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_tensor_tile_encoder_key(self.key, commit_id)
             self.meta_cache[key]
             return True
