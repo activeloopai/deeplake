@@ -31,7 +31,7 @@ from datetime import datetime
 import json
 
 
-def version_info_to_json(info):
+def _version_info_to_json(info):
     commit_node_map, branch_commit_map = (
         info["commit_node_map"],
         info["branch_commit_map"],
@@ -52,7 +52,7 @@ def version_info_to_json(info):
     }
 
 
-def version_info_from_json(info):
+def _version_info_from_json(info):
     commits, branch_commit_map = info["commits"], info["branches"]
     commit_node_map = {}
     stack = [FIRST_COMMIT_ID]
@@ -355,7 +355,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
         "branch_commit_map": version_state["branch_commit_map"],
     }
     try:
-        old_version_info = version_info_from_json(
+        old_version_info = _version_info_from_json(
             json.loads(storage[key].decode("utf-8"))
         )
         version_info = _merge_version_info(old_version_info, new_version_info)
@@ -367,13 +367,13 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
             version_info = _merge_version_info(old_version_info, new_version_info)
         except KeyError:
             version_info = new_version_info
-    storage[key] = json.dumps(version_info_to_json(version_info)).encode("utf-8")
+    storage[key] = json.dumps(_version_info_to_json(version_info)).encode("utf-8")
     lock.release()
 
 
 def load_version_info(storage: LRUCache) -> None:
     try:
-        return version_info_from_json(
+        return _version_info_from_json(
             json.loads(storage[get_version_control_info_key()].decode("utf-8"))
         )
     except KeyError:

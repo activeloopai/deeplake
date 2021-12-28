@@ -1,7 +1,11 @@
 import hub
 from hub.core.version_control.commit_node import CommitNode
 from hub.constants import FIRST_COMMIT_ID
-from hub.util.version_control import _merge_commit_node_maps
+from hub.util.version_control import (
+    _merge_commit_node_maps,
+    _version_info_to_json,
+    _version_info_from_json,
+)
 
 
 def test_merge_commit_node_map():
@@ -42,6 +46,22 @@ def test_merge_commit_node_map():
     }
 
     merged = _merge_commit_node_maps(map1, map2)
+
+    assert set(merged.keys()) == set((FIRST_COMMIT_ID, "a", "b", "c", "d", "e", "f"))
+    get_children = lambda node: set(c.commit_id for c in node.children)
+    assert get_children(merged[FIRST_COMMIT_ID]) == set(("a", "b"))
+    assert get_children(merged["a"]) == set(("c"))
+    assert get_children(merged["b"]) == set(("d"))
+    assert get_children(merged["c"]) == set(("e"))
+    assert get_children(merged["d"]) == set(("f"))
+
+    # Test json encoding
+    branch_commit_map = {"main": "f"}
+    version_info = {"commit_node_map": merged, "branch_commit_map": branch_commit_map}
+    encoded = _version_info_to_json(version_info)
+    decoded = _version_info_from_json(encoded)
+    assert decoded["branch_commit_map"] == branch_commit_map
+    merged = decoded["commit_node_map"]
 
     assert set(merged.keys()) == set((FIRST_COMMIT_ID, "a", "b", "c", "d", "e", "f"))
     get_children = lambda node: set(c.commit_id for c in node.children)
