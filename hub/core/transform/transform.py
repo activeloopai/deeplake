@@ -1,3 +1,4 @@
+from uuid import uuid4
 import hub
 import math
 from typing import List, Optional
@@ -140,13 +141,16 @@ class Pipeline:
             target_ds.flush()
 
         # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(target_ds.version_state, target_ds.storage)
+        auto_checkout(target_ds)
 
         overwrite = ds_out is None
         if overwrite:
             original_data_in.clear_cache()
 
         compute_provider = get_compute_provider(scheduler, num_workers)
+
+        compute_id = str(uuid4().hex)
+        target_ds._send_compute_progress(compute_id=compute_id, start=True, progress=0)
         try:
             self.run(
                 data_in,
@@ -157,7 +161,13 @@ class Pipeline:
                 overwrite,
                 skip_ok,
             )
+            target_ds._send_compute_progress(
+                compute_id=compute_id, end=True, progress=100, status="success"
+            )
         except Exception as e:
+            target_ds._send_compute_progress(
+                compute_id=compute_id, end=True, progress=100, status="failed"
+            )
             raise TransformError(e)
         finally:
             compute_provider.close()

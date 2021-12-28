@@ -482,6 +482,10 @@ class TransformError(Exception):
     pass
 
 
+class FilterError(Exception):
+    pass
+
+
 class InvalidInputDataError(TransformError):
     def __init__(self, operation):
         super().__init__(
