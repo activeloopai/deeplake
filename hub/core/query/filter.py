@@ -7,6 +7,7 @@ from hub.core.io import SampleStreaming
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import map_tensor_keys
 from hub.util.exceptions import FilterError
+from hub.util.hash import hash_inputs
 
 
 def filter_dataset(
@@ -68,7 +69,11 @@ def filter_with_compute(
     result: Sequence[List[int]]
     idx: List[List[int]] = [block.indices() for block in blocks]
 
-    query_id = str(uuid4())
+    query_id = (
+        str(uuid4().hex)
+        if query_text == "UDF"
+        else hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
+    )
     dataset.send_query_progress(
         query_text=query_text, query_id=query_id, start=True, progress=0
     )
@@ -113,7 +118,11 @@ def filter_inplace(
 
         it = tqdm(it, total=len(dataset))
 
-    query_id = str(uuid4())
+    query_id = (
+        str(uuid4().hex)
+        if query_text == "UDF"
+        else hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
+    )
     dataset.send_query_progress(
         query_text=query_text, query_id=query_id, start=True, progress=0
     )

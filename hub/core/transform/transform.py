@@ -142,7 +142,7 @@ class Pipeline:
 
         compute_provider = get_compute_provider(scheduler, num_workers)
 
-        compute_id = str(uuid4())
+        compute_id = str(uuid4().hex)
         target_ds.send_compute_progress(compute_id=compute_id, start=True, progress=0)
         try:
             self.run(
