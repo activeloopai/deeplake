@@ -798,11 +798,11 @@ def _decompress_video(
         raw_video = pipe.communicate(input=file)[0]  # type: ignore
     nbytes = len(raw_video)
     size = np.prod(shape)
-    if nbytes >= size:
+    if nbytes >= size:  # size is computed from fps and duration, might not be accurate.
         return np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(
             shape
         )
-    else:
+    else:  # If size was overestimated, append blank frames to the end.
         arr = np.zeros(shape, dtype=np.uint8)
         arr.reshape(-1)[: len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
         return arr

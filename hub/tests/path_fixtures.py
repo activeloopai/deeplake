@@ -39,12 +39,14 @@ _GIT_CLONE_CACHE_DIR = ".test_resources"
 _HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
 _PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
 
+
 def _repo_name_from_git_url(url):
     repo_name = posixpath.split(url)[-1]
     repo_name = repo_name.split("@", 1)[0]
     if repo_name.endswith(".git"):
         repo_name = repo_name[:-4]
     return repo_name
+
 
 def _git_clone(url):
     _repo_name = _repo_name_from_git_url(url)
@@ -60,8 +62,7 @@ def _git_clone(url):
             os.chdir(cwd)
     assert os.path.isdir(cached_dir)
     return cached_dir
- 
-    
+
 
 def _download_hub_test_images():
     path = _git_clone(_HUB_TEST_RESOURCES_URL)
@@ -86,11 +87,14 @@ def _download_pil_test_images(ext=[".jpg", ".png"]):
     ]
 
     path = _git_clone(_PILLOW_URL)
-    dirs = [path + x for x in [
-        "/Tests/images",
-        "/Tests/images/apng",
-        "/Tests/images/imagedraw",
-    ]]
+    dirs = [
+        path + x
+        for x in [
+            "/Tests/images",
+            "/Tests/images/apng",
+            "/Tests/images/imagedraw",
+        ]
+    ]
     for d in dirs:
         for f in os.listdir(d):
             brk = False
@@ -105,7 +109,6 @@ def _download_pil_test_images(ext=[".jpg", ".png"]):
                     paths[e].append(os.path.join(d, f))
                     break
     return paths
-
 
 
 def _get_path_composition_configs(request):
@@ -318,7 +321,6 @@ def compressed_image_paths():
     yield paths
 
 
-
 @pytest.fixture
 def corrupt_image_paths():
     paths = {"jpeg": "corrupt_jpeg.jpeg", "png": "corrupt_png.png"}
@@ -346,7 +348,11 @@ def audio_paths():
 
 @pytest.fixture
 def video_paths():
-    paths = {"mp4": ["samplemp4.mp4"], "mkv": ["samplemkv.mkv"], "avi": ["sampleavi.avi"]}
+    paths = {
+        "mp4": ["samplemp4.mp4"],
+        "mkv": ["samplemkv.mkv"],
+        "avi": ["sampleavi.avi"],
+    }
 
     parent = get_dummy_data_path("video")
     for k in paths:
