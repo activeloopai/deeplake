@@ -160,17 +160,60 @@ def query_dataset(
 ) -> hub.Dataset:
     index_map: List[int]
 
-    if num_workers > 0:
-        index_map = query_inplace(dataset, query, progressbar)
-    else:
-        index_map = query_inplace(dataset, query, progressbar)
+    index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler)
 
     return dataset[index_map]  # type: ignore [this is fine]
 
 
-def query_inplace(dataset: hub.Dataset, query: str, progressbar: bool):
+def query_inplace(
+    dataset: hub.Dataset,
+    query: str,
+    progressbar: bool,
+    num_workers: int,
+    scheduler: str,
+) -> List[int]:
+    def subquery(dataset_query):
+        dataset, query = dataset_query
 
-    ds_query = DatasetQuery(dataset, query, progressbar)
-    index_map = ds_query.execute()
+        if progressbar:
+            from tqdm import tqdm
+
+            bar = tqdm(total=len(dataset))
+
+            def update(x: int):
+                bar.update(x)
+
+            try:
+                ds_query = DatasetQuery(dataset, query, update)
+                return ds_query.execute()
+            finally:
+                bar.close()
+        else:
+            return DatasetQuery(dataset, query).execute()
+
+    def pg_subquery(pg_callback, dataset_query):
+        dataset, query = dataset_query
+        ds_query = DatasetQuery(dataset, query, progress_callback=pg_callback)
+        return ds_query.execute()
+
+    if num_workers == 0:
+        return subquery((dataset, query))
+
+    compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
+    try:
+        btch = len(dataset) // num_workers
+        subdatasets = [
+            (dataset[idx * btch : (idx + 1) * btch], query)
+            for idx in range(0, num_workers)
+        ]
+
+        if progressbar:
+            result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=len(dataset))  # type: ignore
+        else:
+            result = compute.map(subquery, subdatasets)  # type: ignore
+
+        index_map = [k for x in result for k in x]  # unfold the result map
+    finally:
+        compute.close()
 
     return index_map

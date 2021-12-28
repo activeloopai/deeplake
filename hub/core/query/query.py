@@ -12,10 +12,15 @@ NP_ACCESS = Callable[[str], NP_RESULT]
 
 
 class DatasetQuery:
-    def __init__(self, dataset, query: str, progressbar: bool = False):
+    def __init__(
+        self,
+        dataset,
+        query: str,
+        progress_callback: Callable[[int], None] = lambda _: None,
+    ):
         self._dataset = dataset
         self._query = query
-        self._progressbar = progressbar
+        self._pg_callback = progress_callback
         self._cquery = compile(query, "", "eval")
         self._tensors = [tensor for tensor in dataset.tensors.keys() if tensor in query]
         self._np_access: List[NP_ACCESS] = [
@@ -24,18 +29,6 @@ class DatasetQuery:
         self._wrappers = self._export_tensors()
 
     def execute(self) -> List[int]:
-        if self._progressbar:
-            from tqdm import tqdm  # type: ignore
-
-            bar = tqdm(total=len(self._dataset))
-            try:
-                return self.run_query(tick_f=lambda: bar.update())
-            finally:
-                bar.close()
-        else:
-            return self.run_query()
-
-    def run_query(self, tick_f: Callable = lambda: None) -> List[int]:
         idx_map: List[int] = list()
         max_size = len(self._dataset)
 
@@ -51,7 +44,7 @@ class DatasetQuery:
                 }
                 if eval(self._cquery, p):
                     idx_map.append(int(idx))
-                tick_f()
+                self._pg_callback(1)
 
         return idx_map
 
