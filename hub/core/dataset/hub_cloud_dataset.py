@@ -12,7 +12,7 @@ import hub
 
 
 class HubCloudDataset(Dataset):
-    def first_load_init(self):
+    def _first_load_init(self):
         if self.is_first_load:
             self._set_org_and_name()
             if self.is_actually_cloud:
@@ -73,9 +73,9 @@ class HubCloudDataset(Dataset):
             self.version_state["meta"].__getstate__(),
             public=self.public,
         )
-        self.send_dataset_creation_event()
+        self._send_dataset_creation_event()
 
-    def send_event(
+    def _send_event(
         self,
         event_id: str,
         event_group: str,
@@ -102,7 +102,7 @@ class HubCloudDataset(Dataset):
         }
         hub.event_queue.put((self.client, event_dict))
 
-    def send_query_progress(
+    def _send_query_progress(
         self,
         query_id: str = "",
         query_text: str = "",
@@ -120,9 +120,9 @@ class HubCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.query"
-        self.send_event(event_id=event_id, event_group="query", hub_meta=hub_meta)
+        self._send_event(event_id=event_id, event_group="query", hub_meta=hub_meta)
 
-    def send_compute_progress(
+    def _send_compute_progress(
         self,
         compute_id: str = "",
         start: bool = False,
@@ -138,9 +138,9 @@ class HubCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.compute"
-        self.send_event(event_id=event_id, event_group="hub_compute", hub_meta=hub_meta)
+        self._send_event(event_id=event_id, event_group="hub_compute", hub_meta=hub_meta)
 
-    def send_pytorch_progress(
+    def _send_pytorch_progress(
         self,
         pytorch_id: str = "",
         start: bool = False,
@@ -156,9 +156,9 @@ class HubCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.pytorch"
-        self.send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
+        self._send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
 
-    def send_commit_event(self, commit_message: str, commit_time, author: str):
+    def _send_commit_event(self, commit_message: str, commit_time, author: str):
         # newly created commit can't have head_changes
         hub_meta = {
             "commit_message": commit_message,
@@ -166,27 +166,27 @@ class HubCloudDataset(Dataset):
             "author": author,
         }
         event_id = f"{self.org_id}/{self.ds_name}.commit"
-        self.send_event(
+        self._send_event(
             event_id=event_id,
             event_group="dataset_commit",
             hub_meta=hub_meta,
             has_head_changes=False,
         )
 
-    def send_branch_creation_event(self, branch_name: str):
+    def _send_branch_creation_event(self, branch_name: str):
         hub_meta = {"branch_name": branch_name}
         event_id = f"{self.org_id}/{self.ds_name}.branch_created"
-        self.send_event(
+        self._send_event(
             event_id=event_id,
             event_group="dataset_branch_creation",
             hub_meta=hub_meta,
             has_head_changes=False,
         )
 
-    def send_dataset_creation_event(self):
+    def _send_dataset_creation_event(self):
         hub_meta = {}
         event_id = f"{self.org_id}/{self.ds_name}.dataset_created"
-        self.send_event(
+        self._send_event(
             event_id=event_id,
             event_group="dataset_creation",
             hub_meta=hub_meta,
@@ -230,4 +230,4 @@ class HubCloudDataset(Dataset):
     def __setstate__(self, state: Dict[str, Any]):
         super().__setstate__(state)
         self._client = None
-        self.first_load_init()
+        self._first_load_init()

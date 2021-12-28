@@ -74,7 +74,7 @@ def filter_with_compute(
         if query_text == "UDF"
         else hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
     )
-    dataset.send_query_progress(
+    dataset._send_query_progress(
         query_text=query_text, query_id=query_id, start=True, progress=0
     )
     try:
@@ -83,7 +83,7 @@ def filter_with_compute(
         else:
             result = compute.map(filter_slice, idx)  # type: ignore
         index_map = [k for x in result for k in x]  # unfold the result map
-        dataset.send_query_progress(
+        dataset._send_query_progress(
             query_text=query_text,
             query_id=query_id,
             end=True,
@@ -91,7 +91,7 @@ def filter_with_compute(
             status="success",
         )
     except Exception as e:
-        dataset.send_query_progress(
+        dataset._send_query_progress(
             query_text=query_text,
             query_id=query_id,
             end=True,
@@ -123,14 +123,14 @@ def filter_inplace(
         if query_text == "UDF"
         else hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
     )
-    dataset.send_query_progress(
+    dataset._send_query_progress(
         query_text=query_text, query_id=query_id, start=True, progress=0
     )
     try:
         for i, sample_in in it:
             if filter_function(sample_in):
                 index_map.append(i)
-        dataset.send_query_progress(
+        dataset._send_query_progress(
             query_text=query_text,
             query_id=query_id,
             end=True,
@@ -138,7 +138,7 @@ def filter_inplace(
             status="success",
         )
     except Exception as e:
-        dataset.send_query_progress(
+        dataset._send_query_progress(
             query_text=query_text,
             query_id=query_id,
             end=True,

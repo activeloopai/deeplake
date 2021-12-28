@@ -143,7 +143,7 @@ class Pipeline:
         compute_provider = get_compute_provider(scheduler, num_workers)
 
         compute_id = str(uuid4().hex)
-        target_ds.send_compute_progress(compute_id=compute_id, start=True, progress=0)
+        target_ds._send_compute_progress(compute_id=compute_id, start=True, progress=0)
         try:
             self.run(
                 data_in,
@@ -153,11 +153,11 @@ class Pipeline:
                 progressbar,
                 overwrite,
             )
-            target_ds.send_compute_progress(
+            target_ds._send_compute_progress(
                 compute_id=compute_id, end=True, progress=100, status="success"
             )
         except Exception as e:
-            target_ds.send_compute_progress(
+            target_ds._send_compute_progress(
                 compute_id=compute_id, end=True, progress=100, status="failed"
             )
             raise TransformError(e)

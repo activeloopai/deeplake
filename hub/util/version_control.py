@@ -67,7 +67,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
-    dataset.send_commit_event(
+    dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
 
@@ -125,7 +125,7 @@ def checkout(
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
         copy_metas(dataset, original_commit_id, new_commit_id, storage, version_state)
-        dataset.send_branch_creation_event(address)
+        dataset._send_branch_creation_event(address)
     else:
         raise CheckoutError(
             f"Address {address} not found. If you want to create a new branch, use checkout with create=True"

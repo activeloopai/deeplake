@@ -129,7 +129,7 @@ class Dataset:
         d["_info"] = None
         self.__dict__.update(d)
         self._set_derived_attributes()
-        self.first_load_init()
+        self._first_load_init()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
@@ -750,28 +750,28 @@ class Dataset:
     def _register_dataset(self):
         """overridden in HubCloudDataset"""
 
-    def send_query_progress(self, *args, **kwargs):
+    def _send_query_progress(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_compute_progress(self, *args, **kwargs):
+    def _send_compute_progress(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_pytorch_progress(self, *args, **kwargs):
+    def _send_pytorch_progress(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_filter_progress(self, *args, **kwargs):
+    def _send_filter_progress(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_commit_event(self, *args, **kwargs):
+    def _send_commit_event(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_dataset_creation_event(self, *args, **kwargs):
+    def _send_dataset_creation_event(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def send_branch_creation_event(self, *args, **kwargs):
+    def _send_branch_creation_event(self, *args, **kwargs):
         """overridden in HubCloudDataset"""
 
-    def first_load_init(self):
+    def _first_load_init(self):
         """overridden in HubCloudDataset"""
 
     @property
