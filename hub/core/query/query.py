@@ -105,8 +105,7 @@ class EvalTensorObject(EvalObject):
         if self._tensor.key not in cache:
             full_tensor = Tensor(
                 self._tensor.key,
-                self._tensor.storage,
-                self._tensor.version_state,
+                self._tensor.dataset,
                 Index(),
                 False,
                 chunk_engine=self._tensor.chunk_engine,

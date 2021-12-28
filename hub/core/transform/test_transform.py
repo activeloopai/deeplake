@@ -852,3 +852,82 @@ def test_inplace_transform_clear_chunks(local_ds_generator):
             assert ds.storage[chunk] is None
         except KeyError:
             pass
+
+
+def test_transform_skip_ok(local_ds_generator):
+    ds = local_ds_generator()
+    ls = list(range(100))
+    with ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        ds.create_tensor("unused")
+
+    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline.eval(
+        ls,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler="processed",
+        skip_ok=True,
+    )
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            )
+
+    assert len(ds.unused) == 0
+
+    # test persistence
+    ds = local_ds_generator()
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            )
+    assert len(ds.unused) == 0
+
+
+def test_inplace_transform_skip_ok(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        ds.create_tensor("unused")
+        ds.img.extend(np.ones((10, 200, 200, 3)))
+        ds.label.extend([1 for _ in range(10)])
+        ds.unused.extend(5 * np.ones((10, 10, 10)))
+        for i in range(10):
+            check_target_array(ds, i, 1)
+
+    inplace_transform().eval(
+        ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False, skip_ok=True
+    )
+    assert ds.img.chunk_engine.num_samples == 20
+
+    for i in range(20):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    assert len(ds.unused) == 10
+    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+
+    # test persistence
+    ds = local_ds_generator()
+
+    assert ds.img.chunk_engine.num_samples == 20
+
+    for i in range(20):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    assert len(ds.unused) == 10
+    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
