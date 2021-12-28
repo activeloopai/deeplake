@@ -2,6 +2,7 @@ import hub
 import math
 from typing import List, Optional
 from itertools import repeat
+import warnings
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
@@ -44,6 +45,7 @@ class TransformFunction:
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
+        skip_ok: bool = False,
     ):
         """Evaluates the TransformFunction on data_in to produce an output dataset ds_out.
 
@@ -57,6 +59,8 @@ class TransformFunction:
             scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
+            skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
+                This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
 
 
         Raises:
@@ -67,7 +71,7 @@ class TransformFunction:
         """
 
         pipeline = Pipeline([self])
-        pipeline.eval(data_in, ds_out, num_workers, scheduler, progressbar)
+        pipeline.eval(data_in, ds_out, num_workers, scheduler, progressbar, skip_ok)
 
     def __call__(self, sample_in):
         return self.func(sample_in, *self.args, **self.kwargs)
@@ -88,6 +92,7 @@ class Pipeline:
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
+        skip_ok: bool = False,
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -101,6 +106,8 @@ class Pipeline:
             scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
+            skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
+                This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -148,6 +155,7 @@ class Pipeline:
                 num_workers,
                 progressbar,
                 overwrite,
+                skip_ok,
             )
         except Exception as e:
             raise TransformError(e)
@@ -163,6 +171,7 @@ class Pipeline:
         num_workers: int,
         progressbar: bool = True,
         overwrite: bool = False,
+        skip_ok: bool = False,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
@@ -176,7 +185,8 @@ class Pipeline:
         tensors = list(target_ds.tensors)
         tensors = [target_ds.tensors[t].key for t in tensors]
         map_inp = zip(
-            slices, repeat((storage, group_index, tensors, self, version_state))
+            slices,
+            repeat((storage, group_index, tensors, self, version_state, skip_ok)),
         )
         if progressbar:
             desc = get_pbar_description(self.functions)
@@ -189,10 +199,6 @@ class Pipeline:
         else:
             metas_and_encoders = compute.map(store_data_slice, map_inp)
 
-        if overwrite:
-            for tensor in target_ds.tensors.values():
-                storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
-
         (
             all_tensor_metas,
             all_chunk_id_encoders,
@@ -201,23 +207,57 @@ class Pipeline:
             all_commit_diffs,
         ) = zip(*metas_and_encoders)
         all_num_samples = []
+        all_tensors_generated_length = {tensor: 0 for tensor in tensors}
         for tensor_meta_dict in all_tensor_metas:
-            num_samples_dict = {k: v.length for k, v in tensor_meta_dict.items()}
+            num_samples_dict = {}
+            for tensor, meta in tensor_meta_dict.items():
+                all_tensors_generated_length[tensor] += meta.length
+                num_samples_dict[tensor] = meta.length
             all_num_samples.append(num_samples_dict)
-        merge_all_commit_diffs(all_commit_diffs, target_ds, storage, overwrite)
-        merge_all_tile_encoders(
-            all_tile_encoders, all_num_samples, target_ds, storage, overwrite
+        first_length = None
+        if skip_ok:
+            for tensor, length in all_tensors_generated_length.items():
+                if first_length is None:
+                    first_length = length
+                elif length not in [0, first_length]:
+                    warnings.warn(
+                        "Length of all tensors generated is not the same, this may lead to unexpected behavior."
+                    )
+                    break
+
+        generated_tensors = [
+            tensor
+            for tensor, length in all_tensors_generated_length.items()
+            if length > 0
+        ]
+
+        if overwrite:
+            for key, tensor in target_ds.tensors.items():
+                if key in generated_tensors:
+                    storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
+        merge_all_commit_diffs(
+            all_commit_diffs, target_ds, storage, overwrite, generated_tensors
         )
-        merge_all_tensor_metas(all_tensor_metas, target_ds, storage, overwrite)
+        merge_all_tile_encoders(
+            all_tile_encoders,
+            all_num_samples,
+            target_ds,
+            storage,
+            overwrite,
+            generated_tensors,
+        )
+        merge_all_tensor_metas(
+            all_tensor_metas, target_ds, storage, overwrite, generated_tensors
+        )
         merge_all_chunk_id_encoders(
-            all_chunk_id_encoders, target_ds, storage, overwrite
+            all_chunk_id_encoders, target_ds, storage, overwrite, generated_tensors
         )
         if target_ds.commit_id is not None:
             merge_all_commit_chunk_sets(
-                all_chunk_commit_sets, target_ds, storage, overwrite
+                all_chunk_commit_sets, target_ds, storage, overwrite, generated_tensors
             )
 
-        reset_cachables(target_ds)
+        reset_cachables(target_ds, generated_tensors)
 
 
 def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
@@ -245,6 +285,8 @@ def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201
     - scheduler (str): The scheduler to be used to compute the transformation.
     Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
     - progressbar (bool): Displays a progress bar if True (default).
+    - skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
+    This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
 
     It raises the following errors:-
 
@@ -302,6 +344,8 @@ def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
     - scheduler (str): The scheduler to be used to compute the transformation.
     Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
     - progressbar (bool): Displays a progress bar if True (default).
+    - skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
+    This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
 
     It raises the following errors:-
 
