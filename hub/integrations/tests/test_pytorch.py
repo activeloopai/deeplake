@@ -249,6 +249,11 @@ def test_custom_tensor_order(ds):
             ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
             ds[t].extend(np.random.random((3, 4, 5)))
 
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            dl = ds.pytorch(num_workers=0)
+        return
+
     with pytest.raises(TensorDoesNotExistError):
         dl = ds.pytorch(num_workers=0, tensors=["c", "d", "e"])
 
