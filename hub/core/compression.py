@@ -815,7 +815,7 @@ def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
         nframes = -1
     else:
         nframes = math.floor(info["duration"] * info["rate"])
-    print(nframes, info["height"], info["width"], 3)
+    return (nframes, info["height"], info["width"], 3)
 
 
 def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
