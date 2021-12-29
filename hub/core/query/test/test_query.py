@@ -5,6 +5,11 @@ import numpy as np
 from hub.core.query import DatasetQuery
 from hub.core.query.query import EvalGenericTensor, EvalLabelClassTensor
 from hub.core.index import Index
+from hub.tests.dataset_fixtures import (
+    local_ds_generator,
+    s3_ds_generator,
+    hub_ds_generator,
+)
 import hub
 
 
@@ -201,8 +206,16 @@ def test_dataset_view_save():
 
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_inplace_dataset_view_save(s3_ds_generator, stream, num_workers):
-    ds = s3_ds_generator()
+@pytest.mark.parametrize(
+    "ds_generator",
+    [s3_ds_generator, local_ds_generator, hub_ds_generator],
+    indirect=True,
+)
+@pytest.mark.parametrize("read_only", [False, True])
+def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only):
+    ds = ds_generator()
+    if read_only and not ds.path.startswith("hub://"):
+        return
     with ds:
         _populate_data(ds, n=2)
     view = ds.filter("labels == 'dog'", store_result=stream, num_workers=num_workers)
@@ -210,5 +223,11 @@ def test_inplace_dataset_view_save(s3_ds_generator, stream, num_workers):
     vds_path = view.store()
     assert len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
+    if ds.path.startswith("hub://"):
+        assert vds_path.startswith("hub://")
+        if read_only:
+            assert vds_path[6:].split("/")[1] == "queries"
+        else:
+            assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
