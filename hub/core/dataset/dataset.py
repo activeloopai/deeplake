@@ -1491,7 +1491,6 @@ class Dataset:
         except KeyError:
             return []
 
-
     def _sub_ds(self, path, empty=False):
         """Loads a nested dataset. Internal.
         Note: Virtual datasets are returned as such, they are not converted to views.
@@ -1509,14 +1508,18 @@ class Dataset:
             path = posixpath.join(self.path, path)
             cls = hub.core.dataset.HubCloudDataset
         else:
-            path=sub_storage.root
+            path = sub_storage.root
             cls = hub.core.dataset.Dataset
 
-        return cls(generate_chain(
-                sub_storage, DEFAULT_MEMORY_CACHE_SIZE * MB, DEFAULT_LOCAL_CACHE_SIZE * MB
-            ), path=path, token=self._token)
-
-
+        return cls(
+            generate_chain(
+                sub_storage,
+                DEFAULT_MEMORY_CACHE_SIZE * MB,
+                DEFAULT_LOCAL_CACHE_SIZE * MB,
+            ),
+            path=path,
+            token=self._token,
+        )
 
     def _get_stored_vds(self, hash: str):
         """
