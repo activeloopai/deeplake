@@ -8,7 +8,7 @@ from hub.core.index import Index
 from hub.tests.dataset_fixtures import (
     local_ds_generator,
     s3_ds_generator,
-    hub_ds_generator,
+    hub_cloud_ds_generator,
 )
 import hub
 
@@ -208,7 +208,7 @@ def test_dataset_view_save():
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize(
     "ds_generator",
-    [s3_ds_generator, local_ds_generator, hub_ds_generator],
+    [s3_ds_generator, local_ds_generator, hub_cloud_ds_generator],
     indirect=True,
 )
 @pytest.mark.parametrize("read_only", [False, True])
