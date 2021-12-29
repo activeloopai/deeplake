@@ -257,6 +257,7 @@ class ChunkEngine:
 
     @property
     def commit_chunk_set_exists(self) -> bool:
+        """Checks if the commit chunk set exists for the given tensor in the current commit."""
         commit_id = self.commit_id
         if (
             self._commit_chunk_set is not None

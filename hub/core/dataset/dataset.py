@@ -64,6 +64,7 @@ from hub.util.version_control import (
     current_commit_has_data,
     load_meta,
     warn_node_checkout,
+    load_version_info,
 )
 from tqdm import tqdm  # type: ignore
 from collections import defaultdict
@@ -506,7 +507,7 @@ class Dataset:
         branch = "main"
         version_state = {"branch": branch}
         try:
-            version_info = pickle.loads(self.storage[get_version_control_info_key()])
+            version_info = load_version_info(self.storage)
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
             commit_id = version_state["branch_commit_map"][branch]
