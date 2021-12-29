@@ -1,7 +1,7 @@
 from uuid import uuid4
 import hub
 import math
-from typing import List, Optional
+from typing import Callable, List, Optional
 from itertools import repeat
 import warnings
 from hub.constants import FIRST_COMMIT_ID
@@ -32,9 +32,9 @@ from hub.util.exceptions import (
 from hub.util.version_control import auto_checkout
 
 
-class TransformFunction:
+class ComputeFunction:
     def __init__(self, func, args, kwargs):
-        """Creates a TransformFunction object that can be evaluated using .eval or used as a part of a Pipeline."""
+        """Creates a ComputeFunction object that can be evaluated using .eval or used as a part of a Pipeline."""
         self.func = func
         self.args = args
         self.kwargs = kwargs
@@ -48,7 +48,7 @@ class TransformFunction:
         progressbar: bool = True,
         skip_ok: bool = False,
     ):
-        """Evaluates the TransformFunction on data_in to produce an output dataset ds_out.
+        """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
 
         Args:
             data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Hub dataset.
@@ -79,7 +79,7 @@ class TransformFunction:
 
 
 class Pipeline:
-    def __init__(self, functions: List[TransformFunction]):
+    def __init__(self, functions: List[ComputeFunction]):
         """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval"""
         self.functions = functions
 
@@ -270,7 +270,7 @@ class Pipeline:
         reset_cachables(target_ds, generated_tensors)
 
 
-def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
+def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
     """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval
 
     Example::
@@ -309,12 +309,14 @@ def compose(functions: List[TransformFunction]):  # noqa: DAR101, DAR102, DAR201
     if not functions:
         raise HubComposeEmptyListError
     for index, fn in enumerate(functions):
-        if not isinstance(fn, TransformFunction):
+        if not isinstance(fn, ComputeFunction):
             raise HubComposeIncompatibleFunction(index)
     return Pipeline(functions)
 
 
-def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
+def compute(
+    fn,
+) -> Callable[..., ComputeFunction]:  # noqa: DAR101, DAR102, DAR201, DAR401
     """Compute is a decorator for functions.
     The functions should have atleast 2 argument, the first two will correspond to sample_in and samples_out.
     There can be as many other arguments as required.
@@ -367,6 +369,6 @@ def compute(fn):  # noqa: DAR101, DAR102, DAR201, DAR401
     """
 
     def inner(*args, **kwargs):
-        return TransformFunction(fn, args, kwargs)
+        return ComputeFunction(fn, args, kwargs)
 
     return inner
