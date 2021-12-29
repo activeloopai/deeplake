@@ -6,7 +6,6 @@ import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.tests.common import requires_torch
-from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
@@ -56,7 +55,7 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch()
         return
 
     dl = ds.pytorch(num_workers=2, batch_size=1)
@@ -251,7 +250,7 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch()
         return
 
     with pytest.raises(TensorDoesNotExistError):
@@ -352,7 +351,7 @@ def test_pytorch_local_cache(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch()
         return
 
     epochs = 2
@@ -453,9 +452,7 @@ def test_pytorch_ddp(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = dataset_to_pytorch(
-                ds, num_workers=0, batch_size=1, python_version_warning=False
-            )
+            ds.pytorch()
         return
 
     size = 2
