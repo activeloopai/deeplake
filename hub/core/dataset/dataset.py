@@ -61,7 +61,7 @@ from hub.util.version_control import (
     auto_checkout,
     checkout,
     commit,
-    commit_has_data,
+    current_commit_has_data,
     load_meta,
     warn_node_checkout,
 )
@@ -129,7 +129,7 @@ class Dataset:
         d["_info"] = None
         self.__dict__.update(d)
         self._set_derived_attributes()
-        self.first_load_init()
+        self._first_load_init()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
@@ -148,7 +148,8 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        if not self._read_only:
+            self.storage.maybe_flush()
 
     @property
     def num_samples(self) -> int:
@@ -283,7 +284,7 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
         # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -341,7 +342,7 @@ class Dataset:
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         self.storage[meta_key] = meta
         self.storage.maybe_flush()
-        tensor = Tensor(name, self.storage, self.version_state)  # type: ignore
+        tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
         tensor.info.update(info_kwargs)
         return tensor
@@ -361,7 +362,7 @@ class Dataset:
             TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
             InvalidTensorNameError: If `name` is in dataset attributes.
         """
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -393,7 +394,7 @@ class Dataset:
             ffw_dataset_meta(meta)
             meta.tensors.remove(name)
             self.storage[meta_key] = meta
-            delete_tensor(name, self.storage, self.version_state)
+            delete_tensor(name, self)
 
         self.storage.maybe_flush()
 
@@ -415,7 +416,7 @@ class Dataset:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
             InvalidTensorGroupNameError: If `name` is in dataset attributes.
         """
-        auto_checkout(self.version_state, self.storage)
+        auto_checkout(self)
         name = name.strip("/")
 
         while "//" in name:
@@ -452,7 +453,7 @@ class Dataset:
             meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
             self.storage[meta_key] = meta
             for tensor in tensors:
-                delete_tensor(tensor, self.storage, self.version_state)
+                delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
@@ -565,12 +566,19 @@ class Dataset:
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
         """
+        return self._commit(message)
+
+    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         try_flushing(self)
 
-        with self:
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
-            commit(self.version_state, self.storage, message)
+            commit(self, message, hash)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store commit message
@@ -590,11 +598,21 @@ class Dataset:
             str, optional: The commit_id of the branch/commit that was checked out.
                 If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
         """
+        return self._checkout(address, create)
+
+    def _checkout(
+        self, address: str, create: bool = False, hash: Optional[str] = None
+    ) -> Optional[str]:
         try_flushing(self)
-        with self:
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
             self._unlock()
-            checkout(self.version_state, self.storage, address, create)
+            checkout(self, address, create, hash)
             self._lock()
+        finally:
+            self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
 
         # do not store address
@@ -602,7 +620,8 @@ class Dataset:
             feature_name="checkout", parameters={"Create": str(create)}
         )
         commit_node = self.version_state["commit_node"]
-        warn_node_checkout(commit_node, create)
+        if self.verbose:
+            warn_node_checkout(commit_node, create)
 
         return self.commit_id
 
@@ -611,12 +630,9 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         print("---------------\nHub Version Log\n---------------\n")
         print(f"Current Branch: {self.version_state['branch']}")
-        if not commit_node.children and commit_has_data(
-            self.version_state, self.storage
-        ):
-            print("** There are uncommitted changes on this branch.\n")
-        else:
-            print()
+        if self.has_head_changes:
+            print("** There are uncommitted changes on this branch.")
+        print()
         while commit_node:
             if not commit_node.is_head_node:
                 print(f"{commit_node}\n")
@@ -715,7 +731,7 @@ class Dataset:
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
-            load_meta(self.storage, self.version_state)
+            load_meta(self)
 
         elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
@@ -732,16 +748,43 @@ class Dataset:
             self._register_dataset()
 
     def _register_dataset(self):
-        # overridden in HubCloudDataset
-        pass
+        """overridden in HubCloudDataset"""
 
-    def first_load_init(self):
-        # overridden in HubCloudDataset
-        pass
+    def _send_query_progress(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_compute_progress(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_pytorch_progress(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_filter_progress(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_commit_event(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_dataset_creation_event(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _send_branch_creation_event(self, *args, **kwargs):
+        """overridden in HubCloudDataset"""
+
+    def _first_load_init(self):
+        """overridden in HubCloudDataset"""
 
     @property
     def read_only(self):
         return self._read_only
+
+    @property
+    def has_head_changes(self):
+        """Returns True if currently at head node and uncommitted changes are present."""
+        commit_node = self.version_state["commit_node"]
+        return not commit_node.children and current_commit_has_data(
+            self.version_state, self.storage
+        )
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
@@ -865,7 +908,10 @@ class Dataset:
         from hub.core.query import DatasetQuery
 
         if isinstance(function, str):
+            query_text = function
             function = DatasetQuery(self, function)
+        else:
+            query_text = "UDF"
 
         return filter_dataset(
             self,
@@ -897,7 +943,7 @@ class Dataset:
     @property
     def info(self):
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self.version_state)  # type: ignore
+            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
         return self._info
 
     @hub_reporter.record_call
@@ -988,7 +1034,7 @@ class Dataset:
         """
         ret = self.version_state["full_tensors"].get(name)
         if ret is None:
-            load_meta(self.storage, self.version_state)
+            load_meta(self)
             ret = self.version_state["full_tensors"].get(name)
         return ret
 
@@ -998,7 +1044,7 @@ class Dataset:
         """
         if name in self.version_state["meta"].groups:
             return True
-        load_meta(self.storage, self.version_state)
+        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1019,7 +1065,7 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self.storage, self.version_state)
+        load_meta(self)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]

@@ -24,9 +24,9 @@ def merge_all_tensor_metas(
     target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
+    tensors: List[str],
 ) -> None:
     """Merges tensor metas from all workers into a single one and stores it in target_ds."""
-    tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
@@ -66,9 +66,9 @@ def merge_all_chunk_id_encoders(
     target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
+    tensors: List[str],
 ) -> None:
     """Merges chunk_id_encoders from all workers into a single one and stores it in target_ds."""
-    tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
@@ -112,8 +112,8 @@ def merge_all_tile_encoders(
     target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
+    tensors: List[str],
 ) -> None:
-    tensors: List[str] = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
@@ -156,9 +156,9 @@ def merge_all_commit_chunk_sets(
     target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
+    tensors: List[str],
 ) -> None:
     """Merges commit_chunk_sets from all workers into a single one and stores it in target_ds."""
-    tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
@@ -189,9 +189,9 @@ def merge_all_commit_diffs(
     target_ds: hub.Dataset,
     storage: StorageProvider,
     overwrite: bool,
+    tensors: List[str],
 ) -> None:
     """Merges commit_diffs from all workers into a single one and stores it in target_ds."""
-    tensors = list(target_ds.meta.tensors)
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
