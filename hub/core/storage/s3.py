@@ -421,18 +421,3 @@ class S3Provider(StorageProvider):
             err.response["Error"]["Code"] == "ExpiredToken"
             and self.loaded_creds_from_environment
         )
-
-    def _args(self):
-        """
-        Internal. Arguments other than the path required to initialize this storage.
-        """
-        return {
-            "creds": {
-                "aws_access_key_id": self.aws_access_key_id,
-                "aws_secret_access_key": self.aws_secret_access_key,
-                "aws_session_token": self.aws_session_token,
-                "endpoint_url": self.endpoint_url,
-                "aws_region": self.aws_region,
-            },
-            "token": self.token,
-        }

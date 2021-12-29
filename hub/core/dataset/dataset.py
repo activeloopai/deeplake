@@ -11,7 +11,7 @@ import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version, Lock
@@ -1387,39 +1387,27 @@ class Dataset:
             lock.release()
 
     def _write_vds(self, vds):
-        """Writes the indices of this view to a vds"""
+        """Writes the indices of this view to a vds."""
         info = self._get_view_info()
         with vds:
             vds.info.update(info)
             vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                 list(self.index.values[0].indices(len(self)))
             )
+        idxs = hub.dataset(vds.path)._vds.VDS_INDEX.numpy().reshape(-1).tolist()
+        exp = list(self.index.values[0].indices(len(self)))
+        assert idxs == exp, (idxs, exp, vds.path)
 
     def _store_view_in_subdir(self):
         """Stores this view under ".queries" sub directory of same storage."""
 
         info = self._get_view_info()
         hash = info["id"]
-
+        path = f".queries/{hash}"
         self.flush()
-        base_storage = get_base_storage(self.storage)
-        sub_storage = base_storage.subdir(f".queries/{hash}")
-        sub_storage.clear()
-        path = (
-            self.path + "/.queries/" + hash
-            if self.path.startswith("hub://")
-            else sub_storage.root
-        )
-        vds = hub.Dataset(
-            generate_chain(
-                sub_storage, DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
-            ),
-            token=self._token,
-            path=path,
-        )
-
+        get_base_storage(self.storage).subdir(path).clear()
+        vds = self._sub_ds(path, empty=True)
         self._write_vds(vds)
-
         Dataset._write_queries_json(self, info)
         return vds
 
@@ -1503,14 +1491,35 @@ class Dataset:
         except KeyError:
             return []
 
-    def _get_stored_vds(self, hash: str, as_view: bool = False):
+
+    def _sub_ds(self, path, empty=False):
+        """Loads a nested dataset. Internal.
+        Note: Virtual datasets are returned as such, they are not converted to views.
+
+        Args:
+            empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
+
+        Returns:
+            Sub dataset
+        """
+        base_storage = get_base_storage(self.storage)
+        sub_storage = base_storage.subdir(path)
+
+        if self.path.startswith("hub://"):
+            path = posixpath.join(self.path, path)
+            cls = hub.core.dataset.HubCloudDataset
+        else:
+            path=sub_storage.root
+            cls = hub.core.dataset.Dataset
+
+        return cls(generate_chain(
+                sub_storage, DEFAULT_MEMORY_CACHE_SIZE * MB, DEFAULT_LOCAL_CACHE_SIZE * MB
+            ), path=path, token=self._token)
+
+
+
+    def _get_stored_vds(self, hash: str):
         """
         Internal.
         """
-        base_storage = get_base_storage(self.storage)
-        path = base_storage.subdir(f".queries/{hash}").root
-        ds_args = base_storage._args() if hasattr(base_storage, "_args") else {}
-        view = hub.dataset(path, **ds_args)
-        if as_view:
-            return view
-        return view._vds
+        return self._get_sub_ds(".queries/" + hash)

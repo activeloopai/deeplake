@@ -199,7 +199,7 @@ def test_dataset_view_save():
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
 
-@pytest.mark.parametrize("stream", [True, False])
+@pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_inplace_dataset_view_save(s3_ds_generator, stream, num_workers):
     ds = s3_ds_generator()
