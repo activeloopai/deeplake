@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence, Dict
 from uuid import uuid4
 
 import hub
@@ -21,7 +21,7 @@ from hub.util.hash import hash_inputs
 _UPDATE_FREQUENCY = 5  # seconds
 
 
-_LAST_UPDATED_TIMES = defaultdict(time)
+_LAST_UPDATED_TIMES: Dict = defaultdict(time)
 
 
 def _counter(id):
@@ -79,7 +79,7 @@ def filter_dataset(
         else None
     )
 
-    index_map = None
+    index_map = None  # type: ignore
     try:
         if num_workers > 0:
             index_map = filter_with_compute(
@@ -263,7 +263,7 @@ def filter_inplace(
         vds.autoflush = False
         vds.info["total_samples"] = len(dataset)
         vds.info["samples_processed"] = 0
-        vds_queue = Queue()
+        vds_queue: Queue = Queue()
         vds_thread = _get_vds_thread(vds, vds_queue, num_samples)
         vds_thread.start()
     if progressbar:

@@ -31,4 +31,4 @@ def process_hub_path(path: str) -> Tuple[str, str, str, str]:
                 and not hub.constants._ENABLE_HUB_SUB_DATASETS
             ):
                 raise InvalidHubPathException(path)
-    return (path, *s[:2], subdir)
+    return (path, *s[:2], subdir)  # type: ignore
