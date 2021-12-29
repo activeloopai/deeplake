@@ -25,9 +25,6 @@ from hub.tests.common import (
     is_opt_true,
 )
 import pytest
-import requests
-import shutil
-import tempfile
 import sys
 
 
@@ -37,21 +34,49 @@ S3 = "s3"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
+_GIT_CLONE_CACHE_DIR = ".test_resources"
 
-def _download_hub_test_images(tempdir):
-    cwd = os.getcwd()
-    os.chdir(tempdir)
-    try:
-        os.system(
-            "git clone https://www.github.com/activeloopai/hub-test-resources.git"
-        )
-        d = "hub-test-resources/images/jpeg"
-        return [os.path.join(tempdir, d, f) for f in os.listdir(d)]
-    finally:
-        os.chdir(cwd)
+_HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
+_PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
 
 
-def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
+def _repo_name_from_git_url(url):
+    repo_name = posixpath.split(url)[-1]
+    repo_name = repo_name.split("@", 1)[0]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+    return repo_name
+
+
+def _git_clone(url):
+    _repo_name = _repo_name_from_git_url(url)
+    cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
+    if not os.path.isdir(cached_dir):
+        if not os.path.isdir(_GIT_CLONE_CACHE_DIR):
+            os.mkdir(_GIT_CLONE_CACHE_DIR)
+        cwd = os.getcwd()
+        os.chdir(_GIT_CLONE_CACHE_DIR)
+        try:
+            os.system(f"git clone " + url)
+        finally:
+            os.chdir(cwd)
+    assert os.path.isdir(cached_dir)
+    return cached_dir
+
+
+def _download_hub_test_images():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    jpeg_path = path + "/images/jpeg"
+    return [os.path.join(jpeg_path, f) for f in os.listdir(jpeg_path)]
+
+
+def _download_hub_test_videos():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    mp4_path = path + "/videos/mp4"
+    return [os.path.join(mp4_path, f) for f in os.listdir(mp4_path)]
+
+
+def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
         "broken",
@@ -60,31 +85,30 @@ def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
         "chunk_no_fctl",
         "syntax_num_frames_zero",
     ]
-    cwd = os.getcwd()
-    os.chdir(tempdir)
-    try:
-        os.system("git clone https://www.github.com/python-pillow/Pillow.git")
-        dirs = [
-            "Pillow/Tests/images",
-            "Pillow/Tests/images/apng",
-            "Pillow/Tests/images/imagedraw",
+
+    path = _git_clone(_PILLOW_URL)
+    dirs = [
+        path + x
+        for x in [
+            "/Tests/images",
+            "/Tests/images/apng",
+            "/Tests/images/imagedraw",
         ]
-        for d in dirs:
-            for f in os.listdir(d):
-                brk = False
-                for k in corrupt_file_keys:
-                    if k in f:
-                        brk = True
-                        break
-                if brk:
-                    continue
-                for e in ext:
-                    if f.lower().endswith(e):
-                        paths[e].append(os.path.join(tempdir, d, f))
-                        break
-        return paths
-    finally:
-        os.chdir(cwd)
+    ]
+    for d in dirs:
+        for f in os.listdir(d):
+            brk = False
+            for k in corrupt_file_keys:
+                if k in f:
+                    brk = True
+                    break
+            if brk:
+                continue
+            for e in ext:
+                if f.lower().endswith(e):
+                    paths[e].append(os.path.join(d, f))
+                    break
+    return paths
 
 
 def _get_path_composition_configs(request):
@@ -289,17 +313,12 @@ def compressed_image_paths():
 
     # Since we implement our own meta data reading for jpegs and pngs,
     # we test against images from PIL repo to cover all edge cases.
-    tmpdir = tempfile.mkdtemp()
-    pil_image_paths = _download_pil_test_images(tmpdir)
+    pil_image_paths = _download_pil_test_images()
     paths["jpeg"] += pil_image_paths[".jpg"]
     paths["png"] += pil_image_paths[".png"]
-    hub_test_images = _download_hub_test_images(tmpdir)
+    hub_test_images = _download_hub_test_images()
     paths["jpeg"] += hub_test_images
     yield paths
-    try:
-        shutil.rmtree(tmpdir)
-    except PermissionError:
-        pass
 
 
 @pytest.fixture
@@ -329,10 +348,15 @@ def audio_paths():
 
 @pytest.fixture
 def video_paths():
-    paths = {"mp4": "samplemp4.mp4", "mkv": "samplemkv.mkv", "avi": "sampleavi.avi"}
+    paths = {
+        "mp4": ["samplemp4.mp4"],
+        "mkv": ["samplemkv.mkv"],
+        "avi": ["sampleavi.avi"],
+    }
 
     parent = get_dummy_data_path("video")
     for k in paths:
-        paths[k] = os.path.join(parent, paths[k])
+        paths[k] = [os.path.join(parent, fname) for fname in paths[k]]
+    paths["mp4"] += _download_hub_test_videos()
 
     return paths
