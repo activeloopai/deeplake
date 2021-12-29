@@ -4,8 +4,8 @@ TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
 REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.json")
 ALL_AGREEMENTS_PATH = os.path.expanduser("~/.activeloop/agreements")
 
-HUB_PROD1_ENDPOINT = "https://app.prod1.activeloop.ai"
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
+HUB_REST_ENDPOINT_PROD1 = "https://app.prod1.activeloop.ai"
 HUB_REST_ENDPOINT_DEV = "https://app.dev.activeloop.ai"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:5000"
 USE_LOCAL_HOST = False

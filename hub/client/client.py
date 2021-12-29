@@ -4,8 +4,7 @@ from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
-    HUB_PROD1_ENDPOINT,
-    HUB_REST_ENDPOINT,
+    HUB_REST_ENDPOINT_PROD1,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
@@ -117,7 +116,7 @@ class HubBackendClient:
         if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
 
-        return HUB_REST_ENDPOINT
+        return HUB_REST_ENDPOINT_PROD1
 
     def request_auth_token(self, username: str, password: str):
         """Sends a request to backend to retrieve auth token.
@@ -189,7 +188,7 @@ class HubBackendClient:
         """
         # TODO: change this once PROD has events
         self.request(
-            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=HUB_PROD1_ENDPOINT
+            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint
         )
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):

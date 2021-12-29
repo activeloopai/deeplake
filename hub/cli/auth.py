@@ -1,6 +1,6 @@
 import textwrap
 
-from hub.client.config import HUB_REST_ENDPOINT
+from hub.client.config import HUB_REST_ENDPOINT_PROD1
 import click
 from humbug.report import Report
 
@@ -23,7 +23,7 @@ def login(username: str, password: str):
         click.echo("Login to Activeloop using your credentials.")
         click.echo(
             "If you don't have an account, register by using the 'activeloop register' command or by going to "
-            f"{HUB_REST_ENDPOINT}/register."
+            f"{HUB_REST_ENDPOINT_PROD1}/register."
         )
         username = click.prompt("Username")
         password = click.prompt("Password", hide_input=True)
