@@ -122,6 +122,7 @@ class Sample:
             return
         if f is None:
             f = self.path if self.path else self.compressed_bytes[self._compression]
+        print("_read_meta()")
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
@@ -215,7 +216,9 @@ class Sample:
                 ):
                     self._compression = compr
                     if self._array is None:
-                        self._array = decompress_array(self.path, compression=compr)
+                        self._array = decompress_array(
+                            self.path, compression=compr, shape=self.shape
+                        )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
                     img = Image.open(self.path)
@@ -250,7 +253,9 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
-                array = decompress_array(self.path or self._buffer, compression=compr)
+                array = decompress_array(
+                    self.path or self._buffer, compression=compr, shape=self.shape
+                )
                 if self._shape is None:
                     self._shape = array.shape
                     self._typestr = array.__array_interface__["typestr"]
