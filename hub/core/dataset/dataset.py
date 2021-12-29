@@ -190,7 +190,6 @@ class Dataset:
             "version_state": self.version_state,
             "org_id": self.org_id,
             "ds_name": self.ds_name,
-            "branch": self.version_state["branch"],
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -199,7 +198,6 @@ class Dataset:
         Args:
             state (dict): The pickled state used to restore the dataset.
         """
-        branch = state.pop("branch")
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
