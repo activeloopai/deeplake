@@ -14,12 +14,11 @@ def test_video(ds: Dataset, compression, video_paths):
         )
         sample = hub.read(path)
         assert len(sample.shape) == 4
-        if (
-            compression in ("mp4", "mkv") and i == 0
-        ):  # check shape only for internal test videos
-            assert sample.shape == (400, 360, 640, 3)
-        elif compression == "avi":
-            assert sample.shape == (900, 270, 480, 3)
+        if i == 0:  # check shape only for internal test videos
+            if compression in ("mp4", "mkv"):
+                assert sample.shape == (400, 360, 640, 3)
+            elif compression == "avi":
+                assert sample.shape == (900, 270, 480, 3)
         assert sample.shape[-1] == 3
         with ds:
             for _ in range(5):
