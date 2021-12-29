@@ -14,7 +14,7 @@ def test_video(ds: Dataset, compression, video_paths):
         )
         sample = hub.read(path)
         assert len(sample.shape) == 4
-        if i == 0:  # check shape only for internal test videos
+        if "dummy_data" in path:  # check shape only for internal test videos
             if compression in ("mp4", "mkv"):
                 assert sample.shape == (400, 360, 640, 3)
             elif compression == "avi":
