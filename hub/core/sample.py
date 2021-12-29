@@ -122,7 +122,6 @@ class Sample:
             return
         if f is None:
             f = self.path if self.path else self.compressed_bytes[self._compression]
-        print("_read_meta()")
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
