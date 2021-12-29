@@ -1,5 +1,6 @@
 from hub.util.exceptions import InvalidHubPathException
 from typing import Tuple
+import hub
 
 
 def process_hub_path(path: str) -> Tuple[str, str, str, str]:
@@ -8,21 +9,26 @@ def process_hub_path(path: str) -> Tuple[str, str, str, str]:
     # hub://org/ds
     # hub://org/ds/.queries/hash
     # hub://org/queries/hash
-    # hub//org/queries/.queries/hash
+    # hub://org/queries/.queries/hash
+    # hub://org/ds/sub_ds1/sub_ds2/sub_ds3/..../sub_ds{n}  # Only for internal usage.
 
     tag = path[6:]
     s = tag.split("/")
-    if len(s) == 2:
-        if s[1] == "queries":  # Attempting to open queries ds root
-            raise InvalidHubPathException(path)
-        return (path, *s, "")
-    elif len(s) == 3:
-        if s[1] != "queries":
-            raise InvalidHubPathException(path)
-        return (f"hub://{s[0]}/queries/.queries/{s[2]}", *s[:2], f".queries/{s[2]}")
-    elif len(s) == 4:
-        if s[2] != ".queries":
-            raise InvalidHubPathException(path)
-        return (path, *s[:2], f".queries/{s[3]}")
-    else:
+
+    if len(s) < 2:
         raise InvalidHubPathException(path)
+
+    path = f"hub://{s[0]}/{s[1]}"
+
+    if len(s) == 3 and s[1] == "queries" and not s[2].startswith("."):
+        # Special case: expand hub://username/queries/hash to hub://username/queries/.queries/hash
+        subdir = f"queries/.queries/{s[2]}"
+    else:
+        subdir = "/".join(s[2:])
+        if len(s) > 2:
+            if (
+                not (len(s) == 4 and s[2] == ".queries")
+                and not hub.constants._ENABLE_HUB_SUB_DATASETS
+            ):
+                raise InvalidHubPathException(path)
+    return path, s[:2], subdir
