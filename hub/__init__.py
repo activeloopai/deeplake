@@ -1,3 +1,5 @@
+import threading
+from queue import Queue
 from botocore.config import Config
 import numpy as np
 import multiprocessing
@@ -64,7 +66,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.1.2"
+__version__ = "2.2.1"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50)}
 
@@ -72,3 +74,18 @@ config = {"s3": Config(max_pool_connections=50)}
 hub_reporter.tags.append(f"version:{__version__}")
 hub_reporter.system_report(publish=True)
 hub_reporter.setup_excepthook(publish=True)
+
+event_queue: Queue = Queue()
+
+
+def send_event():
+    while True:
+        try:
+            event = event_queue.get()
+            client, event_dict = event
+            client.send_event(event_dict)
+        except Exception:
+            pass
+
+
+threading.Thread(target=send_event, daemon=True).start()

@@ -4,7 +4,7 @@ import numpy as np
 
 from hub.core.query import DatasetQuery
 from hub.core.query.query import EvalGenericTensor, EvalLabelClassTensor
-
+from hub.core.index import Index
 import hub
 
 
@@ -32,8 +32,11 @@ def sample_ds(memory_ds):
 
 def test_tensor_functions(sample_ds):
     for ind, row in enumerate(rows):
-        i = EvalGenericTensor(sample_ds[ind].images)
-        l = EvalGenericTensor(sample_ds[ind].labels)
+        i = EvalGenericTensor(DatasetQuery(sample_ds[ind], ""), sample_ds[ind].images)
+        i.at_index(Index(ind))
+
+        l = EvalGenericTensor(DatasetQuery(sample_ds[ind], ""), sample_ds[ind].labels)
+        l.at_index(Index(ind))
 
         assert i.min == min(row["images"])
         assert i.max == max(row["images"])
@@ -51,8 +54,17 @@ def test_tensor_functions(sample_ds):
 
 
 def test_class_label_tensor_function(sample_ds):
-    assert EvalLabelClassTensor(sample_ds[0].labels) == "dog"
-    assert EvalLabelClassTensor(sample_ds[1].labels) == "cat"
+    eval_object = EvalLabelClassTensor(
+        DatasetQuery(sample_ds[0], ""), sample_ds[0].labels
+    )
+    eval_object.at_index(Index(0))
+    assert eval_object == "dog"
+
+    eval_object = EvalLabelClassTensor(
+        DatasetQuery(sample_ds[1], ""), sample_ds[1].labels
+    )
+    eval_object.at_index(Index(1))
+    assert eval_object == "cat"
 
 
 def test_tensor_subscript(memory_ds):
@@ -61,10 +73,11 @@ def test_tensor_subscript(memory_ds):
     memory_ds.create_tensor("images")
     memory_ds.images.append(arr)
 
-    i = EvalGenericTensor(memory_ds[0].images)
+    i = EvalGenericTensor(DatasetQuery(memory_ds[0], ""), memory_ds[0].images)
+    i.at_index(Index(0))
 
     assert i[2, 1] == arr[2][1]
-    assert i[1].min == min(arr[1])
+    assert i[1].min == min(arr[1])[0]
 
 
 @pytest.mark.parametrize(

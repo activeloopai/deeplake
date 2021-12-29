@@ -234,6 +234,12 @@ def check_sample_shape(shape, num_dims):
 
 
 def text_to_bytes(sample, dtype, htype):
+    if isinstance(sample, hub.core.tensor.Tensor):
+        try:
+            if sample.htype == htype or sample.htype == "json" and htype == "list":
+                return sample.tobytes(), sample.shape
+        except (ValueError, NotImplementedError):  # sliced sample or tiled sample
+            sample = sample.data()
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
