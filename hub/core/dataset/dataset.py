@@ -110,6 +110,7 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
+        print("Dataset.__init__()", version_state)
         d: Dict[str, Any] = {}
         d["_client"] = d["org_id"] = d["ds_name"] = None
         # uniquely identifies dataset
@@ -190,6 +191,7 @@ class Dataset:
             "version_state": self.version_state,
             "org_id": self.org_id,
             "ds_name": self.ds_name,
+            "branch": self.version_state["branch"],
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -198,6 +200,7 @@ class Dataset:
         Args:
             state (dict): The pickled state used to restore the dataset.
         """
+        branch = state.pop("branch")
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
@@ -504,27 +507,32 @@ class Dataset:
 
     def _load_version_info(self):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
-        branch = "main"
-        version_state = {"branch": branch}
-        try:
-            version_info = load_version_info(self.storage)
-            version_state["branch_commit_map"] = version_info["branch_commit_map"]
-            version_state["commit_node_map"] = version_info["commit_node_map"]
-            commit_id = version_state["branch_commit_map"][branch]
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = version_state["commit_node_map"][commit_id]
-        except Exception:
-            version_state["branch_commit_map"] = {}
-            version_state["commit_node_map"] = {}
-            # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
-            commit_id = FIRST_COMMIT_ID
-            commit_node = CommitNode(branch, commit_id)
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = commit_node
-            version_state["branch_commit_map"][branch] = commit_id
-            version_state["commit_node_map"][commit_id] = commit_node
-        version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
-        self.__dict__["version_state"] = version_state
+        if not self.version_state:
+            branch = "main"
+            version_state = {"branch": branch}
+            try:
+                version_info = load_version_info(self.storage)
+                version_state["branch_commit_map"] = version_info["branch_commit_map"]
+                version_state["commit_node_map"] = version_info["commit_node_map"]
+                commit_id = version_state["branch_commit_map"][branch]
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = version_state["commit_node_map"][
+                    commit_id
+                ]
+            except Exception:
+                version_state["branch_commit_map"] = {}
+                version_state["commit_node_map"] = {}
+                # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
+                commit_id = FIRST_COMMIT_ID
+                commit_node = CommitNode(branch, commit_id)
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = commit_node
+                version_state["branch_commit_map"][branch] = commit_id
+                version_state["commit_node_map"][commit_id] = commit_node
+            version_state[
+                "full_tensors"
+            ] = {}  # keeps track of the full unindexed tensors
+            self.__dict__["version_state"] = version_state
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
