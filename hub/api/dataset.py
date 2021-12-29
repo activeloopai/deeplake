@@ -83,7 +83,6 @@ class dataset:
 
         try:
             read_only = storage.read_only
-            assert not read_only
             return dataset_factory(
                 path=path,
                 storage=cache_chain,
