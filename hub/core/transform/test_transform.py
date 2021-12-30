@@ -28,10 +28,13 @@ def scheduler(request):
     if request.param == "ray":
         import ray
 
-        yield request.param
+        try:
+            ray.init(local_mode=True)
+            yield request.param
 
-        if ray.is_initialized():
-            ray.shutdown()
+        finally:
+            if ray.is_initialized():
+                ray.shutdown()
     else:
         yield request.param
 
