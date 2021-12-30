@@ -37,7 +37,11 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
 )
-from hub.util.exceptions import CorruptedMetaError, DynamicTensorNumpyError
+from hub.util.exceptions import (
+    CorruptedMetaError,
+    DynamicTensorNumpyError,
+    ReadOnlyModeError,
+)
 
 
 class ChunkEngine:
@@ -153,6 +157,10 @@ class ChunkEngine:
         )
 
     @property
+    def commit_id(self):
+        return self.version_state["commit_id"]
+
+    @property
     def max_chunk_size(self):
         # no chunks may exceed this
         return (
@@ -175,7 +183,7 @@ class ChunkEngine:
 
     @property
     def tensor_meta(self):
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
             tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
             self._tensor_meta = self.meta_cache.get_cachable(
@@ -200,16 +208,19 @@ class ChunkEngine:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
                 and their corresponding chunks.
         """
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         if (
             self._chunk_id_encoder is None
             or self._chunk_id_encoder_commit_id != commit_id
         ):
-            commit_id = self.version_state["commit_id"]
+            commit_id = self.commit_id
             key = get_chunk_id_encoder_key(self.key, commit_id)
             if not self.chunk_id_encoder_exists:
                 enc = ChunkIdEncoder()
-                self.meta_cache[key] = enc
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
             else:
                 enc = self.meta_cache.get_cachable(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
@@ -223,7 +234,7 @@ class ChunkEngine:
         Returns:
             Optional[CommitChunkSet]: The commit chunk set keeps track of all the chunks present in the current commit, returns None for the first commit.
         """
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
             # the first commit doesn't need a commit chunk set
             return None
@@ -234,7 +245,10 @@ class ChunkEngine:
             key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             if not self.commit_chunk_set_exists:
                 cset = CommitChunkSet()
-                self.meta_cache[key] = cset
+                try:
+                    self.meta_cache[key] = cset
+                except ReadOnlyModeError:
+                    pass
             else:
                 cset = self.meta_cache.get_cachable(key, CommitChunkSet)
             self._commit_chunk_set = cset
@@ -244,8 +258,14 @@ class ChunkEngine:
     @property
     def commit_chunk_set_exists(self) -> bool:
         """Checks if the commit chunk set exists for the given tensor in the current commit."""
+        commit_id = self.commit_id
+        if (
+            self._commit_chunk_set is not None
+            and self._commit_chunk_set_commit_id == commit_id
+        ):
+            return True
+
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -259,12 +279,15 @@ class ChunkEngine:
         Returns:
             CommitDiff: The commit diff keeps track of all the changes in the current commit.
         """
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         if self._commit_diff is None or self._commit_diff_commit_id != commit_id:
             key = get_tensor_commit_diff_key(self.key, commit_id)
             if not self.commit_diff_exists:
                 diff = CommitDiff(self.num_samples)
-                self.meta_cache[key] = diff
+                try:
+                    self.meta_cache[key] = diff
+                except ReadOnlyModeError:
+                    pass
             else:
                 diff = self.meta_cache.get_cachable(key, CommitDiff)
             self._commit_diff = diff
@@ -273,8 +296,10 @@ class ChunkEngine:
 
     @property
     def commit_diff_exists(self) -> bool:
+        commit_id = self.commit_id
+        if self._commit_diff is not None and self._commit_diff_commit_id == commit_id:
+            return True
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_tensor_commit_diff_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -283,8 +308,13 @@ class ChunkEngine:
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
+        commit_id = self.commit_id
+        if (
+            self._chunk_id_encoder is not None
+            and self._chunk_id_encoder_commit_id == commit_id
+        ):
+            return True
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_chunk_id_encoder_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -292,17 +322,20 @@ class ChunkEngine:
             return False
 
     def _is_tiled_sample(self, global_sample_index):
-        return self.tile_encoder_exists and global_sample_index in self.tile_encoder
+        return global_sample_index in self.tile_encoder
 
     @property
     def tile_encoder(self) -> TileEncoder:
         """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         if self._tile_encoder is None or self._tile_encoder_commit_id != commit_id:
             key = get_tensor_tile_encoder_key(self.key, commit_id)
             if not self.tile_encoder_exists:
                 enc = TileEncoder()
-                self.meta_cache[key] = enc
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
             else:
                 enc = self.meta_cache.get_cachable(key, TileEncoder)
             self._tile_encoder = enc
@@ -311,8 +344,11 @@ class ChunkEngine:
 
     @property
     def tile_encoder_exists(self) -> bool:
+        commit_id = self.commit_id
+        if self._tile_encoder is not None and self._tile_encoder_commit_id == commit_id:
+            return True
+
         try:
-            commit_id = self.version_state["commit_id"]
             key = get_tensor_tile_encoder_key(self.key, commit_id)
             self.meta_cache[key]
             return True
@@ -356,7 +392,7 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
-        if chunk_commit_id != self.version_state["commit_id"]:
+        if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.key = chunk_key  # type: ignore
         chunk.id = self.last_chunk_id  # type: ignore
@@ -381,7 +417,7 @@ class ChunkEngine:
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
         chunk.key = chunk_key
-        if copy and chunk_commit_id != self.version_state["commit_id"]:
+        if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.id = chunk_id
         return chunk
@@ -391,9 +427,7 @@ class ChunkEngine:
 
         Returns the copied chunk.
         """
-        new_chunk_key = get_chunk_key(
-            self.key, chunk_name, self.version_state["commit_id"]
-        )
+        new_chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
         chunk_id = chunk.id
         chunk = chunk.copy(self.chunk_args)
         chunk.key = new_chunk_key
@@ -517,7 +551,7 @@ class ChunkEngine:
         if self.cachables_in_dirty_keys:
             return
 
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
@@ -548,7 +582,7 @@ class ChunkEngine:
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name, self.version_state["commit_id"])
+        chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         self.cache[chunk_key] = chunk
@@ -850,7 +884,7 @@ class ChunkEngine:
         chunk_id_num_samples = self.num_samples
 
         if tensor_meta_length != chunk_id_num_samples:
-            commit_id = self.version_state["commit_id"]
+            commit_id = self.commit_id
             tkey = get_tensor_meta_key(self.key, commit_id)
             ikey = get_chunk_id_encoder_key(self.key, commit_id)
             raise CorruptedMetaError(
@@ -859,8 +893,7 @@ class ChunkEngine:
 
     def list_all_chunks(self) -> List[str]:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
-        commit_id = self.version_state["commit_id"]
-
+        commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
             return [ChunkIdEncoder.name_from_id(chunk_id) for chunk_id in self.chunk_id_encoder.array[:, CHUNK_ID_COLUMN]]  # type: ignore
         else:
@@ -868,7 +901,7 @@ class ChunkEngine:
 
     def list_all_chunks_path(self) -> List[str]:
         """Return list of paths to all chunks"""
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         return [
             get_chunk_key(self.key, chunk, commit_id)
             for chunk in self.list_all_chunks()
@@ -877,7 +910,7 @@ class ChunkEngine:
     def list_orphaned_chunks(self, storage):
         """Return paths for orphaned chunks (chunks what are not linked to the `current_version`)"""
 
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
         prefix: str = f"{self.key}/chunks/"
 
         if commit_id != FIRST_COMMIT_ID:
