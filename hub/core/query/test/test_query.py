@@ -5,7 +5,6 @@ import numpy as np
 from hub.core.query import DatasetQuery
 from hub.core.query.query import EvalGenericTensor, EvalLabelClassTensor
 from hub.core.index import Index
-from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 import hub
 
 
@@ -200,7 +199,18 @@ def test_dataset_view_save():
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
 
-@enabled_persistent_dataset_generators
+pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "gcs_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
+
+
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("read_only", [False, True])

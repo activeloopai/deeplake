@@ -122,6 +122,9 @@ def _get_vds_thread(vds: hub.Dataset, queue: Queue, num_samples: int):
             where the int is a sample index and the bool is whether
             or not to include the sample index in the vds.
         num_samples (int): Total number of samples in the source dataset.
+
+    Returns:
+        threading.Thread object
     """
     id = str(uuid4().hex)
 

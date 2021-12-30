@@ -1565,6 +1565,7 @@ class Dataset:
         Note: Virtual datasets are returned as such, they are not converted to views.
 
         Args:
+            path (str): Path to sub directory
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
