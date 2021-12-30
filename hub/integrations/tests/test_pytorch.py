@@ -435,7 +435,7 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
     dist.init_process_group(backend=backend, rank=rank, world_size=size)
 
     s = 0
-    for x in ds.pytorch():
+    for x in ds.pytorch(num_workers=0):
         s += int(x["image"][0].mean())
 
     q.put(s)
@@ -457,7 +457,7 @@ def test_pytorch_ddp(ds):
 
     size = 2
     processes = []
-    mp.set_start_method("spawn")
+    # mp.set_start_method("spawn")
     q = mp.Queue()
 
     for rank in range(size):
