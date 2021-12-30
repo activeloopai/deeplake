@@ -28,7 +28,6 @@ def sample_ds(local_ds):
     [
         ["images.max == 3", [True, False]],
         ["images.min == 5", [False, True]],
-        ["images[:1].min == 6", [False, True]],
         ["images[1] == 2", [True, False]],
         ["labels == 0", [True, False]],
         ["labels > 0 ", [False, True]],
