@@ -21,6 +21,7 @@ class ProcessProvider(ComputeProvider):
         self.pool.close()
         self.pool.join()
         self.pool.clear()
+        self._closed = True
 
     def __del__(self):
         if not self._closed:
