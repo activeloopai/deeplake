@@ -71,6 +71,7 @@ from hub.util.version_control import (
     current_commit_has_data,
     load_meta,
     warn_node_checkout,
+    load_version_info,
 )
 from hub.client.utils import get_user_name
 
@@ -520,27 +521,32 @@ class Dataset:
 
     def _load_version_info(self):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
-        branch = "main"
-        version_state = {"branch": branch}
-        try:
-            version_info = pickle.loads(self.storage[get_version_control_info_key()])
-            version_state["branch_commit_map"] = version_info["branch_commit_map"]
-            version_state["commit_node_map"] = version_info["commit_node_map"]
-            commit_id = version_state["branch_commit_map"][branch]
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = version_state["commit_node_map"][commit_id]
-        except Exception:
-            version_state["branch_commit_map"] = {}
-            version_state["commit_node_map"] = {}
-            # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
-            commit_id = FIRST_COMMIT_ID
-            commit_node = CommitNode(branch, commit_id)
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = commit_node
-            version_state["branch_commit_map"][branch] = commit_id
-            version_state["commit_node_map"][commit_id] = commit_node
-        version_state["full_tensors"] = {}  # keeps track of the full unindexed tensors
-        self.__dict__["version_state"] = version_state
+        if not self.version_state:
+            branch = "main"
+            version_state = {"branch": branch}
+            try:
+                version_info = load_version_info(self.storage)
+                version_state["branch_commit_map"] = version_info["branch_commit_map"]
+                version_state["commit_node_map"] = version_info["commit_node_map"]
+                commit_id = version_state["branch_commit_map"][branch]
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = version_state["commit_node_map"][
+                    commit_id
+                ]
+            except Exception:
+                version_state["branch_commit_map"] = {}
+                version_state["commit_node_map"] = {}
+                # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
+                commit_id = FIRST_COMMIT_ID
+                commit_node = CommitNode(branch, commit_id)
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = commit_node
+                version_state["branch_commit_map"][branch] = commit_id
+                version_state["commit_node_map"][commit_id] = commit_node
+            version_state[
+                "full_tensors"
+            ] = {}  # keeps track of the full unindexed tensors
+            self.__dict__["version_state"] = version_state
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
