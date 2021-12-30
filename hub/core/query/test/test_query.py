@@ -200,7 +200,7 @@ def test_dataset_view_save():
 
 
 pytest.mark.parametrize(
-    "ds_generator",
+    "ds_gen",
     [
         "local_ds_generator",
         "s3_ds_generator",
@@ -214,8 +214,8 @@ pytest.mark.parametrize(
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("read_only", [False, True])
-def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only):
-    ds = ds_generator()
+def test_inplace_dataset_view_save(ds_gen, stream, num_workers, read_only):
+    ds = ds_gen()
     if read_only and not ds.path.startswith("hub://"):
         return
     with ds:
