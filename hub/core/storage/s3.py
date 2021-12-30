@@ -95,7 +95,7 @@ class S3Provider(StorageProvider):
         self._initialize_s3_parameters()
 
     def subdir(self, path: str):
-        return self.__class__(
+        sd = self.__class__(
             root=posixpath.join(self.root, path),
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
@@ -103,6 +103,9 @@ class S3Provider(StorageProvider):
             aws_region=self.aws_region,
             endpoint_url=self.endpoint_url,
         )
+        if sd.expiration:
+            sd._set_hub_creds_info(self.hub_path, self.expiration)
+        return sd
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value

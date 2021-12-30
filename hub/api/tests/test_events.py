@@ -13,7 +13,7 @@ def test_query_progress_event(hub_cloud_ds):
         ds.labels.append([0])
         ds.labels.append([1])
 
-    result = ds.filter("labels == 0", progressbar=False)
+    result = ds.filter("labels == 0", progressbar=False, store_result=True)
     assert len(result) == 1
 
 

@@ -28,6 +28,7 @@ from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
+from hub.util.hash import hash_inputs
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -130,8 +131,6 @@ class Dataset:
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = is_first_load = version_state is None
-        # self.__dict__.update(d)
-        # d.clear()
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
@@ -145,6 +144,8 @@ class Dataset:
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
+        self._is_filtered_view = False
+        self._view_info = None
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -189,19 +190,23 @@ class Dataset:
         """
         if self.path.startswith("mem://"):
             raise MemoryDatasetCanNotBePickledError
-        return {
-            "path": self.path,
-            "_read_only": self._read_only,
-            "index": self.index,
-            "group_index": self.group_index,
-            "public": self.public,
-            "storage": self.storage,
-            "_token": self.token,
-            "verbose": self.verbose,
-            "version_state": self.version_state,
-            "org_id": self.org_id,
-            "ds_name": self.ds_name,
-        }
+        keys = [
+            "path",
+            "_read_only",
+            "index",
+            "group_index",
+            "public",
+            "storage",
+            "_token",
+            "verbose",
+            "version_state",
+            "org_id",
+            "ds_name",
+            "_is_filtered_view",
+            "_view_info",
+        ]
+        state = {k: getattr(self, k) for k in keys}
+        return state
 
     def __setstate__(self, state: Dict[str, Any]):
         """Restores dataset from a pickled state.
@@ -584,7 +589,7 @@ class Dataset:
         return self._commit(message)
 
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
-        if getattr(self, "_is_filterd_view", False):
+        if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
@@ -625,7 +630,7 @@ class Dataset:
     def _checkout(
         self, address: str, create: bool = False, hash: Optional[str] = None
     ) -> Optional[str]:
-        if getattr(self, "_is_filterd_view", False):
+        if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
@@ -1343,15 +1348,17 @@ class Dataset:
                             ) from e2
                     raise e
 
-    def _view_hash(self):
-        return hashlib.sha1(
-            (
-                f"{self.path}[{':'.join(str(e.value) for e in self.index.values)}]@{self.version_state['commit_id']}&{getattr(self, '_query', None)}"
-            ).encode()
-        ).hexdigest()
+    def _view_hash(self) -> str:
+        """Generates a unique hash for a filtered dataset view."""
+        return hash_inputs(
+            self.path,
+            *[e.value for e in self.index.values],
+            self.pending_commit_id,
+            getattr(self, "_query", None),
+        )
 
     def _get_view_info(self):
-        if not hasattr(self, "_view_info"):
+        if self._view_info is None:
             tm = getattr(self, "_created_at", time())
             hash = self._view_hash()
             info = {
@@ -1394,9 +1401,6 @@ class Dataset:
             vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                 list(self.index.values[0].indices(len(self)))
             )
-        idxs = hub.dataset(vds.path)._vds.VDS_INDEX.numpy().reshape(-1).tolist()
-        exp = list(self.index.values[0].indices(len(self)))
-        assert idxs == exp, (idxs, exp, vds.path)
 
     def _store_view_in_subdir(self):
         """Stores this view under ".queries" sub directory of same storage."""
@@ -1442,7 +1446,40 @@ class Dataset:
         self._write_vds(vds)
         return vds
 
-    def store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+    def store(self, path: Optional[str] = None, **ds_args) -> str:
+        """Stores a dataset view as a virtual dataset (VDS)
+
+        Args:
+            path (Optional, str): If specified, the VDS will stored as a standalone dataset at the specified path. If not,
+                the VDS is stored under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
+                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is stored
+                is stored under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
+        Returns:
+            (str) Path to the stored VDS.
+        """
+        return self._store(path, False, **ds_args)
+
+    def _store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+        """Stores a dataset view as a virtual dataset (VDS)
+
+        Args:
+            path (Optional, str): If specified, the VDS will stored as a standalone dataset at the specified path. If not,
+                the VDS is stored under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
+                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is stored
+                is stored under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            _ret_ds (Optional, str): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
+                Default False.
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
+        Returns:
+            If _ret_ds is True, the VDS is returned, else path to the VDS is returned.
+
+        Raises:
+            NotImplementedError: When storing sub-sample slices and saving views inplace for in-memory datasets.
+            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+        """
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
@@ -1469,17 +1506,37 @@ class Dataset:
         return vds.path
 
     def _get_view(self):
-        # Only applicable for virtual datasets
-        ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
+        """Returns a view for this VDS. Only works if this Dataset is a virtual dataset.
+
+        Raises:
+            Exception: If this is not a VDS.
+        """
+        try:
+            ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
+        except KeyError:
+            raise Exception("Dataset._get_view() works only for virtual datasets.")
         ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
         ds._vds = self
         return ds
 
-    def _get_empty_vds(self, vds_path=None, query=None, **vds_args):
+    def _get_empty_vds(
+        self, vds_path: Optional[str] = None, query: Optional[str] = None, **vds_args
+    ):
+        """Returns an empty VDS with this dataset as the source dataset. Internal.
+
+        Args:
+            vds_path (Optional, str): If specified, the vds will be stored at this path. Else the vds will be stored
+                under `.queries` subdirectory.
+            query (Optional, str): Query string associated with this view.
+            vds_args (dict): Additional args for creating vds when path is specified.
+
+        Returns:
+            Empty VDS with this dataset as the source dataset.
+        """
         view = self[:0]
         if query:
             view._query = query
-        return view.store(vds_path, _ret_ds=True, **vds_args)
+        return view._store(vds_path, _ret_ds=True, **vds_args)
 
     def _get_query_history(self) -> List[str]:
         """
@@ -1491,12 +1548,20 @@ class Dataset:
         except KeyError:
             return []
 
-    def _sub_ds(self, path, empty=False):
+    def _sub_ds(
+        self,
+        path,
+        empty=False,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+    ):
         """Loads a nested dataset. Internal.
         Note: Virtual datasets are returned as such, they are not converted to views.
 
         Args:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
+            memory_cache_size (int): Memory cache size for the sub dataset.
+            local_cache_size (int): Local storage cache size for the sub dataset.
 
         Returns:
             Sub dataset
@@ -1514,15 +1579,20 @@ class Dataset:
         return cls(
             generate_chain(
                 sub_storage,
-                DEFAULT_MEMORY_CACHE_SIZE * MB,
-                DEFAULT_LOCAL_CACHE_SIZE * MB,
+                memory_cache_size * MB,
+                local_cache_size * MB,
             ),
             path=path,
             token=self._token,
         )
 
     def _get_stored_vds(self, hash: str):
-        """
-        Internal.
+        """Returns a vds stored under the `.queries` subdirectory given its hash.
+
+        Args:
+            hash (str): Hash of the required vds.
+
+        Returns:
+            VDS with the specified hash.
         """
         return self._get_sub_ds(".queries/" + hash)

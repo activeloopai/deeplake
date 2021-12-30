@@ -6,6 +6,7 @@ import hub
 from hub.core.io import SampleStreaming
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import map_tensor_keys
+from hub.constants import QUERY_PROGRESS_UPDATE_FREQUENCY
 from time import time
 
 import inspect
@@ -17,20 +18,16 @@ from hub.util.exceptions import FilterError
 from hub.util.hash import hash_inputs
 
 
-# Frequency for sending progress events and writing to vds
-_UPDATE_FREQUENCY = 5  # seconds
-
-
 _LAST_UPDATED_TIMES: Dict = defaultdict(time)
 
 
 def _counter(id):
-    """A method which returns True only every `_UPDATE_FREQUENCY` seconds for each id.
+    """A method which returns True only every `QUERY_PROGRESS_UPDATE_FREQUENCY` seconds for each id.
     Used for sending query progress update events and writing to vds.
     """
     last_updated_time = _LAST_UPDATED_TIMES[id]
     curr_time = time()
-    if curr_time - last_updated_time > _UPDATE_FREQUENCY:
+    if curr_time - last_updated_time > QUERY_PROGRESS_UPDATE_FREQUENCY:
         _LAST_UPDATED_TIMES[id] = curr_time
         return True
     return False
@@ -189,9 +186,10 @@ def filter_with_compute(
                 result.append(i)
                 if vds:
                     vds_queue.put((i, True))
+                    _event_callback()
             elif vds:
                 vds_queue.put((i, False))
-            _event_callback()
+                _event_callback()
         return result
 
     def pg_filter_slice(pg_callback, indices: Sequence[int]):
@@ -201,18 +199,19 @@ def filter_with_compute(
                 result.append(i)
                 if vds:
                     vds_queue.put((i, True))
+                    _event_callback()
             elif vds:
                 vds_queue.put((i, False))
+                _event_callback()
             pg_callback(1)
-            _event_callback()
         return result
 
     result: Sequence[List[int]]
     idx: List[List[int]] = [block.indices() for block in blocks]
-
-    dataset._send_query_progress(
-        query_text=query_text, query_id=query_id, start=True, progress=0
-    )
+    if vds:
+        dataset._send_query_progress(
+            query_text=query_text, query_id=query_id, start=True, progress=0
+        )
 
     try:
         if progressbar:
@@ -220,21 +219,23 @@ def filter_with_compute(
         else:
             result = compute.map(filter_slice, idx)  # type: ignore
         index_map = [k for x in result for k in x]  # unfold the result map
-        dataset._send_query_progress(
-            query_text=query_text,
-            query_id=query_id,
-            end=True,
-            progress=100,
-            status="success",
-        )
+        if vds:
+            dataset._send_query_progress(
+                query_text=query_text,
+                query_id=query_id,
+                end=True,
+                progress=100,
+                status="success",
+            )
     except Exception as e:
-        dataset._send_query_progress(
-            query_text=query_text,
-            query_id=query_id,
-            end=True,
-            progress=100,
-            status="failed",
-        )
+        if vds:
+            dataset._send_query_progress(
+                query_text=query_text,
+                query_id=query_id,
+                end=True,
+                progress=100,
+                status="failed",
+            )
         raise FilterError(e)
 
     finally:
@@ -273,9 +274,10 @@ def filter_inplace(
 
     query_id = hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
 
-    dataset._send_query_progress(
-        query_text=query_text, query_id=query_id, start=True, progress=0
-    )
+    if vds:
+        dataset._send_query_progress(
+            query_text=query_text, query_id=query_id, start=True, progress=0
+        )
 
     try:
         for i, sample_in in it:
@@ -285,28 +287,30 @@ def filter_inplace(
                     vds_queue.put((i, True))
             elif vds:
                 vds_queue.put((i, False))
-            if _counter(query_id):
+            if vds and _counter(query_id):
                 dataset._send_query_progress(
                     query_text=query_text,
                     query_id=query_id,
                     progress=int(i * 100 / num_samples),
                     status="success",
                 )
-        dataset._send_query_progress(
-            query_text=query_text,
-            query_id=query_id,
-            end=True,
-            progress=100,
-            status="success",
-        )
+        if vds:
+            dataset._send_query_progress(
+                query_text=query_text,
+                query_id=query_id,
+                end=True,
+                progress=100,
+                status="success",
+            )
     except Exception as e:
-        dataset._send_query_progress(
-            query_text=query_text,
-            query_id=query_id,
-            end=True,
-            progress=100,
-            status="failed",
-        )
+        if vds:
+            dataset._send_query_progress(
+                query_text=query_text,
+                query_id=query_id,
+                end=True,
+                progress=100,
+                status="failed",
+            )
         raise (e)
     finally:
         if vds:
