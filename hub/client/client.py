@@ -132,7 +132,7 @@ class HubBackendClient:
             LoginException: If there is an issue retrieving the auth token.
         """
         json = {"username": username, "password": password}
-        response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
+        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
 
         try:
             token_dict = response.json()
