@@ -1475,7 +1475,7 @@ class Dataset:
                 the VDS is stored under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is stored
                 is stored under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
-            _ret_ds bool: If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
+            _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
