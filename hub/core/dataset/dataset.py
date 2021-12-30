@@ -202,6 +202,9 @@ class Dataset:
         state["_info"] = None
         state["is_iteration"] = False
         self.__dict__.update(state)
+
+        # clear cache while restoring
+        self.storage.clear_cache_without_flush()
         self._initial_autoflush = []
         self.is_first_load = True
         self._info = None
