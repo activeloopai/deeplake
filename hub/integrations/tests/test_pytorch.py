@@ -444,7 +444,7 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
 @requires_torch
 @enabled_datasets
 def test_pytorch_ddp(ds):
-    import torch.multiprocessing as mp
+    import multiprocessing as mp
 
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -457,24 +457,20 @@ def test_pytorch_ddp(ds):
 
     size = 2
     processes = []
-    method = mp.get_start_method()
-    mp.set_start_method("spawn", force=True)
+    mp.set_start_method("spawn")
     q = mp.Queue()
 
-    try:
-        for rank in range(size):
-            p = mp.Process(target=run_ddp, args=(rank, size, ds, q))
-            p.start()
-            processes.append(p)
+    for rank in range(size):
+        p = mp.Process(target=run_ddp, args=(rank, size, ds, q))
+        p.start()
+        processes.append(p)
 
-        s = 0
-        for p in processes:
-            p.join()
-            p.terminate()
-            s += q.get()
+    s = 0
+    for p in processes:
+        p.join()
+        p.terminate()
+        s += q.get()
 
-        q.close()
+    q.close()
 
-        assert s == sum(list(range(254)))
-    finally:
-        mp.set_start_method(method, force=True)
+    assert s == sum(list(range(254)))
