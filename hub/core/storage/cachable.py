@@ -43,7 +43,7 @@ class Cachable(ABC):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
-        if len(buffer)>0:
+        if len(buffer) > 0:
             instance.__setstate__(json.loads(buffer))
         return instance
 
