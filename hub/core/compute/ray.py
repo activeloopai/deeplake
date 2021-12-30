@@ -19,7 +19,6 @@ class RayProvider(ComputeProvider):
     def close(self):
         self.pool.close()
         self.pool.join()
-        ray.shutdown()
-
+        
     def create_queue(self):
         return Queue()
