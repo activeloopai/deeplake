@@ -28,8 +28,6 @@ def scheduler(request):
     if request.param == "ray":
         import ray
 
-        ray.init(local_mode=True)
-
         yield request.param
 
         if ray.is_initialized():
