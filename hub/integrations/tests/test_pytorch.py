@@ -457,7 +457,6 @@ def test_pytorch_ddp(ds):
 
     size = 2
     processes = []
-    # mp.set_start_method("spawn")
     q = mp.Queue()
 
     for rank in range(size):

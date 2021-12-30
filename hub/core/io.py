@@ -201,29 +201,29 @@ class DistributedScheduler(Scheduler):
                 [i for j in jobs for i in j.indices()][: len(all_idx)]
             )
 
-        k: torch.Tensor = torch.zeros(
+        thread_local_idx: torch.Tensor = torch.zeros(
             (int(len(all_idx) / world_size), 2), dtype=torch.int
         )
 
         dist.scatter(
-            k,
+            thread_local_idx,
             scatter_list=list(all_idx.chunk(world_size)) if rank == 0 else None,
             src=0,
             group=gr,
         )
 
         # recombine assigned blocks
-        comb: Dict[int, List[int]] = dict()
-        for j in k:
-            key = int(j[0])
-            val = int(j[1])
+        blocks_map: Dict[int, List[int]] = dict()
+        for idx in thread_local_idx:
+            key = int(idx[0])
+            val = int(idx[1])
 
-            if key in comb:
-                comb[key].append(val)
+            if key in blocks_map:
+                blocks_map[key].append(val)
             else:
-                comb[key] = [val]
+                blocks_map[key] = [val]
 
-        blocks = [IOBlock(jobs[k].chunks(), v) for k, v in comb.items()]
+        blocks = [IOBlock(jobs[k].chunks(), v) for k, v in blocks_map.items()]
 
         if self.next_scheduler:
             return self.next_scheduler.schedule(blocks)
