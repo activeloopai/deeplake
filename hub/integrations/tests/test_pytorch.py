@@ -461,7 +461,7 @@ def test_pytorch_ddp(ds):
     q = mp.Queue()
 
     for rank in range(size):
-        p = mp.Process(target=run_ddp, args=(rank, size, ds, q))
+        p = mp.Process(target=run_ddp, args=(rank, size, ds, q), daemon=True)
         p.start()
         processes.append(p)
 
