@@ -6,3 +6,4 @@ mypy
 black
 darglint
 kaggle
+pytest-timeout
