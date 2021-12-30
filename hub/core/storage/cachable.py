@@ -43,8 +43,11 @@ class Cachable(ABC):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
-        if len(buffer) > 0:
-            instance.__setstate__(json.loads(buffer))
+        if len(buffer) == 0:
+            raise BufferError(
+                "Unable to instantiate the object using frombuffer as the buffer was empty."
+            )
+        instance.__setstate__(json.loads(buffer))
         return instance
 
 
