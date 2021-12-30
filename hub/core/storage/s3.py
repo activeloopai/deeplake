@@ -104,7 +104,7 @@ class S3Provider(StorageProvider):
             endpoint_url=self.endpoint_url,
         )
         if sd.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration)
+            sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
         return sd
 
     def __setitem__(self, path, content):
