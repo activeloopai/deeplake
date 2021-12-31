@@ -188,7 +188,7 @@ class HubBackendClient:
         """
         # TODO: change this once PROD has events
         self.request(
-            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint
+            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=self.endpoint()
         )
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
