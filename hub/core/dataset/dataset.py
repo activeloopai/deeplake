@@ -913,22 +913,27 @@ class Dataset:
             >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
             >>> dataset.filter('labels == 2')
         """
-        from hub.core.query import filter_dataset
+        from hub.core.query import filter_dataset, query_dataset
         from hub.core.query import DatasetQuery
 
         if isinstance(function, str):
             query_text = function
-            function = DatasetQuery(self, function)
+            return query_dataset(
+                self,
+                function,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            )
         else:
             query_text = "UDF"
-
-        return filter_dataset(
-            self,
-            function,
-            num_workers=num_workers,
-            scheduler=scheduler,
-            progressbar=progressbar,
-        )
+            return filter_dataset(
+                self,
+                function,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            )
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
