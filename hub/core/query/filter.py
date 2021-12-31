@@ -1,9 +1,10 @@
-from typing import Callable, List, Optional, Sequence, Dict
+from typing import Callable, List, Optional, Sequence, Dict, final
 from uuid import uuid4
 
 import hub
 
 from hub.core.io import SampleStreaming
+from hub.core.query.query import DatasetQuery
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import map_tensor_keys
 from hub.constants import QUERY_PROGRESS_UPDATE_FREQUENCY
@@ -321,4 +322,132 @@ def filter_inplace(
             vds_thread.join()
         _del_counter(query_id)
 
+    return index_map
+
+
+def query_dataset(
+    dataset: hub.Dataset,
+    query: str,
+    num_workers: int = 0,
+    scheduler: str = "threaded",
+    progressbar: bool = True,
+    store_result: bool = False,
+    result_path: Optional[str] = None,
+    result_ds_args: Optional[Dict] = None,
+) -> hub.Dataset:
+    index_map: List[int]
+
+    vds = (
+        dataset._get_empty_vds(result_path, query=query, **(result_ds_args or {}))
+        if store_result
+        else None
+    )
+
+    index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler, vds)
+
+    return dataset[index_map]  # type: ignore [this is fine]
+
+
+def query_inplace(
+    dataset: hub.Dataset,
+    query: str,
+    progressbar: bool,
+    num_workers: int,
+    scheduler: str,
+    vds: Optional[hub.Dataset] = None,
+) -> List[int]:
+
+    num_samples = len(dataset)
+    compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
+    query_id = hash_inputs(dataset.path, dataset.pending_commit_id, query)
+
+    if vds:
+        vds.autoflush = False
+        vds.info["total_samples"] = num_samples
+        vds.info["samples_processed"] = 0
+        vds_queue = compute.create_queue()
+        vds_thread = _get_vds_thread(vds, vds_queue, num_samples)
+        vds_thread.start()
+        dataset._send_query_progress(
+            query_text=query, query_id=query_id, start=True, progress=0
+        )
+
+    num_processed = {"value": 0}
+    def update_vds(idx, include):
+        if vds:
+            vds_queue.put((idx, include))
+            num_processed["value"] += 1
+            if _counter(query_id):
+                dataset._send_query_progress(
+                    query_text=query,
+                    query_id=query_id,
+                    progress=int(num_processed["value"] * 100 / num_samples),
+                    status="success",
+                )
+
+    def subquery(dataset_query):
+        dataset, query = dataset_query
+
+        if progressbar:
+            from tqdm import tqdm
+
+            bar = tqdm(total=len(dataset))
+
+            def update(idx, include):
+                bar.update(1)
+                update_vds(idx, include)
+            try:
+                ds_query = DatasetQuery(dataset, query, update)
+                return ds_query.execute()
+            finally:
+                bar.close()
+        else:
+            return DatasetQuery(dataset, query, update_vds).execute()
+
+
+    def pg_subquery(pg_callback, dataset_query):
+        def update(idx, include):
+            update_vds(idx, include)
+            pg_callback(1)
+        dataset, query = dataset_query
+        ds_query = DatasetQuery(dataset, query, progress_callback=update)
+        return ds_query.execute()
+
+    try:
+
+        if num_workers == 0:
+            return subquery((dataset, query))
+
+        try:
+            btch = num_samples // num_workers
+            subdatasets = [
+                (dataset[idx * btch : (idx + 1) * btch], query)
+                for idx in range(0, num_workers)
+            ]
+
+            if progressbar:
+                result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=len(dataset))  # type: ignore
+            else:
+                result = compute.map(subquery, subdatasets)  # type: ignore
+
+            index_map = [k for x in result for k in x]  # unfold the result map
+        finally:
+            compute.close()
+    except Exception as e:
+        dataset._send_query_progress(
+                query_text=query,
+                query_id=query_id,
+                end=True,
+                progress=100,
+                status="failed",
+            )
+        raise e
+    finally:
+        _del_counter(query_id)
+    dataset._send_query_progress(
+    query_text=query,
+    query_id=query_id,
+    end=True,
+    progress=100,
+    status="success",)
     return index_map

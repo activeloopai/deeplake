@@ -311,15 +311,15 @@ def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
         )
 
 
-def get_pbar_description(transform_functions: List):
-    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `TransformFunction`s."""
+def get_pbar_description(compute_functions: List):
+    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
 
-    num_funcs = len(transform_functions)
+    num_funcs = len(compute_functions)
     if num_funcs == 0:
         return "Evaluating"
 
     func_names: List[str] = []
-    for transform_function in transform_functions:
+    for transform_function in compute_functions:
         func_names.append(transform_function.func.__name__)
 
     if num_funcs == 1:

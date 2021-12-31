@@ -858,7 +858,8 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
         ret["duration"] = float(ret["duration"])
     else:
         ret["duration"] = duration
-    ret["rate"] = float(eval(ret["rate"]))
+    rate_fraction = map(float, ret["rate"].split(b"/"))
+    ret["rate"] = next(rate_fraction) / next(rate_fraction)
     return ret
 
 

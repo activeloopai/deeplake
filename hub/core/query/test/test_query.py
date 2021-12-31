@@ -85,71 +85,28 @@ def test_tensor_subscript(memory_ds):
     [
         ["images.max == 3", [True, False]],
         ["images.min == 5", [False, True]],
-        ["images[:1].min == 6", [False, True]],
         ["images[1] == 2", [True, False]],
         ["labels == 0", [True, False]],
         ["labels > 0 ", [False, True]],
-        ["labels in [cat, dog]", [True, True]],
+        ["labels in ['cat', 'dog']", [True, True]],
         ["labels < 0 ", [False, False]],
         ["labels.contains(0)", [True, False]],  # weird usecase
     ],
 )
 def test_query(sample_ds, query, results):
     query = DatasetQuery(sample_ds, query)
+    r = query.execute()
 
     for i in range(len(results)):
-        assert query(sample_ds[i]) == results[i]
+        if results[i]:
+            assert i in r
+        else:
+            assert i not in r
 
 
-def test_query_string_tensor(memory_ds):
-    data = ["string1", "string2", ""]
+def test_different_size_ds_query(local_ds):
 
-    with memory_ds as ds:
-        ds.create_tensor("text", htype="text")
-        for v in data:
-            ds.text.append(v)
-
-    assert DatasetQuery(memory_ds, 'text == "string1"')(memory_ds[0]) == True
-    assert DatasetQuery(memory_ds, 'text == "string1"')(memory_ds[1]) == False
-    assert DatasetQuery(memory_ds, "len(text) == 0")(memory_ds[2]) == True
-
-
-def test_query_json_tensor(memory_ds):
-    data = ['{ "a": 1 }', '{ "b": { "a": 1 }}', ""]
-
-    with memory_ds as ds:
-        ds.create_tensor("json", htype="json")
-        for v in data:
-            ds.json.append(v)
-
-    assert DatasetQuery(memory_ds, 'json["a"] == 1')(memory_ds[0]) == True
-    assert DatasetQuery(memory_ds, 'json["b"]["a"] == 1')(memory_ds[1]) == True
-
-    with pytest.raises(KeyError):
-        assert (
-            DatasetQuery(memory_ds, 'json["b"]["a"] == None')(memory_ds[0]) == True
-        )  # not sure what should happen here
-
-
-def test_query_groups(memory_ds):
-    with memory_ds as ds:
-        ds.create_tensor("images/image1")
-        ds.create_tensor("images/image2")
-
-        ds.images.image1.append([1, 2, 3])
-        ds.images.image2.append([3, 2, 1])
-
-    assert (
-        DatasetQuery(memory_ds, "images.image1.mean == images.image2.mean")(
-            memory_ds[0]
-        )
-        == True
-    )
-
-
-def test_different_size_ds_query(memory_ds):
-
-    with memory_ds as ds:
+    with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")
 
@@ -207,10 +164,7 @@ pytest.mark.parametrize(
         "gcs_ds_generator",
         "hub_cloud_ds_generator",
     ],
-    indirect=True,
 )
-
-
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("read_only", [False, True])
