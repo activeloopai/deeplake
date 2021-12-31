@@ -19,34 +19,8 @@ all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "
 
 schedulers = ["threaded", "processed"]
 schedulers = schedulers + ["ray"] if ray_installed() else schedulers
-all_schedulers = pytest.mark.parametrize("scheduler", schedulers, indirect=True)
+all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
-
-
-@pytest.fixture
-def scheduler(request):
-    if request.param == "ray":
-        import ray
-
-        try:
-            ray.init(local_mode=True)
-            yield request.param
-
-        finally:
-            if ray.is_initialized():
-                ray.shutdown()
-    else:
-        yield request.param
-
-
-@pytest.fixture
-def threaded():
-    yield "threaded"
-
-
-@pytest.fixture
-def processed():
-    yield "processed"
 
 
 @hub.compute
