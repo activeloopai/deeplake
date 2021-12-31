@@ -29,6 +29,7 @@ class DatasetQuery:
         self._wrappers = self._export_tensors()
 
     def execute(self) -> List[int]:
+        print("execute()", len(self._dataset))
         idx_map: List[int] = list()
         max_size = len(self._dataset)
 
@@ -42,12 +43,13 @@ class DatasetQuery:
                     tensor: self._wrap_value(tensor, cache[tensor][local_idx])
                     for tensor in self._tensors
                 }
+                print("pg_callback()", idx)
                 if eval(self._cquery, p):
                     idx_map.append(int(idx))
-                    self._pg_callback(idx, True)
+                    self._pg_callback(int(idx), True)
                 else:
-                    self._pg_callback(idx, False)
-
+                    self._pg_callback(int(idx), False)
+        print("execute() Done.")
         return idx_map
 
     def _wrap_value(self, tensor, val):

@@ -3,8 +3,6 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
-from hub.core.query.query import EvalGenericTensor, EvalLabelClassTensor
-from hub.core.index import Index
 import hub
 
 
@@ -25,59 +23,9 @@ def _populate_data(ds, n=1):
 
 
 @pytest.fixture
-def sample_ds(memory_ds):
-    _populate_data(memory_ds)
-    return memory_ds
-
-
-def test_tensor_functions(sample_ds):
-    for ind, row in enumerate(rows):
-        i = EvalGenericTensor(DatasetQuery(sample_ds[ind], ""), sample_ds[ind].images)
-        i.at_index(Index(ind))
-
-        l = EvalGenericTensor(DatasetQuery(sample_ds[ind], ""), sample_ds[ind].labels)
-        l.at_index(Index(ind))
-
-        assert i.min == min(row["images"])
-        assert i.max == max(row["images"])
-        assert i.mean == sum(row["images"]) / len(row["images"])
-        assert i.shape[0] == len(row["images"])
-        assert i.size == len(row["images"])
-        assert i[1] == row["images"][1]
-
-        assert l == row["labels"][0]
-        assert l != row["labels"][0] + 2
-        assert l > row["labels"][0] - 1
-        assert l < row["labels"][0] + 1
-        assert l >= row["labels"][0]
-        assert l <= row["labels"][0]
-
-
-def test_class_label_tensor_function(sample_ds):
-    eval_object = EvalLabelClassTensor(
-        DatasetQuery(sample_ds[0], ""), sample_ds[0].labels
-    )
-    eval_object.at_index(Index(0))
-    assert eval_object == "dog"
-
-    eval_object = EvalLabelClassTensor(
-        DatasetQuery(sample_ds[1], ""), sample_ds[1].labels
-    )
-    eval_object.at_index(Index(1))
-    assert eval_object == "cat"
-
-
-def test_tensor_subscript(memory_ds):
-    arr = [[[1], [2]], [[2], [3]], [[4], [5]]]
-
-    memory_ds.create_tensor("images")
-    memory_ds.images.append(arr)
-
-    i = EvalGenericTensor(DatasetQuery(memory_ds[0], ""), memory_ds[0].images)
-    i.at_index(Index(0))
-
-    assert i[2, 1] == arr[2][1]
-    assert i[1].min == min(arr[1])[0]
+def sample_ds(local_ds):
+    _populate_data(local_ds)
+    return local_ds
 
 
 @pytest.mark.parametrize(
@@ -156,25 +104,26 @@ def test_dataset_view_save():
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
 
-pytest.mark.parametrize(
-    "ds_gen",
+@pytest.mark.parametrize(
+    "ds_generator",
     [
         "local_ds_generator",
-        "s3_ds_generator",
-        "gcs_ds_generator",
-        "hub_cloud_ds_generator",
-    ],
+        # "s3_ds_generator",
+        # "gcs_ds_generator",
+        # "hub_cloud_ds_generator",
+    ], indirect=True
 )
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("read_only", [False, True])
-def test_inplace_dataset_view_save(ds_gen, stream, num_workers, read_only):
-    ds = ds_gen()
+@pytest.mark.parametrize("stream", [False])
+@pytest.mark.parametrize("num_workers", [2])
+@pytest.mark.parametrize("read_only", [False])
+@pytest.mark.parametrize("progressbar", [True])
+def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only, progressbar):
+    ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
     with ds:
         _populate_data(ds, n=2)
-    view = ds.filter("labels == 'dog'", store_result=stream, num_workers=num_workers)
+    view = ds.filter("labels == 'dog'", store_result=stream, num_workers=num_workers, progressbar=progressbar)
     assert len(ds._get_query_history()) == int(stream)
     vds_path = view.store()
     assert len(ds._get_query_history()) == 1

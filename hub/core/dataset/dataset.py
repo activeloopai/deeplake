@@ -951,20 +951,8 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
         from hub.core.query import DatasetQuery
 
-        if isinstance(function, str):
-            return query_dataset(
-                self,
-                function,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-                store_result=store_result,
-                result_path=result_path,
-                result_ds_args=result_ds_args,
-            )
-        else:
-
-        return filter_dataset(
+        fn = query_dataset if isinstance(function, str) else filter_dataset
+        return fn(
             self,
             function,
             num_workers=num_workers,
