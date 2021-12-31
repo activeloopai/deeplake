@@ -457,12 +457,11 @@ def test_pytorch_ddp(ds):
 
     size = 2
     processes = []
-    q = mp.Queue()
+    ctx = mp.get_context("spawn")
+    q = ctx.Queue()
 
     for rank in range(size):
-        p = mp.get_context("spawn").Process(
-            target=run_ddp, args=(rank, size, ds, q), daemon=True
-        )
+        p = ctx.Process(target=run_ddp, args=(rank, size, ds, q), daemon=True)
         p.start()
         processes.append(p)
 
