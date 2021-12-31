@@ -5,4 +5,4 @@ pytest-cov
 mypy
 black
 darglint
-kaggle
+pytest-timeout

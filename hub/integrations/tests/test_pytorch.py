@@ -6,7 +6,6 @@ import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.tests.common import requires_torch
-from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
@@ -56,7 +55,7 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch()
         return
 
     dl = ds.pytorch(num_workers=2, batch_size=1)
@@ -251,7 +250,7 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch()
         return
 
     with pytest.raises(TensorDoesNotExistError):
@@ -352,7 +351,7 @@ def test_pytorch_local_cache(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch()
         return
 
     epochs = 2
@@ -425,3 +424,53 @@ def test_string_tensors(local_ds):
     ptds2 = local_ds.pytorch(batch_size=None)
     for idx, batch in enumerate(ptds2):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+
+
+def run_ddp(rank, size, ds, q, backend="gloo"):
+    import torch.distributed as dist
+    import os
+
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group(backend=backend, rank=rank, world_size=size)
+
+    s = 0
+    for x in ds.pytorch(num_workers=0):
+        s += int(x["image"][0].mean())
+
+    q.put(s)
+
+
+@requires_torch
+@enabled_datasets
+def test_pytorch_ddp(ds):
+    import multiprocessing as mp
+
+    with ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(255)]))
+
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ds.pytorch()
+        return
+
+    size = 2
+    processes = []
+    ctx = mp.get_context("spawn")
+    q = ctx.Queue()
+
+    for rank in range(size):
+        p = ctx.Process(target=run_ddp, args=(rank, size, ds, q), daemon=True)
+        p.start()
+        processes.append(p)
+
+    s = 0
+    for p in processes:
+        p.join()
+        p.terminate()
+        s += q.get()
+
+    q.close()
+
+    assert s == sum(list(range(254)))
