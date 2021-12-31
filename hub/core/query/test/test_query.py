@@ -77,21 +77,13 @@ def test_query_scheduler(local_ds):
         ds.create_tensor("labels")
         ds.labels.extend(np.arange(10_000))
 
-    def filter_result(ds):
-        return ds[0].labels.numpy()
+    f1 = "labels == 3141"
+    f2 = lambda s: s.labels.numpy() == 3141
 
-    assert (
-        filter_result(ds.filter("labels == 3141", num_workers=2, progressbar=False))
-        == 3141
-    )
-    assert (
-        filter_result(
-            ds.filter(
-                lambda s: s.labels.numpy() == 3141, num_workers=2, progressbar=False
-            )
-        )
-        == 3141
-    )
+    view1 = ds.filter(f1, num_workers=2, progressbar=True)
+    view2 = ds.filter(f2, num_workers=2, progressbar=True)
+
+    np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
 def test_dataset_view_save():

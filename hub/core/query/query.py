@@ -32,7 +32,7 @@ class DatasetQuery:
         print("execute()", len(self._dataset))
         idx_map: List[int] = list()
         max_size = len(self._dataset)
-
+        num_samples_processed = 0
         for f in self._np_access:
             cache = {tensor: f(tensor) for tensor in self._tensors}
             for local_idx, idx in enumerate(f("index")):
@@ -43,13 +43,14 @@ class DatasetQuery:
                     tensor: self._wrap_value(tensor, cache[tensor][local_idx])
                     for tensor in self._tensors
                 }
-                print("pg_callback()", idx)
+                num_samples_processed += 1
                 if eval(self._cquery, p):
                     idx_map.append(int(idx))
                     self._pg_callback(int(idx), True)
                 else:
                     self._pg_callback(int(idx), False)
-        print("execute() Done.")
+        print("execute() Done. num_samples_processed: ", num_samples_processed)
+        assert num_samples_processed == len(self._dataset)
         return idx_map
 
     def _wrap_value(self, tensor, val):

@@ -137,7 +137,6 @@ def _get_vds_thread(vds: hub.Dataset, queue: Queue, num_samples: int):
             if include:
                 vds.VDS_INDEX.append(index)
             processed += 1
-            print(processed, num_samples)
             if processed == num_samples:
                 vds.flush()
                 _del_counter(id)
@@ -378,7 +377,6 @@ def query_inplace(
     num_processed = {"value": 0}
 
     def update_vds(idx, include):
-        print("update_vds", idx, include)
         if vds:
             vds_queue.put((idx, include))
             num_processed["value"] += 1
@@ -389,12 +387,9 @@ def query_inplace(
                     progress=int(num_processed["value"] * 100 / num_samples),
                     status="success",
                 )
-        print("update_vds", "num_processed", num_processed)
 
     def subquery(dataset_query):
-        print("subquery()", id(num_processed), num_processed, dataset_query)
         dataset, query = dataset_query
-        print(len(dataset))
         if progressbar:
             from tqdm import tqdm
 
@@ -410,9 +405,7 @@ def query_inplace(
             finally:
                 bar.close()
         else:
-            print("DatasetQuery()")
             ret = DatasetQuery(dataset, query, update_vds).execute()
-        print("after update", num_processed)
         return ret
 
     def pg_subquery(pg_callback, dataset_query):
@@ -456,9 +449,7 @@ def query_inplace(
     finally:
         if vds:
             vds.autoflush = True
-            print("joining...")
             vds_thread.join()
-            print("done.")
             if hasattr(vds_queue, "close"):
                 vds_queue.close()
         _del_counter(query_id)
