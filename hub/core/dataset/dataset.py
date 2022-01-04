@@ -942,6 +942,12 @@ class Dataset:
         return size
 
     @hub_reporter.record_call
+    def rename(self, path):
+        storage = get_base_storage(self.storage)
+        storage.rename(path)
+        self.path = path
+
+    @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.

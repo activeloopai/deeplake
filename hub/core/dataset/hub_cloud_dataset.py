@@ -87,6 +87,21 @@ class HubCloudDataset(Dataset):
 
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
+    def rename(self, path):
+        split_path = path.split("/")
+        new_org_id, new_ds_name = split_path[2], split_path[3]
+        if new_org_id != self.org_id:
+            raise Exception("Username of new path cannot be different.")
+        self.client.create_dataset_entry(
+            self.org_id,
+            new_ds_name,
+            self.version_state["meta"].__getstate__(),
+            public=self.public,
+        )
+        self.client.delete_dataset_entry(self.org_id, self.ds_name)
+        self.path = path
+        self.ds_name = new_ds_name
+
     @property
     def agreement(self) -> Optional[str]:
         try:

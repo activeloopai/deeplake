@@ -39,6 +39,7 @@ load = dataset.load
 empty = dataset.empty
 like = dataset.like
 delete = dataset.delete
+rename = dataset.rename
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
