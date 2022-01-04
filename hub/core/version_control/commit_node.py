@@ -33,7 +33,7 @@ class CommitNode:
         self.children.append(node)
         self.commit_message = message
         self.commit_user_name = get_user_name()
-        self.commit_time = datetime.now()
+        self.commit_time = datetime.utcnow()
 
     def __repr__(self) -> str:
         return f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"

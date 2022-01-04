@@ -14,7 +14,11 @@ def test_compute_with_progress_bar(scheduler):
         return x * 2
 
     compute = get_compute_provider(scheduler=scheduler, num_workers=2)
-    r = compute.map_with_progressbar(f, range(1000), 1000)
+    try:
+        r = compute.map_with_progressbar(f, range(1000), 1000)
 
-    assert r is not None
-    assert len(r) == 1000
+        assert r is not None
+        assert len(r) == 1000
+
+    finally:
+        compute.close()
