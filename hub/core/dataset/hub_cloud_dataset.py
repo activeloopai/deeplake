@@ -1,3 +1,5 @@
+import logging
+import posixpath
 from typing import Any, Dict, Optional
 from hub.client.utils import get_user_name
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
@@ -5,10 +7,12 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
+from hub.util.exceptions import RenameError
 from hub.util.path import is_hub_cloud_path
 from warnings import warn
 import time
 import hub
+from hub.util.remove_cache import get_base_storage
 
 
 class HubCloudDataset(Dataset):
@@ -213,10 +217,18 @@ class HubCloudDataset(Dataset):
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     def rename(self, path):
+        level = logger.level
+        logger.setLevel(logging.WARNING)
+        path = path.strip("/")
+        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+            raise RenameError
         split_path = path.split("/")
-        new_org_id, new_ds_name = split_path[2], split_path[3]
-        if new_org_id != self.org_id:
-            raise Exception("Username of new path cannot be different.")
+        storage = get_base_storage(self.storage)
+        split_root = storage.root.split("/")
+        new_url = "/".join([*split_root[:-1], split_path[-1]])
+        storage.rename(new_url)
+
+        new_ds_name = split_path[3]
         self.client.create_dataset_entry(
             self.org_id,
             new_ds_name,
@@ -224,8 +236,10 @@ class HubCloudDataset(Dataset):
             public=self.public,
         )
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
-        self.path = path
+
         self.ds_name = new_ds_name
+        self.path = path
+        logger.setLevel(level)
 
     @property
     def agreement(self) -> Optional[str]:

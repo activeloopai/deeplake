@@ -360,3 +360,8 @@ def video_paths():
     paths["mp4"] += _download_hub_test_videos()
 
     return paths
+
+
+@pytest.fixture
+def path(request):
+    return request.getfixturevalue(request.param)

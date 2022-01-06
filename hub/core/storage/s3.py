@@ -1,3 +1,4 @@
+import os
 import hub
 import time
 import boto3
@@ -287,14 +288,11 @@ class S3Provider(StorageProvider):
             "Contents"
         ]
         path = root.replace("s3://", "")
-        new_bucket = path.split("/")[0]
-        if new_bucket != self.bucket:
-            raise Exception("New path cannot be to a different bucket.")
-        new_path = "/".join(path.split("/")[1:])
+        _, new_path = path.split("/", 1)
         for item in items:
             old_key = item["Key"]
             copy_source = {"Bucket": self.bucket, "Key": old_key}
-            new_key = "/".join([new_path, old_key.split("/")[-1]])
+            new_key = "/".join([new_path, os.path.relpath(old_key, self.path)])
             self.client.copy_object(
                 CopySource=copy_source, Bucket=self.bucket, Key=new_key
             )
@@ -302,6 +300,8 @@ class S3Provider(StorageProvider):
 
         self.root = root
         self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
 
     def __getstate__(self):
         return (

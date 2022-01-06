@@ -254,11 +254,10 @@ class dataset:
 
         feature_report_path(path, "rename", {})
 
-        # if posixpath.split(name)[0] != posixpath.split(path)[0]:
-        #     raise DatasetHandlerError("New path of dataset cannot be to a different directory.")
-
         ds = hub.load(path, verbose=False, token=token, creds=creds)
         ds.rename(name)
+
+        return ds  # type: ignore
 
     @staticmethod
     def delete(

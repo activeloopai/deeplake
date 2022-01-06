@@ -244,6 +244,23 @@ class GCSProvider(StorageProvider):
         for blob in blob_objects:
             blob.delete()
 
+    def rename(self, root):
+        """Rename root folder"""
+        self.check_readonly()
+        path = root.replace("gcs://", "").replace("gcp://", "")
+        new_bucket, new_path = path.split("/", 1)
+        if new_bucket != self.client_bucket.name:
+            raise RenameError
+        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        for blob in blob_objects:
+            new_key = "/".join([new_path, os.path.relpath(blob.name, self.path)])
+            self.client_bucket.rename_blob(blob, new_key)
+
+        self.root = root
+        self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
+
     def __getitem__(self, key):
         """Retrieve data"""
         try:

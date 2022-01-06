@@ -1,4 +1,5 @@
 import os
+from hub.tests.path_fixtures import gcs_path, hub_cloud_path, local_path, s3_path
 import numpy as np
 import pytest
 import hub
@@ -676,6 +677,33 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+@pytest.mark.parametrize(
+    ("ds_generator", "path"),
+    [
+        ("local_ds_generator", "local_path"),
+        ("s3_ds_generator", "s3_path"),
+        ("gcs_ds_generator", "gcs_path"),
+        ("hub_cloud_ds_generator", "hub_cloud_path"),
+    ],
+    indirect=True,
+)
+def test_dataset_rename(ds_generator, path):
+    ds = ds_generator()
+    ds.create_tensor("abc")
+    ds.abc.append([1, 2, 3, 4])
+
+    new_path = "/".join([*path.split("/")[:-1], "renamed"])
+    ds = hub.rename(ds.path, new_path)
+
+    assert ds.path == new_path
+    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    ds = hub.dataset(new_path)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    hub.delete(new_path)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
