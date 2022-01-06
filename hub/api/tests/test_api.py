@@ -1,5 +1,4 @@
 import os
-from hub.tests.path_fixtures import gcs_path, hub_cloud_path, local_path, s3_path
 import numpy as np
 import pytest
 import hub
