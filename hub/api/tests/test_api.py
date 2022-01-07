@@ -6,6 +6,7 @@ from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
+    RenameError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
     TensorAlreadyExistsError,
@@ -701,6 +702,9 @@ def test_dataset_rename(ds_generator, path):
 
     ds = hub.dataset(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    with pytest.raises(RenameError):
+        ds.rename("wrongfolder/new_ds")
 
     hub.delete(new_path)
 
