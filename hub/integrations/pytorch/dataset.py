@@ -1,20 +1,25 @@
 from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction
+from hub.util.compute import get_compute_provider
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
+    DistributedScheduler,
+    IOBlock,
     SampleStreaming,
     Schedule,
     SequentialMultithreadScheduler,
     ShufflingSchedulerWrapper,
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
+    Streaming,
 )
 from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
 import torch.utils.data
+import torch.distributed as dist
 
 from torch.multiprocessing import Queue, Process
 from torch._utils import ExceptionWrapper
@@ -336,10 +341,17 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         self.transform = transform
         self.tensors = tensors
         self.use_local_cache = use_local_cache
-        self.scheduler = ShufflingSchedulerWrapper(
-            MultiThreadedNaiveScheduler(self.num_workers)
-        )
 
+        if dist.is_initialized():
+            self.scheduler = ShufflingSchedulerWrapper(
+                DistributedScheduler(num_workers)
+            )
+        else:
+            self.scheduler = ShufflingSchedulerWrapper(
+                MultiThreadedNaiveScheduler(self.num_workers)
+            )
+
+        self.scheduler = ShufflingSchedulerWrapper(self.scheduler)
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
@@ -379,6 +391,9 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
+
+        if dist.is_initialized():
+            self.scheduler = DistributedScheduler(num_workers)
 
         if shuffle:
             self.scheduler = ShufflingSchedulerWrapper(self.scheduler)

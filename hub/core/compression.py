@@ -304,7 +304,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer)
+        return _decompress_video(buffer, nframes=shape[0] if shape else None)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -769,11 +769,10 @@ def _strip_hub_mp4_header(buffer: bytes):
 
 
 def _decompress_video(
-    file: Union[bytes, memoryview, str],
+    file: Union[bytes, memoryview, str], nframes: Optional[int] = None
 ) -> np.ndarray:
 
     shape = _read_video_shape(file)
-
     command = [
         ffmpeg_binary(),
         "-i",
@@ -796,9 +795,18 @@ def _decompress_video(
             command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
         )
         raw_video = pipe.communicate(input=file)[0]  # type: ignore
-    return np.frombuffer(raw_video[: int(np.prod(shape))], dtype=np.uint8).reshape(
-        shape
-    )
+    nbytes = len(raw_video)
+    if nframes is not None:
+        shape = (nframes,) + shape[1:]
+    size = np.prod(shape)
+    if nbytes >= size:  # size is computed from fps and duration, might not be accurate.
+        return np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(
+            shape
+        )
+    else:  # If size was overestimated, append blank frames to the end.
+        arr = np.zeros(shape, dtype=np.uint8)
+        arr.reshape(-1)[: len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
+        return arr
 
 
 def _read_video_shape(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
@@ -850,7 +858,8 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
         ret["duration"] = float(ret["duration"])
     else:
         ret["duration"] = duration
-    ret["rate"] = float(eval(ret["rate"]))
+    rate_fraction = map(float, ret["rate"].split(b"/"))
+    ret["rate"] = next(rate_fraction) / next(rate_fraction)
     return ret
 
 
