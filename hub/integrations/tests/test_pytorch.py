@@ -6,12 +6,10 @@ import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.tests.common import requires_torch
-from hub.util.storage import get_pytorch_local_storage
 from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
-from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
 from hub.tests.dataset_fixtures import enabled_datasets
 
 
@@ -51,12 +49,13 @@ def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.commit()
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=0)
+            dl = ds.pytorch()
         return
 
     dl = ds.pytorch(num_workers=2, batch_size=1)
@@ -129,6 +128,7 @@ def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.checkout("alt", create=True)
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
@@ -241,37 +241,6 @@ def test_pytorch_with_compression(ds: Dataset):
 
 @requires_torch
 @enabled_datasets
-def test_pytorch_small_old(ds):
-    with ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
-
-    if isinstance(get_base_storage(ds.storage), MemoryProvider):
-        with pytest.raises(DatasetUnsupportedPytorch):
-            dl = dataset_to_pytorch(
-                ds, num_workers=0, batch_size=1, python_version_warning=False
-            )
-        return
-
-    # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    dl = dataset_to_pytorch(
-        ds, num_workers=0, batch_size=1, python_version_warning=False
-    )
-
-    for _ in range(2):
-        for i, batch in enumerate(dl):
-            np.testing.assert_array_equal(
-                batch["image"].numpy(), i * np.ones((1, 10, 10))
-            )
-            np.testing.assert_array_equal(
-                batch["image2"].numpy(), i * np.ones((1, 12, 12))
-            )
-
-
-@requires_torch
-@enabled_datasets
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -281,47 +250,37 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = dataset_to_pytorch(
-                ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
-            )
+            dl = ds.pytorch()
         return
 
     with pytest.raises(TensorDoesNotExistError):
         dl = ds.pytorch(num_workers=0, tensors=["c", "d", "e"])
-    with pytest.raises(TensorDoesNotExistError):
-        dl = dataset_to_pytorch(
-            ds, num_workers=0, tensors=["c", "e"], python_version_warning=False
-        )
 
-    dl_new = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
-    dl_old = dataset_to_pytorch(
-        ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
-    )
+    dl = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
 
-    for dl in [dl_new, dl_old]:
-        for i, batch in enumerate(dl):
-            c1, d1, a1 = batch
-            a2 = batch["a"]
-            c2 = batch["c"]
-            d2 = batch["d"]
-            assert "b" not in batch
-            np.testing.assert_array_equal(a1, a2)
-            np.testing.assert_array_equal(c1, c2)
-            np.testing.assert_array_equal(d1, d2)
-            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
-            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
-            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
-            batch = pickle.loads(pickle.dumps(batch))
-            c1, d1, a1 = batch
-            a2 = batch["a"]
-            c2 = batch["c"]
-            d2 = batch["d"]
-            np.testing.assert_array_equal(a1, a2)
-            np.testing.assert_array_equal(c1, c2)
-            np.testing.assert_array_equal(d1, d2)
-            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
-            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
-            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+    for i, batch in enumerate(dl):
+        c1, d1, a1 = batch
+        a2 = batch["a"]
+        c2 = batch["c"]
+        d2 = batch["d"]
+        assert "b" not in batch
+        np.testing.assert_array_equal(a1, a2)
+        np.testing.assert_array_equal(c1, c2)
+        np.testing.assert_array_equal(d1, d2)
+        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+        batch = pickle.loads(pickle.dumps(batch))
+        c1, d1, a1 = batch
+        a2 = batch["a"]
+        c2 = batch["c"]
+        d2 = batch["d"]
+        np.testing.assert_array_equal(a1, a2)
+        np.testing.assert_array_equal(c1, c2)
+        np.testing.assert_array_equal(d1, d2)
+        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
     dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
     for i, batch in enumerate(dls):
@@ -360,11 +319,6 @@ def test_readonly_with_two_workers(local_ds):
     for _ in ptds:
         pass
 
-    ptds = dataset_to_pytorch(ds)
-
-    for _ in ptds:
-        pass
-
 
 @requires_torch
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
@@ -397,7 +351,7 @@ def test_pytorch_local_cache(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
+            dl = ds.pytorch()
         return
 
     epochs = 2
@@ -470,3 +424,53 @@ def test_string_tensors(local_ds):
     ptds2 = local_ds.pytorch(batch_size=None)
     for idx, batch in enumerate(ptds2):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+
+
+def run_ddp(rank, size, ds, q, backend="gloo"):
+    import torch.distributed as dist
+    import os
+
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group(backend=backend, rank=rank, world_size=size)
+
+    s = 0
+    for x in ds.pytorch(num_workers=0):
+        s += int(x["image"][0].mean())
+
+    q.put(s)
+
+
+@requires_torch
+@enabled_datasets
+def test_pytorch_ddp(ds):
+    import multiprocessing as mp
+
+    with ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(255)]))
+
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ds.pytorch()
+        return
+
+    size = 2
+    processes = []
+    ctx = mp.get_context("spawn")
+    q = ctx.Queue()
+
+    for rank in range(size):
+        p = ctx.Process(target=run_ddp, args=(rank, size, ds, q), daemon=True)
+        p.start()
+        processes.append(p)
+
+    s = 0
+    for p in processes:
+        p.join()
+        p.terminate()
+        s += q.get()
+
+    q.close()
+
+    assert s == sum(list(range(254)))

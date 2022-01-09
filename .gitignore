@@ -193,6 +193,8 @@ logs/
 .vscode/
 .creds/
 .idea/
+.nvimrc
+.vimrc
 waymo/
 output/
 cov.xml
@@ -207,7 +209,6 @@ benchmarks/torch_data
 
 # API docs
 api_docs/
-
 
 # Production bugout token fie
 hub/util/bugout_token_production.py

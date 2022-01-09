@@ -5,6 +5,7 @@ from hub.core.compression import compress_array
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
 from hub.util.compression import get_compression_ratio
+from hub.compression import BYTE_COMPRESSIONS
 
 
 class SampleTiles:
@@ -16,12 +17,24 @@ class SampleTiles:
         compression: Optional[str],
         chunk_size: int,
         store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
     ):
         self.arr = arr
         self.compression = compression
         self.sample_shape = arr.shape
         ratio = get_compression_ratio(compression)
-        self.tile_shape = get_tile_shape(arr.shape, arr.nbytes * ratio, chunk_size, -1)
+
+        # Exclude channels axis from tiling for image, video and audio
+        exclude_axis = (
+            None
+            if htype == "generic"
+            and (not compression or compression in BYTE_COMPRESSIONS)
+            else -1
+        )
+
+        self.tile_shape = get_tile_shape(
+            arr.shape, arr.nbytes * ratio, chunk_size, exclude_axis
+        )
         tiles = break_into_tiles(arr, self.tile_shape)
 
         self.tiles = serialize_tiles(
