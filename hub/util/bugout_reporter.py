@@ -7,7 +7,7 @@ import uuid
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
 
 try:
-    from hub.util.bugout_token_production import BUGOUT_TOKEN # type: ignore
+    from hub.util.bugout_token_production import BUGOUT_TOKEN  # type: ignore
 except ImportError:
     from hub.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
