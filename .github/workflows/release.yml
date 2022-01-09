@@ -20,7 +20,7 @@ jobs:
           pip install -r hub/requirements/common.txt
           pip install -r hub/requirements/tests.txt
           pip install -r hub/requirements/plugins.txt
-      - name: Replace the bugout token with production value
+      - name: Replace the bugout token with prdouction value
         run: echo 'BUGOUT_TOKEN = "95402265-76b1-4898-985a-5be9403b92e1"' > hub/util/bugout_token_production.py
       - name: Prints normalized version
         run: python setup.py version
