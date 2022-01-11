@@ -42,7 +42,7 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_names(self, tensor_index: int) -> str:
+    def chunk_names(self, tensor_index: int) -> List[str]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
