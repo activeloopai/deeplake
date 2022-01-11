@@ -818,6 +818,30 @@ def test_tensor_delete(local_ds_generator):
     assert ds.tensors == {}
 
 
+def test_tensor_rename(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+    ds["x"].append([1, 2, 3, 4])
+    ds.rename_tensor("x", "y")
+    assert list(ds.tensors) == ["y"]
+    np.testing.assert_array_equal(ds["y"].numpy(), np.array([[1, 2, 3, 4]]))
+
+    ds.create_tensor("a/b/c")
+    ds["a/b/c"].append([5, 6, 7, 8])
+    ds.rename_tensor("a/b/c", "a/b/d")
+
+    ds = local_ds_generator()
+
+    assert list(ds.tensors) == ["y", "a/b/d"]
+    np.testing.assert_array_equal(ds["a/b/d"].numpy(), np.array([[5, 6, 7, 8]]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        tensor = ds["x"]
+
+    with pytest.raises(TensorDoesNotExistError):
+        tensor = ds["a/b/c"]
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")

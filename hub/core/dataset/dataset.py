@@ -490,6 +490,12 @@ class Dataset:
 
         return destination_tensor
 
+    def rename_tensor(self, old_key, new_key):
+        tensor = Tensor(old_key, self)
+        tensor.rename(new_key)
+
+        return tensor
+
     __getattr__ = __getitem__
 
     def __setattr__(self, name: str, value):

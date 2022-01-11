@@ -3,7 +3,12 @@ import pytest
 import numpy as np
 from hub.util.diff import get_all_changes_string
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import CheckoutError, CommitError, ReadOnlyModeError
+from hub.util.exceptions import (
+    CheckoutError,
+    CommitError,
+    ReadOnlyModeError,
+    TensorDoesNotExistError,
+)
 
 
 def commit_details_helper(commits, ds):
@@ -505,6 +510,45 @@ def test_delete(local_ds):
         local_ds.delete_group("x/y")
         assert local_ds.tensors == {}
         assert list(local_ds.groups) == ["x"]
+
+
+def test_rename(local_ds):
+    local_ds.create_tensor("abc")
+    local_ds.create_tensor("x/y")
+    local_ds.abc.append(1)
+    local_ds["x/y"].append([1, 2, 3])
+    a = local_ds.commit("first")
+    local_ds.rename_tensor("x/y", "x/z")
+    local_ds["x/z"].append([4, 5, 6])
+    local_ds.abc.append(2)
+    b = local_ds.commit("second")
+    local_ds.rename_tensor("abc", "xyz")
+    c = local_ds.commit("third")
+    local_ds.xyz.append(3)
+
+    assert set(local_ds.tensors) == {"xyz", "x/z"}
+    np.testing.assert_array_equal(local_ds.xyz.numpy(), np.array([[1], [2], [3]]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        tensor = local_ds["abc"]
+
+    local_ds.checkout(b)
+    assert set(local_ds.tensors) == {"abc", "x/z"}
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[1], [2]]))
+    np.testing.assert_array_equal(
+        local_ds["x/z"].numpy(), np.array([[1, 2, 3], [4, 5, 6]])
+    )
+
+    with pytest.raises(TensorDoesNotExistError):
+        tensor = local_ds["xyz"]
+
+    local_ds.checkout(a)
+    assert set(local_ds.tensors) == {"abc", "x/y"}
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[1]]))
+    np.testing.assert_array_equal(local_ds["x/y"].numpy(), np.array([[1, 2, 3]]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        tensor = local_ds["xyz"]
 
 
 def test_diff_linear(local_ds, capsys):
