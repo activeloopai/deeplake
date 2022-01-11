@@ -425,3 +425,24 @@ def test_string_tensors(local_ds):
     ptds2 = local_ds.pytorch(batch_size=None)
     for idx, batch in enumerate(ptds2):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+
+
+@requires_torch
+def test_pytorch_large(local_ds):
+    arr_list_1 = [np.random.randn(1500, 1500, i) for i in range(1, 6)]
+    arr_list_2 = [np.random.randn(400, 1500, 4, i) for i in range(1, 6)]
+    label_list = list(range(5))
+
+    with local_ds as ds:
+        ds.create_tensor("img1")
+        ds.create_tensor("img2")
+        ds.create_tensor("label")
+        ds.img1.extend(arr_list_1)
+        ds.img2.extend(arr_list_2)
+        ds.label.extend(label_list)
+
+    ptds = local_ds.pytorch()
+    for idx, batch in enumerate(ptds):
+        np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
+        np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
+        np.testing.assert_array_equal(batch["label"][0], idx)
