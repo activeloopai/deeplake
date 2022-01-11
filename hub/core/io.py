@@ -213,7 +213,7 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 chunk_class = engine.chunk_class
                 try:
-                    
+
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
 
