@@ -311,11 +311,11 @@ class Tensor:
                 if chunk_commit_id != commit_id:
                     chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
                     chunk = chunk_engine.get_chunk(chunk_key)
-                    chunk_id = chunk.id
+                    chunk_id = chunk.id  # type: ignore
                     new_chunk_key = get_chunk_key(key, chunk_name, chunk_commit_id)
                     chunk = chunk.copy(chunk_engine.chunk_args)
-                    chunk.id = chunk_id
-                    chunk.key = new_chunk_key
+                    chunk.id = chunk_id  # type: ignore
+                    chunk.key = new_chunk_key  # type: ignore
                     self.storage[new_chunk_key] = chunk
                     if chunk_commit_id != FIRST_COMMIT_ID:
                         chunk_set_key = get_tensor_commit_chunk_set_key(

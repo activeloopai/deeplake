@@ -490,7 +490,16 @@ class Dataset:
 
         return destination_tensor
 
-    def rename_tensor(self, old_key, new_key):
+    def rename_tensor(self, old_key: str, new_key: str):
+        """Rename a tensor in the dataset.
+
+        Args:
+            old_key (str): Name of the tensor to be renamed.
+            new_key (str): New name of the tensor.
+
+        Returns:
+            Tensor: The renamed tensor.
+        """
         auto_checkout(self)
         old_key, new_key = old_key.strip("/"), new_key.strip("/")
 
