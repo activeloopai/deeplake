@@ -1,3 +1,4 @@
+import posixpath
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -279,6 +280,10 @@ class Tensor:
         Returns:
             Tensor: The renamed tensor
         """
+        assert (
+            posixpath.split(key)[0] == posixpath.split(self.key)[0]
+        ), "New name cannot be to a tensor in a different group."
+
         commit_id = self.version_state["commit_id"]
 
         chunk_names = self.chunk_engine.list_all_chunks()

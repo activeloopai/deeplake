@@ -828,18 +828,22 @@ def test_tensor_rename(local_ds_generator):
 
     ds.create_tensor("a/b/c")
     ds["a/b/c"].append([5, 6, 7, 8])
-    ds.rename_tensor("a/b/c", "a/b/d")
+    ds["a"].rename_tensor("/b//c", "b//d/")
+    ds["a/b"].rename_tensor("d", "e")
 
     ds = local_ds_generator()
 
-    assert list(ds.tensors) == ["y", "a/b/d"]
-    np.testing.assert_array_equal(ds["a/b/d"].numpy(), np.array([[5, 6, 7, 8]]))
+    assert list(ds.tensors) == ["y", "a/b/e"]
+    np.testing.assert_array_equal(ds["a/b/e"].numpy(), np.array([[5, 6, 7, 8]]))
 
     with pytest.raises(TensorDoesNotExistError):
         tensor = ds["x"]
 
     with pytest.raises(TensorDoesNotExistError):
         tensor = ds["a/b/c"]
+
+    with pytest.raises(AssertionError):
+        ds["a"].rename_tensor("b/e", "c/d")
 
 
 def test_vc_bug(local_ds_generator):

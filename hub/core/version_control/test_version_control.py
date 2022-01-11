@@ -518,7 +518,7 @@ def test_rename(local_ds):
     local_ds.abc.append(1)
     local_ds["x/y"].append([1, 2, 3])
     a = local_ds.commit("first")
-    local_ds.rename_tensor("x/y", "x/z")
+    local_ds["x"].rename_tensor("y", "z")
     local_ds["x/z"].append([4, 5, 6])
     local_ds.abc.append(2)
     b = local_ds.commit("second")

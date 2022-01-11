@@ -491,8 +491,20 @@ class Dataset:
         return destination_tensor
 
     def rename_tensor(self, old_key, new_key):
-        tensor = Tensor(old_key, self)
-        tensor.rename(new_key)
+        auto_checkout(self)
+        old_key, new_key = old_key.strip("/"), new_key.strip("/")
+
+        while "//" in old_key:
+            old_key = old_key.replace("//", "/")
+
+        while "//" in new_key:
+            new_key = new_key.replace("//", "/")
+
+        full_path_old = posixpath.join(self.group_index, old_key)
+        full_path_new = posixpath.join(self.group_index, new_key)
+
+        tensor = Tensor(full_path_old, self.root)
+        tensor.rename(full_path_new)
 
         return tensor
 
