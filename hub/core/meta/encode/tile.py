@@ -1,15 +1,15 @@
 import hub
 import numpy as np
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
 
 
 class TileEncoder(Cachable):
-    def __init__(self, entries=None):
+    def __init__(self, entries=None, version=None):
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
-        self.version = hub.__version__
+        self.version = version or hub.__version__
 
     def register_sample(self, sample: SampleTiles, idx: int):
         """Registers a new tiled sample into the encoder.
@@ -68,13 +68,14 @@ class TileEncoder(Cachable):
 
     @property
     def nbytes(self):
+        len_version = 1 + len(self.version)
         entries = self.entries
         num_entries = len(entries)
         if num_entries == 0:
-            return 8
+            return len_version + 8
         value = next(iter(entries.values()))
         num_dimensions = len(value[0])
-        return 16 + (num_entries * (8 * (1 + num_dimensions * 2)))
+        return len_version + 16 + (num_entries * (8 * (1 + num_dimensions * 2)))
 
     def tobytes(self) -> memoryview:
         """Serialize entries dict into bytes
@@ -93,9 +94,11 @@ class TileEncoder(Cachable):
         }
         All the tuples inside will have the same number of dimensions.
         The format stores the following information in order:
-        1. The first 8 bytes are the number of entries call this n.
-        2. The next 8 bytes are the number of dimensions in the shapes, call this d.
-        3. The next n * (8 * (1 + d + d)) bytes are the entries in the format:
+        1. First byte tells the length of the version string, call this v.
+        2. The next v bytes are the version string.
+        3. The next 8 bytes are the number of entries call this n.
+        4. The next 8 bytes are the number of dimensions in the shapes, call this d.
+        5. The next n * (8 * (1 + d + d)) bytes are the entries in the format:
             a. The first 8 bytes are the key.
             b. The next d * 8 bytes are the first shape in value.
             c. The next d * 8 bytes are the second shape in value.
@@ -106,8 +109,16 @@ class TileEncoder(Cachable):
         data = bytearray(self.nbytes)
         ofs = 0
 
+        # store version length
+        data[ofs] = len(self.version)
+        ofs += 1
+
+        # store version string
+        data[ofs : ofs + len(self.version)] = self.version.encode("ascii")
+        ofs += len(self.version)
+
         # store the number of entries
-        data[ofs : ofs + 8] = num_entries.to_bytes(8, byteorder="big")
+        data[ofs : ofs + 8] = num_entries.to_bytes(8, byteorder="little")
         ofs += 8
 
         if num_entries == 0:
@@ -117,25 +128,25 @@ class TileEncoder(Cachable):
         num_dimensions = len(value[0])
 
         # store the number of dimensions
-        data[ofs : ofs + 8] = num_dimensions.to_bytes(8, byteorder="big")
+        data[ofs : ofs + 8] = num_dimensions.to_bytes(8, byteorder="little")
         ofs += 8
 
         # store the entries
         for key, value in entries.items():
             # store the key
-            data[ofs : ofs + 8] = key.to_bytes(8, byteorder="big")
+            data[ofs : ofs + 8] = key.to_bytes(8, byteorder="little")
             ofs += 8
 
             # store the first shape
             first_shape = value[0]
             for dimension in first_shape:
-                data[ofs : ofs + 8] = dimension.to_bytes(8, byteorder="big")
+                data[ofs : ofs + 8] = dimension.to_bytes(8, byteorder="little")
                 ofs += 8
 
             # store the second shape
             second_shape = value[1]
             for dimension in second_shape:
-                data[ofs : ofs + 8] = dimension.to_bytes(8, byteorder="big")
+                data[ofs : ofs + 8] = dimension.to_bytes(8, byteorder="little")
                 ofs += 8
 
         return memoryview(data)
@@ -143,51 +154,44 @@ class TileEncoder(Cachable):
     @classmethod
     def frombuffer(cls, data: bytes):
         """Deserialize bytes into entries dict"""
+        ofs = 0
+        # Get version length
+        version_length = data[0]
+        ofs += 1
+
+        # Get version string
+        version = str(data[1 : 1 + version_length], "ascii")
+        ofs += version_length
 
         # Get the number of entries
-        num_entries = int.from_bytes(data[:8], byteorder="big")
+        num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
+        ofs += 8
         if num_entries == 0:
-            return cls()
+            return cls(version=version)
 
         # Get the number of dimensions of the tuples
-        num_dim = int.from_bytes(data[8:16], byteorder="big")
+        num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
+        ofs += 8
 
         # Get the entries
         entries = {}
-        for i in range(num_entries):
-
-            ofs = i * (8 * (1 + num_dim * 2))
+        for _ in range(num_entries):
             # Get the key
-            key = int.from_bytes(
-                data[16 + ofs : 16 + ofs + 8],
-                byteorder="big",
-            )
+            key = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
+            ofs += 8
 
-            # Get the first shape
-            ofs_1 = 24 + ofs
-            first_shape = [
-                int.from_bytes(
-                    data[ofs_1 + (j * 8) : ofs_1 + (j * 8) + 8],
-                    byteorder="big",
-                )
-                for j in range(num_dim)
-            ]
+            first_shape: List[int] = []
+            second_shape: List[int] = []
+
+            for shp in [first_shape, second_shape]:
+                for _ in range(num_dim):
+                    shp.append(int.from_bytes(data[ofs : ofs + 8], byteorder="little"))
+                    ofs += 8
             first_shape = tuple(first_shape)  # type: ignore
-            # Get the second shape
-            ofs_2 = 24 + ofs + (num_dim * 8)
-
-            second_shape = [
-                int.from_bytes(
-                    data[ofs_2 + (j * 8) : ofs_2 + (j * 8) + 8],
-                    byteorder="big",
-                )
-                for j in range(num_dim)
-            ]
             second_shape = tuple(second_shape)  # type: ignore
             # Add the entry to the dict
             entries[key] = (first_shape, second_shape)
-
-        return cls(entries)
+        return cls(entries, version=version)
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"entries": self.entries, "version": self.version}
