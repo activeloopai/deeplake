@@ -149,8 +149,8 @@ def test_cachable_overflow(memory_ds):
 def test_empty_array(memory_ds, compression):
     ds = memory_ds
     arr_list = [
-        np.random.randint(0, 255, (5894, 4279, 0)).astype(np.uint8),
-        np.random.randint(0, 255, (5894, 4279, 3)).astype(np.uint8),
+        np.random.randint(0, 255, (3894, 4279, 0), dtype=np.uint8),
+        np.random.randint(0, 255, (3894, 4279, 3), dtype=np.uint8),
     ]
     with ds:
         ds.create_tensor("x", **compression)
