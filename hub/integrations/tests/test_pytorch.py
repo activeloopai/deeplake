@@ -428,8 +428,8 @@ def test_string_tensors(local_ds):
 
 @requires_torch
 def test_pytorch_large(local_ds):
-    arr_list_1 = [np.random.randn(1500, 1500, i) for i in range(1, 6)]
-    arr_list_2 = [np.random.randn(400, 1500, 4, i) for i in range(1, 6)]
+    arr_list_1 = [np.random.randn(1500, 1500, i) for i in range(5)]
+    arr_list_2 = [np.random.randn(400, 1500, 4, i) for i in range(5)]
     label_list = list(range(5))
 
     with local_ds as ds:

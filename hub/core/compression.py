@@ -309,6 +309,8 @@ def decompress_array(
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
     try:
+        if shape is not None and 0 in shape:
+            return np.zeros(shape, dtype=dtype)
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
         img = Image.open(buffer)  # type: ignore
