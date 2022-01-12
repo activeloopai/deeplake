@@ -25,7 +25,7 @@ def coalesce_tiles(
     sample_shape = sample_shape or tuple(  # Infer sample shape from tile shapes
         sum(
             tile.shape[i]
-            for tile in tiles[tuple(slice(None) if j == i else 0 for j in range(ndim))] # type: ignore
+            for tile in tiles[tuple(slice(None) if j == i else 0 for j in range(ndim))]  # type: ignore
         )
         for i in range(ndim)
     )
