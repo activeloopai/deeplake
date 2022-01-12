@@ -633,3 +633,7 @@ class NotLoggedInError(AgreementError):
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
+
+
+class BufferError(Exception):
+    pass

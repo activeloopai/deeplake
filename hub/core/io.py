@@ -1,11 +1,12 @@
 from abc import abstractmethod, ABC
-from random import shuffle, randrange
+from random import shuffle
 from typing import Dict, Iterator, List, Optional, Sequence, Union
 from itertools import cycle
 from copy import copy
 from warnings import warn
 from numpy import nditer, argmin
 from numpy import array as nparray
+from math import floor
 
 
 from hub.constants import MB
@@ -50,6 +51,15 @@ class IOBlock:
 
     def chunks(self) -> List[List[str]]:
         return self._chunks
+
+    def split(self, n) -> List["IOBlock"]:
+        k, m = divmod(len(self._ind), n)
+        return [
+            IOBlock(
+                self._chunks, self._ind[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]
+            )
+            for i in range(n)
+        ]
 
     def __len__(self) -> int:
         return len(self._ind)
@@ -153,6 +163,73 @@ class ShufflingSchedulerWrapper(Scheduler):
             schedule.shuffle()
 
         return schedules
+
+
+class DistributedScheduler(Scheduler):
+    """Scheduler arrange IOBlocks between multiple processes and ensure equal
+    distribution for each. Initial `List[IOBlock]` order is preserved.
+    """
+
+    def __init__(self, num_worker: int = 0) -> None:
+        super().__init__()
+        self.next_scheduler: Optional[Scheduler] = (
+            MultiThreadedNaiveScheduler(num_worker) if num_worker > 0 else None
+        )
+
+    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
+        import torch.distributed as dist
+        import torch
+
+        assert dist.is_available()
+        assert dist.is_initialized()
+
+        world_size = dist.get_world_size()
+        rank = dist.get_rank()
+
+        gr = dist.new_group([i for i in range(world_size)], backend="gloo")
+
+        blocks_len: torch.Tensor = torch.tensor([len(j.indices()) for j in jobs])
+        all_idx: torch.Tensor = torch.zeros(
+            (sum([len(j.indices()) for j in jobs]), 2), dtype=torch.int
+        )
+
+        if rank == 0:
+            all_idx = all_idx[0 : floor(len(all_idx) / world_size) * world_size, :]
+            all_idx[:, 0] = torch.repeat_interleave(
+                torch.arange(len(jobs)), blocks_len
+            )[: len(all_idx)]
+            all_idx[:, 1] = torch.tensor(
+                [i for j in jobs for i in j.indices()][: len(all_idx)]
+            )
+
+        thread_local_idx: torch.Tensor = torch.zeros(
+            (int(len(all_idx) / world_size), 2), dtype=torch.int
+        )
+
+        dist.scatter(
+            thread_local_idx,
+            scatter_list=list(all_idx.chunk(world_size)) if rank == 0 else None,
+            src=0,
+            group=gr,
+        )
+
+        # recombine assigned blocks
+        blocks_map: Dict[int, List[int]] = dict()
+        for idx in thread_local_idx:
+            key = int(idx[0])
+            val = int(idx[1])
+
+            if key in blocks_map:
+                blocks_map[key].append(val)
+            else:
+                blocks_map[key] = [val]
+
+        blocks = [IOBlock(jobs[k].chunks(), v) for k, v in blocks_map.items()]
+
+        if self.next_scheduler:
+            return self.next_scheduler.schedule(blocks)
+        else:
+            return [Schedule(blocks)]
 
 
 class Streaming(ABC):
@@ -323,36 +400,3 @@ class SampleStreaming(Streaming):
         length = min(tensor_lengths, default=0)
 
         return self.dataset.index.values[0].indices(length)
-
-
-class BufferedStreaming(Streaming):
-    def __init__(self, streaming: Streaming, size: int) -> None:
-        self._streaming = streaming
-        self._buffer: List = list()
-        self._buffer_size = size
-
-    def read(self, schedule: Schedule):
-        buffer = self._buffer
-        buffer_size = self._buffer_size
-
-        it = self._streaming.read(schedule)
-
-        # filling buffer with samples
-        while len(buffer) < buffer_size:
-            data = next(it, None)
-
-            if data is not None:
-                buffer.append(data)
-            else:
-                break
-
-        # stream until all samples exhausted
-        while len(buffer) > 0:
-            selected = randrange(len(buffer))
-
-            next_val = next(it, None)
-
-            if next_val is not None:
-                buffer.append(next_val)
-
-            yield buffer.pop(selected)
