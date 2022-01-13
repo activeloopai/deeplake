@@ -210,7 +210,7 @@ def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Dict:
 
 
 def check_version(version):
-    if len(version) < 5:
+    if len(version) < 5 or len(version) > 7:
         raise ValueError("Invalid version length")
-    if version.count(".") < 2:
+    if version.count(".") < 2 or version[0] != "2":
         raise ValueError("Invalid version format")
