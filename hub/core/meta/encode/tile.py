@@ -178,12 +178,12 @@ class TileEncoder(Cachable):
         self.version = state["version"]
 
 
-def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Optional[Dict]:
+def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Dict:
     # Get the number of entries
     num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)  # type: ignore
     ofs += 8
     if num_entries == 0:
-        return
+        return {}
 
     # Get the number of dimensions of the tuples
     num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)  # type: ignore
