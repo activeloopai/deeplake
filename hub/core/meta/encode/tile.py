@@ -1,7 +1,6 @@
 import hub
 import numpy as np
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
-
+from typing import Any, Dict, List, Optional, Tuple
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
 
@@ -179,24 +178,22 @@ class TileEncoder(Cachable):
         self.version = state["version"]
 
 
-def parse_tile_encoder_entries(
-    data, ofs: int, byteorder: Union[Literal["little"], Literal["big"]]
-) -> Optional[Dict]:
+def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Optional[Dict]:
     # Get the number of entries
-    num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+    num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)  # type: ignore
     ofs += 8
     if num_entries == 0:
         return
 
     # Get the number of dimensions of the tuples
-    num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+    num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)  # type: ignore
     ofs += 8
 
     # Get the entries
     entries = {}
     for _ in range(num_entries):
         # Get the key
-        key = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+        key = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)  # type: ignore
         ofs += 8
 
         first_shape: List[int] = []
@@ -204,7 +201,7 @@ def parse_tile_encoder_entries(
 
         for shp in [first_shape, second_shape]:
             for _ in range(num_dim):
-                shp.append(int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder))
+                shp.append(int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder))  # type: ignore
                 ofs += 8
 
         # Add the entry to the dict
