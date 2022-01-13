@@ -1,6 +1,6 @@
 import hub
 import numpy as np
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -179,7 +179,9 @@ class TileEncoder(Cachable):
         self.version = state["version"]
 
 
-def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Optional[Dict]:
+def parse_tile_encoder_entries(
+    data, ofs: int, byteorder: Union[Literal["little"], Literal["big"]]
+) -> Optional[Dict]:
     # Get the number of entries
     num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
     ofs += 8
