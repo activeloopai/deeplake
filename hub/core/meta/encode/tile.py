@@ -1,6 +1,6 @@
 import hub
 import numpy as np
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -154,44 +154,22 @@ class TileEncoder(Cachable):
     @classmethod
     def frombuffer(cls, data: bytes):
         """Deserialize bytes into entries dict"""
-        ofs = 0
-        # Get version length
-        version_length = data[0]
-        ofs += 1
+        try:
+            ofs = 0
+            # Get version length
+            version_length = data[0]
+            ofs += 1
 
-        # Get version string
-        version = str(data[1 : 1 + version_length], "ascii")
-        ofs += version_length
+            # Get version string
+            version = str(data[1 : 1 + version_length], "ascii")
+            ofs += version_length
 
-        # Get the number of entries
-        num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
-        ofs += 8
-        if num_entries == 0:
-            return cls(version=version)
-
-        # Get the number of dimensions of the tuples
-        num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
-        ofs += 8
-
-        # Get the entries
-        entries = {}
-        for _ in range(num_entries):
-            # Get the key
-            key = int.from_bytes(data[ofs : ofs + 8], byteorder="little")
-            ofs += 8
-
-            first_shape: List[int] = []
-            second_shape: List[int] = []
-
-            for shp in [first_shape, second_shape]:
-                for _ in range(num_dim):
-                    shp.append(int.from_bytes(data[ofs : ofs + 8], byteorder="little"))
-                    ofs += 8
-            first_shape = tuple(first_shape)  # type: ignore
-            second_shape = tuple(second_shape)  # type: ignore
-            # Add the entry to the dict
-            entries[key] = (first_shape, second_shape)
-        return cls(entries, version=version)
+            entries = parse_tile_encoder_entries(data, ofs, "little")
+            return cls(entries, version=version)
+        except Exception:
+            # backwards compatibility
+            entries = parse_tile_encoder_entries(data, 0, "big")
+            return cls(entries)
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"entries": self.entries, "version": self.version}
@@ -199,3 +177,34 @@ class TileEncoder(Cachable):
     def __setstate__(self, state: Dict[str, Any]):
         self.entries = state["entries"]
         self.version = state["version"]
+
+
+def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Optional[Dict]:
+    # Get the number of entries
+    num_entries = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+    ofs += 8
+    if num_entries == 0:
+        return
+
+    # Get the number of dimensions of the tuples
+    num_dim = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+    ofs += 8
+
+    # Get the entries
+    entries = {}
+    for _ in range(num_entries):
+        # Get the key
+        key = int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder)
+        ofs += 8
+
+        first_shape: List[int] = []
+        second_shape: List[int] = []
+
+        for shp in [first_shape, second_shape]:
+            for _ in range(num_dim):
+                shp.append(int.from_bytes(data[ofs : ofs + 8], byteorder=byteorder))
+                ofs += 8
+
+        # Add the entry to the dict
+        entries[key] = (tuple(first_shape), tuple(second_shape))
+    return entries
