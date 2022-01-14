@@ -1,10 +1,10 @@
 from typing import Callable, Dict, Optional, Sequence, Union
 from hub.util.dataset import try_flushing
+from hub.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
-    map_tensor_keys,
 )
 
 
@@ -133,7 +133,7 @@ def dataset_to_pytorch(
                 use_local_cache=use_local_cache,
                 transform=transform,
                 num_workers=num_workers,
-                shuffle=False,
+                shuffle=shuffle,
                 buffer_size=buffer_size,
             ),
             batch_size=batch_size,

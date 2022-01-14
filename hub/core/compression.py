@@ -261,7 +261,6 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         out.seek(0)
         compressed_bytes = out.read()
         out._close()  # type: ignore
-        decompress_array(compressed_bytes, array.shape)
         return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
@@ -310,6 +309,8 @@ def decompress_array(
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
     try:
+        if shape is not None and 0 in shape:
+            return np.zeros(shape, dtype=dtype)
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
         img = Image.open(buffer)  # type: ignore
@@ -373,6 +374,8 @@ def decompress_multiple(
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
+    if not buffer:
+        return []
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []

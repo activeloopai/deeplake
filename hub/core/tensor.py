@@ -1,5 +1,5 @@
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
-from hub.util.version_control import checkout, generate_hash
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
@@ -8,14 +8,23 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
+from hub.util.keys import (
+    get_chunk_id_encoder_key,
+    get_chunk_key,
+    get_tensor_commit_diff_key,
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+)
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    TensorDtypeMismatchError,
 )
+from hub.constants import TENSOR_META_FILENAME, TENSOR_INFO_FILENAME
+from hub.util.version_control import auto_checkout
 
 
 def create_tensor(
@@ -55,11 +64,73 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
+    diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
+    diff = CommitDiff(created=True)
+    storage[diff_key] = diff  # type: ignore
+
+
+def delete_tensor(key: str, dataset):
+    """Delete tensor from storage.
+
+    Args:
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
+        dataset (Dataset): Dataset that the tensor is located in.
+
+    Raises:
+        TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+    """
+    storage = dataset.storage
+    version_state = dataset.version_state
+
+    if not tensor_exists(key, storage, version_state["commit_id"]):
+        raise TensorDoesNotExistError(key)
+
+    tensor = Tensor(key, dataset)
+    chunk_engine = tensor.chunk_engine
+    enc = chunk_engine.chunk_id_encoder
+    n_chunks = chunk_engine.num_chunks
+    chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
+    chunk_keys = [
+        get_chunk_key(key, chunk_name, version_state["commit_id"])
+        for chunk_name in chunk_names
+    ]
+    for chunk_key in chunk_keys:
+        try:
+            del storage[chunk_key]
+        except KeyError:
+            pass
+
+    commit_id = version_state["commit_id"]
+    meta_key = get_tensor_meta_key(key, commit_id)
+    try:
+        del storage[meta_key]
+    except KeyError:
+        pass
+
+    info_key = get_tensor_info_key(key, commit_id)
+    try:
+        del storage[info_key]
+    except KeyError:
+        pass
+
+    diff_key = get_tensor_commit_diff_key(key, commit_id)
+    try:
+        del storage[diff_key]
+    except KeyError:
+        pass
+
+    chunk_id_encoder_key = get_chunk_id_encoder_key(key, commit_id)
+    try:
+        del storage[chunk_id_encoder_key]
+    except KeyError:
+        pass
+
 
 def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
+        tensor._write_initialization()
         tensor.chunk_engine.update(tensor.index, other, op)
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
@@ -72,9 +143,10 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        storage: LRUCache,
-        version_state: Dict[str, Any],
+        dataset,
         index: Optional[Index] = None,
+        is_iteration: bool = False,
+        chunk_engine: Optional[ChunkEngine] = None,
     ):
         """Initializes a new tensor.
 
@@ -84,31 +156,45 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            storage (LRUCache): The storage provider for the parent dataset.
-            version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+            dataset (Dataset): The dataset that this tensor is located in.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
+            is_iteration (bool): If this tensor is being used as an iterator.
+            chunk_engine (ChunkEngine, optional): The underlying chunk_engine for the tensor
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
-
         self.key = key
-        self.storage = storage
+        self.dataset = dataset
+        self.storage = dataset.storage
         self.index = index or Index()
-        self.version_state = version_state
+        self.version_state = dataset.version_state
+        self.is_iteration = is_iteration
 
-        if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
+        if not self.is_iteration and not tensor_exists(
+            self.key, self.storage, self.version_state["commit_id"]
+        ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
-        self.index.validate(self.num_samples)
+        self.chunk_engine = chunk_engine or ChunkEngine(
+            self.key, self.storage, self.version_state
+        )
+
+        if not self.is_iteration:
+            self.index.validate(self.num_samples)
         self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
 
-    def extend(self, samples: Union[np.ndarray, Sequence[InputSample]]):
+    def _write_initialization(self):
+        self.storage.check_readonly()
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(self.dataset)
+
+    def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
+
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
@@ -138,7 +224,7 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
-
+        self._write_initialization()
         self.chunk_engine.extend(samples)
 
     @property
@@ -153,7 +239,7 @@ class Tensor:
             self._info = load_info(
                 get_tensor_info_key(self.key, self.version_state["commit_id"]),
                 self.storage,
-                self.version_state,
+                self.dataset,
             )
         return self._info
 
@@ -204,9 +290,18 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         shape = self.shape_interval.astuple()
-        if self.index.values[0].subscriptable():
-            return shape
-        return shape[1:]
+        if None in shape:
+            if not self.index.values[0].subscriptable():
+                shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
+        elif not self.index.values[0].subscriptable():
+            shape = shape[1:]
+        shape = list(shape)  # type: ignore
+        squeeze_dims = set()
+        for i, idx in enumerate(self.index.values[1:]):
+            shape[i] = len(list(idx.indices(shape[i])))  # type: ignore
+            if not idx.subscriptable():
+                squeeze_dims.add(i)
+        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     @property
     def ndim(self) -> int:
@@ -215,7 +310,7 @@ class Tensor:
     @property
     def dtype(self) -> Optional[np.dtype]:
         if self.htype in ("json", "list"):
-            return self.dtype
+            return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None
@@ -260,7 +355,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return self.chunk_engine.num_samples
+        return self.chunk_engine.tensor_meta.length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -287,14 +382,16 @@ class Tensor:
     def __getitem__(
         self,
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+        is_iteration: bool = False,
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
         return Tensor(
             self.key,
-            self.storage,
-            self.version_state,
+            self.dataset,
             index=self.index[item],
+            is_iteration=is_iteration,
+            chunk_engine=self.chunk_engine,
         )
 
     def _get_bigger_dtype(self, d1, d2):
@@ -337,6 +434,7 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        self._write_initialization()
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False
@@ -347,7 +445,7 @@ class Tensor:
 
     def __iter__(self):
         for i in range(len(self)):
-            yield self[i]
+            yield self.__getitem__(i, is_iteration=True)
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
@@ -442,6 +540,20 @@ class Tensor:
             return self.numpy()
 
     def tobytes(self) -> bytes:
-        if self.index.values[0].subscriptable():
+        """Returns the bytes of the tensor. Only works for a single sample of tensor.
+        If the tensor is uncompressed, this returns the bytes of the numpy array.
+        If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        If the tensor is chunk compressed, this raises an error.
+
+        Returns:
+            bytes: The bytes of the tensor.
+
+        Raises:
+            ValueError: If the tensor has multiple samples.
+        """
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
+
+    def _pop(self):
+        self.chunk_engine._pop()

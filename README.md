@@ -1,16 +1,10 @@
-| :zap:        Hacktoberfest 2021 is here! Contribute and win Activeloop swag. Grab an issue in our  <a href="https://github.com/activeloopai/Hub/projects/11"><b>Hacktoberfest dashboard</b></a>! :zap: |
-|-----------------------------------------|
-
-
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
     <h1 align="center">Dataset Format for AI
  </h1>
 <p align="center">
-    <a href="http://docs.activeloop.ai/">
-        <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
-    </a>
+    <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/Hub/issues">
@@ -23,25 +17,32 @@
    <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
-  <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
+  <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
+ 
+ 
+
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid tranformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
 
 
 Hub includes the following features:
 
 * **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images and audios in their native compression, decompressing them only when needed, for e.g., when training a model.
+* **Compressed storage**: Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
 * **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 * **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
 * **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 * **Distributed transforms**: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
+* **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
+<div align="center">
+<a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+</div>
 
-
+    
 ## Getting Started with Hub
 
 
@@ -50,6 +51,74 @@ Hub is written in 100% Python and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
+```
+
+### 🧠 Training a PyTorch model on a Hub dataset
+
+#### Load CIFAR-10, one of the readily available datasets in Hub:
+
+```python
+import hub
+import torch
+from torchvision import transforms, models
+
+ds = hub.load('hub://activeloop/cifar10-train')
+```
+
+#### Inspect tensors in the dataset:
+
+```python
+ds.tensors.keys()    # dict_keys(['images', 'labels'])
+ds.labels[0].numpy() # array([6], dtype=uint32)
+```
+
+#### Train a PyTorch model on the Cifar-10 dataset without the need to download it
+
+First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
+
+```python
+tform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+])
+
+hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
+                        'images': tform, 'labels': None}, shuffle=True)
+```
+
+Next, define the model, loss and optimizer:
+
+```python
+net = models.resnet18(pretrained=False)
+net.fc = torch.nn.Linear(net.fc.in_features, len(ds.labels.info.class_names))
+    
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+```
+
+Finally, the training loop for 2 epochs:
+
+```python
+for epoch in range(2):
+    running_loss = 0.0
+    for i, data in enumerate(hub_loader):
+        images, labels = data['images'], data['labels']
+        
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = net(images)
+        loss = criterion(outputs, labels.reshape(-1))
+        loss.backward()
+        optimizer.step()
+        
+        # print statistics
+        running_loss += loss.item()
+        if i % 100 == 99:    # print every 100 mini-batches
+            print('[%d, %5d] loss: %.3f' %
+                (epoch + 1, i + 1, running_loss / 100))
+            running_loss = 0.0
 ```
 
 
@@ -153,7 +222,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 | <!-- -->    | <!-- -->    |
 | ---------------------------------------------------- | ------------- |
 | Storage for public datasets hosted by Activeloop     | 200GB Free    |
-| Storage for public datasets hosted by Activeloop     | 100GB Free    |
+| Storage for private datasets hosted by Activeloop    | 100GB Free    |
 
 
 

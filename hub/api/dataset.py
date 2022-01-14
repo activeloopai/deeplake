@@ -13,6 +13,7 @@ from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.delete_entry import remove_path_from_backend
 from hub.util.keys import dataset_exists
 from hub.util.exceptions import (
+    AgreementError,
     DatasetHandlerError,
     InvalidFileExtension,
     InvalidPathException,
@@ -60,6 +61,9 @@ class dataset:
 
         Returns:
             Dataset object created using the arguments provided.
+
+        Raises:
+            AgreementError: When agreement is rejected
         """
         if creds is None:
             creds = {}
@@ -77,15 +81,18 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
 
-        read_only = storage.read_only
-        return dataset_factory(
-            path=path,
-            storage=cache_chain,
-            read_only=read_only,
-            public=public,
-            token=token,
-            verbose=verbose,
-        )
+        try:
+            read_only = storage.read_only
+            return dataset_factory(
+                path=path,
+                storage=cache_chain,
+                read_only=read_only,
+                public=public,
+                token=token,
+                verbose=verbose,
+            )
+        except AgreementError as e:
+            raise e from None
 
     @staticmethod
     def empty(
@@ -186,6 +193,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path.
+            AgreementError: When agreement is rejected
         """
         if creds is None:
             creds = {}
@@ -206,14 +214,17 @@ class dataset:
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
 
-        read_only = storage.read_only
-        return dataset_factory(
-            path=path,
-            storage=cache_chain,
-            read_only=read_only,
-            token=token,
-            verbose=verbose,
-        )
+        try:
+            read_only = storage.read_only
+            return dataset_factory(
+                path=path,
+                storage=cache_chain,
+                read_only=read_only,
+                token=token,
+                verbose=verbose,
+            )
+        except AgreementError as e:
+            raise e from None
 
     @staticmethod
     def delete(
