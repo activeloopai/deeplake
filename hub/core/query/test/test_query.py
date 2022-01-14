@@ -87,3 +87,18 @@ def test_query_scheduler(local_ds):
         )
         == 3141
     )
+
+
+def test_group(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("labels/t1")
+        ds.create_tensor("labels/t2")
+
+        ds.labels.t1.append([0])
+        ds.labels.t2.append([1])
+
+    result = local_ds.filter("labels.t1 == 0", progressbar=False)
+    assert len(result) == 1
+
+    result = local_ds.filter("labels.t2 == 1", progressbar=False)
+    assert len(result) == 1
