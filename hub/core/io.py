@@ -1,11 +1,12 @@
 from abc import abstractmethod, ABC
-from random import shuffle, randrange
+from random import shuffle
 from typing import Dict, Iterator, List, Optional, Sequence, Union
 from itertools import cycle
 from copy import copy
 from warnings import warn
 from numpy import nditer, argmin
 from numpy import array as nparray
+from math import floor
 
 
 from hub.constants import MB
@@ -14,6 +15,7 @@ from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
+from hub.core.tiling.deserialize import combine_chunks
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
@@ -31,8 +33,8 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self, chunks: List[str], indexes: List[int]) -> None:
-        self._chunks: List[str] = chunks
+    def __init__(self, chunks: List[List[str]], indexes: List[int]) -> None:
+        self._chunks: List[List[str]] = chunks
         self._ind: List[int] = indexes
 
     def shuffle(self):
@@ -41,14 +43,23 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_name(self, tensor_index: int) -> str:
+    def chunk_names(self, tensor_index: int) -> List[str]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
         return self._ind
 
-    def chunks(self) -> List[str]:
+    def chunks(self) -> List[List[str]]:
         return self._chunks
+
+    def split(self, n) -> List["IOBlock"]:
+        k, m = divmod(len(self._ind), n)
+        return [
+            IOBlock(
+                self._chunks, self._ind[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]
+            )
+            for i in range(n)
+        ]
 
     def __len__(self) -> int:
         return len(self._ind)
@@ -154,6 +165,73 @@ class ShufflingSchedulerWrapper(Scheduler):
         return schedules
 
 
+class DistributedScheduler(Scheduler):
+    """Scheduler arrange IOBlocks between multiple processes and ensure equal
+    distribution for each. Initial `List[IOBlock]` order is preserved.
+    """
+
+    def __init__(self, num_worker: int = 0) -> None:
+        super().__init__()
+        self.next_scheduler: Optional[Scheduler] = (
+            MultiThreadedNaiveScheduler(num_worker) if num_worker > 0 else None
+        )
+
+    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
+        import torch.distributed as dist
+        import torch
+
+        assert dist.is_available()
+        assert dist.is_initialized()
+
+        world_size = dist.get_world_size()
+        rank = dist.get_rank()
+
+        gr = dist.new_group([i for i in range(world_size)], backend="gloo")
+
+        blocks_len: torch.Tensor = torch.tensor([len(j.indices()) for j in jobs])
+        all_idx: torch.Tensor = torch.zeros(
+            (sum([len(j.indices()) for j in jobs]), 2), dtype=torch.int
+        )
+
+        if rank == 0:
+            all_idx = all_idx[0 : floor(len(all_idx) / world_size) * world_size, :]
+            all_idx[:, 0] = torch.repeat_interleave(
+                torch.arange(len(jobs)), blocks_len
+            )[: len(all_idx)]
+            all_idx[:, 1] = torch.tensor(
+                [i for j in jobs for i in j.indices()][: len(all_idx)]
+            )
+
+        thread_local_idx: torch.Tensor = torch.zeros(
+            (int(len(all_idx) / world_size), 2), dtype=torch.int
+        )
+
+        dist.scatter(
+            thread_local_idx,
+            scatter_list=list(all_idx.chunk(world_size)) if rank == 0 else None,
+            src=0,
+            group=gr,
+        )
+
+        # recombine assigned blocks
+        blocks_map: Dict[int, List[int]] = dict()
+        for idx in thread_local_idx:
+            key = int(idx[0])
+            val = int(idx[1])
+
+            if key in blocks_map:
+                blocks_map[key].append(val)
+            else:
+                blocks_map[key] = [val]
+
+        blocks = [IOBlock(jobs[k].chunks(), v) for k, v in blocks_map.items()]
+
+        if self.next_scheduler:
+            return self.next_scheduler.schedule(blocks)
+        else:
+            return [Schedule(blocks)]
+
+
 class Streaming(ABC):
     def __init__(self) -> None:
         super().__init__()
@@ -212,25 +290,31 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 chunk_class = engine.chunk_class
                 try:
-                    commit_id = engine.get_chunk_commit(block.chunk_name(keyid))
-                    c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
-                    chunk: BaseChunk
 
-                    if self.local_caches is not None:
-                        local_cache = self.local_caches[key]
+                    chunks: List[BaseChunk] = []
+                    c_names = block.chunk_names(keyid)
 
-                        if c_key in local_cache:
-                            chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                    for c_name in c_names:
+                        commit_id = engine.get_chunk_commit(c_name)
+                        c_key = get_chunk_key(key, c_name, commit_id)
+                        if self.local_caches is not None:
+                            local_cache = self.local_caches[key]
+
+                            if c_key in local_cache:
+                                chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                            else:
+                                chunk = engine.get_chunk(c_key)
+                                local_cache[c_key] = chunk
+
+                                # send data to actual storage
+                                local_cache._forward(c_key, True)
                         else:
                             chunk = engine.get_chunk(c_key)
-                            local_cache[c_key] = chunk
-
-                            # send data to actual storage
-                            local_cache._forward(c_key, True)
+                        chunks.append(chunk)
+                    if len(chunks) == 1:
+                        data = engine.read_sample_from_chunk(idx, chunk)
                     else:
-                        chunk = engine.get_chunk(c_key)
-
-                    data = engine.read_sample_from_chunk(idx, chunk)
+                        data = combine_chunks(chunks, idx, engine.tile_encoder)
 
                     if data is not None:
                         sample[key] = data
@@ -268,10 +352,20 @@ class SampleStreaming(Streaming):
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:
-                chunks = [
-                    ChunkIdEncoder.name_from_id(cid)  # type: ignore
-                    for cid in [int(it.value[1]) for it in iterators]
-                ]
+                chunks = []
+                for it in iterators:
+                    cur_ids = []
+                    if it.value[0] == next_it_value:
+                        while not it.finished and it.value[0] == next_it_value:
+                            cur_ids.append(it.value[1])
+                            it.iternext()
+                    else:
+                        cur_ids.append(it.value[1])
+                    cur_chunks = [
+                        ChunkIdEncoder.name_from_id(cid)  # type: ignore
+                        for cid in cur_ids
+                    ]
+                    chunks.append(cur_chunks)
 
                 streamable_ids = list(
                     ds_indicies_set.intersection(range(last_idx, next_it_value + 1))
@@ -283,8 +377,6 @@ class SampleStreaming(Streaming):
                     blocks.append(new_block)
 
                 last_idx = next_it_value + 1
-
-            next(next_it, None)
 
         return blocks
 
@@ -308,36 +400,3 @@ class SampleStreaming(Streaming):
         length = min(tensor_lengths, default=0)
 
         return self.dataset.index.values[0].indices(length)
-
-
-class BufferedStreaming(Streaming):
-    def __init__(self, streaming: Streaming, size: int) -> None:
-        self._streaming = streaming
-        self._buffer: List = list()
-        self._buffer_size = size
-
-    def read(self, schedule: Schedule):
-        buffer = self._buffer
-        buffer_size = self._buffer_size
-
-        it = self._streaming.read(schedule)
-
-        # filling buffer with samples
-        while len(buffer) < buffer_size:
-            data = next(it, None)
-
-            if data is not None:
-                buffer.append(data)
-            else:
-                break
-
-        # stream until all samples exhausted
-        while len(buffer) > 0:
-            selected = randrange(len(buffer))
-
-            next_val = next(it, None)
-
-            if next_val is not None:
-                buffer.append(next_val)
-
-            yield buffer.pop(selected)
