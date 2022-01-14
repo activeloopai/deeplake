@@ -343,9 +343,6 @@ class Dataset:
         meta = self.version_state["meta"]
         meta.tensors.append(name)
         ffw_dataset_meta(meta)
-        self.storage.dirty_keys.add(
-            get_dataset_meta_key(self.version_state["commit_id"])
-        )
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         self.storage[meta_key] = meta
         self.storage.maybe_flush()
