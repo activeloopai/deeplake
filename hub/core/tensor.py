@@ -24,6 +24,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
 )
 from hub.constants import TENSOR_META_FILENAME, TENSOR_INFO_FILENAME
+from hub.util.version_control import auto_checkout
 
 
 def create_tensor(
@@ -68,22 +69,23 @@ def create_tensor(
     storage[diff_key] = diff  # type: ignore
 
 
-def delete_tensor(key: str, storage: LRUCache, version_state: Dict[str, Any]):
+def delete_tensor(key: str, dataset):
     """Delete tensor from storage.
 
     Args:
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
-        storage (LRUCache): StorageProvider that all tensor data is written to.
-        version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+        dataset (Dataset): Dataset that the tensor is located in.
 
     Raises:
         TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
     """
+    storage = dataset.storage
+    version_state = dataset.version_state
 
     if not tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorDoesNotExistError(key)
 
-    tensor = Tensor(key, storage, version_state)
+    tensor = Tensor(key, dataset)
     chunk_engine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
@@ -128,6 +130,7 @@ def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
+        tensor._write_initialization()
         tensor.chunk_engine.update(tensor.index, other, op)
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
@@ -140,9 +143,10 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        storage: LRUCache,
-        version_state: Dict[str, Any],
+        dataset,
         index: Optional[Index] = None,
+        is_iteration: bool = False,
+        chunk_engine: Optional[ChunkEngine] = None,
     ):
         """Initializes a new tensor.
 
@@ -152,29 +156,42 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            storage (LRUCache): The storage provider for the parent dataset.
-            version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+            dataset (Dataset): The dataset that this tensor is located in.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
+            is_iteration (bool): If this tensor is being used as an iterator.
+            chunk_engine (ChunkEngine, optional): The underlying chunk_engine for the tensor
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
-
         self.key = key
-        self.storage = storage
+        self.dataset = dataset
+        self.storage = dataset.storage
         self.index = index or Index()
-        self.version_state = version_state
+        self.version_state = dataset.version_state
+        self.is_iteration = is_iteration
 
-        if not tensor_exists(self.key, self.storage, version_state["commit_id"]):
+        if not self.is_iteration and not tensor_exists(
+            self.key, self.storage, self.version_state["commit_id"]
+        ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
-        self.index.validate(self.num_samples)
+        self.chunk_engine = chunk_engine or ChunkEngine(
+            self.key, self.storage, self.version_state
+        )
+
+        if not self.is_iteration:
+            self.index.validate(self.num_samples)
         self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+
+    def _write_initialization(self):
+        self.storage.check_readonly()
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(self.dataset)
 
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
@@ -207,7 +224,7 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
-
+        self._write_initialization()
         self.chunk_engine.extend(samples)
 
     @property
@@ -222,7 +239,7 @@ class Tensor:
             self._info = load_info(
                 get_tensor_info_key(self.key, self.version_state["commit_id"]),
                 self.storage,
-                self.version_state,
+                self.dataset,
             )
         return self._info
 
@@ -342,7 +359,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return self.chunk_engine.num_samples
+        return self.chunk_engine.tensor_meta.length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -369,14 +386,16 @@ class Tensor:
     def __getitem__(
         self,
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+        is_iteration: bool = False,
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
         return Tensor(
             self.key,
-            self.storage,
-            self.version_state,
+            self.dataset,
             index=self.index[item],
+            is_iteration=is_iteration,
+            chunk_engine=self.chunk_engine,
         )
 
     def _get_bigger_dtype(self, d1, d2):
@@ -419,6 +438,7 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        self._write_initialization()
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False
@@ -429,7 +449,7 @@ class Tensor:
 
     def __iter__(self):
         for i in range(len(self)):
-            yield self[i]
+            yield self.__getitem__(i, is_iteration=True)
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.

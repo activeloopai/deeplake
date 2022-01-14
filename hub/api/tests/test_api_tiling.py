@@ -143,3 +143,20 @@ def test_cachable_overflow(memory_ds):
     assert len(ds) == 3
     assert len(ds.x) == 3
     assert len(ds.y) == 3
+
+
+@compressions_paremetrized
+def test_empty_array(memory_ds, compression):
+    ds = memory_ds
+    arr_list = [
+        np.random.randint(0, 255, (3894, 4279, 0), dtype=np.uint8),
+        np.random.randint(0, 255, (3894, 4279, 3), dtype=np.uint8),
+    ]
+    with ds:
+        ds.create_tensor("x", **compression)
+        ds.x.extend(arr_list)
+    assert len(ds) == 2
+    assert len(ds.x) == 2
+
+    for i in range(2):
+        np.testing.assert_array_equal(ds.x[i].numpy(), arr_list[i])
