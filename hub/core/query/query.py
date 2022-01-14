@@ -1,272 +1,235 @@
-from abc import ABC
-from typing import Any, Dict
-
-import hub
-import json
-import numpy as np
-
+from typing import Any, Callable, List, Union
+from hub.core.dataset import Dataset
+from hub.core.io import IOBlock, SampleStreaming
+from hub.core.index import Index
 from hub.core.tensor import Tensor
 
 
+import numpy
+
+NP_RESULT = Union[numpy.ndarray, List[numpy.ndarray]]
+NP_ACCESS = Callable[[str], NP_RESULT]
+
+
 class DatasetQuery:
-    """Dataset query function which is defined by the query string.
-    Designed not to be used directly, but passed as a function parameter to
-    `dataset.filter()`
-
-    Example:
-
-    >>> query = DatasetQuery(dataset, 'images[1:3].min == 0')
-    >>> query = DatasetQuery(dataset, 'labels > 5')
-    >>> query(sample_in)
-    True
-    """
-
-    def __init__(self, dataset: hub.Dataset, query: str):
+    def __init__(
+        self,
+        dataset,
+        query: str,
+        progress_callback: Callable[[int], None] = lambda _: None,
+    ):
         self._dataset = dataset
         self._query = query
-        self.global_vars: Dict[str, Any] = dict()
+        self._pg_callback = progress_callback
+        self._cquery = compile(query, "", "eval")
+        self._tensors = [tensor for tensor in dataset.tensors.keys() if tensor in query]
+        self._np_access: List[NP_ACCESS] = [
+            _get_np(dataset, block) for block in expand(dataset, self._tensors)
+        ]
+        self._wrappers = self._export_tensors()
 
-    def __call__(self, *args: Any) -> bool:
-        return self._call_eval(*args)
+    def execute(self) -> List[int]:
+        idx_map: List[int] = list()
+        max_size = len(self._dataset)
 
-    def _call_eval(self, sample_in: hub.Dataset):
-        return eval(
-            self._query, {}, self._export_tensors(sample_in)
-        )  # TODO export tensors create new bindings. Can we update instead ?
+        for f in self._np_access:
+            cache = {tensor: f(tensor) for tensor in self._tensors}
+            for local_idx, idx in enumerate(f("index")):
+                if idx >= max_size:
+                    break
 
-    def _export_tensors(self, sample_in):
-        bindings = {"dataset": sample_in}
+                p = {
+                    tensor: self._wrap_value(tensor, cache[tensor][local_idx])
+                    for tensor in self._tensors
+                }
+                if eval(self._cquery, p):
+                    idx_map.append(int(idx))
+                self._pg_callback(1)
 
-        for key, tensor in sample_in.tensors.items():
-            if tensor.htype == "class_label":
-                bindings[key] = EvalLabelClassTensor(tensor)
-                for label in tensor.info["class_names"]:
-                    bindings[label] = label
-            elif tensor.htype == "text":
-                bindings[key] = EvalTextTesor(tensor)
-            elif tensor.htype == "json":
-                bindings[key] = EvalJsonTensor(tensor)
-            elif "/" in key:
-                group, tensor_name = key.split("/")
+        return idx_map
 
-                if not group in bindings:
-                    bindings[group] = EvalGroupTensor(group)
-                bindings[group].extend(tensor_name, tensor)
-
-            else:
-                bindings[key] = EvalGenericTensor(tensor)
-
-        return bindings
-
-    def __repr__(self) -> str:
-        return f"'{self._query}' on {self._dataset}"
-
-
-class EvalObject(ABC):
-    pass
-
-
-class EvalTensorObject(EvalObject):
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__()
-        self._tensor = tensor
-        self._cached_value: Any = None
-        self._is_cached_value: bool = False
-
-    def is_scalar(self):
-        return self.numpy().size == 1  # type: ignore
-
-    def as_scalar(self):
-        if self.is_scalar():
-            return self.numpy()[0]
+    def _wrap_value(self, tensor, val):
+        if tensor in self._wrappers:
+            return self._wrappers[tensor].with_value(val)
         else:
-            raise ValueError("Not a scalar")
+            return val
 
-    def numpy(self):
-        """Retrives and caches value"""
-        if not self._is_cached_value:
-            self._cached_value = self._tensor.numpy()
-            self._is_cached_value = True
+    def _export_tensors(self):
+        r = {}
+        r.update(
+            {
+                tensor_key: export_tensor(tensor)
+                for tensor_key, tensor in self._dataset.tensors.items()
+                if not "/" in tensor_key
+            }
+        )
 
-        return self._cached_value
+        r.update(
+            {
+                tensor_key: GroupTensor(self._dataset, tensor_key.split("/")[0])
+                for tensor_key in self._dataset.tensors.keys()
+                if "/" in tensor_key
+            }
+        )
 
-
-class ScalarTensorObject(EvalObject):
-    """Abstract subclass defining operations on a scalars.
-    Requires override of  `as_scalar()` to enable operations set of [ = > < >= <= != ]
-    """
-
-    def as_scalar(self) -> Any:
-        raise NotImplementedError
-
-    def __eq__(self, o: object) -> bool:
-        return self.as_scalar() == o
-
-    def __lt__(self, o: object) -> bool:
-        return self.as_scalar() < o
-
-    def __le__(self, o: object) -> bool:
-        return self.as_scalar() <= o
-
-    def __gt__(self, o: object) -> bool:
-        return self.as_scalar() > o
-
-    def __ge__(self, o: object) -> bool:
-        return self.as_scalar() >= o
-
-    def __ne__(self, o: object) -> bool:
-        return self.as_scalar() != o
+        return r
 
 
-class EvalGenericTensor(EvalTensorObject, ScalarTensorObject):
-    """Wrapper of tensor for evaluation function `eval()` which provides simplified interface to work
-    with a tensor.
+def _get_np(dataset: Dataset, block: IOBlock) -> NP_ACCESS:
+    idx = block.indices()
 
-    Defines functions available on tensor `t`
-    >>> t = tensor(np.array(...))
-    >>> t.min == t.numpy.min()
-    >>> t.max == t.numpy.max()
-    >>> t.mean == t.numpy.mean()
-    >>> t.shape == t.numpy.shape
-    >>> t.size == t.numpy.size
+    def f(tensor: str) -> NP_RESULT:
+        if tensor == "index":
+            return numpy.array(idx)
+        else:
+            tensor_obj = dataset.tensors[tensor]
+            tensor_obj.index = Index()
+            return tensor_obj[idx].numpy(aslist=tensor_obj.is_dynamic)
+
+    return f
 
 
-    Enables scalar operations, if tensor is size of 1.
-    >>> t = tensor([4])
-    >>> t > 3 or t < 5
-    True
-    """
+def expand(dataset, tensor: List[str]) -> List[IOBlock]:
+    return SampleStreaming(dataset, tensor).list_blocks()
 
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__(tensor)
+
+def export_tensor(tensor: Tensor):
+    if tensor.htype == "class_label":
+        return ClassLabelsTensor(tensor)
+
+    return EvalObject()
+
+
+class EvalObject:
+    def __init__(self) -> None:
+        super().__init__()
+        self._val: Any = None
+
+    @property
+    def val(self):
+        return self._val
+
+    def with_value(self, v: Any):
+        self._val = v
+        return self
+
+    def contains(self, v: Any):
+        return v in self.val
+
+    def __getitem__(self, item):
+        r = EvalObject()
+        return r.with_value(self._val[item])
 
     @property
     def min(self):
         """Returns numpy.min() for the tensor"""
-        return np.amin(self.numpy())
+        return numpy.amin(self.val)
 
     @property
     def max(self):
         """Returns numpy.max() for the tensor"""
-        return np.amax(self.numpy())
+        return numpy.amax(self.val)
 
     @property
     def mean(self):
         """Returns numpy.mean() for the tensor"""
-        return np.mean(self.numpy())
+        return self.val.mean()
 
     @property
     def shape(self):
         """Returns shape of the underlying numpy array"""
-        return self.numpy().shape  # type: ignore
+        return self.val.shape  # type: ignore
 
     @property
     def size(self):
         """Returns size of the underlying numpy array"""
-        return self.numpy().size  # type: ignore
-
-    def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
-
-    def __getitem__(self, item):
-        """Returns subscript of underlying numpy array or a scalar"""
-        val = self.numpy()[item]
-
-        if isinstance(val, np.ndarray):
-            return EvalGenericTensor(self._tensor[item])
-        else:
-            return val
-
-
-class EvalLabelClassTensor(EvalTensorObject, ScalarTensorObject):
-    """Wrapper for `tensor(htype = 'label_class')`. Provides equality operation
-    for labeled data.
-
-    Example:
-        >>> query('labels == "dog"')
-    """
-
-    def __init__(self, tensor: Tensor) -> None:
-        super().__init__(tensor)
-
-        # FIXME tensor.info should be resolvable class
-        self._class_names = tensor.info["class_names"]  # type: ignore
+        return self.val.size  # type: ignore
 
     def __eq__(self, o: object) -> bool:
-        if not self.is_scalar():
-            raise ValueError("Vector and scalars are not comparable")
+        return self.val == o
 
-        if isinstance(o, str):
-            return self._class_names[self.as_scalar()] == o
-        else:
-            return super().__eq__(o)
+    def __lt__(self, o: object) -> bool:
+        return self.val < o
 
-    def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
+    def __le__(self, o: object) -> bool:
+        return self.val <= o
 
+    def __gt__(self, o: object) -> bool:
+        return self.val > o
 
-class EvalTextTesor(EvalTensorObject, ScalarTensorObject):
-    """Wrapper for `tensor(htype = 'text'). Provides equality operation
-    for text data.
+    def __ge__(self, o: object) -> bool:
+        return self.val >= o
 
-    Example:
-        >>> query('text == "some_string"')
-        >>> query('len(text) == 0')
-    """
-
-    def __init__(self, tensor) -> None:
-        super().__init__(tensor)
-
-    def contains(self, o: object) -> bool:
-        return any(self.numpy() == o)  # type: ignore
-
-    def as_scalar(self):
-        assert self.is_scalar()
-        return self.numpy()[0]
-
-    def __len__(self):
-        return len(self.as_scalar()) if self.is_scalar() else len(self.numpy())
+    def __ne__(self, o: object) -> bool:
+        return self.val != o
 
 
-class EvalJsonTensor(EvalTensorObject):
-    """Wrapper for `tensor(htype = 'json'). Expose json dictionary to user
-
-    Example:
-        >>> query('json["attribute"]["nested_attribute"] == "some_value"')
-    """
-
-    def __init__(self, tensor) -> None:
-        super().__init__(tensor)
-
-    def as_scalar(self):
-        assert self.is_scalar()
-        return json.loads(self.numpy()[0])
-
-    def __getitem__(self, item):
-        return self.as_scalar()[item]
-
-
-class EvalGroupTensor(EvalObject):
-    """Wrapper around tensor groups.
-
-    Example:
-        >>> query('images.image1.mean == images.image2.mean')
-    """
-
-    def __init__(self, group) -> None:
+class GroupTensor:
+    def __init__(self, dataset: Dataset, prefix: str) -> None:
         super().__init__()
-        self.group = group
-        self._map: Dict[str, EvalObject] = dict()
+        self.prefix = prefix
+        self.dataset = dataset
+        self._subgroup = self.expand()
 
-    def extend(self, name: str, tensor: Tensor):
-        if tensor.htype == "class_label":
-            self._map[name] = EvalLabelClassTensor(tensor)
-        elif tensor.htype == "text":
-            self._map[name] = EvalTextTesor(tensor)
-        elif tensor.htype == "json":
-            self._map[name] = EvalJsonTensor(tensor)
+    def __getattr__(self, __name: str) -> Any:
+        return self._subgroup[self.normalize_key(__name)]
+
+    def expand(self):
+        r = {}
+        for tensor in [
+            self.normalize_key(t)
+            for t in self.dataset.tensors
+            if t.startswith(self.prefix)
+        ]:
+            if "/" in tensor:
+                prefix = self.prefix + "/" + tensor.split("/")[0]
+                r[tensor] = GroupTensor(self.dataset, prefix)
+            else:
+                t = self.dataset.tensors[f"{self.prefix}/{tensor}"]
+                r[tensor] = export_tensor(t)
+
+        return r
+
+    def normalize_key(self, key: str) -> str:
+        return key.replace(self.prefix + "/", "")
+
+
+class ClassLabelsTensor(EvalObject):
+    def __init__(self, tensor: Tensor) -> None:
+        super().__init__()
+        self._tensor = tensor
+
+        _classes = tensor.info["class_names"]  # type: ignore
+        self._classes_dict = {v: idx for idx, v in enumerate(_classes)}
+
+    def __eq__(self, o: object) -> bool:
+        if isinstance(o, str):
+            return self.val == self._classes_dict[o]
         else:
-            self._map[name] = EvalGenericTensor(tensor)
+            return self.val == o
 
-    def __getattr__(self, name):
-        return self._map[name]
+    def __lt__(self, o: object) -> bool:
+        if isinstance(o, str):
+            raise ValueError("label class is not comparable")
+        return self.val < o
+
+    def __le__(self, o: object) -> bool:
+        if isinstance(o, str):
+            raise ValueError("label class is not comparable")
+        return self.val <= o
+
+    def __gt__(self, o: object) -> bool:
+        if isinstance(o, str):
+            raise ValueError("label class is not comparable")
+        return self.val > o
+
+    def __ge__(self, o: object) -> bool:
+        if isinstance(o, str):
+            raise ValueError("label class is not comparable")
+        return self.val >= o
+
+    def __ne__(self, o: object) -> bool:
+        if isinstance(o, str):
+            return self.val != self._classes_dict[o]
+        else:
+            return self.val != o

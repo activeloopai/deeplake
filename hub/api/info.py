@@ -69,8 +69,8 @@ class Info(CachableCallback):
 
         """
         self._cache.check_readonly()
-        if self._version_state is not None:
-            auto_checkout(self._version_state, self._cache)
+        if self._dataset is not None:
+            auto_checkout(self._dataset)
         self._info.update(*args, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
@@ -95,8 +95,8 @@ class Info(CachableCallback):
     def delete(self, key: Optional[Union[Sequence[str], str]] = None):
         """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
         self._cache.check_readonly()
-        if self._version_state is not None:
-            auto_checkout(self._version_state, self._cache)
+        if self._dataset is not None:
+            auto_checkout(self._dataset)
         if key is None:
             self._info.clear()
         elif isinstance(key, str):
@@ -110,12 +110,12 @@ class Info(CachableCallback):
     @use_callback()
     def __setitem__(self, key: str, value):
         self._cache.check_readonly()
-        if self._version_state is not None:
-            auto_checkout(self._version_state, self._cache)
+        if self._dataset is not None:
+            auto_checkout(self._dataset)
         self._info[key] = value
 
     def __setattr__(self, key: str, value):
-        if key in {"_key", "_cache", "_info", "_version_state"}:
+        if key in {"_key", "_cache", "_info", "_dataset"}:
             object.__setattr__(self, key, value)
         else:
             self[key] = value
@@ -152,11 +152,11 @@ class Info(CachableCallback):
         return None
 
 
-def load_info(info_key: str, cache: LRUCache, version_state: Dict[str, Any]):
+def load_info(info_key: str, cache: LRUCache, dataset):
     if info_key in cache:
-        info = cache.get_cachable(info_key, Info)
+        info = cache.get_cachable(info_key, Info, callback_arg=dataset)
     else:
         info = Info()
-        info.initialize_callback_location(info_key, cache, version_state)
+        info.initialize_callback_location(info_key, cache, dataset)
 
     return info

@@ -81,6 +81,11 @@ class TensorAlreadyExistsError(Exception):
         )
 
 
+class TensorGroupDoesNotExistError(KeyError):
+    def __init__(self, group_name: str):
+        super().__init__(f"Tensor group '{group_name}' does not exist.")
+
+
 class TensorGroupAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(
@@ -477,6 +482,10 @@ class TransformError(Exception):
     pass
 
 
+class FilterError(Exception):
+    pass
+
+
 class InvalidInputDataError(TransformError):
     def __init__(self, operation):
         super().__init__(
@@ -494,11 +503,17 @@ class UnsupportedSchedulerError(TransformError):
 
 
 class TensorMismatchError(TransformError):
-    def __init__(self, tensors, output_keys):
-        super().__init__(
-            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
-            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
-        )
+    def __init__(self, tensors, output_keys, skip_ok=False):
+        if skip_ok:
+            super().__init__(
+                f"One or more tensors generated during hub compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
+        else:
+            super().__init__(
+                f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
 
 
 class InvalidOutputDatasetError(TransformError):
@@ -593,6 +608,10 @@ class CheckoutError(VersionControlError):
     pass
 
 
+class CommitError(VersionControlError):
+    pass
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(
@@ -619,3 +638,7 @@ class NotLoggedInError(AgreementError):
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
+
+
+class BufferError(Exception):
+    pass
