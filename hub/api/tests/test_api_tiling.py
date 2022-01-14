@@ -1,6 +1,8 @@
 import pytest
 import numpy as np
 
+from hub.constants import MB
+
 compressions_paremetrized = pytest.mark.parametrize(
     "compression",
     [
@@ -150,10 +152,10 @@ def test_empty_array(memory_ds, compression):
     ds = memory_ds
     arr_list = [
         np.random.randint(0, 255, (3894, 4279, 0), dtype=np.uint8),
-        np.random.randint(0, 255, (3894, 4279, 3), dtype=np.uint8),
+        np.random.randint(0, 255, (1089, 1027, 3), dtype=np.uint8),
     ]
     with ds:
-        ds.create_tensor("x", **compression)
+        ds.create_tensor("x", **compression, max_chunk_size=1 * MB)
         ds.x.extend(arr_list)
     assert len(ds) == 2
     assert len(ds.x) == 2
