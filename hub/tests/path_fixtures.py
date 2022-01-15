@@ -294,7 +294,7 @@ def compressed_image_paths():
         "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
-        "tiff": "field.tiff",
+        "tiff": ["field.tiff", "field.tif"],
         "png": "flower.png",
         "ico": "sample_ico.ico",
         "jpeg2000": "sample_jpeg2000.jp2",
