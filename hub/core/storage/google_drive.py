@@ -1,3 +1,4 @@
+import os
 from hub.core.storage.provider import StorageProvider
 from googleapiclient import discovery  # type: ignore
 from googleapiclient.http import (  # type: ignore
@@ -6,6 +7,9 @@ from googleapiclient.http import (  # type: ignore
 )
 from httplib2 import Http  # type: ignore
 from oauth2client import file, client, tools  # type: ignore
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from io import BytesIO
 import posixpath
 import pickle
@@ -100,14 +104,24 @@ class GDriveProvider(StorageProvider):
             - Users can request to increse their quotas on their google cloud platform.
         """
 
-        store = file.Storage("gdrive_creds.json")
-        creds = store.get()
+        creds = None
 
-        if not creds or creds.invalid:
-            flow = client.flow_from_clientsecrets("client_secrets.json", SCOPES)
-            creds = tools.run_flow(flow, store)
+        if os.path.exists("token.json"):
+            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
 
-        self.drive = discovery.build("drive", "v3", http=creds.authorize(Http()))
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    "client_secrets.json", SCOPES
+                )
+                creds = flow.run_local_server(port=0)
+
+            with open("token.json", "w") as token:
+                token.write(creds.to_json())
+
+        self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root = root
         if root.startswith("gdrive://"):
             root = root.replace("gdrive://", "")
