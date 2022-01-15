@@ -7,9 +7,9 @@ from googleapiclient.http import (  # type: ignore
 )
 from httplib2 import Http  # type: ignore
 from oauth2client import file, client, tools  # type: ignore
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request  # type: ignore
+from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+from google.oauth2.credentials import Credentials  # type: ignore
 from io import BytesIO
 import posixpath
 import pickle
