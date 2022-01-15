@@ -1044,16 +1044,23 @@ def test_clear(local_ds):
     a = local_ds.commit("first")
     local_ds.abc.clear()
     b = local_ds.commit("second")
+    local_ds.abc.append([4, 5, 6, 7])
+    c = local_ds.commit("third")
+    local_ds.abc.clear()
 
     assert len(local_ds.abc.numpy()) == 0
 
     local_ds.checkout(a)
 
-    assert (local_ds.abc.numpy()[0] == np.array([1, 2, 3])).all()
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[1, 2, 3]]))
 
     local_ds.checkout(b)
 
     assert len(local_ds.abc.numpy()) == 0
+
+    local_ds.checkout(c)
+
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[4, 5, 6, 7]]))
 
 
 def test_custom_commit_hash(local_ds):
