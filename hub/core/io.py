@@ -15,6 +15,7 @@ from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
+from hub.core.tiling.deserialize import combine_chunks
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
@@ -32,8 +33,8 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self, chunks: List[str], indexes: List[int]) -> None:
-        self._chunks: List[str] = chunks
+    def __init__(self, chunks: List[List[str]], indexes: List[int]) -> None:
+        self._chunks: List[List[str]] = chunks
         self._ind: List[int] = indexes
 
     def shuffle(self):
@@ -42,13 +43,13 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_name(self, tensor_index: int) -> str:
+    def chunk_names(self, tensor_index: int) -> List[str]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
         return self._ind
 
-    def chunks(self) -> List[str]:
+    def chunks(self) -> List[List[str]]:
         return self._chunks
 
     def split(self, n) -> List["IOBlock"]:
@@ -289,25 +290,31 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 chunk_class = engine.chunk_class
                 try:
-                    commit_id = engine.get_chunk_commit(block.chunk_name(keyid))
-                    c_key = get_chunk_key(key, block.chunk_name(keyid), commit_id)
-                    chunk: BaseChunk
 
-                    if self.local_caches is not None:
-                        local_cache = self.local_caches[key]
+                    chunks: List[BaseChunk] = []
+                    c_names = block.chunk_names(keyid)
 
-                        if c_key in local_cache:
-                            chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                    for c_name in c_names:
+                        commit_id = engine.get_chunk_commit(c_name)
+                        c_key = get_chunk_key(key, c_name, commit_id)
+                        if self.local_caches is not None:
+                            local_cache = self.local_caches[key]
+
+                            if c_key in local_cache:
+                                chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                            else:
+                                chunk = engine.get_chunk(c_key)
+                                local_cache[c_key] = chunk
+
+                                # send data to actual storage
+                                local_cache._forward(c_key, True)
                         else:
                             chunk = engine.get_chunk(c_key)
-                            local_cache[c_key] = chunk
-
-                            # send data to actual storage
-                            local_cache._forward(c_key, True)
+                        chunks.append(chunk)
+                    if len(chunks) == 1:
+                        data = engine.read_sample_from_chunk(idx, chunk)
                     else:
-                        chunk = engine.get_chunk(c_key)
-
-                    data = engine.read_sample_from_chunk(idx, chunk)
+                        data = combine_chunks(chunks, idx, engine.tile_encoder)
 
                     if data is not None:
                         sample[key] = data
@@ -345,10 +352,20 @@ class SampleStreaming(Streaming):
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:
-                chunks = [
-                    ChunkIdEncoder.name_from_id(cid)  # type: ignore
-                    for cid in [int(it.value[1]) for it in iterators]
-                ]
+                chunks = []
+                for it in iterators:
+                    cur_ids = []
+                    if it.value[0] == next_it_value:
+                        while not it.finished and it.value[0] == next_it_value:
+                            cur_ids.append(it.value[1])
+                            it.iternext()
+                    else:
+                        cur_ids.append(it.value[1])
+                    cur_chunks = [
+                        ChunkIdEncoder.name_from_id(cid)  # type: ignore
+                        for cid in cur_ids
+                    ]
+                    chunks.append(cur_chunks)
 
                 streamable_ids = list(
                     ds_indicies_set.intersection(range(last_idx, next_it_value + 1))
@@ -360,8 +377,6 @@ class SampleStreaming(Streaming):
                     blocks.append(new_block)
 
                 last_idx = next_it_value + 1
-
-            next(next_it, None)
 
         return blocks
 
