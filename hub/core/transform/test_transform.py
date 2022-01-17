@@ -395,7 +395,6 @@ def test_transform_hub_read(local_ds, cat_path, sample_compression, scheduler):
 
 @all_schedulers
 @all_compressions
-@enabled_non_gcs_datasets
 def test_transform_hub_read_pipeline(local_ds, cat_path, sample_compression, scheduler):
     data_in = [cat_path] * 10
     ds_out = local_ds
