@@ -635,3 +635,7 @@ class NotLoggedInError(AgreementError):
         )
 
         super().__init__(msg)
+
+
+class BufferError(Exception):
+    pass

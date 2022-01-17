@@ -193,11 +193,13 @@ class LRUCache(StorageProvider):
         This doesn't delete data from the actual storage.
         """
         self._flush_if_not_read_only()
+        self.clear_cache_without_flush()
+
+    def clear_cache_without_flush(self):
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
-
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 

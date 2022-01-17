@@ -77,8 +77,8 @@ def test_query_scheduler(local_ds):
         ds.create_tensor("labels")
         ds.labels.extend(np.arange(10_000))
 
-    f1 = "labels == 3141"
-    f2 = lambda s: s.labels.numpy() == 3141
+    f1 = "labels % 2 == 0"
+    f2 = lambda s: s.labels.numpy() % 2 == 0
 
     view1 = ds.filter(f1, num_workers=2, progressbar=True)
     view2 = ds.filter(f2, num_workers=2, progressbar=True)
@@ -132,3 +132,29 @@ def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only,
         # Delete queries ds from testing acc:
         org = ds.path[6:].split("/")[1]
         hub.delete(f"hub://{org}/queries", large_ok=True)
+    def filter_result(ds):
+        return ds[0].labels.numpy()
+
+    assert (
+        ds.filter("labels == 3141", num_workers=2, progressbar=False)[0].labels.numpy()
+        == 3141
+    )
+    assert (
+        ds.filter(lambda s: s.labels.numpy() == 3141, num_workers=2, progressbar=False)[0].labels.numpy()
+        == 3141
+    )
+
+
+def test_group(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("labels/t1")
+        ds.create_tensor("labels/t2")
+
+        ds.labels.t1.append([0])
+        ds.labels.t2.append([1])
+
+    result = local_ds.filter("labels.t1 == 0", progressbar=False)
+    assert len(result) == 1
+
+    result = local_ds.filter("labels.t2 == 1", progressbar=False)
+    assert len(result) == 1

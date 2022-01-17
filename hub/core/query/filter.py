@@ -388,8 +388,21 @@ def query_inplace(
                     status="success",
                 )
 
-    def subquery(dataset_query):
-        dataset, query = dataset_query
+
+    class QuerySlice:
+        def __init__(self, offset, size, dataset, query) -> None:
+            self.offset = offset
+            self.size = size
+            self.dataset = dataset
+            self.query = query
+
+        def slice_dataset(self):
+            return self.dataset[self.offset : (self.offset + self.size)]
+
+    def subquery(query_slice: QuerySlice):
+        dataset = query_slice.slice_dataset()
+        query = query_slice.query
+
         if progressbar:
             from tqdm import tqdm
 
@@ -408,35 +421,37 @@ def query_inplace(
             ret = DatasetQuery(dataset, query, update_vds).execute()
         return ret
 
-    def pg_subquery(pg_callback, dataset_query):
+    def pg_subquery(pg_callback, query_slice):
         def update(idx, include):
             update_vds(idx, include)
             pg_callback(1)
-
-        dataset, query = dataset_query
+        dataset = query_slice.slice_dataset()
         ds_query = DatasetQuery(dataset, query, progress_callback=update)
         return ds_query.execute()
 
+    if num_workers == 0:
+        return subquery(QuerySlice(0, len(dataset), dataset, query))
+
+    compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
     try:
+        btch = len(dataset) // num_workers
+        subdatasets = [
+            QuerySlice(idx * btch, btch, dataset, query)
+            for idx in range(0, num_workers)
+        ]
 
         if num_workers == 0:
             return subquery((dataset, query))
 
-        try:
-            btch = num_samples // num_workers
-            subdatasets = [
-                (dataset[idx * btch : (idx + 1) * btch], query)
-                for idx in range(0, num_workers)
-            ]
+        if progressbar:
+            result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
+        else:
+            result = compute.map(subquery, subdatasets)  # type: ignore
 
-            if progressbar:
-                result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
-            else:
-                result = compute.map(subquery, subdatasets)  # type: ignore
-
-            index_map = [k for x in result for k in x]  # unfold the result map
-        finally:
-            compute.close()
+        index_map = [
+        k + dataset_slice.offset
+        for x, dataset_slice in zip(result, subdatasets)
+        for k in x]  # unfold the result map
     except Exception as e:
         dataset._send_query_progress(
             query_text=query,
@@ -447,6 +462,7 @@ def query_inplace(
         )
         raise e
     finally:
+        compute.close()
         if vds:
             vds.autoflush = True
             vds_thread.join()
