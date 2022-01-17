@@ -360,7 +360,11 @@ def query_inplace(
 ) -> List[int]:
 
     num_samples = len(dataset)
-    compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers) if num_workers > 0 else None
+    compute = (
+        get_compute_provider(scheduler=scheduler, num_workers=num_workers)
+        if num_workers > 0
+        else None
+    )
     query_id = hash_inputs(dataset.path, dataset.pending_commit_id, query)
 
     if vds:
@@ -387,7 +391,6 @@ def query_inplace(
                     progress=int(num_processed["value"] * 100 / num_samples),
                     status="success",
                 )
-
 
     class QuerySlice:
         def __init__(self, offset, size, dataset, query) -> None:
@@ -425,6 +428,7 @@ def query_inplace(
         def update(idx, include):
             update_vds(idx, include)
             pg_callback(1)
+
         dataset = query_slice.slice_dataset()
         ds_query = DatasetQuery(dataset, query, progress_callback=update)
         return ds_query.execute()
@@ -441,16 +445,16 @@ def query_inplace(
                 for idx in range(0, num_workers)
             ]
 
-
             if progressbar:
                 result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
             else:
                 result = compute.map(subquery, subdatasets)  # type: ignore
 
             index_map = [
-            k + dataset_slice.offset
-            for x, dataset_slice in zip(result, subdatasets)
-            for k in x]  # unfold the result map
+                k + dataset_slice.offset
+                for x, dataset_slice in zip(result, subdatasets)
+                for k in x
+            ]  # unfold the result map
     except Exception as e:
         dataset._send_query_progress(
             query_text=query,

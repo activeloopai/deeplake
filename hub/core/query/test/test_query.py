@@ -105,20 +105,25 @@ def test_dataset_view_save():
         "s3_ds_generator",
         # "gcs_ds_generator",
         "hub_cloud_ds_generator",
-    ], indirect=True
+    ],
+    indirect=True,
 )
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("read_only", [False, True])
 @pytest.mark.parametrize("progressbar", [False, True])
 @pytest.mark.parametrize("query_type", ["string", "function"])
-def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only, progressbar, query_type):
+def test_inplace_dataset_view_save(
+    ds_generator, stream, num_workers, read_only, progressbar, query_type
+):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
     _populate_data(ds, n=2)
     f = "labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
-    view = ds.filter(f, store_result=stream, num_workers=num_workers, progressbar=progressbar)
+    view = ds.filter(
+        f, store_result=stream, num_workers=num_workers, progressbar=progressbar
+    )
     assert len(ds._get_query_history()) == int(stream)
     vds_path = view.store()
     assert len(ds._get_query_history()) == 1
@@ -135,7 +140,6 @@ def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only,
         # Delete queries ds from testing acc:
         org = ds.path[6:].split("/")[1]
         hub.delete(f"hub://{org}/queries", large_ok=True)
-
 
 
 def test_group(local_ds):
