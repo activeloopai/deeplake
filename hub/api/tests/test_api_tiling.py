@@ -17,11 +17,11 @@ compressions_paremetrized = pytest.mark.parametrize(
 
 def test_simple(memory_ds):
     with memory_ds:
-        memory_ds.create_tensor("abc")
-        memory_ds.abc.extend(np.ones((3, 1003, 2001, 5)))
-    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
+        memory_ds.create_tensor("abc", max_chunk_size=2 * MB)
+        memory_ds.abc.extend(np.ones((3, 253, 501, 5)))
+    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
     memory_ds.commit()
-    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
+    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
 
 
 @compressions_paremetrized

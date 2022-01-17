@@ -13,8 +13,8 @@ compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4"])
 
 
 common_args = {
-    "min_chunk_size": 16 * MB,
-    "max_chunk_size": 32 * MB,
+    "min_chunk_size": 1 * MB,
+    "max_chunk_size": 2 * MB,
 }
 
 
@@ -34,7 +34,7 @@ def test_read_write_sequence(compression):
     common_args["tensor_meta"] = tensor_meta
     common_args["compression"] = compression
     dtype = tensor_meta.dtype
-    data_in = [np.random.rand(1000, 500, 3).astype(dtype) for _ in range(10)]
+    data_in = [np.random.rand(250, 125, 3).astype(dtype) for _ in range(10)]
     data_in2 = data_in.copy()
     while data_in:
         chunk = SampleCompressedChunk(**common_args)
@@ -54,11 +54,11 @@ def test_read_write_sequence_big(cat_path, compression):
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(6001, 3000, 3).astype(dtype))
+            data_in.append(np.random.rand(1501, 750, 3).astype(dtype))
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
         else:
-            data_in.append(np.random.rand(1000, 500, 3).astype(dtype))
+            data_in.append(np.random.rand(250, 125, 3).astype(dtype))
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
@@ -99,15 +99,15 @@ def test_update(compression):
     common_args["tensor_meta"] = tensor_meta
     common_args["compression"] = compression
     dtype = tensor_meta.dtype
-    arr = np.random.rand(7, 100, 500, 3).astype(dtype)
+    arr = np.random.rand(7, 25, 125, 3).astype(dtype)
     data_in = list(arr)
     chunk = SampleCompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.rand(1400, 700, 3).astype(dtype)
-    data_5 = np.random.rand(6000, 3000, 3).astype(dtype)
+    data_3 = np.random.rand(175, 350, 3).astype(dtype)
+    data_5 = np.random.rand(1500, 750, 3).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)
