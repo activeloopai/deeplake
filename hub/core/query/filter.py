@@ -245,11 +245,12 @@ def filter_with_compute(
     finally:
         compute.close()
         if vds:
-            vds.autoflush = True
-            vds_thread.join()
             if hasattr(vds_queue, "close"):
                 vds_queue.close()
         _del_counter(query_id)
+    if vds:
+        vds.autoflush = True
+        vds_thread.join()
     return index_map
 
 
@@ -317,11 +318,11 @@ def filter_inplace(
             )
         raise (e)
     finally:
-        if vds:
-            vds.autoflush = True
-            vds_thread.join()
         _del_counter(query_id)
 
+    if vds:
+        vds.autoflush = True
+        vds_thread.join()
     return index_map
 
 
@@ -343,7 +344,6 @@ def query_dataset(
         else None
     )
     index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler, vds)
-
     ret = dataset[index_map]  # type: ignore [this is fine]
     if vds:
         ret._vds = vds
@@ -429,29 +429,28 @@ def query_inplace(
         ds_query = DatasetQuery(dataset, query, progress_callback=update)
         return ds_query.execute()
 
-    if num_workers == 0:
-        return subquery(QuerySlice(0, len(dataset), dataset, query))
-
-    compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
     try:
-        btch = len(dataset) // num_workers
-        subdatasets = [
-            QuerySlice(idx * btch, btch, dataset, query)
-            for idx in range(0, num_workers)
-        ]
-
         if num_workers == 0:
-            return subquery((dataset, query))
-
-        if progressbar:
-            result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
+            index_map = subquery(QuerySlice(0, len(dataset), dataset, query))
         else:
-            result = compute.map(subquery, subdatasets)  # type: ignore
+            compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
 
-        index_map = [
-        k + dataset_slice.offset
-        for x, dataset_slice in zip(result, subdatasets)
-        for k in x]  # unfold the result map
+            btch = len(dataset) // num_workers
+            subdatasets = [
+                QuerySlice(idx * btch, btch, dataset, query)
+                for idx in range(0, num_workers)
+            ]
+
+
+            if progressbar:
+                result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
+            else:
+                result = compute.map(subquery, subdatasets)  # type: ignore
+
+            index_map = [
+            k + dataset_slice.offset
+            for x, dataset_slice in zip(result, subdatasets)
+            for k in x]  # unfold the result map
     except Exception as e:
         dataset._send_query_progress(
             query_text=query,
@@ -462,12 +461,10 @@ def query_inplace(
         )
         raise e
     finally:
-        compute.close()
-        if vds:
-            vds.autoflush = True
-            vds_thread.join()
-            if hasattr(vds_queue, "close"):
-                vds_queue.close()
+        if vds and hasattr(vds_queue, "close"):
+            vds_queue.close()
+        if compute:
+            compute.close()
         _del_counter(query_id)
     dataset._send_query_progress(
         query_text=query,
@@ -476,4 +473,7 @@ def query_inplace(
         progress=100,
         status="success",
     )
+    if vds:
+        vds.autoflush = True
+        vds_thread.join()
     return index_map

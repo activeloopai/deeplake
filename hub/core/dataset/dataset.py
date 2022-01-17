@@ -1438,7 +1438,7 @@ class Dataset:
 
         vds = hub.empty(path, overwrite=True)
 
-        self._write_vds()
+        self._write_vds(vds)
 
         Dataset._write_queries_json(queries_ds, info)
 

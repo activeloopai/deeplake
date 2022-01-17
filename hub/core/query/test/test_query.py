@@ -3,6 +3,8 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
+from hub.util.remove_cache import get_base_storage
+from hub.core.storage import LocalProvider
 import hub
 
 
@@ -100,22 +102,23 @@ def test_dataset_view_save():
     "ds_generator",
     [
         "local_ds_generator",
-        # "s3_ds_generator",
+        "s3_ds_generator",
         # "gcs_ds_generator",
-        # "hub_cloud_ds_generator",
+        "hub_cloud_ds_generator",
     ], indirect=True
 )
-@pytest.mark.parametrize("stream", [False])
-@pytest.mark.parametrize("num_workers", [2])
-@pytest.mark.parametrize("read_only", [False])
-@pytest.mark.parametrize("progressbar", [True])
-def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only, progressbar):
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("read_only", [False, True])
+@pytest.mark.parametrize("progressbar", [False, True])
+@pytest.mark.parametrize("query_type", ["string", "function"])
+def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only, progressbar, query_type):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
-    with ds:
-        _populate_data(ds, n=2)
-    view = ds.filter("labels == 'dog'", store_result=stream, num_workers=num_workers, progressbar=progressbar)
+    _populate_data(ds, n=2)
+    f = "labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
+    view = ds.filter(f, store_result=stream, num_workers=num_workers, progressbar=progressbar)
     assert len(ds._get_query_history()) == int(stream)
     vds_path = view.store()
     assert len(ds._get_query_history()) == 1
@@ -132,17 +135,7 @@ def test_inplace_dataset_view_save(ds_generator, stream, num_workers, read_only,
         # Delete queries ds from testing acc:
         org = ds.path[6:].split("/")[1]
         hub.delete(f"hub://{org}/queries", large_ok=True)
-    def filter_result(ds):
-        return ds[0].labels.numpy()
 
-    assert (
-        ds.filter("labels == 3141", num_workers=2, progressbar=False)[0].labels.numpy()
-        == 3141
-    )
-    assert (
-        ds.filter(lambda s: s.labels.numpy() == 3141, num_workers=2, progressbar=False)[0].labels.numpy()
-        == 3141
-    )
 
 
 def test_group(local_ds):
