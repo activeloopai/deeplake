@@ -78,7 +78,7 @@ class dataset:
             memory_cache_size=memory_cache_size,
             local_cache_size=local_cache_size,
         )
-        if overwrite and dataset_exists(storage):
+        if overwrite and dataset_exists(cache_chain):
             storage.clear()
 
         try:
@@ -144,9 +144,9 @@ class dataset:
             local_cache_size=local_cache_size,
         )
 
-        if overwrite and dataset_exists(storage):
+        if overwrite and dataset_exists(cache_chain):
             storage.clear()
-        elif dataset_exists(storage):
+        elif dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
@@ -209,7 +209,7 @@ class dataset:
             local_cache_size=local_cache_size,
         )
 
-        if not dataset_exists(storage):
+        if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
             )
