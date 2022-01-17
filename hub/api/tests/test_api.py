@@ -7,7 +7,6 @@ from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
-    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -18,11 +17,6 @@ from hub.util.exceptions import (
 from hub.constants import MB
 
 from click.testing import CliRunner
-from hub.tests.dataset_fixtures import (
-    enabled_datasets,
-    enabled_persistent_dataset_generators,
-    enabled_non_gcs_datasets,
-)
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -114,8 +108,8 @@ def test_populate_dataset(local_ds):
 
 
 def test_larger_data_memory(memory_ds):
-    memory_ds.create_tensor("image")
-    x = np.ones((4, 4096, 4096))
+    memory_ds.create_tensor("image", max_chunk_size=2 * MB)
+    x = np.ones((4, 1024, 1024))
     memory_ds.image.extend(x)
     assert len(memory_ds) == 4
     assert memory_ds.image.shape == x.shape
@@ -873,11 +867,11 @@ def test_ds_append(memory_ds, x_args, y_args, x_size):
 @pytest.mark.parametrize(
     "dest_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
-@pytest.mark.parametrize("size", [(30, 40, 3), (5041, 3037, 3)])
+@pytest.mark.parametrize("size", [(30, 40, 3), (1261, 759, 3)])
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = hub.dataset("mem://ds1")
     ds2 = hub.dataset("mem://ds2")
-    ds1.create_tensor("x", **src_args)
+    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
     ds2.create_tensor("y", **dest_args)
