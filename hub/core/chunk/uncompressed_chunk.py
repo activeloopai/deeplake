@@ -7,7 +7,7 @@ from .base_chunk import BaseChunk, InputSample
 
 
 class UncompressedChunk(BaseChunk):
-    def extend_if_has_space(
+    def extend_if_has_space(  # type: ignore
         self, incoming_samples: Union[List[InputSample], np.ndarray]
     ) -> float:
         self.prepare_for_write()
@@ -68,8 +68,10 @@ class UncompressedChunk(BaseChunk):
         return num_samples
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
-        sb, eb = self.byte_positions_encoder[local_index]
-        buffer = self.memoryview_data[sb:eb]
+        buffer = self.memoryview_data
+        if not self.byte_positions_encoder.is_empty():
+            sb, eb = self.byte_positions_encoder[local_index]
+            buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
         if self.is_text_like:
             buffer = bytes(buffer)
@@ -81,7 +83,9 @@ class UncompressedChunk(BaseChunk):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(sample, break_into_tiles=False)
         self.check_shape_for_update(local_index, shape)
-        new_nb = len(serialized_sample)
+        new_nb = (
+            None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
+        )
 
         old_data = self.data_bytes
         self.data_bytes = self.create_updated_data(

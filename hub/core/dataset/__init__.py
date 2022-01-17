@@ -1,4 +1,4 @@
-from .dataset import Dataset
+from .dataset import Dataset  # type: ignore
 from .hub_cloud_dataset import HubCloudDataset
 
 from hub.util.path import is_hub_cloud_path

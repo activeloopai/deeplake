@@ -5,30 +5,50 @@ import hub
 import uuid
 import time
 import warnings
+from hub.tests.dataset_fixtures import enabled_cloud_dataset_generators
+
+_counter = 0
 
 
-def test_dataset_locking(s3_ds_generator):
-    ds = s3_ds_generator()
+class VM(object):
+    """
+    Emulates a different machine
+    """
+
+    def __init__(self):
+        global _counter
+        self.id = _counter
+        _counter += 1
+
+    def __enter__(self):
+        self._getnode = uuid.getnode
+        uuid.getnode = lambda: self.id
+        self._locks = hub.core.lock._LOCKS.copy()
+        hub.core.lock._LOCKS.clear()
+
+    def __exit__(self, *args, **kwargs):
+        uuid.getnode = self._getnode
+        hub.core.lock._LOCKS.update(self._locks)
+
+
+@enabled_cloud_dataset_generators
+def test_dataset_locking(ds_generator):
+    ds = ds_generator()
     ds.create_tensor("x")
     arr = np.random.random((32, 32))
     ds.x.append(arr)
 
-    # Emulate a different machine
-    getnode = uuid.getnode
-    uuid.getnode = lambda: getnode() + 1
-    hub.core.lock._LOCKS.clear()
-
-    try:
-
+    with VM():
         # Make sure read only warning is raised
         with pytest.warns(UserWarning):
-            ds = s3_ds_generator()
+            ds = ds_generator()
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
         assert ds.read_only == True
-
+        with pytest.raises(LockedException):
+            ds.read_only = False
         # No warnings if user requests read only mode
         with warnings.catch_warnings(record=True) as ws:
-            ds = s3_ds_generator(read_only=True)
+            ds = ds_generator(read_only=True)
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
         assert not ws
 
@@ -39,10 +59,23 @@ def test_dataset_locking(s3_ds_generator):
         time.sleep(1.1)
 
         try:
-            ds = s3_ds_generator()
+            ds = ds_generator()
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
             assert ds.read_only == False
         finally:
             hub.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
-    finally:
-        uuid.getnode = getnode
+
+
+@enabled_cloud_dataset_generators
+def test_vc_locking(ds_generator):
+    ds = ds_generator()
+    ds.create_tensor("x")
+    arr = np.random.random((32, 32))
+    ds.x.append(arr)
+    ds.commit()
+    ds.checkout("branch", create=True)
+    with VM():
+        with warnings.catch_warnings(record=True) as ws:
+            ds = ds_generator()
+        np.testing.assert_array_equal(arr, ds.x[0].numpy())
+        assert not ws, str(ws[0])

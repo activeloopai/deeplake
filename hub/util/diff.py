@@ -28,8 +28,8 @@ def compare_commits(
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
     lca = version_state["commit_node_map"][lca_id]
 
-    changes_1 = create_changes_dict()
-    changes_2 = create_changes_dict()
+    changes_1: Dict[str, Dict] = defaultdict(dict)
+    changes_2: Dict[str, Dict] = defaultdict(dict)
 
     for commit_node, changes in [
         (commit_node_1, changes_1),
@@ -94,29 +94,38 @@ def get_changes_str(changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
     for tensor, change in changes.items():
+
         data_added = change["data_added"]
+        data_added_str = convert_adds_to_string(data_added)
+
         data_updated = change["data_updated"]
+
         created = change.get("created", False)
-        has_change = created or data_added or data_updated
+
+        info_updated = change.get("info_updated", False)
+
+        has_change = created or data_added_str or data_updated or info_updated
         if has_change:
             all_changes.append(tensor)
             if created:
                 all_changes.append("* Created tensor")
 
-            if data_added:
-                output = convert_changes_to_string(data_added, "Added")
-                all_changes.append(output)
+            if data_added_str:
+                all_changes.append(data_added_str)
 
             if data_updated:
-                output = convert_changes_to_string(data_updated, "Updated")
+                output = convert_updates_to_string(data_updated)
                 all_changes.append(output)
+
+            if info_updated:
+                all_changes.append("* Info updated")
             all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
     return "\n".join(all_changes)
 
 
-def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any]):
+def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dict]):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_cachable(meta_key, DatasetMeta)
@@ -126,24 +135,39 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Any
             commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
             change = changes[tensor]
-            change["data_added"].update(commit_diff.data_added)
-            change["data_updated"].update(commit_diff.data_updated)
+
             change["created"] = change.get("created") or commit_diff.created
+            change["info_updated"] = (
+                change.get("info_updated") or commit_diff.info_updated
+            )
+
+            # this means that the data was transformed inplace in a newer commit, so we can ignore older diffs
+            if change.get("data_transformed_in_place", False):
+                continue
+
+            if "data_added" not in change:
+                change["data_added"] = commit_diff.data_added.copy()
+            else:
+                change["data_added"][0] = commit_diff.data_added[0]
+
+            if "data_updated" not in change:
+                change["data_updated"] = commit_diff.data_updated.copy()
+            else:
+                change["data_updated"].update(commit_diff.data_updated)
+            change["data_transformed_in_place"] = (
+                change.get("data_transformed_in_place") or commit_diff.data_transformed
+            )
         except KeyError:
             pass
 
 
-def filter_data_updated(changes: Dict[str, Any]):
+def filter_data_updated(changes: Dict[str, Dict]):
     """Removes the intersection of data added and data updated from data updated."""
     for change in changes.values():
         # only show the elements in data_updated that are not in data_added
-        change["data_updated"] = change["data_updated"] - change["data_added"]
-
-
-def create_changes_dict() -> Dict[str, Any]:
-    """Creates the dictionary used to store changes."""
-    changes: Dict[str, Any] = defaultdict(lambda: defaultdict(set))
-    return changes
+        data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
+        upd = {data for data in change["data_updated"] if data not in data_added_range}
+        change["data_updated"] = upd
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
@@ -203,10 +227,18 @@ def range_interval_list_to_string(range_intervals: List[Tuple[int, int]]) -> str
     return output[:-2]
 
 
-def convert_changes_to_string(indexes: Set[int], change_type: str = "") -> str:
+def convert_updates_to_string(indexes: Set[int]) -> str:
     range_intervals = compress_into_range_intervals(indexes)
     output = range_interval_list_to_string(range_intervals)
 
     num_samples = len(indexes)
     sample_string = "sample" if num_samples == 1 else "samples"
-    return f"* {change_type} {num_samples} {sample_string}: [{output}]"
+    return f"* Updated {num_samples} {sample_string}: [{output}]"
+
+
+def convert_adds_to_string(index_range: List[int]) -> str:
+    num_samples = index_range[1] - index_range[0]
+    if num_samples == 0:
+        return ""
+    sample_string = "sample" if num_samples == 1 else "samples"
+    return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
