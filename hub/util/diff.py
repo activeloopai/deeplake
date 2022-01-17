@@ -40,6 +40,7 @@ def compare_commits(
             get_changes_for_id(commit_id, storage, changes)
             commit_node = commit_node.parent  # type: ignore
         filter_data_updated(changes)
+        # merge_renames(changes)
     return changes_1, changes_2
 
 
@@ -104,7 +105,11 @@ def get_changes_str(changes: Dict, message: str, separator: str):
 
         info_updated = change.get("info_updated", False)
 
-        has_change = created or data_added_str or data_updated or info_updated
+        renamed = change.get("renamed", False)
+
+        has_change = (
+            created or data_added_str or data_updated or info_updated or renamed
+        )
         if has_change:
             all_changes.append(tensor)
             if created:
@@ -119,6 +124,11 @@ def get_changes_str(changes: Dict, message: str, separator: str):
 
             if info_updated:
                 all_changes.append("* Info updated")
+
+            if renamed:
+                name_history = change.get("name_history")
+                output = convert_rename_to_string(name_history)
+                all_changes.append(output)
             all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
@@ -140,6 +150,13 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
             change["info_updated"] = (
                 change.get("info_updated") or commit_diff.info_updated
             )
+
+            change["renamed"] = change.get("renamed") or commit_diff.renamed
+
+            if change["renamed"]:
+                change["name_history"] = (
+                    change.get("name_history") or commit_diff.name_history
+                )
 
             # this means that the data was transformed inplace in a newer commit, so we can ignore older diffs
             if change.get("data_transformed_in_place", False):
@@ -168,6 +185,10 @@ def filter_data_updated(changes: Dict[str, Dict]):
         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
         upd = {data for data in change["data_updated"] if data not in data_added_range}
         change["data_updated"] = upd
+
+
+def merge_renames(changes: Dict[str, Dict]):
+    """Merge multiple renames to a single diff"""
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
@@ -242,3 +263,8 @@ def convert_adds_to_string(index_range: List[int]) -> str:
         return ""
     sample_string = "sample" if num_samples == 1 else "samples"
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
+
+
+def convert_rename_to_string(name_history):
+    return str(name_history)
+    # return f"* Renamed tensor {old_name} -> {new_name}"

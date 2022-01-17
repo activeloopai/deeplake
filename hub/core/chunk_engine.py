@@ -283,7 +283,20 @@ class ChunkEngine:
         if self._commit_diff is None or self._commit_diff_commit_id != commit_id:
             key = get_tensor_commit_diff_key(self.key, commit_id)
             if not self.commit_diff_exists:
-                diff = CommitDiff(self.num_samples)
+                parent_id = self.version_state["commit_node"].parent.commit_id
+                parent_diff_key = get_tensor_commit_diff_key(self.key, parent_id)
+                diff = CommitDiff(self.num_samples, name_history=[self.key])
+                try:
+                    parent_diff = self.meta_cache.get_cachable(
+                        parent_diff_key, CommitDiff
+                    )
+                    if len(parent_diff.name_history) > 1:
+                        diff = CommitDiff(
+                            self.num_samples, name_history=parent_diff.name_history
+                        )
+                except KeyError:
+                    pass
+
                 try:
                     self.meta_cache[key] = diff
                 except ReadOnlyModeError:

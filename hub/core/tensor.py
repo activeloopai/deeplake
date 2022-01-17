@@ -69,7 +69,7 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
-    diff = CommitDiff(created=True)
+    diff = CommitDiff(created=True, renamed=False, name_history=[key])
     storage[diff_key] = diff  # type: ignore
 
 
@@ -359,8 +359,14 @@ class Tensor:
 
         diff_key = get_tensor_commit_diff_key(self.key, commit_id)
         new_diff_key = get_tensor_commit_diff_key(key, commit_id)
+        diff = self.chunk_engine.commit_diff
+        if diff.renamed:
+            diff.name_history[-1] = key
+        elif not diff.created:
+            diff.renamed = True
+            diff.name_history.append(key)
+        self.storage[new_diff_key] = diff
         try:
-            self.storage[new_diff_key] = self.storage[diff_key]
             del self.storage[diff_key]
         except KeyError:
             pass

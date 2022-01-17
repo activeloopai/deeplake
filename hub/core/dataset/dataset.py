@@ -678,7 +678,7 @@ class Dataset:
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Union[Dict, Tuple[Dict, Dict]]]:
         """Returns/displays the differences between commits/branches.
-        For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created.
+        For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created or renamed.
 
         Args:
             id_1 (str, optional): The first commit_id or branch name.
@@ -705,7 +705,7 @@ class Dataset:
                 "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True, "info_updated": False, "data_transformed_in_place": False}
             }
 
-            Here the data_adeded is a range of sample indexes that were added to the tensor.
+            Here the data_added is a range of sample indexes that were added to the tensor.
             For example [3, 6] means that sample 3, 4 and 5 were added.
             Another example [3, 3] means that no samples were added as the range is empty
 
