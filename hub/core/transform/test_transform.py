@@ -248,27 +248,12 @@ def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
-def test_chain_transform_list_small(ds, scheduler):
-    ls = [i for i in range(100)]
-    ds_out = ds
+def test_chain_transform_list_small(local_ds, scheduler):
+    ls = list(range(100))
+    ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(
-                ls,
-                ds_out,
-                num_workers=TRANSFORM_TEST_NUM_WORKERS,
-                progressbar=False,
-                scheduler=scheduler,
-            )
-        return
     pipeline.eval(
         ls,
         ds_out,
