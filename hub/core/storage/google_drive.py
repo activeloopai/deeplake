@@ -6,7 +6,6 @@ from googleapiclient.http import (  # type: ignore
     MediaIoBaseUpload,
 )
 from httplib2 import Http  # type: ignore
-from oauth2client import file, client, tools  # type: ignore
 from google.auth.transport.requests import Request  # type: ignore
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
 from google.oauth2.credentials import Credentials  # type: ignore
@@ -18,7 +17,6 @@ from typing import Dict
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.install",
-    "https://www.googleapis.com/auth/drive.metadata.readonly",
 ]
 FOLDER = "application/vnd.google-apps.folder"
 FILE = "application/octet-stream"
@@ -113,9 +111,29 @@ class GDriveProvider(StorageProvider):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    "client_secrets.json", SCOPES
-                )
+                if os.path.exists("client_secrets.json"):
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        "client_secrets.json", SCOPES
+                    )
+                else:
+                    OAUTH_CLIENT_ID = os.getenv("CLIENT_ID")
+                    OAUTH_CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+                    flow = InstalledAppFlow.from_client_config(
+                        {
+                            "installed": {
+                                "client_id": OAUTH_CLIENT_ID,
+                                "client_secret": OAUTH_CLIENT_SECRET,
+                                "redirect_uris": [
+                                    "urn:ietf:wg:oauth:2.0:oob",
+                                    "http://localhost",
+                                ],
+                                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                                "token_uri": "https://oauth2.googleapis.com/token",
+                                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                            }
+                        },
+                        scopes=SCOPES,
+                    )
                 creds = flow.run_local_server(port=0)
 
             with open("token.json", "w") as token:
