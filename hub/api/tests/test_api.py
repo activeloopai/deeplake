@@ -124,7 +124,7 @@ def test_larger_data_memory(memory_ds):
         slice(2, None),
         (0, slice(5, None), slice(None, 714)),
         (2, 100, 1007),
-        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 4095]),
+        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 1023]),
     ]
     for idx in idxs:
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
