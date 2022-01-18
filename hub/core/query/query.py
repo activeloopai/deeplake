@@ -16,7 +16,7 @@ class DatasetQuery:
         self,
         dataset,
         query: str,
-        progress_callback: Callable[[int], None] = lambda *_: None,
+        progress_callback: Callable[[int, bool], None] = lambda *_: None,
     ):
         self._dataset = dataset
         self._query = query
