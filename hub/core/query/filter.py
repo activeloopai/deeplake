@@ -371,7 +371,7 @@ def query_inplace(
         vds.autoflush = False
         vds.info["total_samples"] = num_samples
         vds.info["samples_processed"] = 0
-        vds_queue = Queue() if num_workers == 0 else compute.create_queue()
+        vds_queue = Queue() if num_workers == 0 else compute.create_queue()  # type: ignore
         vds_thread = _get_vds_thread(vds, vds_queue, num_samples)
         vds_thread.start()
         dataset._send_query_progress(
