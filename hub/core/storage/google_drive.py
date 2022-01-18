@@ -5,6 +5,7 @@ from googleapiclient.http import (  # type: ignore
     MediaIoBaseDownload,
     MediaIoBaseUpload,
 )
+from googleapiclient.errors import HttpError
 from httplib2 import Http  # type: ignore
 from google.auth.transport.requests import Request  # type: ignore
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
@@ -30,23 +31,28 @@ class GoogleDriveIDManager:
         self.drive = drive
         self.root_path = root
         self.root_id = self.find_id(root)
-        self.makemap(self.root_id, self.root_path)
 
     def find_id(self, path):
         """Find google drive id given path of folder"""
 
         dirname, basename = posixpath.split(path)
-        file_list = (
-            self.drive.files()
-            .list(
-                q=f"""'{self.find_id(dirname, update_map=False) if dirname else 'root'}' in parents and 
-                    name = '{basename}' and 
-                    trashed = false""",
-                spaces="drive",
-                fields="files(id)",
+        try:
+            file_list = (
+                self.drive.files()
+                .list(
+                    q=f"""'{self.find_id(dirname) if dirname else 'root'}' in parents and 
+                        name = '{basename}' and 
+                        trashed = false""",
+                    supportsAllDrives="true",
+                    includeItemsFromAllDrives="true",
+                    spaces="drive",
+                    fields="files(id)",
+                )
+                .execute()
             )
-            .execute()
-        )
+        except HttpError:
+            file_list = {"files": []}
+
         if len(file_list["files"]) > 0:
             id = file_list["files"][0].get("id")
         else:
@@ -87,7 +93,7 @@ class GoogleDriveIDManager:
 class GDriveProvider(StorageProvider):
     """Provider class for using Google Drive storage."""
 
-    def __init__(self, root: str = "root"):
+    def __init__(self, root):
         """Initializes the GDriveProvider
 
         Example:
@@ -147,9 +153,14 @@ class GDriveProvider(StorageProvider):
             self.gid = GoogleDriveIDManager(self.drive, self.root_path)
         self.root_id = self.gid.root_id
         if not self.root_id:
+            self.root_id = "root"
             root_dir = self.make_dir(self.root_path)
             self.root_id = self.gid.root_id = root_dir.get("id")
-            self.gid.path_id_map.pop(self.root_path)
+            for i in range(len(self.root_path.split("/"))):
+                self.gid.path_id_map.pop(
+                    self.root_path.split("/", i)[0]
+                )  # Remove root dir components from map
+        self.gid.makemap(self.root_id, self.root_path)
 
     def _get_id(self, path):
         return self.gid.path_id_map.get(path)
@@ -256,3 +267,4 @@ class GDriveProvider(StorageProvider):
                 del self[key]
             except:
                 pass
+        self._delete_file(self.gid.find_id(self.root_path))
