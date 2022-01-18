@@ -20,8 +20,8 @@ jobs:
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
       kaggle_key: ${{ secrets.KAGGLE_KEY }}
-      oauth_client_id: ${{ secrets.OAUTH_CLIENT_ID }}
-      oauth_client_secret: ${{ secrets.OAUTH_CLIENT_SECRET }}
+      oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
+      oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
   manage-pr:
     name: Automated PR management tasks
     if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
