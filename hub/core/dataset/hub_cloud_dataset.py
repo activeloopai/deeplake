@@ -54,7 +54,7 @@ class HubCloudDataset(Dataset):
         if self.is_actually_cloud:
             if self.org_id is not None:
                 return
-            _, (org_id, ds_name), subdir = process_hub_path(self.path)
+            _, org_id, ds_name, subdir = process_hub_path(self.path)
             if subdir:
                 ds_name += "/" + subdir
         else:
@@ -66,11 +66,13 @@ class HubCloudDataset(Dataset):
         self.__dict__["org_id"] = org_id
         self.__dict__["ds_name"] = ds_name
 
+    def _is_sub_ds(self):
+        return "/" in self.ds_name
+
     def _register_dataset(self):
         # called in super()._populate_meta
         self._set_org_and_name()
-        if "/" in self.ds_name:
-            # Sub dataset
+        if self._is_sub_ds():
             return
         self.client.create_dataset_entry(
             self.org_id,
@@ -214,7 +216,8 @@ class HubCloudDataset(Dataset):
 
     def delete(self, large_ok=False):
         super().delete(large_ok=large_ok)
-
+        if self._is_sub_ds():
+            return
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     @property
