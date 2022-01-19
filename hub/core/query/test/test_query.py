@@ -117,10 +117,10 @@ def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type
 ):
     ds = ds_generator()
-    ds.read_only = read_only
     if read_only and not ds.path.startswith("hub://"):
         return
     _populate_data(ds, n=2)
+    ds.read_only = read_only
     f = "labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
     view = ds.filter(
         f, store_result=stream, num_workers=num_workers, progressbar=progressbar
