@@ -13,6 +13,8 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
 )
 from hub.compression import (
     get_compression_type,
@@ -127,12 +129,23 @@ class Sample:
             return
 
         if f is None:
-            f = (
-                # posixpath.join(self.storage.next_storage.root, self.path)
-                self.storage[self.path]
-                if self.path
-                else self.compressed_bytes[self._compression]
-            )
+            # f = self.path if self.path else self.compressed_bytes[self._compression]
+            # f = (
+            #     posixpath.join(self.storage.next_storage.root, self.path)
+            #     # self.storage[self.path]
+            #     if self.path
+            #     else self.compressed_bytes[self._compression]
+            # )
+            # print(f)
+            if (
+                self.path
+                and self.path.split(".")[-1] in VIDEO_COMPRESSIONS + AUDIO_COMPRESSIONS
+            ):
+                f = posixpath.join(self.storage.next_storage.root, self.path)
+            elif self.path:
+                f = self.storage[self.path]
+            else:
+                f = self.compressed_bytes[self._compression]
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
