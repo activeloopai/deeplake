@@ -117,6 +117,7 @@ def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type
 ):
     ds = ds_generator()
+    ds.read_only = read_only
     if read_only and not ds.path.startswith("hub://"):
         return
     _populate_data(ds, n=2)
