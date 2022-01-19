@@ -27,6 +27,7 @@ ffibuilder.set_source(
     #include "hub/core/pyffmpeg/pyffmpeg.h"
     """,
     include_dirs=pyffmpeg_include_dirs,
+    sources=["hub/core/pyffmpeg/pyffmpeg.c"],
     libraries=["avcodec", "avformat", "swscale"],
 )
 
