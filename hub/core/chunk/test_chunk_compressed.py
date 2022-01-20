@@ -119,8 +119,8 @@ def test_update(compression):
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.rand(175, 350, 3).astype(dtype)
-    data_5 = np.random.rand(1500, 750, 3).astype(dtype)
+    data_3 = np.random.randint(0, 255, size=(175, 350, 3)).astype(dtype)
+    data_5 = np.random.randint(0, 255, size=(500, 750, 3)).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)
