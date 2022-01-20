@@ -1384,10 +1384,10 @@ class Dataset:
     @staticmethod
     def _write_queries_json(ds, info):
         base_storage = get_base_storage(ds.storage)
-        storage_read_only = storage.read_only
+        storage_read_only = base_storage.read_only
         if ds._locked_out:
             # Ignore storage level lock since we have file level lock
-            storage.read_only = False
+            base_storage.read_only = False
         lock = Lock(base_storage, get_queries_lock_key())
         lock.acquire(timeout=10, force=True)
         queries_key = get_queries_key()
@@ -1400,7 +1400,7 @@ class Dataset:
             base_storage[queries_key] = json.dumps(queries).encode("utf-8")
         finally:
             lock.release()
-            storage.read_only = storage_read_only
+            base_storage.read_only = storage_read_only
 
     def _write_vds(self, vds):
         """Writes the indices of this view to a vds."""
