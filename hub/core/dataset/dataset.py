@@ -1447,6 +1447,8 @@ class Dataset:
             hub.delete(queries_ds_path, force=True)
             queries_ds = hub.dataset(queries_ds_path, verbose=False)
 
+        queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
+
         path = f"hub://{username}/queries/{hash}"
 
         vds = hub.empty(path, overwrite=True)
