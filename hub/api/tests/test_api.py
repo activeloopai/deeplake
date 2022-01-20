@@ -884,6 +884,8 @@ def test_no_view(memory_ds):
     with pytest.raises(InvalidOperationError):
         memory_ds[0].read_only = True
 
+    memory_ds.read_only = True
+
 
 @pytest.mark.parametrize(
     "x_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
