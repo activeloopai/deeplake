@@ -63,21 +63,6 @@ class S3ResetClientManager:
         if exc_type is not None:
             raise self.error_class(exc_value).with_traceback(exc_traceback)
 
-# def retry(num_tries, error_class: S3Error):
-#     def deco_retry(f):
-#         def f_retry(*args, **kwargs):
-#             for i in range(num_tries):
-#                 try:
-#                     return f(*args, **kwargs)
-#                 except Exception as err:
-#                     if i == num_tries - 1:
-#                         raise error_class(err)
-#             return f(*args, **kwargs)
-#         return f_retry
-
-#     return deco_retry
-
-
 
 class S3Provider(StorageProvider):
     """Provider class for using S3 storage."""
@@ -156,14 +141,13 @@ class S3Provider(StorageProvider):
             with manager(self, S3SetError):
                 self._set(path, content)
         except CONNECTION_ERRORS as err:
-            num_tries = min(ceil((time.time() - self.start_time) / 300), 5)
-            for i in range(num_tries):
+            for _ in range(self.num_tries):
                 try:
                     self._set(path, content)
                     return
-                except Exception as err:
-                    if i == num_tries - 1:
-                        raise S3SetError(err)
+                except Exception:
+                    pass
+            raise S3SetError(err)
         except Exception as err:
             raise S3SetError(err)
 
@@ -200,13 +184,12 @@ class S3Provider(StorageProvider):
             with manager(self, S3GetError):
                 return self._get(path)
         except CONNECTION_ERRORS as err:
-            num_tries = min(ceil((time.time() - self.start_time) / 300), 5)
-            for i in range(num_tries):
+            for _ in range(self.num_tries):
                 try:
                     return self._get(path)
-                except Exception as err:
-                    if i == num_tries - 1:
-                        raise S3GetError(err)
+                except Exception:
+                    pass
+            raise S3GetError(err)
         except Exception as err:
             raise S3GetError(err)
 
@@ -235,16 +218,19 @@ class S3Provider(StorageProvider):
             with manager(self, S3DeletionError):
                 self._del(path)
         except CONNECTION_ERRORS as err:
-            num_tries = min(ceil((time.time() - self.start_time) / 300), 5)
-            for i in range(num_tries):
+            for _ in range(self.num_tries):
                 try:
                     self._del(path)
                     return
-                except Exception as err:
-                    if i == num_tries - 1:
-                        raise S3DeletionError(err)
+                except Exception:
+                    pass
+            raise S3DeletionError(err)
         except Exception as err:
             raise S3DeletionError(err)
+
+    @property
+    def num_tries(self):
+        return min(ceil((time.time() - self.start_time) / 300), 5)
 
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
