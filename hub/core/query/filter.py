@@ -172,8 +172,19 @@ def query_inplace(
     num_workers: int,
     scheduler: str,
 ) -> List[int]:
-    def subquery(dataset_query):
-        dataset, query = dataset_query
+    class QuerySlice:
+        def __init__(self, offset, size, dataset, query) -> None:
+            self.offset = offset
+            self.size = size
+            self.dataset = dataset
+            self.query = query
+
+        def slice_dataset(self):
+            return self.dataset[self.offset : (self.offset + self.size)]
+
+    def subquery(query_slice: QuerySlice):
+        dataset = query_slice.slice_dataset()
+        query = query_slice.query
 
         if progressbar:
             from tqdm import tqdm
@@ -191,19 +202,19 @@ def query_inplace(
         else:
             return DatasetQuery(dataset, query).execute()
 
-    def pg_subquery(pg_callback, dataset_query):
-        dataset, query = dataset_query
+    def pg_subquery(pg_callback, query_slice):
+        dataset = query_slice.slice_dataset()
         ds_query = DatasetQuery(dataset, query, progress_callback=pg_callback)
         return ds_query.execute()
 
     if num_workers == 0:
-        return subquery((dataset, query))
+        return subquery(QuerySlice(0, len(dataset), dataset, query))
 
     compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
     try:
         btch = len(dataset) // num_workers
         subdatasets = [
-            (dataset[idx * btch : (idx + 1) * btch], query)
+            QuerySlice(idx * btch, btch, dataset, query)
             for idx in range(0, num_workers)
         ]
 
@@ -212,7 +223,11 @@ def query_inplace(
         else:
             result = compute.map(subquery, subdatasets)  # type: ignore
 
-        index_map = [k for x in result for k in x]  # unfold the result map
+        index_map = [
+            k + dataset_slice.offset
+            for x, dataset_slice in zip(result, subdatasets)
+            for k in x
+        ]  # unfold the result map
     finally:
         compute.close()
 
