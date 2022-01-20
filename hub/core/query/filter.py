@@ -1,4 +1,5 @@
 from typing import Callable, List, Sequence
+from math import ceil
 from uuid import uuid4
 
 import hub
@@ -165,6 +166,19 @@ def query_dataset(
     return dataset[index_map]  # type: ignore [this is fine]
 
 
+class QuerySlice:
+    def __init__(self, offset, size, dataset, query) -> None:
+        self.offset = offset
+        self.size = size
+        self.dataset = dataset
+        self.query = query
+
+    def slice_dataset(self):
+        return self.dataset[
+            self.offset : max(self.offset + self.size, len(self.dataset))
+        ]
+
+
 def query_inplace(
     dataset: hub.Dataset,
     query: str,
@@ -172,16 +186,6 @@ def query_inplace(
     num_workers: int,
     scheduler: str,
 ) -> List[int]:
-    class QuerySlice:
-        def __init__(self, offset, size, dataset, query) -> None:
-            self.offset = offset
-            self.size = size
-            self.dataset = dataset
-            self.query = query
-
-        def slice_dataset(self):
-            return self.dataset[self.offset : (self.offset + self.size)]
-
     def subquery(query_slice: QuerySlice):
         dataset = query_slice.slice_dataset()
         query = query_slice.query
@@ -212,7 +216,7 @@ def query_inplace(
 
     compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
     try:
-        btch = len(dataset) // num_workers
+        btch = ceil(len(dataset) / num_workers)
         subdatasets = [
             QuerySlice(idx * btch, btch, dataset, query)
             for idx in range(0, num_workers)

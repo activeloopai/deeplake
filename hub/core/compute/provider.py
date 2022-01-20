@@ -1,4 +1,8 @@
 from abc import ABC, abstractmethod
+from multiprocessing.managers import SyncManager
+
+import ctypes
+import time
 
 
 class ComputeProvider(ABC):
@@ -13,42 +17,64 @@ class ComputeProvider(ABC):
         from threading import Thread
 
         progress_bar = tqdm(total=total_length, desc=desc)
-        progress_queue = self.create_queue()
+        progress = self.manager().Value(ctypes.c_int64, 0)
+        done = self.manager().Event()
 
         def sub_func(*args, **kwargs):
-            def pg_callback(value: int):
-                progress_queue.put(value)  # type: ignore[trust]
-                pass
+            class ProgUpdate:
+                def __init__(self) -> None:
+                    self.last_call = time.time()
+                    self.acc = 0
 
-            return func(pg_callback, *args, **kwargs)
+                def pg_callback(self, done: int) -> None:
+                    self.acc += done
+                    if time.time() - self.last_call > 0.1:
+                        progress.value += self.acc
+                        self.acc = 0
+                        self.last_call = time.time()
 
-        def update_pg(bar, queue):
-            while True:
-                r = queue.get()
-                if r is not None:
-                    bar.update(r)
-                else:
+                def flush(self):
+                    progress.value += self.acc
+
+            pg = ProgUpdate()
+
+            try:
+                return func(pg.pg_callback, *args, **kwargs)
+            finally:
+                pg.flush()
+
+        def update_pg(bar: tqdm, progress, done):
+            prev = progress.value
+
+            while prev < total_length:
+                val = progress.value
+                diff = val - prev
+
+                if diff > 0:
+                    bar.update(diff)
+                prev = val
+
+                time.sleep(0.1)
+
+                if done.is_set():
                     break
 
         progress_thread: Thread = threading.Thread(
-            target=update_pg, args=(progress_bar, progress_queue)
+            target=update_pg, args=(progress_bar, progress, done)
         )
         progress_thread.start()
 
         try:
             result = self.map(sub_func, iterable)
         finally:
-            progress_queue.put(None)  # type: ignore[trust]
+            done.set()
             progress_thread.join()
             progress_bar.close()
-
-            if hasattr(progress_queue, "close"):
-                progress_bar.close()
 
         return result
 
     @abstractmethod
-    def create_queue(self):
+    def manager(self) -> SyncManager:
         """Creates queue for specific provider"""
 
     @abstractmethod

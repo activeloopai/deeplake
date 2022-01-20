@@ -23,8 +23,8 @@ class SerialProvider(ComputeProvider):
 
         return result
 
-    def create_queue(self):
-        raise NotImplementedError("no queues in serial provider")
+    def manager(self):
+        raise NotImplementedError("no manager in serial provider")
 
     def close(self):
         return

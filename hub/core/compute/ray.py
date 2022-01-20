@@ -1,7 +1,7 @@
 import ray
 from ray.util.multiprocessing import Pool
-from ray.util.queue import Queue
 from hub.core.compute.provider import ComputeProvider
+from multiprocessing import Manager
 
 
 class RayProvider(ComputeProvider):
@@ -12,13 +12,14 @@ class RayProvider(ComputeProvider):
             ray.init()
         self.workers = workers
         self.pool = Pool(processes=workers)
+        self._manager = Manager()
 
     def map(self, func, iterable):
         return self.pool.map(func, iterable)
 
+    def manager(self):
+        return self._manager
+
     def close(self):
         self.pool.close()
         self.pool.join()
-
-    def create_queue(self):
-        return Queue()
