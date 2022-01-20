@@ -137,10 +137,6 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
-    if ds.path.startswith("hub://") and read_only:
-        # Delete queries ds from testing acc:
-        org = ds.path[6:].split("/")[0]
-        hub.delete(f"hub://{org}/queries", large_ok=True)
 
 
 def test_group(local_ds):
