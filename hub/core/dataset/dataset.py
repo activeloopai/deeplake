@@ -1437,7 +1437,15 @@ class Dataset:
         info = self._get_view_info()
         hash = info["id"]
 
-        queries_ds = hub.dataset(f"hub://{username}/queries")  # create if doesn't exist
+        queries_ds_path = f"hub://{username}/queries"
+
+        try:
+            queries_ds = hub.dataset(
+                queries_ds_path, verbose=False
+            )  # create if doesn't exist
+        except PathNotEmptyException:
+            hub.delete(queries_ds_path, force=True)
+            queries_ds = hub.dataset(queries_ds_path, verbose=False)
 
         path = f"hub://{username}/queries/{hash}"
 
