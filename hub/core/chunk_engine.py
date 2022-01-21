@@ -393,9 +393,10 @@ class ChunkEngine:
         chunk = self.get_chunk(chunk_key)
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        chunk.key = chunk_key  # type: ignore
-        chunk.id = self.last_chunk_id  # type: ignore
-        self.update_chunk_in_cache(chunk)
+        else:
+            chunk.key = chunk_key  # type: ignore
+            chunk.id = self.last_chunk_id  # type: ignore
+            self.update_chunk_in_cache(chunk)
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
