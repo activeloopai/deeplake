@@ -496,6 +496,7 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
+            self.cache[current_chunk.key] = current_chunk  # type: ignore
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
@@ -638,6 +639,7 @@ class ChunkEngine:
             curr_shape = chunk.shapes_encoder[-1]
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
+            self.cache[chunk.key] = chunk  # type: ignore
             self.add_chunk_to_dirty_keys(chunk)
 
     def update(
@@ -670,8 +672,8 @@ class ChunkEngine:
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
-                # tensor_meta.update_shape_interval(shape)
                 chunk.update_sample(local_sample_index, sample)
+                self.cache[chunk.key] = chunk  # type: ignore
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
