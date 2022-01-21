@@ -54,6 +54,16 @@ config = {
     "install_requires": requirements,
     "tests_require": tests,
     "include_package_data": True,
+    "package_data": {
+        "pyffmpeg": [
+            "*.c",
+            "*.h",
+            "libavcodec/*.h",
+            "libavformat/*.h",
+            "libavutil/*.h",
+            "libswscale/*.h",
+        ]
+    },
     "zip_safe": False,
     "entry_points": {"console_scripts": ["activeloop = hub.cli.commands:cli"]},
     "setup_requires": ["cffi>=1.0.0"],
