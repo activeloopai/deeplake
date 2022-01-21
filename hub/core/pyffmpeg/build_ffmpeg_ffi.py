@@ -2,8 +2,6 @@ from cffi import FFI  # type: ignore
 import posixpath
 import os
 
-from hub.core import pyffmpeg
-
 ffibuilder = FFI()
 
 pyffmpeg_include_dirs = [
@@ -18,18 +16,17 @@ ffibuilder.cdef(
     """
 )
 
-ffibuilder.set_source(
-    "hub.core.pyffmpeg._pyffmpeg",
-    """
-    #include "avcodec.h"
-    #include "avformat.h"
-    #include "swscale.h"
-    #include "hub/core/pyffmpeg/pyffmpeg.h"
-    """,
-    include_dirs=pyffmpeg_include_dirs,
-    sources=["hub/core/pyffmpeg/pyffmpeg.c"],
-    libraries=["avcodec", "avformat", "swscale"],
-)
-
 if __name__ == "__main__":
+    ffibuilder.set_source(
+        "hub.core.pyffmpeg._pyffmpeg",
+        """
+        #include "avcodec.h"
+        #include "avformat.h"
+        #include "swscale.h"
+        #include "pyffmpeg.h"
+        """,
+        include_dirs=pyffmpeg_include_dirs,
+        sources=["hub/core/pyffmpeg/pyffmpeg.c"],
+        libraries=["avcodec", "avformat", "swscale"],
+    )
     ffibuilder.compile(verbose=True)

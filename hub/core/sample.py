@@ -1,11 +1,12 @@
 # type: ignore
+import os
 from hub.core.compression import (
     compress_array,
-    compress_bytes,
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    to_hub_mkv,
 )
 from hub.compression import (
     get_compression_type,
@@ -25,6 +26,11 @@ from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 from io import BytesIO
+
+if os.name == "nt":
+    USE_CFFI = False
+else:
+    USE_CFFI = True
 
 
 class Sample:
@@ -170,6 +176,12 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
+                if not USE_CFFI:
+                    if self._compression in (
+                        "mp4",
+                        "mkv",
+                    ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
+                        compressed_bytes = to_hub_mkv(self.path)
                 else:
                     with open(self.path, "rb") as f:
                         compressed_bytes = f.read()
