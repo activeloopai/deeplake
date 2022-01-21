@@ -61,10 +61,11 @@ def storage_provider_from_path(
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
-    elif not os.path.exists(path) or os.path.isdir(path):
-        storage = LocalProvider(path)
     else:
-        raise ValueError(f"Local path {path} must be a path to a local directory")
+        if not os.path.exists(path) or os.path.isdir(path):
+            storage = LocalProvider(path)
+        else:
+            raise ValueError(f"Local path {path} must be a path to a local directory")
 
     if read_only:
         storage.enable_readonly()
