@@ -5,7 +5,6 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
-from hub.util.keys import get_dataset_meta_key
 from hub.util.path import is_hub_cloud_path
 from warnings import warn
 import time
@@ -14,25 +13,21 @@ import hub
 
 class HubCloudDataset(Dataset):
     def _first_load_init(self):
-        if not self.is_first_load:
-            return
-        self._set_org_and_name()
-        if self.is_actually_cloud:
-            has_agreement = self.version_state["meta"].has_agreement
-            check_agreement = has_agreement in [True, None]
-            if check_agreement:
+        if self.is_first_load:
+            self._set_org_and_name()
+            if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
-            if self.verbose:
-                logger.info(
-                    f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                if self.verbose:
+                    logger.info(
+                        f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                    )
+            else:
+                # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
+                warn(
+                    f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
-        else:
-            # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
-            warn(
-                f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
-            )
 
     @property
     def client(self):
@@ -228,10 +223,6 @@ class HubCloudDataset(Dataset):
     def add_agreeement(self, agreement: str):
         self.storage.check_readonly()  # type: ignore
         self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")  # type: ignore
-        vs = self.version_state
-        vs["meta"].has_agreement = True
-        meta_key = get_dataset_meta_key(vs["commit_id"])
-        self.storage[meta_key] = vs["meta"]
 
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()
