@@ -1,3 +1,4 @@
+import posixpath
 import hub
 from hub.util.exceptions import (
     SampleCompressionError,
