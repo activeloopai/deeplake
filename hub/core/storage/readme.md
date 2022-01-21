@@ -1,4 +1,4 @@
-# Temporary document, will be added to ReadTheDocs later
+# Adding a storage provider
 
 In order to add a new storage provider (say XYZ):
 

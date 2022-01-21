@@ -3,3 +3,4 @@ tensorflow
 tensorflow_datasets
 tensorflow
 ray==1.6.0
+datasets~=1.17
