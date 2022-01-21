@@ -6,6 +6,7 @@ from hub.core.query import DatasetQuery
 from hub.util.remove_cache import get_base_storage
 from hub.core.storage import LocalProvider
 import hub
+from uuid import uuid4
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -121,7 +122,11 @@ def test_inplace_dataset_view_save(
         return
     _populate_data(ds, n=2)
     ds.read_only = read_only
-    f = "labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
+    f = (
+        f"labels == 'dog'#{uuid4().hex}"
+        if query_type == "string"
+        else lambda s: s.labels == "dog"
+    )
     view = ds.filter(
         f, store_result=stream, num_workers=num_workers, progressbar=progressbar
     )

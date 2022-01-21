@@ -22,7 +22,7 @@ def process_hub_path(path: str) -> Tuple[str, str, str, str]:
 
     if len(s) == 3 and s[1] == "queries" and not s[2].startswith("."):
         # Special case: expand hub://username/queries/hash to hub://username/queries/.queries/hash
-        subdir = f"queries/.queries/{s[2]}"
+        subdir = f".queries/{s[2]}"
     else:
         subdir = "/".join(s[2:])
         if len(s) > 2:
