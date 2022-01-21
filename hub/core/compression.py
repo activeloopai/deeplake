@@ -797,7 +797,7 @@ def _read_video_shape_cffi(file):
 
         ffibuilder = FFI()
 
-        pyffmpeg_include_dir = os.getcwd()
+        pyffmpeg_include_dir = posixpath.split(__file__)[0]
 
         ffibuilder.cdef(
             """
@@ -806,8 +806,12 @@ def _read_video_shape_cffi(file):
             """
         )
 
+        rel_path = os.path.join(
+            os.path.relpath(pyffmpeg_include_dir, os.getcwd()), "pyffmpeg"
+        )
+
         ffibuilder.set_source(
-            "pyffmpeg._pyffmpeg",
+            "_pyffmpeg",
             """
             #include "pyffmpeg/avcodec.h"
             #include "pyffmpeg/avformat.h"
@@ -815,10 +819,10 @@ def _read_video_shape_cffi(file):
             #include "pyffmpeg/pyffmpeg.h"
             """,
             include_dirs=[pyffmpeg_include_dir],
-            sources=["pyffmpeg/pyffmpeg.c"],
+            sources=["pyffmpeg.c"],
             libraries=["avcodec", "avformat", "swscale"],
         )
-        ffibuilder.compile(tmpdir="./pyffmpeg")
+        ffibuilder.compile(tmpdir=rel_path)
 
         from hub.core.pyffmpeg._pyffmpeg import lib, ffi
 

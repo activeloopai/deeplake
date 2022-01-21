@@ -18,14 +18,19 @@ struct buffer_data
 
 int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes)
 {
-    av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;
     pFormatContext = avformat_alloc_context();
     struct buffer_data bd = {0};
 
-    int ret = 0;
+    int ret;
+
+    if (!pFormatContext)
+    {
+        logging("ERROR could not allocate memory for Format Context");
+        return -1;
+    }
 
     if (isBytes == 1)
     {
@@ -41,9 +46,19 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
         ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
     }
 
-    avformat_find_stream_info(pFormatContext, NULL);
+    if (ret != 0)
+    {
+        logging("ERROR could not open the file");
+        return -1;
+    }
 
-    for (int i = 0; i < pFormatContext->nb_streams; i++)
+    if (avformat_find_stream_info(pFormatContext, NULL) < 0)
+    {
+        logging("ERROR could not get the stream info");
+        return -1;
+    }
+
+    for (unsigned int i = 0; i < pFormatContext->nb_streams; i++)
     {
 
         AVCodecParameters *pLocalCodecParameters = NULL;
@@ -81,14 +96,13 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
 
 int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
 {
-    av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;
     pFormatContext = avformat_alloc_context();
     struct buffer_data bd = {0};
 
-    int ret = 0;
+    int ret;
 
     if (!pFormatContext)
     {
@@ -110,6 +124,12 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
         ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
     }
 
+    if (ret != 0)
+    {
+        logging("ERROR could not open the file");
+        return -1;
+    }
+
     if (avformat_find_stream_info(pFormatContext, NULL) < 0)
     {
         logging("ERROR could not get the stream info");
@@ -120,7 +140,7 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
     AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecParameters = NULL;
 
-    for (int i = 0; i < pFormatContext->nb_streams; i++)
+    for (unsigned int i = 0; i < pFormatContext->nb_streams; i++)
     {
 
         AVCodecParameters *pLocalCodecParameters = NULL;
@@ -143,12 +163,47 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
         }
     }
 
+    if (video_stream_index == -1)
+    {
+        logging("Input does not contain a video stream!");
+        return -1;
+    }
+
     AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
-    avcodec_parameters_to_context(pCodecContext, pCodecParameters);
-    avcodec_open2(pCodecContext, pCodec, NULL);
+
+    if (!pCodecContext)
+    {
+        logging("failed to allocated memory for AVCodecContext");
+        return -1;
+    }
+
+    if (avcodec_parameters_to_context(pCodecContext, pCodecParameters) < 0)
+    {
+        logging("failed to copy codec params to codec context");
+        return -1;
+    }
+
+    if (avcodec_open2(pCodecContext, pCodec, NULL) < 0)
+    {
+        logging("failed to open codec through avcodec_open2");
+        return -1;
+    }
 
     AVFrame *pFrame = av_frame_alloc();
+
+    if (!pFrame)
+    {
+        logging("failed to allocated memory for AVFrame");
+        return -1;
+    }
+
     AVPacket *pPacket = av_packet_alloc();
+
+    if (!pPacket)
+    {
+        logging("failed to allocated memory for AVPacket");
+        return -1;
+    }
 
     struct SwsContext *sws_context = NULL;
 
@@ -215,7 +270,7 @@ const int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, 
 int readFunc(void *opaque, uint8_t *buf, int buf_size)
 {
     struct buffer_data *bd = (struct buffer_data *)opaque;
-    buf_size = FFMIN(buf_size, bd->size);
+    buf_size = FFMIN(buf_size, (int)bd->size);
     memmove(buf, bd->ptr, buf_size);
     bd->ptr += buf_size;
     bd->size -= buf_size;
