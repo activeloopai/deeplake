@@ -792,22 +792,34 @@ def _read_video_shape_cffi(file):
 
     try:
         from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
-    except ImportError:
-        from hub.core.pyffmpeg.build_ffmpeg_ffi import ffibuilder, pyffmpeg_include_dirs
+    except ImportError:  # ffmpeg installed after hub
+        from cffi import FFI
+
+        ffibuilder = FFI()
+
+        pyffmpeg_include_dir = os.getcwd()
+
+        ffibuilder.cdef(
+            """
+            int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes);
+            int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes);
+            """
+        )
 
         ffibuilder.set_source(
             "pyffmpeg._pyffmpeg",
             """
-            #include "avcodec.h"
-            #include "avformat.h"
-            #include "swscale.h"
-            #include "pyffmpeg.h"
+            #include "pyffmpeg/avcodec.h"
+            #include "pyffmpeg/avformat.h"
+            #include "pyffmpeg/swscale.h"
+            #include "pyffmpeg/pyffmpeg.h"
             """,
-            include_dirs=pyffmpeg_include_dirs,
-            sources=["pyffmpeg.c"],
+            include_dirs=[pyffmpeg_include_dir],
+            sources=["pyffmpeg/pyffmpeg.c"],
             libraries=["avcodec", "avformat", "swscale"],
         )
         ffibuilder.compile(tmpdir="./pyffmpeg")
+
         from hub.core.pyffmpeg._pyffmpeg import lib, ffi
 
     shape = ffi.new("int[3]")
