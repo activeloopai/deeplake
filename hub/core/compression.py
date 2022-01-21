@@ -794,7 +794,7 @@ def _read_video_shape_cffi(file):
     try:
         from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
     except ImportError:  # ffmpeg installed after hub
-        from cffi import FFI
+        from cffi import FFI  # type: ignore
 
         ffibuilder = FFI()
 
@@ -966,4 +966,4 @@ if os.name == "nt":
     _decompress_video = _decompress_video_pipes
 else:
     _read_video_shape = _read_video_shape_cffi
-    _decompress_video = _decompress_video_cffi
+    _decompress_video = _decompress_video_cffi  # type: ignore
