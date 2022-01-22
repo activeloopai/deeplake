@@ -19,33 +19,41 @@ from hub.util.exceptions import AuthenticationException
 @click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    if not username:
-        click.echo("Login to Activeloop using your credentials.")
-        click.echo(
-            "If you don't have an account, register by using the 'activeloop register' command or by going to "
-            f"{HUB_REST_ENDPOINT}/register."
-        )
-        username = click.prompt("Username")
-        password = click.prompt("Password", hide_input=True)
-    if not password:
-        password = click.prompt(
-            f"Please enter password for user {username}", hide_input=True
-        )
-    username = username.strip()
-    password = password.strip()
-    try:
-        client = HubBackendClient()
-        token = client.request_auth_token(username, password)
-        write_token(token)
-        click.echo("Successfully logged in to Activeloop.")
-        reporting_config = get_reporting_config()
-        if reporting_config.get("username") != username:
-            save_reporting_config(True, username=username)
-    except AuthenticationException:
-        raise SystemExit("Login failed. Check username and password.")
-    except Exception as e:
-        raise SystemExit(f"Unable to login: {e}")
-
+    chances: int=3
+    while(chances):
+        if not username:
+            click.echo("Login to Activeloop using your credentials.")
+            click.echo(
+                "If you don't have an account, register by using the 'activeloop register' command or by going to "
+                f"{HUB_REST_ENDPOINT}/register."
+            )
+            username = click.prompt("Username")
+            password = click.prompt("Password", hide_input=True)
+        if not password:
+            password = click.prompt(
+                f"Please enter password for user {username}", hide_input=True
+            )
+        username = username.strip()
+        password = password.strip()
+        try:
+            client = HubBackendClient()
+            token = client.request_auth_token(username, password)
+            write_token(token)
+            click.echo("Successfully logged in to Activeloop.")
+            reporting_config = get_reporting_config()
+            if reporting_config.get("username") != username:
+                save_reporting_config(True, username=username)
+            break
+        except AuthenticationException:
+            print ("Login failed. Check username and password.")
+            chances-=1
+            username=""
+            password=""
+        except Exception as e:
+            print (f"Unable to login: {e}")
+            chances-=1
+            username=""
+            password=""
 
 @click.command()
 def logout():
