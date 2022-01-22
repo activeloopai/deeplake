@@ -69,7 +69,7 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
-    diff = CommitDiff(created=True, renamed=False, name_history=[key])
+    diff = CommitDiff(created=True)
     storage[diff_key] = diff  # type: ignore
 
 
@@ -280,9 +280,15 @@ class Tensor:
         Returns:
             Tensor: The renamed tensor
         """
+
+        if key == self.key:
+            return
+
         assert (
             posixpath.split(key)[0] == posixpath.split(self.key)[0]
         ), "New name cannot be to a tensor in a different group."
+
+        auto_checkout(self.dataset)
 
         commit_id = self.version_state["commit_id"]
 
@@ -360,11 +366,9 @@ class Tensor:
         diff_key = get_tensor_commit_diff_key(self.key, commit_id)
         new_diff_key = get_tensor_commit_diff_key(key, commit_id)
         diff = self.chunk_engine.commit_diff
-        if diff.renamed:
-            diff.name_history[-1] = key
-        elif not diff.created:
+        if not diff.created and not diff.renamed:
             diff.renamed = True
-            diff.name_history.append(key)
+            diff.old_name = self.key
         self.storage[new_diff_key] = diff
         try:
             del self.storage[diff_key]

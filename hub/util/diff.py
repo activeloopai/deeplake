@@ -30,6 +30,8 @@ def compare_commits(
 
     changes_1: Dict[str, Dict] = defaultdict(dict)
     changes_2: Dict[str, Dict] = defaultdict(dict)
+    changes_1["track_renamed"] = defaultdict(dict)
+    changes_2["track_renamed"] = defaultdict(dict)
 
     for commit_node, changes in [
         (commit_node_1, changes_1),
@@ -39,8 +41,10 @@ def compare_commits(
             commit_id = commit_node.commit_id
             get_changes_for_id(commit_id, storage, changes)
             commit_node = commit_node.parent  # type: ignore
+        for tensor, change in changes["track_renamed"].items():
+            merge_diffs(change, changes[change["new_name"]])
+        del changes["track_renamed"]
         filter_data_updated(changes)
-        # merge_renames(changes)
     return changes_1, changes_2
 
 
@@ -115,6 +119,11 @@ def get_changes_str(changes: Dict, message: str, separator: str):
             if created:
                 all_changes.append("* Created tensor")
 
+            if renamed:
+                old_name = change.get("old_name")
+                output = convert_rename_to_string(old_name, tensor)
+                all_changes.append(output)
+
             if data_added_str:
                 all_changes.append(data_added_str)
 
@@ -125,10 +134,6 @@ def get_changes_str(changes: Dict, message: str, separator: str):
             if info_updated:
                 all_changes.append("* Info updated")
 
-            if renamed:
-                name_history = change.get("name_history")
-                output = convert_rename_to_string(name_history)
-                all_changes.append(output)
             all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
@@ -140,42 +145,109 @@ def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dic
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_cachable(meta_key, DatasetMeta)
 
-    for tensor in meta.tensors:
+    track_renamed = changes["track_renamed"]
+    tensors = meta.tensors.copy()
+
+    while tensors:
+        tensor = tensors[0]
+        inplace = False
         try:
             commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
-            change = changes[tensor]
+
+            if tensor in track_renamed:
+                change = track_renamed[tensor]
+            else:
+                change = changes[tensor]
 
             change["created"] = change.get("created") or commit_diff.created
+
             change["info_updated"] = (
                 change.get("info_updated") or commit_diff.info_updated
             )
 
-            change["renamed"] = change.get("renamed") or commit_diff.renamed
-
-            if change["renamed"]:
-                change["name_history"] = (
-                    change.get("name_history") or commit_diff.name_history
-                )
+            change["renamed"] = commit_diff.renamed
 
             # this means that the data was transformed inplace in a newer commit, so we can ignore older diffs
             if change.get("data_transformed_in_place", False):
-                continue
+                inplace = True
 
-            if "data_added" not in change:
-                change["data_added"] = commit_diff.data_added.copy()
-            else:
-                change["data_added"][0] = commit_diff.data_added[0]
+            if not inplace:
+                if "data_added" not in change:
+                    change["data_added"] = commit_diff.data_added.copy()
+                else:
+                    change["data_added"][0] = commit_diff.data_added[0]
 
-            if "data_updated" not in change:
-                change["data_updated"] = commit_diff.data_updated.copy()
-            else:
-                change["data_updated"].update(commit_diff.data_updated)
+                if "data_updated" not in change:
+                    change["data_updated"] = commit_diff.data_updated.copy()
+                else:
+                    change["data_updated"].update(commit_diff.data_updated)
             change["data_transformed_in_place"] = (
                 change.get("data_transformed_in_place") or commit_diff.data_transformed
             )
+
+            if tensor in track_renamed:
+
+                if (
+                    commit_diff.created
+                ):  # tensor was created in this commit and was renamed in a later commit
+                    new_name = change["new_name"]
+                    merge_diffs(track_renamed.pop(tensor), changes[new_name])
+                    tensors.pop(0)
+                    continue
+
+                if (
+                    commit_diff.renamed
+                ):  # tensor was renamed in this commit and renamed again in a later commit
+                    new_name = change["new_name"]
+                    old_name = changes[new_name]["old_name"] = commit_diff.old_name
+                    if (
+                        old_name in track_renamed
+                    ):  # another tensor with same name already in track_renamed
+                        tensors.append(tensor)
+                    else:
+                        merge_diffs(track_renamed.pop(tensor), changes[new_name])
+                        track_renamed[old_name]["new_name"] = new_name
+                    tensors.pop(0)
+                    continue
+
+            if change["renamed"]:
+                old_name = change["old_name"] = commit_diff.old_name
+                track_renamed[old_name]["new_name"] = tensor
+
         except KeyError:
             pass
+
+        tensors.pop(0)
+
+
+def merge_diffs(change1, change2):
+    """Merge diff `change1` into `change2`"""
+
+    if change1.get("created"):
+        change2["created"] = change1.pop("created")
+        if change2.get("renamed"):
+            change2["renamed"] = False
+
+    if change1.get("info_updated"):
+        change2["info_updated"] = change1.pop("info_updated")
+
+    if change1.get("data_added"):
+        if "data_added" not in change2:
+            change2["data_added"] = change1["data_added"].copy()
+        else:
+            change2["data_added"][0] = change1["data_added"][0]
+        change1["data_added"] = [0, 0]
+
+    if change1.get("data_updated"):
+        if "data_updated" not in change2:
+            change2["data_updated"] = change1["data_updated"].copy()
+        else:
+            change2["data_updated"].update(change1["data_updated"])
+        change1["data_updated"] = set()
+
+    if change1.get("renamed"):
+        change1["renamed"] = False
 
 
 def filter_data_updated(changes: Dict[str, Dict]):
@@ -185,10 +257,6 @@ def filter_data_updated(changes: Dict[str, Dict]):
         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
         upd = {data for data in change["data_updated"] if data not in data_added_range}
         change["data_updated"] = upd
-
-
-def merge_renames(changes: Dict[str, Dict]):
-    """Merge multiple renames to a single diff"""
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
@@ -265,6 +333,5 @@ def convert_adds_to_string(index_range: List[int]) -> str:
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
 
 
-def convert_rename_to_string(name_history):
-    return str(name_history)
-    # return f"* Renamed tensor {old_name} -> {new_name}"
+def convert_rename_to_string(old_name, new_name):
+    return f"* Renamed tensor {old_name} -> {new_name}"

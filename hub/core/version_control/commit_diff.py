@@ -6,11 +6,11 @@ class CommitDiff(Cachable):
     """Stores set of diffs stored for a particular tensor in a commit."""
 
     def __init__(
-        self, first_index=0, created=False, renamed=False, name_history=[]
+        self, first_index=0, created=False, renamed=False, old_name=""
     ) -> None:
         self.created = created
         self.renamed = renamed
-        self.name_history = name_history
+        self.old_name = old_name
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
         self.info_updated = False
@@ -35,13 +35,12 @@ class CommitDiff(Cachable):
                 self.renamed.to_bytes(1, "big"),
                 self.info_updated.to_bytes(1, "big"),
                 self.data_transformed.to_bytes(1, "big"),
-                len(self.name_history).to_bytes(1, "big"),
+                len(self.old_name).to_bytes(8, "big"),
                 self.data_added[0].to_bytes(8, "big"),
                 self.data_added[1].to_bytes(8, "big"),
                 len(self.data_updated).to_bytes(8, "big"),
                 *(idx.to_bytes(8, "big") for idx in self.data_updated),
-                *(len(name).to_bytes(8, "big") for name in self.name_history),
-                *(name.encode("utf-8") for name in self.name_history),
+                self.old_name.encode("utf-8"),
             ]
         )
 
@@ -54,42 +53,25 @@ class CommitDiff(Cachable):
         commit_diff.renamed = bool(int.from_bytes(data[1:2], "big"))
         commit_diff.info_updated = bool(int.from_bytes(data[2:3], "big"))
         commit_diff.data_transformed = bool(int.from_bytes(data[3:4], "big"))
-        num_names = int.from_bytes(data[4:5])
+        name_len = int.from_bytes(data[4:12], "big")
         commit_diff.data_added = [
-            int.from_bytes(data[5:13], "big"),
-            int.from_bytes(data[13:21], "big"),
+            int.from_bytes(data[12:20], "big"),
+            int.from_bytes(data[20:28], "big"),
         ]
-        num_updates = int.from_bytes(data[21:29], "big")
+        num_updates = int.from_bytes(data[28:36], "big")
         commit_diff.data_updated = {
-            int.from_bytes(data[29 + i * 8 : 37 + i * 8], "big")
+            int.from_bytes(data[36 + i * 8 : 44 + i * 8], "big")
             for i in range(num_updates)
         }
-        pos = 37 + num_updates * 8
-        len_names = [
-            int.from_bytes(data[pos + i * 8 : pos + (i + 1) * 8])
-            for i in range(num_names)
-        ]
-        pos += num_names * 8
-        commit_diff.name_history.extend(
-            [
-                data[pos + sum(len_names[:i]) : pos + sum(len_names[: i + 1])].decode(
-                    "utf-8"
-                )
-                for i in range(num_names)
-            ]
-        )
+        pos = 44 + num_updates * 8
+        commit_diff.old_name = data[pos : pos + name_len].decode("utf-8")
 
         return commit_diff
 
     @property
     def nbytes(self):
         """Returns number of bytes required to store the commit diff"""
-        return (
-            29
-            + 8 * len(self.data_updated)
-            + 8 * len(self.name_history)
-            + sum(len(name) for name in self.name_history)
-        )
+        return 36 + 8 * len(self.data_updated) + len(self.old_name)
 
     @property
     def num_samples_added(self) -> int:

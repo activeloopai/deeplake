@@ -731,7 +731,9 @@ class Dataset:
                 message1 = "Diff in HEAD:\n"
             else:
                 message1 = f"Diff in {commit_id} (current commit):\n"
+            changes1["track_renamed"] = {}
             get_changes_for_id(commit_id, storage, changes1)
+            del changes1["track_renamed"]
             filter_data_updated(changes1)
             changes2 = message2 = None
         else:
