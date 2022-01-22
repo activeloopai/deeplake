@@ -119,7 +119,11 @@ class BaseChunk(Cachable):
 
     @property
     def is_empty(self):
-        return self.num_data_bytes == 0
+        return (
+            self.num_data_bytes == 0
+            and len(self.shapes_encoder.array) == 0
+            and len(self.byte_positions_encoder.array) == 0
+        )
 
     def tobytes(self) -> memoryview:
         return serialize_chunk(

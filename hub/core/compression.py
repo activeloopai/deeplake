@@ -309,6 +309,8 @@ def decompress_array(
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
     try:
+        if shape is not None and 0 in shape:
+            return np.zeros(shape, dtype=dtype)
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
         img = Image.open(buffer)  # type: ignore
@@ -825,7 +827,7 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
         "-select_streams",
         "v:0",
         "-show_entries",
-        "stream=width,height,duration,r_frame_rate",
+        "stream=width,height,duration,avg_frame_rate",
         "-of",
         "default=noprint_wrappers=1",
         "pipe:",
