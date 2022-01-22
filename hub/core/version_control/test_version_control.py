@@ -1066,6 +1066,7 @@ def test_read_only_checkout(local_ds):
     local_ds.read_only = True
     local_ds.checkout("main")
 
+
 def test_copy_vc(local_path):
     src_path = os.path.join(local_path, "src")
     dest_path = os.path.join(local_path, "dest")
