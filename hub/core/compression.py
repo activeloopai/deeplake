@@ -827,7 +827,7 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
         "-select_streams",
         "v:0",
         "-show_entries",
-        "stream=width,height,duration,r_frame_rate",
+        "stream=width,height,duration,avg_frame_rate",
         "-of",
         "default=noprint_wrappers=1",
         "pipe:",
