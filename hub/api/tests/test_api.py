@@ -693,34 +693,6 @@ def test_copy(local_path):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
 
-def test_copy_vc(local_path):
-    src_path = os.path.join(local_path, "src")
-    dest_path = os.path.join(local_path, "dest")
-
-    src_ds = hub.dataset(src_path)
-
-    src_ds.create_tensor("a")
-    src_ds["a"].append(0)
-    a = src_ds.commit("first")
-    src_ds["a"].append(1)
-    b = src_ds.commit("second")
-    src_ds["a"].append(2)
-
-    dest_ds = hub.copy(src_ds, dest_path)
-    head = dest_ds.version_state["commit_id"]
-
-    np.testing.assert_array_equal(dest_ds["a"].numpy(), dest_ds["a"].numpy())
-
-    dest_ds.checkout(a)
-    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0]]))
-
-    dest_ds.checkout(b)
-    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0], [1]]))
-
-    dest_ds.checkout(head)
-    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0], [1], [2]]))
-
-
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
         ds = hub.dataset("test")

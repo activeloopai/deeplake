@@ -1,3 +1,4 @@
+import os
 import hub
 import pytest
 import numpy as np
@@ -1064,3 +1065,30 @@ def test_read_only_checkout(local_ds):
     assert local_ds.storage.autoflush == True
     local_ds.read_only = True
     local_ds.checkout("main")
+
+def test_copy_vc(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+
+    src_ds.create_tensor("a")
+    src_ds["a"].append(0)
+    a = src_ds.commit("first")
+    src_ds["a"].append(1)
+    b = src_ds.commit("second")
+    src_ds["a"].append(2)
+
+    dest_ds = hub.copy(src_ds, dest_path)
+    head = dest_ds.version_state["commit_id"]
+
+    np.testing.assert_array_equal(dest_ds["a"].numpy(), dest_ds["a"].numpy())
+
+    dest_ds.checkout(a)
+    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0]]))
+
+    dest_ds.checkout(b)
+    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0], [1]]))
+
+    dest_ds.checkout(head)
+    np.testing.assert_array_equal(dest_ds["a"].numpy(), np.array([[0], [1], [2]]))
