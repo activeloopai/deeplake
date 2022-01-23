@@ -396,3 +396,13 @@ class Index:
 
     def __repr__(self):
         return f"Index(values={self.values})"
+
+    def to_json(self):
+        ret = []
+        for e in self.values:
+            v = e.value
+            if isinstance(v, slice):
+                ret.append({"start": v.start, "stop": v.stop, "step": v.step})
+            else:
+                ret.append(v)
+        return ret
