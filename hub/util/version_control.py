@@ -381,7 +381,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     lock.release()
 
 
-def load_version_info(storage: LRUCache) -> None:
+def load_version_info(storage: LRUCache) -> Dict:
     try:
         return _version_info_from_json(
             json.loads(storage[get_version_control_info_key()].decode("utf-8"))
