@@ -275,10 +275,13 @@ class Tensor:
         """Renames tensor to `key`
 
         Args:
-            key (str): New key of tensor
+            key (str): New key of tensor.
 
         Returns:
-            Tensor: The renamed tensor
+            Tensor: The renamed tensor.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
 
         if key == self.key:

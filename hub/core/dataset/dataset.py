@@ -492,6 +492,9 @@ class Dataset:
 
         Returns:
             Tensor: The renamed tensor.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
         auto_checkout(self)
         old_key, new_key = old_key.strip("/"), new_key.strip("/")
