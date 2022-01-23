@@ -69,7 +69,7 @@ class TensorMetaMissingKey(Exception):
         super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
-class TensorDoesNotExistError(KeyError):
+class TensorDoesNotExistError(KeyError, AttributeError):
     def __init__(self, tensor_name: str):
         super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
@@ -637,12 +637,14 @@ class AgreementNotAcceptedError(AgreementError):
 
 
 class NotLoggedInError(AgreementError):
-    def __init__(self):
-        super().__init__(
+    def __init__(self, msg=None):
+        msg = msg or (
             "This dataset includes an agreement that needs to be accepted before you can use it.\n"
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
+
+        super().__init__(msg)
 
 
 class BufferError(Exception):
