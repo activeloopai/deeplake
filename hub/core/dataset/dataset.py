@@ -496,14 +496,18 @@ class Dataset:
         auto_checkout(self)
         old_key, new_key = old_key.strip("/"), new_key.strip("/")
 
-        while "//" in old_key:
-            old_key = old_key.replace("//", "/")
-
         while "//" in new_key:
             new_key = new_key.replace("//", "/")
 
-        full_path_old = posixpath.join(self.group_index, old_key)
         full_path_new = posixpath.join(self.group_index, new_key)
+
+        if full_path_new in self.version_state["full_tensors"]:
+            raise TensorAlreadyExistsError(full_path_new)
+
+        while "//" in old_key:
+            old_key = old_key.replace("//", "/")
+
+        full_path_old = posixpath.join(self.group_index, old_key)
 
         tensor = Tensor(full_path_old, self.root)
         tensor.rename(full_path_new)

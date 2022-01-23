@@ -284,9 +284,12 @@ class Tensor:
         if key == self.key:
             return
 
+        if key in self.version_state["full_tensors"]:
+            raise TensorAlreadyExistsError(key)
+
         assert (
             posixpath.split(key)[0] == posixpath.split(self.key)[0]
-        ), "New name cannot be to a tensor in a different group."
+        ), "New name cannot be of a tensor in a different group."
 
         auto_checkout(self.dataset)
 
