@@ -19,8 +19,8 @@ from hub.util.exceptions import AuthenticationException
 @click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    chances: int=3
-    while(chances):
+    chances: int = 3
+    while chances:
         if not username:
             click.echo("Login to Activeloop using your credentials.")
             click.echo(
@@ -45,15 +45,16 @@ def login(username: str, password: str):
                 save_reporting_config(True, username=username)
             break
         except AuthenticationException:
-            print ("Login failed. Check username and password.")
-            chances-=1
-            username=""
-            password=""
+            print("Login failed. Check username and password.")
+            chances -= 1
+            username = ""
+            password = ""
         except Exception as e:
-            print (f"Unable to login: {e}")
-            chances-=1
-            username=""
-            password=""
+            print(f"Unable to login: {e}")
+            chances -= 1
+            username = ""
+            password = ""
+
 
 @click.command()
 def logout():
