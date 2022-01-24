@@ -149,6 +149,12 @@ def test_compression_aliases(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("jpg_tensor", sample_compression="jpg")
     assert tensor.meta.sample_compression == "jpeg"
 
+    tensor = memory_ds.create_tensor("tiff_tensor", sample_compression="tiff")
+    assert tensor.meta.sample_compression == "tiff"
+
+    tensor = memory_ds.create_tensor("tif_tensor", sample_compression="tif")
+    assert tensor.meta.sample_compression == "tiff"
+
 
 @pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)
 def test_unsupported_compression(memory_ds: Dataset):
