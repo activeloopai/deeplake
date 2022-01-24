@@ -6,6 +6,7 @@ class CommitChunkSet(Cachable):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.chunks: Set[str] = set()
 
     def tobytes(self) -> bytes:
@@ -17,6 +18,7 @@ class CommitChunkSet(Cachable):
         """Loads a CommitChunkSet from a buffer."""
         instance = cls()
         instance.chunks = set(buffer.decode("utf-8").split(","))
+        instance.is_dirty = False
         return instance
 
     @property
@@ -28,3 +30,4 @@ class CommitChunkSet(Cachable):
     def add(self, chunk_name: str) -> None:
         """Adds a new chunk name to the CommitChunkSet."""
         self.chunks.add(chunk_name)
+        self.is_dirty = True

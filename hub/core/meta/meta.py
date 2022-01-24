@@ -8,7 +8,7 @@ class Meta(Cachable):
         """Contains **required** key/values that datasets/tensors use to function.
         See the `Info` class for optional key/values for datasets/tensors.
         """
-
+        super().__init__()
         self.version = hub.__version__
 
     def __getstate__(self) -> Dict[str, Any]:

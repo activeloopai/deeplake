@@ -50,6 +50,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         if ids.nbytes:
             instance._encoded = ids
         instance.version = version
+        instance.is_dirty = False
         return instance
 
     @property
@@ -235,18 +236,21 @@ class ChunkIdEncoder(Encoder, Cachable):
         chunk_ids_for_last_sample = self[-1]
         if len(chunk_ids_for_last_sample) > 1:
             self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
-            return chunk_ids_for_last_sample, True
+            to_delete = True
         else:
             num_samples_in_last_chunk = self._num_samples_in_last_chunk()
 
             if num_samples_in_last_chunk == 1:
                 self._encoded = self._encoded[:-1]
-                return chunk_ids_for_last_sample, True
+                to_delete = True
             elif num_samples_in_last_chunk > 1:
                 self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-                return chunk_ids_for_last_sample, False
+                to_delete = False
             else:
                 raise IndexError("pop from empty encoder")
+
+        self.is_dirty = True
+        return chunk_ids_for_last_sample, to_delete
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
@@ -266,3 +270,4 @@ class ChunkIdEncoder(Encoder, Cachable):
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
             self._encoded = np.concatenate([top, mid, bottom], axis=0)
+        self.is_dirty = True

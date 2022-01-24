@@ -236,11 +236,8 @@ class Tensor:
         """
 
         if self._info is None:
-            self._info = load_info(
-                get_tensor_info_key(self.key, self.version_state["commit_id"]),
-                self.storage,
-                self.dataset,
-            )
+            key = get_tensor_info_key(self.key, self.version_state["commit_id"])
+            self._info = load_info(key, self.dataset)
         return self._info
 
     def append(self, sample: InputSample):

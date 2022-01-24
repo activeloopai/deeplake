@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from hub.core.storage.cachable import Cachable, CachableCallback
+from hub.core.storage.cachable import Cachable
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
@@ -63,9 +63,7 @@ class LRUCache(StorageProvider):
             if self.next_storage is not None:
                 self.next_storage.flush()
 
-    def get_cachable(
-        self, path: str, expected_class, meta: Optional[Dict] = None, callback_arg=None
-    ):
+    def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
@@ -73,7 +71,6 @@ class LRUCache(StorageProvider):
             path (str): Path to the stored cachable.
             expected_class (callable): The expected subclass of `Cachable`.
             meta (dict, optional): Metadata associated with the stored cachable.
-            callback_arg (Any, optional): The argument to be passed to the callback.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -98,9 +95,6 @@ class LRUCache(StorageProvider):
                 if meta is None
                 else expected_class.frombuffer(item, meta)
             )
-
-            if isinstance(obj, CachableCallback):
-                obj.initialize_callback_location(path, self, dataset=callback_arg)
 
             if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)

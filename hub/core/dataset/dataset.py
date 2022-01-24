@@ -340,8 +340,8 @@ class Dataset:
             version_state=self.version_state,
             **meta_kwargs,
         )
-        meta = self.version_state["meta"]
-        meta.tensors.append(name)
+        meta: DatasetMeta = self.version_state["meta"]
+        meta.add_tensor(name)
         ffw_dataset_meta(meta)
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
         self.storage[meta_key] = meta
@@ -394,9 +394,9 @@ class Dataset:
 
         with self:
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta: DatasetMeta = self.storage.get_cachable(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
-            meta.tensors.remove(name)
+            meta.delete_tensor(name)
             self.storage[meta_key] = meta
             delete_tensor(name, self)
 
@@ -453,8 +453,7 @@ class Dataset:
                 posixpath.join(name, tensor)
                 for tensor in self[name]._all_tensors_filtered
             ]
-            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
-            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
+            meta.delete_group(name)
             self.storage[meta_key] = meta
             for tensor in tensors:
                 delete_tensor(tensor, self)
@@ -957,7 +956,8 @@ class Dataset:
     @property
     def info(self):
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
+            key = get_dataset_info_key(self.version_state["commit_id"])
+            self.__dict__["_info"] = load_info(key, self)  # type: ignore
         return self._info
 
     @hub_reporter.record_call
@@ -1227,17 +1227,15 @@ class Dataset:
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        groups = meta.groups
+        meta: DatasetMeta = self.storage.get_cachable(meta_key, DatasetMeta)
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
-            groups.append(name)
+            meta.add_group(name)
             name, _ = posixpath.split(name)
-        meta.groups = list(set(groups))
         self.storage[meta_key] = meta
         self.storage.maybe_flush()
         return self[fullname]
