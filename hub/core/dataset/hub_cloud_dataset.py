@@ -232,7 +232,7 @@ class HubCloudDataset(Dataset):
             raise RenameError
         split_path = path.split("/")
         storage = get_base_storage(self.storage)
-        split_root = storage.root.split("/")
+        split_root = storage.root.rstrip("/").split("/")
         new_url = "/".join([*split_root[:-1], split_path[-1]])
         storage.rename(new_url)
 
