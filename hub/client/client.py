@@ -4,7 +4,6 @@ from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
-    HUB_PROD1_ENDPOINT,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
@@ -187,9 +186,8 @@ class HubBackendClient:
         Args:
             event_json (dict): The event to be sent.
         """
-        # TODO: change this once PROD has events
         self.request(
-            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=HUB_PROD1_ENDPOINT
+            "POST", SEND_EVENT_SUFFIX, json=event_json
         )
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
