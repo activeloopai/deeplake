@@ -1,3 +1,4 @@
+import platform
 import posixpath
 import hub
 from hub.util.exceptions import (
@@ -120,9 +121,16 @@ def ffmpeg_exists():
 def ffmpeg_binary():
     if ffmpeg_exists():
         return _FFMPEG_BINARY
-    raise FileNotFoundError(
-        "FFMPEG not found. Install FFMPEG to use hub's video features"
-    )
+    if platform.system() in ("Darwin", "Windows"):
+        raise FileNotFoundError(
+            "FFMPEG not found. Install FFMPEG to use Hub's video features"
+        )
+    else:
+        raise FileNotFoundError(
+            """FFMPEG not found. Install FFMPEG and the required libraries using the following command to use Hub's video features:
+        apt-get install -y ffmpeg libavcodec-dev libavformat-dev libswscale-dev
+            """
+        )
 
 
 def ffprobe_binary():
@@ -794,38 +802,46 @@ def _read_video_shape_cffi(file):
     try:
         from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
     except ImportError:  # ffmpeg installed after hub
-        from cffi import FFI  # type: ignore
+        try:
+            from cffi import FFI  # type: ignore
 
-        ffibuilder = FFI()
+            ffibuilder = FFI()
 
-        pyffmpeg_include_dir = posixpath.split(__file__)[0]
+            pyffmpeg_include_dir = posixpath.split(__file__)[0]
 
-        ffibuilder.cdef(
+            ffibuilder.cdef(
+                """
+                int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes);
+                int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes);
+                """
+            )
+
+            rel_path = os.path.join(
+                os.path.relpath(pyffmpeg_include_dir, os.getcwd()), "pyffmpeg"
+            )
+
+            ffibuilder.set_source(
+                "_pyffmpeg",
+                """
+                #include "pyffmpeg/avcodec.h"
+                #include "pyffmpeg/avformat.h"
+                #include "pyffmpeg/swscale.h"
+                #include "pyffmpeg/pyffmpeg.h"
+                """,
+                include_dirs=[pyffmpeg_include_dir],
+                sources=["pyffmpeg.c"],
+                libraries=["avcodec", "avformat", "swscale"],
+            )
+            ffibuilder.compile(tmpdir=rel_path)
+
+            from hub.core.pyffmpeg._pyffmpeg import lib, ffi
+
+        except:  # ffmpeg installed but can't link to shared libraries
+            raise FileNotFoundError(
+                """Install the required libraries using the following command to use Hub's video features:
+            apt-get install -y libavcodec-dev libavformat-dev libswscale-dev
             """
-            int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes);
-            int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes);
-            """
-        )
-
-        rel_path = os.path.join(
-            os.path.relpath(pyffmpeg_include_dir, os.getcwd()), "pyffmpeg"
-        )
-
-        ffibuilder.set_source(
-            "_pyffmpeg",
-            """
-            #include "pyffmpeg/avcodec.h"
-            #include "pyffmpeg/avformat.h"
-            #include "pyffmpeg/swscale.h"
-            #include "pyffmpeg/pyffmpeg.h"
-            """,
-            include_dirs=[pyffmpeg_include_dir],
-            sources=["pyffmpeg.c"],
-            libraries=["avcodec", "avformat", "swscale"],
-        )
-        ffibuilder.compile(tmpdir=rel_path)
-
-        from hub.core.pyffmpeg._pyffmpeg import lib, ffi
+            )
 
     shape = ffi.new("int[3]")
     if isinstance(file, str):

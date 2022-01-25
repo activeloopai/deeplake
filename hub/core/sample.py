@@ -28,9 +28,9 @@ from PIL import Image  # type: ignore
 from io import BytesIO
 
 if os.name == "nt":
-    USE_CFFI = False
+    _USE_CFFI = False
 else:
-    USE_CFFI = True
+    _USE_CFFI = True
 
 
 class Sample:
@@ -176,12 +176,11 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
-                if not USE_CFFI:
-                    if self._compression in (
-                        "mp4",
-                        "mkv",
-                    ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
-                        compressed_bytes = to_hub_mkv(self.path)
+                if not _USE_CFFI and self._compression in (
+                    "mp4",
+                    "mkv",
+                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream (slower implementation only)
+                    compressed_bytes = to_hub_mkv(self.path)
                 else:
                     with open(self.path, "rb") as f:
                         compressed_bytes = f.read()

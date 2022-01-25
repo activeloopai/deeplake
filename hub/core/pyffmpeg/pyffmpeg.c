@@ -18,6 +18,7 @@ struct buffer_data
 
 int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes)
 {
+    av_log_set_level(AV_LOG_QUIET); //Some warning messages are being spammed even though it does not affect decompression.
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;
@@ -96,6 +97,7 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
 
 int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
 {
+    av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
     unsigned char *ioBuffer;

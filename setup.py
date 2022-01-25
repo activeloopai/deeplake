@@ -1,5 +1,6 @@
 import os
 import re
+import platform
 import subprocess as sp
 
 from setuptools import find_packages, setup
@@ -74,7 +75,8 @@ config = {
     },
 }
 
-if not os.name == "nt":
+
+if platform.system() == "Darwin":
     if check_ffmpeg():
         config["cffi_modules"] = ["hub/core/pyffmpeg/build_ffmpeg_ffi.py:ffibuilder"]
 
