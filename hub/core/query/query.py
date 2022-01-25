@@ -16,7 +16,7 @@ class DatasetQuery:
         self,
         dataset,
         query: str,
-        progress_callback: Callable[[int], None] = lambda _: None,
+        progress_callback: Callable[[int, bool], None] = lambda *_: None,
     ):
         self._dataset = dataset
         self._query = query
@@ -27,30 +27,30 @@ class DatasetQuery:
             for tensor in dataset.tensors.keys()
             if normalize_query_tensors(tensor) in query
         ]
+        self._blocks = expand(dataset, self._tensors)
         self._np_access: List[NP_ACCESS] = [
-            _get_np(dataset, block) for block in expand(dataset, self._tensors)
+            _get_np(dataset, block) for block in self._blocks
         ]
         self._wrappers = self._export_tensors()
         self._groups = self._export_groups(self._wrappers)
 
     def execute(self) -> List[int]:
         idx_map: List[int] = list()
-        max_size = len(self._dataset)
+        idx: int = 0
 
-        for f in self._np_access:
+        for f, blk in zip(self._np_access, self._blocks):
             cache = {tensor: f(tensor) for tensor in self._tensors}
-            for local_idx in range(max_size):
+            for local_idx in range(len(blk)):
                 p = {
                     tensor: self._wrap_value(tensor, cache[tensor][local_idx])
                     for tensor in self._tensors
                 }
-
                 p.update(self._groups)
-
                 if eval(self._cquery, p):
                     idx_map.append(local_idx)
-                self._pg_callback(1)
-
+                    self._pg_callback(local_idx, True)
+                else:
+                    self._pg_callback(local_idx, False)
         return idx_map
 
     def _wrap_value(self, tensor, val):
@@ -167,6 +167,27 @@ class EvalObject:
 
     def __ne__(self, o: object) -> bool:
         return self.val != o
+
+    def __mod__(self, o: object):
+        return self.val % o
+
+    def __add__(self, o: object):
+        return self.val + o
+
+    def __sub__(self, o: object):
+        return self.val - o
+
+    def __div__(self, o: object):
+        return self.val / o
+
+    def __floordiv__(self, o: object):
+        return self.val // o
+
+    def __mul__(self, o: object):
+        return self.val * o
+
+    def __pow__(self, o: object):
+        return self.val ** o
 
 
 class GroupTensor:

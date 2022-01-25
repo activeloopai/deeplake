@@ -68,7 +68,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.2.2"
+__version__ = "2.2.3"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50)}
 
