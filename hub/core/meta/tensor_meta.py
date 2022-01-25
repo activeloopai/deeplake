@@ -81,6 +81,10 @@ class TensorMeta(Meta):
         self.dtype = dtype.name
         self.is_dirty = True
 
+    def set_dtype_str(self, dtype_name: str):
+        self.dtype = dtype_name
+        self.is_dirty = True
+
     def set_htype(self, htype: str, **kwargs):
         """Should only be called once."""
         ffw_tensor_meta(self)

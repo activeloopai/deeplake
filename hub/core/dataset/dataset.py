@@ -481,12 +481,8 @@ class Dataset:
         del meta["length"]
         del meta["version"]
 
-        destination_tensor = self.create_tensor(
-            name,
-            **meta,
-        )
+        destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
-
         return destination_tensor
 
     __getattr__ = __getitem__
@@ -960,6 +956,18 @@ class Dataset:
             self.__dict__["_info"] = load_info(key, self)  # type: ignore
         return self._info
 
+    @info.setter
+    def info(self, value):
+        if isinstance(value, Info):
+            value2 = value.copy()
+        elif isinstance(value, dict):
+            value2 = Info()
+            value2.update(value)
+        else:
+            raise TypeError("Info must be set with type Info or Dict")
+        value2._dataset = self
+        self._info = value2
+
     @hub_reporter.record_call
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
@@ -1047,18 +1055,12 @@ class Dataset:
         Acesses storage only for the first call.
         """
         ret = self.version_state["full_tensors"].get(name)
-        if ret is None:
-            load_meta(self)
-            ret = self.version_state["full_tensors"].get(name)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
         This is faster than checking `if group in self._groups:`
         """
-        if name in self.version_state["meta"].groups:
-            return True
-        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1079,7 +1081,6 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]

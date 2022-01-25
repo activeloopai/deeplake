@@ -1,6 +1,7 @@
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
+from hub.api.info import Info
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
@@ -131,6 +132,9 @@ class ChunkEngine:
         self._commit_diff: Optional[CommitDiff] = None
         self._commit_diff_commit_id: Optional[str] = None
 
+        self._info: Optional[Info] = None
+        self._info_commit_id: Optional[str] = None
+
         tensor_meta = self.tensor_meta
 
         if tensor_meta.sample_compression:
@@ -189,7 +193,7 @@ class ChunkEngine:
             self._tensor_meta = self.meta_cache.get_cachable(
                 tensor_meta_key, TensorMeta
             )
-        self._tensor_meta_commit_id = commit_id
+            self._tensor_meta_commit_id = commit_id
         return self._tensor_meta
 
     @property

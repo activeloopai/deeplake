@@ -7,7 +7,7 @@ from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
-from hub.api.info import load_info
+from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -234,11 +234,25 @@ class Tensor:
         Returns:
             TensorInfo: Information about the tensor.
         """
-
-        if self._info is None:
+        if self.chunk_engine._info is None or self.chunk_engine._info_commit_id != self.version_state["commit_id"]:
             key = get_tensor_info_key(self.key, self.version_state["commit_id"])
-            self._info = load_info(key, self.dataset)
-        return self._info
+            self.chunk_engine._info = load_info(key, self.dataset)
+            self.chunk_engine._info_commit_id = self.version_state["commit_id"]
+        return self.chunk_engine._info
+
+    @info.setter
+    def info(self, value):
+        if isinstance(value, Info):
+            value2 = value.copy()
+        elif isinstance(value, dict):
+            value2 = Info()
+            value2.update(value)
+        else:
+            raise TypeError("Info must be set with type Info or Dict")
+        
+        value2._dataset = self.dataset
+        self.chunk_engine._info = value2
+        self.chunk_engine._info_commit_id = self.version_state["commit_id"]
 
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,

@@ -13,7 +13,7 @@ from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
 from hub.core.lock import Lock
-from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
+from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -211,9 +211,8 @@ def copy_metas(
         src_dataset_info = storage[src_dataset_info_key]
         if isinstance(src_dataset_info, Cachable):
             new_info = src_dataset_info.copy()
-            new_info.initialize_callback_location(
-                dest_dataset_info_key, storage, dataset
-            )
+            new_info._dataset = dataset
+            dataset.info = new_info
             storage[dest_dataset_info_key] = new_info
         else:
             storage[dest_dataset_info_key] = src_dataset_info
@@ -259,9 +258,8 @@ def copy_metas(
             src_tensor_info = storage[src_tensor_info_key]
             if isinstance(src_tensor_info, Cachable):
                 new_info = src_tensor_info.copy()
-                new_info.initialize_callback_location(
-                    dest_tensor_info_key, storage, dataset
-                )
+                new_info._dataset = dataset
+                dataset[tensor].info = new_info
                 storage[dest_tensor_info_key] = new_info
             else:
                 storage[dest_tensor_info_key] = src_tensor_info
@@ -306,7 +304,7 @@ def discard_old_metas(
             storage.cache_used -= size
         try:
             del storage.cache_storage[key]
-        except (KeyError, CallbackInitializationError):
+        except KeyError:
             pass
 
 

@@ -5,15 +5,16 @@ from typing import Any, Dict
 
 class Info(Cachable):
     def __init__(self):
-        super().__init__()
         self._info = {}
         self._dataset = None
+        super().__init__()
 
     def prepare_for_write(self):
-        storage = self._dataset.storage
-        storage.check_readonly()
-        auto_checkout(self._dataset)
-        self.is_dirty = True
+        if self._dataset is not None:
+            storage = self._dataset.storage
+            storage.check_readonly()
+            auto_checkout(self._dataset)
+            self.is_dirty = True
 
     @property
     def nbytes(self):
@@ -71,7 +72,7 @@ class Info(Cachable):
             return self[key]
 
     def __setattr__(self, key: str, value):
-        if key in {"_info", "_dataset"}:
+        if key in {"_info", "_dataset", "is_dirty"}:
             object.__setattr__(self, key, value)
         else:
             self.prepare_for_write()
@@ -99,9 +100,6 @@ class Info(Cachable):
     def update(self, *args, **kwargs):
         self.prepare_for_write()
         self._info.update(*args, **kwargs)
-
-    def copy(self):
-        return self._info.copy()
 
     def keys(self):
         return self._info.keys()
