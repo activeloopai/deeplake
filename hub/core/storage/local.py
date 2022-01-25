@@ -26,6 +26,9 @@ class LocalProvider(StorageProvider):
         self.root = root
         self.files: Optional[Set[str]] = None
 
+    def subdir(self, path: str):
+        return self.__class__(os.path.join(self.root, path))
+
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
 

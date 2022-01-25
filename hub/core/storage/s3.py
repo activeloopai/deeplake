@@ -3,6 +3,7 @@ import hub
 import time
 import boto3
 import botocore  # type: ignore
+import posixpath
 from typing import Optional
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
@@ -93,6 +94,19 @@ class S3Provider(StorageProvider):
         self.loaded_creds_from_environment = False
         self.client_config = hub.config["s3"]
         self._initialize_s3_parameters()
+
+    def subdir(self, path: str):
+        sd = self.__class__(
+            root=posixpath.join(self.root, path),
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
+            aws_region=self.aws_region,
+            endpoint_url=self.endpoint_url,
+        )
+        if sd.expiration:
+            sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+        return sd
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
@@ -337,8 +351,7 @@ class S3Provider(StorageProvider):
 
     def _set_bucket_and_path(self):
         root = self.root.replace("s3://", "")
-        self.bucket = root.split("/")[0]
-        self.path = "/".join(root.split("/")[1:])
+        self.bucket, self.path = root.split("/", 1)
         if not self.path.endswith("/"):
             self.path += "/"
 
