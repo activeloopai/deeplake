@@ -238,7 +238,7 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
     return 0;
 }
 
-const int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos)
+static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos)
 {
     int response = avcodec_send_packet(pCodecContext, pPacket);
     while (response >= 0)
