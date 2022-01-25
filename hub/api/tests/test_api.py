@@ -628,9 +628,12 @@ def test_like(local_path):
     assert len(dest_ds) == 0
 
 
-def test_copy(local_path):
-    src_path = os.path.join(local_path, "src")
-    dest_path = os.path.join(local_path, "dest")
+@pytest.mark.parametrize(
+    "path", ["local_path", "s3_path", "gcs_path", "hub_cloud_path"], indirect=True
+)
+def test_copy(path):
+    src_path = os.path.join(path, "src")
+    dest_path = os.path.join(path, "dest")
 
     src_ds = hub.dataset(src_path)
     src_ds.info.update(key=0)
