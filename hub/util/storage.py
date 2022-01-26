@@ -1,12 +1,13 @@
 from hub.core.storage.gcs import GCSProvider
 from hub.util.cache_chain import generate_chain
 from hub.constants import LOCAL_CACHE_PREFIX, MB
-from hub.util.tag import check_hub_path
+from hub.util.tag import process_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
 from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
 from hub.client.client import HubBackendClient
+import posixpath
 
 
 def storage_provider_from_path(
@@ -73,9 +74,7 @@ def storage_provider_from_path(
 def storage_provider_from_hub_path(
     path: str, read_only: bool = False, token: str = None
 ):
-    check_hub_path(path)
-    tag = path[6:]
-    org_id, ds_name = tag.split("/")
+    path, org_id, ds_name, subdir = process_hub_path(path)
     client = HubBackendClient(token=token)
 
     mode = "r" if read_only else None
@@ -87,6 +86,8 @@ def storage_provider_from_hub_path(
         # warns user about automatic mode change
         print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True
+
+    url = posixpath.join(url, subdir)
 
     storage = storage_provider_from_path(path=url, creds=creds, read_only=read_only)
     storage._set_hub_creds_info(path, expiration)
