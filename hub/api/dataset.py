@@ -70,7 +70,7 @@ class dataset:
 
         feature_report_path(path, "dataset", {"Overwrite": overwrite})
 
-        storage, cache_chain = get_stoprage_and_cache_chain(
+        storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
             creds=creds,
