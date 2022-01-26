@@ -12,7 +12,6 @@ from hub.client.client import HubBackendClient
 def storage_provider_from_path(
     path: str,
     creds: Optional[dict],
-    s3_profile_name: Optional[str] = None,
     read_only: bool = False,
     token: Optional[str] = None,
 ):
@@ -22,7 +21,6 @@ def storage_provider_from_path(
         path (str): The full path to the Dataset.
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
-        s3_profile_name (str): The name of the AWS profile to use.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         token (str): token for authentication into activeloop
 
@@ -44,7 +42,7 @@ def storage_provider_from_path(
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
-        profile = s3_profile_name if not creds else None
+        profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
             path,
             key,
@@ -96,7 +94,7 @@ def storage_provider_from_hub_path(
 
 
 def get_storage_and_cache_chain(
-    path, read_only, creds, s3_profile_name, token, memory_cache_size, local_cache_size
+    path, read_only, creds, token, memory_cache_size, local_cache_size
 ):
     """
     Returns storage provider and cache chain for a given path, according to arguments passed.
@@ -105,7 +103,6 @@ def get_storage_and_cache_chain(
         path (str): The full path to the Dataset.
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
-        s3_profile_name (str): The name of the AWS profile to use.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         token (str): token for authentication into activeloop
         memory_cache_size (int): The size of the in-memory cache to use.
@@ -117,7 +114,6 @@ def get_storage_and_cache_chain(
     storage = storage_provider_from_path(
         path=path,
         creds=creds,
-        s3_profile_name=s3_profile_name,
         read_only=read_only,
         token=token,
     )
