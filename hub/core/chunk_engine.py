@@ -447,6 +447,11 @@ class ChunkEngine:
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:
+                commit_chunk_set = CommitChunkSet()
+                try:
+                    self.meta_cache[chunk_set_key] = commit_chunk_set
+                except ReadOnlyModeError:
+                    pass
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
