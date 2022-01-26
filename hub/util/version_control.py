@@ -279,7 +279,7 @@ def create_commit_chunk_sets(
     storage: LRUCache,
     version_state: Dict[str, Any],
 ) -> None:
-    """Copies meta data from one commit to another."""
+    """Creates commit chunk sets for all tensors in new commit."""
     tensor_list = version_state["full_tensors"].keys()
     for tensor in tensor_list:
         key = get_tensor_commit_chunk_set_key(tensor, dest_commit_id)
