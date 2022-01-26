@@ -1,3 +1,4 @@
+from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
@@ -11,6 +12,7 @@ from hub.api.info import load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
+    get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     tensor_exists,
@@ -63,6 +65,10 @@ def create_tensor(
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
+
+    cset_key = get_tensor_commit_chunk_set_key(key, version_state["commit_id"])
+    cset = CommitChunkSet()
+    storage[cset_key] = cset  # type: ignore
 
     diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
     diff = CommitDiff(created=True)
