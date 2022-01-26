@@ -858,7 +858,9 @@ def _strip_hub_mp4_header(buffer: bytes):
 
 
 def _decompress_video_pipes(
-    file: Union[bytes, memoryview, str], compression: str, nframes: Optional[int] = None
+    file: Union[bytes, memoryview, str],
+    compression: Optional[str],
+    nframes: Optional[int] = None,
 ) -> np.ndarray:
 
     shape = _read_video_shape_pipes(file, compression)
@@ -899,7 +901,7 @@ def _decompress_video_pipes(
 
 
 def _read_video_shape_pipes(
-    file: Union[bytes, memoryview, str], compression: str
+    file: Union[bytes, memoryview, str], compression: Optional[str]
 ) -> Tuple[int, ...]:
     info = _get_video_info_pipes(file, compression)
     if info["duration"] is None:
@@ -910,7 +912,7 @@ def _read_video_shape_pipes(
 
 
 def _get_video_info_pipes(
-    file: Union[bytes, memoryview, str], compression: str
+    file: Union[bytes, memoryview, str], compression: Optional[str]
 ) -> dict:
     duration = None
     command = [
