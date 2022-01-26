@@ -313,7 +313,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer)
+        return _decompress_video(buffer, compression)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -430,7 +430,7 @@ def verify_compressed_file(
             return _read_audio_shape(file, compression), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
             if isinstance(file, (bytes, memoryview, str)):
-                return _read_video_shape(file), "|u1"
+                return _read_video_shape(file, compression), "|u1"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -624,7 +624,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError(compression)
         elif compression in ("mp4", "mkv", "avi"):
             try:
-                shape, typestr = _read_video_shape(file), "|u1"
+                shape, typestr = _read_video_shape(file, compression), "|u1"
             except Exception as e:
                 raise CorruptedSampleError(compression)
         else:
@@ -773,7 +773,7 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video_cffi(file):
+def _decompress_video_cffi(file, compression):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
@@ -783,7 +783,7 @@ def _decompress_video_cffi(file):
 
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
-    shape = _read_video_shape_cffi(file)
+    shape = _read_video_shape_cffi(file, compression)
     nbytes = np.prod(shape)
     decompressed = ffi.new(f"unsigned char[{nbytes}]")
 
@@ -796,7 +796,7 @@ def _decompress_video_cffi(file):
     return video
 
 
-def _read_video_shape_cffi(file):
+def _read_video_shape_cffi(file, compression):
     ffmpeg_binary()  # raise error if ffmpeg not installed
 
     try:
@@ -858,10 +858,10 @@ def _strip_hub_mp4_header(buffer: bytes):
 
 
 def _decompress_video_pipes(
-    file: Union[bytes, memoryview, str], nframes: Optional[int] = None
+    file: Union[bytes, memoryview, str], compression: str, nframes: Optional[int] = None
 ) -> np.ndarray:
 
-    shape = _read_video_shape_pipes(file)
+    shape = _read_video_shape_pipes(file, compression)
     command = [
         ffmpeg_binary(),
         "-i",
@@ -898,8 +898,10 @@ def _decompress_video_pipes(
         return arr
 
 
-def _read_video_shape_pipes(file: Union[bytes, memoryview, str]) -> Tuple[int, ...]:
-    info = _get_video_info_pipes(file)
+def _read_video_shape_pipes(
+    file: Union[bytes, memoryview, str], compression: str
+) -> Tuple[int, ...]:
+    info = _get_video_info_pipes(file, compression)
     if info["duration"] is None:
         nframes = -1
     else:
@@ -907,7 +909,9 @@ def _read_video_shape_pipes(file: Union[bytes, memoryview, str]) -> Tuple[int, .
     return (nframes, info["height"], info["width"], 3)
 
 
-def _get_video_info_pipes(file: Union[bytes, memoryview, str]) -> dict:
+def _get_video_info_pipes(
+    file: Union[bytes, memoryview, str], compression: str
+) -> dict:
     duration = None
     command = [
         ffprobe_binary(),
@@ -923,9 +927,7 @@ def _get_video_info_pipes(file: Union[bytes, memoryview, str]) -> dict:
     if isinstance(file, str):
         command[-1] = file
         pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
-        raw_info = pipe.stdout.read()  # type: ignore
-        raw_err = pipe.stderr.read()  # type: ignore
-        pipe.communicate()
+        raw_info, raw_err = pipe.communicate()
         duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])  # type: ignore
         duration = to_seconds(duration)
     else:
@@ -943,7 +945,12 @@ def _get_video_info_pipes(file: Union[bytes, memoryview, str]) -> dict:
     )
     ret["width"] = int(ret["width"])
     ret["height"] = int(ret["height"])
-    if "duration" in ret:
+    if compression in (
+        "mp4",
+        "mkv",
+    ):  # use file values instead of stream values for consistency in case of mp4, mkv
+        ret["duration"] = duration
+    elif "duration" in ret:
         ret["duration"] = float(ret["duration"])
     else:
         ret["duration"] = duration
