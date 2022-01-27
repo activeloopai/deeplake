@@ -234,7 +234,10 @@ class Tensor:
         Returns:
             TensorInfo: Information about the tensor.
         """
-        if self.chunk_engine._info is None or self.chunk_engine._info_commit_id != self.version_state["commit_id"]:
+        if (
+            self.chunk_engine._info is None
+            or self.chunk_engine._info_commit_id != self.version_state["commit_id"]
+        ):
             key = get_tensor_info_key(self.key, self.version_state["commit_id"])
             self.chunk_engine._info = load_info(key, self.dataset)
             self.chunk_engine._info_commit_id = self.version_state["commit_id"]
@@ -249,7 +252,7 @@ class Tensor:
             value2.update(value)
         else:
             raise TypeError("Info must be set with type Info or Dict")
-        
+
         value2._dataset = self.dataset
         self.chunk_engine._info = value2
         self.chunk_engine._info_commit_id = self.version_state["commit_id"]
