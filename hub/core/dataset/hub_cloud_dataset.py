@@ -6,6 +6,7 @@ from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.path import is_hub_cloud_path
+from hub.util.tag import process_hub_path
 from warnings import warn
 import time
 import hub
@@ -53,8 +54,9 @@ class HubCloudDataset(Dataset):
         if self.is_actually_cloud:
             if self.org_id is not None:
                 return
-            split_path = self.path.split("/")
-            org_id, ds_name = split_path[2], split_path[3]
+            _, org_id, ds_name, subdir = process_hub_path(self.path)
+            if subdir:
+                ds_name += "/" + subdir
         else:
             # if this dataset isn't actually pointing to a datset in the cloud
             # a.k.a this dataset is trying to simulate a hub cloud dataset
@@ -64,9 +66,14 @@ class HubCloudDataset(Dataset):
         self.__dict__["org_id"] = org_id
         self.__dict__["ds_name"] = ds_name
 
+    def _is_sub_ds(self):
+        return "/" in self.ds_name
+
     def _register_dataset(self):
         # called in super()._populate_meta
         self._set_org_and_name()
+        if self._is_sub_ds():
+            return
         self.client.create_dataset_entry(
             self.org_id,
             self.ds_name,
@@ -209,7 +216,8 @@ class HubCloudDataset(Dataset):
 
     def delete(self, large_ok=False):
         super().delete(large_ok=large_ok)
-
+        if self._is_sub_ds():
+            return
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     @property
