@@ -131,6 +131,41 @@ def merge_all_tile_encoders(
     target_ds.flush()
 
 
+def merge_all_meta_info(
+    target_ds,
+    storage,
+    generated_tensors,
+    overwrite,
+    all_commit_diffs,
+    all_tile_encoders,
+    all_num_samples,
+    all_tensor_metas,
+    all_chunk_id_encoders,
+    all_chunk_commit_sets,
+):
+    merge_all_commit_diffs(
+        all_commit_diffs, target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_tile_encoders(
+        all_tile_encoders,
+        all_num_samples,
+        target_ds,
+        storage,
+        overwrite,
+        generated_tensors,
+    )
+    merge_all_tensor_metas(
+        all_tensor_metas, target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_chunk_id_encoders(
+        all_chunk_id_encoders, target_ds, storage, overwrite, generated_tensors
+    )
+    if target_ds.commit_id is not None:
+        merge_all_commit_chunk_sets(
+            all_chunk_commit_sets, target_ds, storage, overwrite, generated_tensors
+        )
+
+
 def combine_tile_encoders(
     ds_tile_encoder: TileEncoder, worker_tile_encoder: TileEncoder, offset: int
 ) -> None:

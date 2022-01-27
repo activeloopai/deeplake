@@ -1,3 +1,5 @@
+import math
+import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
@@ -327,3 +329,44 @@ def get_pbar_description(compute_functions: List):
 
     names_desc = ", ".join(func_names)
     return f"Evaluating [{names_desc}]"
+
+
+def create_slices(data_in, num_workers):
+    size = math.ceil(len(data_in) / num_workers)
+    return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+
+def delete_overwritten_chunks(target_ds, storage, generated_tensors, overwrite):
+    if not overwrite:
+        return
+
+    for key in generated_tensors:
+        tensor = target_ds[key]
+        storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
+
+
+def get_lengths_generated(all_tensor_metas, tensors):
+    all_num_samples = []
+    all_tensors_generated_length = {tensor: 0 for tensor in tensors}
+    for tensor_meta_dict in all_tensor_metas:
+        num_samples_dict = {}
+        for tensor, meta in tensor_meta_dict.items():
+            all_tensors_generated_length[tensor] += meta.length
+            num_samples_dict[tensor] = meta.length
+        all_num_samples.append(num_samples_dict)
+    return all_num_samples, all_tensors_generated_length
+
+
+def check_lengths(all_tensors_generated_length, skip_ok):
+    if not skip_ok:
+        return
+
+    first_length = None
+    for length in all_tensors_generated_length.values():
+        if first_length is None:
+            first_length = length
+        elif length not in [0, first_length]:
+            warnings.warn(
+                "Length of all tensors generated is not the same, this may lead to unexpected behavior."
+            )
+            break

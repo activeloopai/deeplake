@@ -1,35 +1,30 @@
 from uuid import uuid4
 import hub
-import math
 from typing import Callable, List, Optional
 from itertools import repeat
-import warnings
-from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
+    check_lengths,
     check_transform_data_in,
     check_transform_ds_out,
+    create_slices,
+    delete_overwritten_chunks,
+    get_lengths_generated,
     get_pbar_description,
     store_data_slice,
     store_data_slice_with_pbar,
 )
 from hub.util.cachable import reset_cachables
-from hub.util.encoder import (
-    merge_all_chunk_id_encoders,
-    merge_all_commit_diffs,
-    merge_all_tensor_metas,
-    merge_all_tile_encoders,
-    merge_all_commit_chunk_sets,
-)
+from hub.util.encoder import merge_all_meta_info
 from hub.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
 )
-from hub.util.version_control import auto_checkout
+from hub.util.version_control import auto_checkout, load_meta
 
 
 class ComputeFunction:
@@ -186,18 +181,14 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
-        size = math.ceil(len(data_in) / num_workers)
-        slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+        slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
+        tensors = list(target_ds.tensors.keys())
         group_index = target_ds.group_index
         version_state = target_ds.version_state
+        args = (storage, group_index, tensors, self, version_state, skip_ok)
+        map_inp = zip(slices, repeat(args))
 
-        tensors = list(target_ds.tensors)
-        tensors = [target_ds.tensors[t].key for t in tensors]
-        map_inp = zip(
-            slices,
-            repeat((storage, group_index, tensors, self, version_state, skip_ok)),
-        )
         if progressbar:
             desc = get_pbar_description(self.functions)
             metas_and_encoders = compute.map_with_progressbar(
@@ -216,58 +207,31 @@ class Pipeline:
             all_chunk_commit_sets,
             all_commit_diffs,
         ) = zip(*metas_and_encoders)
-        all_num_samples = []
-        all_tensors_generated_length = {tensor: 0 for tensor in tensors}
-        for tensor_meta_dict in all_tensor_metas:
-            num_samples_dict = {}
-            for tensor, meta in tensor_meta_dict.items():
-                all_tensors_generated_length[tensor] += meta.length
-                num_samples_dict[tensor] = meta.length
-            all_num_samples.append(num_samples_dict)
-        first_length = None
-        if skip_ok:
-            for tensor, length in all_tensors_generated_length.items():
-                if first_length is None:
-                    first_length = length
-                elif length not in [0, first_length]:
-                    warnings.warn(
-                        "Length of all tensors generated is not the same, this may lead to unexpected behavior."
-                    )
-                    break
+
+        all_num_samples, all_tensors_generated_length = get_lengths_generated(
+            all_tensor_metas, tensors
+        )
+
+        check_lengths(all_tensors_generated_length, skip_ok)
 
         generated_tensors = [
-            tensor
-            for tensor, length in all_tensors_generated_length.items()
-            if length > 0
+            tensor for tensor, l in all_tensors_generated_length.items() if l > 0
         ]
 
-        if overwrite:
-            for key, tensor in target_ds.tensors.items():
-                if key in generated_tensors:
-                    storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
-        merge_all_commit_diffs(
-            all_commit_diffs, target_ds, storage, overwrite, generated_tensors
-        )
-        merge_all_tile_encoders(
-            all_tile_encoders,
-            all_num_samples,
+        delete_overwritten_chunks(target_ds, storage, generated_tensors, overwrite)
+        merge_all_meta_info(
             target_ds,
             storage,
-            overwrite,
             generated_tensors,
+            overwrite,
+            all_commit_diffs,
+            all_tile_encoders,
+            all_num_samples,
+            all_tensor_metas,
+            all_chunk_id_encoders,
+            all_chunk_commit_sets,
         )
-        merge_all_tensor_metas(
-            all_tensor_metas, target_ds, storage, overwrite, generated_tensors
-        )
-        merge_all_chunk_id_encoders(
-            all_chunk_id_encoders, target_ds, storage, overwrite, generated_tensors
-        )
-        if target_ds.commit_id is not None:
-            merge_all_commit_chunk_sets(
-                all_chunk_commit_sets, target_ds, storage, overwrite, generated_tensors
-            )
-
-        reset_cachables(target_ds, generated_tensors)
+        load_meta(target_ds)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
