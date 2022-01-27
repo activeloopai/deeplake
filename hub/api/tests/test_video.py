@@ -12,11 +12,10 @@ else:
     _USE_CFFI = True
 
 
-@enabled_datasets
 @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
-def test_video(ds: Dataset, compression, video_paths):
+def test_video(local_ds, compression, video_paths):
     for i, path in enumerate(video_paths[compression]):
-        tensor = ds.create_tensor(
+        tensor = local_ds.create_tensor(
             f"video_{i}", htype="video", sample_compression=compression
         )
         sample = hub.read(path)
@@ -32,7 +31,7 @@ def test_video(ds: Dataset, compression, video_paths):
             elif compression == "avi":
                 assert sample.shape == (900, 270, 480, 3)
         assert sample.shape[-1] == 3
-        with ds:
+        with local_ds:
             for _ in range(5):
                 tensor.append(hub.read(path))  # type: ignore
             tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
