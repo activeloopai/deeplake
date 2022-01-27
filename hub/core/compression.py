@@ -773,7 +773,7 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video_cffi(file, compression):
+def _decompress_video_cffi(file, compression, start_frame=50, end_frame=-1):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
@@ -784,13 +784,27 @@ def _decompress_video_cffi(file, compression):
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape_cffi(file, compression)
+
+    if end_frame == -1:
+        end_frame = shape[0]
+
+    n_frames = end_frame - start_frame
+
+    assert n_frames >= 0
+
+    shape = (n_frames, *shape[1:])
+
     nbytes = np.prod(shape)
     decompressed = ffi.new(f"unsigned char[{nbytes}]")
 
     if isinstance(file, str):
-        lib.decompressVideo(file.encode("utf-8"), 0, 0, decompressed, 0, nbytes)
+        lib.decompressVideo(
+            file.encode("utf-8"), 0, 0, start_frame, decompressed, 0, nbytes
+        )
     else:
-        lib.decompressVideo(bytes(file), len(file), len(file), decompressed, 1, nbytes)
+        lib.decompressVideo(
+            bytes(file), len(file), len(file), start_frame, decompressed, 1, nbytes
+        )
 
     video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
     return video
@@ -812,7 +826,7 @@ def _read_video_shape_cffi(file, compression):
             ffibuilder.cdef(
                 """
                 int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes);
-                int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes);
+                int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, unsigned char *decompressed, int isBytes, int nbytes);
                 """
             )
 

@@ -7,7 +7,7 @@
 #include <inttypes.h>
 
 static void logging(const char *fmt, ...);
-static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos);
+static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos, int64_t *ts);
 int readFunc(void *opaque, uint8_t *buf, int buf_size);
 
 struct buffer_data
@@ -95,7 +95,7 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
     return 0;
 }
 
-int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
+int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, unsigned char *decompressed, int isBytes, int nbytes)
 {
     av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
@@ -171,6 +171,16 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
         return -1;
     }
 
+    float fps = (float)pFormatContext->streams[video_stream_index]->avg_frame_rate.num / (float)pFormatContext->streams[video_stream_index]->avg_frame_rate.den;
+    float start_time = start_frame / fps;
+    int64_t seek_target = (int64_t)(start_time * AV_TIME_BASE);
+
+    seek_target = av_rescale_q(seek_target, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
+
+    printf("start_time: %f\n", fps);
+
+    av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+
     AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
 
     if (!pCodecContext)
@@ -211,12 +221,13 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
 
     int response = 0;
     int bufpos = 0;
+    int found = 0;
     unsigned char *start = decompressed;
     while (av_read_frame(pFormatContext, pPacket) >= 0)
     {
         if (pPacket->stream_index == video_stream_index)
         {
-            response = decode_video_packet(pPacket, pCodecContext, pFrame, &decompressed, &sws_context, &bufpos);
+            response = decode_video_packet(pPacket, pCodecContext, pFrame, &decompressed, &sws_context, &bufpos, &seek_target);
             decompressed = start + bufpos;
             if (response < 0)
                 break;
@@ -240,7 +251,7 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned ch
     return 0;
 }
 
-static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos)
+static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char **decompressed, struct SwsContext **sws_context, int *bufpos, int64_t *ts)
 {
     int response = avcodec_send_packet(pCodecContext, pPacket);
     while (response >= 0)
@@ -257,12 +268,15 @@ static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext,
 
         if (response >= 0)
         {
-            int height = pFrame->height;
-            int width = pFrame->width;
-            const int out_linesize[1] = {3 * width};
-            (*sws_context) = sws_getCachedContext((*sws_context), width, height, pFrame->format, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
-            sws_scale((*sws_context), (const uint8_t *const *)&pFrame->data, pFrame->linesize, 0, height, (uint8_t *const *)decompressed, out_linesize);
-            *bufpos += height * width * 3;
+            if (pFrame->pts >= *ts)
+            {
+                int height = pFrame->height;
+                int width = pFrame->width;
+                const int out_linesize[1] = {3 * width};
+                (*sws_context) = sws_getCachedContext((*sws_context), width, height, pFrame->format, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
+                sws_scale((*sws_context), (const uint8_t *const *)&pFrame->data, pFrame->linesize, 0, height, (uint8_t *const *)decompressed, out_linesize);
+                *bufpos += height * width * 3;
+            }
         }
         break;
     }
