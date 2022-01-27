@@ -38,6 +38,7 @@ def login(username: str, password: str):
         try:
             client = HubBackendClient()
             token = client.request_auth_token(username, password)
+            print("000", token)
             write_token(token)
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
@@ -45,15 +46,25 @@ def login(username: str, password: str):
                 save_reporting_config(True, username=username)
             break
         except AuthenticationException:
-            print("Login failed. Check username and password.")
             chances -= 1
-            username = ""
-            password = ""
+            if chances:
+                print("Login failed. Check username and password.")
+                username = ""
+                password = ""
+            else:
+                print(
+                    "3 unsuccessful attempts. Kindly retry logging in after sometime."
+                )
         except Exception as e:
-            print(f"Unable to login: {e}")
             chances -= 1
-            username = ""
-            password = ""
+            if chances:
+                print(f"Encountered an error {e} Please try again later.")
+                username = ""
+                password = ""
+            else:
+                print(
+                    "3 unsuccessful attempts. Kindly retry logging in after sometime."
+                )
 
 
 @click.command()
