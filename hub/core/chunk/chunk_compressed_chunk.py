@@ -245,15 +245,5 @@ class ChunkCompressedChunk(BaseChunk):
             return len(self.decompressed_bytes)
         return sum(x.nbytes for x in self.decompressed_samples)
 
-    @property
-    def nbytes(self):
-        """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-        return infer_chunk_num_bytes(
-            self.version,
-            self.shapes_encoder.array,
-            self.byte_positions_encoder.array,
-            len_data=min(self.num_uncompressed_bytes, self.max_chunk_size),
-        )
-
     def prepare_for_write(self):
         ffw_chunk(self)
