@@ -773,7 +773,7 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video_cffi(file, compression, start_frame=50, end_frame=-1):
+def _decompress_video_cffi(file, compression, start_frame=50, end_frame=70):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
@@ -874,20 +874,31 @@ def _strip_hub_mp4_header(buffer: bytes):
 def _decompress_video_pipes(
     file: Union[bytes, memoryview, str],
     compression: Optional[str],
-    nframes: Optional[int] = None,
+    start_frame: Optional[int] = 50,
+    end_frame: Optional[int] = 100,
 ) -> np.ndarray:
 
-    shape = _read_video_shape_pipes(file, compression)
+    shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)
+    if end_frame == -1:
+        end_frame = shape[0]
+    n_frames = end_frame - start_frame
+    assert n_frames > 0
+    shape = (n_frames, *shape[1:])
+    start_time = start_frame / fps
     command = [
         ffmpeg_binary(),
         "-i",
         "pipe:",
+        "-ss",
+        f"{start_time}",
         "-f",
         "image2pipe",
         "-pix_fmt",
         "rgb24",
-        "-vcodec",
+        "-c:v",
         "rawvideo",
+        "-frames:v",
+        f"{n_frames}",
         "-",
     ]
     if isinstance(file, str):
@@ -901,8 +912,6 @@ def _decompress_video_pipes(
         )
         raw_video = pipe.communicate(input=file)[0]  # type: ignore
     nbytes = len(raw_video)
-    if nframes is not None:
-        shape = (nframes,) + shape[1:]
     size = np.prod(shape)
     if nbytes >= size:  # size is computed from fps and duration, might not be accurate.
         return np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(
@@ -915,13 +924,15 @@ def _decompress_video_pipes(
 
 
 def _read_video_shape_pipes(
-    file: Union[bytes, memoryview, str], compression: Optional[str]
+    file: Union[bytes, memoryview, str], compression: Optional[str], get_rate=False
 ) -> Tuple[int, ...]:
     info = _get_video_info_pipes(file, compression)
     if info["duration"] is None:
         nframes = -1
     else:
         nframes = math.floor(info["duration"] * info["rate"])
+    if get_rate:
+        return (nframes, info["height"], info["width"], 3), info["rate"]
     return (nframes, info["height"], info["width"], 3)
 
 

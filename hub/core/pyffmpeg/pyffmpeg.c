@@ -177,8 +177,6 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
 
     seek_target = av_rescale_q(seek_target, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
 
-    printf("start_time: %f\n", fps);
-
     av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
 
     AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
