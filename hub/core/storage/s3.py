@@ -296,24 +296,29 @@ class S3Provider(StorageProvider):
         else:
             super().clear()
 
-    def __getstate__(self):
+    def _state_keys(self):
+        """Keys used to store the state of the provider."""
         return {
-            "root": self.root,
-            "aws_access_key_id": self.aws_access_key_id,
-            "aws_secret_access_key": self.aws_secret_access_key,
-            "aws_session_token": self.aws_session_token,
-            "aws_region": self.aws_region,
-            "endpoint_url": self.endpoint_url,
-            "client_config": self.client_config,
-            "expiration": self.expiration,
-            "tag": self.tag,
-            "token": self.token,
-            "loaded_creds_from_environment": self.loaded_creds_from_environment,
-            "read_only": self.read_only,
-            "profile_name": self.profile_name,
+            "root",
+            "aws_access_key_id",
+            "aws_secret_access_key",
+            "aws_session_token",
+            "aws_region",
+            "endpoint_url",
+            "client_config",
+            "expiration",
+            "tag",
+            "token",
+            "loaded_creds_from_environment",
+            "read_only",
+            "profile_name",
         }
 
+    def __getstate__(self):
+        return {key: getattr(self, key) for key in self._state_keys()}
+
     def __setstate__(self, state):
+        assert set(state.keys()) == self._state_keys()
         self.__dict__.update(state)
         self._initialize_s3_parameters()
 
