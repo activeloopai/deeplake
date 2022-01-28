@@ -297,37 +297,24 @@ class S3Provider(StorageProvider):
             super().clear()
 
     def __getstate__(self):
-        return (
-            self.root,
-            self.aws_access_key_id,
-            self.aws_secret_access_key,
-            self.aws_session_token,
-            self.aws_region,
-            self.endpoint_url,
-            self.client_config,
-            self.expiration,
-            self.tag,
-            self.token,
-            self.loaded_creds_from_environment,
-            self.read_only,
-            self.profile_name,
-        )
+        return {
+            "root": self.root,
+            "aws_access_key_id": self.aws_access_key_id,
+            "aws_secret_access_key": self.aws_secret_access_key,
+            "aws_session_token": self.aws_session_token,
+            "aws_region": self.aws_region,
+            "endpoint_url": self.endpoint_url,
+            "client_config": self.client_config,
+            "expiration": self.expiration,
+            "tag": self.tag,
+            "token": self.token,
+            "loaded_creds_from_environment": self.loaded_creds_from_environment,
+            "read_only": self.read_only,
+            "profile_name": self.profile_name,
+        }
 
     def __setstate__(self, state):
-        self.root = state[0]
-        self.aws_access_key_id = state[1]
-        self.aws_secret_access_key = state[2]
-        self.aws_session_token = state[3]
-        self.aws_region = state[4]
-        self.endpoint_url = state[5]
-        self.client_config = state[6]
-        self.expiration = state[7]
-        self.tag = state[8]
-        self.token = state[9]
-        self.loaded_creds_from_environment = state[10]
-        self.read_only = state[11]
-        self.profile_name = state[12]
-
+        self.__dict__.update(state)
         self._initialize_s3_parameters()
 
     def _set_bucket_and_path(self):
