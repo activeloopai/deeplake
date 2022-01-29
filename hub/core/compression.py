@@ -884,7 +884,7 @@ def _decompress_video_pipes(
     if end_frame == -1:
         end_frame = shape[0]
     n_frames = end_frame - start_frame
-    assert n_frames > 0
+    assert n_frames >= 0
     shape = (n_frames, *shape[1:])
     start_time = start_frame / fps
     command = [
