@@ -67,14 +67,14 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
 
         if (pLocalCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO)
         {
-            float fps = (float)pFormatContext->streams[i]->avg_frame_rate.num / (float)pFormatContext->streams[i]->avg_frame_rate.den;
-            float timebase = (float)pFormatContext->streams[i]->time_base.num / (float)pFormatContext->streams[i]->time_base.den;
-            float duration = (float)pFormatContext->streams[i]->duration * timebase;
+            double fps = av_q2d(pFormatContext->streams[i]->avg_frame_rate);
+            double timebase = av_q2d(pFormatContext->streams[i]->time_base);
+            double duration = pFormatContext->streams[i]->duration * timebase;
             if (duration < 0)
             {
-                duration = (float)pFormatContext->duration / AV_TIME_BASE;
+                duration = (double)pFormatContext->duration / AV_TIME_BASE;
             }
-            int n_frames = (int)duration * (int)fps;
+            int n_frames = (int)(duration * fps);
             int width = pLocalCodecParameters->width;
             int height = pLocalCodecParameters->height;
             shape[0] = n_frames;
@@ -219,7 +219,6 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
 
     int response = 0;
     int bufpos = 0;
-    int found = 0;
     unsigned char *start = decompressed;
     while (av_read_frame(pFormatContext, pPacket) >= 0)
     {

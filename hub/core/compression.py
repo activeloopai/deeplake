@@ -773,7 +773,7 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video_cffi(file, compression, start_frame=50, end_frame=70):
+def _decompress_video_cffi(file, compression, start_frame=0, end_frame=-1):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
@@ -862,7 +862,9 @@ def _read_video_shape_cffi(file, compression):
         lib.getVideoShape(file.encode("utf-8"), 0, 0, shape, 0)
     else:
         lib.getVideoShape(bytes(file), len(file), len(file), shape, 1)
-    return (*shape, 3)
+
+    shape = (*shape, 3)
+    return shape
 
 
 def _strip_hub_mp4_header(buffer: bytes):
@@ -874,8 +876,8 @@ def _strip_hub_mp4_header(buffer: bytes):
 def _decompress_video_pipes(
     file: Union[bytes, memoryview, str],
     compression: Optional[str],
-    start_frame: Optional[int] = 50,
-    end_frame: Optional[int] = 100,
+    start_frame: Optional[int] = 0,
+    end_frame: Optional[int] = -1,
 ) -> np.ndarray:
 
     shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)
