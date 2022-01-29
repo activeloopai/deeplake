@@ -1,33 +1,38 @@
-import platform
-import posixpath
-import hub
-from hub.util.exceptions import (
-    SampleCompressionError,
-    SampleDecompressionError,
-    UnsupportedCompressionError,
-    CorruptedSampleError,
-)
-from hub.compression import (
-    get_compression_type,
-    BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
-    VIDEO_COMPRESSION,
-    AUDIO_COMPRESSION,
-)
-from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
-import numpy as np
-from pathlib import Path
-from PIL import Image, UnidentifiedImageError  # type: ignore
+import os
+from platform import system as platform_system
+from posixpath import split as posixpath_split
 from io import BytesIO
-import mmap
-import struct
-import sys
-import re
+from pathlib import Path
+import subprocess as sp
+from sys import byteorder as sys_byteorder
+from re import (
+    compile as re_compile,
+    search as re_search,
+    finditer as re_finditer,
+    findall as re_findall
+)
+
+from math import floor as math_floor
+from numpy import (
+    uint8,
+    ndarray,
+    frombuffer,
+    dtype as np_dtype,
+    array as np_array,
+    zeros as np_zeros,
+    prod as np_prod
+)
+from mmap import mmap, ACCESS_READ, ACCESS_COPY
+from struct import (
+    Struct,
+    pack as struct_pack,
+    unpack as struct_unpack
+)
+
+from numpy.core.fromnumeric import compress  # type: ignore
+from PIL import Image, UnidentifiedImageError  # type: ignore
 import numcodecs.lz4  # type: ignore
 import lz4.frame  # type: ignore
-import os
-import subprocess as sp
-import tempfile
 from miniaudio import (  # type: ignore
     mp3_read_file_f32,
     mp3_read_f32,
@@ -42,11 +47,25 @@ from miniaudio import (  # type: ignore
     wav_get_file_info,
     wav_get_info,
 )
-from numpy.core.fromnumeric import compress  # type: ignore
-import math
+from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
+
+import hub
+from hub.util.exceptions import (
+    SampleCompressionError,
+    SampleDecompressionError,
+    UnsupportedCompressionError,
+    CorruptedSampleError,
+)
+from hub.compression import (
+    get_compression_type,
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    AUDIO_COMPRESSION,
+)
 
 
-if sys.byteorder == "little":
+if sys_byteorder == "little":
     _NATIVE_INT32 = "<i4"
     _NATIVE_FLOAT32 = "<f4"
 else:
@@ -60,10 +79,10 @@ else:
     _FFMPEG_BINARY = "ffmpeg"
     _FFPROBE_BINARY = "ffprobe"
 
-DIMS_RE = re.compile(rb" ([0-9]+)x([0-9]+)")
-FPS_RE = re.compile(rb" ([0-9]+) fps,")
-DURATION_RE = re.compile(rb"Duration: ([0-9:.]+),")
-INFO_RE = re.compile(rb"([a-z]+)=([0-9./]+)")
+DIMS_RE = re_compile(rb" ([0-9]+)x([0-9]+)")
+FPS_RE = re_compile(rb" ([0-9]+) fps,")
+DURATION_RE = re_compile(rb"Duration: ([0-9:.]+),")
+INFO_RE = re_compile(rb"([a-z]+)=([0-9./]+)")
 
 _JPEG_SOFS = [
     b"\xff\xc0",
@@ -96,9 +115,9 @@ _JPEG_SOFS = [
 ]
 
 _JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
-_JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
-_STRUCT_HHB = struct.Struct(">HHB")
-_STRUCT_II = struct.Struct(">ii")
+_JPEG_SOFS_RE = re_compile(b"|".join(_JPEG_SOFS))
+_STRUCT_HHB = Struct(">HHB")
+_STRUCT_II = Struct(">ii")
 
 _HUB_MKV_HEADER = b"HUB_MKV_META"
 
@@ -121,7 +140,7 @@ def ffmpeg_exists():
 def ffmpeg_binary():
     if ffmpeg_exists():
         return _FFMPEG_BINARY
-    if platform.system() in ("Darwin", "Windows"):
+    if platform_system() in ("Darwin", "Windows"):
         raise FileNotFoundError(
             "FFMPEG not found. Install FFMPEG to use Hub's video features"
         )
@@ -141,7 +160,7 @@ def ffprobe_binary():
     )
 
 
-def to_image(array: np.ndarray) -> Image:
+def to_image(array: ndarray) -> Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
         # convert (X,Y,1) grayscale to (X,Y) for pillow compatibility
@@ -150,7 +169,7 @@ def to_image(array: np.ndarray) -> Image:
     return Image.fromarray(array)
 
 
-def _compress_apng(array: np.ndarray) -> bytes:
+def _compress_apng(array: ndarray) -> bytes:
     if array.ndim == 3:
         # Binary APNG
         frames = list(
@@ -169,21 +188,21 @@ def _compress_apng(array: np.ndarray) -> bytes:
     return ret
 
 
-def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
+def _decompress_apng(buffer: Union[bytes, memoryview]) -> ndarray:
     img = Image.open(BytesIO(buffer))
-    frame0 = np.array(img)
+    frame0 = np_array(img)
     if frame0.ndim == 2:
-        ret = np.zeros(frame0.shape + (img.n_frames,), dtype=frame0.dtype)
+        ret = np_zeros(frame0.shape + (img.n_frames,), dtype=frame0.dtype)
         ret[:, :, 0] = frame0
         for i in range(1, img.n_frames):
             img.seek(i)
-            ret[:, :, i] = np.array(img)
+            ret[:, :, i] = np_array(img)
     else:
-        ret = np.zeros((img.n_frames,) + frame0.shape, dtype=frame0.dtype)
+        ret = np_zeros((img.n_frames,) + frame0.shape, dtype=frame0.dtype)
         ret[0] = frame0
         for i in range(1, img.n_frames):
             img.seek(i)
-            ret[i] = np.array(img)
+            ret[i] = np_array(img)
     return ret
 
 
@@ -213,7 +232,7 @@ def decompress_bytes(
         raise SampleDecompressionError()
 
 
-def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
+def compress_array(array: ndarray, compression: Optional[str]) -> bytes:
     """Compress some numpy array using `compression`. All meta information will be contained in the returned buffer.
 
     Note:
@@ -280,7 +299,7 @@ def decompress_array(
     shape: Optional[Tuple[int, ...]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
-) -> np.ndarray:
+) -> ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
@@ -307,7 +326,7 @@ def decompress_array(
             raise ValueError("dtype and shape must be specified for byte compressions.")
         try:
             decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
-            return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
+            return frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
@@ -319,11 +338,11 @@ def decompress_array(
         return _decompress_apng(buffer)  # type: ignore
     try:
         if shape is not None and 0 in shape:
-            return np.zeros(shape, dtype=dtype)
+            return np_zeros(shape, dtype=dtype)
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
         img = Image.open(buffer)  # type: ignore
-        arr = np.array(img)
+        arr = np_array(img)
         if shape is not None:
             arr = arr.reshape(shape)
         return arr
@@ -345,7 +364,7 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
 
 
 def compress_multiple(
-    arrays: Sequence[np.ndarray], compression: Optional[str]
+    arrays: Sequence[ndarray], compression: Optional[str]
 ) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
@@ -368,7 +387,7 @@ def compress_multiple(
         raise NotImplementedError("compress_multiple does not support video samples.")
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
-    canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
+    canvas = np_zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
         canvas[: arr.shape[0], next_x : next_x + arr.shape[1]] = arr
@@ -379,20 +398,20 @@ def compress_multiple(
 def decompress_multiple(
     buffer: Union[bytes, memoryview],
     shapes: Sequence[Tuple[int, ...]],
-    dtype: Optional[Union[np.dtype, str]] = None,
+    dtype: Optional[Union[np_dtype, str]] = None,
     compression: Optional[str] = None,
-) -> List[np.ndarray]:
+) -> List[ndarray]:
     """Unpack a compressed buffer into multiple arrays."""
     if not buffer:
         return []
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
-        itemsize = np.dtype(dtype).itemsize
+        itemsize = np_dtype(dtype).itemsize
         for shape in shapes:
-            nbytes = int(np.prod(shape) * itemsize)
+            nbytes = int(np_prod(shape) * itemsize)
             arrays.append(
-                np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
+                frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
             )
             decompressed_buffer = decompressed_buffer[nbytes:]
         return arrays
@@ -510,7 +529,7 @@ def _verify_jpeg_buffer(buf: bytes):
 
 def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
-    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    mm = mmap(f.fileno(), 0, access=ACCESS_READ)
     mv = memoryview(mm)
     try:
         soi = f.read(2)
@@ -644,13 +663,13 @@ def _read_jpeg_shape(f: Union[bytes, BinaryIO]) -> Tuple[int, ...]:
 
 
 def _re_find_first(pattern, string):
-    for match in re.finditer(pattern, string):
+    for match in re_finditer(pattern, string):
         return match
 
 
 def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
     """Reads shape of a jpeg image from file without loading the whole image in memory"""
-    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
+    mm = mmap(f.fileno(), 0, access=ACCESS_COPY)
     mv = memoryview(mm)
     try:
         # Look for Start of Frame
@@ -744,7 +763,7 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
 
 def _decompress_audio(
     file: Union[bytes, memoryview, str], compression: Optional[str]
-) -> np.ndarray:
+) -> ndarray:
     decompressor = globals()[
         f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
     ]
@@ -758,7 +777,7 @@ def _decompress_audio(
         else:
             file = bytes(file)
     raw_audio = decompressor(file)
-    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
+    return frombuffer(raw_audio.samples, dtype="<f4").reshape(
         raw_audio.num_frames, raw_audio.nchannels
     )
 
@@ -784,7 +803,7 @@ def _decompress_video_cffi(file, compression):
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape_cffi(file, compression)
-    nbytes = np.prod(shape)
+    nbytes = np_prod(shape)
     decompressed = ffi.new(f"unsigned char[{nbytes}]")
 
     if isinstance(file, str):
@@ -792,7 +811,7 @@ def _decompress_video_cffi(file, compression):
     else:
         lib.decompressVideo(bytes(file), len(file), len(file), decompressed, 1, nbytes)
 
-    video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
+    video = frombuffer(ffi.buffer(decompressed), dtype=uint8).reshape(shape)
     return video
 
 
@@ -807,7 +826,7 @@ def _read_video_shape_cffi(file, compression):
 
             ffibuilder = FFI()
 
-            pyffmpeg_include_dir = posixpath.split(__file__)[0]
+            pyffmpeg_include_dir = posixpath_split(__file__)[0]
 
             ffibuilder.cdef(
                 """
@@ -861,7 +880,7 @@ def _decompress_video_pipes(
     file: Union[bytes, memoryview, str],
     compression: Optional[str],
     nframes: Optional[int] = None,
-) -> np.ndarray:
+) -> ndarray:
 
     shape = _read_video_shape_pipes(file, compression)
     command = [
@@ -889,14 +908,14 @@ def _decompress_video_pipes(
     nbytes = len(raw_video)
     if nframes is not None:
         shape = (nframes,) + shape[1:]
-    size = np.prod(shape)
+    size = np_prod(shape)
     if nbytes >= size:  # size is computed from fps and duration, might not be accurate.
-        return np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(
+        return frombuffer(memoryview(raw_video)[:size], dtype=uint8).reshape(
             shape
         )
     else:  # If size was overestimated, append blank frames to the end.
-        arr = np.zeros(shape, dtype=np.uint8)
-        arr.reshape(-1)[: len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
+        arr = np_zeros(shape, dtype=uint8)
+        arr.reshape(-1)[: len(raw_video)] = frombuffer(raw_video, dtype=uint8)
         return arr
 
 
@@ -907,7 +926,7 @@ def _read_video_shape_pipes(
     if info["duration"] is None:
         nframes = -1
     else:
-        nframes = math.floor(info["duration"] * info["rate"])
+        nframes = math_floor(info["duration"] * info["rate"])
     return (nframes, info["height"], info["width"], 3)
 
 
@@ -930,20 +949,20 @@ def _get_video_info_pipes(
         command[-1] = file
         pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
         raw_info, raw_err = pipe.communicate()
-        duration = bytes.decode(re.search(DURATION_RE, raw_err).groups()[0])  # type: ignore
+        duration = bytes.decode(re_search(DURATION_RE, raw_err).groups()[0])  # type: ignore
         duration = to_seconds(duration)
     else:
         if file[: len(_HUB_MKV_HEADER)] == _HUB_MKV_HEADER:
             mv = memoryview(file)
             n = len(_HUB_MKV_HEADER) + 2
-            duration = struct.unpack("f", mv[n : n + 4])[0]
+            duration = struct_unpack("f", mv[n : n + 4])[0]
             file = mv[n + 4 :]
         pipe = sp.Popen(
             command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
         )
         raw_info = pipe.communicate(input=file)[0]
     ret = dict(
-        map(lambda kv: (bytes.decode(kv[0]), kv[1]), re.findall(INFO_RE, raw_info))
+        map(lambda kv: (bytes.decode(kv[0]), kv[1]), re_findall(INFO_RE, raw_info))
     )
     ret["width"] = int(ret["width"])
     ret["height"] = int(ret["height"])
@@ -980,9 +999,9 @@ def to_hub_mkv(file: str):
         command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
     )
     mkv, raw_info = pipe.communicate()
-    duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])  # type: ignore
+    duration = bytes.decode(re_search(DURATION_RE, raw_info).groups()[0])  # type: ignore
     duration = to_seconds(duration)
-    mkv = _HUB_MKV_HEADER + struct.pack("<Hf", 4, duration) + mkv
+    mkv = _HUB_MKV_HEADER + struct_pack("<Hf", 4, duration) + mkv
     return mkv
 
 

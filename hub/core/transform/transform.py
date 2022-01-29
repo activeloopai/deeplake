@@ -1,14 +1,16 @@
 from uuid import uuid4
-import hub
-import math
-from typing import Callable, List, Optional
+from warnings import warn
 from itertools import repeat
-import warnings
+from math import ceil as math_ceil
+from typing import Callable, List, Optional
+
+from hub import Dataset
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
+from hub.util.version_control import auto_checkout
 from hub.util.transform import (
     check_transform_data_in,
     check_transform_ds_out,
@@ -29,7 +31,6 @@ from hub.util.exceptions import (
     HubComposeIncompatibleFunction,
     TransformError,
 )
-from hub.util.version_control import auto_checkout
 
 
 class ComputeFunction:
@@ -42,7 +43,7 @@ class ComputeFunction:
     def eval(
         self,
         data_in,
-        ds_out: Optional[hub.Dataset] = None,
+        ds_out: Optional[Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -89,7 +90,7 @@ class Pipeline:
     def eval(
         self,
         data_in,
-        ds_out: Optional[hub.Dataset] = None,
+        ds_out: Optional[Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -121,7 +122,7 @@ class Pipeline:
             scheduler = "serial"
         num_workers = max(num_workers, 1)
         original_data_in = data_in
-        if isinstance(data_in, hub.Dataset):
+        if isinstance(data_in, Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
         hub_reporter.feature_report(
@@ -176,7 +177,7 @@ class Pipeline:
     def run(
         self,
         data_in,
-        target_ds: hub.Dataset,
+        target_ds: Dataset,
         compute: ComputeProvider,
         num_workers: int,
         progressbar: bool = True,
@@ -186,7 +187,7 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
-        size = math.ceil(len(data_in) / num_workers)
+        size = math_ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
         storage = get_base_storage(target_ds.storage)
         group_index = target_ds.group_index
@@ -230,7 +231,7 @@ class Pipeline:
                 if first_length is None:
                     first_length = length
                 elif length not in [0, first_length]:
-                    warnings.warn(
+                    warn(
                         "Length of all tensors generated is not the same, this may lead to unexpected behavior."
                     )
                     break

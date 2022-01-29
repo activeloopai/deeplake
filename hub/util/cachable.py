@@ -1,11 +1,11 @@
+from posixpath import relpath
 from typing import List
-import hub
-import posixpath
 
+from hub import Dataset
 
-def reset_cachables(target_ds: hub.Dataset, tensors: List[str]) -> None:
+def reset_cachables(target_ds: Dataset, tensors: List[str]) -> None:
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         chunk_engine = target_ds[rel_path].chunk_engine
         chunk_engine._tensor_meta = None
         chunk_engine._chunk_id_encoder = None

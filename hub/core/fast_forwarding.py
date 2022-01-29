@@ -1,8 +1,9 @@
-from hub.constants import ENCODING_DTYPE
-import numpy as np
-from hub.core.meta.encode.shape import ShapeEncoder
+from warnings import warn
+from numpy import array as np_array
+
 import hub
-import warnings
+from hub.constants import ENCODING_DTYPE
+from hub.core.meta.encode.shape import ShapeEncoder
 
 
 def version_compare(v1, v2):
@@ -41,7 +42,7 @@ def _check_version(v):
 
     comparison = version_compare(v, hub.__version__)
     if comparison > 0:
-        warnings.warn(
+        warn(
             f"Loading a dataset that was created with a newer version of hub. This could lead to corruption or weird errors! Dataset version: {v}, current hub version: {hub.__version__}. It's recommended that you update to a version of hub >= {v}."
         )
 
@@ -99,4 +100,4 @@ def ffw_chunk(chunk, version):
                     f"Cannot fast forward an invalid shapes encoder. The length of the encoding was expected to be == 1, but got {len(a)}."
                 )
 
-            shapes._encoded = np.array([[1, a[0][0]]], dtype=ENCODING_DTYPE)
+            shapes._encoded = np_array([[1, a[0][0]]], dtype=ENCODING_DTYPE)

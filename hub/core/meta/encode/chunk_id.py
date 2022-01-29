@@ -1,11 +1,18 @@
-from typing import Any, List, Tuple, Optional
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
-from hub.util.exceptions import ChunkIdEncoderError
-from hub.core.storage.cachable import Cachable
-import numpy as np
+from numpy import (
+    ndarray,
+    array as np_array,
+    empty as np_empty,
+    concatenate as np_concatenate,
+    seterr as np_seterr,
+)
 from uuid import uuid4
+from typing import Any, List, Tuple, Optional
+
+from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
+from hub.core.storage.cachable import Cachable
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
+from hub.util.exceptions import ChunkIdEncoderError
 
 
 CHUNK_ID_COLUMN = 0
@@ -72,16 +79,16 @@ class ChunkIdEncoder(Encoder, Cachable):
         id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
         if register:
             if self.num_samples == 0:
-                self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
+                self._encoded = np_array([[id, -1]], dtype=ENCODING_DTYPE)
 
             else:
                 last_index = self.num_samples - 1
 
-                new_entry = np.array(
+                new_entry = np_array(
                     [[id, last_index]],
                     dtype=ENCODING_DTYPE,
                 )
-                self._encoded = np.concatenate([self._encoded, new_entry])
+                self._encoded = np_concatenate([self._encoded, new_entry])
         return id
 
     def register_samples(self, num_samples: int):  # type: ignore
@@ -161,9 +168,9 @@ class ChunkIdEncoder(Encoder, Cachable):
 
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         # this operation will trigger an overflow for the first addition, so supress the warning
-        np.seterr(over="ignore")
+        np_seterr(over="ignore")
         new_last_index = last_index + ENCODING_DTYPE(num_samples)
-        np.seterr(over="warn")
+        np_seterr(over="warn")
 
         return new_last_index
 
@@ -172,7 +179,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return True
 
-    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+    def _derive_value(self, row: ndarray, *_) -> ndarray:
         return row[CHUNK_ID_COLUMN]
 
     def __setitem__(self, *args):
@@ -262,7 +269,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         else:
             top = self._encoded[:start_row]
             bottom = self._encoded[end_row + 1 :]
-            mid = np.empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
+            mid = np_empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
-            self._encoded = np.concatenate([top, mid, bottom], axis=0)
+            self._encoded = np_concatenate([top, mid, bottom], axis=0)

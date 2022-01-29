@@ -1,5 +1,9 @@
-import numpy as np
+from numpy import (
+    ndarray,
+    frombuffer
+)
 from typing import List, Union
+
 from hub.core.serialize import check_sample_shape, bytes_to_text
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
@@ -8,14 +12,14 @@ from .base_chunk import BaseChunk, InputSample
 
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
-        self, incoming_samples: Union[List[InputSample], np.ndarray]
+        self, incoming_samples: Union[List[InputSample], ndarray]
     ) -> float:
         self.prepare_for_write()
-        if isinstance(incoming_samples, np.ndarray):
+        if isinstance(incoming_samples, ndarray):
             return self._extend_if_has_space_numpy(incoming_samples)
         return self._extend_if_has_space_list(incoming_samples)
 
-    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
+    def _extend_if_has_space_numpy(self, incoming_samples: ndarray) -> float:
         num_samples: int = 0
         buffer_size = 0
 
@@ -77,7 +81,7 @@ class UncompressedChunk(BaseChunk):
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
         buffer = bytes(buffer) if copy else buffer
-        return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
+        return frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
     def update_sample(self, local_index: int, sample: InputSample):
         self.prepare_for_write()

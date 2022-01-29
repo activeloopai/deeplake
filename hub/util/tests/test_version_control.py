@@ -1,11 +1,10 @@
-import hub
-from hub.core.version_control.commit_node import CommitNode
 from hub.constants import FIRST_COMMIT_ID
 from hub.util.version_control import (
     _merge_commit_node_maps,
     _version_info_to_json,
     _version_info_from_json,
 )
+from hub.core.version_control.commit_node import CommitNode
 
 
 def test_merge_commit_node_map():

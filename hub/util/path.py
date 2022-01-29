@@ -1,8 +1,9 @@
-from hub.util.keys import get_dataset_meta_key, get_tensor_meta_key
-from hub.core.storage.provider import StorageProvider
+from glob import glob
+from os import path as os_path
+
 from hub.core.storage import LRUCache
-import glob
-import os
+from hub.core.storage.provider import StorageProvider
+from hub.util.keys import get_dataset_meta_key, get_tensor_meta_key
 
 
 def is_hub_cloud_path(path: str):
@@ -46,10 +47,10 @@ def find_root(path: str) -> str:
         str: Root path of the unstructured dataset.
     """
 
-    subs = glob.glob(os.path.join(path, "*"))
+    subs = glob(os_path.join(path, "*"))
 
     subs = [
-        sub for sub in subs if os.path.isdir(sub)
+        sub for sub in subs if os_path.isdir(sub)
     ]  # only keep directories (ignore files)
 
     if len(subs) == 1:

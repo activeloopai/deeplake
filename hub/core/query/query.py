@@ -1,13 +1,13 @@
+from numpy import ndarray, amin as np_amin, amax as np_amax
 from typing import Any, Callable, List, Union
+
 from hub.core.dataset import Dataset
-from hub.core.io import IOBlock, SampleStreaming
 from hub.core.index import Index
 from hub.core.tensor import Tensor
+from hub.core.io import IOBlock, SampleStreaming
 
 
-import numpy
-
-NP_RESULT = Union[numpy.ndarray, List[numpy.ndarray]]
+NP_RESULT = Union[ndarray, List[ndarray]]
 NP_ACCESS = Callable[[str], NP_RESULT]
 
 
@@ -128,12 +128,12 @@ class EvalObject:
     @property
     def min(self):
         """Returns numpy.min() for the tensor"""
-        return numpy.amin(self.val)
+        return np_amin(self.val)
 
     @property
     def max(self):
         """Returns numpy.max() for the tensor"""
-        return numpy.amax(self.val)
+        return np_amax(self.val)
 
     @property
     def mean(self):

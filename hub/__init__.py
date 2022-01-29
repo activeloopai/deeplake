@@ -1,11 +1,11 @@
 import threading
-from queue import Queue
-from botocore.config import Config
-import numpy as np
 import multiprocessing
-import sys
+from queue import Queue
+from sys import platform as sys_platform
+from numpy import array as np_array
+from botocore.config import Config
 
-if sys.platform == "darwin":
+if sys_platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
 
 __pdoc__ = {
@@ -70,7 +70,7 @@ __all__ = [
 ]
 
 __version__ = "2.2.3"
-__encoded_version__ = np.array(__version__)
+__encoded_version__ = np_array(__version__)
 config = {"s3": Config(max_pool_connections=50)}
 
 

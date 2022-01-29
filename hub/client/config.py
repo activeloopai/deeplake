@@ -1,8 +1,8 @@
-import os
+from os.path import expanduser as os_path_expanduser
 
-TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
-REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.json")
-ALL_AGREEMENTS_PATH = os.path.expanduser("~/.activeloop/agreements")
+TOKEN_FILE_PATH = os_path_expanduser("~/.activeloop/token")
+REPORTING_CONFIG_FILE_PATH = os_path_expanduser("~/.activeloop/reporting_config.json")
+ALL_AGREEMENTS_PATH = os_path_expanduser("~/.activeloop/agreements")
 
 HUB_PROD1_ENDPOINT = "https://app.prod1.activeloop.ai"
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"

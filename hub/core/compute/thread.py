@@ -1,6 +1,7 @@
 from multiprocessing import Manager
-from hub.core.compute.provider import ComputeProvider
 from pathos.pools import ThreadPool  # type: ignore
+
+from hub.core.compute.provider import ComputeProvider
 
 
 class ThreadProvider(ComputeProvider):

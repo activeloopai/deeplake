@@ -1,6 +1,10 @@
-import numpy as np
+from numpy import (
+    ndarray,
+    isscalar,
+    array as np_array
+)
+from warnings import warn
 from typing import List, Sequence, Union
-import warnings
 
 from hub.core.chunk.base_chunk import InputSample
 from hub.core.index.index import Index
@@ -12,13 +16,13 @@ CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
 def format_read_samples(
-    samples: List[np.ndarray], index: Index, aslist: bool
-) -> Union[np.ndarray, List[np.ndarray]]:
+    samples: List[ndarray], index: Index, aslist: bool
+) -> Union[ndarray, List[ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
 
     samples = index.apply(samples)  # type: ignore
 
-    if aslist and all(map(np.isscalar, samples)):
+    if aslist and all(map(isscalar, samples)):
         samples = [arr.item() for arr in samples]
 
     samples = index.apply_squeeze(samples)  # type: ignore
@@ -26,16 +30,16 @@ def format_read_samples(
     if aslist:
         return samples
     else:
-        return np.array(samples)
+        return np_array(samples)
 
 
 def check_samples_type(samples):
-    if not isinstance(samples, (List, np.ndarray)):
+    if not isinstance(samples, (List, ndarray)):
         raise TypeError(f"Cannot extend with samples of type {type(samples)}")
 
 
 def make_sequence(
-    samples: Union[np.ndarray, Sequence[InputSample], InputSample], index_length: int
+    samples: Union[ndarray, Sequence[InputSample], InputSample], index_length: int
 ) -> Sequence[InputSample]:
     """Make `samples` a sequence of `InputSample`s.
 
@@ -79,7 +83,7 @@ def check_suboptimal_chunks(
 
     for nbytes in chunks_nbytes_after_updates:
         if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
-            warnings.warn(
+            warn(
                 "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
             )
             break

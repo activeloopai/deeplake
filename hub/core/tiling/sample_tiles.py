@@ -1,11 +1,15 @@
+from numpy import (
+    ndarray,
+    ndenumerate,
+    vectorize as np_vectorize
+)
 from typing import Optional
-import numpy as np
 
 from hub.core.compression import compress_array
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
-from hub.util.compression import get_compression_ratio
 from hub.compression import BYTE_COMPRESSIONS
+from hub.util.compression import get_compression_ratio
 
 
 class SampleTiles:
@@ -13,7 +17,7 @@ class SampleTiles:
 
     def __init__(
         self,
-        arr: np.ndarray,
+        arr: ndarray,
         compression: Optional[str],
         chunk_size: int,
         store_uncompressed_tiles: bool = False,
@@ -40,16 +44,16 @@ class SampleTiles:
         self.tiles = serialize_tiles(
             tiles, lambda x: memoryview(compress_array(x, self.compression))
         )
-        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
+        tile_shapes = np_vectorize(lambda x: x.shape, otypes=[object])(tiles)
 
-        self.shapes_enumerator = np.ndenumerate(tile_shapes)
+        self.shapes_enumerator = ndenumerate(tile_shapes)
         self.layout_shape = self.tiles.shape
         self.registered = False
         self.num_tiles = self.tiles.size
         self.tiles_yielded = 0
-        self.tiles_enumerator = np.ndenumerate(self.tiles)
+        self.tiles_enumerator = ndenumerate(self.tiles)
         self.uncompressed_tiles_enumerator = (
-            np.ndenumerate(tiles) if store_uncompressed_tiles else None
+            ndenumerate(tiles) if store_uncompressed_tiles else None
         )
 
     @property

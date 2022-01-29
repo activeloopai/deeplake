@@ -1,11 +1,16 @@
 from abc import abstractmethod
-import numpy as np
+from numpy import (
+    ndarray,
+    integer,
+    floating,
+    bool_ as np_bool
+)
+from warnings import warn
 from typing import List, Optional, Tuple, Union
-import warnings
 
 import hub
-from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSION, get_compression_type
 from hub.constants import CONVERT_GRAYSCALE
+from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSION, get_compression_type
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
@@ -26,16 +31,16 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 
 InputSample = Union[
     Sample,
-    np.ndarray,
+    ndarray,
     int,
     float,
     bool,
     dict,
     list,
     str,
-    np.integer,
-    np.floating,
-    np.bool_,
+    integer,
+    floating,
+    np_bool,
 ]
 SerializedOutput = Tuple[bytes, Tuple]
 
@@ -47,8 +52,8 @@ class BaseChunk(Cachable):
         max_chunk_size: int,
         tensor_meta: TensorMeta,
         compression: Optional[str] = None,
-        encoded_shapes: Optional[np.ndarray] = None,
-        encoded_byte_positions: Optional[np.ndarray] = None,
+        encoded_shapes: Optional[ndarray] = None,
+        encoded_byte_positions: Optional[ndarray] = None,
         data: Optional[memoryview] = None,
     ):
         self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
@@ -73,7 +78,7 @@ class BaseChunk(Cachable):
             raise ValueError("Can't use image compression with text data.")
 
         # These caches are only used for ChunkCompressed chunk.
-        self.decompressed_samples: Optional[List[np.ndarray]] = None
+        self.decompressed_samples: Optional[List[ndarray]] = None
         self.decompressed_bytes: Optional[bytes] = None
 
         # Whether tensor meta length is updated by chunk. Used by chunk engine while replacing chunks.
@@ -220,7 +225,7 @@ class BaseChunk(Cachable):
             )
         elif isinstance(
             incoming_sample,
-            (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
+            (ndarray, list, int, float, bool, integer, floating, np_bool),
         ):
             incoming_sample, shape = serialize_numpy_and_base_types(
                 incoming_sample,
@@ -245,7 +250,7 @@ class BaseChunk(Cachable):
                 self.num_dims = len(shape)
             if len(shape) == 2 and self.num_dims == 3:
                 message = "Grayscale images will be reshaped from (H, W) to (H, W, 1) to match tensor dimensions. This warning will be shown only once."
-                warnings.warn(message)
+                warn(message)
                 shape += (1,)  # type: ignore[assignment]
         return shape
 

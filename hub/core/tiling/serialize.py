@@ -1,8 +1,16 @@
+from numpy import (
+    ndarray,
+    ndenumerate,
+    empty as np_empty,
+    ceil as np_ceil,
+    divide as np_divide,
+    multiply as np_multiply,
+    vectorize as np_vectorize,
+)
 from typing import Callable, Tuple
-import numpy as np
 
 
-def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndarray:
+def break_into_tiles(sample: ndarray, tile_shape: Tuple[int, ...]) -> ndarray:
     """Get a new tile-ordered numpy object array that is the shape of the tile grid.
     Each element of the returned numpy object array is also a numpy array that is a zero-copy view of the actual tile
     at the tile coordinate.
@@ -33,10 +41,10 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
             of the actual tile at the tile coordinate.
     """
 
-    tiles_per_dim = np.ceil(np.divide(sample.shape, tile_shape)).astype(int)
-    tiles = np.empty(tiles_per_dim, dtype=object)
-    for tile_coords, _ in np.ndenumerate(tiles):
-        low = np.multiply(tile_coords, tile_shape)
+    tiles_per_dim = np_ceil(np_divide(sample.shape, tile_shape)).astype(int)
+    tiles = np_empty(tiles_per_dim, dtype=object)
+    for tile_coords, _ in ndenumerate(tiles):
+        low = np_multiply(tile_coords, tile_shape)
         high = low + tile_shape
         idx = tuple(slice(l, h) for l, h in zip(low, high))
         tiles[tile_coords] = sample[idx]
@@ -44,8 +52,8 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
 
 
 def serialize_tiles(
-    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], memoryview]
-) -> np.ndarray:
+    tiles: ndarray, serialize_func: Callable[[ndarray], memoryview]
+) -> ndarray:
     """Get a new tile-ordered numpy object array that is the same shape of the tile-grid.
     Each element of the returned numpy object array is a memoryview object representing the serialized tile.
 
@@ -57,4 +65,4 @@ def serialize_tiles(
     Returns:
         np.ndarray: numpy object array of serialized tiles. Each element of the array is a memoryview object.
     """
-    return np.vectorize(serialize_func, otypes=[object])(tiles)
+    return np_vectorize(serialize_func, otypes=[object])(tiles)

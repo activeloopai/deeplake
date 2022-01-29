@@ -1,10 +1,19 @@
+import pytest
+
+from numpy import (
+    ubyte, uint8,
+    ones as np_ones,
+    zeros as np_zeros,
+    arange as np_arange,
+    concatenate as np_concatenate,
+    testing as np_testing,
+)
+from typing import Callable
+
+from hub import read as hub_read
 from hub.constants import KB
 from hub.util.exceptions import TensorInvalidSampleShapeError
-import pytest
-from typing import Callable
 from hub.tests.common import assert_array_lists_equal
-import numpy as np
-import hub
 
 
 def _add_dummy_mnist(ds, **kwargs):
@@ -16,8 +25,8 @@ def _add_dummy_mnist(ds, **kwargs):
         "labels", htype="class_label", **compression.get("label_compression", {})
     )
 
-    ds.images.extend(np.ones((10, 28, 28), dtype=np.uint8))
-    ds.labels.extend(np.ones(10, dtype=np.uint8))
+    ds.images.extend(np_ones((10, 28, 28), dtype=uint8))
+    ds.labels.extend(np_ones(10, dtype=uint8))
 
     return ds
 
@@ -102,37 +111,37 @@ def test(local_ds_generator, compression):
 
     # update single sample
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
+        gen, "images", -1, np_ones((1, 28, 28), dtype="uint8") * 75
     )  # same shape (with 1)
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
+        gen, "images", -1, np_ones((28, 28), dtype="uint8") * 75
     )  # same shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
+        gen, "images", 0, np_ones((28, 25), dtype="uint8") * 5
     )  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
+        gen, "images", 0, np_ones((1, 32, 32), dtype="uint8") * 5
     )  # new shape (with 1)
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((0, 0), dtype="uint8")
+        gen, "images", -1, np_ones((0, 0), dtype="uint8")
     )  # empty sample (new shape)
-    _make_update_assert_equal(gen, "labels", -5, np.uint8(99))
-    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))
+    _make_update_assert_equal(gen, "labels", -5, uint8(99))
+    _make_update_assert_equal(gen, "labels", 0, uint8(5))
 
     # update a range of samples
-    x = np.arange(3 * 28 * 28).reshape((3, 28, 28)).astype("uint8")
+    x = np_arange(3 * 28 * 28).reshape((3, 28, 28)).astype("uint8")
     _make_update_assert_equal(gen, "images", slice(0, 3), x)  # same shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype="uint8")
+        gen, "images", slice(3, 5), np_zeros((2, 5, 28), dtype="uint8")
     )  # new shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int).tolist()
+        gen, "images", slice(3, 5), np_zeros((2, 5, 28), dtype=int).tolist()
     )  # test downcasting python scalars
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=np.ubyte).tolist()
+        gen, "images", slice(3, 5), np_zeros((2, 5, 28), dtype=ubyte).tolist()
     )  # test upcasting
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype="uint8")
+        gen, "images", slice(3, 5), np_zeros((2, 0, 0), dtype="uint8")
     )  # empty samples (new shape)
     _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
 
@@ -142,9 +151,9 @@ def test(local_ds_generator, compression):
         "images",
         slice(7, 10),
         [
-            np.ones((28, 50), dtype="uint8") * 5,
-            np.ones((0, 5), dtype="uint8"),
-            np.ones((1, 1), dtype="uint8") * 10,
+            np_ones((28, 50), dtype="uint8") * 5,
+            np_ones((0, 5), dtype="uint8"),
+            np_ones((1, 1), dtype="uint8") * 10,
         ],
     )
 
@@ -159,18 +168,18 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
 
     ds = gen()
     ds.create_tensor("images", htype="image", sample_compression=images_compression)
-    ds.images.extend(np.zeros((10, 0, 0, 0), dtype=np.uint8))
+    ds.images.extend(np_zeros((10, 0, 0, 0), dtype=uint8))
 
-    ds.images[0] = hub.read(cat_path)
-    np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
+    ds.images[0] = hub_read(cat_path)
+    np_testing.assert_array_equal(ds.images[0].numpy(), hub_read(cat_path).array)
 
-    ds.images[1] = [hub.read(flower_path)]
-    np.testing.assert_array_equal(ds.images[1].numpy(), hub.read(flower_path).array)
+    ds.images[1] = [hub_read(flower_path)]
+    np_testing.assert_array_equal(ds.images[1].numpy(), hub_read(flower_path).array)
 
-    ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
+    ds.images[8:10] = [hub_read(cat_path), hub_read(flower_path)]
     assert_array_lists_equal(
         ds.images[8:10].numpy(aslist=True),
-        [hub.read(cat_path).array, hub.read(flower_path).array],
+        [hub_read(cat_path).array, hub_read(flower_path).array],
     )
 
     assert ds.images.shape_interval.lower == (10, 0, 0, 0)
@@ -195,9 +204,9 @@ def test_pre_indexed_tensor(memory_ds):
     tensor[5:10][0] = [44, 44, 44, 44]
     tensor[4:10][0:2] = [[44, 44, 44, 44], [33]]
 
-    np.testing.assert_array_equal([99, 98, 97], tensor[0])
-    np.testing.assert_array_equal([44, 44, 44, 44], tensor[4])
-    np.testing.assert_array_equal([33], tensor[5])
+    np_testing.assert_array_equal([99, 98, 97], tensor[0])
+    np_testing.assert_array_equal([44, 44, 44, 44], tensor[4])
+    np_testing.assert_array_equal([33], tensor[5])
 
     assert tensor.shape_interval.lower == (6, 1)
     assert tensor.shape_interval.upper == (6, 5)
@@ -209,28 +218,28 @@ def test_failures(memory_ds):
 
     # primary axis doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((25, 30), dtype="uint8")
+        memory_ds.images[0:3] = np_zeros((25, 30), dtype="uint8")
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((2, 25, 30), dtype="uint8")
+        memory_ds.images[0:3] = np_zeros((2, 25, 30), dtype="uint8")
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.images[0] = np.zeros((2, 25, 30), dtype="uint8")
+        memory_ds.images[0] = np_zeros((2, 25, 30), dtype="uint8")
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
+        memory_ds.images[0:5] = np_zeros((5, 30), dtype="uint8")
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
+        memory_ds.labels[0:5] = np_zeros((5, 2, 3), dtype="uint8")
 
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
-    np.testing.assert_array_equal(
-        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
+    np_testing.assert_array_equal(
+        memory_ds.images.numpy(), np_ones((10, 28, 28), dtype="uint8")
     )
-    np.testing.assert_array_equal(
-        memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8")
+    np_testing.assert_array_equal(
+        memory_ds.labels.numpy(), np_ones((10, 1), dtype="uint8")
     )
     assert memory_ds.images.shape == (10, 28, 28)
     assert memory_ds.labels.shape == (10, 1)
@@ -239,15 +248,15 @@ def test_failures(memory_ds):
 def test_warnings(memory_ds):
     tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
 
-    tensor.extend(np.ones((10, 12, 12), dtype="int32"))
+    tensor.extend(np_ones((10, 12, 12), dtype="int32"))
 
     # this update makes (small) suboptimal chunks
     with pytest.warns(UserWarning):
-        tensor[0:5] = np.zeros((5, 0, 0), dtype="int32")
+        tensor[0:5] = np_zeros((5, 0, 0), dtype="int32")
 
     # this update makes (large) suboptimal chunks
     with pytest.warns(UserWarning):
-        tensor[:] = np.zeros((10, 32, 31), dtype="int32")
+        tensor[:] = np_zeros((10, 32, 31), dtype="int32")
 
 
 @pytest.mark.parametrize(
@@ -263,30 +272,30 @@ def test_warnings(memory_ds):
 def test_inplace_updates(memory_ds, compression):
     ds = memory_ds
     ds.create_tensor("x", **compression)
-    ds.x.extend(np.zeros((5, 32, 32, 3), dtype="uint8"))
+    ds.x.extend(np_zeros((5, 32, 32, 3), dtype="uint8"))
     ds.x += 1
-    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)))
+    np_testing.assert_array_equal(ds.x.numpy(), np_ones((5, 32, 32, 3)))
     ds.x += ds.x
-    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 2)
-    ds.x *= np.zeros(3, dtype="uint8")
-    np.testing.assert_array_equal(ds.x.numpy(), np.zeros((5, 32, 32, 3)))
+    np_testing.assert_array_equal(ds.x.numpy(), np_ones((5, 32, 32, 3)) * 2)
+    ds.x *= np_zeros(3, dtype="uint8")
+    np_testing.assert_array_equal(ds.x.numpy(), np_zeros((5, 32, 32, 3)))
     ds.x += 6
     ds.x //= 2
-    np.testing.assert_array_equal(ds.x.numpy(), np.ones((5, 32, 32, 3)) * 3)
+    np_testing.assert_array_equal(ds.x.numpy(), np_ones((5, 32, 32, 3)) * 3)
     ds.x[:3] *= 0
-    np.testing.assert_array_equal(
+    np_testing.assert_array_equal(
         ds.x.numpy(),
-        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+        np_concatenate([np_zeros((3, 32, 32, 3)), np_ones((2, 32, 32, 3)) * 3]),
     )
 
     # Different shape
-    ds.x.append(np.zeros((100, 50, 3), dtype="uint8"))
+    ds.x.append(np_zeros((100, 50, 3), dtype="uint8"))
     ds.x[5] += 1
-    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
-    np.testing.assert_array_equal(
+    np_testing.assert_array_equal(ds.x[5].numpy(), np_ones((100, 50, 3)))
+    np_testing.assert_array_equal(
         ds.x[:5].numpy(),
-        np.concatenate([np.zeros((3, 32, 32, 3)), np.ones((2, 32, 32, 3)) * 3]),
+        np_concatenate([np_zeros((3, 32, 32, 3)), np_ones((2, 32, 32, 3)) * 3]),
     )
     ds.x[:5] *= 0
-    np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
-    np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+    np_testing.assert_array_equal(ds.x[:5].numpy(), np_zeros((5, 32, 32, 3)))
+    np_testing.assert_array_equal(ds.x[5].numpy(), np_ones((100, 50, 3)))

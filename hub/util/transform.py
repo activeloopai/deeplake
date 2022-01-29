@@ -1,14 +1,17 @@
-import hub
-from typing import Any, Dict, List, Tuple, Optional
+from time import time
+from posixpath import join as posixpath_join
 from json.decoder import JSONDecodeError
+from typing import Any, Dict, List, Tuple, Optional
+
+from hub import Dataset
+from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+from hub.core.dataset import dataset_factory
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.tile import TileEncoder
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
-
-from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.remove_cache import get_base_storage
@@ -20,8 +23,6 @@ from hub.util.exceptions import (
     TensorMismatchError,
 )
 
-import posixpath
-import time
 
 TransformOut = Tuple[
     Dict[str, TensorMeta],
@@ -112,7 +113,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         tensors, output_storage, version_state
     )
 
-    if isinstance(data_slice, hub.Dataset):
+    if isinstance(data_slice, Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
@@ -160,7 +161,7 @@ def _transform_sample_and_update_chunk_engines(
     if is_empty_transform_dataset(result):
         return
     result_resolved = {
-        posixpath.join(group_index, k): result[k] for k in result.tensors
+        posixpath_join(group_index, k): result[k] for k in result.tensors
     }
     result = result_resolved  # type: ignore
     result_keys = set(result.keys())
@@ -187,14 +188,14 @@ def transform_data_slice_and_append(
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
 
     n = len(data_slice)
-    last_reported_time = time.time()
+    last_reported_time = time()
     last_reported_num_samples = 0
     for i, sample in enumerate(data_slice):
         _transform_sample_and_update_chunk_engines(
             sample, pipeline, tensors, all_chunk_engines, group_index, skip_ok
         )
         if pg_callback is not None:
-            curr_time = time.time()
+            curr_time = time()
             if (
                 curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
                 or i == n - 1
@@ -249,9 +250,9 @@ def create_worker_chunk_engines(
 
 
 def add_cache_to_dataset_slice(
-    dataset_slice: hub.Dataset,
+    dataset_slice: Dataset,
     tensors: List[str],
-) -> hub.Dataset:
+) -> Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
@@ -259,7 +260,7 @@ def add_cache_to_dataset_slice(
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     commit_id = dataset_slice.pending_commit_id
     # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
-    dataset_slice = hub.core.dataset.dataset_factory(
+    dataset_slice = dataset_factory(
         path=dataset_slice.path,
         storage=cached_store,
         index=dataset_slice.index,
@@ -278,7 +279,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
         raise InvalidInputDataError("__getitem__")
     if not hasattr(data_in, "__len__"):
         raise InvalidInputDataError("__len__")
-    if isinstance(data_in, hub.Dataset):
+    if isinstance(data_in, Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
             "serial",
@@ -289,7 +290,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
+def check_transform_ds_out(ds_out: Dataset, scheduler: str) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError

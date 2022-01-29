@@ -1,12 +1,13 @@
-from hub.core.storage.provider import StorageProvider
-import os
+from os import environ as os_environ
 import logging
+
+from hub.core.storage.provider import StorageProvider
 
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
-os.environ["BUGGER_OFF"] = "true"
+os_environ["BUGGER_OFF"] = "true"
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os_environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.disable(logging.INFO)
 
 from hub.constants import *

@@ -1,30 +1,69 @@
 # type: ignore
-from collections import defaultdict
-import numpy as np
-from tqdm import tqdm  # type: ignore
+from json import (
+    loads as json_loads,
+    dumps as json_dumps
+)
 import posixpath
-import warnings
+from numpy import (
+    ndarray,
+    dtype as np_dtype,
+    generic as np_generic,
+)
+from time import time
+from warnings import warn
+from tqdm import tqdm  # type: ignore
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
-from hub.api.info import load_info
-from hub.client.log import logger
-from hub.constants import FIRST_COMMIT_ID
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import (
+    MB,
+    FIRST_COMMIT_ID,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_version, unlock_version, Lock
-from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider, GCSProvider, MemoryProvider
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
+from hub.api.info import load_info
+from hub.client.log import logger
+from hub.client.utils import get_user_name
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.path import get_path_from_storage
+from hub.util.remove_cache import get_base_storage
+from hub.util.diff import (
+    compare_commits,
+    get_all_changes_string,
+    filter_data_updated,
+    get_changes_for_id,
+)
+from hub.util.version_control import (
+    auto_checkout,
+    checkout,
+    commit,
+    current_commit_has_data,
+    load_meta,
+    warn_node_checkout,
+    load_version_info,
+)
+from hub.util.keys import (
+    dataset_exists,
+    get_dataset_info_key,
+    get_dataset_meta_key,
+    tensor_exists,
+    get_queries_key,
+    get_queries_lock_key,
+)
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -43,37 +82,6 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
     NotLoggedInError,
 )
-from hub.util.keys import (
-    dataset_exists,
-    get_dataset_info_key,
-    get_dataset_meta_key,
-    tensor_exists,
-    get_queries_key,
-    get_queries_lock_key,
-)
-from hub.util.path import get_path_from_storage
-from hub.util.remove_cache import get_base_storage
-from hub.util.diff import (
-    compare_commits,
-    get_all_changes_string,
-    filter_data_updated,
-    get_changes_for_id,
-)
-from hub.util.version_control import (
-    auto_checkout,
-    checkout,
-    commit,
-    current_commit_has_data,
-    load_meta,
-    warn_node_checkout,
-    load_version_info,
-)
-from hub.client.utils import get_user_name
-from tqdm import tqdm  # type: ignore
-from time import time
-import hashlib
-import json
-from collections import defaultdict
 
 
 class Dataset:
@@ -144,7 +152,7 @@ class Dataset:
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        warnings.warn(
+        warn(
             "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
         )
 
@@ -268,7 +276,7 @@ class Dataset:
         self,
         name: str,
         htype: str = UNSPECIFIED,
-        dtype: Union[str, np.dtype] = UNSPECIFIED,
+        dtype: Union[str, np_dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         **kwargs,
@@ -503,7 +511,7 @@ class Dataset:
     __getattr__ = __getitem__
 
     def __setattr__(self, name: str, value):
-        if isinstance(value, (np.ndarray, np.generic)):
+        if isinstance(value, (ndarray, np_generic)):
             raise TypeError(
                 "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
                 + "To add data to a tensor, use the `append` and `extend` methods."
@@ -564,7 +572,7 @@ class Dataset:
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                warnings.warn(
+                warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
                 return False
@@ -1385,11 +1393,11 @@ class Dataset:
         queries_key = get_queries_key()
         try:
             try:
-                queries = json.loads(base_storage[queries_key].decode("utf-8"))
+                queries = json_loads(base_storage[queries_key].decode("utf-8"))
             except KeyError:
                 queries = []
             queries.append(info)
-            base_storage[queries_key] = json.dumps(queries).encode("utf-8")
+            base_storage[queries_key] = json_dumps(queries).encode("utf-8")
         finally:
             lock.release()
             base_storage.read_only = storage_read_only
@@ -1557,7 +1565,7 @@ class Dataset:
         Internal. Returns a list of hashes which can be passed to Dataset._get_stored_vds to get a dataset view.
         """
         try:
-            queries = json.loads(self.storage[get_queries_key()].decode("utf-8"))
+            queries = json_loads(self.storage[get_queries_key()].decode("utf-8"))
             return queries
         except KeyError:
             return []

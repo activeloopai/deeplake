@@ -1,6 +1,6 @@
+from hub.core.compute.provider import ComputeProvider
 from hub.util.exceptions import ModuleNotInstalledException, UnsupportedSchedulerError
 from hub.util.check_installation import ray_installed
-from hub.core.compute.provider import ComputeProvider
 
 
 def get_compute_provider(

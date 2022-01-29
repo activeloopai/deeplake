@@ -1,12 +1,13 @@
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE
+from numpy import ndarray
 from typing import Tuple
+
+from hub.constants import ENCODING_DTYPE
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.core.storage.provider import StorageProvider
-import numpy as np
 
 
 class ShapeEncoder(Encoder):
-    def _derive_value(self, row: np.ndarray, *_) -> Tuple:  # type: ignore
+    def _derive_value(self, row: ndarray, *_) -> Tuple:  # type: ignore
         return tuple(row[:LAST_SEEN_INDEX_COLUMN])
 
     @property

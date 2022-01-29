@@ -1,10 +1,8 @@
-from datasets import load_dataset  # type: ignore
-from datasets import Dataset  # type: ignore
-from hub.integrations.huggingface import ingest_huggingface
-from hub.integrations.huggingface.huggingface import _is_seq_convertible
+from datasets import Dataset, load_dataset  # type: ignore
 from numpy.testing import assert_array_equal
 
-import hub
+from hub.integrations.huggingface import ingest_huggingface
+from hub.integrations.huggingface.huggingface import _is_seq_convertible
 
 
 def test_before_split():
@@ -37,7 +35,7 @@ def test_split():
 
 def test_seq_with_dict():
     ds = load_dataset("squad", split="train[:5%]")
-    hub_ds = hub.ingest_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, "mem://xyz")
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 

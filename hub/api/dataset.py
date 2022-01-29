@@ -1,17 +1,18 @@
-import os
-import hub
+from os import path as os_path
 from typing import Optional, Union
 
+import hub
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.core.dataset import Dataset, dataset_factory
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
-from hub.core.dataset import Dataset, dataset_factory
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.delete_entry import remove_path_from_backend
 from hub.util.keys import dataset_exists
+from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.exceptions import (
     AgreementError,
     DatasetHandlerError,
@@ -20,7 +21,6 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     SamePathException,
 )
-from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 
 
 class dataset:
@@ -414,10 +414,10 @@ class dataset:
                 "Summary": summary,
             },
         )
-        if not os.path.isdir(src):
+        if not os_path.isdir(src):
             raise InvalidPathException(src)
 
-        if os.path.isdir(dest) and os.path.samefile(src, dest):
+        if os_path.isdir(dest) and os_path.samefile(src, dest):
             raise SamePathException(src)
 
         if images_compression == "auto":
@@ -492,8 +492,8 @@ class dataset:
             },
         )
 
-        if os.path.isdir(src) and os.path.isdir(dest):
-            if os.path.samefile(src, dest):
+        if os_path.isdir(src) and os_path.isdir(dest):
+            if os_path.samefile(src, dest):
                 raise SamePathException(src)
 
         download_kaggle_dataset(

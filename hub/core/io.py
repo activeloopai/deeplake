@@ -1,12 +1,15 @@
 from abc import abstractmethod, ABC
 from random import shuffle
-from typing import Dict, Iterator, List, Optional, Sequence, Union
 from itertools import cycle
 from copy import copy
 from warnings import warn
-from numpy import nditer, argmin
-from numpy import array as nparray
 from math import floor
+from numpy import (
+    nditer,
+    argmin,
+    array as nparray
+)
+from typing import Dict, Iterator, List, Optional, Sequence, Union
 
 
 from hub.constants import MB

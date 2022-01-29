@@ -1,9 +1,19 @@
-import numpy as np
-import hub
 import pytest
+
+from numpy import (
+    uint8, float32,
+    array as np_array,
+    random as np_random,
+    testing as np_testing,
+)
+from typing import Any, Optional, Union, List, Dict
+
+from hub import (
+    read as hub_read,
+    compute as hub_compute
+)
 from hub.util.json import JsonValidationError
 from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
-from typing import Any, Optional, Union, List, Dict
 
 
 def test_json_basic(memory_ds):
@@ -26,8 +36,8 @@ def test_json_with_numpy(memory_ds):
     ds = memory_ds
     ds.create_tensor("json", htype="json")
     items = [
-        {"x": np.array([1, 2, 3], dtype=np.float32), "y": [4, [5, 6]]},
-        {"x": np.array([1, 2, 3], dtype=np.uint8), "y": [4, {"z": [0.1, 0.2, []]}]},
+        {"x": np_array([1, 2, 3], dtype=float32), "y": [4, [5, 6]]},
+        {"x": np_array([1, 2, 3], dtype=uint8), "y": [4, {"z": [0.1, 0.2, []]}]},
     ]
     with ds:
         for x in items:
@@ -35,7 +45,7 @@ def test_json_with_numpy(memory_ds):
         ds.json.extend(items)
     for i in range(4):
         assert ds.json[i].data()["y"] == items[i % 2]["y"]
-        np.testing.assert_array_equal(ds.json[i].data()["x"], items[i % 2]["x"])
+        np_testing.assert_array_equal(ds.json[i].data()["x"], items[i % 2]["x"])
 
 
 def test_json_with_hub_sample(memory_ds, compressed_image_paths):
@@ -45,12 +55,12 @@ def test_json_with_hub_sample(memory_ds, compressed_image_paths):
         {
             "x": [1, 2, 3],
             "y": [4, [5, 6]],
-            "z": hub.read(compressed_image_paths["jpeg"][0]),
+            "z": hub_read(compressed_image_paths["jpeg"][0]),
         },
         {
             "x": [1, 2, 3],
             "y": [4, {"z": [0.1, 0.2, []]}],
-            "z": hub.read(compressed_image_paths["png"][0]),
+            "z": hub_read(compressed_image_paths["png"][0]),
         },
     ]
     with ds:
@@ -85,12 +95,12 @@ def test_list_with_numpy(memory_ds):
     ds.create_tensor("list", htype="list")
     items = [
         [
-            np.random.random((3, 4)),
+            np_random.random((3, 4)),
             {"x": [1, 2, 3], "y": [4, [5, 6]]},
             [[]],
             [None, 0.1],
         ],
-        [np.random.randint(0, 10, (4, 5)), [], [[[]]], {"a": [0.1, 1, "a", []]}],
+        [np_random.randint(0, 10, (4, 5)), [], [[[]]], {"a": [0.1, 1, "a", []]}],
     ]
     with ds:
         for x in items:
@@ -99,7 +109,7 @@ def test_list_with_numpy(memory_ds):
     assert ds.list.shape == (4, 4)
     for i in range(4):
         actual, expected = ds.list[i].data(), items[i % 2]
-        np.testing.assert_array_equal(actual[0], expected[0])
+        np_testing.assert_array_equal(actual[0], expected[0])
         assert actual[1:] == expected[1:]
 
 
@@ -110,15 +120,15 @@ def test_list_with_hub_sample(memory_ds, compressed_image_paths):
         [
             {
                 "x": [1, 2, 3],
-                "y": [4, [5, 6, hub.read(compressed_image_paths["jpeg"][0])]],
+                "y": [4, [5, 6, hub_read(compressed_image_paths["jpeg"][0])]],
             },
-            [[hub.read(compressed_image_paths["jpeg"][1])]],
+            [[hub_read(compressed_image_paths["jpeg"][1])]],
             [None, 0.1],
         ],
         [
             [],
-            [[[hub.read(compressed_image_paths["png"][0])]]],
-            {"a": [0.1, 1, "a", hub.read(compressed_image_paths["png"][0])]},
+            [[[hub_read(compressed_image_paths["png"][0])]]],
+            {"a": [0.1, 1, "a", hub_read(compressed_image_paths["png"][0])]},
         ],
     ]
     with ds:
@@ -171,7 +181,7 @@ def test_json_transform(ds, compression, scheduler="threaded"):
         None,
     ] * 5
 
-    @hub.compute
+    @hub_compute
     def upload(stuff, ds):
         ds.json.append(stuff)
         return ds
@@ -190,7 +200,7 @@ def test_list_transform(ds, scheduler="threaded"):
         ["a", "b", "c", "d"],
     ] * 5
 
-    @hub.compute
+    @hub_compute
     def upload(stuff, ds):
         ds.list.append(stuff)
         return ds

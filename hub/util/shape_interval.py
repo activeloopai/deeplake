@@ -1,7 +1,6 @@
-from typing import Sequence
+from typing import Optional, Sequence, Tuple
 
 from hub.util.exceptions import InvalidShapeIntervalError
-from typing import Optional, Sequence, Tuple
 
 
 def _contains_negatives(shape: Sequence[int]):

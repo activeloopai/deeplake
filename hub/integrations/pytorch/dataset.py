@@ -1,21 +1,11 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
-from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction
-from hub.util.compute import get_compute_provider
-
-from hub.util.iterable_ordered_dict import IterableOrderedDict
-from hub.core.io import (
-    DistributedScheduler,
-    IOBlock,
-    SampleStreaming,
-    Schedule,
-    SequentialMultithreadScheduler,
-    ShufflingSchedulerWrapper,
-    SingleThreadScheduler,
-    MultiThreadedNaiveScheduler,
-    Streaming,
+from numpy import (
+    int32,
+    int64,
+    uint16,
+    uint32,
+    uint64,
+    ndarray
 )
-from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
 import torch.utils.data
@@ -27,10 +17,28 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data._utils.worker import ManagerWatchdog
 from torch._C import _remove_worker_pids, _set_worker_pids, _set_worker_signal_handlers
 from torch.utils.data._utils.signal_handling import _set_SIGCHLD_handler
+
 from warnings import warn
 from queue import Empty
+from typing import Callable, Iterable, Optional, Sequence, List, Union
 
-import numpy as np
+from hub.constants import MB
+from hub.core.io import (
+    DistributedScheduler,
+    IOBlock,
+    SampleStreaming,
+    Schedule,
+    SequentialMultithreadScheduler,
+    ShufflingSchedulerWrapper,
+    SingleThreadScheduler,
+    MultiThreadedNaiveScheduler,
+    Streaming,
+)
+from hub.integrations.pytorch.common import PytorchTransformFunction
+from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
+from hub.util.compute import get_compute_provider
+from hub.util.iterable_ordered_dict import IterableOrderedDict
+
 
 mp = torch.multiprocessing.get_context()
 
@@ -45,13 +53,13 @@ def use_scheduler(num_workers: int, ensure_order: bool):
             return SequentialMultithreadScheduler(num_workers)
 
 
-def cast_type(tensor: np.ndarray):
-    if tensor.dtype == np.uint16:
-        return tensor.astype(np.int32)
-    if tensor.dtype == np.uint32:
-        return tensor.astype(np.int64)
-    if tensor.dtype == np.uint64:
-        return tensor.astype(np.int64)
+def cast_type(tensor: ndarray):
+    if tensor.dtype == uint16:
+        return tensor.astype(int32)
+    if tensor.dtype == uint32:
+        return tensor.astype(int64)
+    if tensor.dtype == uint64:
+        return tensor.astype(int64)
 
     return tensor
 

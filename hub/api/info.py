@@ -1,7 +1,8 @@
-from hub.util.version_control import auto_checkout
-from hub.core.storage.lru_cache import LRUCache
 from typing import Any, Dict, Optional, Union, Sequence
+
+from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage.cachable import CachableCallback, use_callback
+from hub.util.version_control import auto_checkout
 
 
 class Info(CachableCallback):

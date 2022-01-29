@@ -1,6 +1,7 @@
-from hub.util.exceptions import InvalidShapeIntervalError
 import pytest
+
 from hub.util.shape_interval import ShapeInterval
+from hub.util.exceptions import InvalidShapeIntervalError
 
 
 def assert_fixed(raw_shape):

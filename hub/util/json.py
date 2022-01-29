@@ -1,8 +1,10 @@
+from numpy import (
+    ndarray,
+    frombuffer
+)
+from base64 import b64encode, b64decode
+from json import JSONEncoder, JSONDecoder
 from typing import Any, Dict, List, Optional, Tuple, Union
-import numpy as np
-from numpy import ndarray
-import json
-import base64
 
 from hub.core.sample import Sample  # type: ignore
 
@@ -185,12 +187,12 @@ def validate_json_schema(schema: str):
     _parse_schema(schema)
 
 
-class HubJsonEncoder(json.JSONEncoder):
+class HubJsonEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ndarray):
             return {
                 "_hub_custom_type": "ndarray",
-                "data": base64.b64encode(obj.tobytes()).decode(),
+                "data": b64encode(obj.tobytes()).decode(),
                 "shape": obj.shape,
                 "dtype": obj.dtype.name,
             }
@@ -198,7 +200,7 @@ class HubJsonEncoder(json.JSONEncoder):
             if obj.compression:
                 return {
                     "_hub_custom_type": "Sample",
-                    "data": base64.b64encode(obj.buffer).decode(),
+                    "data": b64encode(obj.buffer).decode(),
                     "compression": obj.compression,
                 }
             else:
@@ -206,18 +208,18 @@ class HubJsonEncoder(json.JSONEncoder):
         return obj
 
 
-class HubJsonDecoder(json.JSONDecoder):
+class HubJsonDecoder(JSONDecoder):
     def __init__(self, *args, **kwargs):
-        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+        JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
     def object_hook(self, obj):
         hub_custom_type = obj.get("_hub_custom_type")
         if hub_custom_type == "ndarray":
-            return np.frombuffer(
-                base64.b64decode(obj["data"]), dtype=obj["dtype"]
+            return frombuffer(
+                b64decode(obj["data"]), dtype=obj["dtype"]
             ).reshape(obj["shape"])
         elif hub_custom_type == "Sample":
             return Sample(
-                buffer=base64.b64decode(obj["data"]), compression=obj["compression"]
+                buffer=b64decode(obj["data"]), compression=obj["compression"]
             )
         return obj

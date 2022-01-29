@@ -1,7 +1,10 @@
 import os
-import json
-import requests
+from json import (
+    load as json_load,
+    dump as json_dump
+)
 from pathlib import Path
+from requests import Response
 
 
 from hub.client.config import (
@@ -56,15 +59,15 @@ def remove_username_from_config():
     try:
         config = {}
         with open(REPORTING_CONFIG_FILE_PATH, "r") as f:
-            config = json.load(f)
+            config = json_load(f)
             config["username"] = "public"
         with open(REPORTING_CONFIG_FILE_PATH, "w") as f:
-            json.dump(config, f)
+            json_dump(config, f)
     except (FileNotFoundError, KeyError):
         return
 
 
-def check_response_status(response: requests.Response):
+def check_response_status(response: Response):
     """Check response status and throw corresponding exception on failure."""
     code = response.status_code
     if code >= 200 and code < 300:
@@ -105,7 +108,7 @@ def get_user_name() -> str:
     path = REPORTING_CONFIG_FILE_PATH
     try:
         with open(path, "r") as f:
-            d = json.load(f)
+            d = json_load(f)
             return d["username"]
     except (FileNotFoundError, KeyError):
         return "public"

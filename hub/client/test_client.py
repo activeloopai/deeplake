@@ -1,7 +1,9 @@
-import subprocess
 import pytest
-from hub.cli.commands import login
+
+from subprocess import check_output as subprocess_check_output
 from click.testing import CliRunner
+
+from hub.cli.commands import login
 from hub.client.client import HubBackendClient
 from hub.client.utils import (
     write_token,
@@ -39,11 +41,11 @@ def test_client_workspace_organizations(hub_cloud_dev_credentials):
     assert username in hub_client.get_user_organizations()
     assert "public" in hub_client.get_user_organizations()
 
-    datasets = subprocess.check_output(
+    datasets = subprocess_check_output(
         ["activeloop", "list-datasets", "--workspace", "activeloop"]
     )
     assert "You are not a member of organization" in str(datasets)
-    datasets = subprocess.check_output(
+    datasets = subprocess_check_output(
         ["activeloop", "list-datasets", "--workspace", "test"]
     )
     assert "You are not a member of organization" not in str(datasets)

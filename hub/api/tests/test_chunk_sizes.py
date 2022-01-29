@@ -1,4 +1,9 @@
-import numpy as np
+from numpy import (
+    uint8,
+    uint32,
+    ones as np_ones
+)
+
 from hub.constants import KB
 
 
@@ -18,16 +23,16 @@ def _create_tensors(ds):
 
 def _append_tensors(images, labels):
     for i in range(100):
-        x = np.ones((28, 28), dtype=np.uint8) * i
-        y = np.uint32(i)
+        x = np_ones((28, 28), dtype=uint8) * i
+        y = uint32(i)
 
         images.append(x)
         labels.append(y)
 
 
 def _extend_tensors(images, labels):
-    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
-    labels.extend(np.ones(100, dtype=np.uint32))
+    images.extend(np_ones((100, 28, 28), dtype=uint8))
+    labels.extend(np_ones(100, dtype=uint32))
 
 
 def test_append(memory_ds):

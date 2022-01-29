@@ -1,27 +1,33 @@
-import hub
-import numpy as np
+from numpy import (
+    ndarray,
+    isscalar,
+    frombuffer,
+    prod as np_prod,
+    array as np_array,
+    vectorize as np_vectorize,
+)
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
+
+import hub
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
-from typing import Any, Dict, List, Optional, Sequence, Union
-from hub.core.meta.encode.tile import TileEncoder
-from hub.core.storage.provider import StorageProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import intelligent_cast
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index
+from hub.core.meta.encode.tile import TileEncoder
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
-from hub.util.casting import get_dtype, get_htype
+from hub.core.storage.provider import StorageProvider
+from hub.util.casting import get_dtype, get_htype, intelligent_cast
 from hub.util.chunk_engine import (
     check_samples_type,
     make_sequence,
@@ -142,7 +148,7 @@ class ChunkEngine:
         else:
             self.chunk_class = UncompressedChunk
 
-        self.cached_data: Optional[np.ndarray] = None
+        self.cached_data: Optional[ndarray] = None
         self.cache_range: range = range(0)
 
     @property
@@ -152,7 +158,7 @@ class ChunkEngine:
             self.chunk_class == UncompressedChunk
             and tensor_meta.htype not in ["text", "json", "list"]
             and (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (np.prod(tensor_meta.max_shape) < 20)
+            and (np_prod(tensor_meta.max_shape) < 20)
         )
 
     @property
@@ -466,7 +472,7 @@ class ChunkEngine:
     def _convert_to_list(self, samples):
         if self.chunk_class != UncompressedChunk:
             return True
-        elif isinstance(samples, np.ndarray):
+        elif isinstance(samples, ndarray):
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
@@ -615,14 +621,14 @@ class ChunkEngine:
         chunk_ids = enc[global_sample_index]
         sample_shape = tile_enc.get_sample_shape(global_sample_index)
         tile_shape = tile_enc.get_tile_shape(global_sample_index)
-        ordered_tile_ids = np.array(chunk_ids).reshape(
+        ordered_tile_ids = np_array(chunk_ids).reshape(
             tile_enc.get_tile_layout_shape(global_sample_index)
         )
         tiles_index, sample_index = translate_slices(
             [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
-        tiles = np.vectorize(
+        tiles = np_vectorize(
             lambda chunk_id: self.get_chunk_from_chunk_id(
                 chunk_id, copy=True
             ).read_sample(0),
@@ -645,7 +651,7 @@ class ChunkEngine:
     def update(
         self,
         index: Index,
-        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        samples: Union[ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
     ):
         """Update data at `index` with `samples`."""
@@ -686,7 +692,7 @@ class ChunkEngine:
     def _update_with_operator(
         self,
         index: Index,
-        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        samples: Union[ndarray, Sequence[InputSample], InputSample],
         operator: str,
     ):
         """Update data at `index` with the output of elem-wise operatorion with samples"""
@@ -741,14 +747,14 @@ class ChunkEngine:
         chunk: BaseChunk,
         cast: bool = True,
         copy: bool = False,
-    ) -> np.ndarray:
+    ) -> ndarray:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
 
     def numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
-    ) -> Union[np.ndarray, List[np.ndarray]]:
+    ) -> Union[ndarray, List[ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
@@ -791,14 +797,14 @@ class ChunkEngine:
                     tile_enc = self.tile_encoder
                     sample_shape = tile_enc.get_sample_shape(global_sample_index)
                     tile_shape = tile_enc.get_tile_shape(global_sample_index)
-                    ordered_tile_ids = np.array(chunk_ids).reshape(
+                    ordered_tile_ids = np_array(chunk_ids).reshape(
                         tile_enc.get_tile_layout_shape(global_sample_index)
                     )
                     tiles_index, sample_index = translate_slices(
                         [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
                     )
                     required_tile_ids = ordered_tile_ids[tiles_index]
-                    tiles = np.vectorize(
+                    tiles = np_vectorize(
                         lambda chunk_id: self.get_chunk_from_chunk_id(
                             chunk_id
                         ).read_sample(0),
@@ -812,7 +818,7 @@ class ChunkEngine:
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
 
-        if aslist and all(map(np.isscalar, samples)):
+        if aslist and all(map(isscalar, samples)):
             samples = list(arr.item() for arr in samples)
 
         if not index.values[0].subscriptable():
@@ -820,7 +826,7 @@ class ChunkEngine:
 
         if aslist:
             return samples
-        return np.array(samples)
+        return np_array(samples)
 
     def numpy_from_data_cache(self, index, length, aslist):
         samples = []
@@ -842,7 +848,7 @@ class ChunkEngine:
                 dtype = self.tensor_meta.dtype
 
                 data_bytes = bytearray(chunk.data_bytes)
-                self.cached_data = np.frombuffer(data_bytes, dtype).reshape(full_shape)
+                self.cached_data = frombuffer(data_bytes, dtype).reshape(full_shape)
                 self.cache_range = range(first_sample, last_sample + 1)
 
             sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore

@@ -1,6 +1,10 @@
-import ray
-from ray.util.multiprocessing import Pool
+from ray import (
+    init as ray_init,
+    is_initialized as ray_is_initialized
+)
 from ray.util.queue import Queue
+from ray.util.multiprocessing import Pool
+
 from hub.core.compute.provider import ComputeProvider
 
 
@@ -8,8 +12,8 @@ class RayProvider(ComputeProvider):
     def __init__(self, workers):
         super().__init__(workers)
 
-        if not ray.is_initialized():
-            ray.init()
+        if not ray_is_initialized():
+            ray_init()
         self.workers = workers
         self.pool = Pool(processes=workers)
 

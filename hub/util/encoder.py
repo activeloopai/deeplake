@@ -1,7 +1,11 @@
-import hub
-import numpy as np
+from numpy import (
+    reshape as np_reshape,
+    vstack as np_vstack
+)
+from posixpath import relpath
 from typing import Dict, List
 
+from hub import Dataset
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
@@ -16,12 +20,11 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_tile_encoder_key,
 )
-import posixpath
 
 
 def merge_all_tensor_metas(
     all_workers_tensor_metas: List[Dict[str, TensorMeta]],
-    target_ds: hub.Dataset,
+    target_ds: Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -29,7 +32,7 @@ def merge_all_tensor_metas(
     """Merges tensor metas from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         tensor_meta = None if overwrite else target_ds[rel_path].meta
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
@@ -63,7 +66,7 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
 
 def merge_all_chunk_id_encoders(
     all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]],
-    target_ds: hub.Dataset,
+    target_ds: Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -71,7 +74,7 @@ def merge_all_chunk_id_encoders(
     """Merges chunk_id_encoders from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         chunk_id_encoder = (
             None if overwrite else target_ds[rel_path].chunk_engine.chunk_id_encoder
         )
@@ -99,9 +102,9 @@ def combine_chunk_id_encoders(
         for encoded_id in encoded_ids:
             encoded_id[1] += offset
             if ds_chunk_id_encoder._encoded.size == 0:
-                ds_chunk_id_encoder._encoded = np.reshape(encoded_id, (-1, 2))
+                ds_chunk_id_encoder._encoded = np_reshape(encoded_id, (-1, 2))
             else:
-                ds_chunk_id_encoder._encoded = np.vstack(
+                ds_chunk_id_encoder._encoded = np_vstack(
                     [ds_chunk_id_encoder._encoded, encoded_id]
                 )
 
@@ -109,14 +112,14 @@ def combine_chunk_id_encoders(
 def merge_all_tile_encoders(
     all_workers_tile_encoders: List[Dict[str, TileEncoder]],
     all_num_samples: List[Dict[str, int]],
-    target_ds: hub.Dataset,
+    target_ds: Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
 ) -> None:
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         chunk_engine = target_ds[rel_path].chunk_engine
         offset = 0 if overwrite else chunk_engine.num_samples
         tile_encoder = None if overwrite else chunk_engine.tile_encoder
@@ -153,7 +156,7 @@ def combine_tile_encoders(
 
 def merge_all_commit_chunk_sets(
     all_workers_commit_chunk_sets: List[Dict[str, CommitChunkSet]],
-    target_ds: hub.Dataset,
+    target_ds: Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -161,7 +164,7 @@ def merge_all_commit_chunk_sets(
     """Merges commit_chunk_sets from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         commit_chunk_set = (
             None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_set
         )
@@ -186,7 +189,7 @@ def combine_commit_chunk_sets(
 
 def merge_all_commit_diffs(
     all_workers_commit_diffs: List[Dict[str, CommitDiff]],
-    target_ds: hub.Dataset,
+    target_ds: Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -194,7 +197,7 @@ def merge_all_commit_diffs(
     """Merges commit_diffs from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        rel_path = relpath(tensor, target_ds.group_index)  # type: ignore
         commit_diff = None if overwrite else target_ds[rel_path].chunk_engine.commit_diff  # type: ignore
         for current_worker_commit_diffs in all_workers_commit_diffs:
             current_commit_diff = current_worker_commit_diffs[tensor]

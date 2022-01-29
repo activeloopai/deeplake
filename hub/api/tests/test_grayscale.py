@@ -1,5 +1,6 @@
 import pytest
-import hub
+
+from hub import read as hub_read
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
 WARNING_STR = "Grayscale images will be reshaped"
@@ -9,7 +10,7 @@ WARNING_STR = "Grayscale images will be reshaped"
 def hub_read_images(request, grayscale_image_paths, color_image_paths):
     gray_path = grayscale_image_paths[request.param]
     color_path = color_image_paths[request.param]
-    yield request.param, hub.read(gray_path), hub.read(color_path)
+    yield request.param, hub_read(gray_path), hub_read(color_path)
 
 
 def make_tensor_and_append(ds, htype, sample_compression, images):

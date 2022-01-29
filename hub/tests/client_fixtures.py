@@ -1,3 +1,8 @@
+import pytest
+
+from os import getenv as os_getenv
+from warnings import warn
+
 from hub.constants import (
     HUB_CLOUD_OPT,
     ENV_HUB_DEV_USERNAME,
@@ -7,12 +12,8 @@ from hub.constants import (
     KAGGLE_OPT,
 )
 from hub.tests.common import is_opt_true
-import os
-import pytest
 from hub.client.client import HubBackendClient
 from hub.client.config import USE_LOCAL_HOST, USE_DEV_ENVIRONMENT
-
-from warnings import warn
 
 
 @pytest.fixture(scope="session")
@@ -25,8 +26,8 @@ def hub_cloud_dev_credentials(request):
             "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT is not recommended."
         )
 
-    username = os.getenv(ENV_HUB_DEV_USERNAME)
-    password = os.getenv(ENV_HUB_DEV_PASSWORD)
+    username = os_getenv(ENV_HUB_DEV_USERNAME)
+    password = os_getenv(ENV_HUB_DEV_PASSWORD)
 
     assert (
         username is not None
@@ -52,8 +53,8 @@ def hub_kaggle_credentials(request):
     if not is_opt_true(request, KAGGLE_OPT):
         pytest.skip()
 
-    username = os.getenv(ENV_KAGGLE_USERNAME)
-    key = os.getenv(ENV_KAGGLE_KEY)
+    username = os_getenv(ENV_KAGGLE_USERNAME)
+    key = os_getenv(ENV_KAGGLE_KEY)
 
     assert (
         key is not None

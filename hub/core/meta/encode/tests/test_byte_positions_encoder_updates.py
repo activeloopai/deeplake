@@ -1,4 +1,8 @@
-import numpy as np
+from numpy import (
+    array as np_array,
+    testing as np_testing
+)
+
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from .common import assert_encoded
 
@@ -6,11 +10,11 @@ from .common import assert_encoded
 def _validate_bp(enc: BytePositionsEncoder):
     """Helps validate that tests have proper initial encoder states."""
 
-    expected = np.array(enc._encoded)
+    expected = np_array(enc._encoded)
     enc._post_process_state(0)
     actual = enc._encoded
 
-    np.testing.assert_array_equal(expected, actual)
+    np_testing.assert_array_equal(expected, actual)
 
 
 def test_update_no_change():

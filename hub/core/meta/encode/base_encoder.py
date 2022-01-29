@@ -1,8 +1,14 @@
-import hub
+from numpy import (
+    ndarray,
+    array as np_array,
+    concatenate as np_concatenate,
+    searchsorted as np_searchsorted,
+)
 from abc import ABC
 from typing import Any, List, Sequence
+
+import hub
 from hub.constants import ENCODING_DTYPE
-import numpy as np
 
 
 # the "last seen index" denotes an encoder row's last seen index
@@ -66,11 +72,11 @@ class Encoder(ABC):
         """
 
         if isinstance(encoded, list):
-            encoded = np.array(encoded, dtype=ENCODING_DTYPE)
+            encoded = np_array(encoded, dtype=ENCODING_DTYPE)
 
         self._encoded = encoded
         if self._encoded is None:
-            self._encoded = np.array([], dtype=ENCODING_DTYPE)
+            self._encoded = np_array([], dtype=ENCODING_DTYPE)
 
         if self._encoded.dtype != ENCODING_DTYPE:
             raise ValueError(
@@ -136,7 +142,7 @@ class Encoder(ABC):
 
         row_index = self.check_last_row(local_sample_index)
         if row_index is None:
-            row_index = np.searchsorted(
+            row_index = np_searchsorted(
                 self._encoded[:, LAST_SEEN_INDEX_COLUMN], local_sample_index
             )
             self.last_row = row_index
@@ -169,15 +175,15 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                shape_entry = np.array(
+                shape_entry = np_array(
                     [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
                 )
 
-                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
+                self._encoded = np_concatenate([self._encoded, shape_entry], axis=0)
 
         else:
             decomposable = self._make_decomposable(item)
-            self._encoded = np.array(
+            self._encoded = np_array(
                 [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
             )
 
@@ -209,8 +215,8 @@ class Encoder(ABC):
         return item
 
     def _derive_value(
-        self, row: np.ndarray, row_index: int, local_sample_index: int
-    ) -> np.ndarray:
+        self, row: ndarray, row_index: int, local_sample_index: int
+    ) -> ndarray:
         """Given a row of `self._encoded`, this method should implement how `__getitem__` hands a value to the caller."""
 
     def __getitem__(
@@ -394,7 +400,7 @@ class Encoder(ABC):
         # row can be "squeezed away"
         start = self._encoded[: row_index - 1]
         end = self._encoded[row_index + 1 :]
-        self._encoded = np.concatenate((start, end))
+        self._encoded = np_concatenate((start, end))
 
         return True
 
@@ -435,7 +441,7 @@ class Encoder(ABC):
         start = self._encoded[:row_index]
         end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] += 1
-        self._encoded = np.concatenate((start, end))
+        self._encoded = np_concatenate((start, end))
 
         return True
 
@@ -475,7 +481,7 @@ class Encoder(ABC):
         # row can be "squeezed downwards"
         start = self._encoded[:row_index]
         end = self._encoded[row_index + 1 :]
-        self._encoded = np.concatenate((start, end))
+        self._encoded = np_concatenate((start, end))
 
         return True
 
@@ -610,10 +616,10 @@ class Encoder(ABC):
         # a new row should be created above
         start = self._encoded[: row_index - 1]
         end = self._encoded[row_index:]
-        new_row = np.array(
+        new_row = np_array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
         )
-        self._encoded = np.concatenate((start, [new_row], end))
+        self._encoded = np_concatenate((start, [new_row], end))
 
         return True
 
@@ -653,10 +659,10 @@ class Encoder(ABC):
         start = self._encoded[: row_index + 1]
         end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-        new_row = np.array(
+        new_row = np_array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
         )
-        self._encoded = np.concatenate((start, [new_row], end))
+        self._encoded = np_concatenate((start, [new_row], end))
 
         return True
 
@@ -690,13 +696,13 @@ class Encoder(ABC):
         """
 
         # 2 rows should be created, and 1 should be updated
-        start = np.array(self._encoded[: row_index + 1])
-        new_row = np.array(
+        start = np_array(self._encoded[: row_index + 1])
+        new_row = np_array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
         )
         end = self._encoded[row_index:]
         start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
-        self._encoded = np.concatenate((start, [new_row], end))
+        self._encoded = np_concatenate((start, [new_row], end))
 
         return True
 

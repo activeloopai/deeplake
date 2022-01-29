@@ -1,9 +1,11 @@
-from hub.api.dataset import Dataset
-from hub.tests.common import get_dummy_data_path
-from hub.util.auto import get_most_common_extension, ingestion_summary
-from io import StringIO
-import sys
 import pytest
+
+import sys
+from io import StringIO
+
+from hub.api.dataset import Dataset
+from hub.util.auto import get_most_common_extension, ingestion_summary
+from hub.tests.common import get_dummy_data_path
 
 
 def test_most_common_extension():

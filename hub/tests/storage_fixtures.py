@@ -1,9 +1,10 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.util.storage import storage_provider_from_hub_path
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.local import LocalProvider
-from hub.core.storage.memory import MemoryProvider
 import pytest
+
+from hub.core.storage.memory import MemoryProvider
+from hub.core.storage.local import LocalProvider
+from hub.core.storage.gcs import GCSProvider
+from hub.core.storage.s3 import S3Provider
+from hub.util.storage import storage_provider_from_hub_path
 
 
 enabled_storages = pytest.mark.parametrize(

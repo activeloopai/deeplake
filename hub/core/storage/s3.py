@@ -1,10 +1,11 @@
-import hub
-import time
 import boto3
-import botocore  # type: ignore
-import posixpath
-from typing import Optional
+from time import time
+from posixpath import join as posixpath_join
 from botocore.session import ComponentLocator
+from botocore.exceptions import ClientError
+from typing import Optional
+
+import hub
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import (
@@ -99,7 +100,7 @@ class S3Provider(StorageProvider):
 
     def subdir(self, path: str):
         sd = self.__class__(
-            root=posixpath.join(self.root, path),
+            root=posixpath_join(self.root, path),
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
@@ -133,7 +134,7 @@ class S3Provider(StorageProvider):
                 ContentType="application/octet-stream",  # signifies binary data
             )
         # catch expired token error
-        except botocore.exceptions.ClientError as err:
+        except ClientError as err:
             manager = (
                 S3ReloadCredentialsManager
                 if self.need_to_reload_creds(err)
@@ -171,7 +172,7 @@ class S3Provider(StorageProvider):
                 Key=path,
             )
             return resp["Body"].read()
-        except botocore.exceptions.ClientError as err:
+        except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
 
@@ -206,7 +207,7 @@ class S3Provider(StorageProvider):
         try:
             self.client.delete_object(Bucket=self.bucket, Key=path)
         # catch expired token error
-        except botocore.exceptions.ClientError as err:
+        except ClientError as err:
             manager = (
                 S3ReloadCredentialsManager
                 if self.need_to_reload_creds(err)
@@ -231,7 +232,7 @@ class S3Provider(StorageProvider):
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
         # catch expired token error
-        except botocore.exceptions.ClientError as err:
+        except ClientError as err:
             manager = (
                 S3ReloadCredentialsManager
                 if self.need_to_reload_creds(err)
@@ -353,7 +354,7 @@ class S3Provider(StorageProvider):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
-        if self.expiration and float(self.expiration) < time.time():
+        if self.expiration and float(self.expiration) < time():
             client = HubBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
@@ -414,7 +415,7 @@ class S3Provider(StorageProvider):
             region_name=self.aws_region,
         )
 
-    def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
+    def need_to_reload_creds(self, err: ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
         This happens if the credentials were loaded from the environment and have now expired.
         """

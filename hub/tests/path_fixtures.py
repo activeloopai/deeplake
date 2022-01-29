@@ -1,8 +1,14 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.util.storage import storage_provider_from_hub_path
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.local import LocalProvider
+import pytest
+
 import os
+from sys import (
+    platform as sys_platform,
+    version_info as sys_version_info
+)
+from posixpath import (
+    split as posixpath_split,
+    join as posixpath_join
+)
 from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
@@ -17,15 +23,16 @@ from hub.constants import (
     GCS_OPT,
     ENV_GOOGLE_APPLICATION_CREDENTIALS,
 )
-import posixpath
+from hub.core.storage.local import LocalProvider
+from hub.core.storage.gcs import GCSProvider
+from hub.core.storage.s3 import S3Provider
+from hub.util.storage import storage_provider_from_hub_path
 from hub.tests.common import (
     SESSION_ID,
     current_test_name,
     get_dummy_data_path,
     is_opt_true,
 )
-import pytest
-import sys
 
 
 MEMORY = "memory"
@@ -41,7 +48,7 @@ _PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
 
 
 def _repo_name_from_git_url(url):
-    repo_name = posixpath.split(url)[-1]
+    repo_name = posixpath_split(url)[-1]
     repo_name = repo_name.split("@", 1)[0]
     if repo_name.endswith(".git"):
         repo_name = repo_name[:-4]
@@ -161,14 +168,14 @@ def _get_storage_path(
 
     if info["use_id"]:
         if info["is_id_prefix"]:
-            path = posixpath.join(SESSION_ID, path)
+            path = posixpath_join(SESSION_ID, path)
         else:
-            path = posixpath.join(path, SESSION_ID)
+            path = posixpath_join(path, SESSION_ID)
 
     if info["use_underscores"]:
         path = path.replace("/", "_")
 
-    root = posixpath.join(root, path)
+    root = posixpath_join(root, path)
     return root
 
 
@@ -340,7 +347,7 @@ def corrupt_image_paths():
 
 @pytest.fixture
 def audio_paths():
-    if sys.platform.startswith("linux") and sys.version_info[:2] == (3, 6):  # FixMe
+    if sys_platform.startswith("linux") and sys_version_info[:2] == (3, 6):  # FixMe
         pytest.skip()
         return
     paths = {"mp3": "samplemp3.mp3", "flac": "sampleflac.flac", "wav": "samplewav.wav"}

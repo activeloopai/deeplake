@@ -1,3 +1,9 @@
+import pytest
+
+from os import path as os_path
+from click.testing import CliRunner
+
+from hub import ingest_kaggle as hub_ingest_kaggle
 from hub.api.dataset import Dataset
 from hub.util.exceptions import (
     KaggleDatasetAlreadyDownloadedError,
@@ -5,19 +11,15 @@ from hub.util.exceptions import (
     KaggleMissingCredentialsError,
     ExternalCommandError,
 )
-from click.testing import CliRunner
 from hub.tests.common import get_dummy_data_path
-import pytest
-import os
-import hub
 
 
 def test_ingestion_simple(local_ds: Dataset, hub_kaggle_credentials):
     with CliRunner().isolated_filesystem():
-        kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_simple")
+        kaggle_path = os_path.join(local_ds.path, "unstructured_kaggle_data_simple")
         username, key = hub_kaggle_credentials
 
-        ds = hub.ingest_kaggle(
+        ds = hub_ingest_kaggle(
             tag="andradaolteanu/birdcall-recognition-data",
             src=kaggle_path,
             dest=local_ds.path,
@@ -34,10 +36,10 @@ def test_ingestion_simple(local_ds: Dataset, hub_kaggle_credentials):
 
 def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
     with CliRunner().isolated_filesystem():
-        kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_sets")
+        kaggle_path = os_path.join(local_ds.path, "unstructured_kaggle_data_sets")
         username, key = hub_kaggle_credentials
 
-        ds = hub.ingest_kaggle(
+        ds = hub_ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
@@ -65,12 +67,12 @@ def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
 
 def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
     with CliRunner().isolated_filesystem():
-        kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data")
+        kaggle_path = os_path.join(local_ds.path, "unstructured_kaggle_data")
         dummy_path = get_dummy_data_path("tests_auto/image_classification")
         username, key = hub_kaggle_credentials
 
         with pytest.raises(SamePathException):
-            hub.ingest_kaggle(
+            hub_ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=dummy_path,
                 dest=dummy_path,
@@ -82,7 +84,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(KaggleMissingCredentialsError):
-            hub.ingest_kaggle(
+            hub_ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -94,7 +96,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(KaggleMissingCredentialsError):
-            hub.ingest_kaggle(
+            hub_ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -106,7 +108,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(ExternalCommandError):
-            hub.ingest_kaggle(
+            hub_ingest_kaggle(
                 tag="thisiseshan/invalid-dataset",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -117,7 +119,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 overwrite=False,
             )
 
-        hub.ingest_kaggle(
+        hub_ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
@@ -129,7 +131,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
         )
 
         with pytest.raises(KaggleDatasetAlreadyDownloadedError):
-            hub.ingest_kaggle(
+            hub_ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,

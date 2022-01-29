@@ -1,6 +1,7 @@
-from typing import Sequence
-import numpy as np
 from math import floor
+from numpy import isclose as np_isclose
+
+from typing import Sequence
 
 
 def split(ds, values: Sequence[float] = [0.7, 0.2, 0.1]):
@@ -21,7 +22,7 @@ def split(ds, values: Sequence[float] = [0.7, 0.2, 0.1]):
         ValueError: The values must sum to 1.
     """
 
-    if not np.isclose(sum(values), 1.0):
+    if not np_isclose(sum(values), 1.0):
         raise ValueError("Given proportions must sum to 1.")
 
     count = 0

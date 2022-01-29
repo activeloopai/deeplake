@@ -1,9 +1,11 @@
-import hub
-import requests
+from requests import request as requests_request
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+
+import hub
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    USE_LOCAL_HOST,
+    USE_DEV_ENVIRONMENT,
     HUB_PROD1_ENDPOINT,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -20,6 +22,7 @@ from hub.client.config import (
     UPDATE_SUFFIX,
 )
 from hub.client.log import logger
+from hub.util.exceptions import LoginException, InvalidPasswordException
 
 
 class HubBackendClient:
@@ -91,7 +94,7 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-        response = requests.request(
+        response = requests_request(
             method,
             request_url,
             params=params,
@@ -111,9 +114,9 @@ class HubBackendClient:
         return response
 
     def endpoint(self):
-        if hub.client.config.USE_LOCAL_HOST:
+        if USE_LOCAL_HOST:
             return HUB_REST_ENDPOINT_LOCAL
-        if hub.client.config.USE_DEV_ENVIRONMENT:
+        if USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
 
         return HUB_REST_ENDPOINT

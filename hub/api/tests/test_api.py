@@ -1,7 +1,14 @@
-import os
-import numpy as np
 import pytest
+
+from os import (
+    path as os_path,
+    mkdir as os_mkdir
+)
+import numpy as np
+from click.testing import CliRunner
+
 import hub
+from hub.constants import MB
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 from hub.tests.common import assert_array_lists_equal
@@ -14,9 +21,6 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     InvalidTensorNameError,
 )
-from hub.constants import MB
-
-from click.testing import CliRunner
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -582,8 +586,8 @@ def test_empty_dataset():
 
 
 def test_like(local_path):
-    src_path = os.path.join(local_path, "src")
-    dest_path = os.path.join(local_path, "dest")
+    src_path = os_path.join(local_path, "src")
+    dest_path = os_path.join(local_path, "dest")
 
     src_ds = hub.dataset(src_path)
     src_ds.info.update(key=0)
@@ -627,7 +631,7 @@ def test_tensor_creation_fail_recovery():
 
 def test_dataset_delete():
     with CliRunner().isolated_filesystem():
-        os.mkdir("test")
+        os_mkdir("test")
         with open("test/test.txt", "w") as f:
             f.write("some data")
 
@@ -636,13 +640,13 @@ def test_dataset_delete():
             hub.delete("test/")
 
         hub.delete("test/", force=True)
-        assert not os.path.isfile("test/test.txt")
+        assert not os_path.isfile("test/test.txt")
 
         hub.empty("test/").create_tensor("tmp")
-        assert os.path.isfile("test/dataset_meta.json")
+        assert os_path.isfile("test/dataset_meta.json")
 
         hub.delete("test/")
-        assert not os.path.isfile("test/dataset_meta.json")
+        assert not os_path.isfile("test/dataset_meta.json")
 
         old_size = hub.constants.DELETE_SAFETY_SIZE
         hub.constants.DELETE_SAFETY_SIZE = 1 * MB
@@ -654,10 +658,10 @@ def test_dataset_delete():
         try:
             hub.delete("test/")
         finally:
-            assert os.path.isfile("test/dataset_meta.json")
+            assert os_path.isfile("test/dataset_meta.json")
 
         hub.delete("test/", large_ok=True)
-        assert not os.path.isfile("test/dataset_meta.json")
+        assert not os_path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
 

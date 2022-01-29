@@ -5,14 +5,14 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import logging
-import sys
+from sys import stdout as sys_stdout
 
 logger = logging.getLogger("hub")
 
 
 def configure_logger(debug=0):
     log_level = logging.DEBUG if debug == 1 else logging.INFO
-    logging.basicConfig(format="%(message)s", level=log_level, stream=sys.stdout)
+    logging.basicConfig(format="%(message)s", level=log_level, stream=sys_stdout)
 
 
 configure_logger(0)

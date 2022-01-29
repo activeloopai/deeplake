@@ -1,13 +1,14 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.util.cache_chain import generate_chain
-from hub.constants import LOCAL_CACHE_PREFIX, MB
-from hub.util.tag import process_hub_path
+from os import path as os_path
+from posixpath import join as posixpath_join
 from typing import Optional
+
+from hub.constants import LOCAL_CACHE_PREFIX, MB
 from hub.core.storage.provider import StorageProvider
-import os
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
+from hub.core.storage import MemoryProvider, LRUCache, LocalProvider, S3Provider
+from hub.core.storage.gcs import GCSProvider
 from hub.client.client import HubBackendClient
-import posixpath
+from hub.util.cache_chain import generate_chain
+from hub.util.tag import process_hub_path
 
 
 def storage_provider_from_path(
@@ -61,7 +62,7 @@ def storage_provider_from_path(
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
-        if not os.path.exists(path) or os.path.isdir(path):
+        if not os_path.exists(path) or os_path.isdir(path):
             storage = LocalProvider(path)
         else:
             raise ValueError(f"Local path {path} must be a path to a local directory")
@@ -87,7 +88,7 @@ def storage_provider_from_hub_path(
         print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True
 
-    url = posixpath.join(url, subdir)
+    url = posixpath_join(url, subdir)
 
     storage = storage_provider_from_path(path=url, creds=creds, read_only=read_only)
     storage._set_hub_creds_info(path, expiration)

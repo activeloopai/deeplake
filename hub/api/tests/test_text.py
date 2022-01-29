@@ -1,4 +1,4 @@
-import hub
+from hub import compute as hub_compute
 
 from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
 
@@ -20,7 +20,7 @@ def test_text(memory_ds):
 def test_text_transform(ds, scheduler="threaded"):
     ds.create_tensor("text", htype="text")
 
-    @hub.compute
+    @hub_compute
     def upload(some_str, ds):
         ds.text.append(some_str)
         return ds

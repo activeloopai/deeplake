@@ -1,9 +1,10 @@
-import sys
-import hub
 import pytest
+
+import sys
 from io import StringIO
 from contextlib import contextmanager
 from click.testing import CliRunner
+
 from hub.cli.auth import login, logout
 from hub.util.agreement import get_all_local_agreements, update_local_agreements
 from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInError

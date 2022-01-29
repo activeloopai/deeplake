@@ -1,14 +1,23 @@
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.chunk.base_chunk import InputSample
-import numpy as np
-from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
+from numpy import (
+    ndarray,
+    dtype as np_dtype,
+    array as np_array,
+    object as np_object,
+    can_cast as np_can_cast,
+)
 from functools import reduce
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
+
+from hub.constants import FIRST_COMMIT_ID
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.version_control.commit_diff import CommitDiff
+from hub.core.version_control.commit_chunk_set import CommitChunkSet
+from hub.core.chunk.base_chunk import InputSample
 from hub.api.info import load_info
+from hub.util.version_control import auto_checkout
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -18,15 +27,12 @@ from hub.util.keys import (
     tensor_exists,
     get_tensor_info_key,
 )
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID
-from hub.util.version_control import auto_checkout
 
 
 def create_tensor(
@@ -201,7 +207,7 @@ class Tensor:
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.dataset)
 
-    def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
+    def extend(self, samples: Union[ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
@@ -316,11 +322,11 @@ class Tensor:
         return len(self.shape)
 
     @property
-    def dtype(self) -> Optional[np.dtype]:
+    def dtype(self) -> Optional[np_dtype]:
         if self.htype in ("json", "list"):
-            return np.dtype(str)
+            return np_dtype(str)
         if self.meta.dtype:
-            return np.dtype(self.meta.dtype)
+            return np_dtype(self.meta.dtype)
         return None
 
     @property
@@ -403,29 +409,29 @@ class Tensor:
         )
 
     def _get_bigger_dtype(self, d1, d2):
-        if np.can_cast(d1, d2):
-            if np.can_cast(d2, d1):
+        if np_can_cast(d1, d2):
+            if np_can_cast(d2, d1):
                 return d1
             else:
                 return d2
         else:
-            if np.can_cast(d2, d1):
+            if np_can_cast(d2, d1):
                 return d2
             else:
-                return np.object
+                return np_object
 
-    def _infer_np_dtype(self, val: Any) -> np.dtype:
+    def _infer_np_dtype(self, val: Any) -> np_dtype:
         # TODO refac
         if hasattr(val, "dtype"):
             return val.dtype
         elif isinstance(val, int):
-            return np.array(0).dtype
+            return np_array(0).dtype
         elif isinstance(val, float):
-            return np.array(0.0).dtype
+            return np_array(0.0).dtype
         elif isinstance(val, str):
-            return np.array("").dtype
+            return np_array("").dtype
         elif isinstance(val, bool):
-            return np.dtype(bool)
+            return np_dtype(bool)
         elif isinstance(val, Sequence):
             return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
         else:
@@ -455,7 +461,7 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
-    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
+    def numpy(self, aslist=False) -> Union[ndarray, List[ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
         Args:
@@ -480,7 +486,7 @@ class Tensor:
 
     __repr__ = __str__
 
-    def __array__(self) -> np.ndarray:
+    def __array__(self) -> ndarray:
         return self.numpy()  # type: ignore
 
     @_inplace_op

@@ -1,12 +1,12 @@
 from typing import Iterator
 
-from numpy.testing._private.utils import assert_array_equal
 from hub.core.io import (
     IOBlock,
     Streaming,
     Schedule,
     SequentialMultithreadScheduler,
 )
+from numpy.testing._private.utils import assert_array_equal
 
 
 class MockStreaming(Streaming):

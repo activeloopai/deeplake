@@ -1,4 +1,9 @@
-import numpy as np
+from numpy import (
+    array as np_array,
+    float32 as np_float32,
+    argmax as np_argmax,
+    ceil as np_ceil
+)
 from typing import Tuple, Union, List, Optional
 
 
@@ -24,7 +29,7 @@ def get_tile_shape(
         ValueError: If the chunk_size is too small
     """
     ratio = sample_size / chunk_size  # type: ignore
-    sample_shape = np.array(sample_shape, dtype=np.float32)  # type: ignore
+    sample_shape = np_array(sample_shape, dtype=np_float32)  # type: ignore
     if isinstance(exclude_axes, int):
         exclude_axes = [exclude_axes]
     elif exclude_axes is None:
@@ -35,13 +40,13 @@ def get_tile_shape(
     sample_shape_masked = sample_shape.copy()  # type: ignore
     sample_shape_masked[exclude_axes] = 0
     while ratio > 1:
-        idx = np.argmax(sample_shape_masked)
+        idx = np_argmax(sample_shape_masked)
         val = sample_shape_masked[idx : idx + 1]  # type: ignore
         if val < 2:
             raise ValueError(f"Chunk size is too small: {chunk_size} bytes")
         val /= 2
         ratio /= 2
     sample_shape_masked[exclude_axes] = sample_shape[exclude_axes]  # type: ignore
-    arr = np.ceil(sample_shape_masked)
+    arr = np_ceil(sample_shape_masked)
     # convert arr to a tuple of python integers
     return tuple(int(x) for x in arr)

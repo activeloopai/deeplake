@@ -1,33 +1,31 @@
-import warnings
-import numpy as np
-from pathlib import Path
-import os
-import glob
 import PIL  # type: ignore
+from tqdm import tqdm  # type: ignore
+
+from glob import glob
+from pathlib import Path
+from os import path as os_path
+from numpy import uint32, expand_dims
 from typing import Dict, List, Sequence, Tuple, Union
 
+import hub
+from hub.core.dataset import Dataset
 from hub.util.auto import ingestion_summary
 from hub.util.exceptions import (
     InvalidPathException,
     TensorInvalidSampleShapeError,
 )
-from hub.core.dataset import Dataset
-
-from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
-
-import hub
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
 
 
 def _get_file_paths(directory: Path, relative_to: Union[str, Path] = "") -> List[Path]:
-    g = glob.glob(os.path.join(directory, "**"), recursive=True)
+    g = glob(os_path.join(directory, "**"), recursive=True)
     file_paths = []
     for path_str in g:
-        if os.path.isfile(path_str):
+        if os_path.isfile(path_str):
             path = Path(path_str)
             if relative_to:
                 relative_path = Path(path).relative_to(directory)
@@ -120,8 +118,8 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
-            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+            images_tensor_name = os_path.join(set_name, IMAGES_TENSOR_NAME)
+            labels_tensor_name = os_path.join(set_name, LABELS_TENSOR_NAME)
             images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
@@ -162,7 +160,7 @@ class ImageClassification(UnstructuredDataset):
 
                 class_name = _class_name_from_path(file_path)
 
-                label = np.uint32(self.class_names.index(class_name))
+                label = uint32(self.class_names.index(class_name))
 
                 set_name = _set_name_from_path(file_path) if use_set_prefix else ""
 
@@ -173,7 +171,7 @@ class ImageClassification(UnstructuredDataset):
 
                 except TensorInvalidSampleShapeError:
                     im = image.array
-                    reshaped_image = np.expand_dims(im, -1)
+                    reshaped_image = expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
                 except Exception:

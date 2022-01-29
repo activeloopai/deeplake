@@ -1,10 +1,11 @@
+from warnings import warn
+
+from hub.util.check_installation import tensorflow_installed
 from hub.util.exceptions import (
     ModuleNotInstalledException,
     SampleDecompressionError,
     CorruptedSampleError,
 )
-from hub.util.check_installation import tensorflow_installed
-import warnings
 
 
 def dataset_to_tensorflow(dataset):
@@ -25,7 +26,7 @@ def dataset_to_tensorflow(dataset):
                     value = dataset[key][index].numpy()
                     sample[key] = value
                 except SampleDecompressionError:
-                    warnings.warn(
+                    warn(
                         f"Skipping corrupt {dataset[key].meta.sample_compression} sample."
                     )
                     corrupt_sample_found = True

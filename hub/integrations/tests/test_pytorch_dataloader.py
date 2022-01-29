@@ -1,11 +1,12 @@
 import pytest
-import platform
+
+from platform import system as platform_system
 from hub.util.check_installation import pytorch_installed
 
 if not pytorch_installed():
     pytest.skip("pytroch is not installed", allow_module_level=True)
 
-if platform.system() in ["Windows", "Darwin"]:
+if platform_system() in ["Windows", "Darwin"]:
     pytest.skip("mock pickling gets quite messy on win/mac", allow_module_level=True)
 
 from unittest.mock import patch

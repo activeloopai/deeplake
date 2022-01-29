@@ -1,9 +1,13 @@
-from hub.constants import MB, PARTIAL_NUM_SAMPLES
-from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
-import numpy as np
 import pytest
 
-import hub
+from numpy import (
+    random as np_random,
+    testing as np_testing
+)
+
+from hub import read as hub_read
+from hub.constants import MB, PARTIAL_NUM_SAMPLES
+from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
 from hub.core.tiling.deserialize import np_list_to_sample
@@ -34,13 +38,13 @@ def test_read_write_sequence(compression):
     common_args["tensor_meta"] = tensor_meta
     common_args["compression"] = compression
     dtype = tensor_meta.dtype
-    data_in = [np.random.rand(250, 125, 3).astype(dtype) for _ in range(10)]
+    data_in = [np_random.rand(250, 125, 3).astype(dtype) for _ in range(10)]
     data_in2 = data_in.copy()
     while data_in:
         chunk = SampleCompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
         data_out = [chunk.read_sample(i) for i in range(num_samples)]
-        np.testing.assert_array_equal(data_out, data_in2[:num_samples])
+        np_testing.assert_array_equal(data_out, data_in2[:num_samples])
         data_in = data_in[num_samples:]
         data_in2 = data_in2[num_samples:]
 
@@ -59,11 +63,11 @@ def test_read_write_sequence_big(cat_path, compression):
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(6001, 3000, 3).astype(dtype))
+            data_in.append(np_random.rand(6001, 3000, 3).astype(dtype))
         elif i % 3 == 0:
-            data_in.append(hub.read(cat_path))
+            data_in.append(hub_read(cat_path))
         else:
-            data_in.append(np.random.rand(1000, 500, 3).astype(dtype))
+            data_in.append(np_random.rand(1000, 500, 3).astype(dtype))
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
@@ -85,7 +89,7 @@ def test_read_write_sequence_big(cat_path, compression):
                     sample.layout_shape,
                     dtype,
                 )
-                np.testing.assert_array_equal(full_data_out, data_in2[index])
+                np_testing.assert_array_equal(full_data_out, data_in2[index])
                 data_in = data_in[1:]
                 tiles = []
 
@@ -94,7 +98,7 @@ def test_read_write_sequence_big(cat_path, compression):
             for i, item in enumerate(data_out):
                 if isinstance(item, Sample):
                     item = item.array
-                np.testing.assert_array_equal(item, data_in[i])
+                np_testing.assert_array_equal(item, data_in[i])
             data_in = data_in[num_samples:]
 
 
@@ -104,22 +108,22 @@ def test_read_write_sequence_big(cat_path, compression):
 #     common_args["tensor_meta"] = tensor_meta
 #     common_args["compression"] = compression
 #     dtype = tensor_meta.dtype
-#     arr = np.random.rand(7, 25, 125, 3).astype(dtype)
+#     arr = np_random.rand(7, 25, 125, 3).astype(dtype)
 #     data_in = list(arr)
 #     chunk = SampleCompressedChunk(**common_args)
 #     chunk.extend_if_has_space(data_in)
 #     data_out = np.array([chunk.read_sample(i) for i in range(7)])
-#     np.testing.assert_array_equal(data_out, data_in)
+#     np_testing.assert_array_equal(data_out, data_in)
 
-#     data_3 = np.random.rand(175, 350, 3).astype(dtype)
-#     data_5 = np.random.rand(1500, 750, 3).astype(dtype)
+#     data_3 = np_random.rand(175, 350, 3).astype(dtype)
+#     data_5 = np_random.rand(1500, 750, 3).astype(dtype)
 
 #     chunk.update_sample(3, data_3)
 #     chunk.update_sample(5, data_5)
 #     for i in range(7):
 #         if i == 3:
-#             np.testing.assert_array_equal(chunk.read_sample(i), data_3)
+#             np_testing.assert_array_equal(chunk.read_sample(i), data_3)
 #         elif i == 5:
-#             np.testing.assert_array_equal(chunk.read_sample(i), data_5)
+#             np_testing.assert_array_equal(chunk.read_sample(i), data_5)
 #         else:
-#             np.testing.assert_array_equal(chunk.read_sample(i), arr[i])
+#             np_testing.assert_array_equal(chunk.read_sample(i), arr[i])

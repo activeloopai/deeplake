@@ -1,5 +1,6 @@
-from hub.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
 import pickle
+
+from hub.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
 
 
 def test_ordereddict():

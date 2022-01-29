@@ -1,5 +1,16 @@
 # type: ignore
-import os
+from PIL import Image  # type: ignore
+
+from os import name as os_name
+from numpy import (
+    ndarray,
+    dtype as np_dtype,
+    array as np_array
+)
+from io import BytesIO
+from typing import List, Optional, Tuple, Union
+
+
 from hub.core.compression import (
     compress_array,
     decompress_array,
@@ -21,13 +32,8 @@ from hub.compression import (
     BYTE_COMPRESSION,
 )
 from hub.util.exceptions import CorruptedSampleError
-import numpy as np
-from typing import List, Optional, Tuple, Union
 
-from PIL import Image  # type: ignore
-from io import BytesIO
-
-if os.name == "nt":
+if os_name == "nt":
     _USE_CFFI = False
 else:
     _USE_CFFI = True
@@ -39,7 +45,7 @@ class Sample:
     def __init__(
         self,
         path: str = None,
-        array: np.ndarray = None,
+        array: ndarray = None,
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
         verify: bool = False,
@@ -109,7 +115,7 @@ class Sample:
         if self._dtype:
             return self._dtype
         self._read_meta()
-        return np.dtype(self._typestr).name
+        return np_dtype(self._typestr).name
 
     @property
     def shape(self):
@@ -249,7 +255,7 @@ class Sample:
         return self._uncompressed_bytes
 
     @property
-    def array(self) -> np.ndarray:
+    def array(self) -> ndarray:
 
         if self._array is None:
             compr = self._compression
@@ -277,7 +283,7 @@ class Sample:
                 class ArrayData:
                     __array_interface__ = array_interface
 
-                self._array = np.array(ArrayData, None)
+                self._array = np_array(ArrayData, None)
         return self._array
 
     def __str__(self):
@@ -298,4 +304,4 @@ class Sample:
         return self.buffer == other.buffer
 
 
-SampleValue = Union[np.ndarray, int, float, bool, Sample]
+SampleValue = Union[ndarray, int, float, bool, Sample]

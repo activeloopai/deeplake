@@ -1,24 +1,38 @@
-from hub.compression import BYTE_COMPRESSION, get_compression_type
+import json
+from numpy import (
+    integer,
+    floating,
+    bool_ as np_bool,
+    ndarray,
+    frombuffer,
+    array as np_array,
+    dtype as np_dtype,
+    empty as np_empty
+)
+from struct import (
+    pack as struct_pack,
+    unpack as struct_unpack
+)
+from typing import Optional, Sequence, Union, Tuple
+
+import hub
+from hub.constants import ENCODING_DTYPE
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.compression import compress_array, compress_bytes
+from hub.compression import BYTE_COMPRESSION, get_compression_type
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
-from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.core.compression import compress_array, compress_bytes
-from typing import Optional, Sequence, Union, Tuple
-import hub
-import numpy as np
-import struct
-import json
 
-BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
+BaseTypes = Union[ndarray, list, int, float, bool, integer, floating, np_bool]
 
 
 def infer_chunk_num_bytes(
     version: str,
-    shape_info: np.ndarray,
-    byte_positions: np.ndarray,
+    shape_info: ndarray,
+    byte_positions: ndarray,
     data: Optional[Union[Sequence[bytes], Sequence[memoryview]]] = None,
     len_data: Optional[int] = None,
 ) -> int:
@@ -43,8 +57,8 @@ def infer_chunk_num_bytes(
 
 def serialize_chunk(
     version: str,
-    shape_info: np.ndarray,
-    byte_positions: np.ndarray,
+    shape_info: ndarray,
+    byte_positions: ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
 ) -> memoryview:
@@ -83,7 +97,7 @@ def write_shape_info(shape_info, buffer, offset) -> int:
     if shape_info.ndim == 1:
         offset += 8
     else:
-        buffer[offset : offset + 8] = struct.pack("<ii", *shape_info.shape)
+        buffer[offset : offset + 8] = struct_pack("<ii", *shape_info.shape)
         offset += 8
 
         buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
@@ -115,7 +129,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 def deserialize_chunk(
     byts: Union[bytes, memoryview], copy: bool = True
-) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
+) -> Tuple[str, ndarray, ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
@@ -132,7 +146,7 @@ def deserialize_chunk(
     incoming_mview = isinstance(byts, memoryview)
     byts = memoryview(byts)
 
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    enc_dtype = np_dtype(ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
     # Read version
@@ -141,14 +155,14 @@ def deserialize_chunk(
     offset = 1 + len_version
 
     # Read shape info
-    shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
+    shape_info_nrows, shape_info_ncols = struct_unpack("<ii", byts[offset : offset + 8])
     offset += 8
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if shape_info_nbytes == 0:
-        shape_info = np.array([], dtype=enc_dtype)
+        shape_info = np_array([], dtype=enc_dtype)
     else:
         shape_info = (
-            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
             .copy()
         )
@@ -159,10 +173,10 @@ def deserialize_chunk(
     offset += 4
     byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     if byte_positions_nbytes == 0:
-        byte_positions = np.array([], dtype=enc_dtype)
+        byte_positions = np_array([], dtype=enc_dtype)
     else:
         byte_positions = (
-            np.frombuffer(
+            frombuffer(
                 byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
             )
             .reshape(byte_positions_rows, 3)
@@ -177,7 +191,7 @@ def deserialize_chunk(
     return version, shape_info, byte_positions, data  # type: ignore
 
 
-def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+def serialize_chunkids(version: str, ids: Sequence[ndarray]) -> memoryview:
     """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
@@ -204,7 +218,7 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     return memoryview(flatbuff)
 
 
-def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, ndarray]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
@@ -216,7 +230,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         encoded chunk ids as memoryview.
     """
     byts = memoryview(byts)
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    enc_dtype = np_dtype(ENCODING_DTYPE)
 
     # Read version
     len_version = byts[0]
@@ -224,7 +238,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     offset = 1 + len_version
 
     # Read chunk ids
-    ids = np.frombuffer(byts[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
+    ids = frombuffer(byts[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
     return version, ids
 
 
@@ -241,7 +255,7 @@ def text_to_bytes(sample, dtype, htype):
         except (ValueError, NotImplementedError):  # sliced sample or tiled sample
             sample = sample.data()
     if htype in ("json", "list"):
-        if isinstance(sample, np.ndarray):
+        if isinstance(sample, ndarray):
             if htype == "list":
                 sample = list(sample) if sample.dtype == object else sample.tolist()
             elif htype == "json":
@@ -253,7 +267,7 @@ def text_to_bytes(sample, dtype, htype):
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
         shape = (len(sample),) if htype == "list" else (1,)
     else:  # htype == "text":
-        if isinstance(sample, np.ndarray):
+        if isinstance(sample, ndarray):
             sample = sample.tolist()
         if not isinstance(sample, str):
             raise TypeError("Expected str, received: " + str(sample))
@@ -265,16 +279,16 @@ def text_to_bytes(sample, dtype, htype):
 def bytes_to_text(buffer, htype):
     buffer = bytes(buffer)
     if htype == "json":
-        arr = np.empty(1, dtype=object)
+        arr = np_empty(1, dtype=object)
         arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
         return arr
     elif htype == "list":
         lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
-        arr = np.empty(len(lst), dtype=object)
+        arr = np_empty(len(lst), dtype=object)
         arr[:] = lst
         return arr
     else:  # htype == "text":
-        arr = np.array(bytes.decode(buffer)).reshape(
+        arr = np_array(bytes.decode(buffer)).reshape(
             1,
         )
     return arr

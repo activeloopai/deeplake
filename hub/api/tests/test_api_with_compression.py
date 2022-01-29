@@ -1,28 +1,38 @@
+import pytest
+
+from numpy import (
+    float32,
+    ndarray,
+    frombuffer,
+    ones as np_ones,
+    array as np_array,
+    random as np_random,
+    testing as np_testing
+)
+
+from miniaudio import mp3_read_file_f32, flac_read_file_f32, wav_read_file_f32  # type: ignore
+
+import hub
 from hub.constants import KB, MB
+from hub.core.dataset import Dataset
+from hub.core.tensor import Tensor
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
 )
-import pytest
-from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_images_close
 from hub.tests.dataset_fixtures import enabled_datasets
-import numpy as np
-
-import hub
-from hub.core.dataset import Dataset
-from miniaudio import mp3_read_file_f32, flac_read_file_f32, wav_read_file_f32  # type: ignore
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
     for _ in range(count):
         tensor.append(hub.read(cat_path))
         tensor.append(hub.read(flower_path))
-        tensor.append(np.ones((100, 100, 4), dtype="uint8"))
+        tensor.append(np_ones((100, 100, 4), dtype="uint8"))
         tensor.append(
-            np.ones((100, 100, 4), dtype=int).tolist()
+            np_ones((100, 100, 4), dtype=int).tolist()
         )  # test safe downcasting of python scalars
 
         tensor.extend(
@@ -86,7 +96,7 @@ def test_iterate_compressed_samples(local_ds, cat_path, flower_path):
         x = image.numpy()
 
         assert (
-            type(x) == np.ndarray
+            type(x) == ndarray
         ), "Check is necessary in case a `PIL` object is returned instead of an array."
         assert x.shape == expected_shape
         assert x.dtype == "uint8"
@@ -95,21 +105,21 @@ def test_iterate_compressed_samples(local_ds, cat_path, flower_path):
 def test_uncompressed(local_ds):
     images = local_ds.create_tensor(TENSOR_KEY, sample_compression=None)
 
-    images.append(np.ones((100, 100, 100)))
-    images.extend(np.ones((3, 101, 2, 1)))
+    images.append(np_ones((100, 100, 100)))
+    images.extend(np_ones((3, 101, 2, 1)))
     local_ds.clear_cache()
-    np.testing.assert_array_equal(images[0].numpy(), np.ones((100, 100, 100)))
-    np.testing.assert_array_equal(images[1:4].numpy(), np.ones((3, 101, 2, 1)))
+    np_testing.assert_array_equal(images[0].numpy(), np_ones((100, 100, 100)))
+    np_testing.assert_array_equal(images[1:4].numpy(), np_ones((3, 101, 2, 1)))
 
 
 def test_byte_sample_compression(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("xyz", sample_compression="lz4")
         for i in range(10):
-            ds.xyz.append(i * np.ones((100, 100, 100)))
+            ds.xyz.append(i * np_ones((100, 100, 100)))
 
     for i in range(10):
-        np.testing.assert_array_equal(ds.xyz[i].numpy(), i * np.ones((100, 100, 100)))
+        np_testing.assert_array_equal(ds.xyz[i].numpy(), i * np_ones((100, 100, 100)))
 
 
 @pytest.mark.xfail(raises=SampleCompressionError, strict=True)
@@ -136,7 +146,7 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
     # (100, 100, 100) raises | TypeError: Cannot handle this data type: (1, 1, 100), |u1
 
     tensor = memory_ds.create_tensor(TENSOR_KEY, sample_compression="jpeg")
-    tensor.append(np.ones(bad_shape, dtype="uint8"))
+    tensor.append(np_ones(bad_shape, dtype="uint8"))
 
 
 def test_compression_aliases(memory_ds: Dataset):
@@ -174,10 +184,10 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             "images", htype="image", chunk_compression="jpg", max_chunk_size=chunk_size
         )
         images.extend([hub.read(cat_path)] * im_ct)
-        expected_arr = np.random.randint(0, 10, (500, 450, 3)).astype("uint8")
+        expected_arr = np_random.randint(0, 10, (500, 450, 3)).astype("uint8")
         images.append(expected_arr)
         images.extend([hub.read(cat_path)] * im_ct)
-        expected_img = np.array(hub.read(cat_path))
+        expected_img = np_array(hub.read(cat_path))
     ds.clear_cache()
     for i, img in enumerate(images):
         if i == im_ct:
@@ -189,10 +199,10 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             "images2", htype="image", chunk_compression="png", max_chunk_size=chunk_size
         )
         images.extend([hub.read(flower_path)] * im_ct)
-        expected_arr = np.random.randint(0, 256, (200, 250, 4)).astype("uint8")
+        expected_arr = np_random.randint(0, 256, (200, 250, 4)).astype("uint8")
         images.append(expected_arr)
         images.extend([hub.read(flower_path)] * im_ct)
-        expected_img = np.array(hub.read(flower_path))
+        expected_img = np_array(hub.read(flower_path))
     ds.clear_cache()
     for i, img in enumerate(images):
         if i == im_ct:
@@ -204,20 +214,20 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             "labels", chunk_compression="lz4", max_chunk_size=chunk_size
         )
         data = [
-            np.random.randint(0, 256, (150, 150)).astype("uint8") for _ in range(20)
+            np_random.randint(0, 256, (150, 150)).astype("uint8") for _ in range(20)
         ]
         labels.extend(data)
     ds.clear_cache()
     for row, label in zip(data, labels):
-        np.testing.assert_array_equal(row, label.numpy())
+        np_testing.assert_array_equal(row, label.numpy())
 
-    data = np.random.randint(0, 256, (5, 1500, 1500)).astype("uint8")
+    data = np_random.randint(0, 256, (5, 1500, 1500)).astype("uint8")
     with ds:
         ds.labels.extend(data)  # type: ignore
     ds.clear_cache()
     assert len(ds.labels) == 25
     for i in range(5):
-        np.testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
+        np_testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
 
 
 @pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
@@ -229,7 +239,7 @@ def test_audio(local_ds, compression, audio_paths):
         audio = flac_read_file_f32(path)
     elif path.endswith(".wav"):
         audio = wav_read_file_f32(path)
-    arr = np.frombuffer(audio.samples, dtype=np.float32).reshape(
+    arr = frombuffer(audio.samples, dtype=float32).reshape(
         audio.num_frames, audio.nchannels
     )
     local_ds.create_tensor("audio", htype="audio", sample_compression=compression)
@@ -237,4 +247,4 @@ def test_audio(local_ds, compression, audio_paths):
         for _ in range(10):
             local_ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
-        np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore
+        np_testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore

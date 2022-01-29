@@ -1,4 +1,3 @@
-import numpy as np
 from hub.core.meta.encode.shape import ShapeEncoder
 from .common import assert_encoded
 

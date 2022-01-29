@@ -1,8 +1,9 @@
-from typing import List, Any
 from random import randrange
 from functools import reduce
 from operator import mul
-import warnings
+from warnings import warn
+
+from typing import List, Any
 
 
 class ShuffleBuffer:
@@ -47,7 +48,7 @@ class ShuffleBuffer:
                 return None
 
             if buffer_len == 0:
-                warnings.warn(
+                warn(
                     f"Buffer size is too small. Sample with size {sample_size} does not fit in buffer of size {self.size}"
                 )
                 return sample

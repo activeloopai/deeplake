@@ -1,5 +1,5 @@
+from numpy import ndarray
 from typing import Union, List, Tuple, Iterable, Optional, TypeVar
-import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
 
@@ -357,7 +357,7 @@ class Index:
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, samples: List[np.ndarray]):
+    def apply(self, samples: List[ndarray]):
         """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
@@ -368,7 +368,7 @@ class Index:
             samples = list(samples)
         return samples
 
-    def apply_squeeze(self, samples: List[np.ndarray]):
+    def apply_squeeze(self, samples: List[ndarray]):
         """Applies the primary axis of an Index to a list of ndarray samples.
         Will either return the list as given, or return the first sample.
         """

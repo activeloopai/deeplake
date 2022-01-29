@@ -1,19 +1,24 @@
-import random
-import time
-import hashlib
-import pickle
+from json import (
+    loads as json_loads,
+    dumps as json_dumps
+)
+from pickle import loads as pickle_loads
+from time import time
+from hashlib import sha1
+from warnings import warn
+from random import randrange
+from datetime import datetime
 from typing import Any, Dict, Optional
-import warnings
-from hub.client.log import logger
+
 from hub.constants import FIRST_COMMIT_ID
-from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.fast_forwarding import ffw_dataset_meta
+from hub.core.storage import LRUCache
 from hub.core.storage.cachable import Cachable
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
-from hub.core.storage import LRUCache
 from hub.core.lock import Lock
-from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
+from hub.client.log import logger
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
@@ -28,8 +33,7 @@ from hub.util.keys import (
     get_version_control_info_lock_key,
 )
 from hub.util.remove_cache import get_base_storage
-from datetime import datetime
-import json
+from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
 
 
 def _version_info_to_json(info):
@@ -79,9 +83,9 @@ def _version_info_from_json(info):
 
 
 def generate_hash() -> str:
-    hsh = hashlib.sha1()
-    hsh.update(str(time.time()).encode("utf-8"))
-    hsh.update(random.randrange(0, 1000000).to_bytes(4, "big"))
+    hsh = sha1()
+    hsh.update(str(time()).encode("utf-8"))
+    hsh.update(randrange(0, 1000000).to_bytes(4, "big"))
     return hsh.hexdigest()
 
 
@@ -381,28 +385,28 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     }
     try:
         old_version_info = _version_info_from_json(
-            json.loads(storage[key].decode("utf-8"))
+            json_loads(storage[key].decode("utf-8"))
         )
         version_info = _merge_version_info(old_version_info, new_version_info)
     except KeyError:
         try:
-            old_version_info = pickle.loads(
+            old_version_info = pickle_loads(
                 storage[get_version_control_info_key_old()]
             )  # backward compatiblity
             version_info = _merge_version_info(old_version_info, new_version_info)
         except KeyError:
             version_info = new_version_info
-    storage[key] = json.dumps(_version_info_to_json(version_info)).encode("utf-8")
+    storage[key] = json_dumps(_version_info_to_json(version_info)).encode("utf-8")
     lock.release()
 
 
 def load_version_info(storage: LRUCache) -> Dict:
     try:
         return _version_info_from_json(
-            json.loads(storage[get_version_control_info_key()].decode("utf-8"))
+            json_loads(storage[get_version_control_info_key()].decode("utf-8"))
         )
     except KeyError:
-        return pickle.loads(
+        return pickle_loads(
             storage[get_version_control_info_key_old()]
         )  # backward compatiblity
 
@@ -485,6 +489,6 @@ def warn_node_checkout(commit_node: CommitNode, create: bool):
         branch = commit_node.branch
         parent = commit_node.parent
         if parent is None or parent.branch != branch:
-            warnings.warn(
+            warn(
                 f"The branch ({branch}) that you have checked out to, has no commits."
             )

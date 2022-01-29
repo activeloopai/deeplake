@@ -1,16 +1,22 @@
-from PIL import Image, UnidentifiedImageError  # type: ignore
-from io import BytesIO
-import os
-import pathlib
-from typing import List, Optional
-from uuid import uuid4
-
-import numpy as np
-import posixpath
 import pytest
 
-from hub.constants import KB, MB
+from PIL import Image, UnidentifiedImageError  # type: ignore
 
+import os
+from pathlib import Path
+from posixpath import join as posixpath_join
+from numpy import (
+    ndarray,
+    float32,
+    sum as np_sum,
+    prod as np_prod,
+    testing as np_testing,
+)
+from io import BytesIO
+from uuid import uuid4
+from typing import List, Optional
+
+from hub.constants import KB, MB
 from hub.util.check_installation import (
     pytorch_installed,
     tensorflow_installed,
@@ -20,7 +26,7 @@ from hub.util.check_installation import (
 
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
-_THIS_FILE = pathlib.Path(__file__).parent.absolute()
+_THIS_FILE = Path(__file__).parent.absolute()
 TENSOR_KEY = "tensor"
 
 SHAPE_PARAM = "shape"
@@ -56,7 +62,7 @@ def current_test_name() -> str:
     full_name = os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]  # type: ignore
     test_file = full_name.split("::")[0].split("/")[-1].split(".py")[0]
     test_name = full_name.split("::")[1]
-    output = posixpath.join(test_file, test_name)
+    output = posixpath_join(test_file, test_name)
     return output
 
 
@@ -79,7 +85,7 @@ def assert_array_lists_equal(l1: List, l2: List):
     """Assert that two lists of numpy arrays are equal"""
     assert len(l1) == len(l2), (len(l1), len(l2))
     for idx, (a1, a2) in enumerate(zip(l1, l2)):
-        np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
+        np_testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
 
 
 def is_opt_true(request, opt) -> bool:
@@ -87,11 +93,11 @@ def is_opt_true(request, opt) -> bool:
     return request.config.getoption(opt)
 
 
-def assert_images_close(img1: np.ndarray, img2: np.ndarray, eps=0.5):
+def assert_images_close(img1: ndarray, img2: ndarray, eps=0.5):
     """Helpful for testing images after lossy compression"""
     assert img1.shape == img2.shape, (img1.shape, img2.shape)
-    err = np.sum((img1.astype(np.float32) - img2.astype(np.float32)) ** 2)
-    err /= np.prod(img1.shape) * 256
+    err = np_sum((img1.astype(float32) - img2.astype(float32)) ** 2)
+    err /= np_prod(img1.shape) * 256
     assert err < eps, err
 
 

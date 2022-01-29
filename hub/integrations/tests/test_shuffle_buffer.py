@@ -1,4 +1,5 @@
 import pytest
+
 from hub.util.check_installation import pytorch_installed
 
 if not pytorch_installed():

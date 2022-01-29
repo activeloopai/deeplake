@@ -1,21 +1,19 @@
-import hub
-from hub.util.threading import terminate_thread
-import socketserver
-from typing import Optional, Callable, Dict
-import inspect
+from time import sleep
+from uuid import uuid4
 import threading
-import queue
 import multiprocessing.connection
-import atexit
-import time
-import uuid
+from socketserver import TCPServer
+from atexit import register as atexit_register
+from typing import Optional, Callable, Dict
+
+from hub.util.threading import terminate_thread
 
 
 _DISCONNECT_MESSAGE = "!@_dIsCoNNect"
 
 
 def _get_free_port() -> int:
-    with socketserver.TCPServer(("localhost", 0), None) as s:  # type: ignore
+    with TCPServer(("localhost", 0), None) as s:  # type: ignore
         return s.server_address[1]
 
 
@@ -23,7 +21,7 @@ class Server(object):
     def __init__(self, callback):
         self.callback = callback
         self.start()
-        atexit.register(self.stop)
+        atexit_register(self.stop)
 
     def start(self):
         if getattr(self, "_connect_thread", None):
@@ -39,12 +37,12 @@ class Server(object):
             while True:
                 try:
                     connection = self._listener.accept()
-                    key = str(uuid.uuid4())
+                    key = str(uuid4())
                     thread = threading.Thread(target=self._receive_loop, args=(key,))
                     self._connections[key] = (connection, thread)
                     thread.start()
                 except Exception:
-                    time.sleep(0.1)
+                    sleep(0.1)
         except Exception:
             pass  # Thread termination
 
@@ -78,7 +76,7 @@ class Server(object):
                 self._connections.clear()
             else:
                 timer += 1
-                time.sleep(1)
+                sleep(1)
         self._listener.close()
 
     @property
@@ -93,7 +91,7 @@ class Client(object):
         self._client = None
         self._closed = False
         threading.Thread(target=self._connect, daemon=True).start()
-        atexit.register(self.close)
+        atexit_register(self.close)
 
     def _connect(self):
         while True:
@@ -106,7 +104,7 @@ class Client(object):
                 self._buffer.clear()
                 return
             except Exception:
-                time.sleep(1)
+                sleep(1)
 
     def send(self, stuff):
         if self._client:
@@ -122,7 +120,7 @@ class Client(object):
             return
         try:
             while not self._client:
-                time.sleep(0.5)
+                sleep(0.5)
             for stuff in self._buffer:
                 self._client.send(stuff)
             self._client.send(_DISCONNECT_MESSAGE)

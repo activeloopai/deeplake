@@ -1,8 +1,10 @@
-import glob
-import os, random
+import os
+from glob import glob
+from random import sample
 from collections import Counter
+from shutil import get_terminal_size
 from typing import Tuple
-import shutil
+
 from hub.util.exceptions import AutoCompressionError
 
 
@@ -30,7 +32,7 @@ def get_most_common_extension(
         else:
             return file_extension
 
-    g = glob.glob(os.path.join(local_path, "**"), recursive=True)
+    g = glob(os.path.join(local_path, "**"), recursive=True)
 
     file_names = [name for name in g if name.endswith(allowed_extensions)]
 
@@ -38,7 +40,7 @@ def get_most_common_extension(
         raise AutoCompressionError(local_path)
 
     if len(file_names) > 100:
-        file_names = random.sample(file_names, 100)
+        file_names = sample(file_names, 100)
 
     extension_list = [
         os.path.splitext(file_names[file])[1] for file in range(len(file_names))
@@ -60,7 +62,7 @@ def ingestion_summary(local_path: str, skipped_files: list):
         local_path (str): Root directory of dataset.
         skipped_files (list): List of files skipped during ingestion.
     """
-    columns, lines = shutil.get_terminal_size()
+    columns, lines = get_terminal_size()
 
     mid = int(columns / 2)
     print("\n")

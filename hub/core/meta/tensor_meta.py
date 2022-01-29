@@ -1,21 +1,14 @@
-import hub
-from hub.core.fast_forwarding import ffw_tensor_meta
+from numpy import dtype as np_dtype
 from typing import Any, Callable, Dict, List, Tuple
-import numpy as np
-from hub.util.exceptions import (
-    TensorMetaInvalidHtype,
-    TensorMetaInvalidHtypeOverwriteValue,
-    TensorMetaInvalidHtypeOverwriteKey,
-    TensorMetaMissingRequiredValue,
-    TensorMetaMutuallyExclusiveKeysError,
-    UnsupportedCompressionError,
-    TensorInvalidSampleShapeError,
-)
-from hub.util.json import validate_json_schema
+
+import hub
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
+from hub.core.meta.meta import Meta
+from hub.core.fast_forwarding import ffw_tensor_meta
+from hub.util.json import validate_json_schema
 from hub.compression import (
     COMPRESSION_ALIASES,
     get_compression_type,
@@ -25,11 +18,20 @@ from hub.compression import (
     VIDEO_COMPRESSION,
 )
 from hub.htype import (
-    HTYPE_CONFIGURATIONS,
     DEFAULT_HTYPE,
+    HTYPE_CONFIGURATIONS,
+    REQUIRE_USER_SPECIFICATION,
+    UNSPECIFIED,
 )
-from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
-from hub.core.meta.meta import Meta
+from hub.util.exceptions import (
+    TensorMetaInvalidHtype,
+    TensorMetaInvalidHtypeOverwriteValue,
+    TensorMetaInvalidHtypeOverwriteKey,
+    TensorMetaMissingRequiredValue,
+    TensorMetaMutuallyExclusiveKeysError,
+    UnsupportedCompressionError,
+    TensorInvalidSampleShapeError,
+)
 
 
 class TensorMeta(Meta):
@@ -66,7 +68,7 @@ class TensorMeta(Meta):
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
 
-    def set_dtype(self, dtype: np.dtype):
+    def set_dtype(self, dtype: np_dtype):
         """Should only be called once."""
         ffw_tensor_meta(self)
 
@@ -287,7 +289,7 @@ def _format_values(htype: str, htype_overwrite: dict):
             if getattr(dtype, "__module__", None) == "typing":
                 htype_overwrite["dtype"] = str(dtype)
         else:
-            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
+            htype_overwrite["dtype"] = np_dtype(htype_overwrite["dtype"]).name
 
     for key, value in COMPRESSION_ALIASES.items():
         if htype_overwrite.get("sample_compression") == key:
@@ -312,7 +314,7 @@ def _raise_if_condition(
 
 def _is_dtype_supported_by_numpy(dtype: str) -> bool:
     try:
-        np.dtype(dtype)
+        np_dtype(dtype)
         return True
     except:
         return False

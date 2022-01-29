@@ -1,15 +1,16 @@
+from numpy import ones as np_ones
+
+from hub import __version__
 from hub.api.tests.test_api import MAX_FLOAT_DTYPE
-import numpy as np
-import hub
 
 
 def test_version(local_ds_generator):
     ds = local_ds_generator()
-    assert ds.meta.version == hub.__version__
+    assert ds.meta.version == __version__
 
     # persistence
     ds = local_ds_generator()
-    assert ds.meta.version == hub.__version__
+    assert ds.meta.version == __version__
 
 
 def test_subsequent_updates(local_ds_generator):
@@ -19,7 +20,7 @@ def test_subsequent_updates(local_ds_generator):
     assert ds.tensor.dtype == None
 
     with local_ds_generator() as ds:
-        ds.tensor.extend(np.ones((5, 100, 100)))
+        ds.tensor.extend(np_ones((5, 100, 100)))
 
     # dtype is auto-specified
     assert ds.tensor.dtype == MAX_FLOAT_DTYPE
@@ -29,7 +30,7 @@ def test_subsequent_updates(local_ds_generator):
 
     with local_ds_generator() as ds:
         for _ in range(5):
-            ds.tensor.append(np.ones((100, 100)))
+            ds.tensor.append(np_ones((100, 100)))
 
     ds = local_ds_generator()
     assert len(ds) == 10
@@ -39,7 +40,7 @@ def test_subsequent_updates(local_ds_generator):
 
     with local_ds_generator() as ds:
         for _ in range(5):
-            ds.tensor.append(np.ones((100, 200)))
+            ds.tensor.append(np_ones((100, 200)))
 
     assert ds.tensor.shape == (15, 100, None)
     si = ds.tensor.shape_interval

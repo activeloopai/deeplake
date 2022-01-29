@@ -1,21 +1,28 @@
+import pytest
+
+from PIL import Image  # type: ignore
+
 import os
 import io
-import pytest
-import numpy as np
-from PIL import Image  # type: ignore
+from numpy import (
+    uint8,
+    array as np_array,
+    random as np_random,
+    prod as np_prod
+)
 
 from hub.core.tiling.optimizer import get_tile_shape
 
 
 def test_tile_shape():
-    x = np.random.random((1000, 500, 3))
+    x = np_random.random((1000, 500, 3))
     tile_shape = get_tile_shape(
         sample_shape=x.shape,
         sample_size=x.nbytes,
         chunk_size=x.nbytes / 16,
         exclude_axes=-1,
     )
-    assert np.prod(tile_shape) * x.itemsize == x.nbytes / 16
+    assert np_prod(tile_shape) * x.itemsize == x.nbytes / 16
     assert tile_shape[2] == 3
 
 
@@ -23,7 +30,7 @@ def test_tile_shape():
 def test_tile_shape_compressed(compression, compressed_image_paths):
     path = compressed_image_paths[compression][0]
     sample_size = os.path.getsize(path)
-    arr = np.array(Image.open(path))
+    arr = np_array(Image.open(path))
     sample_shape = arr.shape
     chunk_size = sample_size / 10
     tile_shape = get_tile_shape(
@@ -44,7 +51,7 @@ def test_tile_shape_compressed(compression, compressed_image_paths):
 
 @pytest.mark.parametrize("compression", ["jpeg", "png"])
 def test_tile_shape_large_compressed(compression):
-    arr = np.random.randint(0, 256, (1000, 1000, 3), dtype=np.uint8)
+    arr = np_random.randint(0, 256, (1000, 1000, 3), dtype=uint8)
     bio = io.BytesIO()
     Image.fromarray(arr).save(bio, compression)
     bio.seek(0)

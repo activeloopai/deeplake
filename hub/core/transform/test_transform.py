@@ -1,15 +1,26 @@
-import hub
 import pytest
-import numpy as np
+from numpy import (
+    ones as np_ones,
+    zeros as np_zeros,
+    random as np_random,
+    testing as np_testing,
+)
 from click.testing import CliRunner
+
+from hub import (
+    dataset as hub_dataset,
+    read as hub_read,
+    compute as hub_compute,
+    compose as hub_compose,
+    like as hub_like,
+)
 from hub.core.storage.memory import MemoryProvider
+from hub.util.transform import get_pbar_description
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
-from hub.util.transform import get_pbar_description
-import hub
 
 
 # github actions can only support 2 workers
@@ -23,28 +34,28 @@ all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
 
 
-@hub.compute
+@hub_compute
 def fn1(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
-        samples_out.image.append(np.ones((337, 200)) * sample_in * mul)
-        samples_out.label.append(np.ones((1,)) * sample_in * mul)
+        samples_out.image.append(np_ones((337, 200)) * sample_in * mul)
+        samples_out.label.append(np_ones((1,)) * sample_in * mul)
 
 
-@hub.compute
+@hub_compute
 def fn2(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy() * mul)
         samples_out.label.append(sample_in.label.numpy() * mul)
 
 
-@hub.compute
+@hub_compute
 def fn3(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
-        samples_out.image.append(np.ones((1310, 2087)) * sample_in * mul)
-        samples_out.label.append(np.ones((13,)) * sample_in * mul)
+        samples_out.image.append(np_ones((1310, 2087)) * sample_in * mul)
+        samples_out.label.append(np_ones((13,)) * sample_in * mul)
 
 
-@hub.compute
+@hub_compute
 def fn4(sample_in, samples_out):
     samples_out.image.append(sample_in.image)
     samples_out.image.append(sample_in.image.numpy() * 2)
@@ -52,14 +63,14 @@ def fn4(sample_in, samples_out):
     samples_out.label.append(sample_in.label.numpy() * 2)
 
 
-@hub.compute
+@hub_compute
 def fn5(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.x["y"].z.image.append(sample_in.z.y.x.image.numpy() * mul)
         samples_out.x.y.z["label"].append(sample_in.z.y.x.label.numpy() * mul)
 
 
-@hub.compute
+@hub_compute
 def fn6(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.append(
@@ -70,24 +81,24 @@ def fn6(sample_in, samples_out, mul=1, copy=1):
         )
 
 
-@hub.compute
+@hub_compute
 def read_image(sample_in, samples_out):
-    samples_out.image.append(hub.read(sample_in))
+    samples_out.image.append(hub_read(sample_in))
 
 
-@hub.compute
+@hub_compute
 def crop_image(sample_in, samples_out, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
-@hub.compute
+@hub_compute
 def filter_tr(sample_in, sample_out):
     if sample_in % 2 == 0:
-        sample_out.image.append(sample_in * np.ones((100, 100)))
+        sample_out.image.append(sample_in * np_ones((100, 100)))
 
 
-@hub.compute
+@hub_compute
 def inplace_transform(sample_in, samples_out):
     samples_out.img.append(2 * sample_in.img.numpy())
     samples_out.img.append(3 * sample_in.img.numpy())
@@ -96,22 +107,22 @@ def inplace_transform(sample_in, samples_out):
 
 
 def check_target_array(ds, index, target):
-    np.testing.assert_array_equal(
-        ds.img[index].numpy(), target * np.ones((200, 200, 3))
+    np_testing.assert_array_equal(
+        ds.img[index].numpy(), target * np_ones((200, 200, 3))
     )
-    np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
+    np_testing.assert_array_equal(ds.label[index].numpy(), target * np_ones((1,)))
 
 
 @all_schedulers
 @enabled_non_gcs_datasets
 def test_single_transform_hub_dataset(ds, scheduler):
-    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    data_in = hub_dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i)))
-            data_in.label.append(i * np.ones((1,)))
+            data_in.image.append(i * np_ones((i, i)))
+            data_in.label.append(i * np_ones((1,)))
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -140,11 +151,11 @@ def test_single_transform_hub_dataset(ds, scheduler):
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
-        np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
         )
-        np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
         )
 
     assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -154,13 +165,13 @@ def test_single_transform_hub_dataset(ds, scheduler):
 
 def test_groups(local_ds):
     with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+        with hub_dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/image")
             data_in.create_tensor("data/label")
             for i in range(1, 100):
-                data_in.data.image.append(i * np.ones((i, i)))
-                data_in.data.label.append(i * np.ones((1,)))
-        data_in = hub.dataset("./test/transform_hub_in_generic")
+                data_in.data.image.append(i * np_ones((i, i)))
+                data_in.data.label.append(i * np_ones((1,)))
+        data_in = hub_dataset("./test/transform_hub_in_generic")
         ds_out = local_ds
         ds_out.create_tensor("stuff/image")
         ds_out.create_tensor("stuff/label")
@@ -173,11 +184,11 @@ def test_groups(local_ds):
         )
         assert len(ds_out) == 99
         for index in range(1, 100):
-            np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
             )
-            np.testing.assert_array_equal(
-                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
             )
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -186,13 +197,13 @@ def test_groups(local_ds):
 
 def test_groups_2(local_ds):
     with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+        with hub_dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/z/y/x/image")
             data_in.create_tensor("data/z/y/x/label")
             for i in range(1, 100):
-                data_in.data.z.y.x.image.append(i * np.ones((i, i)))
-                data_in.data.z.y.x.label.append(i * np.ones((1,)))
-        data_in = hub.dataset("./test/transform_hub_in_generic")
+                data_in.data.z.y.x.image.append(i * np_ones((i, i)))
+                data_in.data.z.y.x.label.append(i * np_ones((1,)))
+        data_in = hub_dataset("./test/transform_hub_in_generic")
         ds_out = local_ds
         ds_out.create_tensor("stuff/x/y/z/image")
         ds_out.create_tensor("stuff/x/y/z/label")
@@ -205,12 +216,12 @@ def test_groups_2(local_ds):
         )
         assert len(ds_out) == 99
         for index in range(1, 100):
-            np.testing.assert_array_equal(
+            np_testing.assert_array_equal(
                 ds_out.x.y.z.image[index - 1].numpy(),
-                2 * index * np.ones((index, index)),
+                2 * index * np_ones((index, index)),
             )
-            np.testing.assert_array_equal(
-                ds_out.x.y.z.label[index - 1].numpy(), 2 * index * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out.x.y.z.label[index - 1].numpy(), 2 * index * np_ones((1,))
             )
 
         assert ds_out.x.y.z.image.shape_interval.lower == (99, 1, 1)
@@ -220,13 +231,13 @@ def test_groups_2(local_ds):
 @parametrize_num_workers
 @all_schedulers
 def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
-    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
+    data_in = hub_dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-            data_in.label.append(i * np.ones((1,), dtype="uint32"))
+            data_in.image.append(i * np_ones((i, i), dtype="uint8"))
+            data_in.label.append(i * np_ones((1,), dtype="uint32"))
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -235,11 +246,11 @@ def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
-        np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
         )
-        np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
         )
 
     assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -253,7 +264,7 @@ def test_chain_transform_list_small(local_ds, scheduler):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = hub_compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds_out,
@@ -264,11 +275,11 @@ def test_chain_transform_list_small(local_ds, scheduler):
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+            np_testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np_ones((337, 200))
             )
-            np.testing.assert_array_equal(
-                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np_ones((1,))
             )
 
 
@@ -278,7 +289,7 @@ def test_chain_transform_list_big(local_ds, scheduler):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = hub_compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds_out,
@@ -289,11 +300,11 @@ def test_chain_transform_list_big(local_ds, scheduler):
     assert len(ds_out) == 12
     for i in range(2):
         for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((1310, 2087))
+            np_testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np_ones((1310, 2087))
             )
-            np.testing.assert_array_equal(
-                ds_out[index].label.numpy(), 15 * i * np.ones((13,))
+            np_testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np_ones((13,))
             )
 
 
@@ -304,11 +315,11 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = hub_compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     with ds_out:
         for i in range(10):
-            ds_out.image.append(i * np.ones((10, 10)))
-            ds_out.label.append(i * np.ones((1,)))
+            ds_out.image.append(i * np_ones((10, 10)))
+            ds_out.label.append(i * np_ones((1,)))
         if do_commit:
             ds_out.commit()
 
@@ -321,15 +332,15 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
     )
     assert len(ds_out) == 610
     for i in range(10):
-        np.testing.assert_array_equal(ds_out[i].image.numpy(), i * np.ones((10, 10)))
-        np.testing.assert_array_equal(ds_out[i].label.numpy(), i * np.ones((1,)))
+        np_testing.assert_array_equal(ds_out[i].image.numpy(), i * np_ones((10, 10)))
+        np_testing.assert_array_equal(ds_out[i].label.numpy(), i * np_ones((1,)))
     for i in range(100):
         for index in range(10 + 6 * i, 10 + 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+            np_testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np_ones((337, 200))
             )
-            np.testing.assert_array_equal(
-                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np_ones((1,))
             )
 
     diff = ds_out.diff(as_dict=True)
@@ -375,7 +386,7 @@ def test_transform_hub_read(local_ds, cat_path, sample_compression, scheduler):
     assert len(ds_out) == 10
     for i in range(10):
         assert ds_out.image[i].numpy().shape == (900, 900, 3)
-        np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
+        np_testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
 
 @all_schedulers
@@ -384,7 +395,7 @@ def test_transform_hub_read_pipeline(local_ds, cat_path, sample_compression, sch
     data_in = [cat_path] * 10
     ds_out = local_ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
-    pipeline = hub.compose([read_image(), crop_image(copy=2)])
+    pipeline = hub_compose([read_image(), crop_image(copy=2)])
     pipeline.eval(
         data_in,
         ds_out,
@@ -395,7 +406,7 @@ def test_transform_hub_read_pipeline(local_ds, cat_path, sample_compression, sch
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image[i].numpy().shape == (100, 100, 3)
-        np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
+        np_testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
 
 def test_hub_like(local_ds, scheduler="threaded"):
@@ -405,9 +416,9 @@ def test_hub_like(local_ds, scheduler="threaded"):
             data_in.create_tensor("image", htype="image", sample_compression="png")
             data_in.create_tensor("label", htype="class_label")
             for i in range(1, 100):
-                data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-                data_in.label.append(i * np.ones((1,), dtype="uint32"))
-        ds_out = hub.like("./transform_hub_like", data_in)
+                data_in.image.append(i * np_ones((i, i), dtype="uint8"))
+                data_in.label.append(i * np_ones((1,), dtype="uint32"))
+        ds_out = hub_like("./transform_hub_like", data_in)
         fn2(copy=1, mul=2).eval(
             data_in,
             ds_out,
@@ -417,11 +428,11 @@ def test_hub_like(local_ds, scheduler="threaded"):
         )
         assert len(ds_out) == 99
         for index in range(1, 100):
-            np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
             )
-            np.testing.assert_array_equal(
-                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
             )
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -437,8 +448,8 @@ def test_transform_empty(local_ds):
     assert len(local_ds) == 5
 
     for i in range(5):
-        np.testing.assert_array_equal(
-            local_ds[i].image.numpy(), 2 * i * np.ones((100, 100))
+        np_testing.assert_array_equal(
+            local_ds[i].image.numpy(), 2 * i * np_ones((100, 100))
         )
 
 
@@ -457,11 +468,11 @@ def test_bad_transform(memory_ds):
     ds.create_tensor("x")
     ds.create_tensor("y")
     with ds:
-        ds.x.extend(np.random.rand(10, 1))
-        ds.y.extend(np.random.rand(10, 1))
-    ds2 = hub.like("mem://dummy2", ds)
+        ds.x.extend(np_random.rand(10, 1))
+        ds.y.extend(np_random.rand(10, 1))
+    ds2 = hub_like("mem://dummy2", ds)
 
-    @hub.compute
+    @hub_compute
     def fn_filter(sample_in, sample_out):
         sample_out.y.append(sample_in.y.numpy())
         return sample_out
@@ -471,13 +482,13 @@ def test_bad_transform(memory_ds):
 
 
 def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="threaded"):
-    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
+    data_in = hub_dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-            data_in.label.append(i * np.ones((1,), dtype="uint32"))
+            data_in.image.append(i * np_ones((i, i), dtype="uint8"))
+            data_in.label.append(i * np_ones((1,), dtype="uint32"))
     ds_out = local_ds_generator()
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -505,11 +516,11 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
     def test_ds_out():
         assert len(ds_out) == 99
         for index in range(1, 100):
-            np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
             )
-            np.testing.assert_array_equal(
-                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
             )
 
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -524,13 +535,13 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
 
 def test_ds_append_in_transform(memory_ds):
     ds = memory_ds
-    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    data_in = hub_dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
         for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i)))
-            data_in.label.append(i * np.ones((1,)))
+            data_in.image.append(i * np_ones((i, i)))
+            data_in.label.append(i * np_ones((1,)))
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -540,11 +551,11 @@ def test_ds_append_in_transform(memory_ds):
     )
     assert len(ds_out) == 99
     for index in range(1, 100):
-        np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].image.numpy(), 2 * index * np_ones((index, index))
         )
-        np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+        np_testing.assert_array_equal(
+            ds_out[index - 1].label.numpy(), 2 * index * np_ones((1,))
         )
 
     assert ds_out.image.shape_interval.lower == (99, 1, 1)
@@ -553,27 +564,27 @@ def test_ds_append_in_transform(memory_ds):
 
 
 def test_transform_pass_through():
-    data_in = hub.dataset("mem://ds1")
+    data_in = hub_dataset("mem://ds1")
     data_in.create_tensor("image", htype="image", sample_compression="png")
     data_in.create_tensor("label", htype="class_label")
     for i in range(1, 100):
-        data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-        data_in.label.append(i * np.ones((1,), dtype="uint32"))
-    ds_out = hub.dataset("mem://ds2")
+        data_in.image.append(i * np_ones((i, i), dtype="uint8"))
+        data_in.label.append(i * np_ones((1,), dtype="uint32"))
+    ds_out = hub_dataset("mem://ds2")
     ds_out.create_tensor("image", htype="image", sample_compression="png")
     ds_out.create_tensor("label", htype="class_label")
     fn4().eval(data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False)
     for i in range(len(data_in)):
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             data_in[i].image.numpy(), ds_out[i * 2].image.numpy()
         )
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             data_in[i].label.numpy(), ds_out[i * 2].label.numpy()
         )
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             data_in[i].image.numpy() * 2, ds_out[i * 2 + 1].image.numpy()
         )
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             data_in[i].label.numpy() * 2, ds_out[i * 2 + 1].label.numpy()
         )
 
@@ -586,16 +597,16 @@ def test_inplace_transform(local_ds_generator):
         ds.create_tensor("label")
         for i in range(10):
             if i == 5:
-                ds.img.append(np.zeros((200, 200, 3)))
+                ds.img.append(np_zeros((200, 200, 3)))
             else:
-                ds.img.append(np.ones((200, 200, 3)))
+                ds.img.append(np_ones((200, 200, 3)))
             ds.label.append(1)
         a = ds.commit()
         assert len(ds) == 10
         for i in range(10):
             if i != 5:
                 check_target_array(ds, i, 1)
-        ds.img[5] = np.ones((200, 200, 3))
+        ds.img[5] = np_ones((200, 200, 3))
         b = ds.commit()
 
         inplace_transform().eval(
@@ -650,7 +661,7 @@ def test_inplace_transform_without_commit(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(10):
-            ds.img.append(np.ones((200, 200, 3)))
+            ds.img.append(np_ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 10
         for i in range(10):
@@ -678,14 +689,14 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(10):
-            ds.img.append(np.ones((200, 200, 3)))
+            ds.img.append(np_ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 10
         for i in range(10):
             check_target_array(ds, i, 1)
         a = ds.commit()
         for _ in range(5):
-            ds.img.append(np.ones((200, 200, 3)))
+            ds.img.append(np_ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 15
         for i in range(15):
@@ -739,8 +750,8 @@ def test_inplace_transform_clear_chunks(local_ds_generator):
         ds.create_tensor("label")
 
         for _ in range(10):
-            ds.img.append(np.ones((500, 500, 3)))
-            ds.label.append(np.ones(3))
+            ds.img.append(np_ones((500, 500, 3)))
+            ds.label.append(np_ones(3))
 
     prev_chunks = set(
         [
@@ -781,7 +792,7 @@ def test_transform_skip_ok(local_ds_generator):
         ds.create_tensor("label")
         ds.create_tensor("unused")
 
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = hub_compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds,
@@ -792,11 +803,11 @@ def test_transform_skip_ok(local_ds_generator):
     )
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            np_testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np_ones((337, 200))
             )
-            np.testing.assert_array_equal(
-                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np_ones((1,))
             )
 
     assert len(ds.unused) == 0
@@ -805,11 +816,11 @@ def test_transform_skip_ok(local_ds_generator):
     ds = local_ds_generator()
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            np_testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np_ones((337, 200))
             )
-            np.testing.assert_array_equal(
-                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            np_testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np_ones((1,))
             )
     assert len(ds.unused) == 0
 
@@ -821,9 +832,9 @@ def test_inplace_transform_skip_ok(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         ds.create_tensor("unused")
-        ds.img.extend(np.ones((10, 200, 200, 3)))
+        ds.img.extend(np_ones((10, 200, 200, 3)))
         ds.label.extend([1 for _ in range(10)])
-        ds.unused.extend(5 * np.ones((10, 10, 10)))
+        ds.unused.extend(5 * np_ones((10, 10, 10)))
         for i in range(10):
             check_target_array(ds, i, 1)
 
@@ -837,7 +848,7 @@ def test_inplace_transform_skip_ok(local_ds_generator):
         check_target_array(ds, i, target)
 
     assert len(ds.unused) == 10
-    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+    np_testing.assert_array_equal(ds.unused.numpy(), 5 * np_ones((10, 10, 10)))
 
     # test persistence
     ds = local_ds_generator()
@@ -849,4 +860,4 @@ def test_inplace_transform_skip_ok(local_ds_generator):
         check_target_array(ds, i, target)
 
     assert len(ds.unused) == 10
-    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+    np_testing.assert_array_equal(ds.unused.numpy(), 5 * np_ones((10, 10, 10)))

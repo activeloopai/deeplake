@@ -1,6 +1,7 @@
-import hub
-import numpy as np
+from numpy import ceil as np_ceil
 from typing import Any, Dict, List, Optional, Tuple
+
+import hub
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
 
@@ -60,7 +61,7 @@ class TileEncoder(Cachable):
             )
 
         layout = [
-            np.ceil(sample_shape_dim / tile_shape_dim)
+            np_ceil(sample_shape_dim / tile_shape_dim)
             for tile_shape_dim, sample_shape_dim in zip(tile_shape, sample_shape)
         ]
         return tuple(int(x) for x in layout)

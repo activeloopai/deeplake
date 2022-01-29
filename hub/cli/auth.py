@@ -1,9 +1,9 @@
-import textwrap
-
-from hub.client.config import HUB_REST_ENDPOINT
 import click
+from textwrap import dedent
+
 from humbug.report import Report
 
+from hub.client.config import HUB_REST_ENDPOINT
 from hub.client.client import HubBackendClient
 from hub.client.utils import remove_username_from_config, write_token, remove_token
 from hub.util.bugout_reporter import (
@@ -103,7 +103,7 @@ def register(username: str, email: str, password: str):
         click.echo(
             f"Successfully registered and logged in to Activeloop as {username}."
         )
-        consent_message = textwrap.dedent(
+        consent_message = dedent(
             """
             Privacy policy:
             We collect basic system information and crash reports so that we can keep

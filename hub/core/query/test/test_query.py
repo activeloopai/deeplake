@@ -1,12 +1,12 @@
 import pytest
 
-import numpy as np
-
-from hub.core.query import DatasetQuery
-from hub.util.remove_cache import get_base_storage
-from hub.core.storage import LocalProvider
-import hub
 from uuid import uuid4
+from numpy import arange as np_arange, testing as np_testing
+
+import hub
+from hub.core.query import DatasetQuery
+from hub.core.storage import LocalProvider
+from hub.util.remove_cache import get_base_storage
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -78,7 +78,7 @@ def test_different_size_ds_query(local_ds):
 def test_query_scheduler(local_ds):
     with local_ds as ds:
         ds.create_tensor("labels")
-        ds.labels.extend(np.arange(10_000))
+        ds.labels.extend(np_arange(10_000))
 
     f1 = "labels % 2 == 0"
     f2 = lambda s: s.labels.numpy() % 2 == 0
@@ -86,7 +86,7 @@ def test_query_scheduler(local_ds):
     view1 = ds.filter(f1, num_workers=2, progressbar=True)
     view2 = ds.filter(f2, num_workers=2, progressbar=True)
 
-    np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
+    np_testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
 def test_dataset_view_save():
@@ -96,7 +96,7 @@ def test_dataset_view_save():
     view.store(".tests/ds_view", overwrite=True)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
-        np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+        np_testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
 
 @pytest.mark.parametrize(
@@ -141,7 +141,7 @@ def test_inplace_dataset_view_save(
         else:
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
-        np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+        np_testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
 
 
 def test_group(local_ds):

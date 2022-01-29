@@ -1,5 +1,6 @@
 import pickle
 from typing import Dict, Optional, Set
+
 from hub.client.utils import get_user_name
 from hub.client.config import ALL_AGREEMENTS_PATH
 from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInError

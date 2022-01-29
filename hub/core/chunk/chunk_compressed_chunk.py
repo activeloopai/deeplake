@@ -1,5 +1,7 @@
-import numpy as np
+from numpy import frombuffer
 from typing import List
+
+import hub
 from hub.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -8,14 +10,12 @@ from hub.core.compression import (
 )
 from hub.core.sample import Sample  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk
-from hub.core.serialize import bytes_to_text, check_sample_shape
+from hub.core.serialize import bytes_to_text, check_sample_shape, infer_chunk_num_bytes
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
 from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
-from hub.core.serialize import infer_chunk_num_bytes
-import hub
 
 
 class ChunkCompressedChunk(BaseChunk):
@@ -139,7 +139,7 @@ class ChunkCompressedChunk(BaseChunk):
             decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
-        return np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
+        return frombuffer(decompressed, dtype=self.dtype).reshape(shape)
 
     def update_sample(self, local_index: int, new_sample: InputSample):
         self.prepare_for_write()

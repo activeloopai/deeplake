@@ -1,15 +1,16 @@
+from time import time
+from warnings import warn
 from typing import Any, Dict, Optional
-from hub.client.utils import get_user_name
+
+import hub
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
-from hub.client.client import HubBackendClient
 from hub.client.log import logger
+from hub.client.client import HubBackendClient
+from hub.client.utils import get_user_name
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
-from warnings import warn
-import time
-import hub
 
 
 class HubCloudDataset(Dataset):
@@ -103,7 +104,7 @@ class HubCloudDataset(Dataset):
         event_dict = {
             "id": event_id,
             "event_group": event_group,
-            "ts": time.time(),
+            "ts": time(),
             "hub_meta": hub_meta,
             "creator": "Hub",
         }

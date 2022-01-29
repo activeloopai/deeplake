@@ -1,3 +1,6 @@
+import pytest
+
+from hub import ingest as hub_ingest
 from hub.util.auto import ingestion_summary
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
@@ -6,15 +9,13 @@ from hub.util.exceptions import (
     SamePathException,
     TensorAlreadyExistsError,
 )
-import pytest
-import hub
 
 
 def test_ingestion_simple(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
 
     with pytest.raises(InvalidPathException):
-        hub.ingest(
+        hub_ingest(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             images_compression="auto",
@@ -24,7 +25,7 @@ def test_ingestion_simple(memory_ds: Dataset):
         )
 
     with pytest.raises(SamePathException):
-        hub.ingest(
+        hub_ingest(
             src=path,
             dest=path,
             images_compression="jpeg",
@@ -33,7 +34,7 @@ def test_ingestion_simple(memory_ds: Dataset):
             overwrite=False,
         )
 
-    ds = hub.ingest(
+    ds = hub_ingest(
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
@@ -51,7 +52,7 @@ def test_ingestion_simple(memory_ds: Dataset):
 
 def test_image_classification_sets(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
-    ds = hub.ingest(
+    ds = hub_ingest(
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
@@ -80,7 +81,7 @@ def test_image_classification_sets(memory_ds: Dataset):
 def test_ingestion_exception(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
     with pytest.raises(InvalidPathException):
-        hub.ingest(
+        hub_ingest(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             images_compression="auto",
@@ -90,7 +91,7 @@ def test_ingestion_exception(memory_ds: Dataset):
         )
 
     with pytest.raises(SamePathException):
-        hub.ingest(
+        hub_ingest(
             src=path,
             dest=path,
             images_compression="auto",
@@ -103,7 +104,7 @@ def test_ingestion_exception(memory_ds: Dataset):
 def test_overwrite(local_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
 
-    hub.ingest(
+    hub_ingest(
         src=path,
         dest=local_ds.path,
         images_compression="auto",
@@ -113,7 +114,7 @@ def test_overwrite(local_ds: Dataset):
     )
 
     with pytest.raises(TensorAlreadyExistsError):
-        hub.ingest(
+        hub_ingest(
             src=path,
             dest=local_ds.path,
             images_compression="auto",

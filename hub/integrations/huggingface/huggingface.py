@@ -1,10 +1,12 @@
-from typing import Union, Set
-from hub.core.dataset import Dataset
+from tqdm import tqdm  # type: ignore
 from datasets import Dataset as hfDataset  # type: ignore
 from datasets import ClassLabel, Sequence, DatasetDict  # type: ignore
-import posixpath
-import hub
-from tqdm import tqdm  # type: ignore
+
+from posixpath import split as posixpath_split
+from typing import Union, Set
+
+from hub import dataset as hub_dataset
+from hub.core.dataset import Dataset
 
 
 def _is_seq_convertible(seq: Union[Sequence, list]):
@@ -25,7 +27,7 @@ def _is_seq_convertible(seq: Union[Sequence, list]):
 
 
 def _create_tensor_from_feature(key, feature, src, ds):
-    curr = posixpath.split(key)[-1]
+    curr = posixpath_split(key)[-1]
     if isinstance(feature, (dict, Sequence, list)):
         if isinstance(feature, dict):
             for x in feature:
@@ -96,7 +98,7 @@ def ingest_huggingface(
         Features of the type Sequence(feature=Value(dtype='string')) are not supported. Columns of such type are skipped.
     """
     if isinstance(dest, str):
-        ds = hub.dataset(dest)
+        ds = hub_dataset(dest)
     else:
         ds = dest  # type: ignore
 

@@ -1,6 +1,7 @@
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
+from numpy import ndarray
 from typing import List, Sequence, Tuple
-import numpy as np
+
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 
 
 NUM_BYTES_COLUMN = 0
@@ -73,7 +74,7 @@ class BytePositionsEncoder(Encoder):
                 bytes_under_row = self.get_sum_of_bytes(row_index - 1)
             self._encoded[row_index, START_BYTE_COLUMN] = bytes_under_row
 
-    def _derive_value(self, row: np.ndarray, row_index: int, local_sample_index: int):
+    def _derive_value(self, row: ndarray, row_index: int, local_sample_index: int):
         index_bias = 0
         if row_index >= 1:
             index_bias = self._encoded[row_index - 1][LAST_SEEN_INDEX_COLUMN] + 1

@@ -1,14 +1,13 @@
-from threading import local
-import hub
-import glob
 import os
+from glob import glob
+from zipfile import ZipFile
+
 from hub.util.exceptions import (
     ExternalCommandError,
     KaggleMissingCredentialsError,
     KaggleDatasetAlreadyDownloadedError,
 )
 from hub.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
-from zipfile import ZipFile
 
 
 def _exec_command(command):
@@ -51,8 +50,8 @@ def download_kaggle_dataset(
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
     """
 
-    zip_files = glob.glob(os.path.join(local_path, "*.zip"))
-    subfolders = glob.glob(os.path.join(local_path, "*"))
+    zip_files = glob(os.path.join(local_path, "*.zip"))
+    subfolders = glob(os.path.join(local_path, "*"))
 
     if len(zip_files) > 0:
         # TODO: this case means file did not finish unzipping (after unzip, it should be deleted)

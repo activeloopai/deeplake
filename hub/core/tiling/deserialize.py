@@ -1,15 +1,23 @@
-import numpy as np
+from numpy import (
+    ndarray,
+    ndenumerate,
+    dtype as np_dtype,
+    multiply as np_multiply,
+    empty as np_empty,
+    reshape as np_reshape,
+)
 from typing import List, Tuple, Union, Optional
+
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.meta.encode.tile import TileEncoder
 
 
 def coalesce_tiles(
-    tiles: np.ndarray,
+    tiles: ndarray,
     tile_shape: Tuple[int, ...],
     sample_shape: Optional[Tuple[int, ...]],
-    dtype: Union[str, np.dtype],
-) -> np.ndarray:
+    dtype: Union[str, np_dtype],
+) -> ndarray:
     """Coalesce tiles into a single array of shape `sample_shape`.
     Args:
         tiles (np.ndarray): numpy object array of tiles.
@@ -29,12 +37,12 @@ def coalesce_tiles(
         )
         for i in range(ndim)
     )
-    sample = np.empty(sample_shape, dtype=dtype)
+    sample = np_empty(sample_shape, dtype=dtype)
     if tiles.size <= 0:
         return sample
 
-    for tile_coords, tile in np.ndenumerate(tiles):
-        low = np.multiply(tile_coords, tile_shape)
+    for tile_coords, tile in ndenumerate(tiles):
+        low = np_multiply(tile_coords, tile_shape)
         high = low + tile.shape
         idx = tuple(slice(l, h) for l, h in zip(low, high))
         view = sample[idx]
@@ -44,7 +52,7 @@ def coalesce_tiles(
 
 def combine_chunks(
     chunks: List[BaseChunk], sample_index: int, tile_encoder: TileEncoder
-) -> np.ndarray:
+) -> ndarray:
     dtype = chunks[0].dtype
     shape = tile_encoder.get_sample_shape(sample_index)
     tile_shape = tile_encoder.get_tile_shape(sample_index)
@@ -56,12 +64,12 @@ def combine_chunks(
 
 
 def np_list_to_sample(
-    tiled_arrays: List[np.ndarray], shape, tile_shape, layout_shape, dtype
-) -> np.ndarray:
+    tiled_arrays: List[ndarray], shape, tile_shape, layout_shape, dtype
+) -> ndarray:
     num_tiles = len(tiled_arrays)
-    tiles = np.empty((num_tiles,), dtype=object)
+    tiles = np_empty((num_tiles,), dtype=object)
     tiles[:] = tiled_arrays[:]
-    tiles = np.reshape(tiles, layout_shape)
+    tiles = np_reshape(tiles, layout_shape)
     return coalesce_tiles(tiles, tile_shape, shape, dtype)
 
 

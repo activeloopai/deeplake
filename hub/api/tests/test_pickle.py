@@ -1,7 +1,13 @@
-import numpy as np
 import pytest
-from hub.util.exceptions import MemoryDatasetCanNotBePickledError
+
 import pickle
+from numpy import (
+    uint8,
+    ones as np_ones,
+    testing as np_testing
+)
+
+from hub.util.exceptions import MemoryDatasetCanNotBePickledError
 
 
 @pytest.mark.parametrize(
@@ -20,7 +26,7 @@ def test_dataset(ds):
         ds.create_tensor("label")
         for i in range(10):
             ds.image.append(
-                i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8)
+                i * np_ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=uint8)
             )
 
         for i in range(5):
@@ -35,15 +41,15 @@ def test_dataset(ds):
     assert unpickled_ds.meta.version == ds.meta.version
 
     for i in range(10):
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             ds.image[i].numpy(),
-            (i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8)),
+            (i * np_ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=uint8)),
         )
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(
             ds.image[i].numpy(), unpickled_ds.image[i].numpy()
         )
     for i in range(5):
-        np.testing.assert_array_equal(ds.label[i].numpy(), i)
-        np.testing.assert_array_equal(
+        np_testing.assert_array_equal(ds.label[i].numpy(), i)
+        np_testing.assert_array_equal(
             ds.label[i].numpy(), unpickled_ds.label[i].numpy()
         )

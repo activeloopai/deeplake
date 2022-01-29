@@ -1,7 +1,8 @@
-import numpy as np
+from numpy import dtype as np_dtype
+from typing import Any, List, Sequence, Tuple, Optional, Union
+
 import hub
 from hub.htype import HTYPE_CONFIGURATIONS
-from typing import Any, List, Sequence, Tuple, Optional, Union
 
 
 class ExternalCommandError(Exception):
@@ -447,7 +448,7 @@ class TensorMetaInvalidHtypeOverwriteKey(MetaError):
 
 
 class TensorDtypeMismatchError(MetaError):
-    def __init__(self, expected: Union[np.dtype, str], actual: str, htype: str):
+    def __init__(self, expected: Union[np_dtype, str], actual: str, htype: str):
         msg = f"Dtype was expected to be '{expected}' instead it was '{actual}'. If you called `create_tensor` explicitly with `dtype`, your samples should also be of that dtype."
 
         # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)

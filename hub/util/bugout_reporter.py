@@ -1,13 +1,14 @@
-import json
 import os
+import json
+from uuid import uuid4
 from pathlib import Path
 from typing import Any, Dict, Optional
-import uuid
+
+from humbug.consent import HumbugConsent
+from humbug.report import HumbugReporter
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
 from hub.util.bugout_token import BUGOUT_TOKEN
-from humbug.consent import HumbugConsent
-from humbug.report import HumbugReporter
 
 
 def save_reporting_config(
@@ -42,7 +43,7 @@ def save_reporting_config(
         reporting_config["client_id"] = client_id
 
     if reporting_config.get("client_id") is None:
-        reporting_config["client_id"] = str(uuid.uuid4())
+        reporting_config["client_id"] = str(uuid4())
 
     if username is not None:
         reporting_config["username"] = username
@@ -63,7 +64,7 @@ def get_reporting_config() -> Dict[str, Any]:
     reporting_config: Dict[str, Any] = {"consent": False}
     try:
         if not os.path.exists(REPORTING_CONFIG_FILE_PATH):
-            client_id = str(uuid.uuid4())
+            client_id = str(uuid4())
             reporting_config["client_id"] = client_id
             reporting_config = save_reporting_config(True, client_id)
         else:
@@ -82,7 +83,7 @@ def consent_from_reporting_config_file() -> bool:
     return reporting_config.get("consent", False)
 
 
-session_id = str(uuid.uuid4())
+session_id = str(uuid4())
 client_id = get_reporting_config().get("client_id")
 
 consent = HumbugConsent(consent_from_reporting_config_file)

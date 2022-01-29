@@ -1,27 +1,30 @@
-import hub
-import time
-import uuid
-import struct
 import atexit
 import threading
-
+from time import time, sleep
+from uuid import getnode
+from struct import pack as struct_pack, unpack as struct_unpack
 from typing import Tuple, Dict, Callable, Optional
+
+from hub.constants import (
+    FIRST_COMMIT_ID,
+    DATASET_LOCK_VALIDITY,
+    DATASET_LOCK_UPDATE_INTERVAL,
+)
+from hub.core.storage import StorageProvider
 from hub.util.exceptions import LockedException
 from hub.util.keys import get_dataset_lock_key
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
-from hub.core.storage import StorageProvider
-from hub.constants import FIRST_COMMIT_ID
 
 
 def _get_lock_bytes() -> bytes:
-    return uuid.getnode().to_bytes(6, "little") + struct.pack("d", time.time())
+    return getnode().to_bytes(6, "little") + struct_pack("d", time())
 
 
 def _parse_lock_bytes(byts) -> Tuple[int, float]:
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
-    timestamp = struct.unpack("d", byts[6:])[0]
+    timestamp = struct_unpack("d", byts[6:])[0]
     return nodeid, timestamp
 
 
@@ -35,17 +38,17 @@ class Lock(object):
             self.storage[self.path] = _get_lock_bytes()
             return
         nodeid, timestamp = _parse_lock_bytes(self.storage[self.path])
-        if nodeid == uuid.getnode():
+        if nodeid == getnode():
             self.storage[self.path] = _get_lock_bytes()
             return
         while self.path in self.storage:
-            if time.time() - timestamp >= timeout:
+            if time() - timestamp >= timeout:
                 if force:
                     self.storage[self.path] = _get_lock_bytes()
                     return
                 else:
                     raise LockedException()
-            time.sleep(1)
+            sleep(1)
 
     def release(self):
         try:
@@ -97,23 +100,23 @@ class PersistentLock(Lock):
                 try:
                     if (
                         self._previous_update_timestamp is not None
-                        and time.time() - self._previous_update_timestamp
-                        >= hub.constants.DATASET_LOCK_VALIDITY
+                        and time() - self._previous_update_timestamp
+                        >= DATASET_LOCK_VALIDITY
                     ):
                         # Its been too long since last update, another machine might have locked the storage
                         lock_bytes = self.storage.get(self.path)
                         if lock_bytes:
                             nodeid, timestamp = _parse_lock_bytes(lock_bytes)
-                            if nodeid != uuid.getnode():
+                            if nodeid != getnode():
                                 if self.callback:
                                     self.callback()
                                 self.acquired = False
                                 return
-                    self._previous_update_timestamp = time.time()
+                    self._previous_update_timestamp = time()
                     self.storage[self.path] = _get_lock_bytes()
                 except Exception:
                     pass
-                time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
+                sleep(DATASET_LOCK_UPDATE_INTERVAL)
         except Exception:  # Thread termination
             return
 
@@ -129,10 +132,10 @@ class PersistentLock(Lock):
             except Exception:  # parse error from corrupt lock file, ignore
                 pass
             if nodeid:
-                if nodeid == uuid.getnode():
+                if nodeid == getnode():
                     # Lock left by this machine from a previous run, ignore
                     pass
-                elif time.time() - timestamp < hub.constants.DATASET_LOCK_VALIDITY:
+                elif time() - timestamp < DATASET_LOCK_VALIDITY:
                     raise LockedException()
 
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)

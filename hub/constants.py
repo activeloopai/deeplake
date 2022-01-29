@@ -1,5 +1,5 @@
-import os
-import numpy as np
+from os import getenv as os_getenv
+from numpy import uint32
 
 
 BYTE_PADDING = b"\0"
@@ -59,7 +59,7 @@ ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
 
 AGREEMENT_FILENAME = "agreement.txt"
 
-ENCODING_DTYPE = np.uint32
+ENCODING_DTYPE = uint32
 # caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
 UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
 
@@ -71,8 +71,8 @@ ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
 ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
 
-HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)
-HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
+HUB_CLOUD_DEV_USERNAME = os_getenv(ENV_HUB_DEV_USERNAME)
+HUB_CLOUD_DEV_PASSWORD = os_getenv(ENV_HUB_DEV_PASSWORD)
 
 # dataset base roots for pytests
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"

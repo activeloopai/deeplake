@@ -1,5 +1,6 @@
 import pytest
-import hub
+
+from hub import dataset as hub_dataset
 
 
 enabled_datasets = pytest.mark.parametrize(
@@ -32,7 +33,7 @@ enabled_cloud_dataset_generators = pytest.mark.parametrize(
 
 @pytest.fixture
 def memory_ds(memory_path):
-    return hub.dataset(memory_path)
+    return hub_dataset(memory_path)
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ def local_ds(local_ds_generator):
 @pytest.fixture
 def local_ds_generator(local_path):
     def generate_local_ds(**kwargs):
-        return hub.dataset(local_path, **kwargs)
+        return hub_dataset(local_path, **kwargs)
 
     return generate_local_ds
 
@@ -56,7 +57,7 @@ def s3_ds(s3_ds_generator):
 @pytest.fixture
 def s3_ds_generator(s3_path):
     def generate_s3_ds(**kwargs):
-        return hub.dataset(s3_path, **kwargs)
+        return hub_dataset(s3_path, **kwargs)
 
     return generate_s3_ds
 
@@ -69,7 +70,7 @@ def gcs_ds(gcs_ds_generator):
 @pytest.fixture
 def gcs_ds_generator(gcs_path, gcs_creds):
     def generate_gcs_ds(**kwargs):
-        return hub.dataset(gcs_path, creds=gcs_creds, **kwargs)
+        return hub_dataset(gcs_path, creds=gcs_creds, **kwargs)
 
     return generate_gcs_ds
 
@@ -82,7 +83,7 @@ def hub_cloud_ds(hub_cloud_ds_generator):
 @pytest.fixture
 def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
     def generate_hub_cloud_ds(**kwargs):
-        return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token, **kwargs)
+        return hub_dataset(hub_cloud_path, token=hub_cloud_dev_token, **kwargs)
 
     return generate_hub_cloud_ds
 
