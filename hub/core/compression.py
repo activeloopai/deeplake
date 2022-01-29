@@ -430,7 +430,7 @@ def verify_compressed_file(
             return _read_audio_shape(file, compression), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
             if isinstance(file, (bytes, memoryview, str)):
-                return _read_video_shape(file, compression), "|u1"
+                return _read_video_shape(file, compression), "|u1"  # type: ignore
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -624,7 +624,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError(compression)
         elif compression in ("mp4", "mkv", "avi"):
             try:
-                shape, typestr = _read_video_shape(file, compression), "|u1"
+                shape, typestr = _read_video_shape(file, compression), "|u1"  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression)
         else:
@@ -876,16 +876,16 @@ def _strip_hub_mp4_header(buffer: bytes):
 def _decompress_video_pipes(
     file: Union[bytes, memoryview, str],
     compression: Optional[str],
-    start_frame: Optional[int] = 0,
-    end_frame: Optional[int] = -1,
+    start_frame: int = 0,
+    end_frame: int = -1,
 ) -> np.ndarray:
 
     shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)
     if end_frame == -1:
-        end_frame = shape[0]
+        end_frame = shape[0]  # type: ignore
     n_frames = end_frame - start_frame
     assert n_frames >= 0
-    shape = (n_frames, *shape[1:])
+    shape = (n_frames, *shape[1:])  # type: ignore
     start_time = start_frame / fps
     command = [
         ffmpeg_binary(),
@@ -927,7 +927,7 @@ def _decompress_video_pipes(
 
 def _read_video_shape_pipes(
     file: Union[bytes, memoryview, str], compression: Optional[str], get_rate=False
-) -> Tuple[int, ...]:
+) -> Union[Tuple[int, ...], Tuple[Tuple[int, ...], int]]:
     info = _get_video_info_pipes(file, compression)
     if info["duration"] is None:
         nframes = -1
@@ -1017,5 +1017,5 @@ if os.name == "nt":
     _read_video_shape = _read_video_shape_pipes
     _decompress_video = _decompress_video_pipes
 else:
-    _read_video_shape = _read_video_shape_cffi
+    _read_video_shape = _read_video_shape_cffi  # type: ignore
     _decompress_video = _decompress_video_cffi  # type: ignore
