@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Tuple
 from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample  # type: ignore
 from hub.core.serialize import (
@@ -44,7 +44,13 @@ class SampleCompressedChunk(BaseChunk):
                     break
         return num_samples
 
-    def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
+    def read_sample(
+        self,
+        local_index: int,
+        cast: bool = True,
+        copy: bool = False,
+        full_idx: Optional[Tuple] = None,
+    ):
         buffer = self.memoryview_data
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
@@ -55,7 +61,23 @@ class SampleCompressedChunk(BaseChunk):
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
 
-        sample = decompress_array(buffer, shape, self.dtype, self.compression)
+        if full_idx:
+            if isinstance(full_idx[0], int):
+                start = full_idx[0]
+                end = start + 1
+            else:
+                start = full_idx[0].start
+                end = full_idx[0].stop
+            sample = decompress_array(
+                buffer,
+                shape,
+                self.dtype,
+                self.compression,
+                start_idx=start,
+                end_idx=end,
+            )
+        else:
+            sample = decompress_array(buffer, shape, self.dtype, self.compression)
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
         return sample

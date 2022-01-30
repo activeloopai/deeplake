@@ -280,6 +280,8 @@ def decompress_array(
     shape: Optional[Tuple[int, ...]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
+    start_idx: int = 0,
+    end_idx: int = -1,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -313,7 +315,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, compression)
+        return _decompress_video(buffer, compression, start_idx, end_idx)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -785,8 +787,9 @@ def _decompress_video_cffi(file, compression, start_frame=0, end_frame=-1):
 
     shape = _read_video_shape_cffi(file, compression)
 
-    if end_frame == -1:
-        end_frame = shape[0]
+    start_frame, end_frame = map(
+        lambda x: shape[0] + x + 1 if x < 0 else x, (start_frame, end_frame)
+    )
 
     n_frames = end_frame - start_frame
 

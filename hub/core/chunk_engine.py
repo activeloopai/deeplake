@@ -42,6 +42,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
     ReadOnlyModeError,
 )
+from hub.compression import VIDEO_COMPRESSIONS
 
 
 class ChunkEngine:
@@ -772,9 +773,15 @@ class ChunkEngine:
                     local_sample_index = enc.translate_index_relative_to_chunks(
                         global_sample_index
                     )
-                    sample = chunk.read_sample(local_sample_index)[
-                        tuple(entry.value for entry in index.values[1:])
-                    ]
+                    if self.compression in VIDEO_COMPRESSIONS:
+                        sample = chunk.read_sample(
+                            local_sample_index,
+                            full_idx=tuple(entry.value for entry in index.values[1:2]),
+                        )[tuple(entry.value for entry in index.values[2:])]
+                    else:
+                        sample = chunk.read_sample(local_sample_index)[
+                            tuple(entry.value for entry in index.values[1:])
+                        ]
                 elif len(index.values) == 1:
                     # Tiled sample, all chunks required
                     chunks = self.get_chunks_for_sample(global_sample_index)
