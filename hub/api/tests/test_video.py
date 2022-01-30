@@ -15,13 +15,12 @@ else:
     _USE_CFFI = True
 
 
-@enabled_datasets
 @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
-def test_video(ds: Dataset, compression, video_paths):
+def test_video(local_ds, compression, video_paths):
     for i, path in enumerate(video_paths[compression]):
         if "big_buck_bunny" in path:
             continue
-        tensor = ds.create_tensor(
+        tensor = local_ds.create_tensor(
             f"video_{i}", htype="video", sample_compression=compression
         )
         sample = hub.read(path)
@@ -40,7 +39,7 @@ def test_video(ds: Dataset, compression, video_paths):
                 else:
                     assert sample.shape == (900, 270, 480, 3)
         assert sample.shape[-1] == 3
-        with ds:
+        with local_ds:
             for _ in range(5):
                 tensor.append(hub.read(path))  # type: ignore
             tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
@@ -48,30 +47,31 @@ def test_video(ds: Dataset, compression, video_paths):
             assert tensor[i].numpy().shape == sample.shape  # type: ignore
 
 
-@enabled_datasets
-def test_video_slicing(ds: Dataset, video_paths):
+def test_video_slicing(local_ds: Dataset, video_paths):
     for path in video_paths["mp4"]:
         if "big_buck_bunny" in path:
             raw_video = _decompress_video_pipes(path, "mp4")
             assert raw_video.shape == (132, 720, 1280, 3)
 
-            ds.create_tensor("video", htype="video", sample_compression="mp4")
-            ds.video.append(hub.read(path))
+            local_ds.create_tensor("video", htype="video", sample_compression="mp4")
+            local_ds.video.append(hub.read(path))
 
-            np.testing.assert_array_equal(ds.video[0][0:5], raw_video[0:5])
+            np.testing.assert_array_equal(local_ds.video[0][0:5], raw_video[0:5])
             np.testing.assert_array_equal(
-                ds.video[0][100:120].numpy(), raw_video[100:120]
-            )
-            np.testing.assert_array_equal(ds.video[0][120].numpy(), raw_video[120])
-            np.testing.assert_array_equal(
-                ds.video[0][10:5:-1].numpy(), raw_video[10:5:-1]
+                local_ds.video[0][100:120].numpy(), raw_video[100:120]
             )
             np.testing.assert_array_equal(
-                ds.video[0][-3:-10:-1].numpy(), raw_video[-3:-10:-1]
+                local_ds.video[0][120].numpy(), raw_video[120]
             )
             np.testing.assert_array_equal(
-                ds.video[0][-25:100:-1].numpy(), raw_video[-25:100:-1]
+                local_ds.video[0][10:5:-1].numpy(), raw_video[10:5:-1]
             )
             np.testing.assert_array_equal(
-                ds.video[0][100:-25:-1].numpy(), raw_video[100:-25:-1]
+                local_ds.video[0][-3:-10:-1].numpy(), raw_video[-3:-10:-1]
+            )
+            np.testing.assert_array_equal(
+                local_ds.video[0][-25:100:-1].numpy(), raw_video[-25:100:-1]
+            )
+            np.testing.assert_array_equal(
+                local_ds.video[0][100:-25:-1].numpy(), raw_video[100:-25:-1]
             )
