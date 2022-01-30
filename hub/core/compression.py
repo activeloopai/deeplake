@@ -280,8 +280,9 @@ def decompress_array(
     shape: Optional[Tuple[int, ...]] = None,
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
-    start_idx: int = 0,
-    end_idx: int = -1,
+    start_idx: Optional[int] = None,
+    end_idx: Optional[int] = None,
+    reverse: bool = False,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -295,6 +296,9 @@ def decompress_array(
         shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
         compression (str, Optional): Applicable only for byte compressions. Compression used to compression the given buffer.
+        start_idx: (int, Optional): Applicable only for video compressions. Index of first frame.
+        end_idx: (int, Optional): Applicable only for video compressions. Index of last frame (exclusive).
+        reverse (bool): Applicable only for video compressions. Reverses output numpy array if set to True.
 
     Raises:
         SampleDecompressionError: If decompression fails.
@@ -315,7 +319,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, compression, start_idx, end_idx)
+        return _decompress_video(buffer, compression, start_idx, end_idx, reverse)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -775,7 +779,13 @@ def _read_audio_shape(
     return (info.num_frames, info.nchannels)
 
 
-def _decompress_video_cffi(file, compression, start_frame=0, end_frame=-1):
+def _decompress_video_cffi(
+    file,
+    compression,
+    start_frame: Optional[int] = None,
+    end_frame: Optional[int] = None,
+    reverse: bool = False,
+):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
@@ -786,14 +796,13 @@ def _decompress_video_cffi(file, compression, start_frame=0, end_frame=-1):
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
     shape = _read_video_shape_cffi(file, compression)
-
-    start_frame, end_frame = map(
-        lambda x: shape[0] + x + 1 if x < 0 else x, (start_frame, end_frame)
+    n_frames = shape[0]
+    start_frame, end_frame = _norm_video_frame_indices(
+        start_frame, end_frame, reverse, n_frames
     )
-
     n_frames = end_frame - start_frame
-
-    assert n_frames >= 0
+    if n_frames <= 0:
+        return np.zeros((0,) + shape[1:], dtype=np.uint8)
 
     shape = (n_frames, *shape[1:])
 
@@ -810,6 +819,9 @@ def _decompress_video_cffi(file, compression, start_frame=0, end_frame=-1):
         )
 
     video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
+
+    if reverse:
+        video = video[::-1]
     return video
 
 
@@ -876,18 +888,37 @@ def _strip_hub_mp4_header(buffer: bytes):
     return buffer
 
 
+def _norm_video_frame_indices(
+    start_frame: Optional[int], end_frame: Optional[int], reverse: bool, n_frames: int
+) -> Tuple[int, int]:
+    if start_frame is None:
+        start_frame = 0
+    elif start_frame < 0:
+        start_frame += n_frames
+    if end_frame is None:
+        end_frame = n_frames
+    elif end_frame < 0:
+        end_frame += n_frames
+    if reverse:
+        start_frame, end_frame = end_frame + 1, start_frame + 1
+    return start_frame, end_frame
+
+
 def _decompress_video_pipes(
     file: Union[bytes, memoryview, str],
     compression: Optional[str],
-    start_frame: int = 0,
-    end_frame: int = -1,
+    start_frame: Optional[int] = None,
+    end_frame: Optional[int] = None,
+    reverse: bool = False,
 ) -> np.ndarray:
-
-    shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)
-    if end_frame == -1:
-        end_frame = shape[0]  # type: ignore
+    shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)  # type: ignore
+    n_frames = shape[0]  # type: ignore
+    start_frame, end_frame = _norm_video_frame_indices(
+        start_frame, end_frame, reverse, n_frames
+    )
     n_frames = end_frame - start_frame
-    assert n_frames >= 0
+    if n_frames <= 0:
+        return np.zeros((0,) + shape[1:], dtype=np.uint8)  # type: ignore
     shape = (n_frames, *shape[1:])  # type: ignore
     start_time = start_frame / fps
     command = [
@@ -919,13 +950,14 @@ def _decompress_video_pipes(
     nbytes = len(raw_video)
     size = np.prod(shape)
     if nbytes >= size:  # size is computed from fps and duration, might not be accurate.
-        return np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(
-            shape
-        )
+        ret = np.frombuffer(memoryview(raw_video)[:size], dtype=np.uint8).reshape(shape)
     else:  # If size was overestimated, append blank frames to the end.
         arr = np.zeros(shape, dtype=np.uint8)
         arr.reshape(-1)[: len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
-        return arr
+        ret = arr
+    if reverse:
+        ret = ret[::-1]
+    return ret
 
 
 def _read_video_shape_pipes(

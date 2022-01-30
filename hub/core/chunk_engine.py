@@ -776,7 +776,9 @@ class ChunkEngine:
                     if self.compression in VIDEO_COMPRESSIONS:
                         sample = chunk.read_sample(
                             local_sample_index,
-                            full_idx=tuple(entry.value for entry in index.values[1:2]),
+                            sub_index=index.values[1].value  # type: ignore
+                            if len(index.values) > 1
+                            else None,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
                         sample = chunk.read_sample(local_sample_index)[
