@@ -73,7 +73,7 @@ class SampleCompressedChunk(BaseChunk):
                 end = sub_index.stop
                 step = sub_index.step
                 squeeze = False
-                reverse = step and step < 0
+                reverse = step is not None and step < 0
             sample = decompress_array(
                 buffer,
                 shape,
