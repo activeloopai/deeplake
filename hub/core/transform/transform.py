@@ -5,6 +5,7 @@ from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
+from hub.util.dataset import try_flushing
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
     check_lengths,
@@ -14,10 +15,10 @@ from hub.util.transform import (
     delete_overwritten_chunks,
     get_lengths_generated,
     get_pbar_description,
+    sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
 )
-from hub.util.cachable import reset_cachables
 from hub.util.encoder import merge_all_meta_info
 from hub.util.exceptions import (
     HubComposeEmptyListError,
@@ -112,40 +113,36 @@ class Pipeline:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
         """
-        if num_workers <= 0:
-            scheduler = "serial"
-        num_workers = max(num_workers, 1)
-        original_data_in = data_in
-        if isinstance(data_in, hub.Dataset):
-            data_in = get_dataset_with_zero_size_cache(data_in)
-
+        num_workers, scheduler = sanitize_workers_scheduler(num_workers, scheduler)
+        overwrite = ds_out is None
         hub_reporter.feature_report(
             feature_name="eval",
             parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
         )
-
         check_transform_data_in(data_in, scheduler)
-        target_ds = data_in if ds_out is None else ds_out
+
+        if isinstance(data_in, hub.Dataset):
+            try_flushing(data_in)
+            if overwrite:
+                auto_checkout(data_in)
+            original_data_in = data_in
+            data_in = get_dataset_with_zero_size_cache(data_in)
+
+        target_ds = data_in if overwrite else ds_out
         check_transform_ds_out(target_ds, scheduler)
+
+        # if overwrite then we've already flushed and autocheckecked out data_in which is target_ds now
+        if not overwrite:
+            target_ds.flush()
+            auto_checkout(target_ds)
+
+        compute_provider = get_compute_provider(scheduler, num_workers)
+        compute_id = str(uuid4().hex)
+        target_ds._send_compute_progress(compute_id=compute_id, start=True, progress=0)
 
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
-
-        # if it is None, then we've already flushed data_in which is target_ds now
-        if ds_out is not None:
-            target_ds.flush()
-
-        # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(target_ds)
-
-        overwrite = ds_out is None
-        if overwrite:
-            original_data_in.clear_cache()
-
-        compute_provider = get_compute_provider(scheduler, num_workers)
-
-        compute_id = str(uuid4().hex)
-        target_ds._send_compute_progress(compute_id=compute_id, start=True, progress=0)
+        progress_end_args = {"compute_id": compute_id, "progress": 100, "end": True}
         try:
             self.run(
                 data_in,
@@ -156,17 +153,18 @@ class Pipeline:
                 overwrite,
                 skip_ok,
             )
-            target_ds._send_compute_progress(
-                compute_id=compute_id, end=True, progress=100, status="success"
-            )
+            target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
-            target_ds._send_compute_progress(
-                compute_id=compute_id, end=True, progress=100, status="failed"
-            )
+            target_ds._send_compute_progress(**progress_end_args, status="failed")
             raise TransformError(e)
         finally:
             compute_provider.close()
-            target_ds.storage.autoflush = initial_autoflush
+            if overwrite:
+                original_data_in.storage.clear_cache_without_flush()
+                load_meta(original_data_in)
+            else:
+                load_meta(target_ds)
+                target_ds.storage.autoflush = initial_autoflush
 
     def run(
         self,
@@ -183,7 +181,8 @@ class Pipeline:
         """
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
-        tensors = list(target_ds.tensors.keys())
+        tensors = list(target_ds.tensors)
+        tensors = [target_ds.tensors[t].key for t in tensors]
         group_index = target_ds.group_index
         version_state = target_ds.version_state
         args = (storage, group_index, tensors, self, version_state, skip_ok)
@@ -231,7 +230,6 @@ class Pipeline:
             all_chunk_id_encoders,
             all_chunk_commit_sets,
         )
-        load_meta(target_ds)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401

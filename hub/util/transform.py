@@ -370,3 +370,10 @@ def check_lengths(all_tensors_generated_length, skip_ok):
                 "Length of all tensors generated is not the same, this may lead to unexpected behavior."
             )
             break
+
+
+def sanitize_workers_scheduler(num_workers, scheduler):
+    if num_workers <= 0:
+        scheduler = "serial"
+    num_workers = max(num_workers, 1)
+    return num_workers, scheduler
