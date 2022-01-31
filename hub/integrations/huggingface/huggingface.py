@@ -60,7 +60,7 @@ def _create_tensor_from_feature(key, feature, src, ds):
     return True
 
 
-def from_huggingface(
+def ingest_huggingface(
     src: Union[hfDataset, DatasetDict],
     dest: Union[Dataset, str],
     use_progressbar: bool = True,

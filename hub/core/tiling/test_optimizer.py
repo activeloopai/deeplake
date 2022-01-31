@@ -44,7 +44,7 @@ def test_tile_shape_compressed(compression, compressed_image_paths):
 
 @pytest.mark.parametrize("compression", ["jpeg", "png"])
 def test_tile_shape_large_compressed(compression):
-    arr = np.random.randint(0, 256, (10000, 10000, 3), dtype=np.uint8)
+    arr = np.random.randint(0, 256, (1000, 1000, 3), dtype=np.uint8)
     bio = io.BytesIO()
     Image.fromarray(arr).save(bio, compression)
     bio.seek(0)

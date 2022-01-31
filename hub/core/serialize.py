@@ -1,4 +1,9 @@
-from hub.compression import BYTE_COMPRESSION, get_compression_type
+from hub.compression import (
+    BYTE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    AUDIO_COMPRESSION,
+    get_compression_type,
+)
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
@@ -350,7 +355,11 @@ def serialize_sample_object(
 
         compressed_bytes = out.compressed_bytes(sample_compression)
 
-        if len(compressed_bytes) > min_chunk_size and break_into_tiles:
+        if (
+            compression_type not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION)
+            and len(compressed_bytes) > min_chunk_size
+            and break_into_tiles
+        ):
             out = SampleTiles(
                 out.array, tile_compression, min_chunk_size, store_tiles, htype
             )
