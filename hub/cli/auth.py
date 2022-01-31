@@ -38,7 +38,6 @@ def login(username: str, password: str):
         try:
             client = HubBackendClient()
             token = client.request_auth_token(username, password)
-            print("000", token)
             write_token(token)
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
