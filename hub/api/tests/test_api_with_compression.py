@@ -33,9 +33,8 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
         )
 
 
-@enabled_datasets
-def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(
+def test_populate_compressed_samples(local_ds, cat_path, flower_path):
+    images = local_ds.create_tensor(
         TENSOR_KEY, htype="image", sample_compression="png", max_chunk_size=2 * MB
     )
 
@@ -65,9 +64,8 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.shape_interval.upper == (6, 900, 900, 4)
 
 
-@enabled_datasets
-def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
+def test_iterate_compressed_samples(local_ds, cat_path, flower_path):
+    images = local_ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
@@ -94,13 +92,12 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
         assert x.dtype == "uint8"
 
 
-@enabled_datasets
-def test_uncompressed(ds: Dataset):
-    images = ds.create_tensor(TENSOR_KEY, sample_compression=None)
+def test_uncompressed(local_ds):
+    images = local_ds.create_tensor(TENSOR_KEY, sample_compression=None)
 
     images.append(np.ones((100, 100, 100)))
     images.extend(np.ones((3, 101, 2, 1)))
-    ds.clear_cache()
+    local_ds.clear_cache()
     np.testing.assert_array_equal(images[0].numpy(), np.ones((100, 100, 100)))
     np.testing.assert_array_equal(images[1:4].numpy(), np.ones((3, 101, 2, 1)))
 
@@ -223,9 +220,8 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
         np.testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
 
 
-@enabled_datasets
 @pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
-def test_audio(ds: Dataset, compression, audio_paths):
+def test_audio(local_ds, compression, audio_paths):
     path = audio_paths[compression]
     if path.endswith(".mp3"):
         audio = mp3_read_file_f32(path)
@@ -236,9 +232,9 @@ def test_audio(ds: Dataset, compression, audio_paths):
     arr = np.frombuffer(audio.samples, dtype=np.float32).reshape(
         audio.num_frames, audio.nchannels
     )
-    ds.create_tensor("audio", htype="audio", sample_compression=compression)
-    with ds:
+    local_ds.create_tensor("audio", htype="audio", sample_compression=compression)
+    with local_ds:
         for _ in range(10):
-            ds.audio.append(hub.read(path))  # type: ignore
+            local_ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
-        np.testing.assert_array_equal(ds.audio[i].numpy(), arr)  # type: ignore
+        np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore

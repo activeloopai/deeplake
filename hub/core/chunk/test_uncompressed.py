@@ -11,8 +11,8 @@ from hub.core.tiling.sample_tiles import SampleTiles
 
 
 common_args = {
-    "min_chunk_size": 16 * MB,
-    "max_chunk_size": 32 * MB,
+    "min_chunk_size": 1 * MB,
+    "max_chunk_size": 2 * MB,
     "compression": None,
 }
 
@@ -31,7 +31,7 @@ def test_read_write_sequence():
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
     dtype = tensor_meta.dtype
-    data_in = [np.random.rand(500, 500).astype(dtype) for _ in range(10)]
+    data_in = [np.random.rand(125, 125).astype(dtype) for _ in range(10)]
     while data_in:
         chunk = UncompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
@@ -47,11 +47,11 @@ def test_read_write_sequence_big(cat_path):
     data_in = []
     for i in range(50):
         if i % 10 == 0:
-            data_in.append(np.random.rand(3001, 3000, 3).astype(dtype))
+            data_in.append(np.random.rand(751, 750, 3).astype(dtype))
         elif i % 3 == 0:
             data_in.append(hub.read(cat_path))
         else:
-            data_in.append(np.random.rand(500, 500, 3).astype(dtype))
+            data_in.append(np.random.rand(125, 125, 3).astype(dtype))
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
@@ -89,7 +89,7 @@ def test_read_write_numpy():
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
     dtype = tensor_meta.dtype
-    data_in = np.random.rand(10, 500, 500).astype(dtype)
+    data_in = np.random.rand(10, 125, 125).astype(dtype)
     while len(data_in) > 0:
         chunk = UncompressedChunk(**common_args)
         num_samples = int(chunk.extend_if_has_space(data_in))
@@ -103,7 +103,7 @@ def test_read_write_numpy_big():
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
     dtype = tensor_meta.dtype
-    data_in = np.random.rand(2, 3000, 3000, 3).astype(dtype)
+    data_in = np.random.rand(2, 750, 750, 3).astype(dtype)
     prev_num_samples = None
     with pytest.raises(ValueError):
         while len(data_in) > 0:
@@ -124,15 +124,15 @@ def test_update():
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
     dtype = tensor_meta.dtype
-    data_in = np.random.rand(7, 500, 500).astype(dtype)
+    data_in = np.random.rand(7, 125, 125).astype(dtype)
     chunk = UncompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
 
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.rand(700, 700).astype(dtype)
-    data_5 = np.random.rand(3000, 3000).astype(dtype)
+    data_3 = np.random.rand(175, 175).astype(dtype)
+    data_5 = np.random.rand(375, 375).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)
