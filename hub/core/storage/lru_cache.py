@@ -11,7 +11,6 @@ def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
     return len(obj)
 
 
-# TODO use lock for multiprocessing
 class LRUCache(StorageProvider):
     """LRU Cache that uses StorageProvider for caching"""
 
@@ -42,6 +41,7 @@ class LRUCache(StorageProvider):
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
+        self.dataset = None
 
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
@@ -62,6 +62,9 @@ class LRUCache(StorageProvider):
                 self._forward(key)
             if self.next_storage is not None:
                 self.next_storage.flush()
+
+        if self.dataset is not None:
+            self.dataset.flush_dirty_items()
 
     def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,

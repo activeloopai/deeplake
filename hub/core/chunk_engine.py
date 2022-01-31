@@ -1,7 +1,6 @@
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
-from hub.api.info import Info
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
@@ -131,9 +130,6 @@ class ChunkEngine:
 
         self._commit_diff: Optional[CommitDiff] = None
         self._commit_diff_commit_id: Optional[str] = None
-
-        self._info: Optional[Info] = None
-        self._info_commit_id: Optional[str] = None
 
         tensor_meta = self.tensor_meta
 
@@ -952,3 +948,53 @@ class ChunkEngine:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 del self.cache[chunk_key]
         self.tensor_meta._pop()
+
+    def flush_dirty_items(self):
+        storage = self.storage
+        commit_id = self.commit_id
+        tensor = self.key
+        
+        # flush chunk_id_encoder
+        chunk_id_encoder = self.chunk_id_encoder
+        if chunk_id_encoder.is_dirty:
+            key = get_chunk_id_encoder_key(tensor, commit_id)
+            storage[key] = chunk_id_encoder
+            chunk_id_encoder.is_dirty = False
+
+        # flush tile_encoder
+        tile_encoder = self.tile_encoder
+        if tile_encoder.is_dirty:
+            key = get_tensor_tile_encoder_key(tensor, commit_id)
+            storage[key] = tile_encoder
+            tile_encoder.is_dirty = False
+
+        # flush tensor_meta
+        tensor_meta = self.tensor_meta
+        if tensor_meta.is_dirty:
+            key = get_tensor_meta_key(tensor, commit_id)
+            storage[key] = tensor_meta
+            tensor_meta.is_dirty = False
+
+        # flush commit_diff
+        commit_diff = self.commit_diff
+        if commit_diff.is_dirty:
+            key = get_tensor_commit_diff_key(tensor, commit_id)
+            storage[key] = commit_diff
+            commit_diff.is_dirty = False
+
+        # flush commit_chunk_set
+        commit_chunk_set = self.commit_chunk_set
+        if commit_chunk_set.is_dirty:
+            key = get_tensor_commit_chunk_set_key(tensor, commit_id)
+            storage[key] = commit_chunk_set
+            commit_chunk_set.is_dirty = False
+
+        # flush last appended chunk
+        last_chunk = self.last_chunk()
+        if last_chunk.is_dirty:
+            key = last_chunk.key
+            storage[key] = last_chunk
+            last_chunk.is_dirty = False
+
+        # flush last updated chunk
+        # TODO

@@ -1316,3 +1316,25 @@ class Dataset:
                                 "Error while attepting to rollback appends"
                             ) from e2
                     raise e
+
+    def flush_dirty_items(self):
+        """Flushes all dirty items to disk"""
+        storage = self.storage.next_storage
+        commit_id = self.version_state["commit_id"]
+
+        # flush dataset meta
+        meta: DatasetMeta = self.version_state["meta"]
+        if meta.is_dirty:
+            meta_key = get_dataset_meta_key(commit_id)
+            storage[meta_key] = meta
+            meta.is_dirty = False
+
+        # flush dataset info
+        info = self.info
+        if info.is_dirty:
+            key = get_dataset_info_key(commit_id)
+            storage[key] = info
+            info.is_dirty = False
+
+        for tensor in self.tensors:
+            tensor.flush_dirty_items()
