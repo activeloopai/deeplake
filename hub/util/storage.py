@@ -43,8 +43,16 @@ def storage_provider_from_path(
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
+        profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
-            path, key, secret, session_token, endpoint_url, region, token=token
+            path,
+            key,
+            secret,
+            session_token,
+            endpoint_url,
+            region,
+            profile_name=profile,
+            token=token,
         )
     elif path.startswith("gcp://") or path.startswith("gcs://"):
         storage = GCSProvider(path, creds)
@@ -81,7 +89,7 @@ def storage_provider_from_hub_path(
 
     url = posixpath.join(url, subdir)
 
-    storage = storage_provider_from_path(url, creds, read_only)
+    storage = storage_provider_from_path(path=url, creds=creds, read_only=read_only)
     storage._set_hub_creds_info(path, expiration)
     return storage
 
@@ -104,7 +112,12 @@ def get_storage_and_cache_chain(
     Returns:
         A tuple of the storage provider and the storage chain.
     """
-    storage = storage_provider_from_path(path, creds, read_only, token)
+    storage = storage_provider_from_path(
+        path=path,
+        creds=creds,
+        read_only=read_only,
+        token=token,
+    )
     memory_cache_size_bytes = memory_cache_size * MB
     local_cache_size_bytes = local_cache_size * MB
     storage_chain = generate_chain(
