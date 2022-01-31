@@ -355,7 +355,7 @@ def audio_paths():
 @pytest.fixture
 def video_paths():
     paths = {
-        "mp4": ["samplemp4.mp4", "big_buck_bunny.mp4"],
+        "mp4": ["samplemp4.mp4"],
         "mkv": ["samplemkv.mkv"],
         "avi": ["sampleavi.avi"],
     }
