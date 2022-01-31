@@ -789,12 +789,12 @@ def _decompress_video(
     ]
     if isinstance(file, str):
         command[2] = file
-        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8)
+        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10**8)
         raw_video = pipe.communicate()[0]
     else:
         file = _strip_hub_mp4_header(file)
         pipe = sp.Popen(
-            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 8
+            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10**8
         )
         raw_video = pipe.communicate(input=file)[0]  # type: ignore
     nbytes = len(raw_video)
@@ -835,7 +835,7 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
 
     if isinstance(file, str):
         command[-1] = file
-        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5)
+        pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10**5)
         raw_info = pipe.stdout.read()  # type: ignore
         raw_err = pipe.stderr.read()  # type: ignore
         pipe.communicate()
@@ -848,7 +848,7 @@ def _get_video_info(file: Union[bytes, memoryview, str]) -> dict:
             duration = struct.unpack("f", mv[n : n + 4])[0]
             file = mv[n + 4 :]
         pipe = sp.Popen(
-            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
+            command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10**5
         )
         raw_info = pipe.communicate(input=file)[0]
     ret = dict(
@@ -869,7 +869,7 @@ DURATION_RE = re.compile(rb"Duration: ([0-9:.]+),")
 
 
 def to_seconds(time):
-    return sum([60 ** i * float(j) for (i, j) in enumerate(time.split(":")[::-1])])
+    return sum([60**i * float(j) for (i, j) in enumerate(time.split(":")[::-1])])
 
 
 def _to_hub_mkv(file: str):
@@ -884,7 +884,7 @@ def _to_hub_mkv(file: str):
         "pipe:",
     ]
     pipe = sp.Popen(
-        command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10 ** 5
+        command, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=10**5
     )
     mkv, raw_info = pipe.communicate()
     duration = bytes.decode(re.search(DURATION_RE, raw_info).groups()[0])  # type: ignore
