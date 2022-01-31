@@ -124,19 +124,25 @@ def _parse_no_fail(s: str, ds: hub.dataset):
         return _parse(s[:-1], ds)
 
 
+def _sort_suggestions(s: List[dict]) -> None:
+    s.sort(key=lambda s: s["string"])
+
+
 def _initial_suggestions(ds):
-    return [{"string": k, "type": "TENSOR"} for k in ds._ungrouped_tensors] + [
-        {"string": k, "type": "GROUP"} for k in ds._groups_filtered
-    ]
+    tensors = [{"string": k, "type": "TENSOR"} for k in ds._ungrouped_tensors]
+    _sort_suggestions(tensors)
+    groups = [{"string": k, "type": "GROUP"} for k in ds._groups_filtered]
+    _sort_suggestions(groups)
+    groups.sort(key=lambda s: s["string"])
+    return tensors + groups
 
 
 def _tensor_suggestions(ds, tensor):
-    suggestions = []
-    for k in _TENSOR_PROPERTIES:
-        suggestions.append({"string": k, "type": "PROPERTY"})
-    for k in _TENSOR_METHODS:
-        suggestions.append({"string": k, "type": "METHOD"})
-    return suggestions
+    methods = [{"string": m, "type": "METHOD"} for m in _TENSOR_METHODS]
+    _sort_suggestions(methods)
+    properties = [{"string": p, "type": "PROPERTY"} for p in _TENSOR_PROPERTIES]
+    _sort_suggestions(properties)
+    return methods + properties
 
 
 def _const_suggestions():
@@ -203,7 +209,7 @@ def _op_suggestions():
 
 def autocomplete(s: str, ds: hub.dataset) -> dict:
     if not s.strip():
-        return _initial_suggestions(ds), []
+        return _autocomplete_response(_initial_suggestions(ds), [])
     try:
         tokens = _parse(s, ds)
     except TokenError:
@@ -254,7 +260,7 @@ def autocomplete(s: str, ds: hub.dataset) -> dict:
                 return _autocomplete_response([], tokens)
         else:
             suggestions = _initial_suggestions(ds) + _const_suggestions()
-            return _autocomplete_response(suggestions, tokens, last_string)
+            return _autocomplete_response(suggestions, tokens)
     elif last_type == "KEYWORD":
         suggestions = _initial_suggestions(ds) + _const_suggestions()
         return _autocomplete_response(

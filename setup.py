@@ -24,7 +24,7 @@ init_file = os.path.join(project_name, "__init__.py")
 def get_property(prop):
     result = re.search(
         # find variable with name `prop` in the __init__.py file
-        fr'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
+        rf'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
         open(init_file).read(),
     )
     return result.group(1)
