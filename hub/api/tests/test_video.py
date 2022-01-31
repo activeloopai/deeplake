@@ -49,7 +49,7 @@ def test_video(local_ds, compression, video_paths):
 
 def test_video_slicing(local_ds: Dataset, video_paths):
     for path in video_paths["mp4"]:
-        if "big_buck_bunny" in path:
+        if "samplemp4_1MB" in path:
             raw_video = _decompress_video_pipes(path, "mp4")
             assert raw_video.shape == (132, 720, 1280, 3)
 
@@ -75,3 +75,5 @@ def test_video_slicing(local_ds: Dataset, video_paths):
             np.testing.assert_array_equal(
                 local_ds.video[0][100:-25:-1].numpy(), raw_video[100:-25:-1]
             )
+            return
+    raise Exception  # test did not run
