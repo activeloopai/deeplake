@@ -81,9 +81,9 @@ class HubBackendClient:
             requests.Response: The response received from the server.
         """
         params = params or {}
-        data = data or {}
-        files = files or {}
-        json = json or {}
+        data = data or None
+        files = files or None
+        json = json or None
         endpoint = endpoint or self.endpoint()
         endpoint = endpoint.strip("/")
         relative_url = relative_url.strip("/")
@@ -91,7 +91,6 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-
         response = requests.request(
             method,
             request_url,
@@ -104,7 +103,7 @@ class HubBackendClient:
         )
 
         # clearer error than `ServerUnderMaintenence`
-        if "password" in json and json["password"] is None:
+        if json is not None and "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
@@ -133,7 +132,7 @@ class HubBackendClient:
             LoginException: If there is an issue retrieving the auth token.
         """
         json = {"username": username, "password": password}
-        response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
+        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
 
         try:
             token_dict = response.json()
