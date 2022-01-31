@@ -1,1 +1,1 @@
-from .huggingface import from_huggingface
+from .huggingface import ingest_huggingface
