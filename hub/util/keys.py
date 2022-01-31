@@ -14,6 +14,8 @@ from hub.constants import (
     VERSION_CONTROL_INFO_FILENAME,
     VERSION_CONTROL_INFO_FILENAME_OLD,
     VERSION_CONTROL_INFO_LOCK_FILENAME,
+    QUERIES_FILENAME,
+    QUERIES_LOCK_FILENAME,
 )
 
 
@@ -127,3 +129,11 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
+
+
+def get_queries_key() -> str:
+    return QUERIES_FILENAME
+
+
+def get_queries_lock_key() -> str:
+    return QUERIES_LOCK_FILENAME

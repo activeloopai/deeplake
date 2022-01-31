@@ -17,7 +17,8 @@ class CommitChunkSet(Cachable):
     def frombuffer(cls, buffer: bytes):
         """Loads a CommitChunkSet from a buffer."""
         instance = cls()
-        instance.chunks = set(buffer.decode("utf-8").split(","))
+        if buffer:
+            instance.chunks = set(buffer.decode("utf-8").split(","))
         instance.is_dirty = False
         return instance
 

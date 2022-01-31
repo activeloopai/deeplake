@@ -18,6 +18,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_info_key,
     get_tensor_meta_key,
@@ -110,6 +111,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
     copy_metas(
         dataset, stored_commit_id, version_state["commit_id"], storage, version_state
     )
+    create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
 
@@ -174,6 +176,7 @@ def checkout(
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
         copy_metas(dataset, original_commit_id, new_commit_id, storage, version_state)
+        create_commit_chunk_sets(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
     else:
         raise CheckoutError(
@@ -267,6 +270,18 @@ def copy_metas(
             pass
 
     storage.flush()
+
+
+def create_commit_chunk_sets(
+    dest_commit_id: str,
+    storage: LRUCache,
+    version_state: Dict[str, Any],
+) -> None:
+    """Creates commit chunk sets for all tensors in new commit."""
+    tensor_list = version_state["full_tensors"].keys()
+    for tensor in tensor_list:
+        key = get_tensor_commit_chunk_set_key(tensor, dest_commit_id)
+        storage[key] = CommitChunkSet()
 
 
 def discard_old_metas(
@@ -379,7 +394,7 @@ def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     lock.release()
 
 
-def load_version_info(storage: LRUCache) -> None:
+def load_version_info(storage: LRUCache) -> Dict:
     try:
         return _version_info_from_json(
             json.loads(storage[get_version_control_info_key()].decode("utf-8"))

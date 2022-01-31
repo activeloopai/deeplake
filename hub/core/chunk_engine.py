@@ -143,7 +143,6 @@ class ChunkEngine:
             self.chunk_class = UncompressedChunk
 
         self.cached_data: Optional[np.ndarray] = None
-        self.cachables_in_dirty_keys = False
         self.cache_range: range = range(0)
 
     @property
@@ -392,17 +391,13 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
-        if chunk_commit_id != self.commit_id:
-            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         chunk.key = chunk_key  # type: ignore
         chunk.id = self.last_chunk_id  # type: ignore
-        self.add_chunk_to_dirty_keys(chunk)
+        if chunk_commit_id != self.commit_id:
+            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        else:
+            self.update_chunk_in_cache(chunk)
         return chunk
-
-    def add_chunk_to_dirty_keys(self, chunk: BaseChunk):
-        """Adds the chunk to cache if not in dirty keys to ensure persistence."""
-        if chunk.key not in self.cache.dirty_keys:  # type: ignore
-            self.cache[chunk.key] = chunk  # type: ignore
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
         return self.cache.get_cachable(
@@ -416,10 +411,10 @@ class ChunkEngine:
         chunk = self.cache.get_cachable(
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
-        chunk.key = chunk_key
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        chunk.id = chunk_id
         return chunk
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
@@ -432,7 +427,7 @@ class ChunkEngine:
         chunk = chunk.copy(self.chunk_args)
         chunk.key = new_chunk_key
         chunk.id = chunk_id
-        self.cache[new_chunk_key] = chunk
+        self.update_chunk_in_cache(chunk)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         return chunk
@@ -452,6 +447,11 @@ class ChunkEngine:
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:
+                commit_chunk_set = CommitChunkSet()
+                try:
+                    self.meta_cache[chunk_set_key] = commit_chunk_set
+                except ReadOnlyModeError:
+                    pass
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
@@ -496,6 +496,7 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
+            self.update_chunk_in_cache(current_chunk)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
@@ -548,9 +549,6 @@ class ChunkEngine:
 
     def add_cachables_to_cache_dirty_keys(self):
         """Adds all the cachables to the cache as dirty keys."""
-        if self.cachables_in_dirty_keys:
-            return
-
         commit_id = self.commit_id
 
         # synchronize tensor meta
@@ -574,7 +572,6 @@ class ChunkEngine:
             # synchronize current chunk set, all older ones are immutable
             commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
-        self.cachables_in_dirty_keys = True
 
     def _create_new_chunk(self, register=True) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -585,11 +582,16 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
-        self.cache[chunk_key] = chunk
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
+        self.update_chunk_in_cache(chunk)
         chunk._update_tensor_meta_length = register
         return chunk
+
+    def update_chunk_in_cache(self, chunk):
+        """Updates the chunk in the cache. Also, updates the sizes of cachables in cache."""
+        self.cache[chunk.key] = chunk
+        self.add_cachables_to_cache_dirty_keys()
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
         new_chunks, tiles = self._samples_to_chunks(
@@ -638,7 +640,7 @@ class ChunkEngine:
             curr_shape = chunk.shapes_encoder[-1]
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
-            self.add_chunk_to_dirty_keys(chunk)
+            self.update_chunk_in_cache(chunk)
 
     def update(
         self,
@@ -666,12 +668,11 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-                self.add_chunk_to_dirty_keys(chunk)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
-                # tensor_meta.update_shape_interval(shape)
                 chunk.update_sample(local_sample_index, sample)
+                self.update_chunk_in_cache(chunk)
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore

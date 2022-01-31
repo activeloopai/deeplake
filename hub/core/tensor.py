@@ -1,3 +1,4 @@
+from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
@@ -11,6 +12,7 @@ from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
+    get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     tensor_exists,
@@ -23,7 +25,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import TENSOR_META_FILENAME, TENSOR_INFO_FILENAME
+from hub.constants import FIRST_COMMIT_ID
 from hub.util.version_control import auto_checkout
 
 
@@ -52,10 +54,11 @@ def create_tensor(
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
     """
 
-    if tensor_exists(key, storage, version_state["commit_id"]):
+    commit_id = version_state["commit_id"]
+    if tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
 
-    meta_key = get_tensor_meta_key(key, version_state["commit_id"])
+    meta_key = get_tensor_meta_key(key, commit_id)
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
@@ -64,7 +67,12 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
-    diff_key = get_tensor_commit_diff_key(key, version_state["commit_id"])
+    if commit_id != FIRST_COMMIT_ID:
+        cset_key = get_tensor_commit_chunk_set_key(key, commit_id)
+        cset = CommitChunkSet()
+        storage[cset_key] = cset  # type: ignore
+
+    diff_key = get_tensor_commit_diff_key(key, commit_id)
     diff = CommitDiff(created=True)
     storage[diff_key] = diff  # type: ignore
 
