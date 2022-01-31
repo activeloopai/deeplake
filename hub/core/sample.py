@@ -289,8 +289,8 @@ class Sample:
     def __repr__(self):
         return str(self)
 
-    def __array__(self):
-        return self.array
+    def __array__(self, dtype=None):
+        return self.array.astype(dtype)
 
     def __eq__(self, other):
         if self.path is not None and other.path is not None:
