@@ -1,7 +1,6 @@
 import os
 import hub
 from typing import Optional, Union
-from hub.auto.structured.csv import CSVFile
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
@@ -328,7 +327,7 @@ class dataset:
 
     @staticmethod
     def ingest(
-        src: str,
+        src,
         dest: str,
         images_compression: str = "auto",
         dest_creds: dict = None,
@@ -416,38 +415,41 @@ class dataset:
             },
         )
 
-        if os.path.isdir(dest) and os.path.samefile(src, dest):
-            raise SamePathException(src)
+        if isinstance(src, str):
+            if os.path.isdir(dest) and os.path.samefile(src, dest):
+                raise SamePathException(src)
 
-        if src.endswith(".csv"):
-            if not os.path.isfile(src):
+            if src.endswith(".csv"):
+                import pandas as pd
+
+                if not os.path.isfile(src):
+                    raise InvalidPathException(src)
+                source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
+                ds = dataset.ingest_dataframe(
+                    source, dest, dest_creds, progress_bar, **dataset_kwargs
+                )
+                return ds
+
+            if not os.path.isdir(src):
                 raise InvalidPathException(src)
+
+            if images_compression == "auto":
+                images_compression = get_most_common_extension(src)
+                if images_compression is None:
+                    raise InvalidFileExtension(src)
+
             ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
-            structured = CSVFile(source=src)
-            structured.fill_dataset(ds, progress_bar)  # type: ignore
-            return ds  # type: ignore
 
-        if not os.path.isdir(src):
-            raise InvalidPathException(src)
+            # TODO: support more than just image classification (and update docstring)
+            unstructured = ImageClassification(source=src)
 
-        if images_compression == "auto":
-            images_compression = get_most_common_extension(src)
-            if images_compression is None:
-                raise InvalidFileExtension(src)
-
-        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
-
-        # TODO: support more than just image classification (and update docstring)
-        unstructured = ImageClassification(source=src)
-
-        # TODO: auto detect compression
-        unstructured.structure(
-            ds,  # type: ignore
-            use_progress_bar=progress_bar,
-            generate_summary=summary,
-            image_tensor_args={"sample_compression": images_compression},
-        )
-
+            # TODO: auto detect compression
+            unstructured.structure(
+                ds,  # type: ignore
+                use_progress_bar=progress_bar,
+                generate_summary=summary,
+                image_tensor_args={"sample_compression": images_compression},
+            )
         return ds  # type: ignore
 
     @staticmethod
@@ -524,6 +526,26 @@ class dataset:
         )
 
         return ds
+
+    @staticmethod
+    def ingest_dataframe(
+        src,
+        dest: str,
+        dest_creds: dict = None,
+        progress_bar: bool = True,
+        **dataset_kwargs,
+    ):
+        import pandas as pd
+        from hub.auto.structured.dataframe import DataFrame
+
+        if not isinstance(src, pd.DataFrame):
+            raise Exception("Source provided is not a valid pandas dataframe object")
+
+        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+
+        structured = DataFrame(src)
+        structured.fill_dataset(ds, progress_bar)  # type: ignore
+        return ds  # type: ignore
 
     @staticmethod
     @hub_reporter.record_call
