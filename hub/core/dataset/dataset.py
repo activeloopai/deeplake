@@ -221,6 +221,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
+        self.storage.set_dataset(self)
 
     def __getitem__(
         self,

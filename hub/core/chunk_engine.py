@@ -1,6 +1,7 @@
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
+from hub.api.info import Info
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
@@ -31,6 +32,7 @@ from hub.util.chunk_engine import (
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_commit_diff_key,
+    get_tensor_info_key,
     get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
@@ -133,6 +135,9 @@ class ChunkEngine:
 
         self._last_appended_chunk: Optional[BaseChunk] = None
         self._last_updated_chunk: Optional[BaseChunk] = None
+
+        self._info: Optional[Info] = None
+        self._info_commit_id: Optional[str] = None
 
         tensor_meta = self.tensor_meta
 
@@ -402,6 +407,11 @@ class ChunkEngine:
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
+        chunks = [self._last_appended_chunk, self._last_updated_chunk]
+        for chunk in chunks:
+            if chunk is not None and chunk.key == chunk_key:
+                return self._last_appended_chunk
+
         return self.cache.get_cachable(
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
@@ -977,6 +987,13 @@ class ChunkEngine:
         # write last updated chunk
         last_updated_chunk = self._last_updated_chunk
         self.write_chunk_to_storage(last_updated_chunk)
+
+        # write tensor info
+        info = self._info
+        if info is not None and info.is_dirty:
+            key = get_tensor_info_key(tensor, commit_id)
+            storage[key] = info
+            info.is_dirty = False
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:

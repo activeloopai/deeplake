@@ -191,8 +191,6 @@ class Tensor:
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
-        self._info: Optional[Info] = None
-        self._info_commit_id: Optional[str] = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
@@ -244,11 +242,14 @@ class Tensor:
             TensorInfo: Information about the tensor.
         """
         commit_id = self.version_state["commit_id"]
-        if self._info is None or self._info_commit_id != commit_id:
+        if (
+            self.chunk_engine._info is None
+            or self.chunk_engine._info_commit_id != commit_id
+        ):
             key = get_tensor_info_key(self.key, commit_id)
-            self._info = load_info(key, self.dataset)
-            self._info_commit_id = commit_id
-        return self._info
+            self.chunk_engine._info = load_info(key, self.dataset)
+            self.chunk_engine._info_commit_id = commit_id
+        return self.chunk_engine._info
 
     @info.setter
     def info(self, value):
@@ -580,11 +581,4 @@ class Tensor:
         self.chunk_engine._pop()
 
     def write_dirty_objects(self):
-        # write tensor info
-        info = self.info
-        if info.is_dirty:
-            key = get_tensor_info_key(self.key, self.version_state["commit_id"])
-            self.storage[key] = info
-            info.is_dirty = False
-
         self.chunk_engine.write_dirty_objects()
