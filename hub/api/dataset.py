@@ -420,7 +420,7 @@ class dataset:
                 raise SamePathException(src)
 
             if src.endswith(".csv"):
-                import pandas as pd
+                import pandas as pd  # type:ignore
 
                 if not os.path.isfile(src):
                     raise InvalidPathException(src)
