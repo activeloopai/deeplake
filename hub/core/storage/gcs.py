@@ -215,6 +215,13 @@ class GCSProvider(StorageProvider):
         )
         self._initialize_provider()
 
+    def subdir(self, path: str):
+        return self.__class__(
+            root=posixpath.join(self.root, path),
+            token=self.token,
+            project=self.project,
+        )
+
     def _initialize_provider(self):
         self._set_bucket_and_path()
         if not self.token:
@@ -289,11 +296,18 @@ class GCSProvider(StorageProvider):
         return stats
 
     def __getstate__(self):
-        return (self.root, self.token, self.missing_exceptions, self.project)
+        return (
+            self.root,
+            self.token,
+            self.missing_exceptions,
+            self.project,
+            self.read_only,
+        )
 
     def __setstate__(self, state):
         self.root = state[0]
         self.token = state[1]
         self.missing_exceptions = state[2]
         self.project = state[3]
+        self.read_only = state[4]
         self._initialize_provider()

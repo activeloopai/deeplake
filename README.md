@@ -4,9 +4,7 @@
     <h1 align="center">Dataset Format for AI
  </h1>
 <p align="center">
-    <a href="http://docs.activeloop.ai/">
-        <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
-    </a>
+    <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/Hub/issues">
@@ -21,16 +19,19 @@
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
+ 
+ 
+
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid tranformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
 
 
 Hub includes the following features:
 
 * **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images and audios in their native compression, decompressing them only when needed, for e.g., when training a model.
+* **Compressed storage**: Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
 * **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 * **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
 * **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
@@ -58,75 +59,51 @@ pip3 install hub
 
 ```python
 import hub
+import torch
+from torchvision import transforms, models
+
 ds = hub.load('hub://activeloop/cifar10-train')
 ```
 
 #### Inspect tensors in the dataset:
 
-```
-print(list(ds.tensors.keys()))
-
-# ['images', 'labels']
-```
-
-#### Inspect the shapes of the images and labels tensors:
-
 ```python
-print(ds.images.shape)
-
-# (50000, 32, 32, 3)
-```
-
-```python
-print(ds.labels.shape)
-
-# (50000, 1)
+ds.tensors.keys()    # dict_keys(['images', 'labels'])
+ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
 #### Train a PyTorch model on the Cifar-10 dataset without the need to download it
 
-Define model, loss and optimizer:
+First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
 
 ```python
+tform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+])
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = torch.transpose(x, 1, 3)  # NHWC -> NCHW
-        x = x / 255.  # Normalize
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1) # flatten all dimensions except batch
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-net = Net()
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
+                        'images': tform, 'labels': None}, shuffle=True)
 ```
-Finally, the training loop:
+
+Next, define the model, loss and optimizer:
+
+```python
+net = models.resnet18(pretrained=False)
+net.fc = torch.nn.Linear(net.fc.in_features, len(ds.labels.info.class_names))
+    
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+```
+
+Finally, the training loop for 2 epochs:
 
 ```python
 for epoch in range(2):
     running_loss = 0.0
-    for i, data in enumerate(ds.pytorch(num_workers=0, batch_size=4, shuffle=True)):
-        images, labels = data
+    for i, data in enumerate(hub_loader):
+        images, labels = data['images'], data['labels']
+        
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -135,11 +112,12 @@ for epoch in range(2):
         loss = criterion(outputs, labels.reshape(-1))
         loss.backward()
         optimizer.step()
+        
         # print statistics
         running_loss += loss.item()
-        if i % 2000 == 1999:    # print every 2000 mini-batches
+        if i % 100 == 99:    # print every 100 mini-batches
             print('[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / 2000))
+                (epoch + 1, i + 1, running_loss / 100))
             running_loss = 0.0
 ```
 

@@ -4,6 +4,7 @@ from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    HUB_PROD1_ENDPOINT,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
@@ -15,6 +16,7 @@ from hub.client.config import (
     DATASET_SUFFIX,
     LIST_DATASETS,
     GET_USER_PROFILE,
+    SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
 )
 from hub.client.log import logger
@@ -79,9 +81,9 @@ class HubBackendClient:
             requests.Response: The response received from the server.
         """
         params = params or {}
-        data = data or {}
-        files = files or {}
-        json = json or {}
+        data = data or None
+        files = files or None
+        json = json or None
         endpoint = endpoint or self.endpoint()
         endpoint = endpoint.strip("/")
         relative_url = relative_url.strip("/")
@@ -89,7 +91,6 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-
         response = requests.request(
             method,
             request_url,
@@ -102,7 +103,7 @@ class HubBackendClient:
         )
 
         # clearer error than `ServerUnderMaintenence`
-        if "password" in json and json["password"] is None:
+        if json is not None and "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
@@ -131,7 +132,7 @@ class HubBackendClient:
             LoginException: If there is an issue retrieving the auth token.
         """
         json = {"username": username, "password": password}
-        response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
+        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
 
         try:
             token_dict = response.json()
@@ -178,6 +179,17 @@ class HubBackendClient:
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
+
+    def send_event(self, event_json: dict):
+        """Sends an event to the backend.
+
+        Args:
+            event_json (dict): The event to be sent.
+        """
+        # TODO: change this once PROD has events
+        self.request(
+            "POST", SEND_EVENT_SUFFIX, json=event_json, endpoint=HUB_PROD1_ENDPOINT
+        )
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
         tag = f"{username}/{dataset_name}"

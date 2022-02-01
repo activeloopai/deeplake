@@ -12,6 +12,10 @@ from hub.constants import (
     TENSOR_COMMIT_CHUNK_SET_FILENAME,
     TENSOR_COMMIT_DIFF_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
+    VERSION_CONTROL_INFO_FILENAME_OLD,
+    VERSION_CONTROL_INFO_LOCK_FILENAME,
+    QUERIES_FILENAME,
+    QUERIES_LOCK_FILENAME,
 )
 
 
@@ -39,6 +43,14 @@ def get_dataset_info_key(commit_id: str) -> str:
 
 def get_version_control_info_key() -> str:
     return VERSION_CONTROL_INFO_FILENAME
+
+
+def get_version_control_info_key_old() -> str:
+    return VERSION_CONTROL_INFO_FILENAME_OLD
+
+
+def get_version_control_info_lock_key() -> str:
+    return VERSION_CONTROL_INFO_LOCK_FILENAME
 
 
 def get_dataset_lock_key() -> str:
@@ -117,3 +129,11 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
+
+
+def get_queries_key() -> str:
+    return QUERIES_FILENAME
+
+
+def get_queries_lock_key() -> str:
+    return QUERIES_LOCK_FILENAME

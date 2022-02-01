@@ -88,6 +88,7 @@ MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
 S3_OPT = "--s3"
 GCS_OPT = "--gcs"
+GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
@@ -99,7 +100,9 @@ LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
 
 # used to identify the first commit so its data will not be in similar directory structure to the rest
 FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
-VERSION_CONTROL_INFO_FILENAME = "version_control_info"
+VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
+VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
+VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
@@ -111,3 +114,11 @@ TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
 CONVERT_GRAYSCALE = True
 
 PARTIAL_NUM_SAMPLES = 0.5
+
+QUERIES_FILENAME = "queries.json"
+QUERIES_LOCK_FILENAME = "queries.lock"
+
+_ENABLE_HUB_SUB_DATASETS = False
+
+# Frequency for sending progress events and writing to vds
+QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds

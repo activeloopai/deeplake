@@ -1,4 +1,4 @@
-from hub.constants import MB, PARTIAL_NUM_SAMPLES
+from hub.constants import MB, KB, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 import numpy as np
 import pytest
@@ -12,8 +12,8 @@ from hub.core.tiling.sample_tiles import SampleTiles
 compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"])
 
 common_args = {
-    "min_chunk_size": 16 * MB,
-    "max_chunk_size": 32 * MB,
+    "min_chunk_size": 1 * MB,
+    "max_chunk_size": 2 * MB,
 }
 
 
@@ -22,7 +22,7 @@ def create_tensor_meta():
     tensor_meta.dtype = "uint8"
     tensor_meta.max_shape = None
     tensor_meta.min_shape = None
-    tensor_meta.htype = None
+    tensor_meta.htype = "generic"
     tensor_meta.length = 0
     return tensor_meta
 
@@ -34,7 +34,7 @@ def test_read_write_sequence(compression):
     common_args["compression"] = compression
     dtype = tensor_meta.dtype
     data_in = [
-        np.random.randint(0, 255, size=(1000, 500)).astype(dtype) for _ in range(10)
+        np.random.randint(0, 255, size=(250, 125)).astype(dtype) for _ in range(10)
     ]
     data_in2 = data_in.copy()
     while data_in:
@@ -48,7 +48,8 @@ def test_read_write_sequence(compression):
 
 
 @compressions_paremetrized
-def test_read_write_sequence_big(cat_path, compression):
+@pytest.mark.parametrize("random", [True, False])
+def test_read_write_sequence_big(cat_path, compression, random):
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta
     common_args["compression"] = compression
@@ -57,20 +58,26 @@ def test_read_write_sequence_big(cat_path, compression):
     for i in range(50):
         if i % 10 == 0:
             data_in.append(
-                np.random.randint(0, 255, size=(6001, 3000, 3)).astype(dtype)
+                np.random.randint(0, 255, size=(1501, 750, 3)).astype(dtype) * random
             )
         elif i % 3 == 0:
-            data_in.append(hub.read(cat_path))
+            data_in.append(
+                hub.read(cat_path) if random else np.zeros((225, 225, 3), dtype=dtype)
+            )
         else:
-            data_in.append(np.random.randint(0, 255, size=(1000, 500, 3)).astype(dtype))
+            data_in.append(
+                np.random.randint(0, 255, size=(250, 125, 3)).astype(dtype) * random
+            )
     data_in2 = data_in.copy()
     tiles = []
     original_length = len(data_in)
-
+    tiled = False
     while data_in:
         chunk = ChunkCompressedChunk(**common_args)
+        chunk._compression_ratio = 10  # start with a bad compression ratio to hit exponential back off code path
         num_samples = chunk.extend_if_has_space(data_in)
         if num_samples == PARTIAL_NUM_SAMPLES:
+            tiled = True
             tiles.append(chunk.read_sample(0))
             sample = data_in[0]
             assert isinstance(sample, SampleTiles)
@@ -95,6 +102,7 @@ def test_read_write_sequence_big(cat_path, compression):
                     item = item.array
                 np.testing.assert_array_equal(item, data_in[i])
             data_in = data_in[num_samples:]
+    assert tiled
 
 
 @compressions_paremetrized
@@ -103,7 +111,7 @@ def test_update(compression):
     common_args["tensor_meta"] = tensor_meta
     common_args["compression"] = compression
     dtype = tensor_meta.dtype
-    arr = np.random.randint(0, 255, size=(7, 300, 200, 3)).astype(dtype)
+    arr = np.random.randint(0, 255, size=(7, 75, 50, 3)).astype(dtype)
     data_in = list(arr)
     chunk = ChunkCompressedChunk(**common_args)
     chunk.extend_if_has_space(data_in)
@@ -111,8 +119,8 @@ def test_update(compression):
     data_out = np.array([chunk.read_sample(i) for i in range(7)])
     np.testing.assert_array_equal(data_out, data_in)
 
-    data_3 = np.random.randint(0, 255, size=(1400, 700, 3)).astype(dtype)
-    data_5 = np.random.randint(0, 255, size=(2000, 3000, 3)).astype(dtype)
+    data_3 = np.random.randint(0, 255, size=(175, 350, 3)).astype(dtype)
+    data_5 = np.random.randint(0, 255, size=(500, 750, 3)).astype(dtype)
 
     chunk.update_sample(3, data_3)
     chunk.update_sample(5, data_5)

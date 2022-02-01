@@ -63,7 +63,9 @@ class LRUCache(StorageProvider):
             if self.next_storage is not None:
                 self.next_storage.flush()
 
-    def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
+    def get_cachable(
+        self, path: str, expected_class, meta: Optional[Dict] = None, callback_arg=None
+    ):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
@@ -71,6 +73,7 @@ class LRUCache(StorageProvider):
             path (str): Path to the stored cachable.
             expected_class (callable): The expected subclass of `Cachable`.
             meta (dict, optional): Metadata associated with the stored cachable.
+            callback_arg (Any, optional): The argument to be passed to the callback.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -92,12 +95,12 @@ class LRUCache(StorageProvider):
         if isinstance(item, (bytes, memoryview)):
             obj = (
                 expected_class.frombuffer(item)
-                if not meta
+                if meta is None
                 else expected_class.frombuffer(item, meta)
             )
 
             if isinstance(obj, CachableCallback):
-                obj.initialize_callback_location(path, self)
+                obj.initialize_callback_location(path, self, dataset=callback_arg)
 
             if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)
@@ -190,11 +193,13 @@ class LRUCache(StorageProvider):
         This doesn't delete data from the actual storage.
         """
         self._flush_if_not_read_only()
+        self.clear_cache_without_flush()
+
+    def clear_cache_without_flush(self):
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
-
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
