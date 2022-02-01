@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional, Union
 from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample  # type: ignore
@@ -81,12 +82,11 @@ class SampleCompressedChunk(BaseChunk):
                 self.compression,
                 start_idx=start,
                 end_idx=end,
+                step=abs(step) if step is not None else 1,
                 reverse=reverse,
             )
             if squeeze:
                 sample = sample.squeeze(0)
-            elif step not in (None, 1):
-                sample = sample[:: abs(step)]
         else:
             sample = decompress_array(buffer, shape, self.dtype, self.compression)
         if cast and sample.dtype != self.dtype:

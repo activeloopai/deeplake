@@ -95,7 +95,7 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
     return 0;
 }
 
-int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, unsigned char *decompressed, int isBytes, int nbytes)
+int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, int step, unsigned char *decompressed, int isBytes, int nbytes)
 {
     av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
@@ -174,10 +174,10 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
     float fps = (float)pFormatContext->streams[video_stream_index]->avg_frame_rate.num / (float)pFormatContext->streams[video_stream_index]->avg_frame_rate.den;
     float start_time = start_frame / fps;
     int64_t seek_target = (int64_t)(start_time * AV_TIME_BASE);
+    int64_t step_time = (int64_t)((step / fps) * AV_TIME_BASE);
 
     seek_target = av_rescale_q(seek_target, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
-
-    av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+    step_time = av_rescale_q(step_time, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
 
     AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
 
@@ -217,6 +217,9 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
 
     struct SwsContext *sws_context = NULL;
 
+    av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+    avcodec_flush_buffers(pCodecContext);
+
     int response = 0;
     int bufpos = 0;
     unsigned char *start = decompressed;
@@ -230,6 +233,15 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
                 break;
             if (bufpos >= nbytes)
                 break;
+            if (response == 1) //if frame written
+            {
+                if (step > 1)
+                {
+                    seek_target += step_time;
+                    av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+                    avcodec_flush_buffers(pCodecContext);
+                }
+            }
         }
         av_packet_unref(pPacket);
     }
@@ -273,6 +285,7 @@ static int decode_video_packet(AVPacket *pPacket, AVCodecContext *pCodecContext,
                 (*sws_context) = sws_getCachedContext((*sws_context), width, height, pFrame->format, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
                 sws_scale((*sws_context), (const uint8_t *const *)&pFrame->data, pFrame->linesize, 0, height, (uint8_t *const *)decompressed, out_linesize);
                 *bufpos += height * width * 3;
+                return 1;
             }
         }
         break;

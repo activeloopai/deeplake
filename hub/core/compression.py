@@ -282,6 +282,7 @@ def decompress_array(
     compression: Optional[str] = None,
     start_idx: Optional[int] = None,
     end_idx: Optional[int] = None,
+    step: Optional[int] = None,
     reverse: bool = False,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
@@ -319,7 +320,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, compression, start_idx, end_idx, reverse)
+        return _decompress_video(buffer, compression, start_idx, end_idx, step, reverse)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -784,6 +785,7 @@ def _decompress_video_cffi(
     compression,
     start_frame: Optional[int] = None,
     end_frame: Optional[int] = None,
+    step: Optional[int] = None,
     reverse: bool = False,
 ):
     # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
@@ -795,31 +797,60 @@ def _decompress_video_cffi(
 
     from hub.core.pyffmpeg._pyffmpeg import lib, ffi  # type: ignore
 
+    if step is None:
+        step = 1
+
     shape = _read_video_shape_cffi(file, compression)
     n_frames = shape[0]
     start_frame, end_frame = _norm_video_frame_indices(
         start_frame, end_frame, reverse, n_frames
     )
     n_frames = end_frame - start_frame
+
+    step_seeking = False
+
+    shape = (n_frames, *shape[1:])
+    nbytes = np.prod(shape)
+    if (
+        step > 1 and nbytes > 1e8
+    ):  # if bytes to allocate video[start:end] > 100MB, use seeking
+        step_seeking = True
+        n_frames = math.ceil(n_frames / step)
+        shape = (n_frames, *shape[1:])
+        nbytes = np.prod(shape)
+
     if n_frames <= 0:
         return np.zeros((0,) + shape[1:], dtype=np.uint8)
 
-    shape = (n_frames, *shape[1:])
-
-    nbytes = np.prod(shape)
     decompressed = ffi.new(f"unsigned char[{nbytes}]")
 
     if isinstance(file, str):
         lib.decompressVideo(
-            file.encode("utf-8"), 0, 0, start_frame, decompressed, 0, nbytes
+            file.encode("utf-8"),
+            0,
+            0,
+            start_frame,
+            step if step_seeking else 1,
+            decompressed,
+            0,
+            nbytes,
         )
     else:
         lib.decompressVideo(
-            bytes(file), len(file), len(file), start_frame, decompressed, 1, nbytes
+            bytes(file),
+            len(file),
+            len(file),
+            start_frame,
+            step if step_seeking else 1,
+            decompressed,
+            1,
+            nbytes,
         )
 
     video = np.frombuffer(ffi.buffer(decompressed), dtype=np.uint8).reshape(shape)
 
+    if not step_seeking and step > 1:
+        video = video[::step].copy()
     if reverse:
         video = video[::-1]
     return video
@@ -841,7 +872,7 @@ def _read_video_shape_cffi(file, compression):
             ffibuilder.cdef(
                 """
                 int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes);
-                int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, unsigned char *decompressed, int isBytes, int nbytes);
+                int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, int step, unsigned char *decompressed, int isBytes, int nbytes);
                 """
             )
 
@@ -909,6 +940,7 @@ def _decompress_video_pipes(
     compression: Optional[str],
     start_frame: Optional[int] = None,
     end_frame: Optional[int] = None,
+    step: Optional[int] = None,
     reverse: bool = False,
 ) -> np.ndarray:
     shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)  # type: ignore
@@ -955,6 +987,8 @@ def _decompress_video_pipes(
         arr = np.zeros(shape, dtype=np.uint8)
         arr.reshape(-1)[: len(raw_video)] = np.frombuffer(raw_video, dtype=np.uint8)
         ret = arr
+    if step:
+        ret = ret[::step]
     if reverse:
         ret = ret[::-1]
     return ret

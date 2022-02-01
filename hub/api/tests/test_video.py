@@ -64,16 +64,16 @@ def test_video_slicing(local_ds: Dataset, video_paths):
                 local_ds.video[0][120].numpy(), raw_video[120]
             )
             np.testing.assert_array_equal(
-                local_ds.video[0][10:5:-1].numpy(), raw_video[10:5:-1]
+                local_ds.video[0][10:5:-2].numpy(), raw_video[10:5:-2]
             )
             np.testing.assert_array_equal(
                 local_ds.video[0][-3:-10:-1].numpy(), raw_video[-3:-10:-1]
             )
             np.testing.assert_array_equal(
-                local_ds.video[0][-25:100:-1].numpy(), raw_video[-25:100:-1]
+                local_ds.video[0][-25:100:-2].numpy(), raw_video[-25:100:-2]
             )
             np.testing.assert_array_equal(
                 local_ds.video[0][100:-25:-1].numpy(), raw_video[100:-25:-1]
             )
             return
-    raise Exception  # test did not run
+        raise Exception  # test did not run
