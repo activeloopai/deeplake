@@ -43,6 +43,10 @@ class LRUCache(StorageProvider):
         self.cache_used = 0
         self.dataset = None
 
+    def set_dataset(self, ds):
+        if self.dataset is None:
+            self.dataset = ds
+
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
             raise ValueError(f"`new_size` must be >= 0. Got: {new_size}")
@@ -57,14 +61,15 @@ class LRUCache(StorageProvider):
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         self.check_readonly()
+
+        if self.dataset is not None:
+            self.dataset.write_dirty_objects()
+
         if self.dirty_keys:
             for key in self.dirty_keys.copy():
                 self._forward(key)
             if self.next_storage is not None:
                 self.next_storage.flush()
-
-        if self.dataset is not None:
-            self.dataset.flush_dirty_items()
 
     def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
@@ -228,29 +233,22 @@ class LRUCache(StorageProvider):
         """
         yield from self._all_keys()
 
-    def _forward(self, path, remove_from_dirty=False):
-        """Forward the value at a given path to the next storage, and un-marks its key.
-        If the value at the path is Cachable, it will only be un-dirtied if remove_from_dirty=True.
-        """
+    def _forward(self, path):
+        """Forward the value at a given path to the next storage, and un-marks its key."""
         if self.next_storage is not None:
-            self._forward_value(path, self.cache_storage[path], remove_from_dirty)
+            self._forward_value(path, self.cache_storage[path])
 
-    def _forward_value(self, path, value, remove_from_dirty=False):
+    def _forward_value(self, path, value):
         """Forwards a path-value pair to the next storage, and un-marks its key.
 
         Args:
             path (str): the path to the object relative to the root of the provider.
             value (bytes, Cachable): the value to send to the next storage.
-            remove_from_dirty (bool, optional): cachable values are not un-marked automatically,
-                as they are externally mutable. Set this to True to un-mark them anyway.
         """
         if self.next_storage is not None:
-            cachable = isinstance(value, Cachable)
+            self.dirty_keys.discard(path)
 
-            if not cachable or remove_from_dirty:
-                self.dirty_keys.discard(path)
-
-            if cachable:
+            if isinstance(value, Cachable):
                 self.next_storage[path] = value.tobytes()
             else:
                 self.next_storage[path] = value
@@ -269,7 +267,7 @@ class LRUCache(StorageProvider):
         """Helper function that pops the least recently used key, value pair from the cache"""
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
-            self._forward(key, remove_from_dirty=True)
+            self._forward(key)
         del self.cache_storage[key]
         self.cache_used -= itemsize
 

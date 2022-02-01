@@ -141,6 +141,8 @@ class Dataset:
         self._is_filtered_view = False
         self._view_info = None
 
+        self.storage.set_dataset(self)
+
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
@@ -1343,27 +1345,28 @@ class Dataset:
                             ) from e2
                     raise e
 
-    def flush_dirty_items(self):
-        """Flushes all dirty items to disk"""
-        storage = self.storage.next_storage
+    def write_dirty_objects(self):
+        """Writes dirty items"""
+        storage = self.storage
         commit_id = self.version_state["commit_id"]
 
-        # flush dataset meta
+        # write dataset meta
         meta: DatasetMeta = self.version_state["meta"]
         if meta.is_dirty:
             meta_key = get_dataset_meta_key(commit_id)
             storage[meta_key] = meta
             meta.is_dirty = False
 
-        # flush dataset info
+        # write dataset info
         info = self.info
         if info.is_dirty:
             key = get_dataset_info_key(commit_id)
             storage[key] = info
             info.is_dirty = False
 
-        for tensor in self.tensors:
-            tensor.flush_dirty_items()
+        tensors: List[Tensor] = list(version_state["full_tensors"].values())
+        for tensor in tensors:
+            tensor.write_dirty_objects()
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""

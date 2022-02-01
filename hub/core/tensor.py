@@ -579,10 +579,12 @@ class Tensor:
     def _pop(self):
         self.chunk_engine._pop()
 
-    def flush_dirty_items(self):
-        # flush tensor info
+    def write_dirty_objects(self):
+        # write tensor info
         info = self.info
         if info.is_dirty:
             key = get_tensor_info_key(self.key, self.version_state["commit_id"])
-            self.storage.next_storage[key] = info
-        self.chunk_engine.flush_dirty_items()
+            self.storage[key] = info
+            info.is_dirty = False
+
+        self.chunk_engine.write_dirty_objects()
