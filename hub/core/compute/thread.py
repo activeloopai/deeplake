@@ -1,6 +1,7 @@
 from multiprocessing import Manager
-from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.provider import ComputeProvider, SharedValue
 from pathos.pools import ThreadPool  # type: ignore
+import ctypes
 
 
 class ThreadProvider(ComputeProvider):
@@ -19,3 +20,15 @@ class ThreadProvider(ComputeProvider):
         self.pool.close()
         self.pool.join()
         self.pool.clear()
+
+
+class ManagedValue(SharedValue):
+    def __init__(self, manager) -> None:
+        super().__init__()
+        self._val = manager.Value(ctypes.c_uint64, 0)
+
+    def set(self, val) -> None:
+        self._val.value = val
+
+    def get(self):
+        return self._val.value

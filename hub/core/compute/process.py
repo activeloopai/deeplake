@@ -1,7 +1,8 @@
 import warnings
-from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.provider import ComputeProvider, SharedValue
 from pathos.pools import ProcessPool  # type: ignore
 from pathos.helpers import mp as pathos_multiprocess  # type: ignore
+import ctypes
 
 
 class ProcessProvider(ComputeProvider):
@@ -14,8 +15,8 @@ class ProcessProvider(ComputeProvider):
     def map(self, func, iterable):
         return self.pool.map(func, iterable)
 
-    def manager(self):
-        return self._manager
+    def create_shared_value(self):
+        return ManagedValue(self._manager)
 
     def close(self):
         self.pool.close()
@@ -29,3 +30,15 @@ class ProcessProvider(ComputeProvider):
             warnings.warn(
                 "process pool thread leak. check compute provider is closed after use"
             )
+
+
+class ManagedValue(SharedValue):
+    def __init__(self, manager) -> None:
+        super().__init__()
+        self._val = manager.Value(ctypes.c_uint64, 0)
+
+    def set(self, val) -> None:
+        self._val.value = val
+
+    def get(self):
+        return self._val.value

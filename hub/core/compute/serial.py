@@ -1,4 +1,4 @@
-from hub.core.compute.provider import ComputeProvider
+from hub.core.compute.provider import ComputeProvider, SharedValue
 
 
 class SerialProvider(ComputeProvider):
@@ -23,8 +23,20 @@ class SerialProvider(ComputeProvider):
 
         return result
 
-    def manager(self):
-        raise NotImplementedError("no manager in serial provider")
+    def create_shared_value(self) -> SharedValue:
+        return ManagedValue()
 
     def close(self):
         return
+
+
+class ManagedValue(SharedValue):
+    def __init__(self) -> None:
+        super().__init__()
+        self.val = 0
+
+    def set(self, val) -> None:
+        self.val = val
+
+    def get(self):
+        return self.val

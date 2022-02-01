@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
-from multiprocessing.managers import SyncManager
-
-import ctypes
 import time
+
+
+class SharedValue(ABC):
+    @abstractmethod
+    def set(self, value):
+        """Set shared value"""
+
+    @abstractmethod
+    def get(self) -> int:
+        """Get shared value"""
 
 
 class ComputeProvider(ABC):
@@ -17,8 +24,8 @@ class ComputeProvider(ABC):
         from threading import Thread
 
         progress_bar = tqdm(total=total_length, desc=desc)
-        progress = self.manager().Value(ctypes.c_int64, 0)
-        done = self.manager().Event()
+        progress = self.create_shared_value()
+        done = self.create_shared_value()
 
         def sub_func(*args, **kwargs):
             class ProgUpdate:
@@ -29,12 +36,12 @@ class ComputeProvider(ABC):
                 def pg_callback(self, done: int) -> None:
                     self.acc += done
                     if time.time() - self.last_call > 0.1:
-                        progress.value += self.acc
+                        progress.set(progress.get() + self.acc)
                         self.acc = 0
                         self.last_call = time.time()
 
                 def flush(self):
-                    progress.value += self.acc
+                    progress.set(progress.get() + self.acc)
 
             pg = ProgUpdate()
 
@@ -44,10 +51,10 @@ class ComputeProvider(ABC):
                 pg.flush()
 
         def update_pg(bar: tqdm, progress, done):
-            prev = progress.value
+            prev = progress.get()
 
             while prev < total_length:
-                val = progress.value
+                val = progress.get()
                 diff = val - prev
 
                 if diff > 0:
@@ -56,7 +63,7 @@ class ComputeProvider(ABC):
 
                 time.sleep(0.1)
 
-                if done.is_set():
+                if done.get() > 0:
                     break
 
         progress_thread: Thread = threading.Thread(
@@ -67,15 +74,15 @@ class ComputeProvider(ABC):
         try:
             result = self.map(sub_func, iterable)
         finally:
-            done.set()
+            done.set(1)
             progress_thread.join()
             progress_bar.close()
 
         return result
 
     @abstractmethod
-    def manager(self) -> SyncManager:
-        """Creates queue for specific provider"""
+    def create_shared_value(self) -> SharedValue:
+        """Creates value that can be shared between threads"""
 
     @abstractmethod
     def map(self, func, iterable):
