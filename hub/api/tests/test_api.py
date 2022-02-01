@@ -838,7 +838,7 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 @pytest.mark.parametrize("x_size", [5, (32 * 5000)])
 def test_ds_append(memory_ds, x_args, y_args, x_size):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2**20)
+    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20)
     ds.create_tensor("y", dtype="uint8", **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})

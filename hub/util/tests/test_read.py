@@ -1,3 +1,4 @@
+import numoy as np
 import hub
 
 
@@ -19,6 +20,10 @@ def test_read(cat_path, flower_path):
     assert flower.compression == "png"
     assert flower.dtype == "uint8"
     assert flower.array.shape == (513, 464, 4)
+
+    arr = np.arr(cat, dtype=np.uint32)
+    assert arr.shape == (900, 900, 3)
+    assert arr.dtype == np.uint32
 
 
 # TODO: test creating Sample with np.ndarray
