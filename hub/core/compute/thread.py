@@ -13,8 +13,8 @@ class ThreadProvider(ComputeProvider):
     def map(self, func, iterable):
         return self.pool.map(func, iterable)
 
-    def manager(self):
-        return self._manager
+    def create_shared_value(self) -> SharedValue:
+        return ManagedValue(self._manager)
 
     def close(self):
         self.pool.close()
