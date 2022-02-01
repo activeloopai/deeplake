@@ -5,7 +5,7 @@ from typing import Tuple, Union, List, Optional
 def get_tile_shape(
     sample_shape: Tuple[int, ...],
     sample_size: Optional[float] = None,
-    chunk_size: int = 16 * 2 ** 20,
+    chunk_size: int = 16 * 2**20,
     exclude_axes: Optional[Union[int, List[int]]] = None,
 ) -> Tuple[int, ...]:
     """
