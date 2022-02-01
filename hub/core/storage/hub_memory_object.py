@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict
 
 
-class Cachable(ABC):
+class HubMemoryObject(ABC):
     def __init__(self, buffer: bytes = None):
         if buffer:
             self.frombuffer(buffer)

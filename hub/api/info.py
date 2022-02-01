@@ -1,9 +1,9 @@
 from hub.util.version_control import auto_checkout
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict, Optional
 
 
-class Info(Cachable):
+class Info(HubMemoryObject):
     def __init__(self):
         self._info = {}
         self._dataset = None
@@ -138,6 +138,6 @@ class Info(Cachable):
 
 def load_info(key, dataset):
     storage = dataset.storage
-    info = storage.get_cachable(key, Info) if key in storage else Info()
+    info = storage.get_hub_object(key, Info) if key in storage else Info()
     info._dataset = dataset
     return info

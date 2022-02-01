@@ -193,7 +193,7 @@ class ChunkEngine:
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
             tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
-            self._tensor_meta = self.meta_cache.get_cachable(
+            self._tensor_meta = self.meta_cache.get_hub_object(
                 tensor_meta_key, TensorMeta
             )
             self._tensor_meta_commit_id = commit_id
@@ -229,7 +229,7 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_cachable(key, ChunkIdEncoder)
+                enc = self.meta_cache.get_hub_object(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
             self._chunk_id_encoder_commit_id = commit_id
         return self._chunk_id_encoder
@@ -257,7 +257,7 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                cset = self.meta_cache.get_cachable(key, CommitChunkSet)
+                cset = self.meta_cache.get_hub_object(key, CommitChunkSet)
             self._commit_chunk_set = cset
             self._commit_chunk_set_commit_id = commit_id
         return self._commit_chunk_set
@@ -296,7 +296,7 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                diff = self.meta_cache.get_cachable(key, CommitDiff)
+                diff = self.meta_cache.get_hub_object(key, CommitDiff)
             self._commit_diff = diff
             self._commit_diff_commit_id = commit_id
         return self._commit_diff
@@ -344,7 +344,7 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_cachable(key, TileEncoder)
+                enc = self.meta_cache.get_hub_object(key, TileEncoder)
             self._tile_encoder = enc
             self._tile_encoder_commit_id = commit_id
         return self._tile_encoder
@@ -412,7 +412,7 @@ class ChunkEngine:
             if chunk is not None and chunk.key == chunk_key:
                 return self._last_appended_chunk
 
-        return self.cache.get_cachable(
+        return self.cache.get_hub_object(
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
 
@@ -420,7 +420,7 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.cache.get_cachable(
+        chunk = self.cache.get_hub_object(
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
         chunk.key = chunk_key  # type: ignore
@@ -454,7 +454,7 @@ class ChunkEngine:
                 if commit_id == FIRST_COMMIT_ID:
                     chunk_set = set()
                 else:
-                    chunk_set = self.meta_cache.get_cachable(
+                    chunk_set = self.meta_cache.get_hub_object(
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:

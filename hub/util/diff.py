@@ -128,12 +128,14 @@ def get_changes_str(changes: Dict, message: str, separator: str):
 def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dict]):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)
-    meta = storage.get_cachable(meta_key, DatasetMeta)
+    meta = storage.get_hub_object(meta_key, DatasetMeta)
 
     for tensor in meta.tensors:
         try:
             commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-            commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
+            commit_diff: CommitDiff = storage.get_hub_object(
+                commit_diff_key, CommitDiff
+            )
             change = changes[tensor]
 
             change["created"] = change.get("created") or commit_diff.created

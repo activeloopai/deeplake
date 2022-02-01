@@ -1,12 +1,12 @@
 from collections import OrderedDict
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
 
-def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
-    if isinstance(obj, Cachable):
+def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
+    if isinstance(obj, HubMemoryObject):
         return obj.nbytes
     return len(obj)
 
@@ -75,14 +75,14 @@ class LRUCache(StorageProvider):
 
         self.autoflush = initial_autoflush
 
-    def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
-        """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
+    def get_hub_object(self, path: str, expected_class, meta: Optional[Dict] = None):
+        """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
         Args:
-            path (str): Path to the stored cachable.
-            expected_class (callable): The expected subclass of `Cachable`.
-            meta (dict, optional): Metadata associated with the stored cachable.
+            path (str): Path to the stored object.
+            expected_class (callable): The expected subclass of `HubMemoryObject`.
+            meta (dict, optional): Metadata associated with the stored object
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -94,7 +94,7 @@ class LRUCache(StorageProvider):
 
         item = self[path]
 
-        if isinstance(item, Cachable):
+        if isinstance(item, HubMemoryObject):
             if type(item) != expected_class:
                 raise ValueError(
                     f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
@@ -141,7 +141,7 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
-    def __setitem__(self, path: str, value: Union[bytes, Cachable]):
+    def __setitem__(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
@@ -247,12 +247,12 @@ class LRUCache(StorageProvider):
 
         Args:
             path (str): the path to the object relative to the root of the provider.
-            value (bytes, Cachable): the value to send to the next storage.
+            value (bytes, HubMemoryObject): the value to send to the next storage.
         """
         if self.next_storage is not None:
             self.dirty_keys.discard(path)
 
-            if isinstance(value, Cachable):
+            if isinstance(value, HubMemoryObject):
                 self.next_storage[path] = value.tobytes()
             else:
                 self.next_storage[path] = value
@@ -275,7 +275,7 @@ class LRUCache(StorageProvider):
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
-    def _insert_in_cache(self, path: str, value: Union[bytes, Cachable]):
+    def _insert_in_cache(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Helper function that adds a key value pair to the cache.
 
         Args:

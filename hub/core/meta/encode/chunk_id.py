@@ -2,7 +2,7 @@ from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
 from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
@@ -11,7 +11,7 @@ from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 CHUNK_ID_COLUMN = 0
 
 
-class ChunkIdEncoder(Encoder, Cachable):
+class ChunkIdEncoder(Encoder, HubMemoryObject):
     def tobytes(self) -> memoryview:
         return serialize_chunkids(self.version, [self._encoded])
 

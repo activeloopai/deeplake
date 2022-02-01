@@ -1,8 +1,8 @@
 from typing import Set
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
-class CommitChunkSet(Cachable):
+class CommitChunkSet(HubMemoryObject):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:

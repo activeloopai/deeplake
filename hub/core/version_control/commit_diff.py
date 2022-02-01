@@ -1,8 +1,8 @@
 from typing import Set, List
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
-class CommitDiff(Cachable):
+class CommitDiff(HubMemoryObject):
     """Stores set of diffs stored for a particular tensor in a commit."""
 
     def __init__(self, first_index=0, created=False) -> None:

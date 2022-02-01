@@ -1,11 +1,11 @@
 import hub
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 
 
-class TileEncoder(Cachable):
+class TileEncoder(HubMemoryObject):
     def __init__(self, entries=None, version=None):
         super().__init__()
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}

@@ -407,7 +407,7 @@ class Dataset:
 
         with self:
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta: DatasetMeta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
             self.storage[meta_key] = meta
@@ -460,7 +460,7 @@ class Dataset:
 
         with self:
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
@@ -1166,7 +1166,7 @@ class Dataset:
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
+        return self.storage.get_hub_object(meta_key, DatasetMeta).groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:
@@ -1254,7 +1254,7 @@ class Dataset:
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
         meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta: DatasetMeta = self.storage.get_cachable(meta_key, DatasetMeta)
+        meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name

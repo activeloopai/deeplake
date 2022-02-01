@@ -301,7 +301,7 @@ class SampleStreaming(Streaming):
                             local_cache = self.local_caches[key]
 
                             if c_key in local_cache:
-                                chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                                chunk = local_cache.get_hub_object(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
                             else:
                                 chunk = engine.get_chunk(c_key)
                                 local_cache[c_key] = chunk

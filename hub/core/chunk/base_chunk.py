@@ -20,7 +20,7 @@ from hub.core.serialize import (
     serialize_text,
     serialize_tensor,
 )
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
@@ -40,7 +40,7 @@ InputSample = Union[
 SerializedOutput = Tuple[bytes, Tuple]
 
 
-class BaseChunk(Cachable):
+class BaseChunk(HubMemoryObject):
     def __init__(
         self,
         min_chunk_size: int,
