@@ -88,6 +88,12 @@ def filter_tr(sample_in, sample_out):
 
 
 @hub.compute
+def populate_cc_bug(sample_in, samples_out):
+    samples_out.xyz.append(sample_in)
+    return samples_out
+
+
+@hub.compute
 def inplace_transform(sample_in, samples_out):
     samples_out.img.append(2 * sample_in.img.numpy())
     samples_out.img.append(3 * sample_in.img.numpy())
@@ -850,3 +856,15 @@ def test_inplace_transform_skip_ok(local_ds_generator):
 
     assert len(ds.unused) == 10
     np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+
+
+def test_chunk_compression_bug(local_ds):
+    xyz = np.zeros((480, 640), dtype=np.float32)
+    length = 55
+    dataset = [xyz] * length
+    with local_ds as ds:
+        ds.create_tensor("xyz", chunk_compression="lz4")
+        populate_cc_bug().eval(dataset, ds, num_workers=2, scheduler="threaded")
+
+    for index in range(length):
+        np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)
