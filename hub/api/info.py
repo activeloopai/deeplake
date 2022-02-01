@@ -1,6 +1,6 @@
 from hub.util.version_control import auto_checkout
 from hub.core.storage.cachable import Cachable
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class Info(Cachable):
