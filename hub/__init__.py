@@ -45,6 +45,7 @@ delete = dataset.delete
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
+ingest_dataframe = dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
 tensor = Tensor
 
