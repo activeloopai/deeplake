@@ -55,15 +55,8 @@ def login(username: str, password: str):
                     "3 unsuccessful attempts. Kindly retry logging in after sometime."
                 )
         except Exception as e:
-            chances -= 1
-            if chances:
-                print(f"Encountered an error {e} Please try again later.")
-                username = ""
-                password = ""
-            else:
-                print(
-                    "3 unsuccessful attempts. Kindly retry logging in after sometime."
-                )
+            print(f"Encountered an error {e} Please try again later.")
+            break
 
 
 @click.command()
