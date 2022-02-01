@@ -965,7 +965,7 @@ class ChunkEngine:
 
         # write commit_chunk_set
         commit_chunk_set = self.commit_chunk_set
-        if commit_chunk_set.is_dirty:
+        if commit_chunk_set is not None and commit_chunk_set.is_dirty:
             key = get_tensor_commit_chunk_set_key(tensor, commit_id)
             storage[key] = commit_chunk_set
             commit_chunk_set.is_dirty = False

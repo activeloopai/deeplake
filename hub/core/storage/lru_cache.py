@@ -61,6 +61,8 @@ class LRUCache(StorageProvider):
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         self.check_readonly()
+        initial_autoflush = self.autoflush
+        self.autoflush = False
 
         if self.dataset is not None:
             self.dataset.write_dirty_objects()
@@ -70,6 +72,8 @@ class LRUCache(StorageProvider):
                 self._forward(key)
             if self.next_storage is not None:
                 self.next_storage.flush()
+
+        self.autoflush = initial_autoflush
 
     def get_cachable(self, path: str, expected_class, meta: Optional[Dict] = None):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,

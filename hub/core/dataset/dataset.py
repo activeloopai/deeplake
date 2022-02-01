@@ -7,7 +7,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
-from hub.api.info import load_info
+from hub.api.info import Info, load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -1364,7 +1364,7 @@ class Dataset:
             storage[key] = info
             info.is_dirty = False
 
-        tensors: List[Tensor] = list(version_state["full_tensors"].values())
+        tensors: List[Tensor] = list(self.version_state["full_tensors"].values())
         for tensor in tensors:
             tensor.write_dirty_objects()
 
