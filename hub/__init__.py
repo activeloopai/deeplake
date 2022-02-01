@@ -33,6 +33,7 @@ from .core.tensor import Tensor
 from .util.bugout_reporter import hub_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
+from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
@@ -44,6 +45,7 @@ delete = dataset.delete
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
+ingest_huggingface = huggingface.ingest_huggingface
 tensor = Tensor
 
 __all__ = [
@@ -60,6 +62,7 @@ __all__ = [
     "dataset_cl",
     "ingest",
     "ingest_kaggle",
+    "ingest_huggingface",
     "compressions",
     "htypes",
     "config",
@@ -68,7 +71,7 @@ __all__ = [
 
 __version__ = "2.2.3"
 __encoded_version__ = np.array(__version__)
-config = {"s3": Config(max_pool_connections=50)}
+config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 
 
 hub_reporter.tags.append(f"version:{__version__}")
