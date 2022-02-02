@@ -410,7 +410,7 @@ class ChunkEngine:
         chunks = [self._last_appended_chunk, self._last_updated_chunk]
         for chunk in chunks:
             if chunk is not None and chunk.key == chunk_key:
-                return self._last_appended_chunk
+                return chunk
 
         return self.cache.get_hub_object(
             chunk_key, self.chunk_class, meta=self.chunk_args
