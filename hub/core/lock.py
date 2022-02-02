@@ -147,7 +147,8 @@ class PersistentLock(Lock):
             self._acquired = False
         try:
             del self.storage[self.path]
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
 
 
