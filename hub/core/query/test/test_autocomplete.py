@@ -2,7 +2,7 @@ from hub.core.query.autocomplete import autocomplete
 import hub
 
 
-def test_autcomplete():
+def _test_ds():
     ds = hub.dataset("mem://x")
     ds.create_tensor("a")
     ds.create_tensor("b")
@@ -10,7 +10,11 @@ def test_autcomplete():
     ds.create_tensor("def")
     ds.create_tensor("g/h/i")
     ds.create_tensor("j/k/l")
+    return ds
 
+
+def test_empty_query():
+    ds = _test_ds()
     q = ""
     resp = autocomplete(q, ds)
     assert resp["tokens"] == []
@@ -18,6 +22,9 @@ def test_autcomplete():
     assert suggestions == ["a", "b", "c", "def", "g", "j"]
     assert resp["replace"] == ""
 
+
+def test_tensor_name():
+    ds = _test_ds()
     for q in ["a", "b", "c", "def"]:
         resp = autocomplete(q, ds)
         tokens = resp["tokens"]
@@ -43,6 +50,10 @@ def test_autcomplete():
             {"string": " <=", "type": "OP"},
             {"string": " !=", "type": "OP"},
         ]
+
+
+def test_tensor_name_partial():
+    ds = _test_ds()
     for q in ["d", "de"]:
         resp = autocomplete(q, ds)
         tokens = resp["tokens"]
@@ -55,6 +66,10 @@ def test_autcomplete():
         assert resp["replace"] == q
         suggestions = resp["suggestions"]
         assert suggestions == [{"string": "def", "type": "TENSOR"}]
+
+
+def test_group():
+    ds = _test_ds()
     q = "g"
     resp = autocomplete(q, ds)
     suggestions = resp["suggestions"]
