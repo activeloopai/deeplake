@@ -290,7 +290,10 @@ class Sample:
         return str(self)
 
     def __array__(self, dtype=None):
-        return self.array.astype(dtype)
+        arr = self.array
+        if dtype is not None:
+            arr = arr.astype(dtype)
+        return arr
 
     def __eq__(self, other):
         if self.path is not None and other.path is not None:

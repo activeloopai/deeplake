@@ -21,7 +21,7 @@ def test_read(cat_path, flower_path):
     assert flower.dtype == "uint8"
     assert flower.array.shape == (513, 464, 4)
 
-    arr = np.arr(cat, dtype=np.uint32)
+    arr = np.array(cat, dtype=np.uint32)
     assert arr.shape == (900, 900, 3)
     assert arr.dtype == np.uint32
 
