@@ -93,8 +93,8 @@ def delete_tensor(key: str, dataset):
     if not tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorDoesNotExistError(key)
 
-    tensor = Tensor(key, dataset)
-    chunk_engine = tensor.chunk_engine
+    tensor = dataset[key]
+    chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
     chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
@@ -107,6 +107,13 @@ def delete_tensor(key: str, dataset):
             del storage[chunk_key]
         except KeyError:
             pass
+
+    chunk_engine._chunk_id_encoder = None
+    chunk_engine._tensor_meta = None
+    chunk_engine._commit_chunk_set = None
+    chunk_engine._commit_diff = None
+    chunk_engine._tile_encoder = None
+    chunk_engine._info = None
 
     commit_id = version_state["commit_id"]
     meta_key = get_tensor_meta_key(key, commit_id)

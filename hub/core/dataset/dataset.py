@@ -406,17 +406,15 @@ class Dataset:
                 return
 
         with self:
+            delete_tensor(name, self)
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
-            self.storage[meta_key] = meta
-            delete_tensor(name, self)
+            self.version_state["meta"] = meta
+            self.version_state["full_tensors"].pop(name)
 
         self.storage.maybe_flush()
-
-        self.version_state["meta"] = meta
-        self.version_state["full_tensors"].pop(name)
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -1360,7 +1358,7 @@ class Dataset:
 
         # write dataset info
         info = self.info
-        if info.is_dirty:
+        if info and info.is_dirty:
             key = get_dataset_info_key(commit_id)
             storage[key] = info
             info.is_dirty = False
