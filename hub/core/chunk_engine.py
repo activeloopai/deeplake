@@ -420,9 +420,7 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.cache.get_hub_object(
-            chunk_key, self.chunk_class, meta=self.chunk_args
-        )
+        chunk = self.get_chunk(chunk_key)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
@@ -620,7 +618,7 @@ class ChunkEngine:
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             if (
-                self._last_appended_chunk is not None
+                self._last_updated_chunk is not None
                 and self._last_updated_chunk.key != chunk.key
             ):
                 self.write_chunk_to_storage(self._last_updated_chunk)
@@ -657,7 +655,7 @@ class ChunkEngine:
                 )
                 chunk.update_sample(local_sample_index, sample)
                 if (
-                    self._last_appended_chunk is not None
+                    self._last_updated_chunk is not None
                     and self._last_updated_chunk.key != chunk.key
                 ):
                     self.write_chunk_to_storage(self._last_updated_chunk)
@@ -937,7 +935,17 @@ class ChunkEngine:
             chunk_to_update._pop_sample()
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                del self.cache[chunk_key]
+                if (
+                    self._last_appended_chunk is not None
+                    and self._last_appended_chunk.key == chunk_key
+                ):
+                    self._last_appended_chunk = None
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
+                else:
+                    del self.cache[chunk_key]
         self.tensor_meta._pop()
 
     def write_dirty_objects(self):
