@@ -199,6 +199,9 @@ def copy_metas(
     version_state: Dict[str, Any],
 ) -> None:
     """Copies meta data from one commit to another."""
+    initial_autoflush = storage.autoflush
+    storage.autoflush = False
+
     tensors = version_state["full_tensors"]
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
@@ -269,6 +272,7 @@ def copy_metas(
         except KeyError:
             pass
 
+    storage.autoflush = initial_autoflush
     storage.flush()
 
 

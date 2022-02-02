@@ -192,8 +192,6 @@ class LRUCache(StorageProvider):
             if not deleted_from_cache:
                 raise
 
-        self.maybe_flush()
-
     def clear_cache(self):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
