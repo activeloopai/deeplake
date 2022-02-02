@@ -299,6 +299,7 @@ def decompress_array(
         compression (str, Optional): Applicable only for byte compressions. Compression used to compression the given buffer.
         start_idx: (int, Optional): Applicable only for video compressions. Index of first frame.
         end_idx: (int, Optional): Applicable only for video compressions. Index of last frame (exclusive).
+        step: (int, Optional): Applicable only for video compressions. Step size for seeking.
         reverse (bool): Applicable only for video compressions. Reverses output numpy array if set to True.
 
     Raises:
