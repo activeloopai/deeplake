@@ -255,3 +255,4 @@ class ChunkCompressedChunk(BaseChunk):
 
     def prepare_for_write(self):
         ffw_chunk(self)
+        self.is_dirty = True
