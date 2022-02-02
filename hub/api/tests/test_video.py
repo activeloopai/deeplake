@@ -75,5 +75,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
             np.testing.assert_array_equal(
                 local_ds.video[0][100:-25:-1].numpy(), raw_video[100:-25:-1]
             )
+            local_ds.video[0][100:-10:5].numpy().shape == raw_video[100:-10:5].shape
+            local_ds.video[0][50:-40:6].numpy().shape == raw_video[50:-40:6].shape
             return
-        raise Exception  # test did not run
+    raise Exception  # test did not run
