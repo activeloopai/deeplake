@@ -983,14 +983,13 @@ class Dataset:
     @info.setter
     def info(self, value):
         if isinstance(value, Info):
-            value2 = value.copy()
-        elif isinstance(value, dict):
-            value2 = Info()
-            value2.update(value)
+            value = value._info
+
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
         else:
             raise TypeError("Info must be set with type Info or Dict")
-        value2._dataset = self
-        self._info = value2
 
     @hub_reporter.record_call
     def tensorflow(self):

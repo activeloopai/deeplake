@@ -1,3 +1,4 @@
+from sqlite3 import NotSupportedError
 from hub.util.version_control import auto_checkout
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict, Optional
@@ -13,8 +14,14 @@ class Info(HubMemoryObject):
         if self._dataset is not None:
             storage = self._dataset.storage
             storage.check_readonly()
-            auto_checkout(self._dataset)
+            if not self._dataset.version_state["commit_node"].is_head_node:
+                raise NotSupportedError("Cannot modify info from a non-head commit.")
             self.is_dirty = True
+
+    def end_write(self):
+        if self._dataset is not None:
+            storage = self._dataset.storage
+            storage.maybe_flush()
 
     @property
     def nbytes(self):
@@ -54,10 +61,12 @@ class Info(HubMemoryObject):
     def __setitem__(self, key, value):
         self.prepare_for_write()
         self._info[key] = value
+        self.end_write()
 
     def __delitem__(self, key):
         self.prepare_for_write()
         del self._info[key]
+        self.end_write()
 
     def __contains__(self, key):
         return key in self._info
@@ -80,29 +89,38 @@ class Info(HubMemoryObject):
         else:
             self.prepare_for_write()
             self[key] = value
+            self.end_write()
 
     def get(self, key, default=None):
         return self._info.get(key, default)
 
     def setdefault(self, key, default=None):
         self.prepare_for_write()
-        return self._info.setdefault(key, default)
+        ret = self._info.setdefault(key, default)
+        self.end_write()
+        return ret
 
     def clear(self):
         self.prepare_for_write()
         self._info.clear()
+        self.end_write()
 
     def pop(self, key, default=None):
         self.prepare_for_write()
-        return self._info.pop(key, default)
+        popped = self._info.pop(key, default)
+        self.end_write()
+        return popped
 
     def popitem(self):
         self.prepare_for_write()
-        return self._info.popitem()
+        popped = self._info.popitem()
+        self.end_write()
+        return popped
 
     def update(self, *args, **kwargs):
         self.prepare_for_write()
         self._info.update(*args, **kwargs)
+        self.end_write()
 
     def keys(self):
         return self._info.keys()
@@ -112,6 +130,12 @@ class Info(HubMemoryObject):
 
     def items(self):
         return self._info.items()
+
+    def replace_with(self, d):
+        self.prepare_for_write()
+        self._info.clear()
+        self._info.update(d)
+        self.end_write()
 
     # the below methods are used by cloudpickle dumps
     def __origin__(self):

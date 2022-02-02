@@ -261,16 +261,13 @@ class Tensor:
     @info.setter
     def info(self, value):
         if isinstance(value, Info):
-            value2 = value.copy()
-        elif isinstance(value, dict):
-            value2 = Info()
-            value2.update(value)
+            value = value._info
+
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
         else:
             raise TypeError("Info must be set with type Info or Dict")
-
-        value2._dataset = self.dataset
-        self.chunk_engine._info = value2
-        self.chunk_engine._info_commit_id = self.version_state["commit_id"]
 
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,

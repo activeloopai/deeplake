@@ -20,6 +20,7 @@ def test_dataset(local_ds_generator):
         test_list.extend(["user made change without `update`"])
 
     ds.info.update({"1_-+": 5})
+    assert len(ds.info) == 7
 
     ds = local_ds_generator()
 
@@ -41,13 +42,14 @@ def test_dataset(local_ds_generator):
     assert len(ds.info) == 7
     assert ds.info.test == [99]
 
-    ds.info.delete("test")
+    ds.info.pop("test")
     assert len(ds.info) == 6
 
-    ds.info.delete(["1_-+", "xyz"])
+    ds.info.pop("1_-+")
+    ds.info.pop("xyz")
     assert len(ds.info) == 4
 
-    ds.info.delete()
+    ds.info.clear()
     assert len(ds.info) == 0
 
 
@@ -89,13 +91,14 @@ def test_tensor(local_ds_generator):
 
     assert t1.info.key == 99
 
-    t2.info.delete("key")
+    t2.info.pop("key")
     assert len(t2.info) == 3
 
-    t2.info.delete(["key2", "key3"])
+    t2.info.pop("key2")
+    t2.info.pop("key3")
     assert len(t2.info) == 1
 
-    t2.info.delete()
+    t2.info.clear()
     assert len(t2.info) == 0
 
 
