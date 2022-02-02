@@ -1,7 +1,7 @@
 import hub
 from tokenize import tokenize, TokenError
 from io import BytesIO
-from typing import List
+from typing import Any, Dict, List
 
 
 def _token_obj_to_dict(token):
@@ -71,7 +71,7 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
     pytokens = _tokenize(s)
     tensors = ds._ungrouped_tensors
     groups = set(ds._groups_filtered)
-    hubtokens = []
+    hubtokens: List[Dict[str, Any]] = []
     group_in_progress = None
     for i, t in enumerate(pytokens):
         ht = _token_obj_to_dict(t)
