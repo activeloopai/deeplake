@@ -6,7 +6,7 @@ from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage import StorageProvider, LRUCache
+from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import Info, load_info
 from hub.util.keys import (
@@ -15,6 +15,7 @@ from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
+    get_tensor_tile_encoder_key,
     tensor_exists,
     get_tensor_info_key,
 )
@@ -137,6 +138,12 @@ def delete_tensor(key: str, dataset):
     chunk_id_encoder_key = get_chunk_id_encoder_key(key, commit_id)
     try:
         del storage[chunk_id_encoder_key]
+    except KeyError:
+        pass
+
+    tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
+    try:
+        del storage[tile_encoder_key]
     except KeyError:
         pass
 

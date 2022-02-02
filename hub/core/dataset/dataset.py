@@ -141,8 +141,6 @@ class Dataset:
         self._is_filtered_view = False
         self._view_info = None
 
-        self.storage.set_dataset(self)
-
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
@@ -354,14 +352,13 @@ class Dataset:
             **meta_kwargs,
         )
         meta: DatasetMeta = self.version_state["meta"]
-        meta.add_tensor(name)
         ffw_dataset_meta(meta)
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
+        meta.add_tensor(name)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
-        tensor.info.update(info_kwargs)
+        if info_kwargs:
+            tensor.info.update(info_kwargs)
+        self.storage.maybe_flush()
         return tensor
 
     @hub_reporter.record_call
@@ -457,21 +454,18 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_hub_object(meta_key, DatasetMeta)
+            meta = self.version_state["meta"]
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
                 for tensor in self[name]._all_tensors_filtered
             ]
             meta.delete_group(name)
-            self.storage[meta_key] = meta
             for tensor in tensors:
                 delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
-        self.version_state["meta"] = meta
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
@@ -756,7 +750,7 @@ class Dataset:
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
-
+        self.storage.set_dataset(self)
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -770,11 +764,9 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             self.version_state["meta"] = DatasetMeta()
-            self.storage[meta_key] = self.version_state["meta"]
-            self.flush()
             self._register_dataset()
+            self.flush()
 
     def _register_dataset(self):
         """overridden in HubCloudDataset"""
@@ -1250,8 +1242,7 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
+        meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
@@ -1260,8 +1251,6 @@ class Dataset:
                 raise TensorAlreadyExistsError(name)
             meta.add_group(name)
             name, _ = posixpath.split(name)
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
