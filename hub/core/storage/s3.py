@@ -174,9 +174,6 @@ class S3Provider(StorageProvider):
             raise S3SetError(err)
 
     def _get(self, path):
-        if "chunks" in path:
-            print("here")
-            time.sleep(10)
         resp = self.client.get_object(
             Bucket=self.bucket,
             Key=path,
