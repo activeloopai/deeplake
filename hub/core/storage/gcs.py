@@ -207,6 +207,9 @@ class GCSProvider(StorageProvider):
                 `anon`: Sets credentials=None
                 `browser`: Generates and stores new token file using cli.
             project (str): Name of the project from gcloud.
+
+        Raises:
+            ModuleNotFoundError: If google cloud packages aren't installed
         """
         if not _GOOGLE_PACKAGES_INSTALLED:
             raise ModuleNotFoundError(
