@@ -39,7 +39,7 @@ Hub includes the following features:
 * **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
 <div align="center">
-<a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+<a href="https://s10.gifyu.com/images/ReadMe.gif"><img src="https://s10.gifyu.com/images/ReadMe.gif" type="image"></a>
 </div>
 
     
