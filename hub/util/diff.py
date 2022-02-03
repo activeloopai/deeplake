@@ -76,9 +76,12 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def get_all_changes_string(changes1, message1, changes2, message2):
+def get_all_changes_string(message0, changes1, message1, changes2, message2):
     """Returns a string with all changes."""
     all_changes = ["\n## Hub Diff"]
+    if message0:
+        all_changes.append(message0)
+
     separator = "-" * 120
     if changes1 is not None:
         changes1_str = get_changes_str(changes1, message1, separator)
