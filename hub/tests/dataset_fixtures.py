@@ -1,6 +1,6 @@
 import pytest
 import hub
-import atexit
+
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
@@ -50,10 +50,7 @@ def local_ds_generator(local_path):
 
 @pytest.fixture
 def s3_ds(s3_ds_generator):
-    try:
-        return s3_ds_generator()
-    finally:
-        atexit._run_exitfuncs()
+    return s3_ds_generator()
 
 
 @pytest.fixture
@@ -66,10 +63,7 @@ def s3_ds_generator(s3_path):
 
 @pytest.fixture
 def gcs_ds(gcs_ds_generator):
-    try:
-        return gcs_ds_generator()
-    finally:
-        atexit._run_exitfuncs()
+    return gcs_ds_generator()
 
 
 @pytest.fixture
@@ -82,10 +76,7 @@ def gcs_ds_generator(gcs_path, gcs_creds):
 
 @pytest.fixture
 def hub_cloud_ds(hub_cloud_ds_generator):
-    try:
-        return hub_cloud_ds_generator()
-    finally:
-        atexit._run_exitfuncs()
+    return hub_cloud_ds_generator()
 
 
 @pytest.fixture
