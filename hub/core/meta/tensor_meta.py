@@ -120,8 +120,8 @@ class TensorMeta(Meta):
 
     def update_shape_interval(self, shape: Sequence[int]):
         ffw_tensor_meta(self)
-        initial_min_shape = self.min_shape
-        initial_max_shape = self.max_shape
+        initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
+        initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
         if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
