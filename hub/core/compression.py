@@ -27,6 +27,7 @@ import numcodecs.lz4  # type: ignore
 import os
 import subprocess as sp
 import tempfile
+
 try:
     from miniaudio import (  # type: ignore
         mp3_read_file_f32,
@@ -42,6 +43,7 @@ try:
         wav_get_file_info,
         wav_get_info,
     )
+
     _MINIAUDIO_INSTALLED = True
 except ImportError:
     _MINIAUDIO_INSTALLED = False
@@ -50,6 +52,7 @@ import math
 
 try:
     import lz4.frame  # type: ignore
+
     _LZ4_INSTALLED = True
 except ImportError:
     _LZ4_INSTALLED = False
@@ -217,7 +220,9 @@ def decompress_bytes(
             buffer[:4] == b'\x04"M\x18'
         ):  # python-lz4 magic number (backward compatiblity)
             if not _LZ4_INSTALLED:
-                raise ModuleNotFoundError("Module lz4 not found. Install using `pip install lz4`.")
+                raise ModuleNotFoundError(
+                    "Module lz4 not found. Install using `pip install lz4`."
+                )
             return lz4.frame.decompress(buffer)
         return numcodecs.lz4.decompress(buffer)
     else:
@@ -757,7 +762,9 @@ def _decompress_audio(
     file: Union[bytes, memoryview, str], compression: Optional[str]
 ) -> np.ndarray:
     if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError("Miniaudio is not installed. Run `pip install hub[audio]`.")
+        raise ModuleNotFoundError(
+            "Miniaudio is not installed. Run `pip install hub[audio]`."
+        )
     decompressor = globals()[
         f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
     ]
@@ -780,7 +787,9 @@ def _read_audio_shape(
     file: Union[bytes, memoryview, str], compression: str
 ) -> Tuple[int, ...]:
     if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError("Miniaudio is not installed. Run `pip install hub[audio]`.")
+        raise ModuleNotFoundError(
+            "Miniaudio is not installed. Run `pip install hub[audio]`."
+        )
     f_info = globals()[
         f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
     ]

@@ -5,17 +5,22 @@ import os
 import tempfile
 from typing import Dict, Union
 
-from google.cloud import storage  # type: ignore
-from google.api_core import retry  # type: ignore
-from google.oauth2 import service_account  # type: ignore
-import google.auth as gauth  # type: ignore
-import google.auth.compute_engine  # type: ignore
-import google.auth.credentials  # type: ignore
-import google.auth.exceptions  # type: ignore
-from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+try:
+    from google.cloud import storage  # type: ignore
+    from google.api_core import retry  # type: ignore
+    from google.oauth2 import service_account  # type: ignore
+    import google.auth as gauth  # type: ignore
+    import google.auth.compute_engine  # type: ignore
+    import google.auth.credentials  # type: ignore
+    import google.auth.exceptions  # type: ignore
+    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+    from google.api_core.exceptions import NotFound  # type: ignore
+except ImportError:
+    _GOOGLE_PACKAGES_INSTALLED = False
+
+
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
-from google.api_core.exceptions import NotFound  # type: ignore
 
 
 class GCloudCredentials:
@@ -203,6 +208,10 @@ class GCSProvider(StorageProvider):
                 `browser`: Generates and stores new token file using cli.
             project (str): Name of the project from gcloud.
         """
+        if not _GOOGLE_PACKAGES_INSTALLED:
+            raise ModuleNotFoundError(
+                "Google cloud packages are not installed. Run `pip install hub[gcp]`."
+            )
         self.root = root
         self.token: Union[str, Dict, None] = token
         self.project = project
