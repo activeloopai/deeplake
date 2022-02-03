@@ -949,7 +949,7 @@ class ChunkEngine:
         self.tensor_meta._pop()
 
     def write_dirty_objects(self):
-        storage = self.cache
+        storage = self.meta_cache
         commit_id = self.commit_id
         tensor = self.key
 

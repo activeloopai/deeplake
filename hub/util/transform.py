@@ -241,6 +241,7 @@ def create_worker_chunk_engines(
                 storage_chunk_engine = ChunkEngine(
                     tensor, storage_cache, version_state, memory_cache
                 )
+                storage_cache.set_dataset(storage_chunk_engine)
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
             except (JSONDecodeError, KeyError):
