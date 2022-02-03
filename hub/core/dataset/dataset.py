@@ -745,14 +745,15 @@ class Dataset:
                     message1 = f"Diff in {commit1} (current commit):\n"
                 message2 = f"Diff in {commit2} (target id):\n"
             else:
-                message0 = "The 2 diffs are calculated relative to the most recent common ancestor of the two commits passed."
+                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the two commits passed."
                 commit1 = id_1
                 commit2 = id_2
                 message1 = f"Diff in {commit1} (target id 1):\n"
                 message2 = f"Diff in {commit2} (target id 2):\n"
-            changes1, changes2 = compare_commits(
+            changes1, changes2, lca_id = compare_commits(
                 commit1, commit2, version_state, storage
             )
+            message0 = message0 % lca_id
         if as_dict:
             if changes2 is None:
                 return changes1

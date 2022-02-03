@@ -40,7 +40,7 @@ def compare_commits(
             get_changes_for_id(commit_id, storage, changes)
             commit_node = commit_node.parent  # type: ignore
         filter_data_updated(changes)
-    return changes_1, changes_2
+    return changes_1, changes_2, lca_id
 
 
 def sanitize_commit(id: str, version_state: Dict[str, Any]) -> str:
