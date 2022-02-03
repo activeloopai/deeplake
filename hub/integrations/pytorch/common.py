@@ -1,3 +1,4 @@
+from typing import Callable, Dict, List, Optional
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
 
@@ -26,3 +27,31 @@ def convert_fn(data):
         data = data[0]
 
     return torch.utils.data._utils.collate.default_convert(data)
+
+
+class PytorchTransformFunction:
+    def __init__(
+        self,
+        transform_dict: Optional[Dict[str, Optional[Callable]]] = None,
+        composite_transform: Optional[Callable] = None,
+        tensors: List[str] = None,
+    ) -> None:
+        self.composite_transform = composite_transform
+        self.transform_dict = transform_dict
+        tensors = tensors or []
+
+        if transform_dict is not None:
+            for tensor in transform_dict:
+                if tensor not in tensors:
+                    raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
+
+    def __call__(self, data_in: Dict) -> Dict:
+        if self.composite_transform is not None:
+            return self.composite_transform(data_in)
+        elif self.transform_dict is not None:
+            data_out = {}
+            for tensor, fn in self.transform_dict.items():
+                value = data_in[tensor]
+                data_out[tensor] = value if fn is None else fn(value)
+            return data_out
+        return data_in

@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import uuid
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
+from hub.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
 
@@ -91,7 +92,7 @@ hub_reporter = HumbugReporter(
     consent=consent,
     client_id=client_id,
     session_id=session_id,
-    bugout_token="f7176d62-73fa-4ecc-b24d-624364bddcb0",
+    bugout_token=BUGOUT_TOKEN,
     tags=[],
 )
 

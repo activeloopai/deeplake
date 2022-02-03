@@ -1,12 +1,12 @@
 # type: ignore
+import os
 from hub.core.compression import (
     compress_array,
-    compress_bytes,
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
-    _to_hub_mkv,
+    to_hub_mkv,
 )
 from hub.compression import (
     get_compression_type,
@@ -14,13 +14,23 @@ from hub.compression import (
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
 )
-from hub.compression import get_compression_type, AUDIO_COMPRESSION, IMAGE_COMPRESSION
+from hub.compression import (
+    get_compression_type,
+    AUDIO_COMPRESSION,
+    IMAGE_COMPRESSION,
+    BYTE_COMPRESSION,
+)
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 from io import BytesIO
+
+if os.name == "nt":
+    _USE_CFFI = False
+else:
+    _USE_CFFI = True
 
 
 class Sample:
@@ -33,6 +43,8 @@ class Sample:
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
         verify: bool = False,
+        shape: Tuple[int] = None,
+        dtype: Optional[str] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -47,12 +59,13 @@ class Sample:
             buffer: (bytes): Byte buffer that represents a single sample. If compressed, `compression` argument should be provided.
             compression (str): Specify in case of byte buffer.
             verify (bool): If a path is provided, verifies the sample if True.
+            shape (Tuple[int]): Shape of the sample.
+            dtype (str, optional): Data type of the sample.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
         """
-
-        if not any((path, array, buffer)):
+        if path is None and array is None and buffer is None:
             raise ValueError("Must pass one of `path`, `array` or `buffer`.")
 
         self._compressed_bytes = {}
@@ -60,7 +73,8 @@ class Sample:
 
         self._array = None
         self._typestr = None
-        self._shape = None
+        self._shape = shape or None
+        self._dtype = dtype or None
         self.path = None
         self._buffer = None
 
@@ -92,6 +106,8 @@ class Sample:
 
     @property
     def dtype(self):
+        if self._dtype:
+            return self._dtype
         self._read_meta()
         return np.dtype(self._typestr).name
 
@@ -160,11 +176,11 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
-                if self._compression in (
+                if not _USE_CFFI and self._compression in (
                     "mp4",
                     "mkv",
-                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
-                    compressed_bytes = _to_hub_mkv(self.path)
+                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream (slower implementation only)
+                    compressed_bytes = to_hub_mkv(self.path)
                 else:
                     with open(self.path, "rb") as f:
                         compressed_bytes = f.read()
@@ -204,7 +220,9 @@ class Sample:
                 ):
                     self._compression = compr
                     if self._array is None:
-                        self._array = decompress_array(self.path, compression=compr)
+                        self._array = decompress_array(
+                            self.path, compression=compr, shape=self.shape
+                        )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
                     img = Image.open(self.path)
@@ -213,6 +231,18 @@ class Sample:
                         self._uncompressed_bytes = img.tobytes("raw", "L")
                     else:
                         self._uncompressed_bytes = img.tobytes()
+            elif self._compressed_bytes:
+                compr = self._compression
+                if compr is None:
+                    compr = get_compression(path=self.path)
+                buffer = self._buffer
+                if buffer is None:
+                    buffer = self._compressed_bytes[compr]
+                self._array = decompress_array(
+                    buffer, compression=compr, shape=self.shape, dtype=self.dtype
+                )
+                self._uncompressed_bytes = self._array.tobytes()
+                self._typestr = self._array.__array_interface__["typestr"]
             else:
                 self._uncompressed_bytes = self._array.tobytes()
 
@@ -227,18 +257,21 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
-                array = decompress_array(self.path or self._buffer, compression=compr)
+                array = decompress_array(
+                    self.path or self._buffer, compression=compr, shape=self.shape
+                )
                 if self._shape is None:
                     self._shape = array.shape
                     self._typestr = array.__array_interface__["typestr"]
                 self._array = array
             else:
                 self._read_meta()
+                data = self.uncompressed_bytes()
                 array_interface = {
                     "shape": self._shape,
                     "typestr": self._typestr,
                     "version": 3,
-                    "data": self.uncompressed_bytes(),
+                    "data": data,
                 }
 
                 class ArrayData:
@@ -256,8 +289,11 @@ class Sample:
     def __repr__(self):
         return str(self)
 
-    def __array__(self):
-        return self.array
+    def __array__(self, dtype=None):
+        arr = self.array
+        if dtype is not None:
+            arr = arr.astype(dtype)
+        return arr
 
     def __eq__(self, other):
         if self.path is not None and other.path is not None:

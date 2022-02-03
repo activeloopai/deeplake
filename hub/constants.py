@@ -43,6 +43,8 @@ TENSOR_INFO_FILENAME = "tensor_info.json"
 
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
 TENSOR_COMMIT_CHUNK_SET_FILENAME = "chunk_set"
+TENSOR_COMMIT_DIFF_FILENAME = "commit_diff"
+
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
 DATASET_LOCK_VALIDITY = 300  # seconds
@@ -50,7 +52,7 @@ DATASET_LOCK_VALIDITY = 300  # seconds
 META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
-
+ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
 ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
@@ -86,6 +88,7 @@ MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
 S3_OPT = "--s3"
 GCS_OPT = "--gcs"
+GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
@@ -97,7 +100,9 @@ LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
 
 # used to identify the first commit so its data will not be in similar directory structure to the rest
 FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
-VERSION_CONTROL_INFO_FILENAME = "version_control_info"
+VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
+VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
+VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
@@ -107,3 +112,13 @@ TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
 
 # If True, and if the rest of the dataset is in color (3D), then reshape a grayscale image by appending a 1 to its shape.
 CONVERT_GRAYSCALE = True
+
+PARTIAL_NUM_SAMPLES = 0.5
+
+QUERIES_FILENAME = "queries.json"
+QUERIES_LOCK_FILENAME = "queries.lock"
+
+_ENABLE_HUB_SUB_DATASETS = False
+
+# Frequency for sending progress events and writing to vds
+QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds

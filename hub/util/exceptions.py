@@ -69,7 +69,7 @@ class TensorMetaMissingKey(Exception):
         super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
-class TensorDoesNotExistError(KeyError):
+class TensorDoesNotExistError(KeyError, AttributeError):
     def __init__(self, tensor_name: str):
         super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
@@ -79,6 +79,11 @@ class TensorAlreadyExistsError(Exception):
         super().__init__(
             f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
         )
+
+
+class TensorGroupDoesNotExistError(KeyError):
+    def __init__(self, group_name: str):
+        super().__init__(f"Tensor group '{group_name}' does not exist.")
 
 
 class TensorGroupAlreadyExistsError(Exception):
@@ -327,7 +332,7 @@ class CompressionError(Exception):
 
 
 class UnsupportedCompressionError(CompressionError):
-    def __init__(self, compression: str, htype: Optional[str] = None):
+    def __init__(self, compression: Optional[str], htype: Optional[str] = None):
         if htype:
             super().__init__(
                 f"Compression '{compression}' is not supported for {htype} htype."
@@ -340,7 +345,10 @@ class UnsupportedCompressionError(CompressionError):
 
 class SampleCompressionError(CompressionError):
     def __init__(
-        self, sample_shape: Tuple[int, ...], compression_format: str, message: str
+        self,
+        sample_shape: Tuple[int, ...],
+        compression_format: Optional[str],
+        message: str,
     ):
         super().__init__(
             f"Could not compress a sample with shape {str(sample_shape)} into '{compression_format}'. Raw error output: '{message}'.",
@@ -474,6 +482,10 @@ class TransformError(Exception):
     pass
 
 
+class FilterError(Exception):
+    pass
+
+
 class InvalidInputDataError(TransformError):
     def __init__(self, operation):
         super().__init__(
@@ -491,11 +503,17 @@ class UnsupportedSchedulerError(TransformError):
 
 
 class TensorMismatchError(TransformError):
-    def __init__(self, tensors, output_keys):
-        super().__init__(
-            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
-            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
-        )
+    def __init__(self, tensors, output_keys, skip_ok=False):
+        if skip_ok:
+            super().__init__(
+                f"One or more tensors generated during hub compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
+        else:
+            super().__init__(
+                f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
 
 
 class InvalidOutputDatasetError(TransformError):
@@ -585,6 +603,10 @@ class CheckoutError(VersionControlError):
     pass
 
 
+class CommitError(VersionControlError):
+    pass
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(
@@ -605,9 +627,15 @@ class AgreementNotAcceptedError(AgreementError):
 
 
 class NotLoggedInError(AgreementError):
-    def __init__(self):
-        super().__init__(
+    def __init__(self, msg=None):
+        msg = msg or (
             "This dataset includes an agreement that needs to be accepted before you can use it.\n"
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
+
+        super().__init__(msg)
+
+
+class BufferError(Exception):
+    pass

@@ -1,17 +1,23 @@
-from hub.core.meta.tensor_meta import TensorMeta
+from hub.compression import (
+    BYTE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    AUDIO_COMPRESSION,
+    get_compression_type,
+)
+from hub.core.tiling.sample_tiles import SampleTiles
+from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
-from hub.util.json import HubJsonEncoder, validate_json_object
+from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.compression import compress_array, compress_bytes
-from hub.client import config
-from hub.compression import IMAGE_COMPRESSIONS
-from typing import List, Optional, Sequence, Union, Tuple, Iterable
+from typing import Optional, Sequence, Union, Tuple
 import hub
 import numpy as np
 import struct
-import warnings
 import json
+
+BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
 
 def infer_chunk_num_bytes(
@@ -227,175 +233,180 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def _serialize_input_sample(
-    sample: SampleValue,
-    sample_compression: Optional[str],
-    expected_dtype: str,
-    htype: str,
-) -> Tuple[bytes, Tuple[int]]:
-    """Converts the incoming sample into a buffer with the proper dtype and compression."""
+def check_sample_shape(shape, num_dims):
+    if len(shape) != num_dims:
+        raise TensorInvalidSampleShapeError(shape, num_dims)
 
+
+def text_to_bytes(sample, dtype, htype):
+    if isinstance(sample, hub.core.tensor.Tensor):
+        try:
+            if sample.htype == htype or sample.htype == "json" and htype == "list":
+                return sample.tobytes(), sample.shape
+        except (ValueError, NotImplementedError):  # sliced sample or tiled sample
+            sample = sample.data()
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
-                if sample.dtype == object:
-                    sample = list(sample)
-                else:
-                    sample = sample.tolist()
+                sample = list(sample) if sample.dtype == object else sample.tolist()
             elif htype == "json":
-                if sample.ndim == 0:
+                if sample.ndim == 0 or sample.dtype != object:
                     sample = sample.tolist()  # actually returns dict
-                elif sample.dtype == object:
-                    sample = list(sample)
                 else:
-                    sample = sample.tolist()
-        validate_json_object(sample, expected_dtype)
+                    sample = list(sample)
+        validate_json_object(sample, dtype)
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
-        if sample_compression:
-            byts = compress_bytes(byts, compression=sample_compression)
         shape = (len(sample),) if htype == "list" else (1,)
-        return byts, shape
-    elif htype == "text":
+    else:  # htype == "text":
         if isinstance(sample, np.ndarray):
             sample = sample.tolist()
         if not isinstance(sample, str):
             raise TypeError("Expected str, received: " + str(sample))
         byts = sample.encode()
-        if sample_compression:
-            byts = compress_bytes(byts, compression=sample_compression)
-        return byts, (1,)
-
-    if isinstance(sample, Sample):
-        if (
-            sample_compression
-            and hub.compression.get_compression_type(sample_compression) == "byte"
-        ):
-            # Byte compressions don't store dtype info, so have to cast incoming samples to expected dtype
-            arr = intelligent_cast(sample.array, expected_dtype, htype)
-            sample = Sample(array=arr)
-        buffer = sample.compressed_bytes(sample_compression)
-        shape = sample.shape
-    else:
-        sample = intelligent_cast(sample, expected_dtype, htype)
-        shape = sample.shape
-
-        if sample_compression is not None:
-            buffer = compress_array(sample, sample_compression)
-        else:
-            buffer = sample.tobytes()
-
-    if len(shape) == 0:
         shape = (1,)
+    return byts, shape
 
-    return buffer, shape
+
+def bytes_to_text(buffer, htype):
+    buffer = bytes(buffer)
+    if htype == "json":
+        arr = np.empty(1, dtype=object)
+        arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+        return arr
+    elif htype == "list":
+        lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
+        arr = np.empty(len(lst), dtype=object)
+        arr[:] = lst
+        return arr
+    else:  # htype == "text":
+        arr = np.array(bytes.decode(buffer)).reshape(
+            1,
+        )
+    return arr
 
 
-def _check_input_samples_are_valid(
-    num_bytes: List[int],
-    shapes: List[Tuple[int]],
-    min_chunk_size: int,
+def serialize_text(
+    incoming_sample: SampleValue,
     sample_compression: Optional[str],
+    dtype: str,
+    htype: str,
 ):
-    """Iterates through all buffers/shapes and raises appropriate errors."""
-
-    expected_dimensionality = None
-    for nbytes, shape in zip(num_bytes, shapes):
-        # check that all samples have the same dimensionality
-        if expected_dimensionality is None:
-            expected_dimensionality = len(shape)
-
-        if nbytes > min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {nbytes} bytes."
-            if sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-            raise NotImplementedError(msg)
-
-        if len(shape) != expected_dimensionality:
-            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+    """Converts the sample into bytes"""
+    incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
+    if sample_compression:
+        incoming_sample = compress_bytes(incoming_sample, sample_compression)
+    return incoming_sample, shape
 
 
-def serialize_input_samples(
-    samples: Union[Sequence[SampleValue], np.ndarray],
-    meta: TensorMeta,
+def serialize_numpy_and_base_types(
+    incoming_sample: BaseTypes,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
     min_chunk_size: int,
-) -> Tuple[Union[memoryview, bytearray], List[int], List[Tuple[int]]]:
-    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
+    break_into_tiles: bool = True,
+    store_tiles: bool = False,
+):
+    """Converts the sample into bytes"""
+    out = intelligent_cast(incoming_sample, dtype, htype)
+    shape = out.shape
+    tile_compression = chunk_compression or sample_compression
 
-    Args:
-        samples (Union[Sequence[SampleValue], np.ndarray]): Ssequence of samples.
-        meta (TensorMeta): Tensor meta. Will not be modified.
-        min_chunk_size (int): Used to validate that all samples are appropriately sized.
-
-    Raises:
-        ValueError: Tensor meta should have it's dtype set.
-        NotImplementedError: When extending tensors with Sample insatances.
-        TypeError: When sample type is not understood.
-
-    Returns:
-        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
-    """
-
-    if meta.dtype is None:
-        raise ValueError("Dtype must be set before input samples can be serialized.")
-
-    sample_compression = meta.sample_compression
-    chunk_compression = meta.chunk_compression
-    dtype = meta.dtype
-    htype = meta.htype
-
-    if sample_compression or not hasattr(samples, "dtype"):
-        buff = bytearray()
-        nbytes = []
-        shapes = []
-        expected_dim = len(meta.max_shape)
-        is_convert_candidate = (
-            (htype == "image")
-            or sample_compression in IMAGE_COMPRESSIONS
-            or chunk_compression in IMAGE_COMPRESSIONS
-        )
-
-        for sample in samples:
-            byts, shape = _serialize_input_sample(
-                sample, sample_compression, dtype, htype
-            )
-            if (
-                isinstance(sample, Sample)
-                and is_convert_candidate
-                and hub.constants.CONVERT_GRAYSCALE
-            ):
-                if not expected_dim:
-                    expected_dim = len(shape)
-                if len(shape) == 2 and expected_dim == 3:
-                    warnings.warn(
-                        f"Grayscale images will be reshaped from (H, W) to (H, W, 1) to match tensor dimensions. This warning will be shown only once."
-                    )
-                    shape += (1,)  # type: ignore[assignment]
-            buff += byts
-            nbytes.append(len(byts))
-            shapes.append(shape)
-    elif (
-        isinstance(samples, np.ndarray)
-        or np.isscalar(samples)
-        or isinstance(samples, Sequence)
-    ):
-        samples = intelligent_cast(samples, dtype, htype)
-        buff = memoryview(samples.tobytes())  # type: ignore
-        if len(samples):
-            shape = samples[0].shape
-            nb = samples[0].nbytes
-            if not shape:
-                shape = (1,)
+    if sample_compression is None:
+        if out.nbytes > min_chunk_size and break_into_tiles:
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
-            shape = ()  # type: ignore
-            nb = 0
-        nbytes = [nb] * len(samples)
-        shapes = [shape] * len(samples)
-    elif isinstance(samples, Sample):
-        # TODO
-        raise NotImplementedError(
-            "Extending with `Sample` instance is not supported yet."
-        )
+            out = out.tobytes()  # type: ignore
     else:
-        raise TypeError(f"Cannot serialize samples of type {type(samples)}")
-    _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)
-    return buff, nbytes, shapes
+        ratio = get_compression_ratio(sample_compression)
+        approx_compressed_size = out.nbytes * ratio
+
+        if approx_compressed_size > min_chunk_size and break_into_tiles:
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
+        else:
+            compressed_bytes = compress_array(out, sample_compression)
+            out = compressed_bytes  # type: ignore
+
+    return out, shape
+
+
+def serialize_sample_object(
+    incoming_sample: Sample,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_tiles: bool = False,
+):
+    shape = incoming_sample.shape
+    tile_compression = chunk_compression or sample_compression
+
+    out = incoming_sample
+    if sample_compression:
+        compression_type = get_compression_type(sample_compression)
+        is_byte_compression = compression_type == BYTE_COMPRESSION
+        if is_byte_compression and out.dtype != dtype:
+            # Byte compressions don't store dtype, need to cast to expected dtype
+            arr = intelligent_cast(out.array, dtype, htype)
+            out = Sample(array=arr)
+
+        compressed_bytes = out.compressed_bytes(sample_compression)
+
+        if (
+            compression_type not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION)
+            and len(compressed_bytes) > min_chunk_size
+            and break_into_tiles
+        ):
+            out = SampleTiles(
+                out.array, tile_compression, min_chunk_size, store_tiles, htype
+            )
+        else:
+            out = compressed_bytes
+    else:
+        out = intelligent_cast(out.array, dtype, htype)
+
+        if out.nbytes > min_chunk_size and break_into_tiles:
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)
+        else:
+            out = out.tobytes()
+    return out, shape
+
+
+def serialize_tensor(
+    incoming_sample: "hub.core.tensor.Tensor",
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+    break_into_tiles: bool = True,
+    store_tiles: bool = False,
+):
+    def _return_numpy():
+        return serialize_numpy_and_base_types(
+            incoming_sample.numpy(),
+            sample_compression,
+            chunk_compression,
+            dtype,
+            htype,
+            min_chunk_size,
+            break_into_tiles,
+            store_tiles,
+        )
+
+    if incoming_sample.meta.chunk_compression or chunk_compression:
+        return _return_numpy()
+    elif incoming_sample.meta.sample_compression == sample_compression:
+        # Pass through
+        try:
+            return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
+        except (
+            ValueError,
+            NotImplementedError,
+        ) as e:  # Slice of sample or tiled sample
+            return _return_numpy()
+    else:
+        return _return_numpy()

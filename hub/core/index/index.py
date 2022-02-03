@@ -348,7 +348,9 @@ class Index:
             base = self
             for index in item.values:
                 value = index.value
-                if isinstance(value, tuple):
+                if isinstance(value, tuple) and not (
+                    value and isinstance(value[0], slice)
+                ):
                     value = (value,)  # type: ignore
                 base = base[value]
             return base
@@ -360,7 +362,10 @@ class Index:
         as the first entry in the Index.
         """
         index_values = tuple(item.value for item in self.values[1:])
-        samples = list(arr[index_values] for arr in samples)
+        if index_values:
+            samples = [arr[index_values] for arr in samples]
+        else:
+            samples = list(samples)
         return samples
 
     def apply_squeeze(self, samples: List[np.ndarray]):
@@ -391,3 +396,13 @@ class Index:
 
     def __repr__(self):
         return f"Index(values={self.values})"
+
+    def to_json(self):
+        ret = []
+        for e in self.values:
+            v = e.value
+            if isinstance(v, slice):
+                ret.append({"start": v.start, "stop": v.stop, "step": v.step})
+            else:
+                ret.append(v)
+        return ret

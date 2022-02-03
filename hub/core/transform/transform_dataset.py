@@ -1,4 +1,5 @@
 from hub.core.transform.transform_tensor import TransformTensor
+from hub.util.exceptions import TensorDoesNotExistError
 
 
 class TransformDataset:
@@ -14,7 +15,7 @@ class TransformDataset:
 
     def __getattr__(self, name):
         if name not in self.tensors:
-            self.tensors[name] = TransformTensor()
+            self.tensors[name] = TransformTensor(name=name, dataset=self)
         return self.tensors[name][self.slice_list]
 
     def __getitem__(self, slice_):
@@ -27,3 +28,13 @@ class TransformDataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def append(self, sample, skip_ok=False):
+        if not skip_ok:
+            for k in self.tensors:
+                if k not in sample:
+                    raise TensorDoesNotExistError(k)
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError("All tensors are expected to have the same length.")
+        for k, v in sample.items():
+            self[k].append(v)

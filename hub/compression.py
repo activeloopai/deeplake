@@ -1,9 +1,16 @@
 """
 Supported compressions (formats):
+
     Image : bmp, dib, gif, ico, jpeg, jp2, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
     Audio : flac, mp3, wav
     Video : mp4, mkv, avi
     Bytes : lz4
+
+__Note__:- 
+
+For video compressions, we only support already compressed data read using hub.read. We do not actually compress the video data. 
+
+Also, when using hub.read with one of the video compressions, ensure that the compression matches, otherwise hub will be unable to compress the data to the specified compression.
 
 """
 from PIL import Image  # type: ignore
@@ -71,7 +78,7 @@ SUPPORTED_COMPRESSIONS = [
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
-COMPRESSION_ALIASES = {"jpg": "jpeg"}
+COMPRESSION_ALIASES = {"jpg": "jpeg", "tif": "tiff"}
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
@@ -90,6 +97,7 @@ for c in AUDIO_COMPRESSIONS:
 
 
 def get_compression_type(c):
+    """Returns the compression type for the given compression name."""
     if c is None:
         return None
     ret = _compression_types.get(c)
