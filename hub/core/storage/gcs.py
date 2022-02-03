@@ -15,6 +15,7 @@ try:
     import google.auth.exceptions  # type: ignore
     from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
     from google.api_core.exceptions import NotFound  # type: ignore
+    _GOOGLE_PACKAGES_INSTALLED = True
 except ImportError:
     _GOOGLE_PACKAGES_INSTALLED = False
 
