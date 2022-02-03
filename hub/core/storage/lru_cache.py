@@ -337,3 +337,4 @@ class LRUCache(StorageProvider):
         self.lru_sizes = OrderedDict()
         self.dirty_keys = set()
         self.cache_used = 0
+        self.dataset = None
