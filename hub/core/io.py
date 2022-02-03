@@ -307,7 +307,7 @@ class SampleStreaming(Streaming):
                                 local_cache[c_key] = chunk
 
                                 # send data to actual storage
-                                local_cache._forward(c_key, True)
+                                local_cache._forward(c_key)
                         else:
                             chunk = engine.get_chunk(c_key)
                         chunks.append(chunk)
