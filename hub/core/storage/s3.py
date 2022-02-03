@@ -22,6 +22,7 @@ from botocore.exceptions import (
     ConnectTimeoutError,
     ConnectionClosedError,
     EndpointConnectionError,
+    IncompleteReadError,
 )
 
 CONNECTION_ERRORS = (
@@ -30,6 +31,7 @@ CONNECTION_ERRORS = (
     ConnectTimeoutError,
     ConnectionClosedError,
     EndpointConnectionError,
+    IncompleteReadError,
 )
 
 
