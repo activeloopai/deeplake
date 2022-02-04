@@ -3,7 +3,12 @@ import pytest
 import numpy as np
 from hub.util.diff import get_all_changes_string
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import CheckoutError, CommitError, ReadOnlyModeError
+from hub.util.exceptions import (
+    CheckoutError,
+    CommitError,
+    ReadOnlyModeError,
+    TensorModifiedError,
+)
 
 
 def commit_details_helper(commits, ds):
@@ -1064,3 +1069,59 @@ def test_read_only_checkout(local_ds):
     assert local_ds.storage.autoflush == True
     local_ds.read_only = True
     local_ds.checkout("main")
+
+
+def test_modified(memory_ds):
+    with memory_ds:
+        memory_ds.create_tensor("image")
+        memory_ds.image.extend(np.array(list(range(5))))
+
+        img = memory_ds.image.modified()
+        assert len(img) == 5
+        for i in range(5):
+            np.testing.assert_array_equal(img[i].numpy(), i)
+        first_commit = memory_ds.commit()
+
+        img = memory_ds.image.modified()
+        assert len(img) == 0
+
+        memory_ds.image.extend(np.array(list(range(5, 8))))
+        img = memory_ds.image.modified()
+        assert len(img) == 3
+        for i in range(3):
+            np.testing.assert_array_equal(img[i].numpy(), i + 5)
+
+        memory_ds.image[2] = -1
+        img = memory_ds.image.modified()
+        assert len(img) == 4
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 1].numpy(), i + 5)
+
+        memory_ds.image[4] = 8
+        img = memory_ds.image.modified()
+        assert len(img) == 5
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        np.testing.assert_array_equal(img[1].numpy(), 8)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 2].numpy(), i + 5)
+
+        second_commit = memory_ds.commit()
+        img = memory_ds.image.modified()
+        assert len(img) == 0
+
+        img = memory_ds.image.modified(first_commit)
+        assert len(img) == 5
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        np.testing.assert_array_equal(img[1].numpy(), 8)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 2].numpy(), i + 5)
+
+        memory_ds.checkout(first_commit)
+        memory_ds.checkout("alt", create=True)
+        alt_commit = memory_ds.commit()
+
+        memory_ds.checkout("main")
+
+        with pytest.raises(TensorModifiedError):
+            memory_ds.image.modified(alt_commit)
