@@ -106,3 +106,43 @@ def test_group():
         {"string": " <=", "type": "OP"},
         {"string": " !=", "type": "OP"},
     ]
+
+    q = "g.h.k"
+    resp = autocomplete(q, ds)
+    assert resp["suggestions"] == []
+
+
+def test_keyword():
+    ds = _test_ds()
+    q = "'x' in "
+    resp = autocomplete(q, ds)
+    suggestions = [s["string"] for s in resp["suggestions"]]
+    assert "a" in suggestions
+    assert "b" in suggestions
+    assert "c" in suggestions
+    assert "def" in suggestions
+    assert "g" in suggestions
+    assert "j" in suggestions
+
+
+def test_const():
+    ds = _test_ds()
+    for q in ["True", "'abcd'", "123"]:
+        resp = autocomplete(q, ds)
+        assert resp["suggestions"] == []
+
+
+def test_property():
+    ds = _test_ds()
+    q = "g.h.i.mean"
+    resp = autocomplete(q, ds)
+    suggestions = [s["string"] for s in resp["suggestions"]]
+    assert " ==" in suggestions
+
+
+def test_method():
+    ds = _test_ds()
+    q = "g.h.i.contains"
+    resp = autocomplete(q, ds)
+    suggestions = [s["string"] for s in resp["suggestions"]]
+    assert "(" in suggestions
