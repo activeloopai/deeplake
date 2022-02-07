@@ -1231,7 +1231,7 @@ class Dataset:
 
     @property
     def root(self):
-        """Returns the root dataset."""
+        """Returns the root dataset of a group."""
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
@@ -1312,8 +1312,8 @@ class Dataset:
             KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
             TensorDoesNotExistError: If tensor in `sample` does not exist.
             ValueError: If all tensors being updated are not of the same length.
-            NotImplementedError:
-            Exception:
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
         """
         if not skip_ok:
             for k in self.tensors:
