@@ -25,6 +25,7 @@ from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -144,7 +145,7 @@ class Dataset:
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        warnings.warn(
+        always_warn(
             "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
         )
 
@@ -564,7 +565,7 @@ class Dataset:
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                warnings.warn(
+                always_warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
                 return False
