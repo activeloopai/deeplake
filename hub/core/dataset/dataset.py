@@ -722,19 +722,21 @@ class Dataset:
         version_state, storage = self.version_state, self.storage
         commit_node = version_state["commit_node"]
         if id_1 is None and id_2 is None:
+            message0 = ""
             changes1: Dict[str, Dict] = defaultdict(dict)
             commit_id = commit_node.commit_id
             if commit_node.is_head_node:
-                message1 = "Diff in HEAD:\n"
+                message1 = "Diff in HEAD relative to the previous commit:\n"
             else:
-                message1 = f"Diff in {commit_id} (current commit):\n"
+                message1 = f"Diff in {commit_id} (current commit) relative to the previous commit:\n"
             get_changes_for_id(commit_id, storage, changes1)
             filter_data_updated(changes1)
             changes2 = message2 = None
         else:
             if id_1 is None:
-                raise ValueError("Can't specify id_1 without specifying id_2")
+                raise ValueError("Can't specify id_2 without specifying id_1")
             elif id_2 is None:
+                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
                 commit1: str = commit_node.commit_id
                 commit2 = id_1
                 if commit_node.is_head_node:
@@ -743,18 +745,22 @@ class Dataset:
                     message1 = f"Diff in {commit1} (current commit):\n"
                 message2 = f"Diff in {commit2} (target id):\n"
             else:
+                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the two commits passed."
                 commit1 = id_1
                 commit2 = id_2
                 message1 = f"Diff in {commit1} (target id 1):\n"
                 message2 = f"Diff in {commit2} (target id 2):\n"
-            changes1, changes2 = compare_commits(
+            changes1, changes2, lca_id = compare_commits(
                 commit1, commit2, version_state, storage
             )
+            message0 = message0 % lca_id
         if as_dict:
             if changes2 is None:
                 return changes1
             return changes1, changes2
-        all_changes = get_all_changes_string(changes1, message1, changes2, message2)
+        all_changes = get_all_changes_string(
+            message0, changes1, message1, changes2, message2
+        )
         print(all_changes)
         return None
 

@@ -9,7 +9,7 @@ from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
 
 def compare_commits(
     id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
-) -> Tuple[dict, dict]:
+) -> Tuple[dict, dict, str]:
     """Compares two commits and returns the differences.
 
     Args:
@@ -19,7 +19,7 @@ def compare_commits(
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
-        Tuple[dict, dict]: The changes made in the first commit and second commit respectively.
+        Tuple[dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
     """
     id_1 = sanitize_commit(id_1, version_state)
     id_2 = sanitize_commit(id_2, version_state)
@@ -40,7 +40,7 @@ def compare_commits(
             get_changes_for_id(commit_id, storage, changes)
             commit_node = commit_node.parent  # type: ignore
         filter_data_updated(changes)
-    return changes_1, changes_2
+    return changes_1, changes_2, lca_id
 
 
 def sanitize_commit(id: str, version_state: Dict[str, Any]) -> str:
@@ -76,9 +76,12 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def get_all_changes_string(changes1, message1, changes2, message2):
+def get_all_changes_string(message0, changes1, message1, changes2, message2):
     """Returns a string with all changes."""
     all_changes = ["\n## Hub Diff"]
+    if message0:
+        all_changes.append(message0)
+
     separator = "-" * 120
     if changes1 is not None:
         changes1_str = get_changes_str(changes1, message1, separator)
