@@ -736,7 +736,7 @@ class Dataset:
             if id_1 is None:
                 raise ValueError("Can't specify id_2 without specifying id_1")
             elif id_2 is None:
-                message0 = "The 2 diffs are calculated relative to the most recent common ancestor of the current state and the commit passed."
+                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
                 commit1: str = commit_node.commit_id
                 commit2 = id_1
                 if commit_node.is_head_node:
