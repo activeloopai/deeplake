@@ -7,6 +7,7 @@ from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ig
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
+from hub.core.storage import MemoryProvider, LocalProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
@@ -42,6 +43,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
     ReadOnlyModeError,
 )
+from hub.util.remove_cache import get_base_storage
 from hub.compression import VIDEO_COMPRESSIONS
 
 
@@ -405,12 +407,14 @@ class ChunkEngine:
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
 
-    def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
+    def get_chunk_from_chunk_id(
+        self, chunk_id, copy: bool = False, url: bool = False
+    ) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.cache.get_cachable(
-            chunk_key, self.chunk_class, meta=self.chunk_args
+            chunk_key, self.chunk_class, meta=self.chunk_args, url=url
         )
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
@@ -774,18 +778,24 @@ class ChunkEngine:
             for global_sample_index in index.values[0].indices(length):
                 chunk_ids = enc[global_sample_index]
                 if not self._is_tiled_sample(global_sample_index):
-                    chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                     local_sample_index = enc.translate_index_relative_to_chunks(
                         global_sample_index
                     )
                     if self.compression in VIDEO_COMPRESSIONS:
+                        url = not isinstance(
+                            get_base_storage(self.cache),
+                            (MemoryProvider, LocalProvider),
+                        )
+                        chunk = self.get_chunk_from_chunk_id(chunk_ids[0], url=url)
                         sample = chunk.read_sample(
                             local_sample_index,
                             sub_index=index.values[1].value  # type: ignore
                             if len(index.values) > 1
                             else None,
+                            url=url,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
+                        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                         sample = chunk.read_sample(local_sample_index)[
                             tuple(entry.value for entry in index.values[1:])
                         ]

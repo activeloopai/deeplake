@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.cachable import Cachable, CachableCallback
+from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
@@ -64,7 +65,12 @@ class LRUCache(StorageProvider):
                 self.next_storage.flush()
 
     def get_cachable(
-        self, path: str, expected_class, meta: Optional[Dict] = None, callback_arg=None
+        self,
+        path: str,
+        expected_class,
+        meta: Optional[Dict] = None,
+        callback_arg=None,
+        url=False,
     ):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
@@ -83,7 +89,15 @@ class LRUCache(StorageProvider):
             An instance of `expected_class` populated with the data.
         """
 
-        item = self[path]
+        if url:
+            from hub.util.remove_cache import get_base_storage
+
+            item = get_base_storage(self).create_presigned_url(path).encode("utf-8")
+            if issubclass(expected_class, BaseChunk):
+                obj = expected_class.frombuffer(item, meta, url=True)
+                return obj
+        else:
+            item = self[path]
 
         if isinstance(item, Cachable):
             if type(item) != expected_class:

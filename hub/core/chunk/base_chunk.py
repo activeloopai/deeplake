@@ -1,10 +1,16 @@
 from abc import abstractmethod
+import struct
 import numpy as np
 from typing import List, Optional, Tuple, Union
 import warnings
 
 import hub
-from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSION, get_compression_type
+from hub.compression import (
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    get_compression_type,
+)
 from hub.constants import CONVERT_GRAYSCALE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -19,6 +25,7 @@ from hub.core.serialize import (
     serialize_sample_object,
     serialize_text,
     serialize_tensor,
+    get_header_from_url,
 )
 from hub.core.storage.cachable import Cachable
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -64,6 +71,7 @@ class BaseChunk(Cachable):
         compression_type = get_compression_type(compression)
         self.is_byte_compression = compression_type == BYTE_COMPRESSION
         self.is_image_compression = compression_type == IMAGE_COMPRESSION
+        self.is_video_compression = compression_type == VIDEO_COMPRESSION
         self.is_convert_candidate = self.htype == "image" or self.is_image_compression
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
@@ -134,10 +142,16 @@ class BaseChunk(Cachable):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True):  # type: ignore
+    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False):  # type: ignore
         if not buffer:
             return cls(*chunk_args)
-        version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
+        if url:
+            version, shapes, byte_positions, header_size = get_header_from_url(
+                buffer.decode("utf-8")
+            )
+            data = memoryview(buffer + struct.pack("<i", header_size))
+        else:
+            version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
         chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
         return chunk

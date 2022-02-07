@@ -1,4 +1,5 @@
 import os
+import struct
 from typing import List, Optional, Union
 from hub.core.compression import decompress_array, decompress_bytes
 from hub.core.sample import Sample  # type: ignore
@@ -51,11 +52,23 @@ class SampleCompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         sub_index: Optional[Union[int, slice]] = None,
+        url: bool = False,
     ):
         buffer = self.memoryview_data
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
-            buffer = buffer[sb:eb]
+            if url and self.is_video_compression:
+                header_size = struct.unpack("<i", buffer[-4:])[
+                    0
+                ]  # last 4 bytes store size of header
+                buffer = f"subfile,,start,{header_size + sb},end,{header_size + eb},,:".encode(
+                    "utf-8"
+                ) + bytes(
+                    buffer[:-4]
+                )
+                print(buffer)
+            else:
+                buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
         if self.is_text_like:
             buffer = decompress_bytes(buffer, compression=self.compression)
@@ -84,6 +97,7 @@ class SampleCompressedChunk(BaseChunk):
                 end_idx=end,
                 step=abs(step) if step is not None else 1,
                 reverse=reverse,
+                url=url,
             )
             if squeeze:
                 sample = sample.squeeze(0)

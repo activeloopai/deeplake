@@ -16,6 +16,7 @@ import hub
 import numpy as np
 import struct
 import json
+import requests
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
@@ -116,6 +117,70 @@ def write_actual_data(data, buffer, offset) -> int:
         buffer[offset : offset + n] = byts
         offset += n
     return offset
+
+
+def get_header_from_url(url: str):
+
+    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    itemsize = enc_dtype.itemsize
+    n_requests = 0
+
+    headers = {"Range": "bytes=0-100"}
+
+    response = requests.get(url, headers=headers)
+    byts = response.content
+
+    len_version = byts[0]
+    if len_version > len(byts) - 1:
+        headers["Range"] = f"bytes=1-{len_version + 1}"
+        byts += requests.get(url, headers=headers).content
+    version = str(byts[1 : len_version + 1], "ascii")
+
+    offset = 1 + len_version
+
+    if len(byts) - offset < 2 * itemsize:
+        headers["Range"] = f"bytes={offset}-{offset + 100}"
+        byts += requests.get(url, headers=headers).content
+
+    shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
+    offset += 8
+    shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
+    if len(byts) - offset < shape_info_nbytes:
+        headers["Range"] = f"bytes={offset}-{offset + shape_info_nbytes}"
+        byts += requests.get(url, headers=headers).content
+    if shape_info_nbytes == 0:
+        shape_info = np.array([], dtype=enc_dtype)
+    else:
+        shape_info = (
+            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            .reshape(shape_info_nrows, shape_info_ncols)
+            .copy()
+        )
+        offset += shape_info_nbytes
+
+    if len(byts) - offset < itemsize:
+        headers["Range"] = f"bytes={offset}-{offset + 100}"
+        byts += requests.get(url, headers=headers).content
+
+    byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
+    offset += 4
+    byte_positions_nbytes = byte_positions_rows * 3 * itemsize
+    if len(byts) - offset < byte_positions_nbytes:
+        headers["Range"] = f"bytes={offset}-{offset + byte_positions_nbytes}"
+        byts += requests.get(url, headers=headers).content
+    if byte_positions_nbytes == 0:
+        byte_positions = np.array([], dtype=enc_dtype)
+    else:
+        byte_positions = (
+            np.frombuffer(
+                byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+            )
+            .reshape(byte_positions_rows, 3)
+            .copy()
+        )
+        offset += byte_positions_nbytes
+
+    return version, shape_info, byte_positions, offset
 
 
 def deserialize_chunk(

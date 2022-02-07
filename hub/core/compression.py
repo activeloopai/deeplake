@@ -284,6 +284,7 @@ def decompress_array(
     end_idx: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
+    url: bool = False,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -321,7 +322,9 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, compression, start_idx, end_idx, step, reverse)
+        return _decompress_video(
+            buffer, compression, start_idx, end_idx, step, reverse, url
+        )
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -788,8 +791,9 @@ def _decompress_video_cffi(
     end_frame: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
+    url: bool = False,
 ):
-    # int decompressVideo(unsigned char *file, int size, int ioBufferSize, unsigned char *decompressed, int isBytes, int nbytes)
+    # int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_frame, int step, unsigned char *decompressed, int isBytes, int nbytes)
     # isBytes should be set to 1 in case of in-memory video else set to 0
     # if isBytes is 1, size of file and internal buffer size must be set
     # buffer size currently set to size of compressed data
@@ -801,7 +805,7 @@ def _decompress_video_cffi(
     if step is None:
         step = 1
 
-    shape = _read_video_shape_cffi(file, compression)
+    shape = _read_video_shape_cffi(file, compression, url=url)
     n_frames = shape[0]
     start_frame, end_frame = _norm_video_frame_indices(
         start_frame, end_frame, reverse, n_frames
@@ -836,6 +840,17 @@ def _decompress_video_cffi(
             0,
             nbytes,
         )
+    elif url and isinstance(file, bytes):
+        lib.decompressVideo(
+            file,
+            0,
+            0,
+            start_frame,
+            step if step_seeking else 1,
+            decompressed,
+            0,
+            nbytes,
+        )
     else:
         lib.decompressVideo(
             bytes(file),
@@ -857,7 +872,7 @@ def _decompress_video_cffi(
     return video
 
 
-def _read_video_shape_cffi(file, compression):
+def _read_video_shape_cffi(file, compression, url=False):
     ffmpeg_binary()  # raise error if ffmpeg not installed
 
     try:
@@ -907,6 +922,8 @@ def _read_video_shape_cffi(file, compression):
     shape = ffi.new("int[3]")
     if isinstance(file, str):
         lib.getVideoShape(file.encode("utf-8"), 0, 0, shape, 0)
+    elif url and isinstance(file, bytes):
+        lib.getVideoShape(file, 0, 0, shape, 0)
     else:
         lib.getVideoShape(bytes(file), len(file), len(file), shape, 1)
 
@@ -943,6 +960,7 @@ def _decompress_video_pipes(
     end_frame: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
+    url: bool = False,
 ) -> np.ndarray:
     shape, fps = _read_video_shape_pipes(file, compression, get_rate=True)  # type: ignore
     n_frames = shape[0]  # type: ignore
@@ -996,7 +1014,10 @@ def _decompress_video_pipes(
 
 
 def _read_video_shape_pipes(
-    file: Union[bytes, memoryview, str], compression: Optional[str], get_rate=False
+    file: Union[bytes, memoryview, str],
+    compression: Optional[str],
+    get_rate=False,
+    url: bool = False,
 ) -> Union[Tuple[int, ...], Tuple[Tuple[int, ...], int]]:
     info = _get_video_info_pipes(file, compression)
     if info["duration"] is None:

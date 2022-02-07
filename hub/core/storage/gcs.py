@@ -311,3 +311,8 @@ class GCSProvider(StorageProvider):
         self.project = state[3]
         self.read_only = state[4]
         self._initialize_provider()
+
+    def create_presigned_url(self, key, expiration=3600):
+        blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+        url = blob.generate_signed_url(expiration=expiration)
+        return url

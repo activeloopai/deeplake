@@ -18,9 +18,10 @@ struct buffer_data
 
 int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, int isBytes)
 {
-    av_log_set_level(AV_LOG_QUIET); //Some warning messages are being spammed even though it does not affect decompression.
+    av_log_set_level(AV_LOG_QUIET); // Some warning messages are being spammed even though it does not affect decompression.
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
+    AVDictionary *d = NULL;
     unsigned char *ioBuffer;
     pFormatContext = avformat_alloc_context();
     struct buffer_data bd = {0};
@@ -33,6 +34,8 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
         return -1;
     }
 
+    av_dict_set(&d, "protocol_whitelist", "file,http,https,tcp,tls,subfile", 0);
+
     if (isBytes == 1)
     {
         bd.ptr = file;
@@ -40,11 +43,11 @@ int getVideoShape(unsigned char *file, int size, int ioBufferSize, int *shape, i
         ioBuffer = av_malloc(ioBufferSize);
         pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, &bd, &readFunc, NULL, NULL);
         pFormatContext->pb = pioContext;
-        ret = avformat_open_input(&pFormatContext, NULL, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, NULL, NULL, &d);
     }
     else
     {
-        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, &d);
     }
 
     if (ret != 0)
@@ -100,6 +103,7 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
     av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *pFormatContext = NULL;
     AVIOContext *pioContext = NULL;
+    AVDictionary *d = NULL;
     unsigned char *ioBuffer;
     pFormatContext = avformat_alloc_context();
     struct buffer_data bd = {0};
@@ -112,6 +116,8 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
         return -1;
     }
 
+    av_dict_set(&d, "protocol_whitelist", "file,http,https,tcp,tls,subfile", 0);
+
     if (isBytes == 1)
     {
         bd.ptr = file;
@@ -119,11 +125,11 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
         ioBuffer = av_malloc(ioBufferSize);
         pioContext = avio_alloc_context(ioBuffer, ioBufferSize, 0, &bd, &readFunc, NULL, NULL);
         pFormatContext->pb = pioContext;
-        ret = avformat_open_input(&pFormatContext, NULL, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, NULL, NULL, &d);
     }
     else
     {
-        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, NULL);
+        ret = avformat_open_input(&pFormatContext, (const char *)file, NULL, &d);
     }
 
     if (ret != 0)
@@ -233,7 +239,7 @@ int decompressVideo(unsigned char *file, int size, int ioBufferSize, int start_f
                 break;
             if (bufpos >= nbytes)
                 break;
-            if (response == 1) //if frame written
+            if (response == 1) // if frame written
             {
                 if (step > 1)
                 {

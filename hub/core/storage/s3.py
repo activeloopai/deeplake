@@ -446,3 +446,13 @@ class S3Provider(StorageProvider):
             err.response["Error"]["Code"] == "ExpiredToken"
             and self.loaded_creds_from_environment
         )
+
+    def create_presigned_url(self, path, expiration=3600):
+        self._check_update_creds()
+        path = "".join((self.path, path))
+        response = self.client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": path},
+            ExpiresIn=expiration,
+        )
+        return response
