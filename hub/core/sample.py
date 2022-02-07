@@ -21,6 +21,7 @@ from hub.compression import (
     BYTE_COMPRESSION,
 )
 from hub.util.exceptions import CorruptedSampleError
+from hub.util.path import get_path_type
 import numpy as np
 from typing import List, Optional, Tuple, Union
 
@@ -31,6 +32,8 @@ if os.name == "nt":
     _USE_CFFI = False
 else:
     _USE_CFFI = True
+
+import boto3
 
 
 class Sample:
@@ -45,6 +48,7 @@ class Sample:
         verify: bool = False,
         shape: Tuple[int] = None,
         dtype: Optional[str] = None,
+        creds: Optional[Dict] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -61,6 +65,7 @@ class Sample:
             verify (bool): If a path is provided, verifies the sample if True.
             shape (Tuple[int]): Shape of the sample.
             dtype (str, optional): Data type of the sample.
+            creds (optional, Dict): Credentials for s3 and gcp for urls.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -77,10 +82,11 @@ class Sample:
         self._dtype = dtype or None
         self.path = None
         self._buffer = None
+        self._creds = creds or {}
 
         if path is not None:
             self.path = path
-            self._compression = None
+            self._compression = compression
             self._verified = False
             self._verify = verify
 
@@ -182,8 +188,7 @@ class Sample:
                 ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream (slower implementation only)
                     compressed_bytes = to_hub_mkv(self.path)
                 else:
-                    with open(self.path, "rb") as f:
-                        compressed_bytes = f.read()
+                    compressed_bytes = self._read_from_path()
                     if self._compression is None:
                         self._compression = get_compression(
                             header=compressed_bytes[:32]
@@ -299,6 +304,41 @@ class Sample:
         if self.path is not None and other.path is not None:
             return self.path == other.path
         return self.buffer == other.buffer
+
+    def _read_from_path(self) -> bytes:
+        path_type = get_path_type(self.path)
+        if path_type == "local":
+            return self._read_from_local()
+        elif path_type == "gcs":
+            return self._read_from_gcs()
+        elif path_type == "s3":
+            return self._read_from_s3()
+        elif path_type == "http":
+            return self._read_from_http()
+
+    def _read_from_local(self) -> bytes:
+        with open(self.path, "rb") as f:
+            return f.read()
+
+    def _read_from_s3(self) -> bytes:
+        return (
+            boto3.resource("s3", **self._creds)
+            .Object(*self.path[5:].split("/", 1))
+            .get()["Body"]
+            .read()
+        )
+
+    def _read_from_gcs(self) -> bytes:
+        from google.cloud import storage
+
+        client = (
+            storage.Client()
+        )  # requires GOOGLE_APPLICATION_CREDENTIALS env var. TODO: use creds arg
+        bucket_name, obj_key = self.path[6:].split("/", 1)
+        return client.get_bucket(bucket_name).get_blob(obj_key).download_as_bytes()
+
+    def _read_from_http(self) -> bytes:
+        raise NotImplementedError()  # TODO
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
