@@ -137,14 +137,15 @@ def checkout(
     if address in version_state["branch_commit_map"].keys():
         if create:
             raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
-        version_state["branch"] = address
         new_commit_id = version_state["branch_commit_map"][address]
         if original_commit_id == new_commit_id:
             return
-        version_state["commit_id"] = new_commit_id
-        version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
         if not storage.read_only:
             storage.flush()
+        version_state["commit_id"] = new_commit_id
+        version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
+        version_state["branch"] = address
+
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
@@ -152,11 +153,11 @@ def checkout(
             )
         if address == original_commit_id:
             return
+        if not storage.read_only:
+            storage.flush()
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
-        if not storage.read_only:
-            storage.flush()
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
@@ -409,7 +410,7 @@ def load_version_info(storage: LRUCache) -> Dict:
         )  # backward compatiblity
 
 
-def auto_checkout(dataset) -> None:
+def auto_checkout(dataset) -> bool:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
     version_state = dataset.version_state
     if not version_state["commit_node"].is_head_node:
@@ -419,6 +420,8 @@ def auto_checkout(dataset) -> None:
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
         checkout(dataset, auto_branch, True)
+        return True
+    return False
 
 
 def auto_commit(dataset, address: str) -> None:

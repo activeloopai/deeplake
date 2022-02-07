@@ -212,7 +212,10 @@ class Tensor:
     def _write_initialization(self):
         self.storage.check_readonly()
         # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(self.dataset)
+        if auto_checkout(self.dataset):
+            self.chunk_engine = self.version_state["full_tensors"][
+                self.key
+            ].chunk_engine
 
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
