@@ -1,5 +1,4 @@
-from sqlite3 import NotSupportedError
-from hub.util.version_control import auto_checkout
+from hub.util.exceptions import InfoError
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict, Optional
 
@@ -15,7 +14,7 @@ class Info(HubMemoryObject):
             storage = self._dataset.storage
             storage.check_readonly()
             if not self._dataset.version_state["commit_node"].is_head_node:
-                raise NotSupportedError("Cannot modify info from a non-head commit.")
+                raise InfoError("Cannot modify info from a non-head commit.")
             self.is_dirty = True
 
     def end_write(self):

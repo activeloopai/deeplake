@@ -635,3 +635,7 @@ class NotLoggedInError(AgreementError):
 
 class BufferError(Exception):
     pass
+
+
+class InfoError(Exception):
+    pass
