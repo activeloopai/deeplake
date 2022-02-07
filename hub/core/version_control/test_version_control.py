@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from hub.util.diff import get_all_changes_string
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import CheckoutError, CommitError, ReadOnlyModeError
+from hub.util.exceptions import CheckoutError, CommitError, InfoError, ReadOnlyModeError
 
 
 def commit_details_helper(commits, ds):
@@ -337,13 +337,11 @@ def test_auto_checkout(local_ds):
 
     local_ds.checkout(first)
     assert local_ds.branch == "main"
-    local_ds.info[5] = 5
-    assert local_ds.branch != "main"
 
-    local_ds.checkout(first)
+    with pytest.raises(InfoError):
+        local_ds.info[5] = 5
+
     assert local_ds.branch == "main"
-    local_ds.info.update(list=[1, 2, "apple"])
-    assert local_ds.branch != "main"
 
 
 def test_auto_commit(local_ds):
