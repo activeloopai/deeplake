@@ -88,3 +88,21 @@ def test_group():
             "type": "TENSOR",
         }
     ]
+
+    q = "g.h.i"
+    resp = autocomplete(q, ds)
+    suggestions = resp["suggestions"]
+    assert suggestions == [
+        {"string": ".contains", "type": "METHOD"},
+        {"string": ".max", "type": "PROPERTY"},
+        {"string": ".mean", "type": "PROPERTY"},
+        {"string": ".min", "type": "PROPERTY"},
+        {"string": ".shape", "type": "PROPERTY"},
+        {"string": ".size", "type": "PROPERTY"},
+        {"string": " ==", "type": "OP"},
+        {"string": " >", "type": "OP"},
+        {"string": " <", "type": "OP"},
+        {"string": " >=", "type": "OP"},
+        {"string": " <=", "type": "OP"},
+        {"string": " !=", "type": "OP"},
+    ]
