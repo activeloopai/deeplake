@@ -985,6 +985,7 @@ class Dataset:
 
     @property
     def info(self):
+        """Returns the information about the dataset."""
         if self._info is None:
             self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
         return self._info
@@ -1216,7 +1217,7 @@ class Dataset:
 
     @property
     def parent(self):
-        """Returns the parent of this group. Returns None if this is the root dataset"""
+        """Returns the parent of this group. Returns None if this is the root dataset."""
         if self._is_root():
             return None
         autoflush = self.storage.autoflush
@@ -1236,6 +1237,7 @@ class Dataset:
 
     @property
     def root(self):
+        """Returns the root dataset of a group."""
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
@@ -1308,6 +1310,17 @@ class Dataset:
         return True
 
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `sample` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `sample` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
