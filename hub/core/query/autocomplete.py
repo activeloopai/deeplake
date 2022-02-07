@@ -80,7 +80,6 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
         if t.type == 1:  # (NAME)
             if group_in_progress:
                 if ts in group_in_progress._ungrouped_tensors:
-                    print("OK")
                     ht["type"] = "TENSOR"
                     group_in_progress = None
                 elif ts in group_in_progress._groups_filtered:
