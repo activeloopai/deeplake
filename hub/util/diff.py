@@ -9,7 +9,7 @@ from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
 
 def compare_commits(
     id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
-) -> Tuple[dict, dict]:
+) -> Tuple[dict, dict, str]:
     """Compares two commits and returns the differences.
 
     Args:
@@ -19,7 +19,7 @@ def compare_commits(
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
-        Tuple[dict, dict]: The changes made in the first commit and second commit respectively.
+        Tuple[dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
     """
     id_1 = sanitize_commit(id_1, version_state)
     id_2 = sanitize_commit(id_2, version_state)
