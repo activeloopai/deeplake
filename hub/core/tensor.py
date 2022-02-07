@@ -276,7 +276,17 @@ class Tensor:
         """
         self.extend([sample])
 
-    def modified(self, target_id: Optional[str] = None):
+    def modified(self, target_id: Optional[str] = None, return_indexes: bool = False):
+        """Returns a slice of the tensor with only those elements that were modified/added.
+        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a target id.
+
+        Args:
+            target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to None.
+            return_indexes (bool, optional): If True, returns the indexes of the modified elements. Defaults to False.
+
+        Raises:
+            TensorModifiedError: If a target id is passed which is not an ancestor of the current commit.
+        """
         current_commit_id = self.version_state["commit_id"]
         indexes = get_modified_indexes(
             self.key,
@@ -285,7 +295,10 @@ class Tensor:
             self.version_state,
             self.storage,
         )
-        return self[indexes]
+        tensor = self[indexes]
+        if return_indexes:
+            return tensor, indexes
+        return tensor
 
     @property
     def meta(self):
