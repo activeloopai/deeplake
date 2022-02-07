@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from hub.core.storage import LRUCache
 from hub.core.version_control.commit_diff import CommitDiff
@@ -17,9 +17,9 @@ def get_modified_indexes(
 ) -> List[int]:
     if target_id is None:
         indexes, _ = get_modified_indexes_for_commit(tensor, current_commit_id, storage)
-        return indexes
+        return sorted(list(indexes))
 
-    indexes = []
+    indexes = set()
     target_id = sanitize_commit(target_id, version_state)
     commit_node_map = version_state["commit_node_map"]
     current_node: CommitNode = commit_node_map[current_commit_id]
@@ -31,31 +31,31 @@ def get_modified_indexes(
     while current_node.commit_id != target_node.commit_id:
         commit_id = current_node.commit_id
         idxes, stop = get_modified_indexes_for_commit(tensor, commit_id, storage)
-        indexes.extend(idxes)
+        indexes.update(idxes)
         if stop:
             break
         current_node = current_node.parent
-    return indexes
+    return sorted(list(indexes))
 
 
 def get_modified_indexes_for_commit(
     tensor: str, commit_id: str, storage: LRUCache
-) -> Tuple[List[int], bool]:
-    indexes = []
+) -> Tuple[Set[int], bool]:
+    indexes = set()
     try:
         commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
         commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
 
-        data_added = list(range(*commit_diff.data_added))
+        data_added = range(*commit_diff.data_added)
         data_updated = commit_diff.data_updated
 
-        indexes.extend(data_added)
-        indexes.extend(data_updated)
+        indexes.update(data_added)
+        indexes.update(data_updated)
 
         stop = commit_diff.data_transformed
         return indexes, stop
     except KeyError:
-        return [], False
+        return indexes, False
 
 
 def check_ancestor(current_node: CommitNode, target_node: CommitNode) -> bool:
