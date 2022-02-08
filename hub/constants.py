@@ -88,6 +88,7 @@ MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
 S3_OPT = "--s3"
 GCS_OPT = "--gcs"
+GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
@@ -113,3 +114,11 @@ TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
 CONVERT_GRAYSCALE = True
 
 PARTIAL_NUM_SAMPLES = 0.5
+
+QUERIES_FILENAME = "queries.json"
+QUERIES_LOCK_FILENAME = "queries.lock"
+
+_ENABLE_HUB_SUB_DATASETS = False
+
+# Frequency for sending progress events and writing to vds
+QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds

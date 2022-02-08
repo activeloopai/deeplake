@@ -4,7 +4,7 @@
     <h1 align="center">Dataset Format for AI
  </h1>
 <p align="center">
-    <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml/badge.svg" alt="PyPI version" height="18"></a>
+    <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/Hub/issues">
@@ -308,3 +308,5 @@ activeloop reporting --off
 
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
+
+Hub uses FFmpeg for video processing. Many thanks to the [FFmpeg](https://www.ffmpeg.org/) team for developing this amazing solution.

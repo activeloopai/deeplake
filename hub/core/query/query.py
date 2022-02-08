@@ -16,36 +16,41 @@ class DatasetQuery:
         self,
         dataset,
         query: str,
-        progress_callback: Callable[[int], None] = lambda _: None,
+        progress_callback: Callable[[int, bool], None] = lambda *_: None,
     ):
         self._dataset = dataset
         self._query = query
         self._pg_callback = progress_callback
         self._cquery = compile(query, "", "eval")
-        self._tensors = [tensor for tensor in dataset.tensors.keys() if tensor in query]
+        self._tensors = [
+            tensor
+            for tensor in dataset.tensors.keys()
+            if normalize_query_tensors(tensor) in query
+        ]
+        self._blocks = expand(dataset, self._tensors)
         self._np_access: List[NP_ACCESS] = [
-            _get_np(dataset, block) for block in expand(dataset, self._tensors)
+            _get_np(dataset, block) for block in self._blocks
         ]
         self._wrappers = self._export_tensors()
+        self._groups = self._export_groups(self._wrappers)
 
     def execute(self) -> List[int]:
         idx_map: List[int] = list()
-        max_size = len(self._dataset)
+        idx: int = 0
 
-        for f in self._np_access:
+        for f, blk in zip(self._np_access, self._blocks):
             cache = {tensor: f(tensor) for tensor in self._tensors}
-            for local_idx, idx in enumerate(f("index")):
-                if idx >= max_size:
-                    break
-
+            for local_idx in range(len(blk)):
                 p = {
                     tensor: self._wrap_value(tensor, cache[tensor][local_idx])
                     for tensor in self._tensors
                 }
+                p.update(self._groups)
                 if eval(self._cquery, p):
-                    idx_map.append(int(idx))
-                self._pg_callback(1)
-
+                    idx_map.append(local_idx)
+                    self._pg_callback(local_idx, True)
+                else:
+                    self._pg_callback(local_idx, False)
         return idx_map
 
     def _wrap_value(self, tensor, val):
@@ -55,36 +60,36 @@ class DatasetQuery:
             return val
 
     def _export_tensors(self):
-        r = {}
-        r.update(
-            {
-                tensor_key: export_tensor(tensor)
-                for tensor_key, tensor in self._dataset.tensors.items()
-                if not "/" in tensor_key
-            }
-        )
+        return {
+            tensor_key: export_tensor(tensor)
+            for tensor_key, tensor in self._dataset.tensors.items()
+        }
 
-        r.update(
-            {
-                tensor_key: GroupTensor(self._dataset, tensor_key.split("/")[0])
-                for tensor_key in self._dataset.tensors.keys()
-                if "/" in tensor_key
-            }
-        )
+    def _export_groups(self, wrappers):
+        return {
+            extract_prefix(tensor_key): GroupTensor(
+                self._dataset, wrappers, extract_prefix(tensor_key)
+            )
+            for tensor_key in self._dataset.tensors.keys()
+            if "/" in tensor_key
+        }
 
-        return r
+
+def normalize_query_tensors(tensor_key: str) -> str:
+    return tensor_key.replace("/", ".")
+
+
+def extract_prefix(tensor_key: str) -> str:
+    return tensor_key.split("/")[0]
 
 
 def _get_np(dataset: Dataset, block: IOBlock) -> NP_ACCESS:
     idx = block.indices()
 
     def f(tensor: str) -> NP_RESULT:
-        if tensor == "index":
-            return numpy.array(idx)
-        else:
-            tensor_obj = dataset.tensors[tensor]
-            tensor_obj.index = Index()
-            return tensor_obj[idx].numpy(aslist=tensor_obj.is_dynamic)
+        tensor_obj = dataset.tensors[tensor]
+        tensor_obj.index = Index()
+        return tensor_obj[idx].numpy(aslist=tensor_obj.is_dynamic)
 
     return f
 
@@ -163,12 +168,34 @@ class EvalObject:
     def __ne__(self, o: object) -> bool:
         return self.val != o
 
+    def __mod__(self, o: object):
+        return self.val % o
+
+    def __add__(self, o: object):
+        return self.val + o
+
+    def __sub__(self, o: object):
+        return self.val - o
+
+    def __div__(self, o: object):
+        return self.val / o
+
+    def __floordiv__(self, o: object):
+        return self.val // o
+
+    def __mul__(self, o: object):
+        return self.val * o
+
+    def __pow__(self, o: object):
+        return self.val**o
+
 
 class GroupTensor:
-    def __init__(self, dataset: Dataset, prefix: str) -> None:
+    def __init__(self, dataset: Dataset, wrappers, prefix: str) -> None:
         super().__init__()
         self.prefix = prefix
         self.dataset = dataset
+        self.wrappers = wrappers
         self._subgroup = self.expand()
 
     def __getattr__(self, __name: str) -> Any:
@@ -181,12 +208,11 @@ class GroupTensor:
             for t in self.dataset.tensors
             if t.startswith(self.prefix)
         ]:
+            prefix = self.prefix + "/" + extract_prefix(tensor)
             if "/" in tensor:
-                prefix = self.prefix + "/" + tensor.split("/")[0]
-                r[tensor] = GroupTensor(self.dataset, prefix)
+                r[tensor] = GroupTensor(self.dataset, self.wrappers, prefix)
             else:
-                t = self.dataset.tensors[f"{self.prefix}/{tensor}"]
-                r[tensor] = export_tensor(t)
+                r[tensor] = self.wrappers[prefix]
 
         return r
 

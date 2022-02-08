@@ -38,9 +38,9 @@ class ComputeProvider(ABC):
         try:
             result = self.map(sub_func, iterable)
         finally:
-            progress_bar.close()
             progress_queue.put(None)  # type: ignore[trust]
             progress_thread.join()
+            progress_bar.close()
 
             if hasattr(progress_queue, "close"):
                 progress_bar.close()

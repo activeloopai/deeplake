@@ -248,7 +248,13 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
+        try:
+            storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
+        except Exception:
+            # TODO: investigate flakey `BadRequestException:
+            # Invalid Request. One or more request parameters is incorrect.`
+            # (on windows 3.8 only)
+            pass
 
 
 @pytest.fixture
@@ -294,7 +300,7 @@ def compressed_image_paths():
         "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
-        "tiff": "field.tiff",
+        "tiff": ["field.tiff", "field.tif"],
         "png": "flower.png",
         "ico": "sample_ico.ico",
         "jpeg2000": "sample_jpeg2000.jp2",
