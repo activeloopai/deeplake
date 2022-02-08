@@ -410,7 +410,7 @@ class ChunkEngine:
     def get_chunk(self, chunk_key: str) -> BaseChunk:
         chunks = [self._last_appended_chunk, self._last_updated_chunk]
         for chunk in chunks:
-            if chunk is not None and chunk.key == chunk_key:
+            if chunk is not None and chunk.key == chunk_key:  # type: ignore
                 return chunk
 
         return self.cache.get_hub_object(
@@ -620,7 +620,7 @@ class ChunkEngine:
             chunk.update_sample(0, tile)
             if (
                 self._last_updated_chunk is not None
-                and self._last_updated_chunk.key != chunk.key
+                and self._last_updated_chunk.key != chunk.key  # type: ignore
             ):
                 self.write_chunk_to_storage(self._last_updated_chunk)
             self._last_updated_chunk = chunk
@@ -657,7 +657,7 @@ class ChunkEngine:
                 chunk.update_sample(local_sample_index, sample)
                 if (
                     self._last_updated_chunk is not None
-                    and self._last_updated_chunk.key != chunk.key
+                    and self._last_updated_chunk.key != chunk.key  # type: ignore
                 ):
                     self.write_chunk_to_storage(self._last_updated_chunk)
                 self._last_updated_chunk = chunk
