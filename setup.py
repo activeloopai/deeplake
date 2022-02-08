@@ -20,6 +20,25 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
+req_map = {
+    b: a
+    for a, b in (
+        re.findall(r"^(([^!=<>~]+)(?:[!=<>~].*)?$)", x.strip("\n"))[0]
+        for x in requirements
+    )
+}
+
+# Add optional dependencies to this dict without version. Version should be specified in requirements.txt
+extras = {
+    "audio": ["miniaudio"],
+    "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+}
+
+all_extras = {r for v in extras.values() for r in v}
+non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
+extras["all"] = [req_map[r] for r in all_extras]
+
+
 init_file = os.path.join(project_name, "__init__.py")
 
 
