@@ -729,9 +729,14 @@ class ChunkEngine:
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         return buffer[sb:eb].tobytes()
 
-    def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
+    def read_shape_for_sample(
+        self, global_sample_index: int, url: bool = False
+    ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        chunks = self.get_chunks_for_sample(global_sample_index)
+        if url:
+            chunks = self.get_chunks_for_sample(global_sample_index, url=url)
+        else:
+            chunks = self.get_chunks_for_sample(global_sample_index)
         if len(chunks) == 1:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
@@ -873,7 +878,7 @@ class ChunkEngine:
         return samples
 
     def get_chunks_for_sample(
-        self, global_sample_index: int, copy: bool = False
+        self, global_sample_index: int, copy: bool = False, url: bool = False
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
@@ -883,7 +888,7 @@ class ChunkEngine:
             List[BaseChunk]: BaseChunk objects that contains `global_sample_index`.
         """
         return [
-            self.get_chunk_from_chunk_id(idx, copy)
+            self.get_chunk_from_chunk_id(idx, copy, url=url)
             for idx in self.chunk_id_encoder[global_sample_index]
         ]
 
