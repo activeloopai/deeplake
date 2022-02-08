@@ -819,26 +819,16 @@ def _decompress_video(
 
     start, stop = _norm_video_frame_indices(start, stop, reverse, nframes)
 
-    nframes = stop - start
-
-    nbytes = nframes * height * width * 3
-
-    if step and nbytes > 5e8:
-        step_seeking = True
-        nframes = math.ceil(nframes / step)
-    else:
-        step_seeking = False
+    nframes = math.ceil((stop - start) / step)
 
     video = np.zeros((nframes, height, width, 3))
 
     seek_target = _frame_to_stamp(start, vstream)
-    gop_size = _frame_to_stamp(vstream.codec_context.gop_size, vstream)
-    print("gop_size:", gop_size)
+    step_time = _frame_to_stamp(step, vstream)
 
-    if step_seeking:
-        step_time = _frame_to_stamp(step, vstream)
-    else:
-        step_time = 0
+    gop_size = vstream.codec_context.gop_size
+    if step > gop_size:
+        step_seeking = True
 
     container.seek(seek_target, stream=vstream)
 
@@ -849,15 +839,11 @@ def _decompress_video(
                 arr = frame.to_ndarray(format="rgb24")
                 video[i] = arr
                 i += 1
-
-                if step_seeking and step_seeking > gop_size:
-                    print("step-seeking...")
-                    seek_target += step_time
+                seek_target += step_time
+                if step_seeking:
                     container.seek(seek_target, stream=vstream)
 
         if i == nframes:
             break
 
-    if step_seeking:
-        return video
-    return video[::step]
+    return video
