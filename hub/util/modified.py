@@ -34,14 +34,14 @@ def get_modified_indexes(
         indexes.update(idxes)
         if stop:
             break
-        current_node = current_node.parent
+        current_node = current_node.parent  # type: ignore
     return sorted(list(indexes))
 
 
 def get_modified_indexes_for_commit(
     tensor: str, commit_id: str, storage: LRUCache
 ) -> Tuple[Set[int], bool]:
-    indexes = set()
+    indexes: Set[int] = set()
     try:
         commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
         commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
@@ -64,5 +64,5 @@ def check_ancestor(current_node: CommitNode, target_node: CommitNode) -> bool:
     while current_node is not None:
         if current_node.commit_id == target_id:
             return True
-        current_node = current_node.parent
+        current_node = current_node.parent  # type: ignore
     return False
