@@ -150,3 +150,44 @@ def test_class_label(local_ds_generator):
         ds.labels.info.class_names == ds.labels.info["class_names"] == ["c", "b", "a"]
     )
     assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
+
+
+def test_info_new_methods(local_ds_generator):
+    ds = local_ds_generator()
+
+    ds.info[0] = "hello"
+    ds.info[1] = "world"
+    assert len(ds.info) == 2
+    assert set(ds.info.keys()) == {0, 1}
+    assert 0 in ds.info
+    assert 1 in ds.info
+
+    assert ds.info[0] == "hello"
+    assert ds.info[1] == "world"
+
+    del ds.info[0]
+    assert len(ds.info) == 1
+    assert 1 in ds.info
+    assert ds.info[1] == "world"
+
+    for it in ds.info:
+        assert it == 1
+
+    ds.info.setdefault(0, "yo")
+    assert len(ds.info) == 2
+    assert 0 in ds.info
+    assert 1 in ds.info
+    assert ds.info[0] == "yo"
+    assert ds.info[1] == "world"
+
+    ds.info.popitem()
+    assert len(ds.info) == 1
+    assert 1 in ds.info
+    assert ds.info[1] == "world"
+
+    for k, v in ds.info.items():
+        assert k == 1
+        assert v == "world"
+
+    for v in ds.info.values():
+        assert v == "world"
