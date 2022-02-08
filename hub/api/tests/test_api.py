@@ -58,13 +58,12 @@ def test_persist(ds_generator):
     np.testing.assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
 
 
-@enabled_persistent_dataset_generators
-def test_persist_keys(ds_generator):
-    ds = ds_generator()
+def test_persist_keys(local_ds_generator):
+    ds = local_ds_generator()
 
     ds.create_tensor("image")
 
-    ds_new = ds_generator()
+    ds_new = local_ds_generator()
     assert set(ds_new.storage.keys()) == {
         "dataset_meta.json",
         "image/commit_diff",
