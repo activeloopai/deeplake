@@ -58,6 +58,7 @@ from hub.util.diff import (
     get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
+    remove_empty_changes,
 )
 from hub.util.version_control import (
     auto_checkout,
@@ -718,7 +719,7 @@ class Dataset:
                 message1 = "Diff in HEAD:\n"
             else:
                 message1 = f"Diff in {commit_id} (current commit):\n"
-            get_changes_for_id(commit_id, storage, changes1)
+            get_changes_for_id(version_state, commit_id, storage, changes1)
             filter_data_updated(changes1)
             changes2 = message2 = None
         else:
@@ -741,6 +742,8 @@ class Dataset:
                 commit1, commit2, version_state, storage
             )
         if as_dict:
+            remove_empty_changes(changes1)
+            remove_empty_changes(changes2)
             if changes2 is None:
                 return changes1
             return changes1, changes2

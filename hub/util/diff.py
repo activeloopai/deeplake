@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.tensor import Tensor
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.storage import LRUCache
@@ -37,7 +38,7 @@ def compare_commits(
     ]:
         while commit_node != lca:
             commit_id = commit_node.commit_id
-            get_changes_for_id(commit_id, storage, changes)
+            get_changes_for_id(version_state, commit_id, storage, changes)
             commit_node = commit_node.parent  # type: ignore
         filter_data_updated(changes)
     return changes_1, changes_2
@@ -93,49 +94,64 @@ def get_all_changes_string(changes1, message1, changes2, message2):
 def get_changes_str(changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
-    for tensor, change in changes.items():
-
+    remove_empty_changes(changes)
+    tensors = sorted(changes.keys())
+    for tensor in tensors:
+        change = changes[tensor]
+        created = change.get("created", False)
         data_added = change["data_added"]
         data_added_str = convert_adds_to_string(data_added)
-
         data_updated = change["data_updated"]
-
-        created = change.get("created", False)
-
         info_updated = change.get("info_updated", False)
+        all_changes.append(tensor)
+        if created:
+            all_changes.append("* Created tensor")
 
-        has_change = created or data_added_str or data_updated or info_updated
-        if has_change:
-            all_changes.append(tensor)
-            if created:
-                all_changes.append("* Created tensor")
+        if data_added_str:
+            all_changes.append(data_added_str)
 
-            if data_added_str:
-                all_changes.append(data_added_str)
+        if data_updated:
+            output = convert_updates_to_string(data_updated)
+            all_changes.append(output)
 
-            if data_updated:
-                output = convert_updates_to_string(data_updated)
-                all_changes.append(output)
-
-            if info_updated:
-                all_changes.append("* Info updated")
-            all_changes.append("")
+        if info_updated:
+            all_changes.append("* Info updated")
+        all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
     return "\n".join(all_changes)
 
 
-def get_changes_for_id(commit_id: str, storage: LRUCache, changes: Dict[str, Dict]):
+def has_change(change: Dict):
+    created = change.get("created", False)
+    data_added = change["data_added"]
+    num_samples_added = data_added[1] - data_added[0]
+    data_updated = change["data_updated"]
+    info_updated = change.get("info_updated", False)
+    return created or num_samples_added > 0 or data_updated or info_updated
+
+
+def get_changes_for_id(
+    version_state, commit_id: str, storage: LRUCache, changes: Dict[str, Dict]
+):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
-    meta_key = get_dataset_meta_key(commit_id)
-    meta = storage.get_hub_object(meta_key, DatasetMeta)
+    is_current = version_state["commit_id"] == commit_id
+
+    if is_current:
+        meta = version_state["meta"]
+    else:
+        meta_key = get_dataset_meta_key(commit_id)
+        meta = storage.get_hub_object(meta_key, DatasetMeta)
 
     for tensor in meta.tensors:
         try:
-            commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-            commit_diff: CommitDiff = storage.get_hub_object(
-                commit_diff_key, CommitDiff
-            )
+            commit_diff: CommitDiff
+            if is_current:
+                full_tensor: Tensor = version_state["full_tensors"][tensor]
+                commit_diff = full_tensor.chunk_engine.commit_diff
+            else:
+                commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
+                commit_diff = storage.get_hub_object(commit_diff_key, CommitDiff)
             change = changes[tensor]
 
             change["created"] = change.get("created") or commit_diff.created
@@ -244,3 +260,13 @@ def convert_adds_to_string(index_range: List[int]) -> str:
         return ""
     sample_string = "sample" if num_samples == 1 else "samples"
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
+
+
+def remove_empty_changes(changes: Dict):
+    if not changes:
+        return changes
+    tensors = list(changes.keys())
+    for tensor in tensors:
+        change = changes[tensor]
+        if not has_change(change):
+            del changes[tensor]

@@ -6,7 +6,7 @@ class CommitDiff(HubMemoryObject):
     """Stores set of diffs stored for a particular tensor in a commit."""
 
     def __init__(self, first_index=0, created=False) -> None:
-        super().__init__()
+        self.is_dirty = created  # only put as dirty during init if created
         self.created = created
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
