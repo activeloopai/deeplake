@@ -276,7 +276,7 @@ class Tensor:
         """
         self.extend([sample])
 
-    def modified(
+    def modified_samples(
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
         """Returns a slice of the tensor with only those elements that were modified/added.
