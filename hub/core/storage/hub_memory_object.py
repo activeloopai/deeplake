@@ -4,9 +4,7 @@ from typing import Any, Dict
 
 
 class HubMemoryObject(ABC):
-    def __init__(self, buffer: bytes = None):
-        if buffer:
-            self.frombuffer(buffer)
+    def __init__(self):
         self.is_dirty = True
 
     @property
