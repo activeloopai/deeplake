@@ -817,8 +817,8 @@ def _decompress_video_cffi(
     shape = (n_frames, *shape[1:])
     nbytes = np.prod(shape)
     if (
-        step > 1 and nbytes > 1e8
-    ):  # if bytes to allocate video[start:end] > 100MB, use seeking
+        step > 1 and nbytes > 5e8
+    ):  # if bytes to allocate video[start:end] > 500MB, use seeking
         step_seeking = True
         n_frames = math.ceil(n_frames / step)
         shape = (n_frames, *shape[1:])
