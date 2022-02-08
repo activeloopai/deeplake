@@ -1112,8 +1112,7 @@ def test_modified(memory_ds):
             np.testing.assert_array_equal(img[i + 2].numpy(), i + 5)
 
         second_commit = memory_ds.commit()
-        img, indexes = memory_ds.image.modified(return_indexes=True)
-        assert indexes == []
+        img = memory_ds.image.modified()
         assert len(img) == 0
 
         img, indexes = memory_ds.image.modified(first_commit, return_indexes=True)
