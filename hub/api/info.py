@@ -48,9 +48,6 @@ class Info(HubMemoryObject):
     def __getitem__(self, key: str):
         return self._info[key]
 
-    def get(self, key: str, default: Optional[Any] = None):
-        return self._info.get(key, default)
-
     def __str__(self):
         return self._info.__str__()
 
