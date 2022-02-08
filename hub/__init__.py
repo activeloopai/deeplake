@@ -45,6 +45,7 @@ delete = dataset.delete
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
+ingest_dataframe = dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
 tensor = Tensor
 
@@ -69,7 +70,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.2.3"
+__version__ = "2.2.4"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 

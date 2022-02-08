@@ -1,9 +1,25 @@
 import hub
 import pytest
 import numpy as np
-from hub.util.diff import get_all_changes_string
+from hub.util.diff import (
+    get_all_changes_string,
+    get_lowest_common_ancestor,
+    sanitize_commit,
+)
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import CheckoutError, CommitError, InfoError, ReadOnlyModeError
+
+NO_COMMIT_PASSED_DIFF = ""
+ONE_COMMIT_PASSED_DIFF = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
+TWO_COMMIT_PASSED_DIFF = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the two commits passed."
+
+
+def get_lca_id_helper(version_state, id_1, id_2=None):
+    id_1 = sanitize_commit(id_1, version_state)
+    id_2 = sanitize_commit(id_2, version_state) if id_2 else version_state["commit_id"]
+    commit_node_1 = version_state["commit_node_map"][id_1]
+    commit_node_2 = version_state["commit_node_map"][id_2]
+    return get_lowest_common_ancestor(commit_node_1, commit_node_2)
 
 
 def commit_details_helper(commits, ds):
@@ -542,8 +558,11 @@ def test_diff_linear(local_ds, capsys):
             "data_transformed_in_place": False,
         },
     }
-    message1 = "Diff in HEAD:\n"
-    target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+    message0 = NO_COMMIT_PASSED_DIFF
+    message1 = "Diff in HEAD relative to the previous commit:\n"
+    target = (
+        get_all_changes_string(message0, changes_b_from_a, message1, None, None) + "\n"
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
@@ -552,16 +571,23 @@ def test_diff_linear(local_ds, capsys):
     b = local_ds.commit()
     local_ds.diff()
     changes_empty = {}
-    target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
+    target = (
+        get_all_changes_string(message0, changes_empty, message1, None, None) + "\n"
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
     assert diff == changes_empty
 
     local_ds.diff(a)
+    lca_id = get_lca_id_helper(local_ds.version_state, a)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
+    message1 = "Diff in HEAD:\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
-        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        get_all_changes_string(
+            message0, changes_b_from_a, message1, changes_empty, message2
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -572,9 +598,14 @@ def test_diff_linear(local_ds, capsys):
     assert diff[1] == changes_empty
 
     local_ds.diff(b)
+    lca_id = get_lca_id_helper(local_ds.version_state, b)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
     message2 = f"Diff in {b} (target id):\n"
     target = (
-        get_all_changes_string(changes_empty, message1, changes_empty, message2) + "\n"
+        get_all_changes_string(
+            message0, changes_empty, message1, changes_empty, message2
+        )
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -584,10 +615,14 @@ def test_diff_linear(local_ds, capsys):
     assert diff[1] == changes_empty
 
     local_ds.diff(a, b)
+    lca_id = get_lca_id_helper(local_ds.version_state, a, b)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {a} (target id 1):\n"
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
-        get_all_changes_string(changes_empty, message1, changes_b_from_a, message2)
+        get_all_changes_string(
+            message0, changes_empty, message1, changes_b_from_a, message2
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -598,10 +633,14 @@ def test_diff_linear(local_ds, capsys):
     assert diff[1] == changes_b_from_a
 
     local_ds.diff(b, a)
+    lca_id = get_lca_id_helper(local_ds.version_state, b, a)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {b} (target id 1):\n"
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
-        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        get_all_changes_string(
+            message0, changes_b_from_a, message1, changes_empty, message2
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -613,18 +652,25 @@ def test_diff_linear(local_ds, capsys):
 
     local_ds.checkout(b)
     local_ds.diff()
-    message1 = f"Diff in {b} (current commit):\n"
-    target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+    message0 = NO_COMMIT_PASSED_DIFF
+    message1 = f"Diff in {b} (current commit) relative to the previous commit:\n"
+    target = (
+        get_all_changes_string(message0, changes_b_from_a, message1, None, None) + "\n"
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
     assert diff == changes_b_from_a
 
     local_ds.diff(a)
+    lca_id = get_lca_id_helper(local_ds.version_state, a)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {b} (current commit):\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
-        get_all_changes_string(changes_b_from_a, message1, changes_empty, message2)
+        get_all_changes_string(
+            message0, changes_b_from_a, message1, changes_empty, message2
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -682,9 +728,12 @@ def test_diff_branch(local_ds, capsys):
             "data_transformed_in_place": False,
         },
     }
-    message1 = "Diff in HEAD:\n"
+    message0 = NO_COMMIT_PASSED_DIFF
+    message1 = "Diff in HEAD relative to the previous commit:\n"
     target = (
-        get_all_changes_string(changes_main_from_branch_off, message1, None, None)
+        get_all_changes_string(
+            message0, changes_main_from_branch_off, message1, None, None
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -696,17 +745,22 @@ def test_diff_branch(local_ds, capsys):
 
     local_ds.diff()
     empty_changes = {}
-    target = get_all_changes_string(empty_changes, message1, None, None) + "\n"
+    target = (
+        get_all_changes_string(message0, empty_changes, message1, None, None) + "\n"
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
     assert diff == empty_changes
 
     local_ds.diff(a)
+    lca_id = get_lca_id_helper(local_ds.version_state, a)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
+    message1 = "Diff in HEAD:\n"
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
-            changes_main_from_branch_off, message1, empty_changes, message2
+            message0, changes_main_from_branch_off, message1, empty_changes, message2
         )
         + "\n"
     )
@@ -718,10 +772,16 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(b)
+    lca_id = get_lca_id_helper(local_ds.version_state, b)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(
-            changes_main_from_branch_off, message1, changes_b_from_branch_off, message2
+            message0,
+            changes_main_from_branch_off,
+            message1,
+            changes_b_from_branch_off,
+            message2,
         )
         + "\n"
     )
@@ -733,9 +793,14 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c)
+    lca_id = get_lca_id_helper(local_ds.version_state, c)
+    message0 = ONE_COMMIT_PASSED_DIFF % lca_id
     message2 = f"Diff in {c} (target id):\n"
     target = (
-        get_all_changes_string(empty_changes, message1, empty_changes, message2) + "\n"
+        get_all_changes_string(
+            message0, empty_changes, message1, empty_changes, message2
+        )
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -745,11 +810,13 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(a, b)
+    lca_id = get_lca_id_helper(local_ds.version_state, a)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {a} (target id 1):\n"
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
         get_all_changes_string(
-            empty_changes, message1, changes_b_from_branch_off, message2
+            message0, empty_changes, message1, changes_b_from_branch_off, message2
         )
         + "\n"
     )
@@ -761,11 +828,13 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(b, a)
+    lca_id = get_lca_id_helper(local_ds.version_state, a, b)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {b} (target id 1):\n"
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_b_from_branch_off, message1, empty_changes, message2
+            message0, changes_b_from_branch_off, message1, empty_changes, message2
         )
         + "\n"
     )
@@ -777,11 +846,17 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(b, c)
+    lca_id = get_lca_id_helper(local_ds.version_state, b, c)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {b} (target id 1):\n"
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_b_from_branch_off, message1, changes_main_from_branch_off, message2
+            message0,
+            changes_b_from_branch_off,
+            message1,
+            changes_main_from_branch_off,
+            message2,
         )
         + "\n"
     )
@@ -789,11 +864,17 @@ def test_diff_branch(local_ds, capsys):
     assert captured.out == target
 
     local_ds.diff(c, b)
+    lca_id = get_lca_id_helper(local_ds.version_state, c, b)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {c} (target id 1):\n"
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_main_from_branch_off, message1, changes_b_from_branch_off, message2
+            message0,
+            changes_main_from_branch_off,
+            message1,
+            changes_b_from_branch_off,
+            message2,
         )
         + "\n"
     )
@@ -805,11 +886,13 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == changes_b_from_branch_off
 
     local_ds.diff(c, a)
+    lca_id = get_lca_id_helper(local_ds.version_state, c, a)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {c} (target id 1):\n"
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_main_from_branch_off, message1, empty_changes, message2
+            message0, changes_main_from_branch_off, message1, empty_changes, message2
         )
         + "\n"
     )
@@ -821,11 +904,13 @@ def test_diff_branch(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(a, c)
+    lca_id = get_lca_id_helper(local_ds.version_state, a, c)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {a} (target id 1):\n"
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            empty_changes, message1, changes_main_from_branch_off, message2
+            message0, empty_changes, message1, changes_main_from_branch_off, message2
         )
         + "\n"
     )
@@ -901,10 +986,14 @@ def test_complex_diff(local_ds, capsys):
     empty_changes = {}
 
     local_ds.diff(c, g)
+    lca_id = get_lca_id_helper(local_ds.version_state, c, g)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {c} (target id 1):\n"
     message2 = f"Diff in {g} (target id 2):\n"
     target = (
-        get_all_changes_string(changes_c_from_x, message1, changes_g_from_x, message2)
+        get_all_changes_string(
+            message0, changes_c_from_x, message1, changes_g_from_x, message2
+        )
         + "\n"
     )
     captured = capsys.readouterr()
@@ -915,10 +1004,15 @@ def test_complex_diff(local_ds, capsys):
     assert diff[1] == changes_g_from_x
 
     local_ds.diff(e, d)
+    lca_id = get_lca_id_helper(local_ds.version_state, e, d)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {e} (target id 1):\n"
     message2 = f"Diff in {d} (target id 2):\n"
     target = (
-        get_all_changes_string(empty_changes, message1, empty_changes, message2) + "\n"
+        get_all_changes_string(
+            message0, empty_changes, message1, empty_changes, message2
+        )
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -928,10 +1022,15 @@ def test_complex_diff(local_ds, capsys):
     assert diff[1] == empty_changes
 
     local_ds.diff(e, e)
+    lca_id = get_lca_id_helper(local_ds.version_state, e, e)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {e} (target id 1):\n"
     message2 = f"Diff in {e} (target id 2):\n"
     target = (
-        get_all_changes_string(empty_changes, message1, empty_changes, message2) + "\n"
+        get_all_changes_string(
+            message0, empty_changes, message1, empty_changes, message2
+        )
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -958,11 +1057,13 @@ def test_complex_diff(local_ds, capsys):
     }
 
     local_ds.diff(c, "main")
+    lca_id = get_lca_id_helper(local_ds.version_state, c, "main")
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = f"Diff in {c} (target id 1):\n"
     message2 = "Diff in main (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_c_from_x, message1, changes_main_from_x, message2
+            message0, changes_c_from_x, message1, changes_main_from_x, message2
         )
         + "\n"
     )
@@ -974,11 +1075,13 @@ def test_complex_diff(local_ds, capsys):
     assert diff[1] == changes_main_from_x
 
     local_ds.diff("main", c)
+    lca_id = get_lca_id_helper(local_ds.version_state, "main", c)
+    message0 = TWO_COMMIT_PASSED_DIFF % lca_id
     message1 = "Diff in main (target id 1):\n"
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            changes_main_from_x, message1, changes_c_from_x, message2
+            message0, changes_main_from_x, message1, changes_c_from_x, message2
         )
         + "\n"
     )
