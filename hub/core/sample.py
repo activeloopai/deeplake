@@ -23,7 +23,7 @@ from hub.compression import (
 from hub.util.exceptions import CorruptedSampleError
 from hub.util.path import get_path_type
 import numpy as np
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
 from io import BytesIO
@@ -33,6 +33,7 @@ if os.name == "nt":
 else:
     _USE_CFFI = True
 
+from urllib.request import urlopen
 import boto3
 
 
@@ -338,7 +339,7 @@ class Sample:
         return client.get_bucket(bucket_name).get_blob(obj_key).download_as_bytes()
 
     def _read_from_http(self) -> bytes:
-        raise NotImplementedError()  # TODO
+        return urlopen(path).read()
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
