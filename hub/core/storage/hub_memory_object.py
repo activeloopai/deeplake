@@ -7,8 +7,8 @@ class HubMemoryObject(ABC):
     def __init__(self):
         self.is_dirty = True
 
-    @abstractmethod
     @property
+    @abstractmethod
     def nbytes(self):
         """Returns the number of bytes in the object."""
 
