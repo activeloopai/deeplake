@@ -18,7 +18,13 @@ class DatasetMeta(Meta):
         d = super().__getstate__()
         d["tensors"] = self.tensors
         d["groups"] = self.groups
+        d["info_updated"] = self.info_updated
         return d
+
+    def __setstate__(self, state: Dict[str, Any]):
+        self.tensors = state["tensors"]
+        self.groups = state["groups"]
+        self.info_updated = state.get("info_updated", False)
 
     def add_tensor(self, name):
         if name not in self.tensors:

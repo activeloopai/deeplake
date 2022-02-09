@@ -22,7 +22,7 @@ class Info(HubMemoryObject):
                 raise InfoError("Cannot modify info from a non-head commit.")
             self.is_dirty = True
             if key:
-                ds[key].commit_diff.modify_info()
+                ds[key].chunk_engine.commit_diff.modify_info()
             else:
                 version_state["meta"].modify_info()
         return self
