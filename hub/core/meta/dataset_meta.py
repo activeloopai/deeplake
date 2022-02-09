@@ -7,7 +7,6 @@ class DatasetMeta(Meta):
         super().__init__()
         self.tensors = []
         self.groups = []
-        self.info_updated = False
 
     @property
     def nbytes(self):
@@ -18,13 +17,7 @@ class DatasetMeta(Meta):
         d = super().__getstate__()
         d["tensors"] = self.tensors
         d["groups"] = self.groups
-        d["info_updated"] = self.info_updated
         return d
-
-    def __setstate__(self, state: Dict[str, Any]):
-        self.tensors = state["tensors"]
-        self.groups = state["groups"]
-        self.info_updated = state.get("info_updated", False)
 
     def add_tensor(self, name):
         if name not in self.tensors:
@@ -43,9 +36,4 @@ class DatasetMeta(Meta):
     def delete_group(self, name):
         self.groups = list(filter(lambda g: not g.startswith(name), self.groups))
         self.tensors = list(filter(lambda t: not t.startswith(name), self.tensors))
-        self.is_dirty = True
-
-    def modify_info(self) -> None:
-        """Stores information that the info has changed"""
-        self.info_updated = True
         self.is_dirty = True

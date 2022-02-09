@@ -15,16 +15,13 @@ class Info(HubMemoryObject):
     def __enter__(self):
         ds = self._dataset
         key = self._key
-        version_state = ds.version_state
         if ds is not None:
             ds.storage.check_readonly()
-            if not version_state["commit_node"].is_head_node:
+            if not ds.version_state["commit_node"].is_head_node:
                 raise InfoError("Cannot modify info from a non-head commit.")
             self.is_dirty = True
             if key:
                 ds[key].chunk_engine.commit_diff.modify_info()
-            else:
-                version_state["meta"].modify_info()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
