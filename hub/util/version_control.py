@@ -108,9 +108,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     save_version_info(version_state, storage)
-    copy_metas(
-        dataset, stored_commit_id, version_state["commit_id"], storage, version_state
-    )
+    copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
@@ -176,7 +174,7 @@ def checkout(
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
-        copy_metas(dataset, original_commit_id, new_commit_id, storage, version_state)
+        copy_metas(original_commit_id, new_commit_id, storage, version_state)
         create_commit_chunk_sets(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
     else:
@@ -193,7 +191,6 @@ def checkout(
 
 
 def copy_metas(
-    dataset,
     src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
@@ -207,22 +204,15 @@ def copy_metas(
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     src_dataset_meta = storage[src_dataset_meta_key]
-    if isinstance(src_dataset_meta, HubMemoryObject):
-        storage[dest_dataset_meta_key] = src_dataset_meta.copy()
-    else:
-        storage[dest_dataset_meta_key] = src_dataset_meta
+    dest_dataset_meta = convert_to_bytes(src_dataset_meta)
+    storage[dest_dataset_meta_key] = dest_dataset_meta
 
     try:
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         src_dataset_info = storage[src_dataset_info_key]
-        if isinstance(src_dataset_info, HubMemoryObject):
-            new_info = src_dataset_info.copy()
-            new_info._dataset = dataset
-            dataset.info = new_info
-            storage[dest_dataset_info_key] = new_info
-        else:
-            storage[dest_dataset_info_key] = src_dataset_info
+        dest_dataset_info = convert_to_bytes(src_dataset_info)
+        storage[dest_dataset_info_key] = dest_dataset_info
     except KeyError:
         pass
 
@@ -232,19 +222,15 @@ def copy_metas(
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
         src_tensor_meta = storage[src_tensor_meta_key]
-        if isinstance(src_tensor_meta, HubMemoryObject):
-            storage[dest_tensor_meta_key] = src_tensor_meta.copy()
-        else:
-            storage[dest_tensor_meta_key] = src_tensor_meta
+        dest_tensor_meta = convert_to_bytes(src_tensor_meta)
+        storage[dest_tensor_meta_key] = dest_tensor_meta
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
             src_chunk_id_encoder = storage[src_chunk_id_encoder_key]
-            if isinstance(src_chunk_id_encoder, HubMemoryObject):
-                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
-            else:
-                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
+            dest_chunk_id_encoder = convert_to_bytes(src_chunk_id_encoder)
+            storage[dest_chunk_id_encoder_key] = dest_chunk_id_encoder
         except KeyError:
             pass
 
@@ -252,10 +238,8 @@ def copy_metas(
             src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
             dest_tile_encoder_key = get_tensor_tile_encoder_key(tensor, dest_commit_id)
             src_tile_encoder = storage[src_tile_encoder_key]
-            if isinstance(src_tile_encoder, HubMemoryObject):
-                storage[dest_tile_encoder_key] = src_tile_encoder.copy()
-            else:
-                storage[dest_tile_encoder_key] = src_tile_encoder
+            dest_tile_encoder = convert_to_bytes(src_tile_encoder)
+            storage[dest_tile_encoder_key] = dest_tile_encoder
         except KeyError:
             pass
 
@@ -263,13 +247,8 @@ def copy_metas(
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
-            if isinstance(src_tensor_info, HubMemoryObject):
-                new_info = src_tensor_info.copy()
-                new_info._dataset = dataset
-                dataset[tensor].info = new_info
-                storage[dest_tensor_info_key] = new_info
-            else:
-                storage[dest_tensor_info_key] = src_tensor_info
+            dest_tensor_info = convert_to_bytes(src_tensor_info)
+            storage[dest_tensor_info_key] = dest_tensor_info
         except KeyError:
             pass
 
@@ -493,3 +472,7 @@ def warn_node_checkout(commit_node: CommitNode, create: bool):
             warnings.warn(
                 f"The branch ({branch}) that you have checked out to, has no commits."
             )
+
+
+def convert_to_bytes(inp):
+    return inp.tobytes() if isinstance(inp, HubMemoryObject) else inp
