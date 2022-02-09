@@ -14,7 +14,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     InvalidTensorNameError,
 )
-from hub.constants import MB
+from hub.constants import MB, PYTEST_S3_PROVIDER_BASE_ROOT
 
 from click.testing import CliRunner
 
@@ -931,3 +931,22 @@ def test_sample_shape(memory_ds):
     assert ds.z[1].shape == (5, 3000, 4000)
     assert ds.w[0][0, :2].shape == (2, 2)
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
+
+
+def test_hub_read(memory_ds):
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        compression="mp4",
+    )
+    assert b"ftyp" in video.buffer
+
+    video = hub.read(
+        "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", compression="mp4"
+    )
+    assert b"ftyp" in video.buffer
+
+    video = hub.read(
+        f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_video/samplemp4.mp4",
+        compression="mp4",
+    )
+    assert b"ftyp" in video.buffer

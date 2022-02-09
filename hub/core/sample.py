@@ -23,7 +23,7 @@ from hub.compression import (
     BYTE_COMPRESSION,
 )
 from hub.util.exceptions import CorruptedSampleError
-from hub.util.path import get_path_type
+from hub.util.path import get_path_type, is_remote_path
 import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
 
@@ -272,8 +272,12 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
+                if self.path and is_remote_path(self.path):
+                    compressed = self.buffer
+                else:
+                    compressed = self.path or self._buffer
                 array = decompress_array(
-                    self.path or self._buffer, compression=compr, shape=self.shape
+                    compressed, compression=compr, shape=self.shape
                 )
                 if self._shape is None:
                     self._shape = array.shape
@@ -347,7 +351,7 @@ class Sample:
         return gcs[key]
 
     def _read_from_http(self) -> bytes:
-        return urlopen(path).read()
+        return urlopen(self.path).read()
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
