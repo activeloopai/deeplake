@@ -221,7 +221,6 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._set_derived_attributes()
-        self.storage.set_dataset(self)
 
     def __getitem__(
         self,
@@ -353,7 +352,7 @@ class Dataset:
             version_state=self.version_state,
             **meta_kwargs,
         )
-        meta: DatasetMeta = self.version_state["meta"]
+        meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.add_tensor(name)
         tensor = Tensor(name, self)  # type: ignore
@@ -1165,8 +1164,7 @@ class Dataset:
     @property
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        return self.storage.get_hub_object(meta_key, DatasetMeta).groups  # type: ignore
+        return self.meta.groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:
