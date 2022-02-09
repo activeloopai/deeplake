@@ -48,6 +48,29 @@ def test_persist(ds_generator):
 
     assert ds_new.meta.version == hub.__version__
 
+    ds_new.create_tensor("label")
+    ds_new.label.extend([1, 2, 3, 4])
+
+    ds2 = ds_generator()
+
+    ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
+    assert len(ds2) == 4
+    np.testing.assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
+
+
+def test_persist_keys(local_ds_generator):
+    ds = local_ds_generator()
+
+    ds.create_tensor("image")
+
+    ds_new = local_ds_generator()
+    assert set(ds_new.storage.keys()) == {
+        "dataset_meta.json",
+        "image/commit_diff",
+        "image/tensor_meta.json",
+        "image/tensor_info.json",
+    }
+
 
 def test_persist_with(local_ds_generator):
     with local_ds_generator() as ds:

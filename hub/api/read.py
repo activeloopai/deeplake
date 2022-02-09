@@ -8,7 +8,9 @@ def read(
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
 ) -> Sample:
-    """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
+    """Utility that reads raw data from supported files into hub format. Recompresses data into format required by the tensor
+    if permitted by the tensor htype. Simply copies the data in the file if file format matches sample_compression of the tensor,
+    thus maximizing upload speeds.
 
     Note:
         No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
@@ -21,9 +23,22 @@ def read(
         >>> sample.compression
         'jpeg'
 
+        >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        >>> ds.images.append(sample)
+        >>> ds.images.shape
+        (1, 399, 640, 3)
+
+        >>> ds.create_tensor("videos", htype="video", sample_compression="mp4")
+        >>> ds.videos.append(hub.read("path/to/video.mp4"))
+        >>> ds.videos.shape
+        (1, 136, 720, 1080, 3)
+
     Supported file types:
         Image: "bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm"
+
         Audio: "flac", "mp3", "wav"
+
+        Video: "mp4", "mkv", "avi"
 
     Args:
         path (str): Path to a supported file.
