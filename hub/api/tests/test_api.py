@@ -781,7 +781,8 @@ def test_groups(local_ds_generator):
 
 def test_tensor_delete(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("x")
+    ds.create_tensor("x", max_chunk_size=2 * MB)
+    ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}

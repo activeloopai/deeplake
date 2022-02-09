@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_dataset(local_ds_generator):
     ds = local_ds_generator()
 
@@ -191,3 +194,6 @@ def test_info_new_methods(local_ds_generator):
 
     for v in ds.info.values():
         assert v == "world"
+
+    with pytest.raises(TypeError):
+        ds.info = ["abc"]
