@@ -45,6 +45,8 @@ try:
 except ImportError:
     GCProvider = None
 
+import posixpath
+
 
 class Sample:
     path: Optional[str]
@@ -335,8 +337,7 @@ class Sample:
             return f.read()
 
     def _read_from_s3(self) -> bytes:
-        bucket, key = self.path[5:].split("/", 1)
-        root = f"s3://{bucket}"
+        root, key = posixpath.split(self.path)
         s3 = S3Provider(root, **self._creds)
         return s3[key]
 
@@ -345,8 +346,7 @@ class Sample:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
-        bucket, key = self.path[6:].split("/", 1)
-        root = f"gcs://{bucket}"
+        root, key = posixpath.split(self.path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 

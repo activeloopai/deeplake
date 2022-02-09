@@ -358,6 +358,7 @@ class S3Provider(StorageProvider):
 
     def _set_bucket_and_path(self):
         root = self.root.replace("s3://", "")
+        print(root)
         self.bucket, self.path = root.split("/", 1)
         if not self.path.endswith("/"):
             self.path += "/"
