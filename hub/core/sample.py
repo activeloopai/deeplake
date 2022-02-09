@@ -41,7 +41,7 @@ import boto3
 from hub.core.storage.s3 import S3Provider
 
 try:
-    from hub.core.storage.gcs import GCProvider
+    from hub.core.storage.gcs import GCSProvider
 except ImportError:
     GCProvider = None
 
@@ -137,17 +137,30 @@ class Sample:
     @property
     def compression(self):
         if self._compression is None and self.path:
-            self._read_meta()
+            self._compression = get_compression(path=self.path)
+            if self._compression is None:
+                self._read_meta()
         return self._compression
 
     def _read_meta(self, f=None):
         if self._shape is not None:
             return
+        store = False
         if f is None:
-            f = self.path if self.path else self.compressed_bytes[self._compression]
+            if self.path:
+                if is_remote_path(self.path):
+                    f = self._read_from_path()
+                    self._buffer = f
+                    store = True
+                else:
+                    f = self.path
+            else:
+                f = self._buffer
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
             f
         )
+        if store:
+            self._compressed_bytes[self._compression] = f
 
     @property
     def is_lazy(self) -> bool:

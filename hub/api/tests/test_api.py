@@ -933,20 +933,36 @@ def test_sample_shape(memory_ds):
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
 
 
-def test_hub_read(memory_ds):
+def test_hub_remote_read(memory_ds):
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    image = hub.read("https://picsum.photos/200/300")
+    memory_ds.images.append(image)
+    assert memory_ds.images[0].shape == (300, 200, 3)
+
     video = hub.read(
         "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
         compression="mp4",
     )
     assert b"ftyp" in video.buffer
 
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
+
     video = hub.read(
         "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", compression="mp4"
     )
     assert b"ftyp" in video.buffer
+
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
 
     video = hub.read(
         f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_video/samplemp4.mp4",
         compression="mp4",
     )
     assert b"ftyp" in video.buffer
+
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[2].shape == (400, 360, 640, 3)
