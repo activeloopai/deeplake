@@ -22,9 +22,6 @@ class HubMemoryObject(ABC):
         d = {str(k): v for k, v in self.__getstate__().items()}
         return bytes(json.dumps(d, sort_keys=True, indent=4), "utf-8")
 
-    def copy(self):
-        return self.frombuffer(self.tobytes())
-
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
