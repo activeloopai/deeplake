@@ -6,7 +6,7 @@ class CommitChunkSet(HubMemoryObject):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:
-        super().__init__()
+        self.is_dirty = False
         self.chunks: Set[str] = set()
 
     def tobytes(self) -> bytes:

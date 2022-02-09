@@ -7,7 +7,7 @@ from hub.core.tiling.sample_tiles import SampleTiles
 
 class TileEncoder(HubMemoryObject):
     def __init__(self, entries=None, version=None):
-        super().__init__()
+        self.is_dirty = False
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
         self.version = version or hub.__version__
 
