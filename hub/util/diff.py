@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.tensor import Tensor
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.storage import LRUCache
@@ -150,7 +149,7 @@ def get_changes_for_id(
         try:
             commit_diff: CommitDiff
             if is_current:
-                full_tensor: Tensor = version_state["full_tensors"][tensor]
+                full_tensor = version_state["full_tensors"][tensor]
                 commit_diff = full_tensor.chunk_engine.commit_diff
             else:
                 commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
