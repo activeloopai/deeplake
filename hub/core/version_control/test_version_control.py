@@ -7,7 +7,13 @@ from hub.util.diff import (
     sanitize_commit,
 )
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import CheckoutError, CommitError, InfoError, ReadOnlyModeError
+from hub.util.exceptions import (
+    CheckoutError,
+    CommitError,
+    ReadOnlyModeError,
+    InfoError,
+    TensorModifiedError,
+)
 
 NO_COMMIT_PASSED_DIFF = ""
 ONE_COMMIT_PASSED_DIFF = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
@@ -1166,3 +1172,67 @@ def test_read_only_checkout(local_ds):
     assert local_ds.storage.autoflush == True
     local_ds.read_only = True
     local_ds.checkout("main")
+
+
+def test_modified_samples(memory_ds):
+    with memory_ds:
+        memory_ds.create_tensor("image")
+        memory_ds.image.extend(np.array(list(range(5))))
+
+        img, indexes = memory_ds.image.modified_samples(return_indexes=True)
+        assert indexes == list(range(5))
+        assert len(img) == 5
+        for i in range(5):
+            np.testing.assert_array_equal(img[i].numpy(), i)
+        first_commit = memory_ds.commit()
+
+        img, indexes = memory_ds.image.modified_samples(return_indexes=True)
+        assert indexes == []
+        assert len(img) == 0
+
+        memory_ds.image.extend(np.array(list(range(5, 8))))
+        img, indexes = memory_ds.image.modified_samples(return_indexes=True)
+        assert indexes == list(range(5, 8))
+        assert len(img) == 3
+        for i in range(3):
+            np.testing.assert_array_equal(img[i].numpy(), i + 5)
+
+        memory_ds.image[2] = -1
+        img, indexes = memory_ds.image.modified_samples(return_indexes=True)
+        assert indexes == [2, 5, 6, 7]
+        assert len(img) == 4
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 1].numpy(), i + 5)
+
+        memory_ds.image[4] = 8
+        img, indexes = memory_ds.image.modified_samples(return_indexes=True)
+        assert indexes == [2, 4, 5, 6, 7]
+        assert len(img) == 5
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        np.testing.assert_array_equal(img[1].numpy(), 8)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 2].numpy(), i + 5)
+
+        second_commit = memory_ds.commit()
+        img = memory_ds.image.modified_samples()
+        assert len(img) == 0
+
+        img, indexes = memory_ds.image.modified_samples(
+            first_commit, return_indexes=True
+        )
+        assert indexes == [2, 4, 5, 6, 7]
+        assert len(img) == 5
+        np.testing.assert_array_equal(img[0].numpy(), -1)
+        np.testing.assert_array_equal(img[1].numpy(), 8)
+        for i in range(3):
+            np.testing.assert_array_equal(img[i + 2].numpy(), i + 5)
+
+        memory_ds.checkout(first_commit)
+        memory_ds.checkout("alt", create=True)
+        alt_commit = memory_ds.commit()
+
+        memory_ds.checkout("main")
+
+        with pytest.raises(TensorModifiedError):
+            memory_ds.image.modified_samples(alt_commit)
