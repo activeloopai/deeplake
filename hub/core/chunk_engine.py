@@ -434,14 +434,7 @@ class ChunkEngine:
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
-        chunks = [self.active_appended_chunk, self.active_updated_chunk]
-        for chunk in chunks:
-            if chunk is not None and chunk.key == chunk_key:  # type: ignore
-                return chunk
-
-        return self.cache.get_hub_object(
-            chunk_key, self.chunk_class, meta=self.chunk_args
-        )
+        return self.cache.get_hub_object(chunk_key, self.chunk_class, self.chunk_args)
 
     def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
