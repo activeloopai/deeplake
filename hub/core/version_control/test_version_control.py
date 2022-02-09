@@ -1115,7 +1115,9 @@ def test_modified_samples(memory_ds):
         img = memory_ds.image.modified_samples()
         assert len(img) == 0
 
-        img, indexes = memory_ds.image.modified_samples(first_commit, return_indexes=True)
+        img, indexes = memory_ds.image.modified_samples(
+            first_commit, return_indexes=True
+        )
         assert indexes == [2, 4, 5, 6, 7]
         assert len(img) == 5
         np.testing.assert_array_equal(img[0].numpy(), -1)
