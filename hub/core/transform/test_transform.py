@@ -18,7 +18,7 @@ TRANSFORM_TEST_NUM_WORKERS = 2
 all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
 
 schedulers = ["threaded", "processed"]
-# schedulers = schedulers + ["ray"] if ray_installed() else schedulers
+schedulers = schedulers + ["ray"] if ray_installed() else schedulers
 all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
 
