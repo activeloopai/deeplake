@@ -137,15 +137,15 @@ class Sample:
     @property
     def compression(self):
         if self._compression is None and self.path:
-            self._compression = get_compression(path=self.path)
-            if self._compression is None:
-                self._read_meta()
+            self._read_meta()
         return self._compression
 
     def _read_meta(self, f=None):
         if self._shape is not None:
             return
         store = False
+        if self._compression is None and self.path:
+            self._compression = get_compression(path=self.path)
         if f is None:
             if self.path:
                 if is_remote_path(self.path):
@@ -157,7 +157,7 @@ class Sample:
             else:
                 f = self._buffer
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
-            f
+            f, compression=self._compression
         )
         if store:
             self._compressed_bytes[self._compression] = f

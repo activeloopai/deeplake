@@ -945,16 +945,12 @@ def test_hub_remote_read(memory_ds):
         "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
         compression="mp4",
     )
-    assert b"ftyp" in video.buffer
-
     memory_ds.videos.append(video)
     assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
 
     video = hub.read(
         "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", compression="mp4"
     )
-    assert b"ftyp" in video.buffer
-
     memory_ds.videos.append(video)
     assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
 
@@ -962,7 +958,5 @@ def test_hub_remote_read(memory_ds):
         f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_video/samplemp4.mp4",
         compression="mp4",
     )
-    assert b"ftyp" in video.buffer
-
     memory_ds.videos.append(video)
     assert memory_ds.videos[2].shape == (400, 360, 640, 3)
