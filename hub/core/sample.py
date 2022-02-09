@@ -1,4 +1,6 @@
 # type: ignore
+from inspect import GEN_CLOSED
+from mailcap import getcaps
 import os
 from hub.core.compression import (
     compress_array,
@@ -35,6 +37,13 @@ else:
 
 from urllib.request import urlopen
 import boto3
+
+from hub.core.storage.s3 import S3Provider
+
+try:
+    from hub.core.storage.gcs import GCProvider
+except ImportError:
+    GCProvider = None
 
 
 class Sample:
@@ -322,21 +331,20 @@ class Sample:
             return f.read()
 
     def _read_from_s3(self) -> bytes:
-        return (
-            boto3.resource("s3", **self._creds)
-            .Object(*self.path[5:].split("/", 1))
-            .get()["Body"]
-            .read()
-        )
+        bucket, key = self.path[5:].split("/", 1)
+        root = f"s3://{bucket}"
+        s3 = S3Provider(root, **self._creds)
+        return s3[key]
 
     def _read_from_gcs(self) -> bytes:
-        from google.cloud import storage
-
-        client = (
-            storage.Client()
-        )  # requires GOOGLE_APPLICATION_CREDENTIALS env var. TODO: use creds arg
-        bucket_name, obj_key = self.path[6:].split("/", 1)
-        return client.get_bucket(bucket_name).get_blob(obj_key).download_as_bytes()
+        if GCSProvider is None:
+            raise Exception(
+                "GCP dependencies not installed. Install them with pip install hub[gcs]"
+            )
+        bucket, key = self.path[6:].split("/", 1)
+        root = f"gcs://{bucket}"
+        gcs = GCSProvider(root, **self._creds)
+        return gcs[key]
 
     def _read_from_http(self) -> bytes:
         return urlopen(path).read()
