@@ -820,7 +820,9 @@ def _decompress_video(
     seek_target = _frame_to_stamp(start, vstream)
     step_time = _frame_to_stamp(step, vstream)
 
-    gop_size = vstream.codec_context.gop_size
+    gop_size = (
+        vstream.codec_context.gop_size
+    )  # gop size is distance between 2 I-frames (in frames)
     if step > gop_size:
         step_seeking = True
     else:
