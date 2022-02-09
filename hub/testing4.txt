@@ -1,0 +1,2504 @@
+
+
+----------------------------------------------------------
+Testing session ID: c9f7
+----------------------------------------------------------
+============================= test session starts ==============================
+platform darwin -- Python 3.9.5, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+rootdir: /Users/abhinavtuli/Documents/Activeloop/Hub, configfile: setup.cfg
+plugins: timeout-2.0.2, cases-3.6.4
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 585 items / 1 skipped / 584 selected
+
+api/tests/test_agreement.py sss
+api/tests/test_api.py .ss..................x.s.....s..............................................
+api/tests/test_api_tiling.py .................
+api/tests/test_api_with_compression.py ....xx.xxx....
+api/tests/test_chunk_sizes.py ...
+api/tests/test_dataset.py ..s.
+api/tests/test_events.py ssss
+api/tests/test_grayscale.py ...x.x..
+api/tests/test_hosted_datasets.py Opening dataset in read-only mode as you don't have write permissions.
+.
+api/tests/test_info.py ....
+api/tests/test_json.py .........s..s..s
+api/tests/test_meta.py ..
+api/tests/test_pickle.py ..sss
+api/tests/test_readonly.py .x
+api/tests/test_text.py ...s
+api/tests/test_update_samples.py .................
+api/tests/test_video.py FFF
+auto/tests/test_ingestion.py ....
+auto/tests/test_kaggle.py sss
+cli/test_cli.py ss
+client/test_client.py s.s
+core/test_serialize.py ....
+core/chunk/test_chunk_compressed.py ........
+core/chunk/test_sample_compressed.py ..
+core/chunk/test_uncompressed.py .....
+core/index/tests/test_index.py ........
+core/meta/encode/tests/test_byte_positions_encoder.py ...
+core/meta/encode/tests/test_byte_positions_encoder_updates.py ...
+core/meta/encode/tests/test_chunk_id_encoder.py ...
+core/meta/encode/tests/test_shape_encoder.py ......
+core/meta/encode/tests/test_shape_encoder_updates.py ...........
+core/query/test/test_query.py ............ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.ss.
+core/storage/tests/test_readonly.py xxssxxssxxssxxss
+core/storage/tests/test_storage_provider.py ..ss.ssssss.ss
+core/tests/test_compression.py .................................................FFF.
+core/tests/test_compute.py ....
+core/tests/test_io.py .
+core/tests/test_locking.py ssss
+core/tests/test_serialize.py ..
+core/tiling/test_optimizer.py ......
+core/tiling/test_serialize.py ...
+core/transform/test_transform.py ....ss..........................................
+core/version_control/test_version_control.py ---------------
+Hub Version Log
+---------------
+
+Current Branch: main
+** There are uncommitted changes on this branch.
+
+.F---------------
+Hub Version Log
+---------------
+
+Current Branch: main
+** There are uncommitted changes on this branch.
+
+Commit : 2fa0e06f5ed84e840b7583e8ad897e9a5d9fa820 (main) 
+Author : tuli
+Time   : 2022-02-04 07:10:58
+Message: second
+
+Commit : firstdbf9474d461a19e9333c2fd19b46115348f (main) 
+Author : tuli
+Time   : 2022-02-04 07:10:58
+Message: first
+
+.---------------
+Hub Version Log
+---------------
+
+Current Branch: auto_2fb2de78dab45c3b4c191d13058436fce31b210e
+** There are uncommitted changes on this branch.
+
+Commit : f7523b802e2e29debe88aae4282570ded22b5204 (auto_2fb2de78dab45c3b4c191d13058436fce31b210e) 
+Author : tuli
+Time   : 2022-02-04 07:10:58
+Message: it is 6
+
+Commit : 1d4ffff49ed2c78e587c5c1fbcde854aaa1c0061 (other) 
+Author : tuli
+Time   : 2022-02-04 07:10:58
+Message: it is 3
+
+Commit : firstdbf9474d461a19e9333c2fd19b46115348f (main) 
+Author : tuli
+Time   : 2022-02-04 07:10:58
+Message: it is 1
+
+F...FF...FFFF.....
+integrations/tests/test_pytorch.py ..ss..ss..ss..ss..ss....ss..../tmp/hub_pytest/test_pytorch/test_pytorch_ddp[local_ds] loaded successfully.
+/tmp/hub_pytest/test_pytorch/test_pytorch_ddp[local_ds] loaded successfully.
+Added key: store_based_barrier_key:1 to store for rank: 0
+Added key: store_based_barrier_key:1 to store for rank: 1
+Rank 0: Completed store-based barrier for 2 nodes.
+Rank 1: Completed store-based barrier for 2 nodes.
+Added key: store_based_barrier_key:2 to store for rank: 1
+Added key: store_based_barrier_key:2 to store for rank: 0
+Rank 1: Completed store-based barrier for 2 nodes.
+Rank 0: Completed store-based barrier for 2 nodes.
+.ss
+integrations/tests/test_shuffle_buffer.py ....
+integrations/tests/test_tensorflow.py sssss
+util/tests/test_auto.py ...
+util/tests/test_iterable_ordered_dict.py .
+util/tests/test_read.py .
+util/tests/test_shape_interval.py .xxxxxx
+util/tests/test_shuffle.py .
+util/tests/test_split.py .
+util/tests/test_version_control.py .
+
+=================================== FAILURES ===================================
+_______________________________ test_video[mp4] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_video/test_video[mp4]', tensors=['video_0'])
+compression = 'mp4'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+    def test_video(local_ds, compression, video_paths):
+        for i, path in enumerate(video_paths[compression]):
+            tensor = local_ds.create_tensor(
+                f"video_{i}", htype="video", sample_compression=compression
+            )
+            sample = hub.read(path)
+>           assert len(sample.shape) == 4
+
+api/tests/test_video.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid mp4 file.
+
+core/compression.py:629: CorruptedSampleError
+_______________________________ test_video[mkv] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_video/test_video[mkv]', tensors=['video_0'])
+compression = 'mkv'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+    def test_video(local_ds, compression, video_paths):
+        for i, path in enumerate(video_paths[compression]):
+            tensor = local_ds.create_tensor(
+                f"video_{i}", htype="video", sample_compression=compression
+            )
+            sample = hub.read(path)
+>           assert len(sample.shape) == 4
+
+api/tests/test_video.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid mkv file.
+
+core/compression.py:629: CorruptedSampleError
+_______________________________ test_video[avi] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_video/test_video[avi]', tensors=['video_0'])
+compression = 'avi'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+    def test_video(local_ds, compression, video_paths):
+        for i, path in enumerate(video_paths[compression]):
+            tensor = local_ds.create_tensor(
+                f"video_{i}", htype="video", sample_compression=compression
+            )
+            sample = hub.read(path)
+>           assert len(sample.shape) == 4
+
+api/tests/test_video.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid avi file.
+
+core/compression.py:629: CorruptedSampleError
+_______________________________ test_video[mp4] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+compression = 'mp4'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
+    def test_video(compression, video_paths):
+        for path in video_paths[compression]:
+            sample = hub.read(path)
+>           arr = np.array(sample)
+
+core/tests/test_compression.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:293: in __array__
+    return self.array
+core/sample.py:261: in array
+    self.path or self._buffer, compression=compr, shape=self.shape
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemp4.mp4'
+compression = 'mp4'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid mp4 file.
+
+core/compression.py:629: CorruptedSampleError
+_______________________________ test_video[mkv] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+compression = 'mkv'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
+    def test_video(compression, video_paths):
+        for path in video_paths[compression]:
+            sample = hub.read(path)
+>           arr = np.array(sample)
+
+core/tests/test_compression.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:293: in __array__
+    return self.array
+core/sample.py:261: in array
+    self.path or self._buffer, compression=compr, shape=self.shape
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/samplemkv.mkv'
+compression = 'mkv'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid mkv file.
+
+core/compression.py:629: CorruptedSampleError
+_______________________________ test_video[avi] ________________________________
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+>                   shape, typestr = _read_video_shape(file, compression), "|u1"
+
+core/compression.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def _read_video_shape_cffi(file, compression):
+>       ffmpeg_binary()  # raise error if ffmpeg not installed
+
+core/compression.py:800: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def ffmpeg_binary():
+        if ffmpeg_exists():
+            return _FFMPEG_BINARY
+        if platform.system() in ("Darwin", "Windows"):
+>           raise FileNotFoundError(
+                "FFMPEG not found. Install FFMPEG to use Hub's video features"
+            )
+E           FileNotFoundError: FFMPEG not found. Install FFMPEG to use Hub's video features
+
+core/compression.py:125: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+compression = 'avi'
+video_paths = {'avi': ['/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'], 'mkv': ['/Users/abhi...loop/Hub/hub/tests/dummy_data/video/samplemp4.mp4', '.test_resources/hub-test-resources/videos/mp4/samplemp4_3MB.mp4']}
+
+    @pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
+    def test_video(compression, video_paths):
+        for path in video_paths[compression]:
+            sample = hub.read(path)
+>           arr = np.array(sample)
+
+core/tests/test_compression.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/sample.py:293: in __array__
+    return self.array
+core/sample.py:261: in array
+    self.path or self._buffer, compression=compr, shape=self.shape
+core/sample.py:116: in shape
+    self._read_meta()
+core/sample.py:130: in _read_meta
+    self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = '/Users/abhinavtuli/Documents/Activeloop/Hub/hub/tests/dummy_data/video/sampleavi.avi'
+compression = 'avi'
+
+    def read_meta_from_compressed_file(
+        file, compression: Optional[str] = None
+    ) -> Tuple[str, Tuple[int], str]:
+        """Reads shape, dtype and format without decompressing or verifying the sample."""
+        if isinstance(file, (str, Path)):
+            f = open(file, "rb")
+            isfile = True
+            close = True
+        elif hasattr(file, "read"):
+            f = file
+            close = False
+            isfile = True
+            f.seek(0)
+        else:
+            isfile = False
+            f = file
+            close = False
+        try:
+            if compression is None:
+                path = file if isinstance(file, str) else None
+                if hasattr(f, "read"):
+                    compression = get_compression(f.read(32), path)
+                    f.seek(0)
+                else:
+                    compression = get_compression(f[:32], path)  # type: ignore
+            if compression == "jpeg":
+                try:
+                    shape, typestr = _read_jpeg_shape(f), "|u1"
+                except Exception:
+                    raise CorruptedSampleError("jpeg")
+            elif compression == "png":
+                try:
+                    shape, typestr = _read_png_shape_and_dtype(f)
+                except Exception:
+                    raise CorruptedSampleError("png")
+            elif get_compression_type(compression) == AUDIO_COMPRESSION:
+                try:
+                    shape, typestr = _read_audio_shape(file, compression), "<f4"
+                except Exception as e:
+                    raise CorruptedSampleError(compression)
+            elif compression in ("mp4", "mkv", "avi"):
+                try:
+                    shape, typestr = _read_video_shape(file, compression), "|u1"
+                except Exception as e:
+>                   raise CorruptedSampleError(compression)
+E                   hub.util.exceptions.CorruptedSampleError: Invalid avi file.
+
+core/compression.py:629: CorruptedSampleError
+_____________________________ test_commit_checkout _____________________________
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_commit_checkout', tensors=['img'])
+
+    def test_commit_checkout(local_ds):
+        with local_ds:
+            local_ds.create_tensor("img")
+            local_ds.img.extend(np.ones((10, 100, 100, 3)))
+            first_commit_id = local_ds.commit("stored all ones")
+    
+            for i in range(5):
+                local_ds.img[i] *= 2
+            second_commit_id = local_ds.commit("multiplied value of some images by 2")
+    
+            for i in range(5):
+                assert (local_ds.img[i].numpy() == 2 * np.ones((100, 100, 3))).all()
+            local_ds.checkout(first_commit_id)  # now all images are ones again
+    
+            for i in range(10):
+                assert (local_ds.img[i].numpy() == np.ones((100, 100, 3))).all()
+    
+            local_ds.checkout("alternate", create=True)
+            assert local_ds.branch == "alternate"
+    
+            for i in range(5):
+                local_ds.img[i] *= 3
+            local_ds.commit("multiplied value of some images by 3")
+    
+            for i in range(5):
+                assert (local_ds.img[i].numpy() == 3 * np.ones((100, 100, 3))).all()
+    
+            local_ds.checkout(second_commit_id)  # first 5 images are 2s, rest are 1s now
+            assert local_ds.commit_id == second_commit_id
+            assert local_ds.branch == "main"
+    
+            # we are not at the head of master but rather at the last commit, so we automatically get checked out to a new branch here
+            for i in range(5, 10):
+                local_ds.img[i] *= 2
+            local_ds.commit("multiplied value of remaining images by 2")
+    
+            for i in range(10):
+>               assert (local_ds.img[i].numpy() == 2 * np.ones((100, 100, 3))).all()
+E               assert False
+E                +  where False = <built-in method all of numpy.ndarray object at 0x7f8b9bcc2850>()
+E                +    where <built-in method all of numpy.ndarray object at 0x7f8b9bcc2850> = array([[[1., ...1., 1., 1.]]]) == array([[[2., ...2., 2., 2.]]])
+E                     Use -v to get the full diff.all
+
+core/version_control/test_version_control.py:78: AssertionError
+____________________________ test_auto_checkout_bug ____________________________
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_auto_checkout_bug', tensors=['abc'])
+
+    def test_auto_checkout_bug(local_ds):
+        local_ds.create_tensor("abc")
+        local_ds.abc.extend([1, 2, 3, 4, 5])
+        a = local_ds.commit("it is 1")
+        local_ds.abc[0] = 2
+        b = local_ds.commit("it is 2")
+        c = local_ds.checkout(a)
+        local_ds.checkout("other", True)
+        d = local_ds.pending_commit_id
+        local_ds.abc[0] = 3
+        e = local_ds.commit("it is 3")
+        local_ds.checkout(b)
+        local_ds.abc[0] = 4
+        f = local_ds.commit("it is 4")
+        g = local_ds.checkout(a)
+        local_ds.abc[0] = 5
+        dsv = local_ds[0:3]
+        dsv.abc[0] = 5
+        h = local_ds.commit("it is 5")
+        i = local_ds.checkout(e)
+        local_ds.abc[0] = 6
+        tsv = local_ds.abc[0:5]
+        tsv[0] = 6
+        j = local_ds.commit("it is 6")
+        local_ds.log()
+        local_ds.checkout(a)
+        assert dsv.abc[0].numpy() == 1
+        assert local_ds.abc[0].numpy() == 1
+        local_ds.checkout(b)
+        assert local_ds.abc[0].numpy() == 2
+        local_ds.checkout(c)
+        assert local_ds.abc[0].numpy() == 1
+        local_ds.checkout(d)
+        assert local_ds.abc[0].numpy() == 3
+        local_ds.checkout(e)
+        assert local_ds.abc[0].numpy() == 3
+        local_ds.checkout(f)
+>       assert local_ds.abc[0].numpy() == 4
+E       AssertionError: assert array([2]) == 4
+E        +  where array([2]) = <bound method Tensor.numpy of Tensor(key='abc', index=Index([0]))>()
+E        +    where <bound method Tensor.numpy of Tensor(key='abc', index=Index([0]))> = Tensor(key='abc', index=Index([0])).numpy
+
+core/version_control/test_version_control.py:166: AssertionError
+____________________________ test_different_lengths ____________________________
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9bcb14f0>
+path = 'ghi/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_different_lengths/ghi/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+
+    def test_different_lengths(local_ds):
+        with local_ds:
+            local_ds.create_tensor("img")
+            local_ds.create_tensor("abc")
+            local_ds.img.extend(np.ones((5, 50, 50)))
+            local_ds.abc.extend(np.ones((2, 10, 10)))
+            first = local_ds.commit("stored 5 images, 2 abc")
+            local_ds.img.extend(np.ones((3, 50, 50)))
+            second = local_ds.commit("stored 3 more images")
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 8
+            assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+            local_ds.checkout(first)
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 5
+            assert (local_ds.img.numpy() == np.ones((5, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+    
+            # will autocheckout to new branch
+            local_ds.create_tensor("ghi")
+            local_ds.ghi.extend(np.ones((2, 10, 10)))
+            local_ds.img.extend(np.ones((2, 50, 50)))
+            local_ds.abc.extend(np.ones((3, 10, 10)))
+            assert len(local_ds.tensors) == 3
+            assert len(local_ds.img) == 7
+            assert (local_ds.img.numpy() == np.ones((7, 50, 50))).all()
+            assert len(local_ds.abc) == 5
+            assert (local_ds.abc.numpy() == np.ones((5, 10, 10))).all()
+            assert len(local_ds.ghi) == 2
+            assert (local_ds.ghi.numpy() == np.ones((2, 10, 10))).all()
+            third = local_ds.commit(
+                "stored 2 more images, 3 more abc in other branch, created ghi"
+            )
+>           local_ds.checkout(first)
+
+core/version_control/test_version_control.py:254: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+address = 'firstdbf9474d461a19e9333c2fd19b46115348f', create = False
+
+    def checkout(self, address: str, create: bool = False) -> Optional[str]:
+        """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
+        Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
+    
+        Args:
+            address (str): The commit_id or branch to checkout to.
+            create (bool): If True, creates a new branch with name as address.
+    
+        Returns:
+            str: The commit_id of the dataset after checkout.
+    
+        Raises:
+            Exception: if dataset is a filtered view.
+        """
+>       return self._checkout(address, create)
+
+core/dataset/dataset.py:619: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+address = 'firstdbf9474d461a19e9333c2fd19b46115348f', create = False
+hash = None
+
+    def _checkout(
+        self, address: str, create: bool = False, hash: Optional[str] = None
+    ) -> Optional[str]:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+    
+        try_flushing(self)
+    
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+>           checkout(self, address, create, hash)
+
+core/dataset/dataset.py:635: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+dataset = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+address = 'firstdbf9474d461a19e9333c2fd19b46115348f', create = False
+hash = None
+
+    def checkout(
+        dataset,
+        address: str,
+        create: bool = False,
+        hash: Optional[str] = None,
+    ) -> None:
+        """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
+        storage = dataset.storage
+        version_state = dataset.version_state
+        original_commit_id = version_state["commit_id"]
+    
+        if address in version_state["branch_commit_map"].keys():
+            if create:
+                raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
+            version_state["branch"] = address
+            new_commit_id = version_state["branch_commit_map"][address]
+            if original_commit_id == new_commit_id:
+                return
+            version_state["commit_id"] = new_commit_id
+            version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
+            if not storage.read_only:
+                storage.flush()
+        elif address in version_state["commit_node_map"].keys():
+            if create:
+                raise CheckoutError(
+                    f"Can't create new branch, commit '{address}' already exists."
+                )
+            if address == original_commit_id:
+                return
+            version_state["commit_id"] = address
+            version_state["commit_node"] = version_state["commit_node_map"][address]
+            version_state["branch"] = version_state["commit_node"].branch
+            if not storage.read_only:
+>               storage.flush()
+
+util/version_control.py:159: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8b9bcb1760>
+
+    def flush(self):
+        """Writes data from cache_storage to next_storage. Only the dirty keys are written.
+        This is a cascading function and leads to data being written to the final storage in case of a chained cache.
+        """
+        self.check_readonly()
+        initial_autoflush = self.autoflush
+        self.autoflush = False
+    
+        if self.dataset is not None:
+>           self.dataset.write_dirty_objects()
+
+core/storage/lru_cache.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+
+    def write_dirty_objects(self):
+        """Writes dirty items"""
+        storage = self.storage
+        commit_id = self.version_state["commit_id"]
+    
+        # write dataset meta
+        meta: DatasetMeta = self.version_state["meta"]
+        if meta.is_dirty:
+            meta_key = get_dataset_meta_key(commit_id)
+            storage[meta_key] = meta
+            meta.is_dirty = False
+    
+        # write dataset info
+        info = self.info
+        if info and info.is_dirty:
+            key = get_dataset_info_key(commit_id)
+            storage[key] = info
+            info.is_dirty = False
+    
+        tensors: List[Tensor] = list(self.version_state["full_tensors"].values())
+        for tensor in tensors:
+>           tensor.write_dirty_objects()
+
+core/dataset/dataset.py:1356: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Tensor(key='ghi')
+
+    def write_dirty_objects(self):
+>       self.chunk_engine.write_dirty_objects()
+
+core/tensor.py:595: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.chunk_engine.ChunkEngine object at 0x7f8c06b96520>
+
+    def write_dirty_objects(self):
+        storage = self.meta_cache
+        commit_id = self.commit_id
+        tensor = self.key
+    
+        # write chunk_id_encoder
+        chunk_id_encoder = self.chunk_id_encoder
+        if chunk_id_encoder.is_dirty:
+            key = get_chunk_id_encoder_key(tensor, commit_id)
+            storage[key] = chunk_id_encoder
+            chunk_id_encoder.is_dirty = False
+    
+        # write tile_encoder
+        tile_encoder = self.tile_encoder
+        if tile_encoder.is_dirty:
+            key = get_tensor_tile_encoder_key(tensor, commit_id)
+            storage[key] = tile_encoder
+            tile_encoder.is_dirty = False
+    
+        # write tensor_meta
+>       tensor_meta = self.tensor_meta
+
+core/chunk_engine.py:971: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.chunk_engine.ChunkEngine object at 0x7f8c06b96520>
+
+    @property
+    def tensor_meta(self):
+        commit_id = self.commit_id
+        if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
+            tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
+>           self._tensor_meta = self.meta_cache.get_hub_object(
+                tensor_meta_key, TensorMeta
+            )
+
+core/chunk_engine.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8b9bcb1760>
+path = 'ghi/tensor_meta.json'
+expected_class = <class 'hub.core.meta.tensor_meta.TensorMeta'>, meta = None
+
+    def get_hub_object(self, path: str, expected_class, meta: Optional[Dict] = None):
+        """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
+        this function will read it back into object form & keep the object in cache.
+    
+        Args:
+            path (str): Path to the stored object.
+            expected_class (callable): The expected subclass of `HubMemoryObject`.
+            meta (dict, optional): Metadata associated with the stored object
+    
+        Raises:
+            ValueError: If the incorrect `expected_class` was provided.
+            ValueError: If the type of the data at `path` is invalid.
+    
+        Returns:
+            An instance of `expected_class` populated with the data.
+        """
+    
+>       item = self[path]
+
+core/storage/lru_cache.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8b9bcb1760>
+path = 'ghi/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """If item is in cache_storage, retrieves from there and returns.
+        If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
+    
+        Args:
+            path (str): The path relative to the root of the underlying storage.
+    
+        Raises:
+            KeyError: if an object is not found at the path.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+        """
+        if path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path]
+        else:
+            if self.next_storage is not None:
+                # fetch from storage, may throw KeyError
+>               result = self.next_storage[path]
+
+core/storage/lru_cache.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9bcb14f0>
+path = 'ghi/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'ghi/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+
+During handling of the above exception, another exception occurred:
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9bcb14f0>
+path = 'ghi/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_different_lengths/ghi/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_different_lengths', tensors=['img', 'abc', 'ghi'])
+
+    def test_different_lengths(local_ds):
+        with local_ds:
+            local_ds.create_tensor("img")
+            local_ds.create_tensor("abc")
+            local_ds.img.extend(np.ones((5, 50, 50)))
+            local_ds.abc.extend(np.ones((2, 10, 10)))
+            first = local_ds.commit("stored 5 images, 2 abc")
+            local_ds.img.extend(np.ones((3, 50, 50)))
+            second = local_ds.commit("stored 3 more images")
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 8
+            assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+            local_ds.checkout(first)
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 5
+            assert (local_ds.img.numpy() == np.ones((5, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+    
+            # will autocheckout to new branch
+            local_ds.create_tensor("ghi")
+            local_ds.ghi.extend(np.ones((2, 10, 10)))
+            local_ds.img.extend(np.ones((2, 50, 50)))
+            local_ds.abc.extend(np.ones((3, 10, 10)))
+            assert len(local_ds.tensors) == 3
+            assert len(local_ds.img) == 7
+            assert (local_ds.img.numpy() == np.ones((7, 50, 50))).all()
+            assert len(local_ds.abc) == 5
+            assert (local_ds.abc.numpy() == np.ones((5, 10, 10))).all()
+            assert len(local_ds.ghi) == 2
+            assert (local_ds.ghi.numpy() == np.ones((2, 10, 10))).all()
+            third = local_ds.commit(
+                "stored 2 more images, 3 more abc in other branch, created ghi"
+            )
+            local_ds.checkout(first)
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 5
+            assert (local_ds.img.numpy() == np.ones((5, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+            local_ds.checkout(second)
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 8
+            assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+            assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+            local_ds.checkout(third)
+            assert len(local_ds.tensors) == 3
+            assert len(local_ds.img) == 7
+            assert (local_ds.img.numpy() == np.ones((7, 50, 50))).all()
+            assert len(local_ds.abc) == 5
+            assert (local_ds.abc.numpy() == np.ones((5, 10, 10))).all()
+            local_ds.checkout("main")
+            assert len(local_ds.tensors) == 2
+            assert len(local_ds.img) == 8
+            assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
+            assert len(local_ds.abc) == 2
+>           assert (local_ds.abc.numpy() == np.ones((2, 10, 10))).all()
+
+core/version_control/test_version_control.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/dataset/dataset.py:159: in __exit__
+    self.storage.maybe_flush()
+core/storage/provider.py:164: in maybe_flush
+    self.flush()
+core/storage/lru_cache.py:68: in flush
+    self.dataset.write_dirty_objects()
+core/dataset/dataset.py:1356: in write_dirty_objects
+    tensor.write_dirty_objects()
+core/tensor.py:595: in write_dirty_objects
+    self.chunk_engine.write_dirty_objects()
+core/chunk_engine.py:971: in write_dirty_objects
+    tensor_meta = self.tensor_meta
+core/chunk_engine.py:196: in tensor_meta
+    self._tensor_meta = self.meta_cache.get_hub_object(
+core/storage/lru_cache.py:95: in get_hub_object
+    item = self[path]
+core/storage/lru_cache.py:137: in __getitem__
+    result = self.next_storage[path]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9bcb14f0>
+path = 'ghi/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'ghi/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+______________________________ test_auto_checkout ______________________________
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9ddbfd30>
+path = 'def/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_auto_checkout/def/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_auto_checkout', tensors=['abc', 'def'])
+
+    def test_auto_checkout(local_ds):
+        # auto checkout happens when write operations are performed on non head commits
+        local_ds.create_tensor("abc")
+        first = local_ds.commit("created abc")
+    
+        local_ds.checkout(first)
+        assert local_ds.branch == "main"
+        local_ds.create_tensor("def")
+        assert local_ds.branch != "main"
+    
+>       local_ds.checkout(first)
+
+core/version_control/test_version_control.py:328: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/dataset/dataset.py:619: in checkout
+    return self._checkout(address, create)
+core/dataset/dataset.py:635: in _checkout
+    checkout(self, address, create, hash)
+util/version_control.py:159: in checkout
+    storage.flush()
+core/storage/lru_cache.py:68: in flush
+    self.dataset.write_dirty_objects()
+core/dataset/dataset.py:1356: in write_dirty_objects
+    tensor.write_dirty_objects()
+core/tensor.py:595: in write_dirty_objects
+    self.chunk_engine.write_dirty_objects()
+core/chunk_engine.py:971: in write_dirty_objects
+    tensor_meta = self.tensor_meta
+core/chunk_engine.py:196: in tensor_meta
+    self._tensor_meta = self.meta_cache.get_hub_object(
+core/storage/lru_cache.py:95: in get_hub_object
+    item = self[path]
+core/storage/lru_cache.py:137: in __getitem__
+    result = self.next_storage[path]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9ddbfd30>
+path = 'def/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'def/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+_________________________________ test_delete __________________________________
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c103e3df0>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_delete/versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+
+    def test_delete(local_ds):
+        with local_ds:
+            local_ds.create_tensor("abc")
+            local_ds.abc.append(1)
+            a = local_ds.commit("first")
+            local_ds.delete_tensor("abc")
+            b = local_ds.commit("second")
+            local_ds.checkout(a)
+            assert local_ds.abc[0].numpy() == 1
+>           local_ds.checkout(b)
+
+core/version_control/test_version_control.py:483: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+address = '46cbf4978807a87d9d0441f85003cfa749d36b1a', create = False
+
+    def checkout(self, address: str, create: bool = False) -> Optional[str]:
+        """Checks out to a specific commit_id or branch. If create = True, creates a new branch with name as address.
+        Note: Checkout from a head node in any branch that contains uncommitted data will lead to an auto commit before the checkout.
+    
+        Args:
+            address (str): The commit_id or branch to checkout to.
+            create (bool): If True, creates a new branch with name as address.
+    
+        Returns:
+            str: The commit_id of the dataset after checkout.
+    
+        Raises:
+            Exception: if dataset is a filtered view.
+        """
+>       return self._checkout(address, create)
+
+core/dataset/dataset.py:619: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+address = '46cbf4978807a87d9d0441f85003cfa749d36b1a', create = False
+hash = None
+
+    def _checkout(
+        self, address: str, create: bool = False, hash: Optional[str] = None
+    ) -> Optional[str]:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+    
+        try_flushing(self)
+    
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+>           checkout(self, address, create, hash)
+
+core/dataset/dataset.py:635: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+dataset = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+address = '46cbf4978807a87d9d0441f85003cfa749d36b1a', create = False
+hash = None
+
+    def checkout(
+        dataset,
+        address: str,
+        create: bool = False,
+        hash: Optional[str] = None,
+    ) -> None:
+        """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
+        storage = dataset.storage
+        version_state = dataset.version_state
+        original_commit_id = version_state["commit_id"]
+    
+        if address in version_state["branch_commit_map"].keys():
+            if create:
+                raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
+            version_state["branch"] = address
+            new_commit_id = version_state["branch_commit_map"][address]
+            if original_commit_id == new_commit_id:
+                return
+            version_state["commit_id"] = new_commit_id
+            version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
+            if not storage.read_only:
+                storage.flush()
+        elif address in version_state["commit_node_map"].keys():
+            if create:
+                raise CheckoutError(
+                    f"Can't create new branch, commit '{address}' already exists."
+                )
+            if address == original_commit_id:
+                return
+            version_state["commit_id"] = address
+            version_state["commit_node"] = version_state["commit_node_map"][address]
+            version_state["branch"] = version_state["commit_node"].branch
+            if not storage.read_only:
+>               storage.flush()
+
+util/version_control.py:159: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8c06b95100>
+
+    def flush(self):
+        """Writes data from cache_storage to next_storage. Only the dirty keys are written.
+        This is a cascading function and leads to data being written to the final storage in case of a chained cache.
+        """
+        self.check_readonly()
+        initial_autoflush = self.autoflush
+        self.autoflush = False
+    
+        if self.dataset is not None:
+>           self.dataset.write_dirty_objects()
+
+core/storage/lru_cache.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+
+    def write_dirty_objects(self):
+        """Writes dirty items"""
+        storage = self.storage
+        commit_id = self.version_state["commit_id"]
+    
+        # write dataset meta
+        meta: DatasetMeta = self.version_state["meta"]
+        if meta.is_dirty:
+            meta_key = get_dataset_meta_key(commit_id)
+            storage[meta_key] = meta
+            meta.is_dirty = False
+    
+        # write dataset info
+        info = self.info
+        if info and info.is_dirty:
+            key = get_dataset_info_key(commit_id)
+            storage[key] = info
+            info.is_dirty = False
+    
+        tensors: List[Tensor] = list(self.version_state["full_tensors"].values())
+        for tensor in tensors:
+>           tensor.write_dirty_objects()
+
+core/dataset/dataset.py:1356: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Tensor(key='abc')
+
+    def write_dirty_objects(self):
+>       self.chunk_engine.write_dirty_objects()
+
+core/tensor.py:595: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.chunk_engine.ChunkEngine object at 0x7f8b9dd8ab80>
+
+    def write_dirty_objects(self):
+        storage = self.meta_cache
+        commit_id = self.commit_id
+        tensor = self.key
+    
+        # write chunk_id_encoder
+        chunk_id_encoder = self.chunk_id_encoder
+        if chunk_id_encoder.is_dirty:
+            key = get_chunk_id_encoder_key(tensor, commit_id)
+            storage[key] = chunk_id_encoder
+            chunk_id_encoder.is_dirty = False
+    
+        # write tile_encoder
+        tile_encoder = self.tile_encoder
+        if tile_encoder.is_dirty:
+            key = get_tensor_tile_encoder_key(tensor, commit_id)
+            storage[key] = tile_encoder
+            tile_encoder.is_dirty = False
+    
+        # write tensor_meta
+>       tensor_meta = self.tensor_meta
+
+core/chunk_engine.py:971: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.chunk_engine.ChunkEngine object at 0x7f8b9dd8ab80>
+
+    @property
+    def tensor_meta(self):
+        commit_id = self.commit_id
+        if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
+            tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
+>           self._tensor_meta = self.meta_cache.get_hub_object(
+                tensor_meta_key, TensorMeta
+            )
+
+core/chunk_engine.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8c06b95100>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+expected_class = <class 'hub.core.meta.tensor_meta.TensorMeta'>, meta = None
+
+    def get_hub_object(self, path: str, expected_class, meta: Optional[Dict] = None):
+        """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
+        this function will read it back into object form & keep the object in cache.
+    
+        Args:
+            path (str): Path to the stored object.
+            expected_class (callable): The expected subclass of `HubMemoryObject`.
+            meta (dict, optional): Metadata associated with the stored object
+    
+        Raises:
+            ValueError: If the incorrect `expected_class` was provided.
+            ValueError: If the type of the data at `path` is invalid.
+    
+        Returns:
+            An instance of `expected_class` populated with the data.
+        """
+    
+>       item = self[path]
+
+core/storage/lru_cache.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.lru_cache.LRUCache object at 0x7f8c06b95100>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """If item is in cache_storage, retrieves from there and returns.
+        If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
+    
+        Args:
+            path (str): The path relative to the root of the underlying storage.
+    
+        Raises:
+            KeyError: if an object is not found at the path.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+        """
+        if path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path]
+        else:
+            if self.next_storage is not None:
+                # fetch from storage, may throw KeyError
+>               result = self.next_storage[path]
+
+core/storage/lru_cache.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c103e3df0>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+
+During handling of the above exception, another exception occurred:
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c103e3df0>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_delete/versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_delete', tensors=['abc'])
+
+    def test_delete(local_ds):
+        with local_ds:
+            local_ds.create_tensor("abc")
+            local_ds.abc.append(1)
+            a = local_ds.commit("first")
+            local_ds.delete_tensor("abc")
+            b = local_ds.commit("second")
+            local_ds.checkout(a)
+            assert local_ds.abc[0].numpy() == 1
+            local_ds.checkout(b)
+            assert local_ds.tensors == {}
+    
+            local_ds.create_tensor("x/y/z")
+            local_ds["x/y/z"].append(1)
+            c = local_ds.commit("third")
+            local_ds["x"].delete_tensor("y/z")
+            d = local_ds.commit("fourth")
+            local_ds.checkout(c)
+            assert local_ds["x/y/z"][0].numpy() == 1
+            local_ds.checkout(d)
+            assert local_ds.tensors == {}
+            assert list(local_ds.groups) == ["x"]
+            local_ds.delete_group("x")
+            assert list(local_ds.groups) == []
+    
+            local_ds.checkout(c)
+            local_ds["x"].delete_group("y")
+            assert local_ds.tensors == {}
+            assert list(local_ds.groups) == ["x"]
+    
+            local_ds.checkout(c)
+            local_ds.delete_group("x/y")
+            assert local_ds.tensors == {}
+>           assert list(local_ds.groups) == ["x"]
+
+core/version_control/test_version_control.py:507: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/dataset/dataset.py:159: in __exit__
+    self.storage.maybe_flush()
+core/storage/provider.py:164: in maybe_flush
+    self.flush()
+core/storage/lru_cache.py:68: in flush
+    self.dataset.write_dirty_objects()
+core/dataset/dataset.py:1356: in write_dirty_objects
+    tensor.write_dirty_objects()
+core/tensor.py:595: in write_dirty_objects
+    self.chunk_engine.write_dirty_objects()
+core/chunk_engine.py:971: in write_dirty_objects
+    tensor_meta = self.tensor_meta
+core/chunk_engine.py:196: in tensor_meta
+    self._tensor_meta = self.meta_cache.get_hub_object(
+core/storage/lru_cache.py:95: in get_hub_object
+    item = self[path]
+core/storage/lru_cache.py:137: in __getitem__
+    result = self.next_storage[path]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c103e3df0>
+path = 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'versions/46cbf4978807a87d9d0441f85003cfa749d36b1a/abc/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+_______________________________ test_diff_linear _______________________________
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_diff_linear', tensors=['xyz', 'pqr', 'abc'])
+capsys = <_pytest.capture.CaptureFixture object at 0x7f8c037cdbb0>
+
+    def test_diff_linear(local_ds, capsys):
+        with local_ds:
+            local_ds.create_tensor("xyz")
+            local_ds.xyz.extend([1, 2, 3])
+            local_ds.create_tensor("pqr")
+            local_ds.pqr.extend([4, 5, 6])
+        a = local_ds.commit()
+        with local_ds:
+            local_ds.xyz[0] = 10
+            local_ds.pqr[2] = 20
+            local_ds.create_tensor("abc")
+            local_ds.abc.extend([1, 2, 3])
+    
+        local_ds.diff()
+        changes_b_from_a = {
+            "xyz": {
+                "data_added": [3, 3],
+                "data_updated": {0},
+                "created": False,
+                "info_updated": False,
+                "data_transformed_in_place": False,
+            },
+            "pqr": {
+                "data_added": [3, 3],
+                "data_updated": {2},
+                "created": False,
+                "info_updated": False,
+                "data_transformed_in_place": False,
+            },
+            "abc": {
+                "data_added": [0, 3],
+                "data_updated": set(),
+                "created": True,
+                "info_updated": False,
+                "data_transformed_in_place": False,
+            },
+        }
+        message1 = "Diff in HEAD:\n"
+        target = get_all_changes_string(changes_b_from_a, message1, None, None) + "\n"
+        captured = capsys.readouterr()
+        assert captured.out == target
+        diff = local_ds.diff(as_dict=True)
+        assert diff == changes_b_from_a
+    
+        b = local_ds.commit()
+        local_ds.diff()
+        changes_empty = {}
+        target = get_all_changes_string(changes_empty, message1, None, None) + "\n"
+        captured = capsys.readouterr()
+        assert captured.out == target
+        diff = local_ds.diff(as_dict=True)
+>       assert diff == changes_empty
+E       AssertionError: assert defaultdict(<...ace': False}}) == {}
+E         Left contains 3 more items:
+E         {'abc': {'created': False,
+E                  'data_added': [3, 3],
+E                  'data_transformed_in_place': False,
+E                  'data_updated': set(),
+E                  'info_updated': False},
+E          'pqr': {'created': False,...
+E         
+E         ...Full output truncated (11 lines hidden), use '-vv' to show
+
+core/version_control/test_version_control.py:561: AssertionError
+_______________________________ test_diff_branch _______________________________
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9dda5a60>
+path = 'versions/626897ca665a2209dfe45d8b00f6054a8ddc66c8/pqr/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_diff_branch/versions/626897ca665a2209dfe45d8b00f6054a8ddc66c8/pqr/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_diff_branch', tensors=['xyz', 'pqr'])
+capsys = <_pytest.capture.CaptureFixture object at 0x7f8c037c0eb0>
+
+    def test_diff_branch(local_ds, capsys):
+        with local_ds:
+            local_ds.create_tensor("xyz")
+            local_ds.xyz.extend([1, 2, 3])
+    
+        a = local_ds.commit()
+        local_ds.checkout("alt", create=True)
+        with local_ds:
+            local_ds.xyz.extend([4, 5, 6])
+            local_ds.create_tensor("pqr")
+            local_ds.pqr.extend([7, 8, 9])
+            local_ds.xyz[2] = 6
+            local_ds.xyz[3] = 8
+            local_ds.pqr[1] = 8
+    
+        b = local_ds.commit()
+>       local_ds.checkout("main")
+
+core/version_control/test_version_control.py:654: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/dataset/dataset.py:619: in checkout
+    return self._checkout(address, create)
+core/dataset/dataset.py:635: in _checkout
+    checkout(self, address, create, hash)
+util/version_control.py:147: in checkout
+    storage.flush()
+core/storage/lru_cache.py:68: in flush
+    self.dataset.write_dirty_objects()
+core/dataset/dataset.py:1356: in write_dirty_objects
+    tensor.write_dirty_objects()
+core/tensor.py:595: in write_dirty_objects
+    self.chunk_engine.write_dirty_objects()
+core/chunk_engine.py:971: in write_dirty_objects
+    tensor_meta = self.tensor_meta
+core/chunk_engine.py:196: in tensor_meta
+    self._tensor_meta = self.meta_cache.get_hub_object(
+core/storage/lru_cache.py:95: in get_hub_object
+    item = self[path]
+core/storage/lru_cache.py:137: in __getitem__
+    result = self.next_storage[path]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8b9dda5a60>
+path = 'versions/626897ca665a2209dfe45d8b00f6054a8ddc66c8/pqr/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'versions/626897ca665a2209dfe45d8b00f6054a8ddc66c8/pqr/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+______________________________ test_complex_diff _______________________________
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c037688e0>
+path = 'versions/964d741beaa50972b769f592961519ebb54c2eeb/tuv/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+>           with open(full_path, "rb") as file:
+E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/hub_pytest/test_version_control/test_complex_diff/versions/964d741beaa50972b769f592961519ebb54c2eeb/tuv/tensor_meta.json'
+
+core/storage/local.py:52: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+local_ds = Dataset(path='/tmp/hub_pytest/test_version_control/test_complex_diff', tensors=['xyz', 'pqr', 'tuv'])
+capsys = <_pytest.capture.CaptureFixture object at 0x7f8c03780280>
+
+    def test_complex_diff(local_ds, capsys):
+        with local_ds:
+            local_ds.create_tensor("xyz")
+            local_ds.xyz.extend([1, 2, 3])
+        a = local_ds.commit()
+        b = local_ds.checkout("alt", create=True)
+        with local_ds:
+            local_ds.xyz.extend([4, 5, 6])
+        local_ds.commit()
+        c = local_ds.pending_commit_id
+        with local_ds:
+            local_ds.xyz[4] = 7
+            local_ds.xyz[0] = 0
+        local_ds.checkout("main")
+        d = local_ds.pending_commit_id
+        with local_ds:
+            local_ds.xyz[1] = 10
+            local_ds.create_tensor("pqr")
+        local_ds.commit()
+        f = local_ds.checkout("another", create=True)
+        with local_ds:
+            local_ds.create_tensor("tuv")
+            local_ds.tuv.extend([1, 2, 3])
+            local_ds.pqr.append(5)
+        local_ds.commit()
+        g = local_ds.pending_commit_id
+>       e = local_ds.checkout("main")
+
+core/version_control/test_version_control.py:868: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/dataset/dataset.py:619: in checkout
+    return self._checkout(address, create)
+core/dataset/dataset.py:635: in _checkout
+    checkout(self, address, create, hash)
+util/version_control.py:147: in checkout
+    storage.flush()
+core/storage/lru_cache.py:68: in flush
+    self.dataset.write_dirty_objects()
+core/dataset/dataset.py:1356: in write_dirty_objects
+    tensor.write_dirty_objects()
+core/tensor.py:595: in write_dirty_objects
+    self.chunk_engine.write_dirty_objects()
+core/chunk_engine.py:971: in write_dirty_objects
+    tensor_meta = self.tensor_meta
+core/chunk_engine.py:196: in tensor_meta
+    self._tensor_meta = self.meta_cache.get_hub_object(
+core/storage/lru_cache.py:95: in get_hub_object
+    item = self[path]
+core/storage/lru_cache.py:137: in __getitem__
+    result = self.next_storage[path]
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <hub.core.storage.local.LocalProvider object at 0x7f8c037688e0>
+path = 'versions/964d741beaa50972b769f592961519ebb54c2eeb/tuv/tensor_meta.json'
+
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+    
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
+            my_data = local_provider["abc.txt"]
+    
+        Args:
+            path (str): The path relative to the root of the provider.
+    
+        Returns:
+            bytes: The bytes of the object present at the path.
+    
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                return file.read()
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+>           raise KeyError(path)
+E           KeyError: 'versions/964d741beaa50972b769f592961519ebb54c2eeb/tuv/tensor_meta.json'
+
+core/storage/local.py:57: KeyError
+=============================== warnings summary ===============================
+hub/api/tests/test_api_tiling.py::test_updates[compression0]
+hub/api/tests/test_api_tiling.py::test_updates[compression1]
+hub/api/tests/test_api_tiling.py::test_updates[compression3]
+hub/core/version_control/test_version_control.py::test_commit_checkout
+hub/core/version_control/test_version_control.py::test_auto_checkout_bug
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/util/chunk_engine.py:82: UserWarning: After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!
+    warnings.warn(
+
+hub/api/tests/test_json.py::test_json_transform[lz4-memory_ds]
+hub/api/tests/test_json.py::test_json_transform[lz4-local_ds]
+hub/api/tests/test_json.py::test_json_transform[None-memory_ds]
+hub/api/tests/test_json.py::test_json_transform[None-local_ds]
+hub/api/tests/test_json.py::test_list_transform[memory_ds]
+hub/api/tests/test_json.py::test_list_transform[local_ds]
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/numpy/core/_asarray.py:83: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray
+    return array(a, dtype, copy=False, order=order)
+
+hub/core/tests/test_compression.py::test_array[ico]
+hub/core/tests/test_compression.py::test_multi_array[ico]
+hub/core/tests/test_compression.py::test_verify[ico]
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/PIL/IcoImagePlugin.py:316: UserWarning: Image was not the expected size
+    warnings.warn("Image was not the expected size")
+
+hub/core/tests/test_compression.py::test_verify[jpeg]
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/PIL/JpegImagePlugin.py:811: UserWarning: Image appears to be a malformed MPO file, it will be interpreted as a base JPEG file
+    warnings.warn(
+
+hub/core/tests/test_compression.py::test_verify[png]
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/PIL/PngImagePlugin.py:614: UserWarning: Invalid APNG, will use default PNG image if possible
+    warnings.warn("Invalid APNG, will use default PNG image if possible")
+
+hub/core/tests/test_compression.py::test_verify[png]
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/PIL/PngImagePlugin.py:618: UserWarning: Invalid APNG, will use default PNG image if possible
+    warnings.warn("Invalid APNG, will use default PNG image if possible")
+
+hub/core/tests/test_io.py::test_sequential_scheduler
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/numpy/testing/_private/utils.py:703: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray
+    x = array(x, copy=False, subok=True)
+
+hub/core/tests/test_io.py::test_sequential_scheduler
+  /Users/abhinavtuli/miniconda3/lib/python3.9/site-packages/numpy/testing/_private/utils.py:704: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray
+    y = array(y, copy=False, subok=True)
+
+hub/core/transform/test_transform.py::test_inplace_transform_non_head
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/util/version_control.py:490: UserWarning: The branch (auto_f3ce81039d709c73c0331f0627c9aa893e9bd1a9) that you have checked out to, has no commits.
+    warnings.warn(
+
+hub/core/version_control/test_version_control.py::test_branches
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/util/version_control.py:490: UserWarning: The branch (alt) that you have checked out to, has no commits.
+    warnings.warn(
+
+hub/integrations/tests/test_pytorch.py::test_corrupt_dataset
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/core/io.py:325: UserWarning: Skipping corrupt jpeg sample at dataset.image[10]
+    warn(
+
+hub/integrations/tests/test_pytorch.py::test_corrupt_dataset
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/core/io.py:325: UserWarning: Skipping corrupt jpeg sample at dataset.image[21]
+    warn(
+
+hub/integrations/tests/test_pytorch.py::test_corrupt_dataset
+  /Users/abhinavtuli/Documents/Activeloop/Hub/hub/core/io.py:325: UserWarning: Skipping corrupt jpeg sample at dataset.image[32]
+    warn(
+
+-- Docs: https://docs.pytest.org/en/stable/warnings.html
+=========================== short test summary info ============================
+FAILED api/tests/test_video.py::test_video[mp4] - hub.util.exceptions.Corrupt...
+FAILED api/tests/test_video.py::test_video[mkv] - hub.util.exceptions.Corrupt...
+FAILED api/tests/test_video.py::test_video[avi] - hub.util.exceptions.Corrupt...
+FAILED core/tests/test_compression.py::test_video[mp4] - hub.util.exceptions....
+FAILED core/tests/test_compression.py::test_video[mkv] - hub.util.exceptions....
+FAILED core/tests/test_compression.py::test_video[avi] - hub.util.exceptions....
+FAILED core/version_control/test_version_control.py::test_commit_checkout - a...
+FAILED core/version_control/test_version_control.py::test_auto_checkout_bug
+FAILED core/version_control/test_version_control.py::test_different_lengths
+FAILED core/version_control/test_version_control.py::test_auto_checkout - Key...
+FAILED core/version_control/test_version_control.py::test_delete - KeyError: ...
+FAILED core/version_control/test_version_control.py::test_diff_linear - Asser...
+FAILED core/version_control/test_version_control.py::test_diff_branch - KeyEr...
+FAILED core/version_control/test_version_control.py::test_complex_diff - KeyE...
+= 14 failed, 415 passed, 134 skipped, 23 xfailed, 24 warnings in 180.79s (0:03:00) =

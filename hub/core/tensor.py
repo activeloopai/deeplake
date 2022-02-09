@@ -259,14 +259,12 @@ class Tensor:
             TensorInfo: Information about the tensor.
         """
         commit_id = self.version_state["commit_id"]
-        if (
-            self.chunk_engine._info is None
-            or self.chunk_engine._info_commit_id != commit_id
-        ):
-            key = get_tensor_info_key(self.key, commit_id)
-            self.chunk_engine._info = load_info(key, self.dataset)
-            self.chunk_engine._info_commit_id = commit_id
-        return self.chunk_engine._info
+        chunk_engine = self.chunk_engine
+        if chunk_engine._info is None or chunk_engine._info_commit_id != commit_id:
+            path = get_tensor_info_key(self.key, commit_id)
+            chunk_engine._info = load_info(path, self.dataset)
+            chunk_engine._info_commit_id = commit_id
+        return chunk_engine._info
 
     @info.setter
     def info(self, value):

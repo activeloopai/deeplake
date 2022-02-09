@@ -979,8 +979,8 @@ class Dataset:
     def info(self):
         """Returns the information about the dataset."""
         if self._info is None:
-            key = get_dataset_info_key(self.version_state["commit_id"])
-            self.__dict__["_info"] = load_info(key, self)  # type: ignore
+            path = get_dataset_info_key(self.version_state["commit_id"])
+            self.__dict__["_info"] = load_info(path, self)  # type: ignore
         return self._info
 
     @info.setter

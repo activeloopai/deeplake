@@ -1,27 +1,35 @@
 from hub.util.exceptions import InfoError
 from hub.core.storage.hub_memory_object import HubMemoryObject
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 class Info(HubMemoryObject):
     def __init__(self):
         self._info = {}
         self._dataset = None
+
+        # the key to info in case of Tensor Info, None in case of Dataset Info
+        self._key = None
         super().__init__()
 
     def __enter__(self):
-        if self._dataset is not None:
-            self._dataset.storage.check_readonly()
-            if not self._dataset.version_state["commit_node"].is_head_node:
+        ds = self._dataset
+        key = self._key
+        version_state = ds.version_state
+        if ds is not None:
+            ds.storage.check_readonly()
+            if not version_state["commit_node"].is_head_node:
                 raise InfoError("Cannot modify info from a non-head commit.")
             self.is_dirty = True
-
+            if key:
+                ds[key].commit_diff.modify_info()
+            else:
+                version_state["meta"].modify_info()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._dataset is not None:
-            storage = self._dataset.storage
-            storage.maybe_flush()
+            self._dataset.storage.maybe_flush()
 
     @property
     def nbytes(self):
@@ -79,7 +87,7 @@ class Info(HubMemoryObject):
             return self[key]
 
     def __setattr__(self, key: str, value):
-        if key in {"_info", "_dataset", "is_dirty"}:
+        if key in {"_info", "_dataset", "_key", "is_dirty"}:
             object.__setattr__(self, key, value)
         else:
             with self:
@@ -148,8 +156,9 @@ class Info(HubMemoryObject):
         return None
 
 
-def load_info(key, dataset):
+def load_info(path, dataset, key=None):
     storage = dataset.storage
-    info = storage.get_hub_object(key, Info) if key in storage else Info()
+    info = storage.get_hub_object(path, Info) if path in storage else Info()
     info._dataset = dataset
+    info._key = key
     return info
