@@ -157,6 +157,7 @@ def test_class_label(local_ds_generator):
 
 def test_info_new_methods(local_ds_generator):
     ds = local_ds_generator()
+    ds.create_tensor("x")
 
     ds.info[0] = "hello"
     ds.info[1] = "world"
@@ -195,5 +196,20 @@ def test_info_new_methods(local_ds_generator):
     for v in ds.info.values():
         assert v == "world"
 
+    ds.info = {"a": "b"}
+    assert len(ds.info) == 1
+    assert "a" in ds.info
+    assert ds.info["a"] == "b"
+
+    ds.x.info = {"x": "y", "z": "w"}
+    assert len(ds.x.info) == 2
+    assert "x" in ds.x.info
+    assert "z" in ds.x.info
+    assert ds.x.info["x"] == "y"
+    assert ds.x.info["z"] == "w"
+
     with pytest.raises(TypeError):
         ds.info = ["abc"]
+
+    with pytest.raises(TypeError):
+        ds.x.info = ["abc"]
