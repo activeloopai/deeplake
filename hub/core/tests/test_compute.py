@@ -3,7 +3,7 @@ from hub.util.check_installation import ray_installed
 from hub.util.compute import get_compute_provider
 
 schedulers = ["threaded", "processed", "serial"]
-schedulers = schedulers + ["ray"] if ray_installed() else schedulers
+# schedulers = schedulers + ["ray"] if ray_installed() else schedulers
 all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 
 

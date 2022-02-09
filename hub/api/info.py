@@ -1,3 +1,4 @@
+from hub.core.storage.lru_cache import LRUCache
 from hub.util.exceptions import InfoError
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict
@@ -10,7 +11,7 @@ class Info(HubMemoryObject):
 
         # the key to info in case of Tensor Info, None in case of Dataset Info
         self._key = None
-        super().__init__()
+        self.is_dirty = False
 
     def __enter__(self):
         ds = self._dataset
@@ -154,8 +155,14 @@ class Info(HubMemoryObject):
 
 
 def load_info(path, dataset, key=None):
-    storage = dataset.storage
-    info = storage.get_hub_object(path, Info) if path in storage else Info()
+    storage: LRUCache = dataset.storage
+
+    try:
+        info = storage.get_hub_object(path, Info)
+    except KeyError:
+        info = Info()
+
     info._dataset = dataset
     info._key = key
+    storage.register_hub_object(path, info)
     return info

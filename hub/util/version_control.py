@@ -448,12 +448,14 @@ def load_meta(dataset):
     from hub.core.tensor import Tensor
 
     version_state = dataset.version_state
-    storage = dataset.storage
-
+    storage: LRUCache = dataset.storage
+    storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_hub_object(meta_key, DatasetMeta)
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
+
+    storage.register_hub_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
 

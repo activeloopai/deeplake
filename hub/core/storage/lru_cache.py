@@ -41,11 +41,20 @@ class LRUCache(StorageProvider):
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
-        self.dataset = None
+        self.hub_objects: Dict[str, HubMemoryObject] = {}
 
-    def set_dataset(self, ds):
-        if self.dataset is None:
-            self.dataset = ds
+    def register_hub_object(self, path: str, obj: HubMemoryObject):
+        """Registers a new object in the cache."""
+        self.hub_objects[path] = obj
+
+    def clear_hub_objects(self):
+        """Removes all HubMemoryObjects from the cache."""
+        self.hub_objects.clear()
+
+    def remove_hub_object(self, path: str):
+        """Removes a HubMemoryObject from the cache."""
+        if path in self.hub_objects:
+            del self.hub_objects[path]
 
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
@@ -63,9 +72,10 @@ class LRUCache(StorageProvider):
         self.check_readonly()
         initial_autoflush = self.autoflush
         self.autoflush = False
-
-        if self.dataset is not None:
-            self.dataset.write_dirty_objects()
+        for path, obj in self.hub_objects.items():
+            if obj.is_dirty:
+                self[path] = obj
+                obj.is_dirty = False
 
         if self.dirty_keys:
             for key in self.dirty_keys.copy():
@@ -128,7 +138,11 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.lru_sizes:
+        if path in self.hub_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.hub_objects[path]
+        elif path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
         else:
@@ -152,6 +166,9 @@ class LRUCache(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
+        if path in self.hub_objects:
+            self.hub_objects[path].is_dirty = False
+
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
@@ -176,6 +193,11 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         deleted_from_cache = False
+
+        if path in self.hub_objects:
+            self.remove_hub_object(path)
+            deleted_from_cache = True
+
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
@@ -337,4 +359,4 @@ class LRUCache(StorageProvider):
         self.lru_sizes = OrderedDict()
         self.dirty_keys = set()
         self.cache_used = 0
-        self.dataset = None
+        self.hub_objects = {}

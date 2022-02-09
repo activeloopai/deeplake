@@ -265,6 +265,7 @@ class Tensor:
             path = get_tensor_info_key(self.key, commit_id)
             chunk_engine._info = load_info(path, self.dataset, self.key)
             chunk_engine._info_commit_id = commit_id
+            self.storage.register_hub_object(path, chunk_engine._info)
         return chunk_engine._info
 
     @info.setter
@@ -621,6 +622,3 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
-
-    def write_dirty_objects(self):
-        self.chunk_engine.write_dirty_objects()

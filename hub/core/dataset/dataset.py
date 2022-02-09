@@ -3,11 +3,10 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm  # type: ignore
 import posixpath
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
-from hub.api.info import Info, load_info
+from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -73,7 +72,6 @@ from hub.util.version_control import (
 from hub.client.utils import get_user_name
 from tqdm import tqdm  # type: ignore
 from time import time
-import hashlib
 import json
 from collections import defaultdict
 
@@ -759,7 +757,6 @@ class Dataset:
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
-        self.storage.set_dataset(self)
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -773,7 +770,10 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            self.version_state["meta"] = DatasetMeta()
+            meta = DatasetMeta()
+            key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.version_state["meta"] = meta
+            self.storage.register_hub_object(key, meta)
             self._register_dataset()
             self.flush()
 
@@ -1349,29 +1349,6 @@ class Dataset:
                                 "Error while attepting to rollback appends"
                             ) from e2
                     raise e
-
-    def write_dirty_objects(self):
-        """Writes dirty items"""
-        storage = self.storage
-        commit_id = self.version_state["commit_id"]
-
-        # write dataset meta
-        meta: DatasetMeta = self.version_state["meta"]
-        if meta.is_dirty:
-            meta_key = get_dataset_meta_key(commit_id)
-            storage[meta_key] = meta
-            meta.is_dirty = False
-
-        # write dataset info
-        info = self.info
-        if info and info.is_dirty:
-            key = get_dataset_info_key(commit_id)
-            storage[key] = info
-            info.is_dirty = False
-
-        tensors: List[Tensor] = list(self.version_state["full_tensors"].values())
-        for tensor in tensors:
-            tensor.write_dirty_objects()
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""

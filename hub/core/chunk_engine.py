@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
-from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
@@ -134,8 +133,8 @@ class ChunkEngine:
         self._commit_diff: Optional[CommitDiff] = None
         self._commit_diff_commit_id: Optional[str] = None
 
-        self._last_appended_chunk: Optional[BaseChunk] = None
-        self._last_updated_chunk: Optional[BaseChunk] = None
+        self._active_appended_chunk: Optional[BaseChunk] = None
+        self._active_updated_chunk: Optional[BaseChunk] = None
 
         self._info: Optional[Info] = None
         self._info_commit_id: Optional[str] = None
@@ -193,11 +192,10 @@ class ChunkEngine:
     def tensor_meta(self):
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
-            tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
-            self._tensor_meta = self.meta_cache.get_hub_object(
-                tensor_meta_key, TensorMeta
-            )
+            key = get_tensor_meta_key(self.key, commit_id)
+            self._tensor_meta = self.meta_cache.get_hub_object(key, TensorMeta)
             self._tensor_meta_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, self._tensor_meta)
         return self._tensor_meta
 
     @property
@@ -233,6 +231,7 @@ class ChunkEngine:
                 enc = self.meta_cache.get_hub_object(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
             self._chunk_id_encoder_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, enc)
         return self._chunk_id_encoder
 
     @property
@@ -261,6 +260,7 @@ class ChunkEngine:
                 cset = self.meta_cache.get_hub_object(key, CommitChunkSet)
             self._commit_chunk_set = cset
             self._commit_chunk_set_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, cset)
         return self._commit_chunk_set
 
     @property
@@ -300,6 +300,7 @@ class ChunkEngine:
                 diff = self.meta_cache.get_hub_object(key, CommitDiff)
             self._commit_diff = diff
             self._commit_diff_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, diff)
         return self._commit_diff
 
     @property
@@ -348,6 +349,7 @@ class ChunkEngine:
                 enc = self.meta_cache.get_hub_object(key, TileEncoder)
             self._tile_encoder = enc
             self._tile_encoder_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, enc)
         return self._tile_encoder
 
     @property
@@ -385,6 +387,30 @@ class ChunkEngine:
         return get_chunk_key(self.key, chunk_name, commit_id)
 
     @property
+    def active_appended_chunk(self):
+        return self._active_appended_chunk
+
+    @active_appended_chunk.setter
+    def active_appended_chunk(self, value):
+        if self.active_appended_chunk is not None:
+            self.cache.remove_hub_object(self.active_appended_chunk)
+        self._active_appended_chunk = value
+        if value is not None:
+            self.cache.register_hub_object(value.key, value)
+
+    @property
+    def active_updated_chunk(self):
+        return self._active_updated_chunk
+
+    @active_updated_chunk.setter
+    def active_updated_chunk(self, value):
+        if self.active_updated_chunk is not None:
+            self.cache.remove_hub_object(self.active_updated_chunk)
+        self._active_updated_chunk = value
+        if value is not None:
+            self.cache.register_hub_object(value.key, value)
+
+    @property
     def last_appended_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
@@ -404,11 +430,11 @@ class ChunkEngine:
         chunk.id = self.last_appended_chunk_id  # type: ignore
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        self._last_appended_chunk = chunk
+        self.active_appended_chunk = chunk
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
-        chunks = [self._last_appended_chunk, self._last_updated_chunk]
+        chunks = [self.active_appended_chunk, self.active_updated_chunk]
         for chunk in chunks:
             if chunk is not None and chunk.key == chunk_key:  # type: ignore
                 return chunk
@@ -566,9 +592,10 @@ class ChunkEngine:
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         chunk._update_tensor_meta_length = register
-        if self._last_appended_chunk is not None:
-            self.write_chunk_to_storage(self._last_appended_chunk)
-        self._last_appended_chunk = chunk
+        if self.active_appended_chunk is not None:
+            self.write_chunk_to_storage(self.active_appended_chunk)
+
+        self.active_appended_chunk = chunk
         return chunk
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
@@ -619,11 +646,11 @@ class ChunkEngine:
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             if (
-                self._last_updated_chunk is not None
-                and self._last_updated_chunk.key != chunk.key  # type: ignore
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk.key  # type: ignore
             ):
-                self.write_chunk_to_storage(self._last_updated_chunk)
-            self._last_updated_chunk = chunk
+                self.write_chunk_to_storage(self.active_updated_chunk)
+            self.active_updated_chunk = chunk
 
     def update(
         self,
@@ -656,11 +683,11 @@ class ChunkEngine:
                 )
                 chunk.update_sample(local_sample_index, sample)
                 if (
-                    self._last_updated_chunk is not None
-                    and self._last_updated_chunk.key != chunk.key  # type: ignore
+                    self.active_updated_chunk is not None
+                    and self.active_updated_chunk.key != chunk.key  # type: ignore
                 ):
-                    self.write_chunk_to_storage(self._last_updated_chunk)
-                self._last_updated_chunk = chunk
+                    self.write_chunk_to_storage(self.active_updated_chunk)
+                self.active_updated_chunk = chunk
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
@@ -945,10 +972,10 @@ class ChunkEngine:
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 if (
-                    self._last_appended_chunk is not None
-                    and self._last_appended_chunk.key == chunk_key
+                    self.active_appended_chunk is not None
+                    and self.active_appended_chunk.key == chunk_key
                 ):
-                    self._last_appended_chunk = None
+                    self.active_appended_chunk = None
                     try:
                         del self.cache[chunk_key]
                     except KeyError:
@@ -956,61 +983,6 @@ class ChunkEngine:
                 else:
                     del self.cache[chunk_key]
         self.tensor_meta._pop()
-
-    def write_dirty_objects(self):
-        storage = self.meta_cache
-        commit_id = self.commit_id
-        tensor = self.key
-
-        # write chunk_id_encoder
-        chunk_id_encoder = self.chunk_id_encoder
-        if chunk_id_encoder.is_dirty:
-            key = get_chunk_id_encoder_key(tensor, commit_id)
-            storage[key] = chunk_id_encoder
-            chunk_id_encoder.is_dirty = False
-
-        # write tile_encoder
-        tile_encoder = self.tile_encoder
-        if tile_encoder.is_dirty:
-            key = get_tensor_tile_encoder_key(tensor, commit_id)
-            storage[key] = tile_encoder
-            tile_encoder.is_dirty = False
-
-        # write tensor_meta
-        tensor_meta = self.tensor_meta
-        if tensor_meta.is_dirty:
-            key = get_tensor_meta_key(tensor, commit_id)
-            storage[key] = tensor_meta
-            tensor_meta.is_dirty = False
-
-        # write commit_diff
-        commit_diff = self.commit_diff
-        if commit_diff.is_dirty:
-            key = get_tensor_commit_diff_key(tensor, commit_id)
-            storage[key] = commit_diff
-            commit_diff.is_dirty = False
-
-        # write commit_chunk_set
-        commit_chunk_set = self.commit_chunk_set
-        if commit_chunk_set is not None and commit_chunk_set.is_dirty:
-            key = get_tensor_commit_chunk_set_key(tensor, commit_id)
-            storage[key] = commit_chunk_set
-            commit_chunk_set.is_dirty = False
-
-        # write last appended chunk
-        last_appended_chunk = self._last_appended_chunk
-        self.write_chunk_to_storage(last_appended_chunk)
-
-        # write last updated chunk
-        last_updated_chunk = self._last_updated_chunk
-        self.write_chunk_to_storage(last_updated_chunk)
-
-        # write tensor info
-        info = self._info
-        if info is not None and info.is_dirty:
-            key = get_tensor_info_key(tensor, commit_id)
-            storage[key] = info
-            info.is_dirty = False
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:
