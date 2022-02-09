@@ -456,3 +456,7 @@ class S3Provider(StorageProvider):
             ExpiresIn=expiration,
         )
         return response
+
+    def get_object_size(self, path):
+        obj = self.resource.Object(self.bucket, path)
+        return obj.content_length

@@ -16,7 +16,7 @@ import hub
 import numpy as np
 import struct
 import json
-import requests
+from urllib.request import Request, urlopen
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
@@ -123,31 +123,33 @@ def get_header_from_url(url: str):
 
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
-    n_requests = 0
 
     headers = {"Range": "bytes=0-100"}
 
-    response = requests.get(url, headers=headers)
-    byts = response.content
+    request = Request(url, None, headers)
+    byts = urlopen(request).read()
 
     len_version = byts[0]
     if len_version > len(byts) - 1:
         headers["Range"] = f"bytes=1-{len_version + 1}"
-        byts += requests.get(url, headers=headers).content
+        request = Request(url, None, headers)
+        byts += urlopen(request).read()
     version = str(byts[1 : len_version + 1], "ascii")
 
     offset = 1 + len_version
 
     if len(byts) - offset < 2 * itemsize:
         headers["Range"] = f"bytes={offset}-{offset + 100}"
-        byts += requests.get(url, headers=headers).content
+        request = Request(url, None, headers)
+        byts += urlopen(request).read()
 
     shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
     offset += 8
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if len(byts) - offset < shape_info_nbytes:
         headers["Range"] = f"bytes={offset}-{offset + shape_info_nbytes}"
-        byts += requests.get(url, headers=headers).content
+        request = Request(url, None, headers)
+        byts += urlopen(request).read()
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
@@ -160,14 +162,16 @@ def get_header_from_url(url: str):
 
     if len(byts) - offset < itemsize:
         headers["Range"] = f"bytes={offset}-{offset + 100}"
-        byts += requests.get(url, headers=headers).content
+        request = Request(url, None, headers)
+        byts += urlopen(request).read()
 
     byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
     offset += 4
     byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     if len(byts) - offset < byte_positions_nbytes:
         headers["Range"] = f"bytes={offset}-{offset + byte_positions_nbytes}"
-        byts += requests.get(url, headers=headers).content
+        request = Request(url, None, headers)
+        byts += urlopen(request).read()
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:

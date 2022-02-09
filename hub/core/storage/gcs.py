@@ -1,3 +1,4 @@
+import datetime
 import posixpath
 import pickle
 import json
@@ -314,5 +315,9 @@ class GCSProvider(StorageProvider):
 
     def create_presigned_url(self, key, expiration=3600):
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-        url = blob.generate_signed_url(expiration=expiration)
+        url = blob.generate_signed_url(datetime.timedelta(seconds=expiration))
         return url
+
+    def get_object_size(self, key):
+        blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+        return blob.size

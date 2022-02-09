@@ -7,7 +7,7 @@ from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ig
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
-from hub.core.storage import MemoryProvider, LocalProvider
+from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
@@ -407,20 +407,42 @@ class ChunkEngine:
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
 
-    def get_chunk_from_chunk_id(
-        self, chunk_id, copy: bool = False, url: bool = False
-    ) -> BaseChunk:
+    def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.cache.get_cachable(
-            chunk_key, self.chunk_class, meta=self.chunk_args, url=url
+            chunk_key, self.chunk_class, meta=self.chunk_args
         )
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
+
+    def get_url_or_chunk(self, chunk_id, copy: bool = False):
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_commit_id = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+
+        base_storage = get_base_storage(self.cache)
+        stream = False
+        if isinstance(base_storage, (S3Provider, GCSProvider)):
+            chunk_size = base_storage.get_object_size(chunk_key)
+            stream = chunk_size > self.min_chunk_size
+            if stream:
+                chunk = self.cache.get_cachable(
+                    chunk_key, self.chunk_class, meta=self.chunk_args, url=True
+                )
+        if not stream:
+            chunk = self.cache.get_cachable(
+                chunk_key, self.chunk_class, meta=self.chunk_args
+            )
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = chunk_id  # type: ignore
+        if copy and chunk_commit_id != self.commit_id:
+            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        return chunk, stream
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
         """Copies the chunk to the current commit.
@@ -787,17 +809,13 @@ class ChunkEngine:
                         global_sample_index
                     )
                     if self.compression in VIDEO_COMPRESSIONS:
-                        url = not isinstance(
-                            get_base_storage(self.cache),
-                            (MemoryProvider, LocalProvider),
-                        )
-                        chunk = self.get_chunk_from_chunk_id(chunk_ids[0], url=url)
+                        chunk, stream = self.get_url_or_chunk(chunk_ids[0])
                         sample = chunk.read_sample(
                             local_sample_index,
                             sub_index=index.values[1].value  # type: ignore
                             if len(index.values) > 1
                             else None,
-                            url=url,
+                            stream=stream,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
                         chunk = self.get_chunk_from_chunk_id(chunk_ids[0])

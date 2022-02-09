@@ -235,7 +235,6 @@ def decompress_array(
     end_idx: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
-    url: bool = False,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -273,7 +272,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, start_idx, end_idx, step, reverse, url)
+        return _decompress_video(buffer, start_idx, end_idx, step, reverse)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -742,16 +741,13 @@ def _frame_to_stamp(nframe, stream):
     return stamp
 
 
-def _open_video(file: Union[str, bytes, memoryview], url: bool = False):
-    if url:
-        file = file.decode("utf-8")
+def _open_video(file: Union[str, bytes, memoryview]):
+    if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
-        if isinstance(file, (bytes, memoryview)):
-            file = BytesIO(file)
-        container = av.open(file)
+        container = av.open(BytesIO(file))
 
     vstreams = container.streams.video
 
@@ -797,10 +793,9 @@ def _norm_video_frame_indices(
 
 
 def _read_video_shape(
-    file: Union[str, bytes],
-    url: bool = False,
+    file: Union[str, bytes, memoryview],
 ):
-    vstream = _open_video(file, url)[1]
+    vstream = _open_video(file)[1]
     shape = _read_shape_from_vstream(vstream)
     return (*shape, 3)
 
@@ -811,9 +806,8 @@ def _decompress_video(
     stop: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
-    url: bool = False,
 ):
-    container, vstream = _open_video(file, url)
+    container, vstream = _open_video(file)
 
     nframes, height, width = _read_shape_from_vstream(vstream)
 
@@ -829,6 +823,8 @@ def _decompress_video(
     gop_size = vstream.codec_context.gop_size
     if step > gop_size:
         step_seeking = True
+    else:
+        step_seeking = False
 
     container.seek(seek_target, stream=vstream)
 

@@ -52,21 +52,19 @@ class SampleCompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         sub_index: Optional[Union[int, slice]] = None,
-        url: bool = False,
+        stream: bool = False,
     ):
         buffer = self.memoryview_data
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
-            if url and self.is_video_compression:
+            if stream and self.is_video_compression:
                 header_size = struct.unpack("<i", buffer[-4:])[
                     0
                 ]  # last 4 bytes store size of header
-                buffer = f"subfile,,start,{header_size + sb},end,{header_size + eb},,:".encode(
-                    "utf-8"
-                ) + bytes(
-                    buffer[:-4]
+                buffer = (
+                    f"subfile,,start,{header_size + sb},end,{header_size + eb},,:"
+                    + bytes(buffer[:-4]).decode("utf-8")
                 )
-                print(buffer)
             else:
                 buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
@@ -97,7 +95,6 @@ class SampleCompressedChunk(BaseChunk):
                 end_idx=end,
                 step=abs(step) if step is not None else 1,
                 reverse=reverse,
-                url=url,
             )
             if squeeze:
                 sample = sample.squeeze(0)
