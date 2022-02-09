@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 import json
 from typing import Any, Dict
 
@@ -7,10 +7,10 @@ class HubMemoryObject(ABC):
     def __init__(self):
         self.is_dirty = True
 
+    @abstractmethod
     @property
     def nbytes(self):
-        # do not implement, each class should do this because it could be very slow if `tobytes` is called
-        raise NotImplementedError
+        """Returns the number of bytes in the object."""
 
     def __getstate__(self) -> Dict[str, Any]:
         return self.__dict__
