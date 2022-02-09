@@ -59,6 +59,8 @@ def find_root(path: str) -> str:
 
 
 def get_path_type(path: str) -> str:
+    if not isinstance(path, str):
+        path = str(path)
     if path.startswith("http://") or path.startswith("https://"):
         return "http"
     elif path.startswith("gcs://") or path.startswith("gcp://"):
