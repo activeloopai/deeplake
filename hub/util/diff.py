@@ -1,15 +1,87 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.storage import LRUCache
-from hub.util.keys import get_dataset_meta_key, get_tensor_commit_diff_key
+from hub.core.version_control.dataset_diff import DatasetDiff
+from hub.util.keys import (
+    get_dataset_diff_key,
+    get_dataset_meta_key,
+    get_tensor_commit_diff_key,
+)
+
+
+def get_changes_and_messages(
+    version_state, storage, id_1, id_2
+) -> Tuple[
+    dict, Optional[dict], dict, Optional[dict], Optional[str], str, Optional[str]
+]:
+    if id_1 is None and id_2 is None:
+        return get_changes_and_messages_compared_to_prev(version_state, storage)
+    return get_changes_and_message_2_ids(version_state, storage, id_1, id_2)
+
+
+def get_changes_and_messages_compared_to_prev(
+    version_state, storage
+) -> Tuple[dict, None, dict, None, None, str, None]:
+    commit_node = version_state["commit_node"]
+    commit_id = commit_node.commit_id
+    head = commit_node.is_head_node
+
+    tensor_changes: Dict[str, Dict] = defaultdict(dict)
+    ds_changes: Dict[str, Any] = {}
+    msg_1 = "Diff in HEAD " if head else f"Diff in {commit_id} (current commit) "
+    msg_1 += "relative to the previous commit:\n"
+    get_tensor_changes_for_id(commit_id, storage, tensor_changes)
+    get_dataset_changes_for_id(commit_id, storage, ds_changes)
+    filter_data_updated(tensor_changes)
+    remove_empty_changes(tensor_changes)
+
+    # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
+    return ds_changes, None, tensor_changes, None, None, msg_1, None
+
+
+def get_changes_and_message_2_ids(
+    version_state, storage, id_1, id_2
+) -> Tuple[dict, dict, dict, dict, str, str, str]:
+    commit_node = version_state["commit_node"]
+    if id_1 is None:
+        raise ValueError("Can't specify id_2 without specifying id_1")
+    msg_0 = (
+        "The 2 diffs are calculated relative to the most recent common ancestor (%s)"
+    )
+    if id_2 is None:
+        msg_0 += "of the current state and the commit passed."
+        id_2 = id_1
+        id_1: str = commit_node.commit_id
+        head = commit_node.is_head_node
+        msg_1 = "Diff in HEAD:\n" if head else f"Diff in {id_1} (current commit):\n"
+        msg_2 = f"Diff in {id_2} (target id):\n"
+    else:
+        msg_0 += "of the two commits passed."
+        msg_1 = f"Diff in {id_1} (target id 1):\n"
+        msg_2 = f"Diff in {id_2} (target id 2):\n"
+
+    ret = compare_commits(id_1, id_2, version_state, storage)
+    ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, lca_id = ret
+    msg_0 %= lca_id
+    remove_empty_changes(tensor_changes_1)
+    remove_empty_changes(tensor_changes_2)
+    return (
+        ds_changes_1,
+        ds_changes_2,
+        tensor_changes_1,
+        tensor_changes_2,
+        msg_0,
+        msg_1,
+        msg_2,
+    )
 
 
 def compare_commits(
     id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
-) -> Tuple[dict, dict, str]:
+) -> Tuple[dict, dict, dict, dict, str]:
     """Compares two commits and returns the differences.
 
     Args:
@@ -19,28 +91,38 @@ def compare_commits(
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
-        Tuple[dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
+        Tuple[dict, dict, dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
     """
     id_1 = sanitize_commit(id_1, version_state)
     id_2 = sanitize_commit(id_2, version_state)
-    commit_node_1: CommitNode = version_state["commit_node_map"][id_1]
-    commit_node_2: CommitNode = version_state["commit_node_map"][id_2]
+    mp = version_state["commit_node_map"]
+    commit_node_1: CommitNode = mp[id_1]
+    commit_node_2: CommitNode = mp[id_2]
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
-    lca = version_state["commit_node_map"][lca_id]
+    lca_node: CommitNode = mp[lca_id]
 
-    changes_1: Dict[str, Dict] = defaultdict(dict)
-    changes_2: Dict[str, Dict] = defaultdict(dict)
+    tensor_changes_1: Dict[str, Dict] = defaultdict(dict)
+    tensor_changes_2: Dict[str, Dict] = defaultdict(dict)
+    dataset_changes_1: Dict[str, Any] = {}
+    dataset_changes_2: Dict[str, Any] = {}
 
-    for commit_node, changes in [
-        (commit_node_1, changes_1),
-        (commit_node_2, changes_2),
+    for commit_node, tensor_changes, dataset_changes in [
+        (commit_node_1, tensor_changes_1, dataset_changes_1),
+        (commit_node_2, tensor_changes_2, dataset_changes_2),
     ]:
-        while commit_node != lca:
+        while commit_node.commit_id != lca_node.commit_id:
             commit_id = commit_node.commit_id
-            get_changes_for_id(version_state, commit_id, storage, changes)
+            get_tensor_changes_for_id(commit_id, storage, tensor_changes)
+            get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-        filter_data_updated(changes)
-    return changes_1, changes_2, lca_id
+        filter_data_updated(tensor_changes)
+    return (
+        dataset_changes_1,
+        dataset_changes_2,
+        tensor_changes_1,
+        tensor_changes_2,
+        lca_id,
+    )
 
 
 def sanitize_commit(id: str, version_state: Dict[str, Any]) -> str:
@@ -76,30 +158,34 @@ def get_lowest_common_ancestor(p: CommitNode, q: CommitNode):
             return id
 
 
-def get_all_changes_string(message0, changes1, message1, changes2, message2):
+def get_all_changes_string(
+    ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
+):
     """Returns a string with all changes."""
     all_changes = ["\n## Hub Diff"]
-    if message0:
-        all_changes.append(message0)
+    if msg_0:
+        all_changes.append(msg_0)
 
     separator = "-" * 120
-    if changes1 is not None:
-        changes1_str = get_changes_str(changes1, message1, separator)
+    if tensor_changes_1 is not None:
+        changes1_str = get_changes_str(ds_changes_1, tensor_changes_1, msg_1, separator)
         all_changes.append(changes1_str)
-    if changes2 is not None:
-        changes2_str = get_changes_str(changes2, message2, separator)
+    if tensor_changes_2 is not None:
+        changes2_str = get_changes_str(ds_changes_2, tensor_changes_2, msg_2, separator)
         all_changes.append(changes2_str)
     all_changes.append(separator)
     return "\n".join(all_changes)
 
 
-def get_changes_str(changes: Dict, message: str, separator: str):
+def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
-    remove_empty_changes(changes)
-    tensors = sorted(changes.keys())
+    if ds_changes.get("info_changed", False):
+        all_changes.append("Dataset Info updated.")
+
+    tensors = sorted(tensor_changes.keys())
     for tensor in tensors:
-        change = changes[tensor]
+        change = tensor_changes[tensor]
         created = change.get("created", False)
         data_added = change["data_added"]
         data_added_str = convert_adds_to_string(data_added)
@@ -117,7 +203,7 @@ def get_changes_str(changes: Dict, message: str, separator: str):
             all_changes.append(output)
 
         if info_updated:
-            all_changes.append("* Info updated")
+            all_changes.append("* Tensor Info updated")
         all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
@@ -133,28 +219,35 @@ def has_change(change: Dict):
     return created or num_samples_added > 0 or data_updated or info_updated
 
 
-def get_changes_for_id(
-    version_state, commit_id: str, storage: LRUCache, changes: Dict[str, Dict]
+def get_dataset_changes_for_id(
+    commit_id: str, storage: LRUCache, dataset_changes: Dict[str, Dict]
+):
+    """Returns the changes made in the dataset for a commit."""
+    if dataset_changes.get("info_updated", False):
+        # already has info_updated set to True, return
+        return
+
+    dataset_diff_key = get_dataset_diff_key(commit_id)
+    try:
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        dataset_changes["info_updated"] = dataset_diff.info_updated
+    except KeyError:
+        pass
+
+
+def get_tensor_changes_for_id(
+    commit_id: str, storage: LRUCache, tensor_changes: Dict[str, Dict]
 ):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
-    is_current = version_state["commit_id"] == commit_id
-
-    if is_current:
-        meta = version_state["meta"]
-    else:
-        meta_key = get_dataset_meta_key(commit_id)
-        meta = storage.get_hub_object(meta_key, DatasetMeta)
+    meta_key = get_dataset_meta_key(commit_id)
+    meta = storage.get_hub_object(meta_key, DatasetMeta)
 
     for tensor in meta.tensors:
         try:
             commit_diff: CommitDiff
-            if is_current:
-                full_tensor = version_state["full_tensors"][tensor]
-                commit_diff = full_tensor.chunk_engine.commit_diff
-            else:
-                commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-                commit_diff = storage.get_hub_object(commit_diff_key, CommitDiff)
-            change = changes[tensor]
+            commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
+            commit_diff = storage.get_hub_object(commit_diff_key, CommitDiff)
+            change = tensor_changes[tensor]
 
             change["created"] = change.get("created") or commit_diff.created
             change["info_updated"] = (
@@ -266,7 +359,7 @@ def convert_adds_to_string(index_range: List[int]) -> str:
 
 def remove_empty_changes(changes: Dict):
     if not changes:
-        return changes
+        return
     tensors = list(changes.keys())
     for tensor in tensors:
         change = changes[tensor]

@@ -16,6 +16,7 @@ from hub.core.lock import Lock
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
     get_tensor_commit_chunk_set_key,
@@ -404,17 +405,26 @@ def auto_checkout(dataset) -> bool:
 
 
 def auto_commit(dataset, address: str) -> None:
-    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
+    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has changes."""
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
-    if commit_node.is_head_node:
-        original_commit_id = version_state["commit_id"]
-        branch = version_state["branch"]
-        logger.info(
-            f"Auto commiting to branch '{branch}' before checkout as currently at head node."
-        )
-        commit(dataset, f"auto commit before checkout to {address}")
-        checkout(dataset, original_commit_id, False)
+    head = commit_node.is_head_node
+    if not head or not current_commit_has_change(version_state, dataset.storage):
+        return
+
+    original_commit_id = version_state["commit_id"]
+    branch = version_state["branch"]
+    logger.info(
+        f"Auto commiting to branch '{branch}' before checkout as currently at head node."
+    )
+    commit(dataset, f"auto commit before checkout to {address}")
+    checkout(dataset, original_commit_id, False)
+
+
+def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) -> bool:
+    return current_commit_has_data(
+        version_state, storage
+    ) or current_commit_has_info_modified(version_state, storage)
 
 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
@@ -427,6 +437,30 @@ def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) ->
         if commit_diff_exists(version_state, storage, tensor):
             # commit diff is created during tensor creation and append/extend/update
             return True
+    return False
+
+
+def current_commit_has_info_modified(
+    version_state: Dict[str, Any], storage: LRUCache
+) -> bool:
+    commit_id = version_state["commit_id"]
+    try:
+        dataset_diff_key = get_dataset_diff_key(commit_id)
+        dataset_diff = storage.get_hub_object(dataset_diff_key)
+        if dataset_diff.info_modified:
+            return True
+    except KeyError:
+        pass
+
+    for tensor in version_state["full_tensors"].keys():
+        try:
+            tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
+            tensor_diff = storage.get_hub_object(tensor_diff_key)
+            if tensor_diff.info_modified:
+                return True
+        except KeyError:
+            pass
+
     return False
 
 
