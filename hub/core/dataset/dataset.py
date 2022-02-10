@@ -17,7 +17,8 @@ from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage import LRUCache, S3Provider, GCSProvider, MemoryProvider
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
-from hub.core.version_control.commit_node import CommitNode  # type: ignore
+from hub.core.version_control.commit_node import CommitNode # type: ignore
+from hub.core.version_control.dataset_diff import load_dataset_diff
 from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
@@ -45,6 +46,7 @@ from hub.util.exceptions import (
 )
 from hub.util.keys import (
     dataset_exists,
+    get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
     tensor_exists,
@@ -132,6 +134,7 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["_info"] = None
+        d["_ds_diff"] = None
         self.__dict__.update(d)
         self._set_derived_attributes()
         self._first_load_init()
@@ -218,6 +221,7 @@ class Dataset:
         self._initial_autoflush = []
         self.is_first_load = True
         self._info = None
+        self._ds_diff = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -595,6 +599,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
@@ -636,6 +641,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -989,6 +995,12 @@ class Dataset:
             info.replace_with(value)
         else:
             raise TypeError("Info must be set with type Dict")
+
+    @property
+    def _dataset_diff(self):
+        if self._ds_diff is None:
+            self.__dict__["_ds_diff"] = load_dataset_diff(self)
+        return self._ds_diff
 
     @hub_reporter.record_call
     def tensorflow(self):
