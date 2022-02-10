@@ -300,10 +300,7 @@ class Tensor:
         shape = self.shape_interval.astuple()
         if None in shape:
             if not self.index.values[0].subscriptable():
-                if self.htype == "video":
-                    shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value, url=True)  # type: ignore
-                else:
-                    shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
+                shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
         elif not self.index.values[0].subscriptable():
             shape = shape[1:]
         shape = list(shape)  # type: ignore

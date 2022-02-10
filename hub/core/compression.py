@@ -828,7 +828,13 @@ def _decompress_video(
     else:
         step_seeking = False
 
-    container.seek(seek_target, stream=vstream)
+    seekable = True
+    try:
+        container.seek(seek_target, stream=vstream)
+    except av.error.PermissionError:
+        seekable = False
+        container, vstream = _open_video(file)
+        print("Cannot seek. Possibly a corrupted video file.")
 
     i = 0
     for packet in container.demux(video=0):
@@ -838,7 +844,7 @@ def _decompress_video(
                 video[i] = arr
                 i += 1
                 seek_target += step_time
-                if step_seeking:
+                if step_seeking and seekable:
                     container.seek(seek_target, stream=vstream)
 
         if i == nframes:
