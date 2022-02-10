@@ -8,6 +8,7 @@ from hub.core.serialize import (
 )
 from hub.core.tiling.sample_tiles import SampleTiles
 from .base_chunk import BaseChunk, InputSample
+import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
@@ -52,7 +53,11 @@ class SampleCompressedChunk(BaseChunk):
         copy: bool = False,
         sub_index: Optional[Union[int, slice]] = None,
     ):
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            return partial_sample_tile
         buffer = self.memoryview_data
+        shape = self.shapes_encoder[local_index]
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
             buffer = buffer[sb:eb]

@@ -1,17 +1,21 @@
-from typing import Optional, Tuple, Union, List, Any
-from hub.core.storage.provider import StorageProvider
+from typing import Tuple, Optional, Union
+import numpy as np
 
 
 class PartialSample(object):
-    def __init__(self, storage: StorageProvider, sample_size: Optional[Tuple[int, ...]] = None, tile_size: Optional[Tuple[int, ...]] = None):
-        self.storage = storage
-        self.sample_size = sample_size
-        self.tile_size = tile_size
+    def __init__(
+        self,
+        sample_shape: Tuple[int, ...],
+        tile_shape: Tuple[int, ...],
+        dtype: Union[str, np.dtype] = np.uint8,
+    ):
+        self.sample_shape = sample_shape
+        self.tile_shape = tile_shape
+        self.dtype = dtype
 
-    def __setitem__(self, index: Union[slice, int, List[int]], item: Any):
-        pass
+    @property
+    def shape(self):
+        return self.sample_shape
 
-    def __getitem__(self, index: Union[slice, int, List[int]]):
-        pass
-
-    
+    def astype(self, dtype: Union[str, np.dtype]):
+        return self.__class__(self.sample_shape, self.tile_shape, dtype)

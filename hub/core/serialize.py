@@ -5,6 +5,7 @@ from hub.compression import (
     get_compression_type,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -329,6 +330,28 @@ def serialize_numpy_and_base_types(
             out = compressed_bytes  # type: ignore
 
     return out, shape
+
+
+def serialize_partial_sample_object(
+    incoming_sample: PartialSample,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+):
+    shape = incoming_sample.shape
+    return (
+        SampleTiles(
+            compression=sample_compression or chunk_compression,
+            chunk_size=min_chunk_size,
+            htype=htype,
+            dtype=dtype,
+            sample_shape=shape,
+            tile_shape=incoming_sample.tile_shape,
+        ),
+        shape,
+    )
 
 
 def serialize_sample_object(

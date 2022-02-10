@@ -27,6 +27,7 @@ __pdoc__ = {
 }
 from .api.dataset import dataset
 from .api.read import read
+from .api.tiled import tiled
 from .core.dataset import Dataset
 from .core.transform import compute, compose
 from .core.tensor import Tensor
