@@ -759,13 +759,17 @@ def _open_video(file: Union[str, bytes, memoryview]):
     return container, vstream
 
 
-def _read_shape_from_vstream(vstream):
+def _read_shape_from_vstream(container, vstream):
     nframes = vstream.frames
 
     if nframes == 0:
         duration = vstream.duration
+        if duration is None:
+            duration = container.duration
+            time_base = 1 / av.time_base
+        else:
+            time_base = vstream.time_base.numerator / vstream.time_base.denominator
         fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
-        time_base = vstream.time_base.numerator / vstream.time_base.denominator
         nframes = math.floor(fps * duration * time_base)
 
     height = vstream.codec_context.height
@@ -778,11 +782,17 @@ def _norm_video_frame_indices(
     start_frame: Optional[int], end_frame: Optional[int], reverse: bool, n_frames: int
 ) -> Tuple[int, int]:
     if start_frame is None:
-        start_frame = 0
+        if reverse:
+            start_frame = n_frames - 1
+        else:
+            start_frame = 0
     elif start_frame < 0:
         start_frame += n_frames
     if end_frame is None:
-        end_frame = n_frames
+        if reverse:
+            end_frame = -1
+        else:
+            end_frame = n_frames
     elif end_frame < 0:
         end_frame += n_frames
     if reverse:
@@ -795,8 +805,8 @@ def _norm_video_frame_indices(
 def _read_video_shape(
     file: Union[str, bytes, memoryview],
 ):
-    vstream = _open_video(file)[1]
-    shape = _read_shape_from_vstream(vstream)
+    container, vstream = _open_video(file)
+    shape = _read_shape_from_vstream(container, vstream)
     return (*shape, 3)
 
 
@@ -809,9 +819,10 @@ def _decompress_video(
 ):
     container, vstream = _open_video(file)
 
-    nframes, height, width = _read_shape_from_vstream(vstream)
-
+    nframes, height, width = _read_shape_from_vstream(container, vstream)
     start, stop = _norm_video_frame_indices(start, stop, reverse, nframes)
+    if step is None:
+        step = 1
 
     nframes = math.ceil((stop - start) / step)
 
@@ -822,7 +833,7 @@ def _decompress_video(
 
     gop_size = (
         vstream.codec_context.gop_size
-    )  # gop size is distance between 2 I-frames (in frames)
+    )  # gop size is distance (in frames) between 2 I-frames
     if step > gop_size:
         step_seeking = True
     else:
@@ -833,7 +844,7 @@ def _decompress_video(
         container.seek(seek_target, stream=vstream)
     except av.error.PermissionError:
         seekable = False
-        container, vstream = _open_video(file)
+        container, vstream = _open_video(file)  # try again but this time don't seek
         print("Cannot seek. Possibly a corrupted video file.")
 
     i = 0

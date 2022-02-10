@@ -76,7 +76,10 @@ class SampleCompressedChunk(BaseChunk):
         if sub_index is not None:
             if isinstance(sub_index, int):
                 start = sub_index
-                end = start + 1
+                if sub_index >= 0:
+                    end = start + 1
+                else:
+                    end = None
                 squeeze = True
                 step = 1
                 reverse = False

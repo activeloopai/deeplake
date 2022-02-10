@@ -458,5 +458,6 @@ class S3Provider(StorageProvider):
         return response
 
     def get_object_size(self, path):
+        path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
