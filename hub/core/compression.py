@@ -44,7 +44,13 @@ except ImportError:
     _MINIAUDIO_INSTALLED = False
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
-import av  # type: ignore
+
+try:
+    import av  # type: ignore
+
+    _PYAV_INSTALLED = True
+except ImportError:
+    _PYAV_INSTALLED = False
 
 try:
     import lz4.frame  # type: ignore
@@ -839,6 +845,10 @@ def _decompress_video(
     step: Optional[int] = None,
     reverse: bool = False,
 ):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
+        )
     container, vstream = _open_video(file)
 
     nframes, height, width = _read_shape_from_vstream(container, vstream)
@@ -848,7 +858,7 @@ def _decompress_video(
 
     nframes = math.ceil((stop - start) / step)
 
-    video = np.zeros((nframes, height, width, 3))
+    video = np.zeros((nframes, height, width, 3), dtype=np.uint8)
 
     seek_target = _frame_to_stamp(start, vstream)
     step_time = _frame_to_stamp(step, vstream)

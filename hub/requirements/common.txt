@@ -10,4 +10,3 @@ humbug>=0.2.6
 tqdm
 numcodecs
 miniaudio~=1.44
-av~=8.1.0
