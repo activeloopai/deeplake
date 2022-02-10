@@ -16,7 +16,7 @@ class DatasetDiff(HubMemoryObject):
         """
         return b"".join(
             [
-                self.created.to_bytes(1, "big"),  # TODO: add other fields
+                self.info_updated.to_bytes(1, "big"),  # TODO: add other fields
             ]
         )
 
@@ -24,7 +24,7 @@ class DatasetDiff(HubMemoryObject):
     def frombuffer(cls, data: bytes) -> "DatasetDiff":
         """Creates a DatasetDiff object from bytes"""
         dataset_diff = cls()
-        dataset_diff.created = bool(int.from_bytes(data[:1], "big"))
+        dataset_diff.info_updated = bool(int.from_bytes(data[:1], "big"))
         return dataset_diff
 
     @property
