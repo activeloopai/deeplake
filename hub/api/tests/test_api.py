@@ -66,9 +66,9 @@ def test_persist_keys(local_ds_generator):
     ds_new = local_ds_generator()
     assert set(ds_new.storage.keys()) == {
         "dataset_meta.json",
-        "image/commit_diff",
-        "image/tensor_meta.json",
-        "image/tensor_info.json",
+        os.path.join("image", "commit_diff"),
+        os.path.join("image", "tensor_meta.json"),
+        os.path.join("image", "tensor_info.json"),
     }
 
 
