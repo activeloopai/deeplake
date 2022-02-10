@@ -147,7 +147,7 @@ def get_header_from_url(url: str):
     offset += 8
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     if len(byts) - offset < shape_info_nbytes:
-        headers["Range"] = f"bytes={offset}-{offset + shape_info_nbytes}"
+        headers["Range"] = f"bytes={offset}-{offset + shape_info_nbytes + 4}"
         request = Request(url, None, headers)
         byts += urlopen(request).read()
     if shape_info_nbytes == 0:
