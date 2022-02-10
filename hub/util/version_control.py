@@ -9,10 +9,12 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
 from hub.core.lock import Lock
+from hub.core.version_control.dataset_diff import DatasetDiff
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -446,7 +448,7 @@ def current_commit_has_info_modified(
     commit_id = version_state["commit_id"]
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
-        dataset_diff = storage.get_hub_object(dataset_diff_key)
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
         if dataset_diff.info_modified:
             return True
     except KeyError:
@@ -455,7 +457,7 @@ def current_commit_has_info_modified(
     for tensor in version_state["full_tensors"].keys():
         try:
             tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-            tensor_diff = storage.get_hub_object(tensor_diff_key)
+            tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
             if tensor_diff.info_modified:
                 return True
         except KeyError:

@@ -54,7 +54,7 @@ def get_changes_and_message_2_ids(
     if id_2 is None:
         msg_0 += "of the current state and the commit passed."
         id_2 = id_1
-        id_1: str = commit_node.commit_id
+        id_1 = commit_node.commit_id
         head = commit_node.is_head_node
         msg_1 = "Diff in HEAD:\n" if head else f"Diff in {id_1} (current commit):\n"
         msg_2 = f"Diff in {id_2} (target id):\n"
