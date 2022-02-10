@@ -80,6 +80,7 @@ class LRUCache(StorageProvider):
             expected_class (callable): The expected subclass of `Cachable`.
             meta (dict, optional): Metadata associated with the stored cachable.
             callback_arg (Any, optional): The argument to be passed to the callback.
+            url (bool): Get presigned url for object from base storage (S3 or GCS) instead of downloading data.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.

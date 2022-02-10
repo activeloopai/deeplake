@@ -44,7 +44,7 @@ except ImportError:
     _MINIAUDIO_INSTALLED = False
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
-import av
+import av  # type: ignore
 
 try:
     import lz4.frame  # type: ignore
