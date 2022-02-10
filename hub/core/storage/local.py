@@ -1,4 +1,5 @@
 import os
+import posixpath
 import shutil
 from typing import Optional, Set
 
@@ -150,7 +151,9 @@ class LocalProvider(StorageProvider):
             key_set = set()
             for root, dirs, files in os.walk(full_path):
                 for file in files:
-                    key_set.add(os.path.relpath(os.path.join(root, file), full_path))
+                    key_set.add(
+                        posixpath.relpath(posixpath.join(root, file), full_path)
+                    )
             self.files = key_set
         return self.files
 
