@@ -1,4 +1,3 @@
-from importlib.resources import path
 import warnings
 import hub
 from math import ceil
