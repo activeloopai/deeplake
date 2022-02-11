@@ -14,4 +14,3 @@ types-click
 boto3-stubs[essential]
 
 lz4
-av>=8.1.0
