@@ -152,7 +152,13 @@ class EvalObject:
         return self.val.size  # type: ignore
 
     def __eq__(self, o: object) -> bool:
-        return self.val == o
+        if isinstance(self.val, (list, np.ndarray)):
+            if isinstance(o, (list, tuple)):
+                return set(o) == set(self.val)
+            else:
+                return o in self.val
+        else:
+            return self.val == o
 
     def __lt__(self, o: object) -> bool:
         return self.val < o
@@ -239,13 +245,7 @@ class ClassLabelsTensor(EvalObject):
 
     def __eq__(self, o: object) -> bool:
         o = self._norm_labels(o)
-        if isinstance(self.val, (list, np.ndarray)):
-            if isinstance(o, (list, tuple)):
-                return set(o) == set(self.val)
-            else:
-                return o in self.val
-        else:
-            return self.val == o
+        return super(ClassLabelsTensor, self).__eq__(o)
 
     def __lt__(self, o: object) -> bool:
         if isinstance(o, str):
