@@ -349,8 +349,17 @@ class Sample:
         with open(self.path, "rb") as f:
             return f.read()
 
+    def _get_root_and_key(self, path):
+        split_path = path.split("/", 2)
+        if len(split_path) > 2:
+            root, key = "/".join(split_path[:2]), split_path[2]
+        else:
+            root, key = split_path
+        return root, key
+
     def _read_from_s3(self) -> bytes:
-        root, key = posixpath.split(self.path)
+        path = self.path.replace("s3://", "")
+        root, key = self._get_root_and_key(path)
         s3 = S3Provider(root, **self._creds)
         return s3[key]
 
@@ -359,7 +368,8 @@ class Sample:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
-        root, key = posixpath.split(self.path)
+        path = self.path.replace("gcp://", "").replace("gcs://", "")
+        root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 
