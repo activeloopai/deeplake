@@ -217,13 +217,12 @@ def create_worker_chunk_engines(
         for i in range(num_tries):
             try:
                 # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
                 memory_cache.autoflush = False
-                storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
-
                 storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
                 existing_meta = storage_chunk_engine.tensor_meta
                 chunk_size = storage_chunk_engine.max_chunk_size
