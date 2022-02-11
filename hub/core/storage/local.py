@@ -152,7 +152,12 @@ class LocalProvider(StorageProvider):
             key_set = set()
             for root, dirs, files in os.walk(full_path):
                 for file in files:
-                    key_set.add(posixpath.relpath(posixpath.join(pathlib.Path(root).as_posix(), file), pathlib.Path(full_path).as_posix()))
+                    key_set.add(
+                        posixpath.relpath(
+                            posixpath.join(pathlib.Path(root).as_posix(), file),
+                            pathlib.Path(full_path).as_posix(),
+                        )
+                    )
             self.files = key_set
         return self.files
 
