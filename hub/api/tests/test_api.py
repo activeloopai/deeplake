@@ -8,7 +8,6 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     RenameError,
     TensorDtypeMismatchError,
-    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -19,11 +18,6 @@ from hub.util.exceptions import (
 from hub.constants import MB
 
 from click.testing import CliRunner
-from hub.tests.dataset_fixtures import (
-    enabled_datasets,
-    enabled_persistent_dataset_generators,
-    enabled_non_gcs_datasets,
-)
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -55,17 +49,39 @@ def test_persist(ds_generator):
 
     assert ds_new.meta.version == hub.__version__
 
+    ds_new.create_tensor("label")
+    ds_new.label.extend([1, 2, 3, 4])
 
-@enabled_persistent_dataset_generators
-def test_persist_with(ds_generator):
-    with ds_generator() as ds:
+    ds2 = ds_generator()
+
+    ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
+    assert len(ds2) == 4
+    np.testing.assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
+
+
+def test_persist_keys(local_ds_generator):
+    ds = local_ds_generator()
+
+    ds.create_tensor("image")
+
+    ds_new = local_ds_generator()
+    assert set(ds_new.storage.keys()) == {
+        "dataset_meta.json",
+        "image/commit_diff",
+        "image/tensor_meta.json",
+        "image/tensor_info.json",
+    }
+
+
+def test_persist_with(local_ds_generator):
+    with local_ds_generator() as ds:
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 224, 224, 3)))
 
-        ds_new = ds_generator()
+        ds_new = local_ds_generator()
         assert len(ds_new) == 0  # shouldn't be flushed yet
 
-    ds_new = ds_generator()
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     engine = ds_new.image.chunk_engine
@@ -79,13 +95,12 @@ def test_persist_with(ds_generator):
     assert ds_new.meta.version == hub.__version__
 
 
-@enabled_persistent_dataset_generators
-def test_persist_clear_cache(ds_generator):
-    ds = ds_generator()
+def test_persist_clear_cache(local_ds_generator):
+    ds = local_ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
-    ds_new = ds_generator()
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -93,33 +108,32 @@ def test_persist_clear_cache(ds_generator):
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
 
-@enabled_datasets
-def test_populate_dataset(ds):
-    assert ds.meta.tensors == []
-    ds.create_tensor("image")
-    assert len(ds) == 0
-    assert len(ds.image) == 0
+def test_populate_dataset(local_ds):
+    assert local_ds.meta.tensors == []
+    local_ds.create_tensor("image")
+    assert len(local_ds) == 0
+    assert len(local_ds.image) == 0
 
-    ds.image.extend(np.ones((4, 28, 28)))
-    assert len(ds) == 4
-    assert len(ds.image) == 4
+    local_ds.image.extend(np.ones((4, 28, 28)))
+    assert len(local_ds) == 4
+    assert len(local_ds.image) == 4
 
     for _ in range(10):
-        ds.image.append(np.ones((28, 28)))
-    assert len(ds.image) == 14
+        local_ds.image.append(np.ones((28, 28)))
+    assert len(local_ds.image) == 14
 
-    ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
-    assert len(ds.image) == 16
+    local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(local_ds.image) == 16
 
-    assert ds.meta.tensors == [
+    assert local_ds.meta.tensors == [
         "image",
     ]
-    assert ds.meta.version == hub.__version__
+    assert local_ds.meta.version == hub.__version__
 
 
 def test_larger_data_memory(memory_ds):
-    memory_ds.create_tensor("image")
-    x = np.ones((4, 4096, 4096))
+    memory_ds.create_tensor("image", max_chunk_size=2 * MB)
+    x = np.ones((4, 1024, 1024))
     memory_ds.image.extend(x)
     assert len(memory_ds) == 4
     assert memory_ds.image.shape == x.shape
@@ -134,7 +148,7 @@ def test_larger_data_memory(memory_ds):
         slice(2, None),
         (0, slice(5, None), slice(None, 714)),
         (2, 100, 1007),
-        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 4095]),
+        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 1023]),
     ]
     for idx in idxs:
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
@@ -162,23 +176,21 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@enabled_non_gcs_datasets
-def test_compute_fixed_tensor(ds):
-    ds.create_tensor("image")
-    ds.image.extend(np.ones((32, 28, 28)))
-    assert len(ds) == 32
-    np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
+def test_fixed_tensor(local_ds):
+    local_ds.create_tensor("image")
+    local_ds.image.extend(np.ones((32, 28, 28)))
+    assert len(local_ds) == 32
+    np.testing.assert_array_equal(local_ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@enabled_non_gcs_datasets
-def test_compute_dynamic_tensor(ds):
-    ds.create_tensor("image")
+def test_dynamic_tensor(local_ds):
+    local_ds.create_tensor("image")
 
     a1 = np.ones((32, 28, 28))
     a2 = np.ones((10, 36, 11))
     a3 = np.ones((29, 10))
 
-    image = ds.image
+    image = local_ds.image
 
     image.extend(a1)
     image.extend(a2)
@@ -202,9 +214,8 @@ def test_compute_dynamic_tensor(ds):
     assert image.is_dynamic
 
 
-@enabled_datasets
-def test_empty_samples(ds: Dataset):
-    tensor = ds.create_tensor("with_empty")
+def test_empty_samples(local_ds: Dataset):
+    tensor = local_ds.create_tensor("with_empty")
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -228,14 +239,13 @@ def test_empty_samples(ds: Dataset):
     assert_array_lists_equal(actual_list, expected_list)
 
     # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
-    for actual_sample, expected in zip(ds, expected_list):
+    for actual_sample, expected in zip(local_ds, expected_list):
         actual = actual_sample.with_empty.numpy()
         np.testing.assert_array_equal(actual, expected)
 
 
-@enabled_non_gcs_datasets
-def test_safe_downcasting(ds: Dataset):
-    int_tensor = ds.create_tensor("int", dtype="uint8")
+def test_safe_downcasting(local_ds):
+    int_tensor = local_ds.create_tensor("int", dtype="uint8")
     int_tensor.append(0)
     int_tensor.append(1)
     int_tensor.extend([2, 3, 4])
@@ -248,7 +258,7 @@ def test_safe_downcasting(ds: Dataset):
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(np.array([1.0]))
 
-    float_tensor = ds.create_tensor("float", dtype="float32")
+    float_tensor = local_ds.create_tensor("float", dtype="float32")
     float_tensor.append(0)
     float_tensor.append(1)
     float_tensor.extend([2, 3.0, 4.0])
@@ -260,9 +270,8 @@ def test_safe_downcasting(ds: Dataset):
     assert len(float_tensor) == 10
 
 
-@enabled_datasets
-def test_scalar_samples(ds: Dataset):
-    tensor = ds.create_tensor("scalars")
+def test_scalar_samples(local_ds):
+    tensor = local_ds.create_tensor("scalars")
 
     assert tensor.meta.dtype is None
 
@@ -336,13 +345,12 @@ def test_scalar_samples(ds: Dataset):
     assert len(tensor) == 22
 
 
-@enabled_datasets
-def test_sequence_samples(ds: Dataset):
-    tensor = ds.create_tensor("arrays")
+def test_sequence_samples(local_ds):
+    tensor = local_ds.create_tensor("arrays")
 
     tensor.append([1, 2, 3])
     tensor.extend([[4, 5, 6]])
-    ds.clear_cache()
+    local_ds.clear_cache()
 
     assert len(tensor) == 2
     expected_list = [[1, 2, 3], [4, 5, 6]]
@@ -353,16 +361,15 @@ def test_sequence_samples(ds: Dataset):
     assert_array_lists_equal(tensor.numpy(aslist=True), expected_list)
 
 
-@enabled_datasets
-def test_iterate_dataset(ds):
+def test_iterate_dataset(local_ds):
     labels = [1, 9, 7, 4]
-    ds.create_tensor("image")
-    ds.create_tensor("label")
+    local_ds.create_tensor("image")
+    local_ds.create_tensor("label")
 
-    ds.image.extend(np.ones((4, 28, 28)))
-    ds.label.extend(np.asarray(labels).reshape((4, 1)))
+    local_ds.image.extend(np.ones((4, 28, 28)))
+    local_ds.label.extend(np.asarray(labels).reshape((4, 1)))
 
-    for idx, sub_ds in enumerate(ds):
+    for idx, sub_ds in enumerate(local_ds):
         img = sub_ds.image.numpy()
         label = sub_ds.label.numpy()
         np.testing.assert_array_equal(img, np.ones((28, 28)))
@@ -885,7 +892,7 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 @pytest.mark.parametrize("x_size", [5, (32 * 5000)])
 def test_ds_append(memory_ds, x_args, y_args, x_size):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20)
+    ds.create_tensor("x", **x_args, max_chunk_size=2**20)
     ds.create_tensor("y", dtype="uint8", **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
@@ -914,11 +921,11 @@ def test_ds_append(memory_ds, x_args, y_args, x_size):
 @pytest.mark.parametrize(
     "dest_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
-@pytest.mark.parametrize("size", [(30, 40, 3), (5041, 3037, 3)])
+@pytest.mark.parametrize("size", [(30, 40, 3), (1261, 759, 3)])
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = hub.dataset("mem://ds1")
     ds2 = hub.dataset("mem://ds2")
-    ds1.create_tensor("x", **src_args)
+    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
     ds2.create_tensor("y", **dest_args)
