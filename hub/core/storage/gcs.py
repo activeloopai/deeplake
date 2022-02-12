@@ -22,7 +22,7 @@ except ImportError:
 
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import GCSDefaultCredsNotFoundError
+from hub.util.exceptions import GCSDefaultCredsNotFoundError, RenameError
 
 
 class GCloudCredentials:
@@ -274,7 +274,7 @@ class GCSProvider(StorageProvider):
             raise RenameError
         blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         for blob in blob_objects:
-            new_key = "/".join([new_path, os.path.relpath(blob.name, self.path)])
+            new_key = "/".join([new_path, posixpath.relpath(blob.name, self.path)])
             self.client_bucket.rename_blob(blob, new_key)
 
         self.root = root
