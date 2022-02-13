@@ -369,18 +369,21 @@ class dataset:
                 "If you want to copy to a new dataset, specify another path or use overwrite=True to overwrite this dataset.",
             )
 
-        keys = src_ds.storage.keys()
-        for key in keys:
-            if isinstance(src_ds.storage[key], Cachable):
-                dest_ds.storage[key] = src_ds.storage[key].tobytes()
-            else:
-                dest_ds.storage[key] = src_ds.storage[key]
+        keys = src_ds.storage._all_keys()
+        dest_ds._lock()
+        with dest_ds:
+            for key in keys:
+                try:
+                    dest_ds.storage[key] = src_ds.storage[key]
+                except KeyError:
+                    pass
 
-        dest_ds.info.update(src_ds.info.__getstate__())
+            dest_ds.info.update(src_ds.info.__getstate__())
 
-        for key in dest_ds.version_state:
-            if key not in ("meta", "full_tensors"):
-                dest_ds.version_state[key] = src_ds.version_state[key]
+            for key in dest_ds.version_state:
+                if key not in ("meta", "full_tensors"):
+                    dest_ds.version_state[key] = src_ds.version_state[key]
+        dest_ds._unlock()
 
         meta_key = get_dataset_meta_key(dest_ds.version_state["commit_id"])
         meta = dest_ds.storage.get_cachable(meta_key, DatasetMeta)

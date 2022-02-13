@@ -639,21 +639,23 @@ def test_like(local_path):
     "path", ["local_path", "s3_path", "gcs_path", "hub_cloud_path"], indirect=True
 )
 def test_copy(path):
-    src_path = "/".join(path, "src")
-    dest_path = "/".join(path, "dest")
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
 
-    src_ds = hub.dataset(src_path)
-    src_ds.info.update(key=0)
+    src_ds = hub.empty(src_path, overwrite=True)
 
-    src_ds.create_tensor("a", htype="image", sample_compression="png")
-    src_ds.create_tensor("b", htype="class_label")
-    src_ds.create_tensor("c")
-    src_ds.create_tensor("d", dtype=bool)
+    with src_ds:
+        src_ds.info.update(key=0)
 
-    src_ds.d.info.update(key=1)
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
 
-    src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
-    src_ds["b"].append(0)
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
 
     dest_ds = hub.copy(src_ds, dest_path)
 
