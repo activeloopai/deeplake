@@ -42,6 +42,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
     ReadOnlyModeError,
 )
+from hub.compression import VIDEO_COMPRESSIONS
 
 
 class ChunkEngine:
@@ -391,11 +392,11 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = self.last_chunk_id  # type: ignore
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         else:
-            chunk.key = chunk_key  # type: ignore
-            chunk.id = self.last_chunk_id  # type: ignore
             self.update_chunk_in_cache(chunk)
         return chunk
 
@@ -411,10 +412,10 @@ class ChunkEngine:
         chunk = self.cache.get_cachable(
             chunk_key, self.chunk_class, meta=self.chunk_args
         )
-        chunk.key = chunk_key
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        chunk.id = chunk_id
         return chunk
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
@@ -447,6 +448,11 @@ class ChunkEngine:
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:
+                commit_chunk_set = CommitChunkSet()
+                try:
+                    self.meta_cache[chunk_set_key] = commit_chunk_set
+                except ReadOnlyModeError:
+                    pass
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
@@ -772,9 +778,17 @@ class ChunkEngine:
                     local_sample_index = enc.translate_index_relative_to_chunks(
                         global_sample_index
                     )
-                    sample = chunk.read_sample(local_sample_index)[
-                        tuple(entry.value for entry in index.values[1:])
-                    ]
+                    if self.compression in VIDEO_COMPRESSIONS:
+                        sample = chunk.read_sample(
+                            local_sample_index,
+                            sub_index=index.values[1].value  # type: ignore
+                            if len(index.values) > 1
+                            else None,
+                        )[tuple(entry.value for entry in index.values[2:])]
+                    else:
+                        sample = chunk.read_sample(local_sample_index)[
+                            tuple(entry.value for entry in index.values[1:])
+                        ]
                 elif len(index.values) == 1:
                     # Tiled sample, all chunks required
                     chunks = self.get_chunks_for_sample(global_sample_index)
