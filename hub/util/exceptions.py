@@ -612,6 +612,13 @@ class CommitError(VersionControlError):
     pass
 
 
+class TensorModifiedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The target commit is not an ancestor of the current commit, modified can't be calculated."
+        )
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(

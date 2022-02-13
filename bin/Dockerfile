@@ -13,4 +13,3 @@ RUN pip install -r hub/requirements/plugins.txt && \
     pip install -r hub/requirements/tests.txt
 
 RUN pip install -e .
-
