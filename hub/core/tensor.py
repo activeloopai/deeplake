@@ -1,4 +1,4 @@
-from hub.util.no_view import no_view
+from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -203,7 +203,7 @@ class Tensor:
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self.dataset)
 
-    @no_view
+    @invalid_view_op
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -254,7 +254,7 @@ class Tensor:
             )
         return self._info
 
-    @no_view
+    @invalid_view_op
     def append(
         self,
         sample: InputSample,

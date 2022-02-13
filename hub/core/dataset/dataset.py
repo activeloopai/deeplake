@@ -7,7 +7,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
-from hub.util.no_view import no_view
+from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
@@ -267,7 +267,7 @@ class Dataset:
             raise InvalidKeyTypeError(item)
 
     @hub_reporter.record_call
-    @no_view
+    @invalid_view_op
     def create_tensor(
         self,
         name: str,
@@ -366,7 +366,7 @@ class Dataset:
         return tensor
 
     @hub_reporter.record_call
-    @no_view
+    @invalid_view_op
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -421,7 +421,7 @@ class Dataset:
         self.version_state["full_tensors"].pop(name)
 
     @hub_reporter.record_call
-    @no_view
+    @invalid_view_op
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -480,7 +480,7 @@ class Dataset:
         self.version_state["meta"] = meta
 
     @hub_reporter.record_call
-    @no_view
+    @invalid_view_op
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
@@ -856,7 +856,7 @@ class Dataset:
                 raise e
 
     @read_only.setter
-    @no_view
+    @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
@@ -1040,7 +1040,7 @@ class Dataset:
         return size
 
     @hub_reporter.record_call
-    @no_view
+    @invalid_view_op
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
