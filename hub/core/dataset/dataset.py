@@ -147,6 +147,7 @@ class Dataset:
         always_warn(
             "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
         )
+        self._locked_out = True
 
     def __enter__(self):
         self._initial_autoflush.append(self.storage.autoflush)

@@ -1,4 +1,3 @@
-from hub.util.keys import get_dataset_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage import LRUCache
 import glob
@@ -56,3 +55,20 @@ def find_root(path: str) -> str:
         return find_root(subs[0])
 
     return path
+
+
+def get_path_type(path: str) -> str:
+    if not isinstance(path, str):
+        path = str(path)
+    if path.startswith("http://") or path.startswith("https://"):
+        return "http"
+    elif path.startswith("gcs://") or path.startswith("gcp://"):
+        return "gcs"
+    elif path.startswith("s3://"):
+        return "s3"
+    else:
+        return "local"
+
+
+def is_remote_path(path: str) -> bool:
+    return get_path_type(path) != "local"
