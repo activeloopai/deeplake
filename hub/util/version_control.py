@@ -411,7 +411,12 @@ def auto_commit(dataset, address: str) -> None:
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
     head = commit_node.is_head_node
-    if not head or not current_commit_has_change(version_state, dataset.storage):
+    if not head:
+        return
+
+    if not current_commit_has_change(version_state, dataset.storage):
+        parent_id = commit_node.parent.commit_id  # type: ignore
+        checkout(dataset, parent_id, False)
         return
 
     original_commit_id = version_state["commit_id"]
@@ -424,9 +429,11 @@ def auto_commit(dataset, address: str) -> None:
 
 
 def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) -> bool:
-    return current_commit_has_data(
-        version_state, storage
-    ) or current_commit_has_info_modified(version_state, storage)
+    return (
+        current_commit_has_data(version_state, storage)
+        or current_commit_has_info_modified(version_state, storage)
+        or version_state["commit_id"] == FIRST_COMMIT_ID
+    )
 
 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:

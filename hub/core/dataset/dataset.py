@@ -720,7 +720,7 @@ class Dataset:
         if as_dict:
             tensor_changes_1 = res[2]
             tensor_changes_2 = res[3]
-            if id_2 is None:
+            if id_1 is None and id_2 is None:
                 return tensor_changes_1
             return tensor_changes_1, tensor_changes_2
         all_changes = get_all_changes_string(*res)

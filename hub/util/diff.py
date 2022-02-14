@@ -31,8 +31,8 @@ def get_changes_and_messages_compared_to_prev(
 
     tensor_changes: Dict[str, Dict] = defaultdict(dict)
     ds_changes: Dict[str, Any] = {}
-    msg_1 = "Diff in HEAD " if head else f"Diff in {commit_id} (current commit) "
-    msg_1 += "relative to the previous commit:\n"
+    s = "HEAD" if head else f"{commit_id} (current commit)"
+    msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes)
     get_dataset_changes_for_id(commit_id, storage, ds_changes)
     filter_data_updated(tensor_changes)
@@ -48,18 +48,16 @@ def get_changes_and_message_2_ids(
     commit_node = version_state["commit_node"]
     if id_1 is None:
         raise ValueError("Can't specify id_2 without specifying id_1")
-    msg_0 = (
-        "The 2 diffs are calculated relative to the most recent common ancestor (%s)"
-    )
+    msg_0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the "
     if id_2 is None:
-        msg_0 += "of the current state and the commit passed."
+        msg_0 += "current state and the commit passed."
         id_2 = id_1
         id_1 = commit_node.commit_id
         head = commit_node.is_head_node
         msg_1 = "Diff in HEAD:\n" if head else f"Diff in {id_1} (current commit):\n"
         msg_2 = f"Diff in {id_2} (target id):\n"
     else:
-        msg_0 += "of the two commits passed."
+        msg_0 += "two commits passed."
         msg_1 = f"Diff in {id_1} (target id 1):\n"
         msg_2 = f"Diff in {id_2} (target id 2):\n"
 
