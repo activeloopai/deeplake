@@ -43,7 +43,7 @@ class Lock(object):
 
     def acquire(self, timeout=10, force=False):
         if self.path not in self.storage:
-            self.storage[self.path] = _get_lock_bytes()
+            self.storage[self.path] = _get_lock_bytes(self.username)
             return
         nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
         if nodeid == uuid.getnode():
