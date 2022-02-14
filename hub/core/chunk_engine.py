@@ -460,11 +460,11 @@ class ChunkEngine:
             chunk_size = base_storage.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
-                chunk = self.cache.get_cachable(
+                chunk = self.cache.get_hub_object(
                     chunk_key, self.chunk_class, meta=self.chunk_args, url=True
                 )
         if not stream:
-            chunk = self.cache.get_cachable(
+            chunk = self.cache.get_hub_object(
                 chunk_key, self.chunk_class, meta=self.chunk_args
             )
         chunk.key = chunk_key  # type: ignore

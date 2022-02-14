@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
