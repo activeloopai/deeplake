@@ -53,8 +53,7 @@ class LRUCache(StorageProvider):
 
     def remove_hub_object(self, path: str):
         """Removes a HubMemoryObject from the cache."""
-        if path in self.hub_objects:
-            del self.hub_objects[path]
+        self.hub_objects.pop(path, None)
 
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
