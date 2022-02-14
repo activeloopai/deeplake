@@ -131,6 +131,11 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples += 1
         return num_samples
 
+    def _get_partial_sample_tile(self):
+        if self.decompressed_samples or self.decompressed_bytes:
+            return None
+        return super(ChunkCompressedChunk, self)._get_partial_sample_tile()
+
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
