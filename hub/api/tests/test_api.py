@@ -68,7 +68,6 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
-        "image/tensor_info.json",
     }
 
 
@@ -618,6 +617,9 @@ def test_like(local_path):
 
     src_ds.d.info.update(key=1)
 
+    assert src_ds.info.key == 0
+    assert src_ds.d.info.key == 1
+
     dest_ds = hub.like(dest_path, src_ds)
 
     assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
@@ -801,7 +803,8 @@ def test_groups(local_ds_generator):
 
 def test_tensor_delete(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("x")
+    ds.create_tensor("x", max_chunk_size=2 * MB)
+    ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}

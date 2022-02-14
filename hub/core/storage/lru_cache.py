@@ -1,18 +1,16 @@
 from collections import OrderedDict
-from hub.core.storage.cachable import Cachable, CachableCallback
-from hub.core.chunk.base_chunk import BaseChunk
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
 
-def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
-    if isinstance(obj, Cachable):
+def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
+    if isinstance(obj, HubMemoryObject):
         return obj.nbytes
     return len(obj)
 
 
-# TODO use lock for multiprocessing
 class LRUCache(StorageProvider):
     """LRU Cache that uses StorageProvider for caching"""
 
@@ -43,6 +41,19 @@ class LRUCache(StorageProvider):
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
+        self.hub_objects: Dict[str, HubMemoryObject] = {}
+
+    def register_hub_object(self, path: str, obj: HubMemoryObject):
+        """Registers a new object in the cache."""
+        self.hub_objects[path] = obj
+
+    def clear_hub_objects(self):
+        """Removes all HubMemoryObjects from the cache."""
+        self.hub_objects.clear()
+
+    def remove_hub_object(self, path: str):
+        """Removes a HubMemoryObject from the cache."""
+        self.hub_objects.pop(path, None)
 
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
@@ -58,29 +69,31 @@ class LRUCache(StorageProvider):
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         self.check_readonly()
+        initial_autoflush = self.autoflush
+        self.autoflush = False
+        for path, obj in self.hub_objects.items():
+            if obj.is_dirty:
+                self[path] = obj
+                obj.is_dirty = False
+
         if self.dirty_keys:
             for key in self.dirty_keys.copy():
                 self._forward(key)
             if self.next_storage is not None:
                 self.next_storage.flush()
 
-    def get_cachable(
-        self,
-        path: str,
-        expected_class,
-        meta: Optional[Dict] = None,
-        callback_arg=None,
-        url=False,
+        self.autoflush = initial_autoflush
+
+    def get_hub_object(
+        self, path: str, expected_class, meta: Optional[Dict] = None, url=False
     ):
-        """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
+        """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
         Args:
-            path (str): Path to the stored cachable.
-            expected_class (callable): The expected subclass of `Cachable`.
-            meta (dict, optional): Metadata associated with the stored cachable.
-            callback_arg (Any, optional): The argument to be passed to the callback.
-            url (bool): Get presigned url for object from base storage (S3 or GCS) instead of downloading data.
+            path (str): Path to the stored object.
+            expected_class (callable): The expected subclass of `HubMemoryObject`.
+            meta (dict, optional): Metadata associated with the stored object
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -100,7 +113,7 @@ class LRUCache(StorageProvider):
         else:
             item = self[path]
 
-        if isinstance(item, Cachable):
+        if isinstance(item, HubMemoryObject):
             if type(item) != expected_class:
                 raise ValueError(
                     f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
@@ -113,9 +126,6 @@ class LRUCache(StorageProvider):
                 if meta is None
                 else expected_class.frombuffer(item, meta)
             )
-
-            if isinstance(obj, CachableCallback):
-                obj.initialize_callback_location(path, self, dataset=callback_arg)
 
             if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)
@@ -137,7 +147,11 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.lru_sizes:
+        if path in self.hub_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.hub_objects[path]
+        elif path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
         else:
@@ -150,7 +164,7 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
-    def __setitem__(self, path: str, value: Union[bytes, Cachable]):
+    def __setitem__(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
@@ -161,6 +175,9 @@ class LRUCache(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
+        if path in self.hub_objects:
+            self.hub_objects[path].is_dirty = False
+
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
@@ -185,6 +202,11 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         deleted_from_cache = False
+
+        if path in self.hub_objects:
+            self.remove_hub_object(path)
+            deleted_from_cache = True
+
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
@@ -200,8 +222,6 @@ class LRUCache(StorageProvider):
         except KeyError:
             if not deleted_from_cache:
                 raise
-
-        self.maybe_flush()
 
     def clear_cache(self):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
@@ -246,29 +266,22 @@ class LRUCache(StorageProvider):
         """
         yield from self._all_keys()
 
-    def _forward(self, path, remove_from_dirty=False):
-        """Forward the value at a given path to the next storage, and un-marks its key.
-        If the value at the path is Cachable, it will only be un-dirtied if remove_from_dirty=True.
-        """
+    def _forward(self, path):
+        """Forward the value at a given path to the next storage, and un-marks its key."""
         if self.next_storage is not None:
-            self._forward_value(path, self.cache_storage[path], remove_from_dirty)
+            self._forward_value(path, self.cache_storage[path])
 
-    def _forward_value(self, path, value, remove_from_dirty=False):
+    def _forward_value(self, path, value):
         """Forwards a path-value pair to the next storage, and un-marks its key.
 
         Args:
             path (str): the path to the object relative to the root of the provider.
-            value (bytes, Cachable): the value to send to the next storage.
-            remove_from_dirty (bool, optional): cachable values are not un-marked automatically,
-                as they are externally mutable. Set this to True to un-mark them anyway.
+            value (bytes, HubMemoryObject): the value to send to the next storage.
         """
         if self.next_storage is not None:
-            cachable = isinstance(value, Cachable)
+            self.dirty_keys.discard(path)
 
-            if not cachable or remove_from_dirty:
-                self.dirty_keys.discard(path)
-
-            if cachable:
+            if isinstance(value, HubMemoryObject):
                 self.next_storage[path] = value.tobytes()
             else:
                 self.next_storage[path] = value
@@ -287,11 +300,11 @@ class LRUCache(StorageProvider):
         """Helper function that pops the least recently used key, value pair from the cache"""
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
-            self._forward(key, remove_from_dirty=True)
+            self._forward(key)
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
-    def _insert_in_cache(self, path: str, value: Union[bytes, Cachable]):
+    def _insert_in_cache(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Helper function that adds a key value pair to the cache.
 
         Args:
@@ -355,3 +368,4 @@ class LRUCache(StorageProvider):
         self.lru_sizes = OrderedDict()
         self.dirty_keys = set()
         self.cache_used = 0
+        self.hub_objects = {}

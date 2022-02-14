@@ -11,6 +11,7 @@ from hub.util.exceptions import (
     CheckoutError,
     CommitError,
     ReadOnlyModeError,
+    InfoError,
     TensorModifiedError,
 )
 
@@ -358,13 +359,11 @@ def test_auto_checkout(local_ds):
 
     local_ds.checkout(first)
     assert local_ds.branch == "main"
-    local_ds.info[5] = 5
-    assert local_ds.branch != "main"
 
-    local_ds.checkout(first)
+    with pytest.raises(InfoError):
+        local_ds.info[5] = 5
+
     assert local_ds.branch == "main"
-    local_ds.info.update(list=[1, 2, "apple"])
-    assert local_ds.branch != "main"
 
 
 def test_auto_commit(local_ds):
@@ -537,6 +536,7 @@ def test_diff_linear(local_ds, capsys):
     a = local_ds.commit()
     with local_ds:
         local_ds.xyz[0] = 10
+        local_ds.xyz.info["hello"] = "world"
         local_ds.pqr[2] = 20
         local_ds.create_tensor("abc")
         local_ds.abc.extend([1, 2, 3])
@@ -547,7 +547,7 @@ def test_diff_linear(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {0},
             "created": False,
-            "info_updated": False,
+            "info_updated": True,
             "data_transformed_in_place": False,
         },
         "pqr": {

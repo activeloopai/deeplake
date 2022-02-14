@@ -1,12 +1,13 @@
 import hub
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 
 
-class TileEncoder(Cachable):
+class TileEncoder(HubMemoryObject):
     def __init__(self, entries=None, version=None):
+        self.is_dirty = False
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
         self.version = version or hub.__version__
 
@@ -23,9 +24,11 @@ class TileEncoder(Cachable):
         ts: Tuple[int, ...] = sample.tile_shape
         self.entries[idx] = (ss, ts)
         sample.registered = True
+        self.is_dirty = True
 
     def __delitem__(self, global_sample_index: int):
         del self.entries[global_sample_index]
+        self.is_dirty = True
 
     def __getitem__(self, global_sample_index: int):
         return self.entries[global_sample_index]
@@ -156,19 +159,21 @@ class TileEncoder(Cachable):
         try:
             ofs = 0
             # Get version length
-            version_length = data[0]
+            version_length = data[ofs]
             ofs += 1
 
             # Get version string
-            version = str(data[1 : 1 + version_length], "ascii")
+            version = str(data[ofs : ofs + version_length], "ascii")
             ofs += version_length
             check_version(version)
             entries = parse_tile_encoder_entries(data, ofs, "little")
-            return cls(entries, version=version)
+            enc = cls(entries, version=version)
         except Exception:
             # backwards compatibility
             entries = parse_tile_encoder_entries(data, 0, "big")
-            return cls(entries)
+            enc = cls(entries)
+        enc.is_dirty = False
+        return enc
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"entries": self.entries, "version": self.version}

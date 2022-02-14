@@ -38,7 +38,7 @@ class SampleTiles:
         tiles = break_into_tiles(arr, self.tile_shape)
 
         self.tiles = serialize_tiles(
-            tiles, lambda x: memoryview(compress_array(x, self.compression))
+            tiles, lambda x: compress_array(x, self.compression)
         )
         tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
 

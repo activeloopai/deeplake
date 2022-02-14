@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_dataset(local_ds_generator):
     ds = local_ds_generator()
 
@@ -20,6 +23,7 @@ def test_dataset(local_ds_generator):
         test_list.extend(["user made change without `update`"])
 
     ds.info.update({"1_-+": 5})
+    assert len(ds.info) == 7
 
     ds = local_ds_generator()
 
@@ -41,13 +45,14 @@ def test_dataset(local_ds_generator):
     assert len(ds.info) == 7
     assert ds.info.test == [99]
 
-    ds.info.delete("test")
+    ds.info.pop("test")
     assert len(ds.info) == 6
 
-    ds.info.delete(["1_-+", "xyz"])
+    ds.info.pop("1_-+")
+    ds.info.pop("xyz")
     assert len(ds.info) == 4
 
-    ds.info.delete()
+    ds.info.clear()
     assert len(ds.info) == 0
 
 
@@ -89,13 +94,14 @@ def test_tensor(local_ds_generator):
 
     assert t1.info.key == 99
 
-    t2.info.delete("key")
+    t2.info.pop("key")
     assert len(t2.info) == 3
 
-    t2.info.delete(["key2", "key3"])
+    t2.info.pop("key2")
+    t2.info.pop("key3")
     assert len(t2.info) == 1
 
-    t2.info.delete()
+    t2.info.clear()
     assert len(t2.info) == 0
 
 
@@ -147,3 +153,63 @@ def test_class_label(local_ds_generator):
         ds.labels.info.class_names == ds.labels.info["class_names"] == ["c", "b", "a"]
     )
     assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
+
+
+def test_info_new_methods(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x")
+
+    ds.info[0] = "hello"
+    ds.info[1] = "world"
+    assert len(ds.info) == 2
+    assert set(ds.info.keys()) == {0, 1}
+    assert 0 in ds.info
+    assert 1 in ds.info
+
+    assert ds.info[0] == "hello"
+    assert ds.info[1] == "world"
+
+    del ds.info[0]
+    assert len(ds.info) == 1
+    assert 1 in ds.info
+    assert ds.info[1] == "world"
+
+    for it in ds.info:
+        assert it == 1
+
+    ds.info.setdefault(0, "yo")
+    assert len(ds.info) == 2
+    assert 0 in ds.info
+    assert 1 in ds.info
+    assert ds.info[0] == "yo"
+    assert ds.info[1] == "world"
+
+    ds.info.popitem()
+    assert len(ds.info) == 1
+    assert 1 in ds.info
+    assert ds.info[1] == "world"
+
+    for k, v in ds.info.items():
+        assert k == 1
+        assert v == "world"
+
+    for v in ds.info.values():
+        assert v == "world"
+
+    ds.info = {"a": "b"}
+    assert len(ds.info) == 1
+    assert "a" in ds.info
+    assert ds.info["a"] == "b"
+
+    ds.x.info = {"x": "y", "z": "w"}
+    assert len(ds.x.info) == 2
+    assert "x" in ds.x.info
+    assert "z" in ds.x.info
+    assert ds.x.info["x"] == "y"
+    assert ds.x.info["z"] == "w"
+
+    with pytest.raises(TypeError):
+        ds.info = ["abc"]
+
+    with pytest.raises(TypeError):
+        ds.x.info = ["abc"]
