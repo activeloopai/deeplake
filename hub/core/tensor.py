@@ -110,13 +110,6 @@ def delete_tensor(key: str, dataset):
         except KeyError:
             pass
 
-    chunk_engine._chunk_id_encoder = None
-    chunk_engine._tensor_meta = None
-    chunk_engine._commit_chunk_set = None
-    chunk_engine._commit_diff = None
-    chunk_engine._tile_encoder = None
-    chunk_engine._info = None
-
     commit_id = version_state["commit_id"]
     meta_key = get_tensor_meta_key(key, commit_id)
     try:
