@@ -27,7 +27,7 @@ def _parse_lock_bytes(byts) -> Tuple[int, float]:
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
     timestamp = struct.unpack("d", byts[6:14])[0]
-    username = byts[14:].decode("utf-8")
+    username = str(byts[14:], "utf-8")
     return nodeid, timestamp, username
 
 
