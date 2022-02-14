@@ -43,7 +43,7 @@ from hub.core.storage.s3 import S3Provider
 try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
-    GCProvider = None
+    GCSProvider = None
 
 import posixpath
 
