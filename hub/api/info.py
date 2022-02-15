@@ -1,77 +1,46 @@
-from hub.util.version_control import auto_checkout
 from hub.core.storage.lru_cache import LRUCache
-from typing import Any, Dict, Optional, Union, Sequence
-from hub.core.storage.cachable import CachableCallback, use_callback
+from hub.util.exceptions import InfoError
+from hub.core.storage.hub_memory_object import HubMemoryObject
+from typing import Any, Dict
 
 
-class Info(CachableCallback):
+class Info(HubMemoryObject):
     def __init__(self):
-        """Contains **optional** key/values that datasets/tensors use for human-readability.
-        See the `Meta` class for required key/values for datasets/tensors.
-
-        Note:
-            Since `Info` is rarely written to and mostly by the user, every modifier will call `cache[key] = self`.
-            Must call `initialize_callback_location` before using any methods.
-        """
         self._info = {}
-        super().__init__()
+        self._dataset = None
+
+        # the key to info in case of Tensor Info, None in case of Dataset Info
+        self._key = None
+        self.is_dirty = False
+
+    def __enter__(self):
+        ds = self._dataset
+        key = self._key
+        if ds is not None:
+            ds.storage.check_readonly()
+            if not ds.version_state["commit_node"].is_head_node:
+                raise InfoError("Cannot modify info from a non-head commit.")
+            self.is_dirty = True
+            if key:
+                ds[key].chunk_engine.commit_diff.modify_info()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._dataset is not None:
+            self._dataset.storage.maybe_flush()
 
     @property
     def nbytes(self):
-        # TODO: optimize this
         return len(self.tobytes())
 
-    @use_callback(check_only=True)
     def __len__(self):
         return len(self._info)
 
-    @use_callback(check_only=True)
     def __getstate__(self) -> Dict[str, Any]:
         return self._info
 
     def __setstate__(self, state: Dict[str, Any]):
         self._info = state
-
-    @use_callback()
-    def update(self, *args, **kwargs):
-        """Store optional dataset/tensor information. Will be accessible after loading your data from a new script!
-        Inputs must be supported by JSON.
-
-
-        Note:
-            This method has the same functionality as `dict().update(...)` Reference: https://www.geeksforgeeks.org/python-dictionary-update-method/.
-            A full list of supported value types can be found here: https://docs.python.org/3/library/json.html#json.JSONEncoder.
-
-        Examples:
-            Normal update usage:
-                >>> ds.info
-                {}
-                >>> ds.info.update(key=0)
-                >>> ds.info
-                {"key": 0}
-                >>> ds.info.update({"key1": 5, "key2": [1, 2, "test"]})
-                >>> ds.info
-                {"key": 0, "key1": 5, "key2": [1, 2, "test"]}
-
-            Alternate update usage:
-                >>> ds.info
-                {}
-                >>> ds.info.update(list=[1, 2, "apple"])
-                >>> ds.info
-                {"list": [1, 2, "apple"]}
-                >>> l = ds.info.list
-                >>> l
-                [1, 2, "apple"]
-                >>> l.append(5)
-                >>> l
-                [1, 2, "apple", 5]
-                >>> ds.info.update()  # required to be persistent!
-
-        """
-        self._cache.check_readonly()
-        if self._dataset is not None:
-            auto_checkout(self._dataset)
-        self._info.update(*args, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
         """Allows access to info values using the `.` syntax. Example: `info.description`."""
@@ -82,11 +51,9 @@ class Info(CachableCallback):
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
+    # implement all the methods of dictionary
     def __getitem__(self, key: str):
         return self._info[key]
-
-    def get(self, key: str, default: Optional[Any] = None):
-        return self._info.get(key, default)
 
     def __str__(self):
         return self._info.__str__()
@@ -94,36 +61,21 @@ class Info(CachableCallback):
     def __repr__(self):
         return self._info.__repr__()
 
-    @use_callback()
-    def delete(self, key: Optional[Union[Sequence[str], str]] = None):
-        """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
-        self._cache.check_readonly()
-        if self._dataset is not None:
-            auto_checkout(self._dataset)
-        if key is None:
-            self._info.clear()
-        elif isinstance(key, str):
+    def __setitem__(self, key, value):
+        with self:
+            self._info[key] = value
+
+    def __delitem__(self, key):
+        with self:
             del self._info[key]
-        elif isinstance(key, Sequence):
-            for k in key:
-                del self._info[k]
-        else:
-            raise KeyError(key)
 
-    @use_callback()
-    def __setitem__(self, key: str, value):
-        self._cache.check_readonly()
-        if self._dataset is not None:
-            auto_checkout(self._dataset)
-        self._info[key] = value
+    def __contains__(self, key):
+        return key in self._info
 
-    def __setattr__(self, key: str, value):
-        if key in {"_key", "_cache", "_info", "_dataset"}:
-            object.__setattr__(self, key, value)
-        else:
-            self[key] = value
+    def __iter__(self):
+        return iter(self._info)
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key):
         try:
             return object.__getattribute__(self, key)
         except AttributeError:
@@ -131,6 +83,53 @@ class Info(CachableCallback):
                 self._info = {}
                 return self._info
             return self[key]
+
+    def __setattr__(self, key: str, value):
+        if key in {"_info", "_dataset", "_key", "is_dirty"}:
+            object.__setattr__(self, key, value)
+        else:
+            with self:
+                self[key] = value
+
+    def get(self, key, default=None):
+        return self._info.get(key, default)
+
+    def setdefault(self, key, default=None):
+        with self:
+            ret = self._info.setdefault(key, default)
+        return ret
+
+    def clear(self):
+        with self:
+            self._info.clear()
+
+    def pop(self, key, default=None):
+        with self:
+            popped = self._info.pop(key, default)
+        return popped
+
+    def popitem(self):
+        with self:
+            popped = self._info.popitem()
+        return popped
+
+    def update(self, *args, **kwargs):
+        with self:
+            self._info.update(*args, **kwargs)
+
+    def keys(self):
+        return self._info.keys()
+
+    def values(self):
+        return self._info.values()
+
+    def items(self):
+        return self._info.items()
+
+    def replace_with(self, d):
+        with self:
+            self._info.clear()
+            self._info.update(d)
 
     # the below methods are used by cloudpickle dumps
     def __origin__(self):
@@ -155,11 +154,15 @@ class Info(CachableCallback):
         return None
 
 
-def load_info(info_key: str, cache: LRUCache, dataset):
-    if info_key in cache:
-        info = cache.get_cachable(info_key, Info, callback_arg=dataset)
-    else:
-        info = Info()
-        info.initialize_callback_location(info_key, cache, dataset)
+def load_info(path, dataset, key=None):
+    storage: LRUCache = dataset.storage
 
+    try:
+        info = storage.get_hub_object(path, Info)
+    except KeyError:
+        info = Info()
+
+    info._dataset = dataset
+    info._key = key
+    storage.register_hub_object(path, info)
     return info

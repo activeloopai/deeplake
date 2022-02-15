@@ -1,6 +1,5 @@
 from hub.constants import ENCODING_DTYPE
 import numpy as np
-from hub.core.meta.encode.shape import ShapeEncoder
 import hub
 import warnings
 
@@ -74,13 +73,13 @@ def ffw_dataset_meta(dataset_meta, version):
 
 @ffw
 def ffw_tensor_meta(tensor_meta, version):
-    if version in ("2.0.2", "2.0.3", "2.0.4", "2.0.5"):
+    versions = ("2.0.2", "2.0.3", "2.0.4", "2.0.5")
+    if version in versions and len(tensor_meta.min_shape) == 0:
         # these versions allowed tensors to have a dimensionality of 0
         # newer hub versions require a dimensionality of at least 1
-
-        if len(tensor_meta.min_shape) == 0:
-            tensor_meta.min_shape = [1]
-            tensor_meta.max_shape = [1]
+        tensor_meta.min_shape = [1]
+        tensor_meta.max_shape = [1]
+        tensor_meta.is_dirty = True
 
 
 @ffw

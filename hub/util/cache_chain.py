@@ -70,7 +70,7 @@ def generate_chain(
     storage_list: List[StorageProvider] = []
     size_list: List[int] = []
 
-    # Always have a memory cache prefix. Required for support for Cachable objects.
+    # Always have a memory cache prefix. Required for support for HubMemoryObjects.
     storage_list.append(MemoryProvider(f"cache/{cached_dataset_name}"))
     size_list.append(memory_cache_size)
 
