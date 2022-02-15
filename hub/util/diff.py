@@ -178,8 +178,8 @@ def get_all_changes_string(
 def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: str):
     """Returns a string with changes made."""
     all_changes = [separator, message]
-    if ds_changes.get("info_changed", False):
-        all_changes.append("Dataset Info updated.")
+    if ds_changes.get("info_updated", False):
+        all_changes.append("- Updated dataset info \n")
 
     tensors = sorted(tensor_changes.keys())
     for tensor in tensors:
@@ -201,7 +201,7 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
             all_changes.append(output)
 
         if info_updated:
-            all_changes.append("* Tensor Info updated")
+            all_changes.append("* Updated tensor info")
         all_changes.append("")
     if len(all_changes) == 2:
         all_changes.append("No changes were made.")
