@@ -1,5 +1,4 @@
 from hub.core.storage.provider import StorageProvider
-from hub.core.storage.lru_cache import LRUCache
 import glob
 import os
 
@@ -10,6 +9,8 @@ def is_hub_cloud_path(path: str):
 
 def get_path_from_storage(storage) -> str:
     """Extracts the underlying path from a given storage."""
+    from hub.core.storage.lru_cache import LRUCache
+
     if isinstance(storage, LRUCache):
         return get_path_from_storage(storage.next_storage)
     elif isinstance(storage, StorageProvider):
