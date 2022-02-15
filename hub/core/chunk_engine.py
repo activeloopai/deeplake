@@ -115,6 +115,7 @@ class ChunkEngine:
 
         self.key = key
         self.cache = cache
+        self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
@@ -454,7 +455,7 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
 
-        base_storage = get_base_storage(self.cache)
+        base_storage = self.base_storage
         stream = False
         if isinstance(base_storage, (S3Provider, GCSProvider)):
             chunk_size = base_storage.get_object_size(chunk_key)
@@ -901,7 +902,9 @@ class ChunkEngine:
         return samples
 
     def get_chunks_for_sample(
-        self, global_sample_index: int, copy: bool = False, url: bool = False
+        self,
+        global_sample_index: int,
+        copy: bool = False,
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:

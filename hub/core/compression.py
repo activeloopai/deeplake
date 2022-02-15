@@ -1,3 +1,4 @@
+from logging import warning
 import hub
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -761,6 +762,7 @@ def _read_audio_shape(
 
 
 def _frame_to_stamp(nframe, stream):
+    """Convert frame number to timestamp based on fps of video stream."""
     fps = stream.guessed_rate.numerator / stream.guessed_rate.denominator
     seek_target = nframe / fps
     stamp = math.floor(
@@ -877,7 +879,9 @@ def _decompress_video(
     except av.error.PermissionError:
         seekable = False
         container, vstream = _open_video(file)  # try again but this time don't seek
-        print("Cannot seek. Possibly a corrupted video file.")
+        warning(
+            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+        )
 
     i = 0
     for packet in container.demux(video=0):

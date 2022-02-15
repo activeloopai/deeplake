@@ -61,6 +61,9 @@ class SampleCompressedChunk(BaseChunk):
                 header_size = struct.unpack("<i", buffer[-4:])[
                     0
                 ]  # last 4 bytes store size of header
+
+                # create subfile url to pass to ffmpeg. header_size + sb will give starting point of video bytes.
+                # https://ffmpeg.org/ffmpeg-protocols.html#subfile
                 buffer = (
                     f"subfile,,start,{header_size + sb},end,{header_size + eb},,:"
                     + bytes(buffer[:-4]).decode("utf-8")

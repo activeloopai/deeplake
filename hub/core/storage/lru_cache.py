@@ -112,6 +112,10 @@ class LRUCache(StorageProvider):
             if issubclass(expected_class, BaseChunk):
                 obj = expected_class.frombuffer(item, meta, url=True)
                 return obj
+            else:
+                raise Exception(
+                    "Expected class should be subclass of BaseChunk when url is True."
+                )
         else:
             item = self[path]
 
