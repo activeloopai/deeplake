@@ -1,6 +1,7 @@
 # type: ignore
-from collections import defaultdict
 import numpy as np
+from time import time
+import json
 from tqdm import tqdm  # type: ignore
 import posixpath
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -46,7 +47,6 @@ from hub.util.exceptions import (
 )
 from hub.util.keys import (
     dataset_exists,
-    get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
     tensor_exists,
@@ -55,14 +55,7 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.diff import (
-    compare_commits,
-    get_all_changes_string,
-    filter_data_updated,
-    get_changes_and_messages,
-    get_tensor_changes_for_id,
-    remove_empty_changes,
-)
+from hub.util.diff import get_all_changes_string, get_changes_and_messages
 from hub.util.version_control import (
     auto_checkout,
     checkout,
@@ -73,10 +66,6 @@ from hub.util.version_control import (
     load_version_info,
 )
 from hub.client.utils import get_user_name
-from tqdm import tqdm  # type: ignore
-from time import time
-import json
-from collections import defaultdict
 
 
 class Dataset:
@@ -151,6 +140,7 @@ class Dataset:
         always_warn(
             "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
         )
+        self._locked_out = True
 
     def __enter__(self):
         self._initial_autoflush.append(self.storage.autoflush)

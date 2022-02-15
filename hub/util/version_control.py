@@ -10,11 +10,11 @@ from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.version_control.commit_diff import CommitDiff
+from hub.core.version_control.dataset_diff import DatasetDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
 from hub.core.lock import Lock
-from hub.core.version_control.dataset_diff import DatasetDiff
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
