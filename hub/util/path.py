@@ -1,5 +1,5 @@
 from hub.core.storage.provider import StorageProvider
-from hub.core.storage import LRUCache
+from hub.core.storage.lru_cache import LRUCache
 import glob
 import os
 

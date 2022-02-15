@@ -95,6 +95,7 @@ class LRUCache(StorageProvider):
             path (str): Path to the stored object.
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
+            url (bool): Get presigned url instead of downloading chunk (only for videos)
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.

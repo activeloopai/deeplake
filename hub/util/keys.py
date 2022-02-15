@@ -1,5 +1,6 @@
 from hub.constants import (
     CHUNKS_FOLDER,
+    DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
     DATASET_LOCK_FILENAME,
     ENCODED_CHUNK_NAMES_FILENAME,
@@ -39,6 +40,12 @@ def get_dataset_info_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return DATASET_INFO_FILENAME
     return "/".join(("versions", commit_id, DATASET_INFO_FILENAME))
+
+
+def get_dataset_diff_key(commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join(("dataset_diff", DATASET_DIFF_FILENAME))
+    return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
 
 
 def get_version_control_info_key() -> str:
