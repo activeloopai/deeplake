@@ -1,3 +1,5 @@
+import os
+import sys
 import pytest
 
 import hub
@@ -6,6 +8,9 @@ from hub.core.dataset import Dataset
 import numpy as np
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
 def test_video(local_ds, compression, video_paths):
     for i, path in enumerate(video_paths[compression]):
@@ -30,6 +35,9 @@ def test_video(local_ds, compression, video_paths):
             assert tensor[i].numpy().shape == sample.shape  # type: ignore
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_video_slicing(local_ds: Dataset, video_paths):
     for path in video_paths["mp4"]:
         if "samplemp4_1MB" in path:
@@ -50,6 +58,9 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     raise Exception  # test did not run
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize(
     "vstream_path", ["gcs_vstream_path", "s3_vstream_path"], indirect=True
 )
