@@ -23,6 +23,8 @@ class Info(HubMemoryObject):
             self.is_dirty = True
             if key:
                 ds[key].chunk_engine.commit_diff.modify_info()
+            else:
+                ds._dataset_diff.modify_info()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
