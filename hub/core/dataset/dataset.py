@@ -3,7 +3,6 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm  # type: ignore
 import posixpath
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
@@ -59,6 +58,7 @@ from hub.util.diff import (
     get_all_changes_string,
     filter_data_updated,
     get_changes_for_id,
+    remove_empty_changes,
 )
 from hub.util.version_control import (
     auto_checkout,
@@ -72,7 +72,6 @@ from hub.util.version_control import (
 from hub.client.utils import get_user_name
 from tqdm import tqdm  # type: ignore
 from time import time
-import hashlib
 import json
 from collections import defaultdict
 
@@ -352,15 +351,14 @@ class Dataset:
             version_state=self.version_state,
             **meta_kwargs,
         )
-        meta = self.version_state["meta"]
-        meta.tensors.append(name)
+        meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
+        meta.add_tensor(name)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
-        tensor.info.update(info_kwargs)
+        if info_kwargs:
+            tensor.info.update(info_kwargs)
+        self.storage.maybe_flush()
         return tensor
 
     @hub_reporter.record_call
@@ -405,17 +403,15 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
-            ffw_dataset_meta(meta)
-            meta.tensors.remove(name)
-            self.storage[meta_key] = meta
             delete_tensor(name, self)
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            meta.delete_tensor(name)
+            self.version_state["meta"] = meta
+            self.version_state["full_tensors"].pop(name)
 
         self.storage.maybe_flush()
-
-        self.version_state["meta"] = meta
-        self.version_state["full_tensors"].pop(name)
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -458,22 +454,18 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta = self.version_state["meta"]
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
                 for tensor in self[name]._all_tensors_filtered
             ]
-            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
-            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
-            self.storage[meta_key] = meta
+            meta.delete_group(name)
             for tensor in tensors:
                 delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
-        self.version_state["meta"] = meta
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
@@ -494,12 +486,8 @@ class Dataset:
         del meta["length"]
         del meta["version"]
 
-        destination_tensor = self.create_tensor(
-            name,
-            **meta,
-        )
+        destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
-
         return destination_tensor
 
     __getattr__ = __getitem__
@@ -731,7 +719,7 @@ class Dataset:
                 message1 = "Diff in HEAD relative to the previous commit:\n"
             else:
                 message1 = f"Diff in {commit_id} (current commit) relative to the previous commit:\n"
-            get_changes_for_id(commit_id, storage, changes1)
+            get_changes_for_id(version_state, commit_id, storage, changes1)
             filter_data_updated(changes1)
             changes2 = message2 = None
         else:
@@ -757,6 +745,8 @@ class Dataset:
             )
             message0 = message0 % lca_id
         if as_dict:
+            remove_empty_changes(changes1)
+            remove_empty_changes(changes2)
             if changes2 is None:
                 return changes1
             return changes1, changes2
@@ -768,7 +758,6 @@ class Dataset:
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
-
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -782,11 +771,12 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            self.version_state["meta"] = DatasetMeta()
-            self.storage[meta_key] = self.version_state["meta"]
-            self.flush()
+            meta = DatasetMeta()
+            key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.version_state["meta"] = meta
+            self.storage.register_hub_object(key, meta)
             self._register_dataset()
+            self.flush()
 
     def _register_dataset(self):
         """overridden in HubCloudDataset"""
@@ -989,8 +979,17 @@ class Dataset:
     def info(self):
         """Returns the information about the dataset."""
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
+            path = get_dataset_info_key(self.version_state["commit_id"])
+            self.__dict__["_info"] = load_info(path, self)  # type: ignore
         return self._info
+
+    @info.setter
+    def info(self, value):
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
+        else:
+            raise TypeError("Info must be set with type Dict")
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -1079,18 +1078,12 @@ class Dataset:
         Acesses storage only for the first call.
         """
         ret = self.version_state["full_tensors"].get(name)
-        if ret is None:
-            load_meta(self)
-            ret = self.version_state["full_tensors"].get(name)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
         This is faster than checking `if group in self._groups:`
         """
-        if name in self.version_state["meta"].groups:
-            return True
-        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1111,7 +1104,6 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
@@ -1170,8 +1162,7 @@ class Dataset:
     @property
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
+        return self.meta.groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:
@@ -1259,20 +1250,15 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        groups = meta.groups
+        meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
-            groups.append(name)
+            meta.add_group(name)
             name, _ = posixpath.split(name)
-        meta.groups = list(set(groups))
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":

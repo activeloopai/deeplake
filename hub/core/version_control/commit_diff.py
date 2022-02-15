@@ -1,11 +1,12 @@
 from typing import Set, List
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
-class CommitDiff(Cachable):
+class CommitDiff(HubMemoryObject):
     """Stores set of diffs stored for a particular tensor in a commit."""
 
     def __init__(self, first_index=0, created=False) -> None:
+        self.is_dirty = created  # only put as dirty during init if created
         self.created = created
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
@@ -54,7 +55,7 @@ class CommitDiff(Cachable):
             int.from_bytes(data[27 + i * 8 : 35 + i * 8], "big")
             for i in range(num_updates)
         }
-
+        commit_diff.is_dirty = False
         return commit_diff
 
     @property
@@ -70,19 +71,23 @@ class CommitDiff(Cachable):
     def modify_info(self) -> None:
         """Stores information that the info has changed"""
         self.info_updated = True
+        self.is_dirty = True
 
     def add_data(self, count: int) -> None:
         """Adds new indexes to data added"""
         self.data_added[1] += count
+        self.is_dirty = True
 
     def update_data(self, global_index: int) -> None:
         """Adds new indexes to data updated"""
         if global_index not in self.data_added:
             self.data_updated.add(global_index)
+            self.is_dirty = True
 
     def transform_data(self) -> None:
         """Stores information that the data has been transformed using an inplace transform."""
         self.data_transformed = True
+        self.is_dirty = True
 
     def _pop(self) -> None:
         """Remove index for the last data added. Used by ChunkEngine._pop()"""
@@ -91,3 +96,4 @@ class CommitDiff(Cachable):
                 "Cannot pop sample which was added in a previous commit."
             )
         self.data_added[1] -= 1
+        self.is_dirty = True

@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -79,6 +79,11 @@ class TensorMeta(Meta):
             raise ValueError("Dtype was None, but length was > 0.")
 
         self.dtype = dtype.name
+        self.is_dirty = True
+
+    def set_dtype_str(self, dtype_name: str):
+        self.dtype = dtype_name
+        self.is_dirty = True
 
     def set_htype(self, htype: str, **kwargs):
         """Should only be called once."""
@@ -111,9 +116,12 @@ class TensorMeta(Meta):
                 required_meta.pop(k, None)
 
         self.__dict__.update(required_meta)
+        self.is_dirty = True
 
-    def update_shape_interval(self, shape: Tuple[int, ...]):
+    def update_shape_interval(self, shape: Sequence[int]):
         ffw_tensor_meta(self)
+        initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
+        initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
         if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
@@ -127,6 +135,23 @@ class TensorMeta(Meta):
             for i, dim in enumerate(shape):
                 self.min_shape[i] = min(dim, self.min_shape[i])
                 self.max_shape[i] = max(dim, self.max_shape[i])
+
+        if initial_min_shape != self.min_shape or initial_max_shape != self.max_shape:
+            self.is_dirty = True
+
+    def update_length(self, length: int):
+        ffw_tensor_meta(self)
+        self.length += length
+        if length != 0:
+            self.is_dirty = True
+
+    def _pop(self):
+        ffw_tensor_meta(self)
+        self.length -= 1
+        if self.length == 0:
+            self.min_shape = []
+            self.max_shape = []
+        self.is_dirty = True
 
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
