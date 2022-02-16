@@ -5,13 +5,16 @@ import struct
 import atexit
 import threading
 
-from typing import Tuple, Dict, Callable, Optional
+from typing import Tuple, Dict, Callable, Optional, Set
+from collections import defaultdict
 from hub.util.exceptions import LockedException
 from hub.util.keys import get_dataset_lock_key
+from hub.util.remove_cache import get_base_storage
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
 from hub.core.storage import StorageProvider
 from hub.constants import FIRST_COMMIT_ID
+import ctypes
 
 
 def _get_lock_bytes() -> bytes:
@@ -70,7 +73,7 @@ class PersistentLock(Lock):
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
-        callback (Callable, optional): Called if the lock is lost after acquiring.
+        lock_lost_callback (Callable, optional): Called if the lock is lost after acquiring.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
@@ -80,14 +83,14 @@ class PersistentLock(Lock):
         self,
         storage: StorageProvider,
         path: Optional[str] = None,
-        callback: Optional[Callable] = None,
+        lock_lost_callback: Optional[Callable] = None,
     ):
         self.storage = storage
-        self.callback = callback
+        self.path = get_dataset_lock_key() if path is None else path
+        self.lock_lost_callback = lock_lost_callback
         self.acquired = False
         self._thread_lock = threading.Lock()
         self._previous_update_timestamp = None
-        self.path = get_dataset_lock_key() if path is None else path
         self.acquire()
         atexit.register(self.release)
 
@@ -105,8 +108,8 @@ class PersistentLock(Lock):
                         if lock_bytes:
                             nodeid, timestamp = _parse_lock_bytes(lock_bytes)
                             if nodeid != uuid.getnode():
-                                if self.callback:
-                                    self.callback()
+                                if self.lock_lost_callback:
+                                    self.lock_lost_callback()
                                 self.acquired = False
                                 return
                     self._previous_update_timestamp = time.time()
@@ -151,9 +154,6 @@ class PersistentLock(Lock):
             pass
 
 
-_LOCKS: Dict[str, Lock] = {}
-
-
 def _get_lock_key(storage_path: str, commit_id: str):
     return storage_path + ":" + commit_id
 
@@ -164,40 +164,91 @@ def _get_lock_file_path(version: Optional[str] = None) -> str:
     return "versions/" + version + "/" + get_dataset_lock_key()  # type: ignore
 
 
-def lock_version(
-    storage: StorageProvider,
-    version: str,
-    callback: Optional[Callable] = None,
+_LOCKS: Dict[str, Lock] = {}
+_REFS: Dict[str, Dict[int, int]] = defaultdict(dict)
+
+
+def lock_dataset(
+    dataset,
+    lock_lost_callback: Optional[Callable] = None,
 ):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
 
     Args:
-        storage (StorageProvider): The storage provder to be locked.
-        callback (Callable, Optional): Called if the lock is lost after acquiring.
-        version (str): Commit id of the version to lock.
+        dataset: Dataset instance.
+        lock_lost_callback (Callable, Optional): Called if the lock is lost after acquiring.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
+    storage = get_base_storage(dataset.storage)
+    version = dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
         lock.acquire()
     else:
         lock = PersistentLock(
-            storage, path=_get_lock_file_path(version), callback=callback
+            storage,
+            path=_get_lock_file_path(version),
+            lock_lost_callback=lock_lost_callback,
         )
         _LOCKS[key] = lock
+    ds_id = id(dataset)
+    _REFS[key][ds_id] = _refcount(ds_id)
+    _gc()
 
 
-def unlock_version(storage: StorageProvider, version: str):
+def unlock_dataset(dataset):
     """Unlocks a storage provider that was locked by this machine.
 
     Args:
-        storage (StorageProvider): The storage provder to be locked.
-        version (str): Commit id of the version to unlock.
+        dataset: The dataset to be unlocked
     """
+    storage = get_base_storage(dataset.storage)
+    version = dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
-    lock = _LOCKS.get(key)
-    if lock:
-        lock.release()
+    try:
+        lock = _LOCKS[key]
+        ref_counts = _REFS[key]
+        del ref_counts[id(dataset)]
+        if not ref_counts:
+            lock.release()
+            del _REFS[key]
+            del _LOCKS[key]
+    except KeyError:
+        pass
+
+
+def _refcount(obj_id: int) -> int:
+    time.sleep(0.1)  # To account for reference stealing.
+    return ctypes.c_long.from_address(obj_id).value
+
+
+def _gc_loop():
+    while True:
+        try:
+            for k in list(_REFS.keys()):
+                ref_counts = _REFS[k]
+                for ds_id in list(ref_counts.keys()):
+                    if _refcount(ds_id) < ref_counts[ds_id]:
+                        del ref_counts[ds_id]
+                if not ref_counts:
+                    _LOCKS.pop(k).release()
+                    del _REFS[k]
+            if not _REFS:
+                break
+        except KeyError:
+            pass
+        time.sleep(hub.constants.DATASET_LOCK_GC_INTERVAL)
+
+
+_GC_THREAD = None
+
+
+def _gc():
+    global _GC_THREAD
+    if _GC_THREAD and _GC_THREAD.is_alive():
+        return
+    _GC_THREAD = threading.Thread(target=_gc_loop, daemon=True)
+    _GC_THREAD.start()

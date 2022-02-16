@@ -6,6 +6,8 @@ import uuid
 import time
 import warnings
 from hub.tests.dataset_fixtures import enabled_cloud_dataset_generators
+from hub.core.storage import MemoryProvider
+
 
 _counter = 0
 
@@ -79,3 +81,51 @@ def test_vc_locking(ds_generator):
             ds = ds_generator()
         np.testing.assert_array_equal(arr, ds.x[0].numpy())
         assert not ws, str(ws[0])
+
+
+def test_lock_thread_leaking():
+    locks = hub.core.lock._LOCKS
+    refs = hub.core.lock._REFS
+    nlocks_previous = len(locks)
+
+    def nlocks():
+        assert len(locks) == len(refs)
+        return len(locks) - nlocks_previous
+
+    path = "mem://abc"
+    lockables = hub.core.dataset.dataset._LOCKABLE_STORAGES
+    lockables.add(MemoryProvider)
+    default_ds_lock_interval = hub.constants.DATASET_LOCK_GC_INTERVAL
+    hub.constants.DATASET_LOCK_GC_INTERVAL = 1
+
+    try:
+        ds = hub.empty(path, overwrite=True)
+        ds.create_tensor("x")
+        assert nlocks() == 1
+
+        del ds
+        time.sleep(1.2)  # wait for gc
+        assert nlocks() == 0
+
+        ds = hub.empty(path, overwrite=True)
+        ds.create_tensor("x")
+        ds.x.extend(np.random.random((2, 32)))
+        views = []
+        for i in range(32):
+            views.append(ds[i : i + 1])
+
+        del ds
+        time.sleep(1.2)
+
+        assert nlocks() == 1  # 1 because views
+
+        views.pop()
+        time.sleep(1.2)
+        assert nlocks() == 1  # deleting 1 view doesn't release locks
+
+        del views
+        time.sleep(1.2)
+        assert nlocks() == 0  # 0 because dataset and all views deleted
+    finally:
+        hub.constants.DATASET_LOCK_GC_INTERVAL = default_ds_lock_interval
+        lockables.remove(MemoryProvider)
