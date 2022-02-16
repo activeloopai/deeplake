@@ -130,30 +130,13 @@ def get_header_from_url(url: str):
     byts = urlopen(request).read()
 
     len_version = byts[0]  # length of version string
-    if (
-        len_version > len(byts) - 1
-    ):  # did not get version string in first 100 bytes (this wouldn't happen)
-        headers["Range"] = f"bytes=1-{len_version + 1}"
-        request = Request(url, None, headers)
-        byts += urlopen(request).read()
     version = str(byts[1 : len_version + 1], "ascii")
-
     offset = 1 + len_version
 
-    if len(byts) - offset < 2 * itemsize:  # did not get shape of shape_info
-        headers["Range"] = f"bytes={offset}-{offset + 100}"  # get 100 more bytes
-        request = Request(url, None, headers)
-        byts += urlopen(request).read()
-
     shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
-    offset += 8
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
-    if len(byts) - offset < shape_info_nbytes:  # did not get all shape_info bytes
-        headers[
-            "Range"
-        ] = f"bytes={offset}-{offset + shape_info_nbytes + 4}"  # get shape_info and number of rows in byte_positions
-        request = Request(url, None, headers)
-        byts += urlopen(request).read()
+    offset += 8
+
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
@@ -164,20 +147,10 @@ def get_header_from_url(url: str):
         )
         offset += shape_info_nbytes
 
-    if len(byts) - offset < itemsize:  # did not get number of rows in byte_positions
-        headers["Range"] = f"bytes={offset}-{offset + 100}"
-        request = Request(url, None, headers)
-        byts += urlopen(request).read()
-
     byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
-    offset += 4
     byte_positions_nbytes = byte_positions_rows * 3 * itemsize
-    if (
-        len(byts) - offset < byte_positions_nbytes
-    ):  # did not get all byte_positions bytes
-        headers["Range"] = f"bytes={offset}-{offset + byte_positions_nbytes}"
-        request = Request(url, None, headers)
-        byts += urlopen(request).read()
+    offset += 4
+
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
