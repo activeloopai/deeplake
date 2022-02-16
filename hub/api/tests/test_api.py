@@ -14,7 +14,12 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     InvalidTensorNameError,
 )
-from hub.constants import MB
+from hub.constants import (
+    MB,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
+    PYTEST_GCS_PROVIDER_BASE_ROOT,
+)
+from hub.core.storage import S3Provider, GCSProvider
 
 from click.testing import CliRunner
 
@@ -68,7 +73,6 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
-        "image/tensor_info.json",
     }
 
 
@@ -618,6 +622,9 @@ def test_like(local_path):
 
     src_ds.d.info.update(key=1)
 
+    assert src_ds.info.key == 0
+    assert src_ds.d.info.key == 1
+
     dest_ds = hub.like(dest_path, src_ds)
 
     assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
@@ -801,7 +808,8 @@ def test_groups(local_ds_generator):
 
 def test_tensor_delete(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("x")
+    ds.create_tensor("x", max_chunk_size=2 * MB)
+    ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
@@ -954,3 +962,57 @@ def test_sample_shape(memory_ds):
     assert ds.z[1].shape == (5, 3000, 4000)
     assert ds.w[0][0, :2].shape == (2, 2)
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
+
+
+def test_hub_remote_read(memory_ds, video_paths, color_image_paths):
+    image_path = color_image_paths["jpeg"]
+    with open(image_path, "rb") as f:
+        byts = f.read()
+
+    # test video after pyav implementation
+    # memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    image = hub.read("https://picsum.photos/200/300")
+    memory_ds.images.append(image)
+    assert memory_ds.images[0].shape == (300, 200, 3)
+
+    # video = hub.read(
+    #     "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    # )
+    # memory_ds.videos.append(video)
+    # assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
+
+    # video = hub.read(
+    #     "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    # )
+    # memory_ds.videos.append(video)
+    # assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
+
+    gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg")
+    gcs["sample/samplejpg.jpg"] = byts
+    image = hub.read(
+        f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg"
+    )
+    memory_ds.images.append(image)
+    assert memory_ds.images[1].shape == (323, 480, 3)
+
+    gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}")
+    gcs["samplejpg.jpg"] = byts
+    image = hub.read(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[2].shape == (323, 480, 3)
+
+    s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg")
+    s3["sample/samplejpg.jpg"] = byts
+    image = hub.read(
+        f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg",
+    )
+    memory_ds.images.append(image)
+    assert memory_ds.images[3].shape == (323, 480, 3)
+
+    s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}")
+    s3["samplejpg.jpg"] = byts
+    image = hub.read(f"{PYTEST_S3_PROVIDER_BASE_ROOT}samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[4].shape == (323, 480, 3)

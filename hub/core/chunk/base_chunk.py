@@ -22,7 +22,7 @@ from hub.core.serialize import (
     serialize_tensor,
     serialize_partial_sample_object,
 )
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
@@ -42,7 +42,7 @@ InputSample = Union[
 SerializedOutput = Tuple[bytes, Tuple]
 
 
-class BaseChunk(Cachable):
+class BaseChunk(HubMemoryObject):
     def __init__(
         self,
         min_chunk_size: int,
@@ -53,6 +53,7 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
+        super().__init__()
         self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
@@ -142,6 +143,7 @@ class BaseChunk(Cachable):
         version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
         chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
+        chunk.is_dirty = False
         return chunk
 
     @abstractmethod
@@ -165,6 +167,7 @@ class BaseChunk(Cachable):
     def prepare_for_write(self):
         ffw_chunk(self)
         self._make_data_bytearray()
+        self.is_dirty = True
 
     def register_sample_to_headers(
         self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
@@ -270,7 +273,7 @@ class BaseChunk(Cachable):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
         if self._update_tensor_meta_length:
-            self.tensor_meta.length += 1
+            self.tensor_meta.update_length(1)
         self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -319,7 +322,7 @@ class BaseChunk(Cachable):
         if sample.is_first_write:
             self.tensor_meta.update_shape_interval(sample.sample_shape)
             if self._update_tensor_meta_length:
-                self.tensor_meta.length += 1
+                self.tensor_meta.update_length(1)
 
     def _pop_sample(self):
         self.prepare_for_write()

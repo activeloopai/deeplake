@@ -54,7 +54,7 @@ def get_tile_shapes(sample_shape: Tuple[int, ...], tile_shape: Tuple[int, ...]):
 
 
 def serialize_tiles(
-    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], memoryview]
+    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], bytes]
 ) -> np.ndarray:
     """Get a new tile-ordered numpy object array that is the same shape of the tile-grid.
     Each element of the returned numpy object array is a memoryview object representing the serialized tile.

@@ -11,6 +11,7 @@ from hub.util.exceptions import (
     CheckoutError,
     CommitError,
     ReadOnlyModeError,
+    InfoError,
     TensorModifiedError,
 )
 
@@ -358,18 +359,16 @@ def test_auto_checkout(local_ds):
 
     local_ds.checkout(first)
     assert local_ds.branch == "main"
-    local_ds.info[5] = 5
-    assert local_ds.branch != "main"
 
-    local_ds.checkout(first)
+    with pytest.raises(InfoError):
+        local_ds.info[5] = 5
+
     assert local_ds.branch == "main"
-    local_ds.info.update(list=[1, 2, "apple"])
-    assert local_ds.branch != "main"
 
 
 def test_auto_commit(local_ds):
     initial_commit_id = local_ds.pending_commit_id
-    # auto commit as head of main branch
+    # auto commit as head of main branch and has changes (due to creation of dataset)
     local_ds.checkout("pqr", create=True)
     local_ds.checkout("main")
     second_commit_id = local_ds.pending_commit_id
@@ -377,7 +376,7 @@ def test_auto_commit(local_ds):
     assert local_ds.commit_id == initial_commit_id
     local_ds.create_tensor("abc")
     local_ds.abc.append(1)
-    # auto commit as head of main again
+    # auto commit as head of main and data present
     local_ds.checkout("xyz", create=True)
     local_ds.checkout("main")
 
@@ -389,7 +388,7 @@ def test_auto_commit(local_ds):
 
     third_commit_id = local_ds.pending_commit_id
 
-    # auto commit as head of main again
+    # auto commit as head of main and data present
     local_ds.checkout("tuv", create=True)
     local_ds.checkout("main")
 
@@ -537,6 +536,7 @@ def test_diff_linear(local_ds, capsys):
     a = local_ds.commit()
     with local_ds:
         local_ds.xyz[0] = 10
+        local_ds.xyz.info["hello"] = "world"
         local_ds.pqr[2] = 20
         local_ds.create_tensor("abc")
         local_ds.abc.extend([1, 2, 3])
@@ -547,7 +547,7 @@ def test_diff_linear(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {0},
             "created": False,
-            "info_updated": False,
+            "info_updated": True,
             "data_transformed_in_place": False,
         },
         "pqr": {
@@ -567,8 +567,10 @@ def test_diff_linear(local_ds, capsys):
     }
     message0 = NO_COMMIT_PASSED_DIFF
     message1 = "Diff in HEAD relative to the previous commit:\n"
+    # ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
     target = (
-        get_all_changes_string(message0, changes_b_from_a, message1, None, None) + "\n"
+        get_all_changes_string({}, {}, changes_b_from_a, None, message0, message1, None)
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -579,7 +581,8 @@ def test_diff_linear(local_ds, capsys):
     local_ds.diff()
     changes_empty = {}
     target = (
-        get_all_changes_string(message0, changes_empty, message1, None, None) + "\n"
+        get_all_changes_string({}, {}, changes_empty, None, message0, message1, None)
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -593,7 +596,7 @@ def test_diff_linear(local_ds, capsys):
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
-            message0, changes_b_from_a, message1, changes_empty, message2
+            {}, {}, changes_b_from_a, changes_empty, message0, message1, message2
         )
         + "\n"
     )
@@ -610,7 +613,7 @@ def test_diff_linear(local_ds, capsys):
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(
-            message0, changes_empty, message1, changes_empty, message2
+            {}, {}, changes_empty, changes_empty, message0, message1, message2
         )
         + "\n"
     )
@@ -628,7 +631,7 @@ def test_diff_linear(local_ds, capsys):
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_empty, message1, changes_b_from_a, message2
+            {}, {}, changes_empty, changes_b_from_a, message0, message1, message2
         )
         + "\n"
     )
@@ -646,7 +649,7 @@ def test_diff_linear(local_ds, capsys):
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_b_from_a, message1, changes_empty, message2
+            {}, {}, changes_b_from_a, changes_empty, message0, message1, message2
         )
         + "\n"
     )
@@ -662,7 +665,8 @@ def test_diff_linear(local_ds, capsys):
     message0 = NO_COMMIT_PASSED_DIFF
     message1 = f"Diff in {b} (current commit) relative to the previous commit:\n"
     target = (
-        get_all_changes_string(message0, changes_b_from_a, message1, None, None) + "\n"
+        get_all_changes_string({}, {}, changes_b_from_a, None, message0, message1, None)
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -676,7 +680,7 @@ def test_diff_linear(local_ds, capsys):
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
-            message0, changes_b_from_a, message1, changes_empty, message2
+            {}, {}, changes_b_from_a, changes_empty, message0, message1, message2
         )
         + "\n"
     )
@@ -739,7 +743,7 @@ def test_diff_branch(local_ds, capsys):
     message1 = "Diff in HEAD relative to the previous commit:\n"
     target = (
         get_all_changes_string(
-            message0, changes_main_from_branch_off, message1, None, None
+            {}, {}, changes_main_from_branch_off, None, message0, message1, None
         )
         + "\n"
     )
@@ -753,7 +757,8 @@ def test_diff_branch(local_ds, capsys):
     local_ds.diff()
     empty_changes = {}
     target = (
-        get_all_changes_string(message0, empty_changes, message1, None, None) + "\n"
+        get_all_changes_string({}, {}, empty_changes, None, message0, message1, None)
+        + "\n"
     )
     captured = capsys.readouterr()
     assert captured.out == target
@@ -767,7 +772,13 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {a} (target id):\n"
     target = (
         get_all_changes_string(
-            message0, changes_main_from_branch_off, message1, empty_changes, message2
+            {},
+            {},
+            changes_main_from_branch_off,
+            empty_changes,
+            message0,
+            message1,
+            message2,
         )
         + "\n"
     )
@@ -784,10 +795,12 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {b} (target id):\n"
     target = (
         get_all_changes_string(
-            message0,
+            {},
+            {},
             changes_main_from_branch_off,
-            message1,
             changes_b_from_branch_off,
+            message0,
+            message1,
             message2,
         )
         + "\n"
@@ -805,7 +818,7 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {c} (target id):\n"
     target = (
         get_all_changes_string(
-            message0, empty_changes, message1, empty_changes, message2
+            {}, {}, empty_changes, empty_changes, message0, message1, message2
         )
         + "\n"
     )
@@ -823,7 +836,13 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, empty_changes, message1, changes_b_from_branch_off, message2
+            {},
+            {},
+            empty_changes,
+            changes_b_from_branch_off,
+            message0,
+            message1,
+            message2,
         )
         + "\n"
     )
@@ -841,7 +860,13 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_b_from_branch_off, message1, empty_changes, message2
+            {},
+            {},
+            changes_b_from_branch_off,
+            empty_changes,
+            message0,
+            message1,
+            message2,
         )
         + "\n"
     )
@@ -859,10 +884,12 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0,
+            {},
+            {},
             changes_b_from_branch_off,
-            message1,
             changes_main_from_branch_off,
+            message0,
+            message1,
             message2,
         )
         + "\n"
@@ -877,10 +904,12 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {b} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0,
+            {},
+            {},
             changes_main_from_branch_off,
-            message1,
             changes_b_from_branch_off,
+            message0,
+            message1,
             message2,
         )
         + "\n"
@@ -899,7 +928,13 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {a} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_main_from_branch_off, message1, empty_changes, message2
+            {},
+            {},
+            changes_main_from_branch_off,
+            empty_changes,
+            message0,
+            message1,
+            message2,
         )
         + "\n"
     )
@@ -917,7 +952,13 @@ def test_diff_branch(local_ds, capsys):
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, empty_changes, message1, changes_main_from_branch_off, message2
+            {},
+            {},
+            empty_changes,
+            changes_main_from_branch_off,
+            message0,
+            message1,
+            message2,
         )
         + "\n"
     )
@@ -999,7 +1040,7 @@ def test_complex_diff(local_ds, capsys):
     message2 = f"Diff in {g} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_c_from_x, message1, changes_g_from_x, message2
+            {}, {}, changes_c_from_x, changes_g_from_x, message0, message1, message2
         )
         + "\n"
     )
@@ -1017,7 +1058,7 @@ def test_complex_diff(local_ds, capsys):
     message2 = f"Diff in {d} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, empty_changes, message1, empty_changes, message2
+            {}, {}, empty_changes, empty_changes, message0, message1, message2
         )
         + "\n"
     )
@@ -1035,7 +1076,7 @@ def test_complex_diff(local_ds, capsys):
     message2 = f"Diff in {e} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, empty_changes, message1, empty_changes, message2
+            {}, {}, empty_changes, empty_changes, message0, message1, message2
         )
         + "\n"
     )
@@ -1070,7 +1111,7 @@ def test_complex_diff(local_ds, capsys):
     message2 = "Diff in main (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_c_from_x, message1, changes_main_from_x, message2
+            {}, {}, changes_c_from_x, changes_main_from_x, message0, message1, message2
         )
         + "\n"
     )
@@ -1088,7 +1129,7 @@ def test_complex_diff(local_ds, capsys):
     message2 = f"Diff in {c} (target id 2):\n"
     target = (
         get_all_changes_string(
-            message0, changes_main_from_x, message1, changes_c_from_x, message2
+            {}, {}, changes_main_from_x, changes_c_from_x, message0, message1, message2
         )
         + "\n"
     )
@@ -1129,6 +1170,15 @@ def test_commits(local_ds):
     assert len(commits) == 1
     commit_details_helper(commits, local_ds)
     local_ds.checkout("alt", create=True)
+    commits = local_ds.commits
+    assert len(commits) == 1
+    commit_details_helper(commits, local_ds)
+    local_ds.checkout("main")
+    commits = local_ds.commits
+    assert len(commits) == 1
+    commit_details_helper(commits, local_ds)
+    local_ds.create_tensor("xyz")
+    local_ds.checkout("other", create=True)
     commits = local_ds.commits
     assert len(commits) == 2
     commit_details_helper(commits, local_ds)

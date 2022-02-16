@@ -1,7 +1,13 @@
 from hub.core.sample import Sample  # type: ignore
+from typing import Optional, Dict
 
 
-def read(path: str, verify: bool = False) -> Sample:
+def read(
+    path: str,
+    verify: bool = False,
+    creds: Optional[Dict] = None,
+    compression: Optional[str] = None,
+) -> Sample:
     """Utility that reads raw data from supported files into hub format. Recompresses data into format required by the tensor
     if permitted by the tensor htype. Simply copies the data in the file if file format matches sample_compression of the tensor,
     thus maximizing upload speeds.
@@ -37,10 +43,10 @@ def read(path: str, verify: bool = False) -> Sample:
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
+        creds (optional, Dict): Credentials for s3 and gcp for urls.
+        compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
-
-    sample = Sample(path, verify=verify)
-    return sample
+    return Sample(path, verify=verify, compression=compression, creds=creds)

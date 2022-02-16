@@ -6,14 +6,12 @@ from hub.core.compression import (
     decompress_bytes,
     decompress_multiple,
 )
-from hub.core.sample import Sample  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.serialize import bytes_to_text, check_sample_shape
 from hub.core.partial_sample import PartialSample
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
-from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
 from hub.core.serialize import infer_chunk_num_bytes
 import hub
@@ -279,3 +277,4 @@ class ChunkCompressedChunk(BaseChunk):
 
     def prepare_for_write(self):
         ffw_chunk(self)
+        self.is_dirty = True

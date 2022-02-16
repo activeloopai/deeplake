@@ -1,7 +1,7 @@
 """
 Supported compressions (formats):
 
-    Image : bmp, dib, gif, ico, jpeg, jp2, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
+    Image : bmp, dib, gif, ico, jpeg, jpeg2000, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
     Audio : flac, mp3, wav
     Video : mp4, mkv, avi
     Bytes : lz4
@@ -78,7 +78,7 @@ SUPPORTED_COMPRESSIONS = [
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
-COMPRESSION_ALIASES = {"jpg": "jpeg", "tif": "tiff"}
+COMPRESSION_ALIASES = {"jpg": "jpeg", "tif": "tiff", "jp2": "jpeg2000"}
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.

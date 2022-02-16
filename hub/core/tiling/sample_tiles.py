@@ -47,6 +47,21 @@ class SampleTiles:
         else:
             self.tile_shape = tile_shape
 
+<<<<<<< HEAD
+=======
+        self.tile_shape = get_tile_shape(
+            arr.shape, arr.nbytes * ratio, chunk_size, exclude_axis
+        )
+        tiles = break_into_tiles(arr, self.tile_shape)
+
+        self.tiles = serialize_tiles(
+            tiles, lambda x: compress_array(x, self.compression)
+        )
+        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
+
+        self.shapes_enumerator = np.ndenumerate(tile_shapes)
+        self.layout_shape = self.tiles.shape
+>>>>>>> 2ec75a14f04170eb3455b42af2fd7cd4f867b848
         self.registered = False
         self.tiles_yielded = 0
         if arr is not None:
