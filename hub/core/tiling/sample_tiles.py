@@ -28,7 +28,7 @@ class SampleTiles:
         ratio = get_compression_ratio(compression)
         if arr is None:
             self.sample_shape = sample_shape
-            nbytes = np.prod(sample_shape) * dtype
+            nbytes = np.prod(sample_shape) * dtype  # type: ignore
         else:
             self.sample_shape = arr.shape
             nbytes = arr.nbytes

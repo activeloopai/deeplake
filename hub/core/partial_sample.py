@@ -7,7 +7,7 @@ class PartialSample(object):
         self,
         sample_shape: Tuple[int, ...],
         tile_shape: Tuple[int, ...],
-        dtype: Union[str, np.dtype] = np.uint8,
+        dtype: Union[str, np.dtype] = np.dtype("uint8"),
     ):
         self.sample_shape = sample_shape
         self.tile_shape = tile_shape
