@@ -6,7 +6,7 @@ class PartialSample(object):
     def __init__(
         self,
         sample_shape: Tuple[int, ...],
-        tile_shape: Tuple[int, ...],
+        tile_shape: Optional[Tuple[int, ...]] = None,
         dtype: Union[str, np.dtype] = np.dtype("uint8"),
     ):
         self.sample_shape = sample_shape

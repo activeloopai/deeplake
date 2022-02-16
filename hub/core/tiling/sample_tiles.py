@@ -28,7 +28,7 @@ class SampleTiles:
         ratio = get_compression_ratio(compression)
         if arr is None:
             self.sample_shape = sample_shape
-            nbytes = np.prod(sample_shape) * dtype  # type: ignore
+            nbytes = np.prod(np.array(sample_shape, dtype=np.int64)) * np.dtype(dtype).itemsize  # type: ignore
         else:
             self.sample_shape = arr.shape
             nbytes = arr.nbytes
@@ -40,25 +40,11 @@ class SampleTiles:
                 and (not compression or compression in BYTE_COMPRESSIONS)
                 else -1
             )
-
             self.tile_shape = get_tile_shape(
                 self.sample_shape, nbytes * ratio, chunk_size, exclude_axis
             )
         else:
             self.tile_shape = tile_shape
-
-        self.tile_shape = get_tile_shape(
-            arr.shape, arr.nbytes * ratio, chunk_size, exclude_axis
-        )
-        tiles = break_into_tiles(arr, self.tile_shape)
-
-        self.tiles = serialize_tiles(
-            tiles, lambda x: compress_array(x, self.compression)
-        )
-        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
-
-        self.shapes_enumerator = np.ndenumerate(tile_shapes)
-        self.layout_shape = self.tiles.shape
         self.registered = False
         self.tiles_yielded = 0
         if arr is not None:
