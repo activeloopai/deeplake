@@ -154,21 +154,21 @@ def test_class_label(local_ds_generator):
     )
     assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
 
+
 def test_bbox(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("bboxes", htype="bbox", coords={"x":0})
+    ds.create_tensor("bboxes", htype="bbox", coords={"x": 0})
     ds.create_tensor("bboxes2", htype="bbox")
     assert len(ds.bboxes.info) == 1
     assert len(ds.bboxes2.info) == 1
-    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"x":0}
+    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"x": 0}
     assert ds.bboxes2.info.coords == ds.bboxes2.info["coords"] == {}
-    ds.bboxes.info.coords = {"x":1}
+    ds.bboxes.info.coords = {"x": 1}
     ds = local_ds_generator()
     assert len(ds.bboxes.info) == 1
     assert len(ds.bboxes2.info) == 1
-    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"x":1}
+    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"x": 1}
     assert ds.bboxes2.info.coords == ds.bboxes2.info["coords"] == {}
-
 
 
 def test_info_new_methods(local_ds_generator):
