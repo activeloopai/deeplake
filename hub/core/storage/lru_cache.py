@@ -100,6 +100,7 @@ class LRUCache(StorageProvider):
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
             ValueError: If the type of the data at `path` is invalid.
+            ValueError: If url is True but `expected_class` is not a subclass of BaseChunk.
 
         Returns:
             An instance of `expected_class` populated with the data.
@@ -113,7 +114,7 @@ class LRUCache(StorageProvider):
                 obj = expected_class.frombuffer(item, meta, url=True)
                 return obj
             else:
-                raise Exception(
+                raise ValueError(
                     "Expected class should be subclass of BaseChunk when url is True."
                 )
         else:

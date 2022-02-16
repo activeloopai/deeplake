@@ -31,7 +31,7 @@ from hub.core.storage.s3 import S3Provider
 try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
-    GCSProvider = None
+    GCSProvider = None  # type: ignore
 
 
 class Sample:
@@ -39,7 +39,7 @@ class Sample:
 
     def __init__(
         self,
-        path: str = None,
+        path: Optional[str] = None,
         array: np.ndarray = None,
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
@@ -198,7 +198,7 @@ class Sample:
                     self._compression = get_compression(header=compressed_bytes[:32])
                 if self._compression == compression:
                     if self._verify:
-                        self._shape, self._typestr = verify_compressed_file(
+                        self._shape, self._typestr = verify_compressed_file(  # type: ignore
                             compressed_bytes, self._compression
                         )
                     else:
@@ -252,7 +252,7 @@ class Sample:
                 self._uncompressed_bytes = self._array.tobytes()
                 self._typestr = self._array.__array_interface__["typestr"]
             else:
-                self._uncompressed_bytes = self._array.tobytes()
+                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
 
         return self._uncompressed_bytes
 
@@ -312,7 +312,7 @@ class Sample:
             return self.path == other.path
         return self.buffer == other.buffer
 
-    def _read_from_path(self) -> bytes:
+    def _read_from_path(self) -> bytes:  # type: ignore
         path_type = get_path_type(self.path)
         if path_type == "local":
             return self._read_from_local()
@@ -324,7 +324,7 @@ class Sample:
             return self._read_from_http()
 
     def _read_from_local(self) -> bytes:
-        with open(self.path, "rb") as f:
+        with open(self.path, "rb") as f:  # type: ignore
             return f.read()
 
     def _get_root_and_key(self, path):
@@ -336,7 +336,7 @@ class Sample:
         return root, key
 
     def _read_from_s3(self) -> bytes:
-        path = self.path.replace("s3://", "")
+        path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         s3 = S3Provider(root, **self._creds)
         return s3[key]
@@ -346,13 +346,13 @@ class Sample:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
-        path = self.path.replace("gcp://", "").replace("gcs://", "")
+        path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 
     def _read_from_http(self) -> bytes:
-        return urlopen(self.path).read()
+        return urlopen(self.path).read()  # type: ignore
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

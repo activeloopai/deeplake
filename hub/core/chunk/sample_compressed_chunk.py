@@ -40,7 +40,7 @@ class SampleCompressedChunk(BaseChunk):
                     if serialized_sample:
                         buffer = serialized_sample
                         sample = Sample(
-                            buffer=buffer, compression=compr, shape=shape, dtype=dtype
+                            buffer=buffer, compression=compr, shape=shape, dtype=dtype  # type: ignore
                         )
                         incoming_samples[i] = sample
                     break

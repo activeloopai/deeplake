@@ -435,18 +435,18 @@ def serialize_sample_object(
             and len(compressed_bytes) > min_chunk_size
             and break_into_tiles
         ):
-            out = SampleTiles(
+            out = SampleTiles(  # type: ignore
                 out.array, tile_compression, min_chunk_size, store_tiles, htype
             )
         else:
-            out = compressed_bytes
+            out = compressed_bytes  # type: ignore
     else:
         out = intelligent_cast(out.array, dtype, htype)
 
-        if out.nbytes > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)
+        if out.nbytes > min_chunk_size and break_into_tiles:  # type: ignore
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
-            out = out.tobytes()
+            out = out.tobytes()  # type: ignore
     return out, shape
 
 
