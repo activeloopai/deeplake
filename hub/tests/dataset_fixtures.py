@@ -55,10 +55,16 @@ def s3_ds(s3_ds_generator):
 
 @pytest.fixture
 def s3_ds_generator(s3_path):
-    def generate_s3_ds(**kwargs):
-        return hub.dataset(s3_path, **kwargs)
+    rets = []
 
-    return generate_s3_ds
+    def generate_s3_ds(**kwargs):
+        ret = hub.dataset(s3_path, **kwargs)
+        rets.append(ret)
+        return ret
+
+    yield generate_s3_ds
+    for ret in rets:
+        ret.__del__()
 
 
 @pytest.fixture
@@ -68,10 +74,16 @@ def gcs_ds(gcs_ds_generator):
 
 @pytest.fixture
 def gcs_ds_generator(gcs_path, gcs_creds):
-    def generate_gcs_ds(**kwargs):
-        return hub.dataset(gcs_path, creds=gcs_creds, **kwargs)
+    rets = []
 
-    return generate_gcs_ds
+    def generate_gcs_ds(**kwargs):
+        ret = hub.dataset(gcs_path, creds=gcs_creds, **kwargs)
+        rets.append(ret)
+        return ret
+
+    yield generate_gcs_ds
+    for ret in rets:
+        ret.__del__()
 
 
 @pytest.fixture
