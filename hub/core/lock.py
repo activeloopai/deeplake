@@ -154,7 +154,7 @@ class PersistentLock(Lock):
 
 
 _LOCKS: Dict[str, Lock] = {}
-_REFS: Dict[str, Set[str]] = defaultdict(set)
+_REFS: Dict[str, Set[int]] = defaultdict(set)
 
 
 def _get_lock_key(storage_path: str, commit_id: str):
