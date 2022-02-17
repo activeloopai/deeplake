@@ -20,7 +20,7 @@ from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, verify_htype_key_value
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
@@ -326,6 +326,7 @@ class Dataset:
         meta_kwargs = {}
         for k, v in kwargs.items():
             if k in info_keys:
+                verify_htype_key_value(htype, k, v)
                 info_kwargs[k] = v
             else:
                 meta_kwargs[k] = v
