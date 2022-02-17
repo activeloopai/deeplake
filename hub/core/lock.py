@@ -33,10 +33,11 @@ class Lock(object):
         self.path = path
 
     def acquire(self, timeout=10, force=False):
-        if self.path not in self.storage:
+        try:
+            nodeid, timestamp = _parse_lock_bytes(self.storage[self.path])
+        except KeyError:
             self.storage[self.path] = _get_lock_bytes()
             return
-        nodeid, timestamp = _parse_lock_bytes(self.storage[self.path])
         if nodeid == uuid.getnode():
             self.storage[self.path] = _get_lock_bytes()
             return
