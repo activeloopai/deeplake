@@ -450,7 +450,8 @@ class ChunkEngine:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
 
-    def get_url_or_chunk(self, chunk_id, copy: bool = False):
+    def get_video_chunk(self, chunk_id, copy: bool = False):
+        """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
@@ -815,12 +816,11 @@ class ChunkEngine:
                         global_sample_index
                     )
                     if self.compression in VIDEO_COMPRESSIONS:
-                        chunk, stream = self.get_url_or_chunk(chunk_ids[0])
+                        chunk, stream = self.get_video_chunk(chunk_ids[0])
+                        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
                         sample = chunk.read_sample(
                             local_sample_index,
-                            sub_index=index.values[1].value  # type: ignore
-                            if len(index.values) > 1
-                            else None,
+                            sub_index=sub_index,
                             stream=stream,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
@@ -915,7 +915,7 @@ class ChunkEngine:
         """
         if self.compression in VIDEO_COMPRESSIONS:
             return [
-                self.get_url_or_chunk(idx, copy)[0]
+                self.get_video_chunk(idx, copy)[0]
                 for idx in self.chunk_id_encoder[global_sample_index]
             ]
         return [

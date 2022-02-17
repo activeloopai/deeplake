@@ -65,7 +65,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     "vstream_path", ["gcs_vstream_path", "s3_vstream_path"], indirect=True
 )
 def test_video_streaming(vstream_path):
-    ds = hub.load(vstream_path)
+    ds = hub.load(vstream_path, read_only=True)
 
     # no streaming, downloads chunk
     assert ds.mp4_videos[0].shape == (400, 360, 640, 3)
