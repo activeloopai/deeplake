@@ -3,6 +3,7 @@ from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
+import hub
 from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
@@ -270,7 +271,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         try:
-            storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
+            hub.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
         except Exception:
             # TODO: investigate flakey `BadRequestException:
             # Invalid Request. One or more request parameters is incorrect.`
