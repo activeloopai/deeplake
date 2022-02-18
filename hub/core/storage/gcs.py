@@ -352,7 +352,7 @@ class GCSProvider(StorageProvider):
                 url = client.get_presigned_url(org_id, ds_name, path)
             else:
                 blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-                url = blob.generate_signed_url(datetime.timedelta(seconds=expiration))
+                url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
             self._presigned_urls[key] = (url, time.time())
         return url
 
