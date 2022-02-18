@@ -97,7 +97,7 @@ def verify_htype_key_value(htype, key, value):
         if expected_type and not isinstance(value, expected_type):
             raise TypeError(f"{key} must be of type {expected_type}, not {type(value)}")
         if expected_type == dict:
-            expected_keys = set(htype_verifications[key].get("keys", []))
+            expected_keys = set(htype_verifications[key].get("keys"))
             present_keys = set(value.keys())
             if expected_keys and not present_keys.issubset(expected_keys):
                 raise KeyError(f"{key} must have keys belong to {expected_keys}")
