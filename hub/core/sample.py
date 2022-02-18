@@ -90,7 +90,7 @@ class Sample:
 
         if array is not None:
             self._array = array
-            self._shape = array.shape
+            self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
             self._compression = None
 
@@ -273,7 +273,7 @@ class Sample:
                     compressed, compression=compr, shape=self.shape
                 )
                 if self._shape is None:
-                    self._shape = array.shape
+                    self._shape = array.shape  # type: ignore
                     self._typestr = array.__array_interface__["typestr"]
                 self._array = array
             else:

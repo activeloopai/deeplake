@@ -213,7 +213,7 @@ class BaseChunk(HubMemoryObject):
                 incoming_sample, sample_compression, dt, ht
             )
         elif isinstance(incoming_sample, Sample):
-            incoming_sample, shape = serialize_sample_object(
+            incoming_sample, shape = serialize_sample_object(  # type: ignore
                 incoming_sample,
                 sample_compression,
                 chunk_compression,
@@ -254,7 +254,7 @@ class BaseChunk(HubMemoryObject):
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         shape = self.normalize_shape(shape)
-        return incoming_sample, shape
+        return incoming_sample, shape  # type: ignore
 
     def convert_to_rgb(self, shape):
         if self.is_convert_candidate and CONVERT_GRAYSCALE:

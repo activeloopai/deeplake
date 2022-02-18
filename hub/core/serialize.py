@@ -342,7 +342,7 @@ def serialize_text(
     """Converts the sample into bytes"""
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
-        incoming_sample = compress_bytes(incoming_sample, sample_compression)
+        incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
     return incoming_sample, shape
 
 
@@ -414,7 +414,7 @@ def serialize_sample_object(
         else:
             out = compressed_bytes  # type: ignore
     else:
-        out = intelligent_cast(out.array, dtype, htype)
+        out = intelligent_cast(out.array, dtype, htype)  # type: ignore
 
         if out.nbytes > min_chunk_size and break_into_tiles:  # type: ignore
             out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
