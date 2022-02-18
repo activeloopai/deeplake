@@ -209,8 +209,8 @@ class BaseChunk(HubMemoryObject):
         """Converts the sample into bytes"""
         dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
         if self.is_text_like:
-            incoming_sample, shape = serialize_text(  # type: ignore
-                incoming_sample, sample_compression, dt, ht
+            incoming_sample, shape = serialize_text(
+                incoming_sample, sample_compression, dt, ht  # type: ignore
             )
         elif isinstance(incoming_sample, Sample):
             incoming_sample, shape = serialize_sample_object(  # type: ignore
