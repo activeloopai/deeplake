@@ -12,6 +12,7 @@ class StorageProvider(ABC, MutableMapping):
     autoflush = False
     read_only = False
     root = ""
+    _is_hub_path = False
 
     """An abstract base class for implementing a storage provider.
 

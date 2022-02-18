@@ -4,6 +4,7 @@ import pickle
 import json
 import os
 import tempfile
+import time
 from typing import Dict, Union
 
 try:
@@ -23,6 +24,7 @@ except ImportError:
 
 
 from hub.core.storage.provider import StorageProvider
+from hub.client.client import HubBackendClient
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
 
@@ -229,6 +231,7 @@ class GCSProvider(StorageProvider):
             NotFound,
         )
         self._initialize_provider()
+        self._presigned_urls: Dict[str, float] = {}
 
     def subdir(self, path: str):
         return self.__class__(
@@ -332,9 +335,25 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self._initialize_provider()
 
-    def create_presigned_url(self, key, expiration=3600):
-        blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-        url = blob.generate_signed_url(datetime.timedelta(seconds=expiration))
+    def get_presigned_url(self, key):
+        url = None
+        cached = self._presigned_urls.get(key)
+        if cached:
+            url, t_store = cached
+            t_now = time.time()
+            if t_now - t_store > 3200:
+                del self._presigned_urls[key]
+                url = None
+
+        if url is None:
+            if self._is_hub_path:
+                client = HubBackendClient(self.token)
+                org_id, ds_name = self.tag.split("/")
+                url = client.get_presigned_url(org_id, ds_name, path)
+            else:
+                blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+                url = blob.generate_signed_url(datetime.timedelta(seconds=expiration))
+            self._presigned_urls[key] = (url, time.time())
         return url
 
     def get_object_size(self, key):
