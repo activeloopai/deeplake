@@ -58,7 +58,7 @@ def s3_ds_generator(s3_path):
     def generate_s3_ds(**kwargs):
         return hub.dataset(s3_path, **kwargs)
 
-    yield generate_s3_ds
+    return generate_s3_ds
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def gcs_ds_generator(gcs_path, gcs_creds):
     def generate_gcs_ds(**kwargs):
         return hub.dataset(gcs_path, creds=gcs_creds, **kwargs)
 
-    yield generate_gcs_ds
+    return generate_gcs_ds
 
 
 @pytest.fixture

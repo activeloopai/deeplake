@@ -6,7 +6,6 @@ import uuid
 import time
 import warnings
 from hub.tests.dataset_fixtures import enabled_cloud_dataset_generators
-from hub.core.storage import MemoryProvider
 
 
 _counter = 0
@@ -92,33 +91,28 @@ def test_lock_thread_leaking(s3_ds_generator):
         assert len(locks) == len(refs)
         return len(locks) - nlocks_previous
 
-    lockables = hub.core.dataset.dataset._LOCKABLE_STORAGES
-    lockables.add(MemoryProvider)
-    try:
-        ds = s3_ds_generator()
-        ds.create_tensor("a")
-        assert nlocks() == 1
+    ds = s3_ds_generator()
+    ds.create_tensor("a")
+    assert nlocks() == 1
 
-        ds.__del__()  # Note: investigate why this doesnt happen automatically. (cyclic refs?)
-        del ds
-        assert nlocks() == 0
+    ds.__del__()  # Note: investigate why this doesnt happen automatically. (cyclic refs?)
+    del ds
+    assert nlocks() == 0
 
-        ds = s3_ds_generator()
-        ds.create_tensor("x")
-        ds.x.extend(np.random.random((2, 32)))
-        views = []
-        for i in range(32):
-            views.append(ds[i : i + 1])
+    ds = s3_ds_generator()
+    ds.create_tensor("x")
+    ds.x.extend(np.random.random((2, 32)))
+    views = []
+    for i in range(32):
+        views.append(ds[i : i + 1])
 
-        ds.__del__()
-        del ds
+    ds.__del__()
+    del ds
 
-        assert nlocks() == 1  # 1 because views
+    assert nlocks() == 1  # 1 because views
 
-        views.pop()
-        assert nlocks() == 1  # deleting 1 view doesn't release locks
+    views.pop()
+    assert nlocks() == 1  # deleting 1 view doesn't release locks
 
-        del views
-        assert nlocks() == 0  # 0 because dataset and all views deleted
-    finally:
-        lockables.remove(MemoryProvider)
+    del views
+    assert nlocks() == 0  # 0 because dataset and all views deleted
