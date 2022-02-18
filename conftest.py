@@ -1,5 +1,4 @@
-from hub.core.lock import _LOCKS
-from hub.core.lock import _REFS
+from hub.core.lock import _LOCKS, _REFS
 import os
 import logging
 
