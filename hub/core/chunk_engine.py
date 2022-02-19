@@ -765,7 +765,13 @@ class ChunkEngine:
         self, global_sample_index: int, url: bool = False
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        chunks = self.get_chunks_for_sample(global_sample_index)
+        if self.compression in VIDEO_COMPRESSIONS:
+            chunks = [
+                self.get_video_chunk(idx, copy)[0]
+                for idx in self.chunk_id_encoder[global_sample_index]
+            ]
+        else:
+            chunks = self.get_chunks_for_sample(global_sample_index)
         if len(chunks) == 1:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
@@ -913,11 +919,6 @@ class ChunkEngine:
         Returns:
             List[BaseChunk]: BaseChunk objects that contains `global_sample_index`.
         """
-        if self.compression in VIDEO_COMPRESSIONS:
-            return [
-                self.get_video_chunk(idx, copy)[0]
-                for idx in self.chunk_id_encoder[global_sample_index]
-            ]
         return [
             self.get_chunk_from_chunk_id(idx, copy)
             for idx in self.chunk_id_encoder[global_sample_index]
