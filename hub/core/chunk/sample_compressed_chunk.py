@@ -71,41 +71,66 @@ class SampleCompressedChunk(BaseChunk):
             else:
                 buffer = buffer[sb:eb]
         shape = self.shapes_encoder[local_index]
+        nframes = shape[0]
         if self.is_text_like:
             buffer = decompress_bytes(buffer, compression=self.compression)
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
 
-        if sub_index is not None:
-            if isinstance(sub_index, int):
+        squeeze = False
+        reverse = False
+        if sub_index is None:
+            start = 0
+            stop = nframes
+            step = 1
+        elif isinstance(sub_index, int):
+            if sub_index >= 0:
                 start = sub_index
-                if sub_index >= 0:
-                    end = start + 1
-                else:
-                    end = None
-                squeeze = True
+            else:
+                start = nframes + sub_index
+            stop = start + 1
+            step = 1
+            squeeze = True
+        elif isinstance(sub_index, slice):
+            step = sub_index.step
+            if step is None:
                 step = 1
-                reverse = False
-            elif isinstance(sub_index, slice):
-                start = sub_index.start
-                end = sub_index.stop
-                step = sub_index.step
-                squeeze = False
-                reverse = step is not None and step < 0
-            sample = decompress_array(
-                buffer,
-                shape,
-                self.dtype,
-                self.compression,
-                start_idx=start,
-                end_idx=end,
-                step=abs(step) if step is not None else 1,
-                reverse=reverse,
-            )
-            if squeeze:
-                sample = sample.squeeze(0)
-        else:
-            sample = decompress_array(buffer, shape, self.dtype, self.compression)
+            elif step < 0:
+                step = abs(step)
+                reverse = True
+
+            start = sub_index.start
+            if start is None:
+                start = 0 if not reverse else nframes
+            elif start < 0:
+                start = nframes + start
+
+            stop = sub_index.stop
+            if stop is None:
+                stop = nframes if not reverse else -1
+            elif stop < 0:
+                stop = nframes + stop
+
+            if reverse:
+                start, stop = stop + 1, start + 1
+
+        if start > nframes:
+            raise IndexError("Start index out of bounds.")
+
+        sample = decompress_array(
+            buffer,
+            shape,
+            self.dtype,
+            self.compression,
+            start_idx=start,
+            end_idx=stop,
+            step=step,
+            reverse=reverse,
+        )
+
+        if squeeze:
+            sample = sample.squeeze(0)
+
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
         return sample

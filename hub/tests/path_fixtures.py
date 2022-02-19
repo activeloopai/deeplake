@@ -280,12 +280,14 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def hub_cloud_vstream_path(request):
+def hub_cloud_vstream_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
         return
 
     path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+    storage_provider_from_hub_path(path, token=hub_cloud_dev_token)
+
     yield path
 
 

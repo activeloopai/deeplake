@@ -767,7 +767,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         if self.compression in VIDEO_COMPRESSIONS:
             chunks = [
-                self.get_video_chunk(idx, copy)[0]
+                self.get_video_chunk(idx)[0]
                 for idx in self.chunk_id_encoder[global_sample_index]
             ]
         else:

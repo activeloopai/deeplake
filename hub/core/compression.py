@@ -808,30 +808,6 @@ def _read_shape_from_vstream(container, vstream):
     return (nframes, height, width)
 
 
-def _norm_video_frame_indices(
-    start_frame: Optional[int], end_frame: Optional[int], reverse: bool, n_frames: int
-) -> Tuple[int, int]:
-    if start_frame is None:
-        if reverse:
-            start_frame = n_frames - 1
-        else:
-            start_frame = 0
-    elif start_frame < 0:
-        start_frame += n_frames
-    if end_frame is None:
-        if reverse:
-            end_frame = -1
-        else:
-            end_frame = n_frames
-    elif end_frame < 0:
-        end_frame += n_frames
-    if reverse:
-        start_frame, end_frame = end_frame + 1, start_frame + 1
-    if start_frame > n_frames:
-        raise IndexError("Start index out of bounds.")
-    return start_frame, end_frame
-
-
 def _read_video_shape(
     file: Union[str, bytes, memoryview],
 ):
@@ -842,10 +818,10 @@ def _read_video_shape(
 
 def _decompress_video(
     file: Union[str, bytes],
-    start: Optional[int] = None,
-    stop: Optional[int] = None,
-    step: Optional[int] = None,
-    reverse: bool = False,
+    start: int,
+    stop: int,
+    step: int,
+    reverse: bool,
 ):
     if not _PYAV_INSTALLED:
         raise ModuleNotFoundError(
@@ -854,9 +830,6 @@ def _decompress_video(
     container, vstream = _open_video(file)
 
     nframes, height, width = _read_shape_from_vstream(container, vstream)
-    start, stop = _norm_video_frame_indices(start, stop, reverse, nframes)
-    if step is None:
-        step = 1
 
     nframes = math.ceil((stop - start) / step)
 
