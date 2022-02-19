@@ -349,7 +349,7 @@ class GCSProvider(StorageProvider):
             if self._is_hub_path:
                 client = HubBackendClient(self.token)
                 org_id, ds_name = self.tag.split("/")
-                url = client.get_presigned_url(org_id, ds_name, path)
+                url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 blob = self.client_bucket.get_blob(self._get_path_from_key(key))
                 url = blob.generate_signed_url(datetime.timedelta(seconds=3600))

@@ -62,7 +62,9 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 @pytest.mark.parametrize(
-    "vstream_path", ["gcs_vstream_path", "s3_vstream_path"], indirect=True
+    "vstream_path",
+    ["gcs_vstream_path", "s3_vstream_path", "hub_cloud_vstream_path"],
+    indirect=True,
 )
 def test_video_streaming(vstream_path):
     ds = hub.load(vstream_path, read_only=True)
