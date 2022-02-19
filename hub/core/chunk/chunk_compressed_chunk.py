@@ -102,7 +102,7 @@ class ChunkCompressedChunk(BaseChunk):
                     self._changed = True
                 break
             if (
-                num_decompressed_bytes + incoming_sample.nbytes
+                num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
                 compressed_bytes = compress_multiple(
                     self.decompressed_samples + [incoming_sample],  # type: ignore
@@ -114,7 +114,7 @@ class ChunkCompressedChunk(BaseChunk):
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
-            shape = incoming_sample.shape
+            shape = incoming_sample.shape  # type: ignore
             shape = self.normalize_shape(shape)
 
             self.num_dims = self.num_dims or len(shape)

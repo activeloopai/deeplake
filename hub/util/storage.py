@@ -15,6 +15,7 @@ def storage_provider_from_path(
     creds: Optional[dict],
     read_only: bool = False,
     token: Optional[str] = None,
+    is_hub_path: bool = False,
 ):
     """Construct a StorageProvider given a path.
 
@@ -23,7 +24,8 @@ def storage_provider_from_path(
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
-        token (str): token for authentication into activeloop
+        token (str): token for authentication into activeloop.
+        is_hub_path (bool): whether the path points to a hub dataset.
 
     Returns:
         If given a path starting with s3://  returns the S3Provider.
@@ -65,6 +67,8 @@ def storage_provider_from_path(
             storage = LocalProvider(path)
         else:
             raise ValueError(f"Local path {path} must be a path to a local directory")
+    if not storage._is_hub_path:
+        storage._is_hub_path = is_hub_path
 
     if read_only:
         storage.enable_readonly()
@@ -89,7 +93,9 @@ def storage_provider_from_hub_path(
 
     url = posixpath.join(url, subdir)
 
-    storage = storage_provider_from_path(path=url, creds=creds, read_only=read_only)
+    storage = storage_provider_from_path(
+        path=url, creds=creds, read_only=read_only, is_hub_path=True
+    )
     storage._set_hub_creds_info(path, expiration)
     return storage
 

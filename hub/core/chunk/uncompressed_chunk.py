@@ -51,7 +51,7 @@ class UncompressedChunk(BaseChunk):
             check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
-                incoming_samples[i] = serialized_sample
+                incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
                     self.write_tile(serialized_sample)
                     num_samples += 0.5

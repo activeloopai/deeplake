@@ -11,6 +11,7 @@ from hub.constants import (
     LOCAL_OPT,
     MEMORY_OPT,
     PYTEST_GCS_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
     PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
@@ -215,6 +216,16 @@ def s3_path(request):
         S3Provider(path).clear()
 
 
+@pytest.fixture
+def s3_vstream_path(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
 @pytest.fixture(scope="session")
 def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
@@ -237,6 +248,16 @@ def gcs_path(request, gcs_creds):
 
 
 @pytest.fixture
+def gcs_vstream_path(request):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
+@pytest.fixture
 def hub_cloud_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
@@ -256,6 +277,17 @@ def hub_cloud_path(request, hub_cloud_dev_token):
             # Invalid Request. One or more request parameters is incorrect.`
             # (on windows 3.8 only)
             pass
+
+
+@pytest.fixture
+def hub_cloud_vstream_path(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+
+    yield path
 
 
 @pytest.fixture
@@ -367,3 +399,9 @@ def video_paths():
     paths["mp4"] += _download_hub_test_videos()
 
     return paths
+
+
+@pytest.fixture
+def vstream_path(request):
+    """Used with parametrize to use all video stream test datasets."""
+    return request.getfixturevalue(request.param)

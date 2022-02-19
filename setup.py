@@ -1,7 +1,5 @@
 import os
 import re
-import platform
-import subprocess as sp
 
 from setuptools import find_packages, setup
 
@@ -32,6 +30,7 @@ req_map = {
 extras = {
     "audio": ["miniaudio"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+    "video": ["av"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
@@ -51,17 +50,6 @@ def get_property(prop):
     return result.group(1)
 
 
-def check_ffmpeg():
-    ffmpeg_available = True
-    print("Checking for FFmpeg")
-    try:
-        print(sp.check_output(["which", "ffmpeg"]))
-    except Exception:
-        print("Could not find FFmpeg.")
-        ffmpeg_available = False
-    return ffmpeg_available
-
-
 config = {
     "name": project_name,
     "version": get_property("__version__"),
@@ -74,29 +62,13 @@ config = {
     "install_requires": requirements,
     "tests_require": tests,
     "include_package_data": True,
-    "package_data": {
-        "pyffmpeg": [
-            "*.c",
-            "*.h",
-            "libavcodec/*.h",
-            "libavformat/*.h",
-            "libavutil/*.h",
-            "libswscale/*.h",
-        ]
-    },
     "zip_safe": False,
     "entry_points": {"console_scripts": ["activeloop = hub.cli.commands:cli"]},
-    "setup_requires": ["cffi>=1.0.0"],
     "dependency_links": [],
     "project_urls": {
         "Documentation": "https://docs.activeloop.ai/",
         "Source": "https://github.com/activeloopai/Hub",
     },
 }
-
-
-if platform.system() == "Darwin":
-    if check_ffmpeg():
-        config["cffi_modules"] = ["hub/core/pyffmpeg/build_ffmpeg_ffi.py:ffibuilder"]
 
 setup(**config)

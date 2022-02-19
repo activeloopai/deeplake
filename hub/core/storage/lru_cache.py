@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
@@ -84,7 +85,9 @@ class LRUCache(StorageProvider):
 
         self.autoflush = initial_autoflush
 
-    def get_hub_object(self, path: str, expected_class, meta: Optional[Dict] = None):
+    def get_hub_object(
+        self, path: str, expected_class, meta: Optional[Dict] = None, url=False
+    ):
         """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
@@ -92,16 +95,30 @@ class LRUCache(StorageProvider):
             path (str): Path to the stored object.
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
+            url (bool): Get presigned url instead of downloading chunk (only for videos)
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
             ValueError: If the type of the data at `path` is invalid.
+            ValueError: If url is True but `expected_class` is not a subclass of BaseChunk.
 
         Returns:
             An instance of `expected_class` populated with the data.
         """
 
-        item = self[path]
+        if url:
+            from hub.util.remove_cache import get_base_storage
+
+            item = get_base_storage(self).get_presigned_url(path).encode("utf-8")
+            if issubclass(expected_class, BaseChunk):
+                obj = expected_class.frombuffer(item, meta, url=True)
+                return obj
+            else:
+                raise ValueError(
+                    "Expected class should be subclass of BaseChunk when url is True."
+                )
+        else:
+            item = self[path]
 
         if isinstance(item, HubMemoryObject):
             if type(item) != expected_class:

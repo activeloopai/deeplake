@@ -44,13 +44,13 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"
-    types = set((map(type, val)))
+    types = set((map(type, val)))  # type: ignore
     if dict in types:
         return "json"
     if types == set((str,)):
         return "text"
     if np.object in [  # type: ignore
-        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val
+        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val  # type: ignore
     ]:
         return "json"
     return "generic"
