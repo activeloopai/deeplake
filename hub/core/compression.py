@@ -897,4 +897,6 @@ def _decompress_video(
         if i == nframes:
             break
 
+    if reverse:
+        return video[::-1]
     return video
