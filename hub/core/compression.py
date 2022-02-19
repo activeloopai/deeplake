@@ -293,7 +293,7 @@ def decompress_array(
     elif compr_type == AUDIO_COMPRESSION:
         return _decompress_audio(buffer, compression)
     elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, start_idx, end_idx, step, reverse)
+        return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
