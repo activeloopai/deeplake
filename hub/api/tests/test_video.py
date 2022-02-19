@@ -77,3 +77,5 @@ def test_video_streaming(vstream_path):
     # streaming
     assert ds.large_video[0].shape == (21312, 546, 1280, 3)
     assert ds.large_video[0, 13500].numpy().shape == (546, 1280, 3)
+    # will use cached url
+    assert ds.large_video[0, 18000].numpy().shape == (546, 1280, 3)
