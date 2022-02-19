@@ -7,6 +7,7 @@ import time
 import warnings
 from hub.tests.dataset_fixtures import enabled_cloud_dataset_generators
 
+
 _counter = 0
 
 
@@ -79,3 +80,39 @@ def test_vc_locking(ds_generator):
             ds = ds_generator()
         np.testing.assert_array_equal(arr, ds.x[0].numpy())
         assert not ws, str(ws[0])
+
+
+def test_lock_thread_leaking(s3_ds_generator):
+    locks = hub.core.lock._LOCKS
+    refs = hub.core.lock._REFS
+    nlocks_previous = len(locks)
+
+    def nlocks():
+        assert len(locks) == len(refs)
+        return len(locks) - nlocks_previous
+
+    ds = s3_ds_generator()
+    ds.create_tensor("a")
+    assert nlocks() == 1
+
+    ds.__del__()  # Note: investigate why this doesnt happen automatically. (cyclic refs?)
+    del ds
+    assert nlocks() == 0
+
+    ds = s3_ds_generator()
+    ds.create_tensor("x")
+    ds.x.extend(np.random.random((2, 32)))
+    views = []
+    for i in range(32):
+        views.append(ds[i : i + 1])
+
+    ds.__del__()
+    del ds
+
+    assert nlocks() == 1  # 1 because views
+
+    views.pop()
+    assert nlocks() == 1  # deleting 1 view doesn't release locks
+
+    del views
+    assert nlocks() == 0  # 0 because dataset and all views deleted
