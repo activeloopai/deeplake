@@ -13,14 +13,20 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock_version, unlock_version, Lock
+from hub.core.lock import lock_dataset, unlock_dataset, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider, GCSProvider, MemoryProvider
+from hub.core.storage import (
+    LRUCache,
+    S3Provider,
+    GCSProvider,
+    MemoryProvider,
+    LocalProvider,
+)
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, verify_htype_key_value
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
@@ -66,6 +72,9 @@ from hub.util.version_control import (
     load_version_info,
 )
 from hub.client.utils import get_user_name
+
+
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
 class Dataset:
@@ -116,7 +125,7 @@ class Dataset:
         d["_read_only"] = read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
-        d["is_first_load"] = is_first_load = version_state is None
+        d["is_first_load"] = version_state is None
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
@@ -326,6 +335,7 @@ class Dataset:
         meta_kwargs = {}
         for k, v in kwargs.items():
             if k in info_keys:
+                verify_htype_key_value(htype, k, v)
                 info_kwargs[k] = v
             else:
                 meta_kwargs[k] = v
@@ -530,18 +540,15 @@ class Dataset:
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
 
-        if (
-            isinstance(storage, (S3Provider, GCSProvider))
-            and self.is_first_load
-            and (not self.read_only or self._locked_out)
+        if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
+            not self.read_only or self._locked_out
         ):
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
-                lock_version(
-                    storage,
-                    version=self.version_state["commit_id"],
-                    callback=self._lock_lost_handler,
+                lock_dataset(
+                    self,
+                    lock_lost_callback=self._lock_lost_handler,
                 )
             except LockedException as e:
                 self.read_only = True
@@ -555,7 +562,10 @@ class Dataset:
         return True
 
     def _unlock(self):
-        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+        unlock_dataset(self)
+
+    def __del__(self):
+        self._unlock()
 
     def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -933,6 +943,8 @@ class Dataset:
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
+        elif not self._read_only:
+            self._lock()  # for ref counting
         if not self.is_iteration:
             self.index.validate(self.num_samples)
 

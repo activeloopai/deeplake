@@ -1,3 +1,4 @@
+from hub.core.lock import _LOCKS, _REFS
 import os
 import logging
 
@@ -17,6 +18,7 @@ from hub.tests.dataset_fixtures import *
 from hub.tests.storage_fixtures import *
 from hub.tests.cache_fixtures import *
 from hub.tests.client_fixtures import *
+import pytest
 
 
 def pytest_addoption(parser):
@@ -60,3 +62,13 @@ def print_session_id():
 
 
 print_session_id()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def gc_lock_threads():
+    start_keys = set(_LOCKS.keys())
+    yield
+    end_keys = set(_LOCKS.keys())
+    for k in end_keys - start_keys:
+        _LOCKS.pop(k).release()
+        del _REFS[k]
