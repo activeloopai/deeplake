@@ -286,7 +286,6 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
         return
 
     path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
-    storage_provider_from_hub_path(path, token=hub_cloud_dev_token)
 
     yield path
 

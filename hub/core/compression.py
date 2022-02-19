@@ -818,9 +818,9 @@ def _read_video_shape(
 
 def _decompress_video(
     file: Union[str, bytes],
-    start: int,
-    stop: int,
-    step: int,
+    start: Optional[int],
+    stop: Optional[int],
+    step: Optional[int],
     reverse: bool,
 ):
     if not _PYAV_INSTALLED:
@@ -828,8 +828,16 @@ def _decompress_video(
             "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
         )
     container, vstream = _open_video(file)
-
     nframes, height, width = _read_shape_from_vstream(container, vstream)
+
+    if start is None:
+        start = 0
+
+    if stop is None:
+        stop = nframes
+
+    if step is None:
+        step = 1
 
     nframes = math.ceil((stop - start) / step)
 
