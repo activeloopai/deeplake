@@ -4,9 +4,10 @@ import pytest
 import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
+
 from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
-from hub.constants import S3_OPT, GCS_OPT
+from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
@@ -16,11 +17,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     InvalidTensorNameError,
 )
-from hub.constants import (
-    MB,
-    PYTEST_S3_PROVIDER_BASE_ROOT,
-    PYTEST_GCS_PROVIDER_BASE_ROOT,
-)
+from hub.constants import MB
 
 from click.testing import CliRunner
 
@@ -966,30 +963,23 @@ def test_sample_shape(memory_ds):
 
 
 @enabled_remote_storages
-def test_hub_remote_read(storage, memory_ds, video_paths, color_image_paths):
+def test_hub_remote_read(storage, memory_ds, color_image_paths):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
 
-    # test video after pyav implementation
-    # memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
 
     image = hub.read("https://picsum.photos/200/300")
     memory_ds.images.append(image)
     assert memory_ds.images[0].shape == (300, 200, 3)
 
-    # video = hub.read(
-    #     "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    # )
-    # memory_ds.videos.append(video)
-    # assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
-
-    # video = hub.read(
-    #     "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    # )
-    # memory_ds.videos.append(video)
-    # assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    )
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     storage["sample/samplejpg.jpg"] = byts
     image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
@@ -1000,3 +990,10 @@ def test_hub_remote_read(storage, memory_ds, video_paths, color_image_paths):
     image = hub.read(f"{storage.root}/samplejpg.jpg")
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
+
+    if isinstance(storage, GCSProvider):
+        video = hub.read(
+            "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        )
+        memory_ds.videos.append(video)
+        assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
