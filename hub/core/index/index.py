@@ -95,7 +95,12 @@ def slice_at_int(s: slice, i: int):
             "Subscripting slices with negative integers is not supported."
         )
     if s.step and s.step < 0:
-        return i * s.step - 1
+        if s.start is None:
+            return i * s.step - 1
+        elif s.stop is not None:
+            if s.start < s.stop:
+                raise IndexError(f"index {i} out of bounds")
+        return s.start + i * s.step
     return (s.start or 0) + i * (s.step or 1)
 
 
