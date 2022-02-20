@@ -19,6 +19,13 @@ enabled_persistent_storages = pytest.mark.parametrize(
 )
 
 
+enabled_remote_storages = pytest.mark.parametrize(
+    "storage",
+    ["s3_storage", "gcs_storage"],
+    indirect=True,
+)
+
+
 @pytest.fixture
 def memory_storage(memory_path):
     return MemoryProvider(memory_path)
