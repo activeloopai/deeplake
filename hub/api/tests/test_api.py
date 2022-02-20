@@ -972,26 +972,26 @@ def test_hub_remote_read(request, memory_ds, video_paths, color_image_paths):
         byts = f.read()
 
     # test video after pyav implementation
-    # memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
 
     image = hub.read("https://picsum.photos/200/300")
     memory_ds.images.append(image)
     assert memory_ds.images[0].shape == (300, 200, 3)
 
-    # video = hub.read(
-    #     "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    # )
-    # memory_ds.videos.append(video)
-    # assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
-
-    # video = hub.read(
-    #     "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    # )
-    # memory_ds.videos.append(video)
-    # assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    )
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
 
     if is_opt_true(request, GCS_OPT):
+        video = hub.read(
+            "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        )
+        memory_ds.videos.append(video)
+        assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
+
         gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg")
         gcs["sample/samplejpg.jpg"] = byts
         image = hub.read(
