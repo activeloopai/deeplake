@@ -59,7 +59,7 @@ def s3_root_storage(request):
         pytest.skip()
         return
 
-    return S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}")
+    return S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT)
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def gcs_root_storage(request, gcs_creds):
         pytest.skip()
         return
 
-    return GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}", token=gcs_creds)
+    return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
 
 
 @pytest.fixture
