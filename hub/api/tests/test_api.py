@@ -995,3 +995,8 @@ def test_hub_remote_read(storage, memory_ds, video_paths, color_image_paths):
     image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
     memory_ds.images.append(image)
     assert memory_ds.images[1].shape == (323, 480, 3)
+
+    storage["samplejpg.jpg"] = byts
+    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[2].shape == (323, 480, 3)
