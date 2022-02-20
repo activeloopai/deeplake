@@ -1,5 +1,4 @@
 import os
-from urllib import request
 import numpy as np
 import pytest
 import hub
