@@ -979,7 +979,7 @@ def test_hub_remote_read(storage, memory_ds, color_image_paths):
         "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     )
     memory_ds.videos.append(video)
-    assert memory_ds.videos[0].shape == (360, 720, 1280, 3)
+    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     storage["sample/samplejpg.jpg"] = byts
     image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
@@ -991,4 +991,4 @@ def test_hub_remote_read(storage, memory_ds, color_image_paths):
             "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
         )
         memory_ds.videos.append(video)
-        assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
+        assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
