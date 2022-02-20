@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pytest
 import hub
@@ -963,23 +964,16 @@ def test_sample_shape(memory_ds):
 
 
 @enabled_remote_storages
-def test_hub_remote_read(storage, memory_ds, color_image_paths):
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
 
-    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
 
     image = hub.read("https://picsum.photos/200/300")
     memory_ds.images.append(image)
     assert memory_ds.images[0].shape == (300, 200, 3)
-
-    video = hub.read(
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    )
-    memory_ds.videos.append(video)
-    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     storage["sample/samplejpg.jpg"] = byts
     image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
@@ -990,6 +984,20 @@ def test_hub_remote_read(storage, memory_ds, color_image_paths):
     image = hub.read(f"{storage.root}/samplejpg.jpg")
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+@enabled_remote_storages
+def test_hub_remote_read_videos(storage, memory_ds):
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    )
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     if isinstance(storage, GCSProvider):
         video = hub.read(
