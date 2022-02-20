@@ -1,10 +1,12 @@
 import os
+from urllib import request
 import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
-from hub.tests.common import assert_array_lists_equal
+from hub.tests.common import assert_array_lists_equal, is_opt_true
+from hub.constants import S3_OPT, GCS_OPT
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
@@ -964,7 +966,7 @@ def test_sample_shape(memory_ds):
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
 
 
-def test_hub_remote_read(memory_ds, video_paths, color_image_paths):
+def test_hub_remote_read(request, memory_ds, video_paths, color_image_paths):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
@@ -989,30 +991,32 @@ def test_hub_remote_read(memory_ds, video_paths, color_image_paths):
     # memory_ds.videos.append(video)
     # assert memory_ds.videos[1].shape == (360, 720, 1280, 3)
 
-    gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg")
-    gcs["sample/samplejpg.jpg"] = byts
-    image = hub.read(
-        f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg"
-    )
-    memory_ds.images.append(image)
-    assert memory_ds.images[1].shape == (323, 480, 3)
+    if is_opt_true(request, GCS_OPT):
+        gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg")
+        gcs["sample/samplejpg.jpg"] = byts
+        image = hub.read(
+            f"{PYTEST_GCS_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg"
+        )
+        memory_ds.images.append(image)
+        assert memory_ds.images[1].shape == (323, 480, 3)
 
-    gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}")
-    gcs["samplejpg.jpg"] = byts
-    image = hub.read(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}samplejpg.jpg")
-    memory_ds.images.append(image)
-    assert memory_ds.images[2].shape == (323, 480, 3)
+        gcs = GCSProvider(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}")
+        gcs["samplejpg.jpg"] = byts
+        image = hub.read(f"{PYTEST_GCS_PROVIDER_BASE_ROOT}samplejpg.jpg")
+        memory_ds.images.append(image)
+        assert memory_ds.images[2].shape == (323, 480, 3)
 
-    s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg")
-    s3["sample/samplejpg.jpg"] = byts
-    image = hub.read(
-        f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg",
-    )
-    memory_ds.images.append(image)
-    assert memory_ds.images[3].shape == (323, 480, 3)
+    if is_opt_true(request, S3_OPT):
+        s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg")
+        s3["sample/samplejpg.jpg"] = byts
+        image = hub.read(
+            f"{PYTEST_S3_PROVIDER_BASE_ROOT}test_image/jpg/sample/samplejpg.jpg",
+        )
+        memory_ds.images.append(image)
+        assert memory_ds.images[3].shape == (323, 480, 3)
 
-    s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}")
-    s3["samplejpg.jpg"] = byts
-    image = hub.read(f"{PYTEST_S3_PROVIDER_BASE_ROOT}samplejpg.jpg")
-    memory_ds.images.append(image)
-    assert memory_ds.images[4].shape == (323, 480, 3)
+        s3 = S3Provider(f"{PYTEST_S3_PROVIDER_BASE_ROOT}")
+        s3["samplejpg.jpg"] = byts
+        image = hub.read(f"{PYTEST_S3_PROVIDER_BASE_ROOT}samplejpg.jpg")
+        memory_ds.images.append(image)
+        assert memory_ds.images[4].shape == (323, 480, 3)
