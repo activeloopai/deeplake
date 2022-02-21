@@ -44,7 +44,7 @@ def _filter_function_to_query_text(filter_function):
     else:
         try:
             query_text = inspect.getsource(filter_function)
-        except OSError:
+        except (OSError, TypeError):
             query_text = (
                 "UDF: "
                 + getattr(

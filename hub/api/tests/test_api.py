@@ -246,6 +246,18 @@ def test_empty_samples(local_ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
+def test_indexed_tensor(local_ds: Dataset):
+    tensor = local_ds.create_tensor("abc")
+    tensor.append([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+    np.testing.assert_array_equal(tensor[0, 1].numpy(), np.array([4, 5, 6]))
+    np.testing.assert_array_equal(
+        tensor[0, 0:2].numpy(), np.array([[1, 2, 3], [4, 5, 6]])
+    )
+    np.testing.assert_array_equal(
+        tensor[0, 0::2].numpy(), np.array([[1, 2, 3], [7, 8, 9]])
+    )
+
+
 def test_safe_downcasting(local_ds):
     int_tensor = local_ds.create_tensor("int", dtype="uint8")
     int_tensor.append(0)
