@@ -35,4 +35,4 @@ def video_html(src, alt):
             """
     with open("video.html", "w") as f:
         f.write(html)
-    return IPython.display.HTML(filename="video.html")
+    return IPython.display.HTML(filename=src)
