@@ -210,7 +210,6 @@ def stream_video(chunk_id, sample_id):
             206 if range_header else 200,
             mimetype="video/mp4",
             content_type="video/mp4",
-            direct_passthrough=True,
         )
         resp.headers.add(
             "Connection",
