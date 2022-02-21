@@ -29,11 +29,10 @@ def is_colab():
 def video_html(src, alt):
     import IPython
 
-    html = f"""<video alt="{alt}" width=500 controls autoplay seek loop>
+    html = f"""<video alt="{alt}" width=500 controls autoplay seek loop allowfullscreen>
                     <source src="{src}" type="video/mp4">
                 </video>
             """
-    
-    with open("video.html", "w") as f:
-        f.write(html)
-    return IPython.display.HTML("""<meta http-equiv="refresh" content="0; url={src}" />""")
+    html = """<iframe width="560" height="315" src="{src}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>')
+    """
+    return IPython.display.HTML(html)
