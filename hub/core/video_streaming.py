@@ -182,6 +182,7 @@ def after_request(response):
 
 _LOGS = []
 
+
 @_APP.route("/video/<chunk_id>/<sample_id>")
 def stream_video(chunk_id, sample_id):
     try:
@@ -200,7 +201,9 @@ def stream_video(chunk_id, sample_id):
         chunk, start, length, file_size = _STREAMS[chunk_id].read(
             int(sample_id), start, end
         )
-        _LOGS.append(f"Responding with chunk={len(chunk)} bytes, start={start}, length={length}, file_size={file_size}")
+        _LOGS.append(
+            f"Responding with chunk={len(chunk)} bytes, start={start}, length={length}, file_size={file_size}"
+        )
         resp = Response(
             chunk,
             206,
@@ -216,4 +219,3 @@ def stream_video(chunk_id, sample_id):
     except Exception as e:
         _LOGS.append(e)
         raise e
-

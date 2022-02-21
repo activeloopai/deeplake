@@ -31,7 +31,7 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.util.version_control import auto_checkout
 from hub.core.video_streaming import get_video_stream_url
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
-from hub.util.notebook import is_jupyter
+from hub.util.notebook import is_jupyter, video_html
 import warnings
 import webbrowser
 
@@ -636,12 +636,9 @@ class Tensor:
         if is_jupyter():
             from IPython.display import HTML
 
-            return HTML(
-                f"""
-                <video alt="{self.key}[{self.index.values[0]}]" width=500 controls autoplay seek loop>
-                    <source src="{self._get_video_stream_url()}" type="video/mp4">
-                </video>
-            """
+            return video_html(
+                src=self._get_video_stream_url(),
+                alt=f"{self.key}[{self.index.values[0]}]",
             )
         else:
             webbrowser.open(self._get_video_stream_url())

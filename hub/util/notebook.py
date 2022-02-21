@@ -24,3 +24,15 @@ def is_jupyter():
 
 def is_colab():
     return "google.colab" in sys.modules
+
+
+def video_html(src, alt):
+    import IPython
+
+    html = f"""<video alt="{alt}" width=500 controls autoplay seek loop>
+                    <source src="{src}" type="video/mp4">
+                </video>
+            """
+    with open("video.html", "w") as f:
+        f.write(html)
+    IPython.display.HTML(filename="video.html")
