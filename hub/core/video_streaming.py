@@ -218,7 +218,7 @@ def stream_video(chunk_id, sample_id):
         resp.headers.add("Accept-Ranges", "bytes")
         resp.headers.add(
             "Content-Range",
-            "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
+            "bytes {0}-{1}/{2}".format(start, start + length - 1, "*"),
         )
         return resp
     except Exception as e:
