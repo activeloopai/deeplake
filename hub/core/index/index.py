@@ -86,7 +86,7 @@ def slice_at_int(s: slice, i: int):
 
     Raises:
         NotImplementedError: Nontrivial slices should not be indexed with negative integers.
-        IndexError: If step is negative and start is greater than stop.
+        IndexError: If step is negative and start is not greater than stop.
     """
     if s == slice(None):
         return i
