@@ -201,12 +201,13 @@ def stream_video(chunk_id, sample_id):
         chunk, start, length, file_size = _STREAMS[chunk_id].read(
             int(sample_id), start, end
         )
+        assert len(chunk) == length
         _LOGS.append(
             f"Responding with chunk={len(chunk)} bytes, start={start}, length={length}, file_size={file_size}"
         )
         resp = Response(
             chunk,
-            200 if end is None else 206,
+            206,
             mimetype="video/mp4",
             content_type="video/mp4",
             direct_passthrough=True,
@@ -216,6 +217,7 @@ def stream_video(chunk_id, sample_id):
             "keep-alive",
         )
         resp.headers.add("Accept-Ranges", "bytes")
+        resp.headers.add("Content-Length", length)
         resp.headers.add(
             "Content-Range",
             "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
