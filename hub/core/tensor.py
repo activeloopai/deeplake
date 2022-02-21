@@ -634,8 +634,6 @@ class Tensor:
                 "Sub indexes to video sample will be ignored while streaming."
             )
         if is_jupyter():
-            from IPython.display import HTML
-
             return video_html(
                 src=self._get_video_stream_url(),
                 alt=f"{self.key}[{self.index.values[0]}]",
