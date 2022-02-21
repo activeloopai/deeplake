@@ -42,6 +42,9 @@ def test_slice_at_int():
     assert slice_at_int(slice(None, None, -3), 0) == -1
     assert slice_at_int(slice(None, None, -3), 2) == -7
     assert slice_at_int(slice(None, 9, -3), 2) == -7
+    assert slice_at_int(slice(-1, -8, -2), 3) == -7
+    assert slice_at_int(slice(-1, None, -2), 3) == -7
+    assert slice_at_int(slice(None, -10, -3), 2) == -7
 
     with pytest.raises(IndexError):
         slice_at_int(slice(2, 9, -1), 0)
