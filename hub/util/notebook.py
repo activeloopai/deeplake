@@ -33,6 +33,7 @@ def video_html(src, alt):
                     <source src="{src}" type="video/mp4">
                 </video>
             """
+    
     with open("video.html", "w") as f:
         f.write(html)
-    return IPython.display.HTML(filename=src)
+    return IPython.display.HTML("""<meta http-equiv="refresh" content="0; url={src}" />""")
