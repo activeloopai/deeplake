@@ -110,7 +110,6 @@ class _VideoStream:
             np.frombuffer(lazy.read(bp_enc_size), dtype=enc_dtype).reshape(r, 3).copy()
         )
         self.header_size = 13 + n_ver + sh_enc_size + bp_enc_size
-        print(self.header_size)
         self.chunk_size = self.storage.get_object_size(self.chunk_key)
 
     def read(self, index: int, start_byte, end_byte) -> bytes:
@@ -197,9 +196,11 @@ def stream_video(chunk_id, sample_id):
             if groups[1]:
                 end = int(groups[1])
 
+        _LOGS.append(f"Range request: {chunk_id}/{sample_id}  {start}, {end}]")
         chunk, start, length, file_size = _STREAMS[chunk_id].read(
             int(sample_id), start, end
         )
+        _LOGS.append(f"Responding with {len(chunk)}, {length} bytes.")
         resp = Response(
             chunk,
             206,
