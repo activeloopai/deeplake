@@ -207,7 +207,7 @@ def stream_video(chunk_id, sample_id):
         )
         resp = Response(
             chunk,
-            206 if range_header else 200,
+            206,
             mimetype="video/mp4",
             content_type="video/mp4",
         )
