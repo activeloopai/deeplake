@@ -57,7 +57,7 @@ pip3 install hub
 ```sh
 pip3 install hub[audio]  -> Audio support via miniaudio
 pip3 install hub[video]  -> Video support via pyav
-pip3 install hub[gcp]    -> GSS support via google-* dependencies
+pip3 install hub[gcp]    -> GCS support via google-* dependencies
 pip3 install hub[all]    -> Installs everything - audio, video and GCS support
 ```
 
