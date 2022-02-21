@@ -48,3 +48,6 @@ def test_slice_at_int():
 
     with pytest.raises(IndexError):
         slice_at_int(slice(2, 9, -1), 0)
+
+    with pytest.raises(NotImplementedError):
+        slice_at_int(slice(2, 6, 2), -3)
