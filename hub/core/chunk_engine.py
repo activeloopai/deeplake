@@ -904,6 +904,7 @@ class ChunkEngine:
             # need to copy if aslist otherwise user might modify the returned data
             # if not aslist, we already do np.array(samples) while formatting which copies
             sample = sample.copy() if aslist else sample
+            sample = sample[tuple(entry.value for entry in index.values[1:])]
             samples.append(sample)
         return samples
 
