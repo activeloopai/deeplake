@@ -30,7 +30,7 @@ req_map = {
 extras = {
     "audio": ["miniaudio"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
-    "video": ["av"],
+    "video": ["av", "flask", "requests"],
 }
 
 all_extras = {r for v in extras.values() for r in v}

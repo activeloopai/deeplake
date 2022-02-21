@@ -6,6 +6,7 @@ from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_dataset_lock_key
+import posixpath
 
 
 class StorageProvider(ABC, MutableMapping):
@@ -175,3 +176,12 @@ class StorageProvider(ABC, MutableMapping):
     def empty(self) -> bool:
         lock_key = get_dataset_lock_key()
         return len(self) - int(lock_key in self) <= 0
+
+    def get_url(self, key: str) -> str:
+        return posixpath.join(self.root, key)
+
+    def get_object_size(self, key: str) -> int:
+        raise NotImplementedError()
+
+    def read_partial(self, key: str, start: int, end: int) -> bytes:
+        return self[key][start:end]

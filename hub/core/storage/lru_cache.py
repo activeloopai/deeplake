@@ -109,7 +109,7 @@ class LRUCache(StorageProvider):
         if url:
             from hub.util.remove_cache import get_base_storage
 
-            item = get_base_storage(self).get_presigned_url(path).encode("utf-8")
+            item = get_base_storage(self).get_url(path).encode("utf-8")
             if issubclass(expected_class, BaseChunk):
                 obj = expected_class.frombuffer(item, meta, url=True)
                 return obj

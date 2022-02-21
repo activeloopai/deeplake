@@ -120,7 +120,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def get_header_from_url(url: str):
-
+    # Note: to be only used for chunks contains a single sample
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 

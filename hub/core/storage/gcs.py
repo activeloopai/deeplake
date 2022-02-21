@@ -277,11 +277,13 @@ class GCSProvider(StorageProvider):
             except Exception:
                 pass
 
-    def __getitem__(self, key):
+    def __getitem__(self, key, start=None, end=None):
         """Retrieve data"""
         try:
             blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-            return blob.download_as_bytes(retry=self.retry)
+            if end is not None:
+                end -= 1
+            return blob.download_as_bytes(retry=self.retry, start=start, end=end)
         except self.missing_exceptions:
             raise KeyError(key)
 
@@ -338,7 +340,7 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self._initialize_provider()
 
-    def get_presigned_url(self, key):
+    def get_url(self, key: str) -> str:
         url = None
         cached = self._presigned_urls.get(key)
         if cached:
@@ -359,6 +361,9 @@ class GCSProvider(StorageProvider):
             self._presigned_urls[key] = (url, time.time())
         return url
 
-    def get_object_size(self, key):
+    def get_object_size(self, key: str) -> int:
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
         return blob.size
+
+    def read_partial(self, key: str, start: int, end: int) -> bytes:
+        return self.__getitem__(key, start, end)

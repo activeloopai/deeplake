@@ -32,7 +32,6 @@ from hub.util.chunk_engine import (
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_commit_diff_key,
-    get_tensor_info_key,
     get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,

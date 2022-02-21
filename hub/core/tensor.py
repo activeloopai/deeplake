@@ -29,6 +29,11 @@ from hub.util.exceptions import (
 )
 from hub.constants import FIRST_COMMIT_ID
 from hub.util.version_control import auto_checkout
+from hub.core.video_streaming import get_video_stream_url
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
+from hub.util.notebook import is_jupyter
+import warnings
+import webbrowser
 
 
 def create_tensor(
@@ -615,3 +620,28 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+
+    def _get_video_stream_url(self):
+        return get_video_stream_url(self, self.index.values[0].value)
+
+    def play(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Video streaming requires exactly 1 sample.")
+        if len(self.index.values) > 1:
+            warnings.warn(
+                "Sub indexes to video sample will be ignored while streaming."
+            )
+        if is_jupyter():
+            from IPython.display import HTML
+
+            return HTML(
+                f"""
+                <video alt="{self.key[self.index.values[0]]}" controls>
+                    <source src="{self._get_video_stream_url()}" type="video/mp4">
+                </video>
+            """
+            )
+        else:
+            webbrowser.open(self._get_video_stream_url())

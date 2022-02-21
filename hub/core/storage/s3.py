@@ -5,7 +5,7 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
@@ -174,11 +174,19 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3SetError(err)
 
-    def _get(self, path):
-        resp = self.client.get_object(
-            Bucket=self.bucket,
-            Key=path,
-        )
+    def _get(
+        self, path: str, start: Optional[int] = None, end: Optional[int] = None
+    ) -> bytes:
+        if start is not None:
+            end = "" if end is None else end - 1
+            resp = self.client.get_object(
+                Bucket=self.bucket, Key=path, Range=f"bytes={start}-{end}"
+            )
+        else:
+            resp = self.client.get_object(
+                Bucket=self.bucket,
+                Key=path,
+            )
         return resp["Body"].read()
 
     def __getitem__(self, path):
@@ -453,7 +461,7 @@ class S3Provider(StorageProvider):
             and self.loaded_creds_from_environment
         )
 
-    def get_presigned_url(self, key):
+    def get_url(self, key: str) -> str:
         self._check_update_creds()
         path = "".join((self.path, key))
 
@@ -480,7 +488,11 @@ class S3Provider(StorageProvider):
             self._presigned_urls[path] = (url, time.time())
         return url
 
-    def get_object_size(self, path):
-        path = "".join((self.path, path))
+    def get_object_size(self, key: str) -> int:
+        path = "".join((self.path, key))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
+
+    def read_partial(self, key: str, start: int, end: int) -> bytes:
+        path = "".join((self.path, key))
+        return self._get(path, start, end)

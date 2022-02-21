@@ -190,3 +190,23 @@ class LocalProvider(StorageProvider):
     def __contains__(self, key) -> bool:
         full_path = self._check_is_file(key)
         return os.path.exists(full_path)
+
+    def get_url(self, key: str) -> str:
+        return os.path.join(self.root, key)
+
+    def get_object_size(self, key: str) -> int:
+        return os.stat(os.path.join(self.path, key)).st_size
+
+    def read_partial(self, key: str, start: int, end: int) -> bytes:
+        try:
+            full_path = self._check_is_file(key)
+            with open(full_path, "rb") as file:
+                file.seek(start)
+                if end is None:
+                    return file.read()
+                else:
+                    return file.read(end - start)
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+            raise KeyError(key)
