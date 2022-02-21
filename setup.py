@@ -34,8 +34,9 @@ extras = {
 }
 
 all_extras = {r for v in extras.values() for r in v}
-non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
-extras["all"] = [req_map[r] for r in all_extras]
+install_requires = [req_map[r] for r in req_map if r not in all_extras]
+extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
+extras_require["all"] = [req_map[r] for r in all_extras]
 
 
 init_file = os.path.join(project_name, "__init__.py")
@@ -59,7 +60,8 @@ config = {
     "author": "activeloop.ai",
     "author_email": "support@activeloop.ai",
     "packages": find_packages(),
-    "install_requires": requirements,
+    "install_requires": install_requires,
+    "extras_require": extras_require,
     "tests_require": tests,
     "include_package_data": True,
     "zip_safe": False,
