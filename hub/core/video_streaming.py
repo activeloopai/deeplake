@@ -181,31 +181,38 @@ def after_request(response):
     return response
 
 
+_LOGS = []
+
 @_APP.route("/video/<chunk_id>/<sample_id>")
-def get_file(chunk_id, sample_id):
-    range_header = request.headers.get("Range", None)
-    start, end = 0, None
-    if range_header:
-        match = re.search(r"(\d+)-(\d*)", range_header)
-        groups = match.groups()
+def stream_video(chunk_id, sample_id):
+    try:
+        range_header = request.headers.get("Range", None)
+        start, end = 0, None
+        if range_header:
+            match = re.search(r"(\d+)-(\d*)", range_header)
+            groups = match.groups()
 
-        if groups[0]:
-            start = int(groups[0])
-        if groups[1]:
-            end = int(groups[1])
+            if groups[0]:
+                start = int(groups[0])
+            if groups[1]:
+                end = int(groups[1])
 
-    chunk, start, length, file_size = _STREAMS[chunk_id].read(
-        int(sample_id), start, end
-    )
-    resp = Response(
-        chunk,
-        206,
-        mimetype="video/mp4",
-        content_type="video/mp4",
-        direct_passthrough=True,
-    )
-    resp.headers.add(
-        "Content-Range",
-        "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
-    )
-    return resp
+        chunk, start, length, file_size = _STREAMS[chunk_id].read(
+            int(sample_id), start, end
+        )
+        resp = Response(
+            chunk,
+            206,
+            mimetype="video/mp4",
+            content_type="video/mp4",
+            direct_passthrough=True,
+        )
+        resp.headers.add(
+            "Content-Range",
+            "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
+        )
+        return resp
+    except Exception as e:
+        _LOGS.append(e)
+        raise e
+

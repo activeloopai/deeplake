@@ -638,7 +638,7 @@ class Tensor:
 
             return HTML(
                 f"""
-                <video alt="{self.key}[{self.index.values[0]}]" width=500 controls>
+                <video alt="{self.key}[{self.index.values[0]}]" width=500 controls autoplay seek loop>
                     <source src="{self._get_video_stream_url()}" type="video/mp4">
                 </video>
             """
