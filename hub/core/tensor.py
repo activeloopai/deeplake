@@ -636,7 +636,7 @@ class Tensor:
         if is_jupyter():
             return video_html(
                 src=self._get_video_stream_url(),
-                alt=f"{self.key}[{self.index.values[0]}]",
+                alt=f"{self.key}[{self.index.values[0].value}]",
             )
         else:
             webbrowser.open(self._get_video_stream_url())
