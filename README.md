@@ -53,6 +53,14 @@ Hub is written in 100% Python and can be quickly installed using pip.
 pip3 install hub
 ```
 
+**By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
+```sh
+pip3 install hub[audio]  -> Audio support via miniaudio
+pip3 install hub[video]  -> Video support via pyav
+pip3 install hub[gcp]    -> GSS support via google-* dependencies
+pip3 install hub[all]    -> Installs everything - audio, video and GCS support
+```
+
 ### 🧠 Training a PyTorch model on a Hub dataset
 
 #### Load CIFAR-10, one of the readily available datasets in Hub:
