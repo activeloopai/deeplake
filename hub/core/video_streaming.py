@@ -212,7 +212,6 @@ def stream_video(chunk_id, sample_id):
             "Content-Range",
             "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
         )
-        resp.headers.add("Transfer-Encoding", "chunked")
         return resp
     except Exception as e:
         _LOGS.append(e)
