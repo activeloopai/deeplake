@@ -200,7 +200,7 @@ def stream_video(chunk_id, sample_id):
         chunk, start, length, file_size = _STREAMS[chunk_id].read(
             int(sample_id), start, end
         )
-        _LOGS.append(f"Responding with {len(chunk)}, {length} bytes.")
+        _LOGS.append(f"Responding with chunk={len(chunk)} bytes, start={start}, length={length}, file_size={file_size}")
         resp = Response(
             chunk,
             206,
