@@ -217,10 +217,11 @@ def stream_video(chunk_id, sample_id):
             "keep-alive",
         )
         resp.headers.add("Accept-Ranges", "bytes")
-        resp.headers.add(
-            "Content-Range",
-            "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
-        )
+        if range_header:
+            resp.headers.add(
+                "Content-Range",
+                "bytes {0}-{1}/{2}".format(start, start + length - 1, file_size),
+            )
         return resp
     except Exception as e:
         _LOGS.append(e)
