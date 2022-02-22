@@ -159,6 +159,8 @@ def compress_bytes(
     buffer: Union[bytes, memoryview], compression: Optional[str]
 ) -> bytes:
     if compression == "lz4":
+        if not buffer:
+            return b""
         return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
@@ -172,6 +174,9 @@ def decompress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
+        # weird edge case of lz4 + empty string
+        if buffer == b"\x00\x00\x00\x00\x00":
+            return b""
         if (
             buffer[:4] == b'\x04"M\x18'
         ):  # python-lz4 magic number (backward compatiblity)
