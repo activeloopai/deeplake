@@ -565,7 +565,10 @@ class Dataset:
         unlock_dataset(self)
 
     def __del__(self):
-        self._unlock()
+        try:
+            self._unlock()
+        except Exception:  # python shutting down
+            pass
 
     def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
