@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.parametrize(
+all_non_image_compressions = pytest.mark.parametrize(
     "compression",
     [
         {"sample_compression": None},
@@ -10,6 +10,9 @@ import pytest
         {"chunk_compression": "lz4"},
     ],
 )
+
+
+@all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_array(memory_ds, compression, insert_first):
     with memory_ds as ds:
@@ -32,19 +35,24 @@ def test_insertion_array(memory_ds, compression, insert_first):
 
 
 @pytest.mark.parametrize("sample_compression", ["png", "jpeg"])
-def test_insertion_array_png_jpeg(memory_ds, sample_compression):
+@pytest.mark.parametrize("insert_first", [True, False])
+def test_insertion_array_png_jpeg(memory_ds, sample_compression, insert_first):
     with memory_ds as ds:
         ds.create_tensor("abc", sample_compression=sample_compression)
         first = np.random.randint(0, 256, (200, 300, 3), dtype=np.uint8)
         tenth = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         empty_sample = np.random.randint(0, 256, (0, 0, 0), dtype=np.uint8)
-        ds.abc.append(first)
+        if insert_first:
+            ds.abc.append(first)
         ds.abc.__setitem__(10, tenth, True)
 
-        if sample_compression == "png":
-            np.testing.assert_array_equal(ds.abc[0].numpy(), first)
+        if insert_first:
+            if sample_compression == "png":
+                np.testing.assert_array_equal(ds.abc[0].numpy(), first)
+            else:
+                assert ds.abc[0].numpy().shape == first.shape
         else:
-            assert ds.abc[0].numpy().shape == first.shape
+            np.testing.assert_array_equal(ds.abc[0].numpy(), empty_sample)
 
         for i in range(1, 10):
             np.testing.assert_array_equal(ds.abc[i].numpy(), empty_sample)
@@ -53,3 +61,72 @@ def test_insertion_array_png_jpeg(memory_ds, sample_compression):
             np.testing.assert_array_equal(ds.abc[10].numpy(), tenth)
         else:
             assert ds.abc[10].numpy().shape == tenth.shape
+
+
+@all_non_image_compressions
+@pytest.mark.parametrize("insert_first", [True, False])
+def test_insertion_json(memory_ds, compression, insert_first):
+    with memory_ds as ds:
+        ds.create_tensor("abc", **compression)
+        first = {"a": 1, "b": 2}
+        tenth = {"a": 3, "b": 4}
+        empty_sample = {}
+        if insert_first:
+            ds.abc.append(first)
+        ds.abc.__setitem__(10, tenth, True)
+
+        if insert_first:
+            assert ds.abc[0].numpy()[0] == first
+        else:
+            assert ds.abc[0].numpy()[0] == empty_sample
+
+        for i in range(1, 10):
+            assert ds.abc[i].numpy() == empty_sample
+
+        assert ds.abc[10].numpy() == tenth
+
+
+@all_non_image_compressions
+@pytest.mark.parametrize("insert_first", [True, False])
+def test_insertion_text(memory_ds, compression, insert_first):
+    with memory_ds as ds:
+        ds.create_tensor("abc", **compression)
+        first = "hi"
+        tenth = "if ur reading this ur a nerd"
+        empty_sample = ""
+        if insert_first:
+            ds.abc.append(first)
+        ds.abc.__setitem__(10, tenth, True)
+
+        if insert_first:
+            assert ds.abc[0].numpy()[0] == first
+        else:
+            assert ds.abc[0].numpy()[0] == empty_sample
+
+        for i in range(1, 10):
+            assert ds.abc[i].numpy() == empty_sample
+
+        assert ds.abc[10].numpy() == tenth
+
+
+@all_non_image_compressions
+@pytest.mark.parametrize("insert_first", [True, False])
+def test_insertion_list(memory_ds, compression, insert_first):
+    with memory_ds as ds:
+        ds.create_tensor("abc", **compression, htype="list")
+        first = [1, 2, 3]
+        tenth = [4, 5, 6]
+        empty_sample = np.array([], dtype="object")
+        if insert_first:
+            ds.abc.append(first)
+        ds.abc.__setitem__(10, tenth, True)
+
+        if insert_first:
+            np.testing.assert_array_equal(ds.abc[0].numpy(), np.array(first))
+        else:
+            np.testing.assert_array_equal(ds.abc[0].numpy(), empty_sample)
+
+        for i in range(1, 10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), empty_sample)
+
+        np.testing.assert_array_equal(ds.abc[10].numpy(), np.array(tenth))
