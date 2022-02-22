@@ -64,6 +64,9 @@ def get_empty_sample(htype: str):
 
     Returns:
         Empty sample.
+
+    Raises:
+        ValueError: if htype is not one of 'text', 'json', and 'list'.
     """
     if htype == "text":
         return ""
