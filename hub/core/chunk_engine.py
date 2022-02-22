@@ -11,7 +11,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import intelligent_cast
+from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
@@ -672,6 +672,34 @@ class ChunkEngine:
             ):
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
+
+    def pad_and_append(self, num_samples_to_pad: int, value):
+        """Pads the tensor with empty samples and appends value at the end."""
+        update_first_sample = False
+        if num_samples_to_pad > 0:
+            if self.num_samples == 0:
+                # set htype, dtype, shape, we later update it with empty sample
+                self.extend([value])
+                update_first_sample = True
+
+            htype = self.tensor_meta.htype
+            if htype in ["json", "text", "list"]:
+                empty_sample = get_empty_sample(htype)
+                empty_samples = [empty_sample] * num_samples_to_pad
+            else:
+                ndim = len(self.tensor_meta.max_shape)
+                shape = tuple([num_samples_to_pad] + [0] * ndim)
+                dtype = self.tensor_meta.dtype
+                empty_sample = np.zeros(shape[1:], dtype=dtype)
+                empty_samples = np.zeros(shape, dtype=dtype)
+
+            if update_first_sample:
+                self.update(Index(0), empty_sample)
+
+            # pad
+            self.extend(empty_samples)
+
+        self.extend([value])
 
     def update(
         self,

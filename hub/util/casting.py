@@ -56,6 +56,27 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     return "generic"
 
 
+def get_empty_sample(htype: str):
+    """Get an empty sample of the given htype.
+
+    Args:
+        htype: htype of the sample.
+
+    Returns:
+        Empty sample.
+    """
+    if htype == "text":
+        return ""
+    elif htype == "json":
+        return {}
+    elif htype == "list":
+        return []
+    else:
+        raise ValueError(
+            f"This method should only be used for htypes 'text', 'json' and 'list'. Got {htype}."
+        )
+
+
 def intelligent_cast(
     sample: Any, dtype: Union[np.dtype, str], htype: str
 ) -> np.ndarray:

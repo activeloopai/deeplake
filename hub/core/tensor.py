@@ -481,7 +481,7 @@ class Tensor:
         else:
             raise TypeError(f"Cannot infer numpy dtype for {val}")
 
-    def __setitem__(self, item: Union[int, slice], value: Any):
+    def __setitem__(self, item: Union[int, slice], value: Any, pad_empty_samples=False):
         """Update samples with new values.
 
         Example:
@@ -499,6 +499,12 @@ class Tensor:
                 return
             value = value.numpy(aslist=True)
         item_index = Index(item)
+
+        if pad_empty_samples and isinstance(item, int) and item >= self.num_samples:
+            num_samples_to_pad = item - self.num_samples
+            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            return
+
         self.chunk_engine.update(self.index[item_index], value)
 
     def __iter__(self):
