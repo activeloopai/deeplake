@@ -129,15 +129,23 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples += 1
         return num_samples
 
-    def _get_partial_sample_tile(self):
+    def _get_partial_sample_tile(self, as_bytes=None):
         if self.decompressed_samples or self.decompressed_bytes:
             return None
-        return super(ChunkCompressedChunk, self)._get_partial_sample_tile()
+        if as_bytes is None:
+            as_bytes = self.is_byte_compression
+        return super(ChunkCompressedChunk, self)._get_partial_sample_tile(
+            as_bytes=as_bytes
+        )
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
-        partial_sample_tile = self._get_partial_sample_tile()
+        partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
+        assert self.decompressed_samples or self.decompressed_bytes, (
+            self._data_bytes,
+            self.shapes_encoder._encoded,
+        )
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
@@ -162,7 +170,9 @@ class ChunkCompressedChunk(BaseChunk):
             new_sample, chunk_compression=self.compression, break_into_tiles=False
         )
         self.check_shape_for_update(local_index, shape)
-
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_bytes = partial_sample_tile
         decompressed_buffer = self.decompressed_bytes
 
         new_data_uncompressed = self.create_updated_data(
@@ -180,6 +190,9 @@ class ChunkCompressedChunk(BaseChunk):
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(local_index, shape)
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_samples = [partial_sample_tile]
         decompressed_samples = self.decompressed_samples
 
         decompressed_samples[local_index] = new_sample  # type: ignore

@@ -330,9 +330,14 @@ class BaseChunk(HubMemoryObject):
         self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
 
-    def _get_partial_sample_tile(self):
+    def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
             shape = self.shapes_encoder._encoded[0][:-1]
             if len(shape) and np.all(shape):
+                if as_bytes:
+                    return b"0" * int(
+                        np.prod(np.array(shape, dtype=np.uint64))
+                        * np.dtype(self.dtype).itemsize
+                    )
                 return np.zeros(shape, dtype=self.dtype)
         return None

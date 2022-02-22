@@ -202,6 +202,8 @@ def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
 def compress_bytes(
     buffer: Union[bytes, memoryview], compression: Optional[str]
 ) -> bytes:
+    if not buffer:
+        return b""
     if compression == "lz4":
         return numcodecs.lz4.compress(buffer)
     else:
@@ -373,6 +375,8 @@ def compress_multiple(
 ) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
+    if len(arrays) == 0:
+        return b""
     dtype = arrays[0].dtype
     for arr in arrays:
         if arr.dtype != dtype:

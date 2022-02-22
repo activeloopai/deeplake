@@ -2,7 +2,9 @@ from typing import Tuple, Optional, Union
 import numpy as np
 
 
-class PartialSample(object):
+class PartialSample:
+    """Represents a sample that is initialized by just shape and the data is updated later."""
+
     def __init__(
         self,
         sample_shape: Tuple[int, ...],
