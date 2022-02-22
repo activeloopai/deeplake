@@ -692,7 +692,7 @@ class ChunkEngine:
                 shape = tuple([num_samples_to_pad] + [0] * ndim)
                 dtype = self.tensor_meta.dtype
                 empty_sample = np.zeros(shape[1:], dtype=dtype)
-                empty_samples = np.zeros(shape, dtype=dtype)
+                empty_samples = np.zeros(shape, dtype=dtype)  # type: ignore
 
             if update_first_sample:
                 self.update(Index(0), empty_sample)
