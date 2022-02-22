@@ -142,10 +142,6 @@ class ChunkCompressedChunk(BaseChunk):
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
-        assert self.decompressed_samples or self.decompressed_bytes, (
-            self._data_bytes,
-            self.shapes_encoder._encoded,
-        )
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
