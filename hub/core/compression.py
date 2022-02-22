@@ -159,6 +159,8 @@ def compress_bytes(
     buffer: Union[bytes, memoryview], compression: Optional[str]
 ) -> bytes:
     if compression == "lz4":
+        if not buffer:
+            return b""
         return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
