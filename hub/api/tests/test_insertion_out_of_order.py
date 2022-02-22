@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import numpy as np
 import pytest
 
@@ -12,6 +13,7 @@ all_non_image_compressions = pytest.mark.parametrize(
 )
 
 
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_array(memory_ds, compression, insert_first):
@@ -22,7 +24,7 @@ def test_insertion_array(memory_ds, compression, insert_first):
         empty_sample = np.random.rand(0, 0, 0)
         if insert_first:
             ds.abc.append(first)
-        ds.abc.__setitem__(10, tenth, True)
+        ds.abc[10] = tenth
 
         if insert_first:
             np.testing.assert_array_equal(ds.abc[0].numpy(), first)
@@ -34,9 +36,10 @@ def test_insertion_array(memory_ds, compression, insert_first):
         np.testing.assert_array_equal(ds.abc[10].numpy(), tenth)
 
 
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @pytest.mark.parametrize("sample_compression", ["png", "jpeg"])
 @pytest.mark.parametrize("insert_first", [True, False])
-def test_insertion_array_png_jpeg(memory_ds, sample_compression, insert_first):
+def test_insertion_array_img_compressed(memory_ds, sample_compression, insert_first):
     with memory_ds as ds:
         ds.create_tensor("abc", sample_compression=sample_compression)
         first = np.random.randint(0, 256, (200, 300, 3), dtype=np.uint8)
@@ -44,7 +47,7 @@ def test_insertion_array_png_jpeg(memory_ds, sample_compression, insert_first):
         empty_sample = np.random.randint(0, 256, (0, 0, 0), dtype=np.uint8)
         if insert_first:
             ds.abc.append(first)
-        ds.abc.__setitem__(10, tenth, True)
+        ds.abc[10] = tenth
 
         if insert_first:
             if sample_compression == "png":
@@ -63,6 +66,7 @@ def test_insertion_array_png_jpeg(memory_ds, sample_compression, insert_first):
             assert ds.abc[10].numpy().shape == tenth.shape
 
 
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_json(memory_ds, compression, insert_first):
@@ -73,7 +77,7 @@ def test_insertion_json(memory_ds, compression, insert_first):
         empty_sample = {}
         if insert_first:
             ds.abc.append(first)
-        ds.abc.__setitem__(10, tenth, True)
+        ds.abc[10] = tenth
 
         if insert_first:
             assert ds.abc[0].numpy()[0] == first
@@ -86,6 +90,7 @@ def test_insertion_json(memory_ds, compression, insert_first):
         assert ds.abc[10].numpy() == tenth
 
 
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_text(memory_ds, compression, insert_first):
@@ -96,7 +101,7 @@ def test_insertion_text(memory_ds, compression, insert_first):
         empty_sample = ""
         if insert_first:
             ds.abc.append(first)
-        ds.abc.__setitem__(10, tenth, True)
+        ds.abc[10] = tenth
 
         if insert_first:
             assert ds.abc[0].numpy()[0] == first
@@ -109,6 +114,7 @@ def test_insertion_text(memory_ds, compression, insert_first):
         assert ds.abc[10].numpy() == tenth
 
 
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_list(memory_ds, compression, insert_first):
@@ -119,7 +125,7 @@ def test_insertion_list(memory_ds, compression, insert_first):
         empty_sample = np.array([], dtype="object")
         if insert_first:
             ds.abc.append(first)
-        ds.abc.__setitem__(10, tenth, True)
+        ds.abc[10] = tenth
 
         if insert_first:
             np.testing.assert_array_equal(ds.abc[0].numpy(), np.array(first))
