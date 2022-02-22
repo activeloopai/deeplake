@@ -345,6 +345,7 @@ def query_dataset(
     )
     index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler, vds)
     ret = dataset[index_map]  # type: ignore [this is fine]
+    ret._query = query
     if vds:
         ret._vds = vds
     return ret
