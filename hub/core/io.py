@@ -381,7 +381,9 @@ class SampleStreaming(Streaming):
         return blocks
 
     def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
-        return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
+        cache = LRUCache(MemoryProvider(), copy(storage), 32 * MB)
+        cache.read_only = storage.read_only
+        return cache
 
     def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {

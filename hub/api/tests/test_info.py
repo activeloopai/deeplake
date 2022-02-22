@@ -155,6 +155,29 @@ def test_class_label(local_ds_generator):
     assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
 
 
+def test_bbox(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("bboxes", htype="bbox", coords={"type": 0, "mode": 2})
+    ds.create_tensor("bboxes1", htype="bbox", coords={"type": 1})
+    ds.create_tensor("bboxes2", htype="bbox")
+    assert len(ds.bboxes.info) == 1
+    assert len(ds.bboxes2.info) == 1
+    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"type": 0, "mode": 2}
+    assert ds.bboxes1.info.coords == ds.bboxes1.info["coords"] == {"type": 1}
+    assert ds.bboxes2.info.coords == ds.bboxes2.info["coords"] == {}
+    ds.bboxes.info.coords = {"type": 3}
+    ds = local_ds_generator()
+    assert len(ds.bboxes.info) == 1
+    assert len(ds.bboxes2.info) == 1
+    assert ds.bboxes.info.coords == ds.bboxes.info["coords"] == {"type": 3}
+    assert ds.bboxes2.info.coords == ds.bboxes2.info["coords"] == {}
+    with pytest.raises(TypeError):
+        ds.create_tensor("bboxes3", htype="bbox", coords=[1, 2, 3])
+
+    with pytest.raises(KeyError):
+        ds.create_tensor("bboxes4", htype="bbox", coords={"random": 0})
+
+
 def test_info_new_methods(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("x")
