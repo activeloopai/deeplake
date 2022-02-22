@@ -680,6 +680,7 @@ class ChunkEngine:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
                 self.extend([value])
+                num_samples_to_pad -= 1
                 update_first_sample = True
 
             htype = self.tensor_meta.htype
