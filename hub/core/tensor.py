@@ -1,4 +1,6 @@
 import hub
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.storage.memory import MemoryProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -28,7 +30,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID
+from hub.constants import FIRST_COMMIT_ID, MB
 from hub.util.version_control import auto_checkout
 
 
@@ -184,7 +186,7 @@ class Tensor:
         """
         self.key = key
         self.dataset = dataset
-        self.storage = dataset.storage
+        self.storage: LRUCache = dataset.storage
         self.index = index or Index()
         self.version_state = dataset.version_state
         self.is_iteration = is_iteration
@@ -626,3 +628,64 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+
+    def rechunk(self):
+        originial_chunk_paths = self.chunk_engine.list_all_chunks_path()
+        key, version_state, storage = self.key, self.version_state, self.storage
+        storage.flush()
+
+        # this stores chunks in actual storage, but keeps meta in memory
+        mem_chunk_engine = self._create_memory_cache_chunk_engine()
+
+        for idx in range(self.num_samples):
+            mem_chunk_engine.extend([self[idx]])
+
+        storage.clear_cache()
+
+        self._copy_from_mem_chunk_engine_to_storage(mem_chunk_engine)
+
+        self.chunk_engine = ChunkEngine(key, storage, version_state)
+        version_state["full_tensors"][key].chunk_engine = self.chunk_engine
+        self.storage.delete_multiple(originial_chunk_paths)
+
+    def _create_memory_cache_chunk_engine(self):
+        memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
+        memory_cache.autoflush = False
+
+        key, version_state, storage = self.key, self.version_state, self.storage
+
+        existing_meta = self.chunk_engine.tensor_meta
+        chunk_size = self.chunk_engine.max_chunk_size
+        new_tensor_meta = TensorMeta(
+            htype=existing_meta.htype,
+            dtype=existing_meta.dtype,
+            sample_compression=existing_meta.sample_compression,
+            chunk_compression=existing_meta.chunk_compression,
+            max_chunk_size=chunk_size,
+        )
+
+        meta_key = get_tensor_meta_key(key, version_state["commit_id"])
+        memory_cache[meta_key] = new_tensor_meta  # type: ignore
+        return ChunkEngine(key, storage, version_state, memory_cache)
+
+    def _copy_from_mem_chunk_engine_to_storage(self, chunk_engine):
+        chunk_engine.cache.flush()
+        key, version_state, storage = self.key, self.version_state, self.storage
+        commit_id = version_state["commit_id"]
+
+        meta_key = get_tensor_meta_key(key, commit_id)
+        storage[meta_key] = chunk_engine.tensor_meta
+
+        chunk_id_encoder_key = get_chunk_id_encoder_key(key, commit_id)
+        storage[chunk_id_encoder_key] = chunk_engine.chunk_id_encoder
+
+        tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
+        storage[tile_encoder_key] = chunk_engine.tile_encoder
+
+        chunk_set_key = get_tensor_commit_chunk_set_key(key, commit_id)
+        chunk_set = chunk_engine.commit_chunk_set
+        if chunk_set:
+            storage[chunk_set_key] = chunk_set
+
+        commit_diff_key = get_tensor_commit_diff_key(key, commit_id)
+        storage[commit_diff_key] = chunk_engine.commit_diff
