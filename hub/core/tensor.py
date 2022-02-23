@@ -629,7 +629,7 @@ class Tensor:
     def _pop(self):
         self.chunk_engine._pop()
 
-    def rechunk(self):
+    def optimize(self):
         """Rechunks the tensor. This is useful for cases in which the chunk size becomes too large or too small, usually due to updates."""
         originial_chunk_paths = self.chunk_engine.list_all_chunks_path()
         key, version_state, storage = self.key, self.version_state, self.storage

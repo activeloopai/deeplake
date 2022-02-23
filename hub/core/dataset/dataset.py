@@ -1254,6 +1254,18 @@ class Dataset:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
 
+    def optimize(self, tensors: Optional[Union[str, List[str]]] = None):
+        """Rewrites the underlying chunks to make their sizes optimal.
+        This is usually needed in cases where a lot of updates have been made to the data.
+
+        Args:
+            tensors (str or list of str, optional): Name/names of the tensors to optimize.
+        """
+        if tensors is None:
+            tensors = list(self.tensors.keys())
+        for t in tensors:
+            self[t].optimize()
+
     # the below methods are used by cloudpickle dumps
     def __origin__(self):
         return None
