@@ -242,6 +242,7 @@ class LRUCache(StorageProvider):
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
+        self.hub_objects.clear()
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
@@ -254,6 +255,7 @@ class LRUCache(StorageProvider):
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
+        self.hub_objects.clear()
         if self.next_storage is not None:
             self.next_storage.clear()
 
@@ -337,6 +339,7 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
         key_set = key_set.union(self.cache_storage._all_keys())
+        key_set = key_set.union(self.hub_objects.keys())
         return key_set
 
     def _flush_if_not_read_only(self):
