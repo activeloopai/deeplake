@@ -3,8 +3,6 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
-from hub.util.remove_cache import get_base_storage
-from hub.core.storage import LocalProvider
 import hub
 from uuid import uuid4
 
@@ -13,6 +11,12 @@ first_row = {"images": [1, 2, 3], "labels": [0]}
 second_row = {"images": [6, 7, 5], "labels": [1]}
 rows = [first_row, second_row]
 class_names = ["dog", "cat", "fish"]
+
+
+@hub.compute
+def hub_compute_filter(sample_in, mod):
+    val = sample_in.abc.numpy()[0]
+    return val % mod == 0
 
 
 def _populate_data(ds, n=1):
@@ -157,6 +161,16 @@ def test_group(local_ds):
 
     result = local_ds.filter("labels.t2 == 1", progressbar=False)
     assert len(result) == 1
+
+
+def test_filter_hub_compute(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        for i in range(100):
+            local_ds.abc.append(i)
+
+    result = local_ds.filter(hub_compute_filter(mod=2), progressbar=False)
+    assert len(result) == 50
 
 
 def test_multi_category_labels(local_ds):

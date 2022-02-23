@@ -44,7 +44,7 @@ def _filter_function_to_query_text(filter_function):
     else:
         try:
             query_text = inspect.getsource(filter_function)
-        except OSError:
+        except (OSError, TypeError):
             query_text = (
                 "UDF: "
                 + getattr(
@@ -345,6 +345,7 @@ def query_dataset(
     )
     index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler, vds)
     ret = dataset[index_map]  # type: ignore [this is fine]
+    ret._query = query
     if vds:
         ret._vds = vds
     return ret
