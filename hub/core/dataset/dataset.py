@@ -1282,7 +1282,11 @@ class Dataset:
                 samples_out.tensor.append(sample_in[tensor])
 
         identity().eval(
-            self, num_workers=num_workers, scheduler=scheduler, progressbar=progressbar
+            self,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+            skip_ok=True,
         )
 
     # the below methods are used by cloudpickle dumps
