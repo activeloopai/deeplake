@@ -1279,7 +1279,7 @@ class Dataset:
         @hub.compute
         def identity(sample_in, samples_out):
             for tensor in tensors:
-                samples_out.tensor.append(sample_in[tensor])
+                samples_out[tensor]append(sample_in[tensor])
 
         identity().eval(
             self,
