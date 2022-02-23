@@ -1,3 +1,4 @@
+from types import new_class
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
@@ -17,8 +18,9 @@ from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.index.index import Index
+from hub.core.index.index import Index, IndexEntry
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
+from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.casting import get_dtype, get_htype
@@ -30,8 +32,8 @@ from hub.util.chunk_engine import (
 )
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_sequence_encoder_key,
     get_tensor_commit_diff_key,
-    get_tensor_info_key,
     get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
@@ -123,6 +125,9 @@ class ChunkEngine:
 
         self._chunk_id_encoder: Optional[ChunkIdEncoder] = None
         self._chunk_id_encoder_commit_id: Optional[str] = None
+
+        self._sequence_encoder: Optional[ShapesEncoder] = None
+        self._sequence_encoder_commit_id: Optional[str] = None
 
         self._tile_encoder: Optional[TileEncoder] = None
         self._tile_encoder_commit_id: Optional[str] = None
@@ -556,7 +561,11 @@ class ChunkEngine:
             return updated_chunks
         return updated_chunks, tiles
 
-    def extend(self, samples):
+    def extend(self, samples, _check_sequence=True):
+        if _check_sequence and self._is_sequence:
+            for sample in samples:
+                self.extend(sample, False)
+            return
         if len(samples) == 0:
             return
         self._write_initialization()
@@ -635,7 +644,7 @@ class ChunkEngine:
         chunk_ids = required_tile_ids
         for chunk_id, tile in zip(chunk_ids.reshape(-1), new_tiles.reshape(-1)):
             chunk = self.get_chunk_from_chunk_id(int(chunk_id), copy=True)
-            curr_shape = chunk.shapes_encoder[-1]
+            curr_shape = chunk.sequence_encoder[-1]
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             if (
@@ -740,7 +749,7 @@ class ChunkEngine:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
-            return tuple(map(int, chunks[0].shapes_encoder[local_sample_index]))
+            return tuple(map(int, chunks[0].sequence_encoder[local_sample_index]))
         else:
             return self.tile_encoder.get_sample_shape(global_sample_index)
 
@@ -984,3 +993,114 @@ class ChunkEngine:
         key = chunk.key
         storage[key] = chunk
         chunk.is_dirty = False
+
+    @property
+    def _is_sequence(self):
+        return self.tensor_meta._is_sequence
+
+    @property
+    def sequence_encoder_exists(self) -> bool:
+        commit_id = self.commit_id
+        if (
+            self._sequence_encoder is not None
+            and self._sequence_encoder_commit_id == commit_id
+        ):
+            return True
+        try:
+            key = get_sequence_encoder_key(self.key, commit_id)
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
+
+    @property
+    def _sequence_length(self):
+        return self.seqeunce_encoder.num_samples
+
+    @property
+    def seqeunce_encoder(self) -> ChunkIdEncoder:
+        """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
+
+        Raises:
+            CorruptedMetaError: If shape encoding was corrupted.
+
+        Returns:
+            ShapesEncoder: The shape encoder storing the shapes of each sample
+        """
+
+        if not self._is_sequence:
+            return
+        commit_id = self.commit_id
+        if (
+            self._sequence_encoder is None
+            or self._sequence_encoder_commit_id != commit_id
+        ):
+            commit_id = self.commit_id
+            key = get_sequence_encoder_key(self.key, commit_id)
+            if not self.sequence_encoder_exists:
+                enc = BytePositionsEncoder()
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
+            else:
+                enc = self.meta_cache.get_hub_object(key, BytePositionsEncoder)
+            self._sequence_encoder = enc
+            self._sequence_encoder_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, enc)
+        return self._sequence_encoder
+
+    def _seqeunce_numpy(
+        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+    ):
+        idx0 = index.values[0].value
+        if isinstance(idx0, int):
+            if idx0 < 0:
+                idx0 += self.num_samples
+            new_index = Index(
+                [IndexEntry(slice(*self.seqeunce_encoder[idx0]))] + index.values[1:]
+            )
+            return self.numpy(new_index, aslist=aslist, use_data_cache=use_data_cache)
+        elif isinstance(idx0, list):
+            if not aslist:
+                new_idx0 = []
+                n = None
+                for i in idx0:
+                    if i < 0:
+                        i += self.num_samples
+                    idxs = list(range(*self.seqeunce_encoder[i]))
+                    if n is not None and n != len(idxs):
+                        raise Exception("Non uniform sequence. Use `aslist=True`.")
+                    new_idx0 += idxs
+                new_index = Index([IndexEntry(new_idx0)] + index.values[1:])
+                arr = self.numpy(new_index, aslist=False, use_data_cache=use_data_cache)
+                arr = arr.reshape((len(idx0), -1) + arr.shape[1:])
+                return arr
+            else:
+                ret = []
+                for i in idx0:
+                    new_idx0 = list(range(*self.seqeunce_encoder[i]))
+                    new_index = Index([IndexEntry(new_idx0)] + index.values[1:])
+                    arr = self.numpy(
+                        new_index, aslist=True, use_data_cache=use_data_cache
+                    )
+                    ret.append(arr)
+                return arr
+        elif isinstance(idx0, slice):
+            return self._seqeunce_numpy(
+                index.value[0].indices(self._sequence_length),
+                aslist=aslist,
+                use_data_cache=use_data_cache,
+            )
+
+    @property
+    def _sequence_item_length(self):
+        enc = self.seqeunce_encoder
+        nrows = len(enc._encoded)
+        if nrows == 0:
+            return 0
+        if nrows == 1:
+            s, e = enc[0]
+            return e - s
+        else:
+            return None

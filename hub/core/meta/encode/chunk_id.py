@@ -12,8 +12,6 @@ CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
-    def tobytes(self) -> memoryview:
-        return serialize_chunkids(self.version, [self._encoded])
 
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
@@ -40,18 +38,6 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         use `__getitem__`, then `name_from_id`."""
 
         return self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
-
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        instance = cls()
-        if not buffer:
-            return instance
-        version, ids = deserialize_chunkids(buffer)
-        if ids.nbytes:
-            instance._encoded = ids
-        instance.version = version
-        instance.is_dirty = False
-        return instance
 
     @property
     def num_chunks(self) -> int:

@@ -31,7 +31,6 @@ Supported htypes and their respective defaults are:
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
 | list           |  List     |  none         |
-
 """
 
 from typing import Dict
@@ -76,6 +75,7 @@ COMMON_CONFIGS = {
     "chunk_compression": None,
     "dtype": None,
     "max_chunk_size": None,
+    "_is_sequence": False,
 }
 
 

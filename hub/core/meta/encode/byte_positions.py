@@ -1,4 +1,5 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from typing import List, Sequence, Tuple
 import numpy as np
 
@@ -7,7 +8,7 @@ NUM_BYTES_COLUMN = 0
 START_BYTE_COLUMN = 1
 
 
-class BytePositionsEncoder(Encoder):
+class BytePositionsEncoder(Encoder, HubMemoryObject):
     def get_sum_of_bytes(self, until_row_index: int = -1) -> int:
         """Get the total number of bytes that are accounted for.
         This operation is O(1).

@@ -3,6 +3,7 @@ from abc import ABC
 from typing import Any, List, Sequence
 from hub.constants import ENCODING_DTYPE
 import numpy as np
+from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 
 
 # the "last seen index" denotes an encoder row's last seen index
@@ -727,3 +728,18 @@ class Encoder(ABC):
 
     def is_empty(self) -> bool:
         return len(self._encoded) == 0
+
+    def tobytes(self) -> memoryview:
+        return serialize_chunkids(self.version, [self._encoded])
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        instance = cls()
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded = ids
+        instance.version = version
+        instance.is_dirty = False
+        return instance

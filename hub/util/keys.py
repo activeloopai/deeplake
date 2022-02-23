@@ -5,6 +5,7 @@ from hub.constants import (
     DATASET_LOCK_FILENAME,
     ENCODED_CHUNK_NAMES_FILENAME,
     ENCODED_CHUNK_NAMES_FOLDER,
+    ENCODED_SEQUENCE_NAMES_FOLDER,
     ENCODED_TILE_NAMES_FOLDER,
     FIRST_COMMIT_ID,
     DATASET_META_FILENAME,
@@ -117,6 +118,26 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
             commit_id,
             key,
             ENCODED_CHUNK_NAMES_FOLDER,
+            ENCODED_CHUNK_NAMES_FILENAME,
+        )
+    )
+
+
+def get_sequence_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join(
+            (
+                key,
+                ENCODED_SEQUENCE_NAMES_FOLDER,
+                ENCODED_CHUNK_NAMES_FILENAME,
+            )
+        )
+    return "/".join(
+        (
+            "versions",
+            commit_id,
+            key,
+            ENCODED_SEQUENCE_NAMES_FOLDER,
             ENCODED_CHUNK_NAMES_FILENAME,
         )
     )

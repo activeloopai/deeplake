@@ -20,7 +20,7 @@ from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, DEFAULT_HTYPE
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
@@ -310,6 +310,18 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
+        if htype.startswith("sequence"):
+            if htype == "sequence":
+                htype = DEFAULT_HTYPE
+            else:
+                if htype[len("sequence")] != "[" or htype[-1] != "]":
+                    raise ValueError(
+                        "Sequence htype must be specificed in the form sequence[<base_htype>]. For e.g sequence[image]."
+                    )
+                htype = htype.split("[", 1)[1][:-1]
+                if not htype:  # sequence[]
+                    htype = DEFAULT_HTYPE
+            kwargs["_is_sequence"] = True
         if not self._is_root():
             return self.root.create_tensor(
                 full_path, htype, dtype, sample_compression, chunk_compression, **kwargs

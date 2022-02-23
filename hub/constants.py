@@ -55,8 +55,9 @@ META_ENCODING = "utf8"
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
+ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
+ENCODED_CHUNK_NAMES_FILENAME = "unsharded"
 
 AGREEMENT_FILENAME = "agreement.txt"
 
