@@ -1254,17 +1254,36 @@ class Dataset:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
 
-    def optimize(self, tensors: Optional[Union[str, List[str]]] = None):
+    def optimize(
+        self,
+        tensors: Optional[Union[str, List[str]]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
+    ):
         """Rewrites the underlying chunks to make their sizes optimal.
         This is usually needed in cases where a lot of updates have been made to the data.
 
         Args:
             tensors (str or list of str, optional): Name/names of the tensors to optimize.
+                If None, all tensors in the dataset are optimized.
+            num_workers (int): The number of workers to use for optimization. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
         """
+
         if tensors is None:
             tensors = list(self.tensors.keys())
-        for t in tensors:
-            self[t].optimize()
+
+        @hub.compute
+        def identity(sample_in, samples_out):
+            for tensor in tensors:
+                samples_out.tensor.append(sample_in[tensor])
+
+        identity().eval(
+            self, num_workers=num_workers, scheduler=scheduler, progressbar=progressbar
+        )
 
     # the below methods are used by cloudpickle dumps
     def __origin__(self):
