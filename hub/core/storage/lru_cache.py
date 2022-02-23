@@ -339,7 +339,9 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
         key_set = key_set.union(self.cache_storage._all_keys())
-        key_set = key_set.union(self.hub_objects.keys())
+        for path, obj in self.hub_objects.items():
+            if obj.is_dirty:
+                key_set.add(path)
         return key_set
 
     def _flush_if_not_read_only(self):
