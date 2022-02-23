@@ -630,11 +630,11 @@ class Tensor:
         self.chunk_engine._pop()
 
     def rechunk(self):
+        """Rechunks the tensor. This is useful for cases in which the chunk size becomes too large or too small, usually due to updates."""
         originial_chunk_paths = self.chunk_engine.list_all_chunks_path()
         key, version_state, storage = self.key, self.version_state, self.storage
         storage.flush()
 
-        # this stores chunks in actual storage, but keeps meta in memory
         mem_chunk_engine = self._create_memory_cache_chunk_engine()
 
         for idx in range(self.num_samples):
@@ -646,9 +646,12 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(key, storage, version_state)
         version_state["full_tensors"][key].chunk_engine = self.chunk_engine
+
+        # removes the old chunks that are no longer needed
         self.storage.delete_multiple(originial_chunk_paths)
 
     def _create_memory_cache_chunk_engine(self):
+        """Creates a chunk engine that stores chunks in actual storage, but keeps meta in memory."""
         memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
         memory_cache.autoflush = False
 
@@ -656,6 +659,8 @@ class Tensor:
 
         existing_meta = self.chunk_engine.tensor_meta
         chunk_size = self.chunk_engine.max_chunk_size
+
+        # this is an empty meta (i.e. len 0) with same characteristics as the original
         new_tensor_meta = TensorMeta(
             htype=existing_meta.htype,
             dtype=existing_meta.dtype,
@@ -669,6 +674,7 @@ class Tensor:
         return ChunkEngine(key, storage, version_state, memory_cache)
 
     def _copy_from_mem_chunk_engine_to_storage(self, chunk_engine):
+        """Copies various meta info objects from the memory chunk engine to the actual storage."""
         chunk_engine.cache.flush()
         key, version_state, storage = self.key, self.version_state, self.storage
         commit_id = version_state["commit_id"]
