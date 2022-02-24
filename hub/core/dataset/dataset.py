@@ -1275,13 +1275,15 @@ class Dataset:
 
         if tensors is None:
             tensors = list(self.tensors.keys())
+        elif isinstance(tensors, str):
+            tensors = [tensors]
 
         @hub.compute
-        def identity(sample_in, samples_out):
+        def optimization(sample_in, samples_out):
             for tensor in tensors:
                 samples_out[tensor].append(sample_in[tensor])
 
-        identity().eval(
+        optimization().eval(
             self,
             num_workers=num_workers,
             scheduler=scheduler,
