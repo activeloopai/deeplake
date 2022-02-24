@@ -120,6 +120,7 @@ QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
 _ENABLE_HUB_SUB_DATASETS = False
+_ENABLE_RANDOM_ASSIGNMENT = False
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds

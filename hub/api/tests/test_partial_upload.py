@@ -10,9 +10,23 @@ import numpy as np
         {"sample_shape": (100003, 300007, 3)},
     ],
 )
-def test_partial_upload(memory_ds, kwargs):
+@pytest.mark.parametrize(
+    "compression_type",
+    [
+        "sample_compression",
+        "chunk_compression",
+    ],
+)
+@pytest.mark.parametrize(
+    "compression",
+    [
+        "png",
+        "lz4",
+    ],
+)
+def test_partial_upload(memory_ds, kwargs, compression_type, compression):
     ds = memory_ds
-    ds.create_tensor("image", htype="image", sample_compression="png")
+    ds.create_tensor("image", htype="image", **{compression_type: compression})
     ds.image.append(hub.tiled(**kwargs))
     np.testing.assert_array_equal(
         ds.image[0][:10, :10].numpy(), np.zeros((10, 10, 3), dtype=np.uint8)

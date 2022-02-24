@@ -1,3 +1,5 @@
+import os
+import sys
 from hub.tests.common import get_actual_compression_from_buffer, assert_images_close
 import numpy as np
 import pytest
@@ -145,6 +147,9 @@ def test_audio(compression, audio_paths):
         assert sample.compressed_bytes(compression) == f.read()
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
 def test_video(compression, video_paths):
     for path in video_paths[compression]:
@@ -152,9 +157,8 @@ def test_video(compression, video_paths):
         arr = np.array(sample)
         assert arr.shape[-1] == 3
         assert arr.dtype == "uint8"
-        if compression not in ("mp4", "mkv"):
-            with open(path, "rb") as f:
-                assert sample.compressed_bytes(compression) == f.read()
+        with open(path, "rb") as f:
+            assert sample.compressed_bytes(compression) == f.read()
 
 
 def test_apng(memory_ds):

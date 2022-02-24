@@ -5,7 +5,7 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Optional
+from typing import Dict, Optional
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
@@ -116,6 +116,7 @@ class S3Provider(StorageProvider):
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
+        self._presigned_urls: Dict[str, float] = {}
 
     def subdir(self, path: str):
         sd = self.__class__(
@@ -451,3 +452,35 @@ class S3Provider(StorageProvider):
             err.response["Error"]["Code"] == "ExpiredToken"
             and self.loaded_creds_from_environment
         )
+
+    def get_presigned_url(self, key):
+        self._check_update_creds()
+        path = "".join((self.path, key))
+
+        url = None
+        cached = self._presigned_urls.get(path)
+        if cached:
+            url, t_store = cached
+            t_now = time.time()
+            if t_now - t_store > 3200:
+                del self._presigned_urls[path]
+                url = None
+
+        if url is None:
+            if self._is_hub_path:
+                client = HubBackendClient(self.token)
+                org_id, ds_name = self.tag.split("/")
+                url = client.get_presigned_url(org_id, ds_name, key)
+            else:
+                url = self.client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": self.bucket, "Key": path},
+                    ExpiresIn=3600,
+                )
+            self._presigned_urls[path] = (url, time.time())
+        return url
+
+    def get_object_size(self, path):
+        path = "".join((self.path, path))
+        obj = self.resource.Object(self.bucket, path)
+        return obj.content_length

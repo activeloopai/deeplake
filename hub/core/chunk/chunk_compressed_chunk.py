@@ -105,7 +105,7 @@ class ChunkCompressedChunk(BaseChunk):
                     self._changed = True
                 break
             if (
-                num_decompressed_bytes + incoming_sample.nbytes
+                num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
                 compressed_bytes = compress_multiple(
                     self.decompressed_samples + [incoming_sample],  # type: ignore
@@ -117,7 +117,7 @@ class ChunkCompressedChunk(BaseChunk):
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
-            shape = incoming_sample.shape
+            shape = incoming_sample.shape  # type: ignore
             shape = self.normalize_shape(shape)
 
             self.num_dims = self.num_dims or len(shape)
@@ -129,13 +129,17 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples += 1
         return num_samples
 
-    def _get_partial_sample_tile(self):
+    def _get_partial_sample_tile(self, as_bytes=None):
         if self.decompressed_samples or self.decompressed_bytes:
             return None
-        return super(ChunkCompressedChunk, self)._get_partial_sample_tile()
+        if as_bytes is None:
+            as_bytes = self.is_byte_compression
+        return super(ChunkCompressedChunk, self)._get_partial_sample_tile(
+            as_bytes=as_bytes
+        )
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
-        partial_sample_tile = self._get_partial_sample_tile()
+        partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
         if self.is_image_compression:
@@ -162,7 +166,9 @@ class ChunkCompressedChunk(BaseChunk):
             new_sample, chunk_compression=self.compression, break_into_tiles=False
         )
         self.check_shape_for_update(local_index, shape)
-
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_bytes = partial_sample_tile
         decompressed_buffer = self.decompressed_bytes
 
         new_data_uncompressed = self.create_updated_data(
@@ -180,6 +186,9 @@ class ChunkCompressedChunk(BaseChunk):
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(local_index, shape)
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_samples = [partial_sample_tile]
         decompressed_samples = self.decompressed_samples
 
         decompressed_samples[local_index] = new_sample  # type: ignore

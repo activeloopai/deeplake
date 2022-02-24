@@ -1,7 +1,5 @@
 import os
 import re
-import platform
-import subprocess as sp
 
 from setuptools import find_packages, setup
 
@@ -32,11 +30,13 @@ req_map = {
 extras = {
     "audio": ["miniaudio"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+    "video": ["av"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
-non_extra_deps = [req_map[r] for r in req_map if r not in all_extras]
-extras["all"] = [req_map[r] for r in all_extras]
+install_requires = [req_map[r] for r in req_map if r not in all_extras]
+extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
+extras_require["all"] = [req_map[r] for r in all_extras]
 
 
 init_file = os.path.join(project_name, "__init__.py")
@@ -51,17 +51,6 @@ def get_property(prop):
     return result.group(1)
 
 
-def check_ffmpeg():
-    ffmpeg_available = True
-    print("Checking for FFmpeg")
-    try:
-        print(sp.check_output(["which", "ffmpeg"]))
-    except Exception:
-        print("Could not find FFmpeg.")
-        ffmpeg_available = False
-    return ffmpeg_available
-
-
 config = {
     "name": project_name,
     "version": get_property("__version__"),
@@ -71,32 +60,17 @@ config = {
     "author": "activeloop.ai",
     "author_email": "support@activeloop.ai",
     "packages": find_packages(),
-    "install_requires": requirements,
+    "install_requires": install_requires,
+    "extras_require": extras_require,
     "tests_require": tests,
     "include_package_data": True,
-    "package_data": {
-        "pyffmpeg": [
-            "*.c",
-            "*.h",
-            "libavcodec/*.h",
-            "libavformat/*.h",
-            "libavutil/*.h",
-            "libswscale/*.h",
-        ]
-    },
     "zip_safe": False,
     "entry_points": {"console_scripts": ["activeloop = hub.cli.commands:cli"]},
-    "setup_requires": ["cffi>=1.0.0"],
     "dependency_links": [],
     "project_urls": {
         "Documentation": "https://docs.activeloop.ai/",
         "Source": "https://github.com/activeloopai/Hub",
     },
 }
-
-
-if platform.system() == "Darwin":
-    if check_ffmpeg():
-        config["cffi_modules"] = ["hub/core/pyffmpeg/build_ffmpeg_ffi.py:ffibuilder"]
 
 setup(**config)
