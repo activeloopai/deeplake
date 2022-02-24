@@ -1,3 +1,4 @@
+import hub
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -524,6 +525,16 @@ class Tensor:
                 return
             value = value.numpy(aslist=True)
         item_index = Index(item)
+
+        if (
+            hub.constants._ENABLE_RANDOM_ASSIGNMENT
+            and isinstance(item, int)
+            and item >= self.num_samples
+        ):
+            num_samples_to_pad = item - self.num_samples
+            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            return
+
         self.chunk_engine.update(self.index[item_index], value)
 
     def __iter__(self):

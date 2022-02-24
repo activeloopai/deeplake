@@ -41,7 +41,7 @@ def _check_version(v):
     comparison = version_compare(v, hub.__version__)
     if comparison > 0:
         warnings.warn(
-            f"Loading a dataset that was created with a newer version of hub. This could lead to corruption or weird errors! Dataset version: {v}, current hub version: {hub.__version__}. It's recommended that you update to a version of hub >= {v}."
+            f"Loading a dataset that was created or updated with a newer version of hub. This could lead to corruption or unexpected errors! Dataset version: {v}, current hub version: {hub.__version__}. It's recommended that you update to a version of hub >= {v}."
         )
 
     return comparison >= 0
