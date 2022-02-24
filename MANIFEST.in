@@ -1,1 +1,0 @@
-include hub/core/pyffmpeg/*.c hub/core/pyffmpeg/*.h hub/core/pyffmpeg/libavcodec/*.h hub/core/pyffmpeg/libavformat/*.h hub/core/pyffmpeg/libavutil/*.h hub/core/pyffmpeg/libswscale/*.h

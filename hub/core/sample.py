@@ -1,14 +1,9 @@
-# type: ignore
-from inspect import GEN_CLOSED
-from mailcap import getcaps
-import os
 from hub.core.compression import (
     compress_array,
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
-    to_hub_mkv,
 )
 from hub.compression import (
     get_compression_type,
@@ -20,7 +15,6 @@ from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
-    BYTE_COMPRESSION,
 )
 from hub.util.exceptions import CorruptedSampleError
 from hub.util.path import get_path_type, is_remote_path
@@ -30,22 +24,14 @@ from typing import List, Optional, Tuple, Union, Dict
 from PIL import Image  # type: ignore
 from io import BytesIO
 
-if os.name == "nt":
-    _USE_CFFI = False
-else:
-    _USE_CFFI = True
-
 from urllib.request import urlopen
-import boto3
 
 from hub.core.storage.s3 import S3Provider
 
 try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
-    GCSProvider = None
-
-import posixpath
+    GCSProvider = None  # type: ignore
 
 
 class Sample:
@@ -53,7 +39,7 @@ class Sample:
 
     def __init__(
         self,
-        path: str = None,
+        path: Optional[str] = None,
         array: np.ndarray = None,
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
@@ -104,7 +90,7 @@ class Sample:
 
         if array is not None:
             self._array = array
-            self._shape = array.shape
+            self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
             self._compression = None
 
@@ -207,20 +193,12 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
-                if not _USE_CFFI and self._compression in (
-                    "mp4",
-                    "mkv",
-                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream (slower implementation only)
-                    compressed_bytes = to_hub_mkv(self.path)
-                else:
-                    compressed_bytes = self._read_from_path()
-                    if self._compression is None:
-                        self._compression = get_compression(
-                            header=compressed_bytes[:32]
-                        )
+                compressed_bytes = self._read_from_path()
+                if self._compression is None:
+                    self._compression = get_compression(header=compressed_bytes[:32])
                 if self._compression == compression:
                     if self._verify:
-                        self._shape, self._typestr = verify_compressed_file(
+                        self._shape, self._typestr = verify_compressed_file(  # type: ignore
                             compressed_bytes, self._compression
                         )
                     else:
@@ -274,7 +252,7 @@ class Sample:
                 self._uncompressed_bytes = self._array.tobytes()
                 self._typestr = self._array.__array_interface__["typestr"]
             else:
-                self._uncompressed_bytes = self._array.tobytes()
+                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
 
         return self._uncompressed_bytes
 
@@ -295,7 +273,7 @@ class Sample:
                     compressed, compression=compr, shape=self.shape
                 )
                 if self._shape is None:
-                    self._shape = array.shape
+                    self._shape = array.shape  # type: ignore
                     self._typestr = array.__array_interface__["typestr"]
                 self._array = array
             else:
@@ -334,7 +312,7 @@ class Sample:
             return self.path == other.path
         return self.buffer == other.buffer
 
-    def _read_from_path(self) -> bytes:
+    def _read_from_path(self) -> bytes:  # type: ignore
         path_type = get_path_type(self.path)
         if path_type == "local":
             return self._read_from_local()
@@ -346,7 +324,7 @@ class Sample:
             return self._read_from_http()
 
     def _read_from_local(self) -> bytes:
-        with open(self.path, "rb") as f:
+        with open(self.path, "rb") as f:  # type: ignore
             return f.read()
 
     def _get_root_and_key(self, path):
@@ -358,7 +336,7 @@ class Sample:
         return root, key
 
     def _read_from_s3(self) -> bytes:
-        path = self.path.replace("s3://", "")
+        path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         s3 = S3Provider(root, **self._creds)
         return s3[key]
@@ -368,13 +346,13 @@ class Sample:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
-        path = self.path.replace("gcp://", "").replace("gcs://", "")
+        path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 
     def _read_from_http(self) -> bytes:
-        return urlopen(self.path).read()
+        return urlopen(self.path).read()  # type: ignore
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
