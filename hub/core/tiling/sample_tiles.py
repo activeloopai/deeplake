@@ -29,9 +29,7 @@ class SampleTiles:
         )
         self.tile_shape = tile_shape
         tiles = break_into_tiles(arr, tile_shape)
-        self.tiles = serialize_tiles(
-            tiles, lambda x: memoryview(compress_array(x, compression))
-        )
+        self.tiles = serialize_tiles(tiles, lambda x: compress_array(x, compression))
         tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
 
         self.shapes_enumerator = np.ndenumerate(tile_shapes)
