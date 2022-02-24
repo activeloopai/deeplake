@@ -320,7 +320,7 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = data
         self.register_sample_to_headers(None, tile_shape)
         if sample.is_first_write:
-            self.tensor_meta.update_shape_interval(sample.sample_shape)
+            self.tensor_meta.update_shape_interval(sample.sample_shape) # type: ignore
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
 

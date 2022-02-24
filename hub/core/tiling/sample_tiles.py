@@ -41,7 +41,7 @@ class SampleTiles:
                 else -1
             )
             self.tile_shape = get_tile_shape(
-                self.sample_shape, nbytes * ratio, chunk_size, exclude_axis
+                self.sample_shape, nbytes * ratio, chunk_size, exclude_axis  # type: ignore
             )
         else:
             self.tile_shape = tile_shape
@@ -65,8 +65,8 @@ class SampleTiles:
             )
 
         else:
-            self.tiles = None
-            tile_shapes = get_tile_shapes(self.sample_shape, self.tile_shape)
+            self.tiles = None  # type: ignore
+            tile_shapes = get_tile_shapes(self.sample_shape, self.tile_shape)  # type: ignore
             self.shapes_enumerator = np.ndenumerate(tile_shapes)
             self.layout_shape = tile_shapes.shape
             self.num_tiles = tile_shapes.size
