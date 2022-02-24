@@ -12,7 +12,6 @@ CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
-
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
         """Returns the hex of `id` with the "0x" prefix removed. This is the chunk's name and should be used to determine the chunk's key.
