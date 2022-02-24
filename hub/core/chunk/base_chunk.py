@@ -267,7 +267,9 @@ class BaseChunk(HubMemoryObject):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.min_chunk_size
+        return (
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+        )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
