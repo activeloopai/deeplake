@@ -640,6 +640,11 @@ class NotLoggedInError(AgreementError):
         super().__init__(msg)
 
 
+class RenameError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+
 class BufferError(Exception):
     pass
 

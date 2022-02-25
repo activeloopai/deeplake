@@ -495,15 +495,21 @@ def load_meta(dataset):
     storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_hub_object(meta_key, DatasetMeta)
+    if not hasattr(meta, "tensor_names"):  # backward compatibility
+        meta.tensor_names = {key: key for key in meta.tensors}
+
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
     storage.register_hub_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
+    _tensor_names = version_state["tensor_names"]
+    _tensor_names.clear()
+    _tensor_names.update(meta.tensor_names)
 
-    for tensor_name in meta.tensors:
-        _tensors[tensor_name] = Tensor(tensor_name, dataset)
+    for tensor_key in _tensor_names.values():
+        _tensors[tensor_key] = Tensor(tensor_key, dataset)
 
 
 def warn_node_checkout(commit_node: CommitNode, create: bool):

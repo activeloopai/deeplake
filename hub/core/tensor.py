@@ -92,10 +92,6 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-
-    if not tensor_exists(key, storage, version_state["commit_id"]):
-        raise TensorDoesNotExistError(key)
-
     tensor = dataset[key]
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
@@ -537,7 +533,7 @@ class Tensor:
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        return f"Tensor(key={repr(self.meta.name or self.key)}{index_str})"
 
     __repr__ = __str__
 

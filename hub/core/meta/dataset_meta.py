@@ -7,6 +7,7 @@ class DatasetMeta(Meta):
         super().__init__()
         self.tensors = []
         self.groups = []
+        self.tensor_names = {}
 
     @property
     def nbytes(self):
@@ -17,11 +18,13 @@ class DatasetMeta(Meta):
         d = super().__getstate__()
         d["tensors"] = self.tensors
         d["groups"] = self.groups
+        d["tensor_names"] = self.tensor_names
         return d
 
-    def add_tensor(self, name):
-        if name not in self.tensors:
-            self.tensors.append(name)
+    def add_tensor(self, name, key):
+        if key not in self.tensors:
+            self.tensor_names[name] = key
+            self.tensors.append(key)
             self.is_dirty = True
 
     def add_group(self, name):
@@ -30,10 +33,16 @@ class DatasetMeta(Meta):
             self.is_dirty = True
 
     def delete_tensor(self, name):
-        self.tensors.remove(name)
+        key = self.tensor_names.pop(name)
+        self.tensors.remove(key)
         self.is_dirty = True
 
     def delete_group(self, name):
         self.groups = list(filter(lambda g: not g.startswith(name), self.groups))
         self.tensors = list(filter(lambda t: not t.startswith(name), self.tensors))
+        self.is_dirty = True
+
+    def rename_tensor(self, name, new_name):
+        key = self.tensor_names.pop(name)
+        self.tensor_names[new_name] = key
         self.is_dirty = True

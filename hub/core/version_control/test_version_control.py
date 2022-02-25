@@ -527,6 +527,35 @@ def test_delete(local_ds):
         assert list(local_ds.groups) == ["x"]
 
 
+def test_tensor_rename(local_ds):
+    with local_ds:
+        local_ds.create_tensor("x/y/z")
+        local_ds["x/y/z"].append(1)
+        local_ds["x/y"].rename_tensor("z", "a")
+        a = local_ds.commit("first")
+
+        assert local_ds["x/y/a"][0].numpy() == 1
+        local_ds["x/y/a"].append(2)
+        local_ds["x"].rename_tensor("y/a", "y/z")
+        b = local_ds.commit("second")
+
+        assert local_ds["x/y/z"][1].numpy() == 2
+        local_ds.create_tensor("x/y/a")
+        local_ds["x/y/a"].append(3)
+        local_ds["x/y"].rename_tensor("z", "b")
+        c = local_ds.commit("third")
+
+        local_ds.checkout(a)
+        assert local_ds["x/y/a"][0].numpy() == 1
+
+        local_ds.checkout(b)
+        assert local_ds["x/y/z"][1].numpy() == 2
+
+        local_ds.checkout(c)
+        assert local_ds["x/y/a"][0].numpy() == 3
+        assert local_ds["x/y/b"][1].numpy() == 2
+
+
 def test_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("xyz")

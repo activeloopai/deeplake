@@ -1,4 +1,5 @@
 # type: ignore
+import uuid
 import numpy as np
 from time import time
 import json
@@ -50,6 +51,7 @@ from hub.util.exceptions import (
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
     NotLoggedInError,
+    RenameError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -308,12 +310,22 @@ class Dataset:
         while "//" in name:
             name = name.replace("//", "/")
 
-        full_path = posixpath.join(self.group_index, name)
+        key = self.version_state["tensor_names"].get(name)
+        if key:
+            raise TensorAlreadyExistsError(name)
+        else:
+            if name in self.version_state["full_tensors"]:
+                key = f"{name}_{uuid.uuid4().hex[:4]}"
+            else:
+                key = name
 
-        if tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+        full_key = posixpath.join(self.group_index, key)
+        full_name = posixpath.join(self.group_index, name)
+
+        if tensor_exists(full_key, self.storage, self.version_state["commit_id"]):
             raise TensorAlreadyExistsError(name)
 
-        if full_path in self._groups:
+        if full_name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
 
         if not name or name in dir(self):
@@ -321,7 +333,7 @@ class Dataset:
 
         if not self._is_root():
             return self.root.create_tensor(
-                full_path, htype, dtype, sample_compression, chunk_compression, **kwargs
+                full_key, htype, dtype, sample_compression, chunk_compression, **kwargs
             )
 
         if "/" in name:
@@ -346,7 +358,7 @@ class Dataset:
                 info_kwargs[k] = htype_config[k]
 
         create_tensor(
-            name,
+            key,
             self.storage,
             htype=htype,
             dtype=dtype,
@@ -357,9 +369,11 @@ class Dataset:
         )
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.add_tensor(name)
-        tensor = Tensor(name, self)  # type: ignore
-        self.version_state["full_tensors"][name] = tensor
+        meta.add_tensor(name, key)
+        tensor = Tensor(key, self)  # type: ignore
+        tensor.meta.name = name
+        self.version_state["full_tensors"][key] = tensor
+        self.version_state["tensor_names"][name] = key
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
@@ -386,7 +400,11 @@ class Dataset:
         while "//" in name:
             name = name.replace("//", "/")
 
-        full_path = posixpath.join(self.group_index, name)
+        key = self.version_state["tensor_names"].get(name)
+        if not key:
+            raise TensorDoesNotExistError(name)
+
+        full_path = posixpath.join(self.group_index, key)
 
         if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
             raise TensorDoesNotExistError(name)
@@ -398,7 +416,7 @@ class Dataset:
             return self.root.delete_tensor(full_path, large_ok)
 
         if not large_ok:
-            chunk_engine = self.version_state["full_tensors"][name].chunk_engine
+            chunk_engine = self.version_state["full_tensors"][key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
             if size_approx > hub.constants.DELETE_SAFETY_SIZE:
                 logger.info(
@@ -413,7 +431,8 @@ class Dataset:
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
             self.version_state["meta"] = meta
-            self.version_state["full_tensors"].pop(name)
+            key = self.version_state["tensor_names"].pop(name)
+            self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
 
@@ -466,8 +485,9 @@ class Dataset:
             ]
             meta.delete_group(name)
             for tensor in tensors:
-                delete_tensor(tensor, self)
-                self.version_state["full_tensors"].pop(tensor)
+                key = self.version_state["tensor_names"].pop(tensor)
+                delete_tensor(key, self)
+                self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
 
@@ -493,6 +513,50 @@ class Dataset:
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
         return destination_tensor
+
+    @hub_reporter.record_call
+    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
+        """Renames tensor with name `name` to `new_name`
+
+        Args:
+            name (str): Name of tensor to be renamed.
+            new_name (str): New name of tensor.
+
+        Returns:
+            Tensor: Renamed tensor.
+        """
+        auto_checkout(self)
+        name = name.strip("/")
+
+        while "//" in name:
+            name = name.replace("//", "/")
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("New name of tensor cannot point to a different group")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        full_new_name = posixpath.join(self.group_index, new_name)
+        if full_new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        if not new_name or new_name in dir(self):
+            raise InvalidTensorNameError(new_name)
+
+        if not self._is_root():
+            full_name = posixpath.join(self.group_index, name)
+            return self.root.rename_tensor(full_name, full_new_name)
+
+        tensor = self[name]
+        tensor.meta.name = new_name
+        meta: DatasetMeta = self.meta
+        ffw_dataset_meta(meta)
+        meta.rename_tensor(name, new_name)
+        key = self.version_state["tensor_names"].pop(name)
+        self.version_state["tensor_names"][new_name] = key
+        self.storage.maybe_flush()
+        return tensor
 
     __getattr__ = __getitem__
 
@@ -535,6 +599,7 @@ class Dataset:
             version_state["commit_node_map"][commit_id] = commit_node
         # keeps track of the full unindexed tensors
         version_state["full_tensors"] = {}
+        version_state["tensor_names"] = {}
         self.__dict__["version_state"] = version_state
 
     def _lock(self, err=False):
@@ -1051,7 +1116,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={list(self.version_state['meta'].tensor_names.keys())})"
 
     __repr__ = __str__
 
@@ -1059,7 +1124,8 @@ class Dataset:
         """Gets a tensor from the root dataset.
         Acesses storage only for the first call.
         """
-        ret = self.version_state["full_tensors"].get(name)
+        key = self.version_state["tensor_names"].get(name)
+        ret = self.version_state["full_tensors"].get(key)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
@@ -1079,7 +1145,7 @@ class Dataset:
         """Top level tensors in this group that do not belong to any sub groups"""
         return {
             posixpath.basename(k): v
-            for k, v in self.version_state["full_tensors"].items()
+            for k, v in self.version_state["tensor_names"].items()
             if posixpath.dirname(k) == self.group_index
         }
 
@@ -1088,7 +1154,7 @@ class Dataset:
         """Names of all tensors belonging to this group, including those within sub groups"""
         return [
             posixpath.relpath(t, self.group_index)
-            for t in self.version_state["full_tensors"]
+            for t in self.version_state["tensor_names"]
             if not self.group_index or t.startswith(self.group_index + "/")
         ]
 
@@ -1096,9 +1162,9 @@ class Dataset:
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
-            t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
-                self.index
-            ]
+            t: self.version_state["full_tensors"][
+                posixpath.join(self.group_index, self.version_state["tensor_names"][t])
+            ][self.index]
             for t in self._all_tensors_filtered
         }
 

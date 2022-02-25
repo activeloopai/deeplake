@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -33,6 +33,7 @@ from hub.core.meta.meta import Meta
 
 
 class TensorMeta(Meta):
+    name: Optional[str] = None
     htype: str
     dtype: str
     min_shape: List[int]
@@ -158,6 +159,7 @@ class TensorMeta(Meta):
 
         for key in self._required_meta_keys:
             d[key] = getattr(self, key)
+        d["name"] = self.name
 
         return d
 
