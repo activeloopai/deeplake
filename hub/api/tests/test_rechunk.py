@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def test_optimize(local_ds):
+def test_rechunk(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
         for _ in range(10):
@@ -15,7 +15,7 @@ def test_optimize(local_ds):
 
         original_num_chunks = ds.abc.chunk_engine.num_chunks
         assert original_num_chunks == 1
-        ds.optimize()
+        ds.rechunk()
         new_num_chunks = ds.abc.chunk_engine.num_chunks
         assert new_num_chunks == 3
 
@@ -31,6 +31,6 @@ def test_optimize(local_ds):
 
         original_num_chunks = ds.xyz.chunk_engine.num_chunks
         assert original_num_chunks == 5
-        ds.optimize("xyz")
+        ds.rechunk("xyz")
         new_num_chunks = ds.xyz.chunk_engine.num_chunks
         assert new_num_chunks == 1

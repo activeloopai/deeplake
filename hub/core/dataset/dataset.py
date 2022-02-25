@@ -1254,7 +1254,7 @@ class Dataset:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
 
-    def optimize(
+    def rechunk(
         self,
         tensors: Optional[Union[str, List[str]]] = None,
         num_workers: int = 0,
@@ -1265,10 +1265,10 @@ class Dataset:
         This is usually needed in cases where a lot of updates have been made to the data.
 
         Args:
-            tensors (str or list of str, optional): Name/names of the tensors to optimize.
-                If None, all tensors in the dataset are optimized.
-            num_workers (int): The number of workers to use for optimization. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            tensors (str or list of str, optional): Name/names of the tensors to rechunk.
+                If None, all tensors in the dataset are rechunked.
+            num_workers (int): The number of workers to use for rechunking. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
         """
@@ -1278,12 +1278,13 @@ class Dataset:
         elif isinstance(tensors, str):
             tensors = [tensors]
 
+        # identity function that rechunks
         @hub.compute
-        def optimization(sample_in, samples_out):
+        def rechunking(sample_in, samples_out):
             for tensor in tensors:
                 samples_out[tensor].append(sample_in[tensor])
 
-        optimization().eval(
+        rechunking().eval(
             self,
             num_workers=num_workers,
             scheduler=scheduler,
