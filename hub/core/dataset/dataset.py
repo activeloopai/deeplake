@@ -528,7 +528,7 @@ class Dataset:
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
-            InvalidTensorGroupNameError: If `new_name` is in dataset attributes.
+            InvalidTensorNameError: If `new_name` is in dataset attributes.
             RenameError: If `new_name` points to a group different from `name`.
         """
         auto_checkout(self)
