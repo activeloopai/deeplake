@@ -19,6 +19,7 @@ from hub.util.exceptions import (
     InvalidPathException,
     PathNotEmptyException,
     SamePathException,
+    AuthorizationException,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 
@@ -93,6 +94,29 @@ class dataset:
             )
         except AgreementError as e:
             raise e from None
+
+    @staticmethod
+    def exists(path: str) -> bool:
+        """Checks if a dataset exists at the given `path`.
+        Arguments: `path` (str): the path to the given dataset.
+        Returns a boolean.
+        """
+        try:
+            storage, cache_chain = get_storage_and_cache_chain(
+                path=path,
+                read_only=False,
+                creds=None,
+                token=None,
+                memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+                local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+            )
+        except (AuthorizationException):
+            # Cloud Dataset does not exist
+            return False
+        if dataset_exists(storage):
+            return True
+        else:
+            return False
 
     @staticmethod
     def empty(
