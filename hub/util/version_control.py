@@ -495,7 +495,7 @@ def load_meta(dataset):
     storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_hub_object(meta_key, DatasetMeta)
-    if not hasattr(meta, "tensor_names"):  # backward compatibility
+    if not meta.tensor_names:  # backward compatibility
         meta.tensor_names = {key: key for key in meta.tensors}
 
     ffw_dataset_meta(meta)

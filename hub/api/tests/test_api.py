@@ -714,7 +714,7 @@ def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
 
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("version_state")
+        memory_ds.create_tensor("group/version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -872,8 +872,8 @@ def test_tensor_rename(local_ds_generator):
         ds["x/y"].rename_tensor("y", "a")
 
     with pytest.raises(InvalidTensorNameError):
-        ds.create_tensor("abc")
-        ds.rename_tensor("abc", "append")
+        ds.create_tensor("abc/xyz")
+        ds.rename_tensor("abc/xyz", "abc/append")
 
     ds["x"].rename_tensor("y/y", "y/b")
 

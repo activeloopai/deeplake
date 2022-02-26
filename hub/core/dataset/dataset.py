@@ -310,26 +310,25 @@ class Dataset:
         while "//" in name:
             name = name.replace("//", "/")
 
-        key = self.version_state["tensor_names"].get(name)
-        if key:
-            raise TensorAlreadyExistsError(name)
-        else:
-            if name in self.version_state["full_tensors"]:
-                key = f"{name}_{uuid.uuid4().hex[:4]}"
-            else:
-                key = name
-
-        full_key = posixpath.join(self.group_index, key)
         full_name = posixpath.join(self.group_index, name)
+        full_key = self.version_state["tensor_names"].get(full_name)
+        if full_key:
+            raise TensorAlreadyExistsError(full_name)
+        else:
+            if full_name in self.version_state["full_tensors"]:
+                full_key = f"{name}_{uuid.uuid4().hex[:4]}"
+            else:
+                full_key = full_name
 
         if tensor_exists(full_key, self.storage, self.version_state["commit_id"]):
-            raise TensorAlreadyExistsError(name)
+            raise TensorAlreadyExistsError(full_name)
 
         if full_name in self._groups:
-            raise TensorGroupAlreadyExistsError(name)
+            raise TensorGroupAlreadyExistsError(full_name)
 
-        if not name or name in dir(self):
-            raise InvalidTensorNameError(name)
+        tensor_name = posixpath.split(name)[1]
+        if not tensor_name or tensor_name in dir(self):
+            raise InvalidTensorNameError(tensor_name)
 
         if not self._is_root():
             return self.root.create_tensor(
@@ -358,7 +357,7 @@ class Dataset:
                 info_kwargs[k] = htype_config[k]
 
         create_tensor(
-            key,
+            full_key,
             self.storage,
             htype=htype,
             dtype=dtype,
@@ -369,11 +368,11 @@ class Dataset:
         )
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.add_tensor(name, key)
-        tensor = Tensor(key, self)  # type: ignore
-        tensor.meta.name = name
-        self.version_state["full_tensors"][key] = tensor
-        self.version_state["tensor_names"][name] = key
+        meta.add_tensor(full_name, full_key)
+        tensor = Tensor(full_key, self)  # type: ignore
+        tensor.meta.name = full_name
+        self.version_state["full_tensors"][full_key] = tensor
+        self.version_state["tensor_names"][full_name] = full_key
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
@@ -392,7 +391,6 @@ class Dataset:
 
         Raises:
             TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
-            InvalidTensorNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self)
         name = name.strip("/")
@@ -400,23 +398,20 @@ class Dataset:
         while "//" in name:
             name = name.replace("//", "/")
 
-        key = self.version_state["tensor_names"].get(name)
-        if not key:
-            raise TensorDoesNotExistError(name)
+        full_name = posixpath.join(self.group_index, name)
+        full_key = self.version_state["tensor_names"].get(full_name)
 
-        full_path = posixpath.join(self.group_index, key)
+        if not full_key:
+            raise TensorDoesNotExistError(full_name)
 
-        if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
-            raise TensorDoesNotExistError(name)
-
-        if not name or name in dir(self):
-            raise InvalidTensorNameError(name)
+        if not tensor_exists(full_key, self.storage, self.version_state["commit_id"]):
+            raise TensorDoesNotExistError(full_name)
 
         if not self._is_root():
-            return self.root.delete_tensor(full_path, large_ok)
+            return self.root.delete_tensor(full_name, large_ok)
 
         if not large_ok:
-            chunk_engine = self.version_state["full_tensors"][key].chunk_engine
+            chunk_engine = self.version_state["full_tensors"][full_key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
             if size_approx > hub.constants.DELETE_SAFETY_SIZE:
                 logger.info(
@@ -425,14 +420,14 @@ class Dataset:
                 return
 
         with self:
-            delete_tensor(name, self)
+            delete_tensor(full_name, self)
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
-            meta.delete_tensor(name)
+            meta.delete_tensor(full_name)
             self.version_state["meta"] = meta
-            key = self.version_state["tensor_names"].pop(name)
-            self.version_state["full_tensors"].pop(key)
+            key = self.version_state["tensor_names"].pop(full_name)
+            self.version_state["full_tensors"].pop(full_key)
 
         self.storage.maybe_flush()
 
@@ -449,7 +444,6 @@ class Dataset:
 
         Raises:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
-            InvalidTensorGroupNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self)
         name = name.strip("/")
@@ -461,9 +455,6 @@ class Dataset:
 
         if full_path not in self._groups:
             raise TensorGroupDoesNotExistError(name)
-
-        if not name or name in dir(self):
-            raise InvalidTensorGroupNameError(name)
 
         if not self._is_root():
             return self.root.delete_group(full_path, large_ok)
@@ -485,8 +476,9 @@ class Dataset:
             ]
             meta.delete_group(name)
             for tensor in tensors:
-                key = self.version_state["tensor_names"].pop(tensor)
+                key = self.version_state["tensor_names"][tensor]
                 delete_tensor(key, self)
+                self.version_state["tensor_names"].pop(tensor)
                 self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
@@ -509,6 +501,7 @@ class Dataset:
         del meta["max_shape"]
         del meta["length"]
         del meta["version"]
+        del meta["name"]
 
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
@@ -533,21 +526,27 @@ class Dataset:
         """
         auto_checkout(self)
         name = name.strip("/")
+        new_name = new_name.strip("/")
 
         while "//" in name:
             name = name.replace("//", "/")
 
+        while "//" in new_name:
+            new_name = new_name.replace("//", "/")
+
         if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
             raise RenameError("New name of tensor cannot point to a different group")
 
-        if new_name in self.version_state["tensor_names"]:
-            raise TensorAlreadyExistsError(new_name)
-
         full_new_name = posixpath.join(self.group_index, new_name)
-        if full_new_name in self._groups:
-            raise TensorGroupAlreadyExistsError(new_name)
 
-        if not new_name or new_name in dir(self):
+        if full_new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(full_new_name)
+
+        if full_new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(full_new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
             raise InvalidTensorNameError(new_name)
 
         if not self._is_root():
@@ -555,12 +554,12 @@ class Dataset:
             return self.root.rename_tensor(full_name, full_new_name)
 
         tensor = self[name]
-        tensor.meta.name = new_name
+        tensor.meta.name = full_new_name
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.rename_tensor(name, new_name)
-        key = self.version_state["tensor_names"].pop(name)
-        self.version_state["tensor_names"][new_name] = key
+        meta.rename_tensor(name, full_new_name)
+        full_key = self.version_state["tensor_names"].pop(name)
+        self.version_state["tensor_names"][full_new_name] = full_key
         self.storage.maybe_flush()
         return tensor
 
@@ -1169,7 +1168,7 @@ class Dataset:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
             t: self.version_state["full_tensors"][
-                posixpath.join(self.group_index, self.version_state["tensor_names"][t])
+                self.version_state["tensor_names"][posixpath.join(self.group_index, t)]
             ][self.index]
             for t in self._all_tensors_filtered
         }
