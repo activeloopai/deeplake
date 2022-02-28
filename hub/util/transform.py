@@ -335,13 +335,21 @@ def create_slices(data_in, num_workers):
     return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
 
-def delete_overwritten_chunks(target_ds, storage, generated_tensors, overwrite):
+def get_old_chunk_paths(target_ds, generated_tensors, overwrite):
+    old_chunk_paths = []
+    if overwrite:
+        for key in generated_tensors:
+            tensor = target_ds[key]
+            old_chunk_paths.extend(tensor.chunk_engine.list_all_chunks_path())
+
+    return old_chunk_paths
+
+
+def delete_overwritten_chunks(old_chunk_paths, storage, overwrite):
     if not overwrite:
         return
 
-    for key in generated_tensors:
-        tensor = target_ds[key]
-        storage.delete_multiple(tensor.chunk_engine.list_all_chunks_path())
+    storage.delete_multiple(old_chunk_paths)
 
 
 def get_lengths_generated(all_tensor_metas, tensors):

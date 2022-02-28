@@ -170,7 +170,7 @@ class StorageProvider(ABC, MutableMapping):
 
     def delete_multiple(self, paths: Sequence[str]):
         for path in paths:
-            self.__delitem__(path)
+            del self[path]
 
     def empty(self) -> bool:
         lock_key = get_dataset_lock_key()
