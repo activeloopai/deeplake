@@ -1,16 +1,17 @@
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
+from hub.api.info import Info
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
+from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
-from hub.core.tiling.optimizer import get_tile_shape
 from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import intelligent_cast
+from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
@@ -31,6 +32,7 @@ from hub.util.chunk_engine import (
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_commit_diff_key,
+    get_tensor_info_key,
     get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
@@ -42,6 +44,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
     ReadOnlyModeError,
 )
+from hub.util.remove_cache import get_base_storage
 from hub.compression import VIDEO_COMPRESSIONS
 
 
@@ -112,6 +115,7 @@ class ChunkEngine:
 
         self.key = key
         self.cache = cache
+        self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
         self.compression = None
@@ -131,6 +135,12 @@ class ChunkEngine:
 
         self._commit_diff: Optional[CommitDiff] = None
         self._commit_diff_commit_id: Optional[str] = None
+
+        self._active_appended_chunk: Optional[BaseChunk] = None
+        self._active_updated_chunk: Optional[BaseChunk] = None
+
+        self._info: Optional[Info] = None
+        self._info_commit_id: Optional[str] = None
 
         tensor_meta = self.tensor_meta
 
@@ -185,11 +195,10 @@ class ChunkEngine:
     def tensor_meta(self):
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
-            tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
-            self._tensor_meta = self.meta_cache.get_cachable(
-                tensor_meta_key, TensorMeta
-            )
-        self._tensor_meta_commit_id = commit_id
+            key = get_tensor_meta_key(self.key, commit_id)
+            self._tensor_meta = self.meta_cache.get_hub_object(key, TensorMeta)
+            self._tensor_meta_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, self._tensor_meta)
         return self._tensor_meta
 
     @property
@@ -222,9 +231,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_cachable(key, ChunkIdEncoder)
+                enc = self.meta_cache.get_hub_object(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
             self._chunk_id_encoder_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, enc)
         return self._chunk_id_encoder
 
     @property
@@ -250,9 +260,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                cset = self.meta_cache.get_cachable(key, CommitChunkSet)
+                cset = self.meta_cache.get_hub_object(key, CommitChunkSet)
             self._commit_chunk_set = cset
             self._commit_chunk_set_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, cset)
         return self._commit_chunk_set
 
     @property
@@ -289,9 +300,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                diff = self.meta_cache.get_cachable(key, CommitDiff)
+                diff = self.meta_cache.get_hub_object(key, CommitDiff)
             self._commit_diff = diff
             self._commit_diff_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, diff)
         return self._commit_diff
 
     @property
@@ -337,9 +349,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_cachable(key, TileEncoder)
+                enc = self.meta_cache.get_hub_object(key, TileEncoder)
             self._tile_encoder = enc
             self._tile_encoder_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, enc)
         return self._tile_encoder
 
     @property
@@ -367,7 +380,7 @@ class ChunkEngine:
 
     @property
     def last_chunk_key(self) -> str:
-        last_chunk_name = self.last_chunk_name
+        last_chunk_name = self.last_appended_chunk_name
         commit_id = self.get_chunk_commit(last_chunk_name)
         return get_chunk_key(self.key, last_chunk_name, commit_id)
 
@@ -377,46 +390,90 @@ class ChunkEngine:
         return get_chunk_key(self.key, chunk_name, commit_id)
 
     @property
-    def last_chunk_name(self) -> str:
+    def active_appended_chunk(self):
+        return self._active_appended_chunk
+
+    @active_appended_chunk.setter
+    def active_appended_chunk(self, value):
+        if self.active_appended_chunk is not None:
+            self.cache.remove_hub_object(self.active_appended_chunk)
+        self._active_appended_chunk = value
+        if value is not None:
+            self.cache.register_hub_object(value.key, value)
+
+    @property
+    def active_updated_chunk(self):
+        return self._active_updated_chunk
+
+    @active_updated_chunk.setter
+    def active_updated_chunk(self, value):
+        if self.active_updated_chunk is not None:
+            self.cache.remove_hub_object(self.active_updated_chunk)
+        self._active_updated_chunk = value
+        if value is not None:
+            self.cache.register_hub_object(value.key, value)
+
+    @property
+    def last_appended_chunk_name(self) -> str:
         return self.chunk_id_encoder.get_name_for_chunk(-1)
 
     @property
-    def last_chunk_id(self) -> str:
+    def last_appended_chunk_id(self) -> str:
         return self.chunk_id_encoder.get_id_for_chunk(-1)
 
-    def last_chunk(self) -> Optional[BaseChunk]:
+    def last_appended_chunk(self) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
-        chunk_name = self.last_chunk_name
+        chunk_name = self.last_appended_chunk_name
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
         chunk.key = chunk_key  # type: ignore
-        chunk.id = self.last_chunk_id  # type: ignore
+        chunk.id = self.last_appended_chunk_id  # type: ignore
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        else:
-            self.update_chunk_in_cache(chunk)
+        self.active_appended_chunk = chunk
         return chunk
 
     def get_chunk(self, chunk_key: str) -> BaseChunk:
-        return self.cache.get_cachable(
-            chunk_key, self.chunk_class, meta=self.chunk_args
-        )
+        return self.cache.get_hub_object(chunk_key, self.chunk_class, self.chunk_args)
 
     def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.cache.get_cachable(
-            chunk_key, self.chunk_class, meta=self.chunk_args
-        )
+        chunk = self.get_chunk(chunk_key)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
+
+    def get_video_chunk(self, chunk_id, copy: bool = False):
+        """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_commit_id = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+
+        base_storage = self.base_storage
+        stream = False
+        if isinstance(base_storage, (S3Provider, GCSProvider)):
+            chunk_size = base_storage.get_object_size(chunk_key)
+            stream = chunk_size > self.min_chunk_size
+            if stream:
+                chunk = self.cache.get_hub_object(
+                    chunk_key, self.chunk_class, meta=self.chunk_args, url=True
+                )
+        if not stream:
+            chunk = self.cache.get_hub_object(
+                chunk_key, self.chunk_class, meta=self.chunk_args
+            )
+        chunk.key = chunk_key  # type: ignore
+        chunk.id = chunk_id  # type: ignore
+        if copy and chunk_commit_id != self.commit_id:
+            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        return chunk, stream
 
     def copy_chunk_to_new_commit(self, chunk, chunk_name):
         """Copies the chunk to the current commit.
@@ -428,7 +485,6 @@ class ChunkEngine:
         chunk = chunk.copy(self.chunk_args)
         chunk.key = new_chunk_key
         chunk.id = chunk_id
-        self.update_chunk_in_cache(chunk)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
         return chunk
@@ -444,7 +500,7 @@ class ChunkEngine:
                 if commit_id == FIRST_COMMIT_ID:
                     chunk_set = set()
                 else:
-                    chunk_set = self.meta_cache.get_cachable(
+                    chunk_set = self.meta_cache.get_hub_object(
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:
@@ -461,7 +517,6 @@ class ChunkEngine:
         return FIRST_COMMIT_ID
 
     def _write_initialization(self):
-        self.add_cachables_to_cache_dirty_keys()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
     def _convert_to_list(self, samples):
@@ -497,7 +552,6 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
-            self.update_chunk_in_cache(current_chunk)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
@@ -540,39 +594,12 @@ class ChunkEngine:
         samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_chunk(),
+            start_chunk=self.last_appended_chunk(),
             register=True,
         )
 
         self.cache.autoflush = initial_autoflush
-
         self.cache.maybe_flush()
-
-    def add_cachables_to_cache_dirty_keys(self):
-        """Adds all the cachables to the cache as dirty keys."""
-        commit_id = self.commit_id
-
-        # synchronize tensor meta
-        tensor_meta_key = get_tensor_meta_key(self.key, commit_id)
-        self.meta_cache[tensor_meta_key] = self.tensor_meta
-
-        # synchronize chunk ID encoder
-        chunk_id_key = get_chunk_id_encoder_key(self.key, commit_id)
-        self.meta_cache[chunk_id_key] = self.chunk_id_encoder
-
-        # synchronize tile encoder
-        tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
-        self.meta_cache[tile_encoder_key] = self.tile_encoder
-
-        # synchronize commit diff
-        commit_diff_key = get_tensor_commit_diff_key(self.key, commit_id)
-        self.meta_cache[commit_diff_key] = self.commit_diff
-
-        # first commit doesn't have commit chunk set
-        if commit_id != FIRST_COMMIT_ID:
-            # synchronize current chunk set, all older ones are immutable
-            commit_chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
-            self.meta_cache[commit_chunk_set_key] = self.commit_chunk_set  # type: ignore
 
     def _create_new_chunk(self, register=True) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -585,14 +612,12 @@ class ChunkEngine:
             self.commit_chunk_set.add(chunk_name)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
-        self.update_chunk_in_cache(chunk)
         chunk._update_tensor_meta_length = register
-        return chunk
+        if self.active_appended_chunk is not None:
+            self.write_chunk_to_storage(self.active_appended_chunk)
 
-    def update_chunk_in_cache(self, chunk):
-        """Updates the chunk in the cache. Also, updates the sizes of cachables in cache."""
-        self.cache[chunk.key] = chunk
-        self.add_cachables_to_cache_dirty_keys()
+        self.active_appended_chunk = chunk
+        return chunk
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
         new_chunks, tiles = self._samples_to_chunks(
@@ -641,7 +666,41 @@ class ChunkEngine:
             curr_shape = chunk.shapes_encoder[-1]
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
-            self.update_chunk_in_cache(chunk)
+            if (
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk.key  # type: ignore
+            ):
+                self.write_chunk_to_storage(self.active_updated_chunk)
+            self.active_updated_chunk = chunk
+
+    def pad_and_append(self, num_samples_to_pad: int, value):
+        """Pads the tensor with empty samples and appends value at the end."""
+        update_first_sample = False
+        if num_samples_to_pad > 0:
+            if self.num_samples == 0:
+                # set htype, dtype, shape, we later update it with empty sample
+                self.extend([value])
+                num_samples_to_pad -= 1
+                update_first_sample = True
+
+            htype = self.tensor_meta.htype
+            if htype in ["json", "text", "list"]:
+                empty_sample = get_empty_sample(htype)
+                empty_samples = [empty_sample] * num_samples_to_pad
+            else:
+                ndim = len(self.tensor_meta.max_shape)
+                shape = tuple([num_samples_to_pad] + [0] * ndim)
+                dtype = self.tensor_meta.dtype
+                empty_sample = np.zeros(shape[1:], dtype=dtype)
+                empty_samples = np.zeros(shape, dtype=dtype)  # type: ignore
+
+            if update_first_sample:
+                self.update(Index(0), empty_sample)
+
+            # pad
+            self.extend(empty_samples)
+
+        self.extend([value])
 
     def update(
         self,
@@ -673,16 +732,22 @@ class ChunkEngine:
                     global_sample_index
                 )
                 chunk.update_sample(local_sample_index, sample)
-                self.update_chunk_in_cache(chunk)
+                if (
+                    self.active_updated_chunk is not None
+                    and self.active_updated_chunk.key != chunk.key  # type: ignore
+                ):
+                    self.write_chunk_to_storage(self.active_updated_chunk)
+                self.active_updated_chunk = chunk
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
             self.commit_diff.update_data(global_sample_index)
-            self.cache.autoflush = initial_autoflush
-            self.cache.maybe_flush()
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
+
+        self.cache.autoflush = initial_autoflush
+        self.cache.maybe_flush()
 
     def _update_with_operator(
         self,
@@ -725,9 +790,17 @@ class ChunkEngine:
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         return buffer[sb:eb].tobytes()
 
-    def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
+    def read_shape_for_sample(
+        self, global_sample_index: int, url: bool = False
+    ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        chunks = self.get_chunks_for_sample(global_sample_index)
+        if self.compression in VIDEO_COMPRESSIONS:
+            chunks = [
+                self.get_video_chunk(idx)[0]
+                for idx in self.chunk_id_encoder[global_sample_index]
+            ]
+        else:
+            chunks = self.get_chunks_for_sample(global_sample_index)
         if len(chunks) == 1:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
@@ -774,18 +847,19 @@ class ChunkEngine:
             for global_sample_index in index.values[0].indices(length):
                 chunk_ids = enc[global_sample_index]
                 if not self._is_tiled_sample(global_sample_index):
-                    chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                     local_sample_index = enc.translate_index_relative_to_chunks(
                         global_sample_index
                     )
                     if self.compression in VIDEO_COMPRESSIONS:
+                        chunk, stream = self.get_video_chunk(chunk_ids[0])
+                        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
                         sample = chunk.read_sample(
                             local_sample_index,
-                            sub_index=index.values[1].value  # type: ignore
-                            if len(index.values) > 1
-                            else None,
+                            sub_index=sub_index,
+                            stream=stream,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
+                        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
                         sample = chunk.read_sample(local_sample_index)[
                             tuple(entry.value for entry in index.values[1:])
                         ]
@@ -859,11 +933,14 @@ class ChunkEngine:
             # need to copy if aslist otherwise user might modify the returned data
             # if not aslist, we already do np.array(samples) while formatting which copies
             sample = sample.copy() if aslist else sample
+            sample = sample[tuple(entry.value for entry in index.values[1:])]
             samples.append(sample)
         return samples
 
     def get_chunks_for_sample(
-        self, global_sample_index: int, copy: bool = False
+        self,
+        global_sample_index: int,
+        copy: bool = False,
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
@@ -956,9 +1033,23 @@ class ChunkEngine:
             chunk_to_update._pop_sample()
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                del self.cache[chunk_key]
-        tensor_meta = self.tensor_meta
-        tensor_meta.length -= 1
-        if tensor_meta.length == 0:
-            tensor_meta.min_shape = []
-            tensor_meta.max_shape = []
+                if (
+                    self.active_appended_chunk is not None
+                    and self.active_appended_chunk.key == chunk_key
+                ):
+                    self.active_appended_chunk = None
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
+                else:
+                    del self.cache[chunk_key]
+        self.tensor_meta._pop()
+
+    def write_chunk_to_storage(self, chunk):
+        if chunk is None or not chunk.is_dirty:
+            return
+        storage = self.cache
+        key = chunk.key
+        storage[key] = chunk
+        chunk.is_dirty = False

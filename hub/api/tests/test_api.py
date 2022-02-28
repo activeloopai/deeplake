@@ -1,10 +1,14 @@
 import os
+import sys
 import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
+
 from hub.tests.common import assert_array_lists_equal
+from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
@@ -68,7 +72,6 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
-        "image/tensor_info.json",
     }
 
 
@@ -241,6 +244,18 @@ def test_empty_samples(local_ds: Dataset):
     for actual_sample, expected in zip(local_ds, expected_list):
         actual = actual_sample.with_empty.numpy()
         np.testing.assert_array_equal(actual, expected)
+
+
+def test_indexed_tensor(local_ds: Dataset):
+    tensor = local_ds.create_tensor("abc")
+    tensor.append([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+    np.testing.assert_array_equal(tensor[0, 1].numpy(), np.array([4, 5, 6]))
+    np.testing.assert_array_equal(
+        tensor[0, 0:2].numpy(), np.array([[1, 2, 3], [4, 5, 6]])
+    )
+    np.testing.assert_array_equal(
+        tensor[0, 0::2].numpy(), np.array([[1, 2, 3], [7, 8, 9]])
+    )
 
 
 def test_safe_downcasting(local_ds):
@@ -618,6 +633,9 @@ def test_like(local_path):
 
     src_ds.d.info.update(key=1)
 
+    assert src_ds.info.key == 0
+    assert src_ds.d.info.key == 1
+
     dest_ds = hub.like(dest_path, src_ds)
 
     assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
@@ -801,7 +819,8 @@ def test_groups(local_ds_generator):
 
 def test_tensor_delete(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("x")
+    ds.create_tensor("x", max_chunk_size=2 * MB)
+    ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
@@ -954,3 +973,47 @@ def test_sample_shape(memory_ds):
     assert ds.z[1].shape == (5, 3000, 4000)
     assert ds.w[0][0, :2].shape == (2, 2)
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
+
+
+@enabled_remote_storages
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
+    image_path = color_image_paths["jpeg"]
+    with open(image_path, "rb") as f:
+        byts = f.read()
+
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    image = hub.read("https://picsum.photos/200/300")
+    memory_ds.images.append(image)
+    assert memory_ds.images[0].shape == (300, 200, 3)
+
+    storage["sample/samplejpg.jpg"] = byts
+    image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[1].shape == (323, 480, 3)
+
+    storage["samplejpg.jpg"] = byts
+    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[2].shape == (323, 480, 3)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+@enabled_remote_storages
+def test_hub_remote_read_videos(storage, memory_ds):
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    )
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
+
+    if isinstance(storage, GCSProvider):
+        video = hub.read(
+            "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        )
+        memory_ds.videos.append(video)
+        assert memory_ds.videos[1].shape == (361, 720, 1280, 3)

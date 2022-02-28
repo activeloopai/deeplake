@@ -1,3 +1,4 @@
+import hub
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -6,15 +7,16 @@ from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage import StorageProvider, LRUCache
+from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
-from hub.api.info import load_info
+from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
+    get_tensor_tile_encoder_key,
     tensor_exists,
     get_tensor_info_key,
 )
@@ -94,8 +96,8 @@ def delete_tensor(key: str, dataset):
     if not tensor_exists(key, storage, version_state["commit_id"]):
         raise TensorDoesNotExistError(key)
 
-    tensor = Tensor(key, dataset)
-    chunk_engine = tensor.chunk_engine
+    tensor = dataset[key]
+    chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
     chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
@@ -131,6 +133,12 @@ def delete_tensor(key: str, dataset):
     chunk_id_encoder_key = get_chunk_id_encoder_key(key, commit_id)
     try:
         del storage[chunk_id_encoder_key]
+    except KeyError:
+        pass
+
+    tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
+    try:
+        del storage[tile_encoder_key]
     except KeyError:
         pass
 
@@ -192,7 +200,6 @@ class Tensor:
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
-        self._info = None
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
@@ -200,7 +207,10 @@ class Tensor:
     def _write_initialization(self):
         self.storage.check_readonly()
         # if not the head node, checkout to an auto branch that is newly created
-        auto_checkout(self.dataset)
+        if auto_checkout(self.dataset):
+            self.chunk_engine = self.version_state["full_tensors"][
+                self.key
+            ].chunk_engine
 
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
@@ -243,14 +253,22 @@ class Tensor:
         Returns:
             TensorInfo: Information about the tensor.
         """
+        commit_id = self.version_state["commit_id"]
+        chunk_engine = self.chunk_engine
+        if chunk_engine._info is None or chunk_engine._info_commit_id != commit_id:
+            path = get_tensor_info_key(self.key, commit_id)
+            chunk_engine._info = load_info(path, self.dataset, self.key)
+            chunk_engine._info_commit_id = commit_id
+            self.storage.register_hub_object(path, chunk_engine._info)
+        return chunk_engine._info
 
-        if self._info is None:
-            self._info = load_info(
-                get_tensor_info_key(self.key, self.version_state["commit_id"]),
-                self.storage,
-                self.dataset,
-            )
-        return self._info
+    @info.setter
+    def info(self, value):
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
+        else:
+            raise TypeError("Info must be set with type Dict")
 
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,
@@ -482,6 +500,16 @@ class Tensor:
                 return
             value = value.numpy(aslist=True)
         item_index = Index(item)
+
+        if (
+            hub.constants._ENABLE_RANDOM_ASSIGNMENT
+            and isinstance(item, int)
+            and item >= self.num_samples
+        ):
+            num_samples_to_pad = item - self.num_samples
+            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            return
+
         self.chunk_engine.update(self.index[item_index], value)
 
     def __iter__(self):

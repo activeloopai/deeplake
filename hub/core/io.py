@@ -301,13 +301,13 @@ class SampleStreaming(Streaming):
                             local_cache = self.local_caches[key]
 
                             if c_key in local_cache:
-                                chunk = local_cache.get_cachable(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                                chunk = local_cache.get_hub_object(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
                             else:
                                 chunk = engine.get_chunk(c_key)
                                 local_cache[c_key] = chunk
 
                                 # send data to actual storage
-                                local_cache._forward(c_key, True)
+                                local_cache._forward(c_key)
                         else:
                             chunk = engine.get_chunk(c_key)
                         chunks.append(chunk)
@@ -381,7 +381,9 @@ class SampleStreaming(Streaming):
         return blocks
 
     def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
-        return LRUCache(MemoryProvider(), copy(storage), 32 * MB)
+        cache = LRUCache(MemoryProvider(), copy(storage), 32 * MB)
+        cache.read_only = storage.read_only
+        return cache
 
     def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {

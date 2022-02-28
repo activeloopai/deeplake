@@ -1,29 +1,71 @@
-from typing import Optional
+from typing import Optional, Tuple, Union
 import numpy as np
 
 from hub.core.compression import compress_array
 from hub.core.tiling.optimizer import get_tile_shape
-from hub.core.tiling.serialize import break_into_tiles, serialize_tiles
+from hub.core.tiling.serialize import break_into_tiles, serialize_tiles, get_tile_shapes
 from hub.util.compression import get_compression_ratio
 from hub.compression import BYTE_COMPRESSIONS
+from hub.constants import MB
 
 
 class SampleTiles:
     """Stores the tiles corresponding to a sample."""
 
-    def __init__(
+    def _init_from_array(
         self,
         arr: np.ndarray,
-        compression: Optional[str],
-        chunk_size: int,
+        compression: Optional[str] = None,
+        chunk_size: int = 16 * MB,
         store_uncompressed_tiles: bool = False,
         htype: Optional[str] = None,
+        tile_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
     ):
         self.arr = arr
-        self.compression = compression
         self.sample_shape = arr.shape
-        ratio = get_compression_ratio(compression)
+        tile_shape = tile_shape or self._get_tile_shape(
+            dtype, htype, chunk_size, compression  # type: ignore
+        )
+        self.tile_shape = tile_shape
+        tiles = break_into_tiles(arr, tile_shape)
+        self.tiles = serialize_tiles(tiles, lambda x: compress_array(x, compression))
+        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
 
+        self.shapes_enumerator = np.ndenumerate(tile_shapes)
+        self.layout_shape = self.tiles.shape
+        self.num_tiles = self.tiles.size
+        self.tiles_enumerator = np.ndenumerate(self.tiles)
+        self.uncompressed_tiles_enumerator = (
+            np.ndenumerate(tiles) if store_uncompressed_tiles else None
+        )
+
+    def _init_from_sample_shape(
+        self,
+        sample_shape: Tuple[int, ...],
+        compression: Optional[str] = None,
+        chunk_size: int = 16 * MB,
+        store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
+        tile_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
+    ):
+        self.arr = None  # type: ignore
+        self.sample_shape = sample_shape
+        self.tiles = None  # type: ignore
+        tile_shape = tile_shape or self._get_tile_shape(
+            dtype, htype, chunk_size, compression  # type:ignore
+        )
+        self.tile_shape = tile_shape
+        tile_shapes = get_tile_shapes(self.sample_shape, tile_shape)
+        self.shapes_enumerator = np.ndenumerate(tile_shapes)
+        self.layout_shape = tile_shapes.shape
+        self.num_tiles = tile_shapes.size
+        self.uncompressed_tiles_enumerator = None
+
+    def _get_tile_shape(
+        self, dtype: Union[np.dtype, str], htype: str, chunk_size: int, compression: str
+    ):
         # Exclude channels axis from tiling for image, video and audio
         exclude_axis = (
             None
@@ -31,26 +73,48 @@ class SampleTiles:
             and (not compression or compression in BYTE_COMPRESSIONS)
             else -1
         )
-
-        self.tile_shape = get_tile_shape(
-            arr.shape, arr.nbytes * ratio, chunk_size, exclude_axis
+        return get_tile_shape(
+            self.sample_shape,
+            np.prod(np.array(self.sample_shape, dtype=np.int64))
+            * np.dtype(dtype).itemsize
+            * get_compression_ratio(compression),
+            chunk_size,
+            exclude_axis,
         )
-        tiles = break_into_tiles(arr, self.tile_shape)
 
-        self.tiles = serialize_tiles(
-            tiles, lambda x: memoryview(compress_array(x, self.compression))
-        )
-        tile_shapes = np.vectorize(lambda x: x.shape, otypes=[object])(tiles)
-
-        self.shapes_enumerator = np.ndenumerate(tile_shapes)
-        self.layout_shape = self.tiles.shape
+    def __init__(
+        self,
+        arr: Optional[np.ndarray] = None,
+        compression: Optional[str] = None,
+        chunk_size: int = 16 * MB,
+        store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
+        tile_shape: Optional[Tuple[int, ...]] = None,
+        sample_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
+    ):
         self.registered = False
-        self.num_tiles = self.tiles.size
         self.tiles_yielded = 0
-        self.tiles_enumerator = np.ndenumerate(self.tiles)
-        self.uncompressed_tiles_enumerator = (
-            np.ndenumerate(tiles) if store_uncompressed_tiles else None
-        )
+        if arr is not None:
+            self._init_from_array(
+                arr,
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
+        else:
+            self._init_from_sample_shape(
+                sample_shape,  # type: ignore
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
 
     @property
     def is_first_write(self) -> bool:
@@ -62,7 +126,11 @@ class SampleTiles:
 
     def yield_tile(self):
         self.tiles_yielded += 1
-        return next(self.tiles_enumerator)[1], next(self.shapes_enumerator)[1]
+        if self.tiles is None:
+            tile = b""
+        else:
+            tile = next(self.tiles_enumerator)[1]
+        return tile, next(self.shapes_enumerator)[1]
 
     def yield_uncompressed_tile(self):
         if self.uncompressed_tiles_enumerator is not None:

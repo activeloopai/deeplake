@@ -13,6 +13,7 @@ USE_DEV_ENVIRONMENT = False
 GET_TOKEN_SUFFIX = "/api/user/token"
 REGISTER_USER_SUFFIX = "/api/user/register"
 GET_DATASET_CREDENTIALS_SUFFIX = "/api/org/{}/ds/{}/creds"
+GET_PRESIGNED_URL_SUFFIX = "/api/org/{}/ds/{}/chunks/url/presigned"
 CREATE_DATASET_SUFFIX = "/api/dataset/create"
 SEND_EVENT_SUFFIX = "/api/event"
 DATASET_SUFFIX = "/api/dataset"

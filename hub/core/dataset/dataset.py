@@ -1,9 +1,9 @@
 # type: ignore
-from collections import defaultdict
 import numpy as np
+from time import time
+import json
 from tqdm import tqdm  # type: ignore
 import posixpath
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
@@ -13,13 +13,20 @@ from hub.constants import FIRST_COMMIT_ID
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock_version, unlock_version, Lock
+from hub.core.lock import lock_dataset, unlock_dataset, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider, GCSProvider, MemoryProvider
+from hub.core.storage import (
+    LRUCache,
+    S3Provider,
+    GCSProvider,
+    MemoryProvider,
+    LocalProvider,
+)
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.core.version_control.dataset_diff import load_dataset_diff
+from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, verify_htype_key_value
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
@@ -54,12 +61,7 @@ from hub.util.keys import (
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.diff import (
-    compare_commits,
-    get_all_changes_string,
-    filter_data_updated,
-    get_changes_for_id,
-)
+from hub.util.diff import get_all_changes_string, get_changes_and_messages
 from hub.util.version_control import (
     auto_checkout,
     checkout,
@@ -70,11 +72,9 @@ from hub.util.version_control import (
     load_version_info,
 )
 from hub.client.utils import get_user_name
-from tqdm import tqdm  # type: ignore
-from time import time
-import hashlib
-import json
-from collections import defaultdict
+
+
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
 class Dataset:
@@ -125,7 +125,7 @@ class Dataset:
         d["_read_only"] = read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
-        d["is_first_load"] = is_first_load = version_state is None
+        d["is_first_load"] = version_state is None
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
@@ -133,6 +133,7 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["_info"] = None
+        d["_ds_diff"] = None
         self.__dict__.update(d)
         self._set_derived_attributes()
         self._first_load_init()
@@ -220,6 +221,7 @@ class Dataset:
         self._initial_autoflush = []
         self.is_first_load = True
         self._info = None
+        self._ds_diff = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -333,6 +335,7 @@ class Dataset:
         meta_kwargs = {}
         for k, v in kwargs.items():
             if k in info_keys:
+                verify_htype_key_value(htype, k, v)
                 info_kwargs[k] = v
             else:
                 meta_kwargs[k] = v
@@ -352,15 +355,14 @@ class Dataset:
             version_state=self.version_state,
             **meta_kwargs,
         )
-        meta = self.version_state["meta"]
-        meta.tensors.append(name)
+        meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
+        meta.add_tensor(name)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
-        tensor.info.update(info_kwargs)
+        if info_kwargs:
+            tensor.info.update(info_kwargs)
+        self.storage.maybe_flush()
         return tensor
 
     @hub_reporter.record_call
@@ -405,17 +407,15 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
-            ffw_dataset_meta(meta)
-            meta.tensors.remove(name)
-            self.storage[meta_key] = meta
             delete_tensor(name, self)
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            meta.delete_tensor(name)
+            self.version_state["meta"] = meta
+            self.version_state["full_tensors"].pop(name)
 
         self.storage.maybe_flush()
-
-        self.version_state["meta"] = meta
-        self.version_state["full_tensors"].pop(name)
 
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
@@ -458,22 +458,18 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta = self.version_state["meta"]
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
                 for tensor in self[name]._all_tensors_filtered
             ]
-            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
-            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
-            self.storage[meta_key] = meta
+            meta.delete_group(name)
             for tensor in tensors:
                 delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
-        self.version_state["meta"] = meta
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
@@ -494,12 +490,8 @@ class Dataset:
         del meta["length"]
         del meta["version"]
 
-        destination_tensor = self.create_tensor(
-            name,
-            **meta,
-        )
+        destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
-
         return destination_tensor
 
     __getattr__ = __getitem__
@@ -548,18 +540,15 @@ class Dataset:
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
 
-        if (
-            isinstance(storage, (S3Provider, GCSProvider))
-            and self.is_first_load
-            and (not self.read_only or self._locked_out)
+        if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
+            not self.read_only or self._locked_out
         ):
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
-                lock_version(
-                    storage,
-                    version=self.version_state["commit_id"],
-                    callback=self._lock_lost_handler,
+                lock_dataset(
+                    self,
+                    lock_lost_callback=self._lock_lost_handler,
                 )
             except LockedException as e:
                 self.read_only = True
@@ -573,7 +562,13 @@ class Dataset:
         return True
 
     def _unlock(self):
-        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+        unlock_dataset(self)
+
+    def __del__(self):
+        try:
+            self._unlock()
+        except Exception:  # python shutting down
+            pass
 
     def commit(self, message: Optional[str] = None) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -608,6 +603,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
@@ -649,6 +645,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -722,53 +719,19 @@ class Dataset:
             ValueError: If both id_1 is None and id_2 is not None.
         """
         version_state, storage = self.version_state, self.storage
-        commit_node = version_state["commit_node"]
-        if id_1 is None and id_2 is None:
-            message0 = ""
-            changes1: Dict[str, Dict] = defaultdict(dict)
-            commit_id = commit_node.commit_id
-            if commit_node.is_head_node:
-                message1 = "Diff in HEAD relative to the previous commit:\n"
-            else:
-                message1 = f"Diff in {commit_id} (current commit) relative to the previous commit:\n"
-            get_changes_for_id(commit_id, storage, changes1)
-            filter_data_updated(changes1)
-            changes2 = message2 = None
-        else:
-            if id_1 is None:
-                raise ValueError("Can't specify id_2 without specifying id_1")
-            elif id_2 is None:
-                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
-                commit1: str = commit_node.commit_id
-                commit2 = id_1
-                if commit_node.is_head_node:
-                    message1 = "Diff in HEAD:\n"
-                else:
-                    message1 = f"Diff in {commit1} (current commit):\n"
-                message2 = f"Diff in {commit2} (target id):\n"
-            else:
-                message0 = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the two commits passed."
-                commit1 = id_1
-                commit2 = id_2
-                message1 = f"Diff in {commit1} (target id 1):\n"
-                message2 = f"Diff in {commit2} (target id 2):\n"
-            changes1, changes2, lca_id = compare_commits(
-                commit1, commit2, version_state, storage
-            )
-            message0 = message0 % lca_id
+        res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
-            if changes2 is None:
-                return changes1
-            return changes1, changes2
-        all_changes = get_all_changes_string(
-            message0, changes1, message1, changes2, message2
-        )
+            tensor_changes_1 = res[2]
+            tensor_changes_2 = res[3]
+            if id_1 is None and id_2 is None:
+                return tensor_changes_1
+            return tensor_changes_1, tensor_changes_2
+        all_changes = get_all_changes_string(*res)
         print(all_changes)
         return None
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
-
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -782,11 +745,12 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            self.version_state["meta"] = DatasetMeta()
-            self.storage[meta_key] = self.version_state["meta"]
-            self.flush()
+            meta = DatasetMeta()
+            key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.version_state["meta"] = meta
+            self.storage.register_hub_object(key, meta)
             self._register_dataset()
+            self.flush()
 
     def _register_dataset(self):
         """overridden in HubCloudDataset"""
@@ -982,6 +946,8 @@ class Dataset:
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
+        elif not self._read_only:
+            self._lock()  # for ref counting
         if not self.is_iteration:
             self.index.validate(self.num_samples)
 
@@ -989,8 +955,23 @@ class Dataset:
     def info(self):
         """Returns the information about the dataset."""
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
+            path = get_dataset_info_key(self.version_state["commit_id"])
+            self.__dict__["_info"] = load_info(path, self)  # type: ignore
         return self._info
+
+    @info.setter
+    def info(self, value):
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
+        else:
+            raise TypeError("Info must be set with type Dict")
+
+    @property
+    def _dataset_diff(self):
+        if self._ds_diff is None:
+            self.__dict__["_ds_diff"] = load_dataset_diff(self)
+        return self._ds_diff
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -1079,18 +1060,12 @@ class Dataset:
         Acesses storage only for the first call.
         """
         ret = self.version_state["full_tensors"].get(name)
-        if ret is None:
-            load_meta(self)
-            ret = self.version_state["full_tensors"].get(name)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
         This is faster than checking `if group in self._groups:`
         """
-        if name in self.version_state["meta"].groups:
-            return True
-        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1111,7 +1086,6 @@ class Dataset:
     @property
     def _all_tensors_filtered(self) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self)
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
@@ -1170,8 +1144,7 @@ class Dataset:
     @property
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
+        return self.meta.groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:
@@ -1259,20 +1232,15 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        groups = meta.groups
+        meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
-            groups.append(name)
+            meta.add_group(name)
             name, _ = posixpath.split(name)
-        meta.groups = list(set(groups))
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":

@@ -579,10 +579,6 @@ class DatasetHandlerError(Exception):
         super().__init__(message)
 
 
-class CallbackInitializationError(Exception):
-    pass
-
-
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(
@@ -645,4 +641,8 @@ class NotLoggedInError(AgreementError):
 
 
 class BufferError(Exception):
+    pass
+
+
+class InfoError(Exception):
     pass
