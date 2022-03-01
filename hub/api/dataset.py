@@ -98,13 +98,15 @@ class dataset:
     @staticmethod
     def exists(path: str) -> bool:
         """Checks if a dataset exists at the given `path`.
-        Arguments: `path` (str): the path to the given dataset.
-        Returns a boolean.
+        Args:
+            path (str): the path which needs to be checked.
+        Returns:
+            A boolean confirming whether the dataset exists or not at the given path.
         """
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
-                read_only=False,
+                read_only=True,
                 creds=None,
                 token=None,
                 memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
