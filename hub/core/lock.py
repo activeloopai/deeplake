@@ -5,7 +5,7 @@ import struct
 import atexit
 import threading
 
-from typing import Any, Tuple, Dict, Callable, Optional, Set
+from typing import Tuple, Dict, Callable, Optional, Set
 from collections import defaultdict
 from hub.util.exceptions import LockedException
 from hub.util.keys import get_dataset_lock_key
@@ -25,7 +25,7 @@ def _get_lock_bytes(username: Optional[str] = None) -> bytes:
     return byts
 
 
-def _parse_lock_bytes(byts) -> Tuple[int, Any, str]:
+def _parse_lock_bytes(byts) -> Tuple[int, int, str]:
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
     timestamp = struct.unpack("d", byts[6:14])[0]
