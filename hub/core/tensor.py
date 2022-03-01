@@ -352,10 +352,10 @@ class Tensor:
         idxs = self.index.values
         skip_dims = 0
         if self._is_sequence:
-            if not idxs[0].subsriptable():
+            if not idxs[0].subscriptable():
                 shape = shape[1:]
                 skip_dims += 1
-            if not idxs[1].subsriptable():
+            if len(idxs) > 1 and not idxs[1].subscriptable():
                 shape = shape[1:]
                 skip_dims += 1
         else:

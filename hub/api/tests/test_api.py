@@ -1017,3 +1017,13 @@ def test_hub_remote_read_videos(storage, memory_ds):
         )
         memory_ds.videos.append(video)
         assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
+
+
+def test_sequence_htype(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence")
+        for i in range(10):
+            ds.x.append([np.ones((2, 3)) for _ in range(5)])
+    np.testing.assert_array_equal(ds.x.numpy(), np.ones((10, 5, 2, 3)))
+    assert ds.x.shape == (10, 5, 2, 3)

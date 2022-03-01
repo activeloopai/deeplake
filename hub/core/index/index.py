@@ -1,4 +1,5 @@
-from typing import Union, List, Tuple, Iterable, Optional, TypeVar
+from typing import Union, List, Tuple, Iterable, Optional
+from collections.abc import Iterable
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
@@ -192,7 +193,7 @@ class IndexEntry:
             yield parse_int(self.value)
         elif isinstance(self.value, slice):
             yield from range(*self.value.indices(length))
-        elif isinstance(self.value, tuple):
+        elif isinstance(self.value, Iterable):
             yield from map(parse_int, self.value)
 
     def is_trivial(self):
