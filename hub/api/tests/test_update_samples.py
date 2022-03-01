@@ -290,3 +290,17 @@ def test_inplace_updates(memory_ds, compression):
     ds.x[:5] *= 0
     np.testing.assert_array_equal(ds.x[:5].numpy(), np.zeros((5, 32, 32, 3)))
     np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
+
+
+def test_byte_positions_encoder_update_bug(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("abc")
+        for i in range(11):
+            ds.abc.append(np.ones((1, 1)))
+        ds.abc[10] = np.ones((5, 5))
+        ds.abc[0] = np.ones((2, 2))
+    assert ds.abc[10].numpy().shape == (5, 5)
+    assert ds.abc[0].numpy().shape == (2, 2)
+    for i in range(1, 10):
+        assert ds.abc[i].numpy().shape == (1, 1)
