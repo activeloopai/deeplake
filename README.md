@@ -1,9 +1,9 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-     ![orange](https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png)
+     <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
 </h1>
     </br>
     <h1 align="center">Dataset Format for AI
- </h2>
+ </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
