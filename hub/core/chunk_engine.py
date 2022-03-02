@@ -49,6 +49,7 @@ from hub.util.exceptions import (
 from hub.util.remove_cache import get_base_storage
 from hub.compression import VIDEO_COMPRESSIONS
 from itertools import chain
+from collections.abc import Iterable
 
 
 class ChunkEngine:
@@ -595,7 +596,7 @@ class ChunkEngine:
         if _check_sequence and self._is_sequence:
             for sample in samples:
                 self.extend(sample, False)
-                self.seqeunce_encoder.register_samples(len(sample), 1)
+                self.sequence_encoder.register_samples(len(sample), 1)
             return
         if len(samples) == 0:
             return
@@ -713,8 +714,16 @@ class ChunkEngine:
             self.extend(empty_samples)
 
         self.extend([value])
-
     def update(
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+    ):
+        """Update data at `index` with `samples`."""
+        (self._sequence_update if self._is_sequence else self._update)(index, samples, operator)
+
+    def _update(
         self,
         index: Index,
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
@@ -731,6 +740,7 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
         index_length = index.length(self.num_samples)
+        print(samples)
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
@@ -772,6 +782,8 @@ class ChunkEngine:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
             arr = self.numpy(index, use_data_cache=False)
+            print(index)
+            print(arr.shape)
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
@@ -848,7 +860,7 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-        return (self._seqeunce_numpy if self._is_sequence else self._numpy)(
+        return (self._sequence_numpy if self._is_sequence else self._numpy)(
             index, aslist, use_data_cache
         )
 
@@ -1110,10 +1122,10 @@ class ChunkEngine:
 
     @property
     def _sequence_length(self):
-        return self.seqeunce_encoder.num_samples
+        return self.sequence_encoder.num_samples
 
     @property
-    def seqeunce_encoder(self) -> ChunkIdEncoder:
+    def sequence_encoder(self) -> ChunkIdEncoder:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
@@ -1145,7 +1157,7 @@ class ChunkEngine:
             self.meta_cache.register_hub_object(key, enc)
         return self._sequence_encoder
 
-    def _seqeunce_numpy(
+    def _sequence_numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ):
         idx0 = index.values[0].value
@@ -1153,59 +1165,105 @@ class ChunkEngine:
             if idx0 < 0:
                 idx0 += self.num_samples
             new_index = Index(
-                [IndexEntry(slice(*self.seqeunce_encoder[idx0]))] + index.values[1:]
+                [IndexEntry(slice(*self.sequence_encoder[idx0]))] + index.values[1:]
             )
             return self._numpy(new_index, aslist=aslist, use_data_cache=use_data_cache)
-        elif isinstance(idx0, list):
+        elif isinstance(idx0, Iterable):
             if not aslist:
                 new_idx0 = []
+                s = 0
                 n = None
                 for i in idx0:
                     if i < 0:
                         i += self.num_samples
-                    idxs = range(*self.seqeunce_encoder[i])
+                    idxs = range(*self.sequence_encoder[i])
                     if n is not None and n != len(idxs):
                         raise Exception("Non uniform sequence. Use `aslist=True`.")
-                    new_idx0 += idxs
+                    n = len(idxs)
+                    s += n
+                    new_idx0.append(idxs)
                 new_index = Index([IndexEntry(chain(*new_idx0))] + index.values[1:])
                 arr = self._numpy(
                     new_index, aslist=False, use_data_cache=use_data_cache
                 )
-                arr = arr.reshape(len(idx0), -1, *arr.shape[1:])
+                arr = arr.reshape(s, -1, *arr.shape[1:])
                 return arr
             else:
                 ret = []
                 for i in idx0:
-                    new_idx0 = list(range(*self.seqeunce_encoder[i]))
+                    if i < 0:
+                        i += self.num_samples
+                    new_idx0 = list(range(*self.sequence_encoder[i]))
                     new_index = Index([IndexEntry(new_idx0)] + index.values[1:])
                     arr = self._numpy(
                         new_index, aslist=True, use_data_cache=use_data_cache
                     )
                     ret.append(arr)
-                return arr
+                return ret
         elif isinstance(idx0, slice):
             if idx0 == slice(None):
                 arr = self._numpy(index, aslist=aslist, use_data_cache=use_data_cache)
                 if aslist:
                     ret = []
-                    for i in range(len(self._sequence_length)):
-                        s, e = self.seqeunce_encoder[i]
+                    for i in range(self._sequence_length):
+                        s, e = self.sequence_encoder[i]
                         ret.append(arr[s:e])
                     return ret
                 else:
                     return arr.reshape(self._sequence_length, -1, *arr.shape[1:])
             new_idx = Index(
-                [IndexEntry(index.values[0].indices(self._sequence_length))]
+                [IndexEntry(index.values[0].indices(self._sequence_length))] + index.values[1:]
             )
-            return self._seqeunce_numpy(
+            return self._sequence_numpy(
                 new_idx,
                 aslist=aslist,
                 use_data_cache=use_data_cache,
             )
+        else:
+            raise Exception(idx0)
+
+    def _sequence_update(
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+    ):
+        def _flat_samples():
+            flat_samples = samples
+            if isinstance(samples, np.ndarray):
+                if samples.ndim >= 2:
+                    flat_samples = samples.reshape(samples.shape[0] * samples.shape[1], *samples.shape[2:])
+            elif isinstance(samples, Iterable):
+                flat_samples = []
+                for sample in samples:
+                    flat_samples += sample
+            return flat_samples
+
+        idx0 = index.values[0].value
+        if isinstance(idx0, int):
+            if idx0 < 0:
+                idx0 += self.num_samples
+            new_index = Index(
+                [IndexEntry(slice(*self.sequence_encoder[idx0]))] + index.values[1:]
+            )
+            return self._update(new_index, _flat_samples(), operator)
+        elif isinstance(idx0, Iterable):
+            for i, s in zip(index.values[0].indices(self._sequence_length), samples):
+                self._sequence_update(Index([IndexEntry(i)] + index.values[1:]), s, operator)
+            return
+        elif isinstance(idx0, slice):
+            if idx0 == slice(None):
+                return self._update(index, samples, operator)
+            new_idx = Index(
+                [IndexEntry(index.values[0].indices(self._sequence_length))] + index.values[1:]
+            )
+            self._sequence_update(
+                new_idx, samples, operator
+            )
 
     @property
     def _sequence_item_length(self):
-        enc = self.seqeunce_encoder
+        enc = self.sequence_encoder
         nrows = len(enc._encoded)
         if nrows == 0:
             return 0

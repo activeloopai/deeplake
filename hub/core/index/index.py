@@ -188,7 +188,6 @@ class IndexEntry:
     def indices(self, length: int):
         """Generates the sequence of integer indices for a target of a given length."""
         parse_int = lambda i: i if i >= 0 else length + i
-
         if isinstance(self.value, int):
             yield parse_int(self.value)
         elif isinstance(self.value, slice):
