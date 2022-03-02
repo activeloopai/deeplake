@@ -136,8 +136,7 @@ class HubDataset(tf.data.Dataset):
               output_types,
               output_shapes,
               args,
-              output_signature,
-              name=name))
+              output_signature)) # removed name=name
 
   @staticmethod
   @functools.wraps(tf.data.Dataset.range)
@@ -157,7 +156,7 @@ class HubDataset(tf.data.Dataset):
   @functools.wraps(tf.data.Dataset.prefetch)
   def prefetch(self, buffer_size, name=None):
     return DatasetAdapter(
-        super(HubDataset, self).prefetch(buffer_size, name=name))
+        super(HubDataset, self).prefetch(buffer_size)) # removed name=name
 
   @staticmethod
   @functools.wraps(tf.data.Dataset.list_files)
@@ -177,7 +176,7 @@ class HubDataset(tf.data.Dataset):
               name=None):
     return DatasetAdapter(
         super(HubDataset, self).shuffle(
-            buffer_size, seed, reshuffle_each_iteration, name=name))
+            buffer_size, seed, reshuffle_each_iteration)) # removed name=name
 
   @functools.wraps(tf.data.Dataset.cache)
   def cache(self, filename="", name=None):
@@ -185,7 +184,7 @@ class HubDataset(tf.data.Dataset):
 
   @functools.wraps(tf.data.Dataset.take)
   def take(self, count, name=None):
-    return DatasetAdapter(super(HubDataset, self).take(count, name=name))
+    return DatasetAdapter(super(HubDataset, self).take(count)) # removed name=name
 
   @functools.wraps(tf.data.Dataset.skip)
   def skip(self, count, name=None):
@@ -208,8 +207,7 @@ class HubDataset(tf.data.Dataset):
             batch_size,
             drop_remainder,
             num_parallel_calls,
-            deterministic,
-            name=name))
+            deterministic)) # removed name=name
 
   @functools.wraps(tf.data.Dataset.padded_batch)
   def padded_batch(self,
