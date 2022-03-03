@@ -298,10 +298,10 @@ def test_sequence_htype(memory_ds, aslist):
     with ds:
         ds.create_tensor("x", htype="sequence")
         for _ in range(10):
-            ds.x.append([np.ones((2,7)) for _ in range(5)])
-    ds.x[0] *= 0
-    expected = np.zeros((10, 5, 2, 7))
-    expected[0] = 0
-    print(ds.x.numpy())
+            ds.x.append([np.ones((3, 7)) for _ in range(5)])
+    assert ds.x[0].numpy().shape == (5, 3, 7)
+    ds.x[0] += 1
+    expected = np.ones((10, 5, 3, 7))
+    expected[0] += 1
     np.testing.assert_array_equal(np.array(ds.x.numpy(aslist=aslist)), expected)
-    assert ds.x.shape == (10, 5, 2, 7)
+    assert ds.x.shape == (10, 5, 3, 7)

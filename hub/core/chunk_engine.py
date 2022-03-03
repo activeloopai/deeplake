@@ -714,6 +714,7 @@ class ChunkEngine:
             self.extend(empty_samples)
 
         self.extend([value])
+
     def update(
         self,
         index: Index,
@@ -721,7 +722,9 @@ class ChunkEngine:
         operator: Optional[str] = None,
     ):
         """Update data at `index` with `samples`."""
-        (self._sequence_update if self._is_sequence else self._update)(index, samples, operator)
+        (self._sequence_update if self._is_sequence else self._update)(
+            index, samples, operator
+        )
 
     def _update(
         self,
@@ -781,9 +784,11 @@ class ChunkEngine:
         try:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
-            arr = self.numpy(index, use_data_cache=False)
+            arr = self._numpy(index, use_data_cache=False)
+            print("_update_with_op")
             print(index)
             print(arr.shape)
+            print(samples)
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
@@ -793,7 +798,7 @@ class ChunkEngine:
         dt, ht = tensor_meta.dtype, tensor_meta.htype
         samples = intelligent_cast(samples, dt, ht)
         getattr(arr, operator)(samples)
-        self.update(index, arr)
+        self._update(index, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.tensor_meta.chunk_compression:
@@ -1180,7 +1185,7 @@ class ChunkEngine:
                     if n is not None and n != len(idxs):
                         raise Exception("Non uniform sequence. Use `aslist=True`.")
                     n = len(idxs)
-                    s += n
+                    s += 1
                     new_idx0.append(idxs)
                 new_index = Index([IndexEntry(chain(*new_idx0))] + index.values[1:])
                 arr = self._numpy(
@@ -1212,7 +1217,8 @@ class ChunkEngine:
                 else:
                     return arr.reshape(self._sequence_length, -1, *arr.shape[1:])
             new_idx = Index(
-                [IndexEntry(index.values[0].indices(self._sequence_length))] + index.values[1:]
+                [IndexEntry(index.values[0].indices(self._sequence_length))]
+                + index.values[1:]
             )
             return self._sequence_numpy(
                 new_idx,
@@ -1232,7 +1238,9 @@ class ChunkEngine:
             flat_samples = samples
             if isinstance(samples, np.ndarray):
                 if samples.ndim >= 2:
-                    flat_samples = samples.reshape(samples.shape[0] * samples.shape[1], *samples.shape[2:])
+                    flat_samples = samples.reshape(
+                        samples.shape[0] * samples.shape[1], *samples.shape[2:]
+                    )
             elif isinstance(samples, Iterable):
                 flat_samples = []
                 for sample in samples:
@@ -1249,17 +1257,18 @@ class ChunkEngine:
             return self._update(new_index, _flat_samples(), operator)
         elif isinstance(idx0, Iterable):
             for i, s in zip(index.values[0].indices(self._sequence_length), samples):
-                self._sequence_update(Index([IndexEntry(i)] + index.values[1:]), s, operator)
+                self._sequence_update(
+                    Index([IndexEntry(i)] + index.values[1:]), s, operator
+                )
             return
         elif isinstance(idx0, slice):
             if idx0 == slice(None):
                 return self._update(index, samples, operator)
             new_idx = Index(
-                [IndexEntry(index.values[0].indices(self._sequence_length))] + index.values[1:]
+                [IndexEntry(index.values[0].indices(self._sequence_length))]
+                + index.values[1:]
             )
-            self._sequence_update(
-                new_idx, samples, operator
-            )
+            self._sequence_update(new_idx, samples, operator)
 
     @property
     def _sequence_item_length(self):
