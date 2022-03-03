@@ -278,7 +278,9 @@ class BaseChunk(HubMemoryObject):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.min_chunk_size
+        return (
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+        )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
@@ -334,7 +336,7 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = data
         self.register_sample_to_headers(None, tile_shape)
         if sample.is_first_write:
-            self.tensor_meta.update_shape_interval(sample.sample_shape)
+            self.tensor_meta.update_shape_interval(sample.sample_shape)  # type: ignore
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
 

@@ -516,7 +516,9 @@ class ChunkEngine:
                 try:
                     self.meta_cache[chunk_set_key] = commit_chunk_set
                 except ReadOnlyModeError:
-                    pass
+                    # put CommitChunkSet in hub_objects to keep in cache temporarily, but won't write to storage
+                    # this shouldn't happen in latest version of hub, chunk set would always be present
+                    self.meta_cache.hub_objects[chunk_set_key] = commit_chunk_set
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id

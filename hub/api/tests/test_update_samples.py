@@ -305,3 +305,17 @@ def test_sequence_htype(memory_ds, aslist):
     expected[0] += 1
     np.testing.assert_array_equal(np.array(ds.x.numpy(aslist=aslist)), expected)
     assert ds.x.shape == (10, 5, 3, 7)
+
+
+def test_byte_positions_encoder_update_bug(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("abc")
+        for i in range(11):
+            ds.abc.append(np.ones((1, 1)))
+        ds.abc[10] = np.ones((5, 5))
+        ds.abc[0] = np.ones((2, 2))
+    assert ds.abc[10].numpy().shape == (5, 5)
+    assert ds.abc[0].numpy().shape == (2, 2)
+    for i in range(1, 10):
+        assert ds.abc[i].numpy().shape == (1, 1)
