@@ -43,6 +43,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     InvalidTensorGroupNameError,
     InvalidTensorNameError,
+    TensorMetaInvalidHtype,
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
@@ -305,6 +306,7 @@ class Dataset:
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
+            TensorMetaInvalidHtype: If invalid htype is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -329,8 +331,8 @@ class Dataset:
                 htype = DEFAULT_HTYPE
             else:
                 if htype[len("sequence")] != "[" or htype[-1] != "]":
-                    raise ValueError(
-                        "Sequence htype must be specificed in the form sequence[<base_htype>]. For e.g sequence[image]."
+                    raise TensorMetaInvalidHtype(
+                        htype, list(HTYPE_CONFIGURATIONS.keys())
                     )
                 htype = htype.split("[", 1)[1][:-1]
                 if not htype:  # sequence[]

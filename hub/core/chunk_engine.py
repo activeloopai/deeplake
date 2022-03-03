@@ -1127,18 +1127,18 @@ class ChunkEngine:
         return self.sequence_encoder.num_samples
 
     @property
-    def sequence_encoder(self) -> ChunkIdEncoder:
+    def sequence_encoder(self) -> BytePositionsEncoder:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
             CorruptedMetaError: If shape encoding was corrupted.
 
         Returns:
-            ShapesEncoder: The shape encoder storing the shapes of each sample
+            A BytePositionsEncoder instance storing the start and end indices of each sequence in the tensor.
         """
 
         if not self._is_sequence:
-            return
+            return  # type: ignore
         commit_id = self.commit_id
         if (
             self._sequence_encoder is None
@@ -1175,7 +1175,7 @@ class ChunkEngine:
                 new_idx0 = []
                 s = 0
                 n = None
-                for i in idx0:
+                for i in idx0:  # type: ignore
                     if i < 0:
                         i += self.num_samples
                     idxs = range(*self.sequence_encoder[i])
@@ -1184,19 +1184,19 @@ class ChunkEngine:
                     n = len(idxs)
                     s += 1
                     new_idx0.append(idxs)
-                new_index = Index([IndexEntry(chain(*new_idx0))] + index.values[1:])
+                new_index = Index([IndexEntry(chain(*new_idx0))] + index.values[1:])  # type: ignore
                 arr = self._numpy(
                     new_index, aslist=False, use_data_cache=use_data_cache
                 )
-                arr = arr.reshape(s, -1, *arr.shape[1:])
+                arr = arr.reshape(s, -1, *arr.shape[1:])  # type: ignore
                 return arr
             else:
                 ret = []
-                for i in idx0:
+                for i in idx0:  # type: ignore
                     if i < 0:
                         i += self.num_samples
-                    new_idx0 = list(range(*self.sequence_encoder[i]))
-                    new_index = Index([IndexEntry(new_idx0)] + index.values[1:])
+                    new_idx0 = list(range(*self.sequence_encoder[i]))  # type: ignore
+                    new_index = Index([IndexEntry(new_idx0)] + index.values[1:])  # type: ignore
                     arr = self._numpy(
                         new_index, aslist=True, use_data_cache=use_data_cache
                     )
@@ -1212,7 +1212,7 @@ class ChunkEngine:
                         ret.append(arr[s:e])
                     return ret
                 else:
-                    return arr.reshape(self._sequence_length, -1, *arr.shape[1:])
+                    return arr.reshape(self._sequence_length, -1, *arr.shape[1:])  # type: ignore
             new_idx = Index(
                 [IndexEntry(index.values[0].indices(self._sequence_length))]
                 + index.values[1:]
@@ -1253,7 +1253,7 @@ class ChunkEngine:
             )
             return self._update(new_index, _flat_samples(), operator)
         elif isinstance(idx0, Iterable):
-            for i, s in zip(index.values[0].indices(self._sequence_length), samples):
+            for i, s in zip(index.values[0].indices(self._sequence_length), samples):  # type: ignore
                 self._sequence_update(
                     Index([IndexEntry(i)] + index.values[1:]), s, operator
                 )

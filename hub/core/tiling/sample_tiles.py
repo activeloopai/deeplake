@@ -116,29 +116,6 @@ class SampleTiles:
                 dtype,
             )
 
-    def _init_from_sample_shape(
-        self,
-        sample_shape: Optional[Tuple[int, ...]] = None,
-        compression: Optional[str] = None,
-        chunk_size: int = 16 * MB,
-        store_uncompressed_tiles: bool = False,
-        htype: Optional[str] = None,
-        tile_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Optional[Union[np.dtype, str]] = None,
-    ):
-        self.arr = None
-        self.sample_shape = sample_shape
-        self.tiles = None
-        tile_shape = tile_shape or self._get_tile_shape(
-            dtype, htype, chunk_size, compression
-        )
-        self.tile_shape = tile_shape
-        tile_shapes = get_tile_shapes(self.sample_shape, tile_shape)
-        self.shapes_enumerator = np.ndenumerate(tile_shapes)
-        self.layout_shape = tile_shapes.shape
-        self.num_tiles = tile_shapes.size
-        self.uncompressed_tiles_enumerator = None
-
     def _get_tile_shape(
         self, dtype: Union[np.dtype, str], htype: str, chunk_size: int, compression: str
     ):
@@ -157,40 +134,6 @@ class SampleTiles:
             chunk_size,
             exclude_axis,
         )
-
-    def __init__(
-        self,
-        arr: Optional[np.ndarray] = None,
-        compression: Optional[str] = None,
-        chunk_size: int = 16 * MB,
-        store_uncompressed_tiles: bool = False,
-        htype: Optional[str] = None,
-        tile_shape: Optional[Tuple[int, ...]] = None,
-        sample_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Optional[Union[np.dtype, str]] = None,
-    ):
-        self.registered = False
-        self.tiles_yielded = 0
-        if arr is not None:
-            self._init_from_array(
-                arr,
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
-        else:
-            self._init_from_sample_shape(
-                sample_shape,
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
 
     @property
     def is_first_write(self) -> bool:
