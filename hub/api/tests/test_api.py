@@ -1030,3 +1030,10 @@ def test_sequence_htype(memory_ds, aslist):
         np.array(ds.x.numpy(aslist=aslist)), np.ones((10, 5, 2, 3))
     )
     assert ds.x.shape == (10, 5, 2, 3)
+
+
+def test_shape_bug(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.x.extend(np.ones((5, 9, 2)))
+    assert ds.x[1:4, 3:7] == (3, 4, 2)
