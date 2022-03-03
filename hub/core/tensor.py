@@ -421,7 +421,10 @@ class Tensor:
             ShapeInterval: Object containing `lower` and `upper` properties.
         """
         if self._is_sequence:
-            length = [self.chunk_engine._sequence_length, self.chunk_engine._sequence_item_length]
+            length = [
+                self.chunk_engine._sequence_length,
+                self.chunk_engine._sequence_item_length,
+            ]
         else:
             length = [self.meta.length]
         min_shape = length + list(self.meta.min_shape)
