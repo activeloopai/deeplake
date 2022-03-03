@@ -676,7 +676,7 @@ class ChunkEngine:
         chunk_ids = required_tile_ids
         for chunk_id, tile in zip(chunk_ids.reshape(-1), new_tiles.reshape(-1)):
             chunk = self.get_chunk_from_chunk_id(int(chunk_id), copy=True)
-            curr_shape = chunk.sequence_encoder[-1]
+            curr_shape = chunk.shapes_encoder[-1]
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             if (
@@ -834,7 +834,7 @@ class ChunkEngine:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
-            return tuple(map(int, chunks[0].sequence_encoder[local_sample_index]))
+            return tuple(map(int, chunks[0].shapes_encoder[local_sample_index]))
         else:
             return self.tile_encoder.get_sample_shape(global_sample_index)
 
