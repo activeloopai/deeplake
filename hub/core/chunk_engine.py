@@ -745,7 +745,6 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
         index_length = index.length(self.num_samples)
-        print(samples)
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
@@ -787,10 +786,6 @@ class ChunkEngine:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
             arr = self._numpy(index, use_data_cache=False)
-            print("_update_with_op")
-            print(index)
-            print(arr.shape)
-            print(samples)
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
