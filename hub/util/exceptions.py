@@ -595,6 +595,12 @@ class VersionControlError(Exception):
     pass
 
 
+class MergeError(Exception):
+    def __init__(self, tensor_name, mismatch_type, original_value, target_value):
+        message = f"Unable to merge, tensor {tensor_name} has different {mismatch_type}. Current:{original_value}, Target: {target_value}"
+        super().__init__(message)
+
+
 class CheckoutError(VersionControlError):
     pass
 

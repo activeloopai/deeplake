@@ -32,6 +32,7 @@ from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.merge import merge
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -585,6 +586,27 @@ class Dataset:
             Exception: if dataset is a filtered view.
         """
         return self._commit(message)
+
+    def merge(self, target_id: str, strategy: Optional[int] = 0):
+        """Merges the target_id into the current dataset.
+
+        Args:
+            target_id (str): The commit_id or branch to merge.
+            strategy (int, optional): The strategy to use when merging.
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+
+        merge(self, target_id, strategy)
+
+        self.storage.autoflush = self._initial_autoflush.pop()
 
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         if self._is_filtered_view:

@@ -41,3 +41,20 @@ def get_dataset_with_zero_size_cache(ds):
     if ds.pending_commit_id != commit_id:
         ds.checkout(commit_id)
     return ds
+
+
+def create_read_copy_dataset(dataset, commit_id=None):
+    base_storage = get_base_storage(dataset.storage)
+    storage = LRUCache(MemoryProvider(), base_storage, 256 * MB)
+    ds = dataset.__class__(
+        storage,
+        index=dataset.index,
+        group_index=dataset.group_index,
+        read_only=True,
+        public=dataset.public,
+        token=dataset._token,
+        verbose=False,
+        path=dataset.path,
+    )
+    if commit_id is not None:
+        ds.checkout(commit_id)
