@@ -5,7 +5,7 @@ from hub.util.exceptions import (
 )
 from hub.util.check_installation import tensorflow_installed
 import warnings
-from .tf_dataset import HubDataset
+from .tf_dataset import HubTensorflowDataset
 
 def dataset_to_tensorflow(dataset):
     """Converts the dataset into a tensorflow compatible format"""
@@ -43,5 +43,5 @@ def dataset_to_tensorflow(dataset):
         return signature
 
     signature = generate_signature()
-    return HubDataset.from_generator(__iter__, output_signature=signature)
-    #tf.data.Dataset.from_generator(__iter__, output_signature=signature)
+    return HubTensorflowDataset.from_generator(__iter__, output_signature=signature)
+    #return tf.data.Dataset.from_generator(__iter__, output_signature=signature)
