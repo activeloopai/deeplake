@@ -1020,20 +1020,23 @@ def test_hub_remote_read_videos(storage, memory_ds):
 
 
 @pytest.mark.parametrize("aslist", (True, False))
-def test_sequence_htype(memory_ds, aslist):
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
+)
+def test_sequence_htype(memory_ds, aslist, args):
     ds = memory_ds
     with ds:
-        ds.create_tensor("x", htype="sequence")
+        ds.create_tensor("x", htype="sequence", **args)
         for _ in range(10):
-            ds.x.append([np.ones((2, 3)) for _ in range(5)])
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
     np.testing.assert_array_equal(
-        np.array(ds.x.numpy(aslist=aslist)), np.ones((10, 5, 2, 3))
+        np.array(ds.x.numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))
     )
-    assert ds.x.shape == (10, 5, 2, 3)
+    assert ds.x.shape == (10, 5, 2, 7, 3)
 
 
 def test_shape_bug(memory_ds):
     ds = memory_ds
     ds.create_tensor("x")
     ds.x.extend(np.ones((5, 9, 2)))
-    assert ds.x[1:4, 3:7] == (3, 4, 2)
+    assert ds.x[1:4, 3:7].shape == (3, 4, 2)
