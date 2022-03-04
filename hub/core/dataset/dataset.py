@@ -326,7 +326,7 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
-        if htype.startswith("sequence"):
+        if htype is not None and htype.startswith("sequence"):
             if htype == "sequence":
                 htype = DEFAULT_HTYPE
             else:
