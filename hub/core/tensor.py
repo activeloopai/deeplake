@@ -1,4 +1,6 @@
 import hub
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.storage.memory import MemoryProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -28,7 +30,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID
+from hub.constants import FIRST_COMMIT_ID, MB
 from hub.util.version_control import auto_checkout
 
 
@@ -180,7 +182,7 @@ class Tensor:
         """
         self.key = key
         self.dataset = dataset
-        self.storage = dataset.storage
+        self.storage: LRUCache = dataset.storage
         self.index = index or Index()
         self.version_state = dataset.version_state
         self.is_iteration = is_iteration

@@ -236,3 +236,15 @@ def test_info_new_methods(local_ds_generator):
 
     with pytest.raises(TypeError):
         ds.x.info = ["abc"]
+
+
+def test_info_persistence_bug(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("xyz")
+    ds.commit()
+    ds.xyz.info.update(abc=123)
+    assert ds.xyz.info.abc == 123
+
+    ds = local_ds_generator()
+    assert ds.xyz.info.abc == 123

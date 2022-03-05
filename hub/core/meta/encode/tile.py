@@ -20,7 +20,7 @@ class TileEncoder(HubMemoryObject):
         """
         if sample.registered:
             return
-        ss: Tuple[int, ...] = sample.sample_shape
+        ss: Tuple[int, ...] = sample.sample_shape  # type: ignore
         ts: Tuple[int, ...] = sample.tile_shape
         self.entries[idx] = (ss, ts)
         sample.registered = True

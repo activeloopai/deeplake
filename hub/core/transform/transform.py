@@ -14,6 +14,7 @@ from hub.util.transform import (
     create_slices,
     delete_overwritten_chunks,
     get_lengths_generated,
+    get_old_chunk_paths,
     get_pbar_description,
     sanitize_workers_scheduler,
     store_data_slice,
@@ -217,7 +218,7 @@ class Pipeline:
             tensor for tensor, l in all_tensors_generated_length.items() if l > 0
         ]
 
-        delete_overwritten_chunks(target_ds, storage, generated_tensors, overwrite)
+        old_chunk_paths = get_old_chunk_paths(target_ds, generated_tensors, overwrite)
         merge_all_meta_info(
             target_ds,
             storage,
@@ -230,6 +231,7 @@ class Pipeline:
             all_chunk_id_encoders,
             all_chunk_commit_sets,
         )
+        delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401

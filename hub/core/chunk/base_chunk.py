@@ -17,6 +17,7 @@ from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
+from hub.core.partial_sample import PartialSample
 from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
@@ -25,6 +26,7 @@ from hub.core.serialize import (
     serialize_sample_object,
     serialize_text,
     serialize_tensor,
+    serialize_partial_sample_object,
     get_header_from_url,
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
@@ -224,6 +226,15 @@ class BaseChunk(HubMemoryObject):
                 store_uncompressed_tiles,
             )
             shape = self.convert_to_rgb(shape)
+        elif isinstance(incoming_sample, PartialSample):
+            incoming_sample, shape = serialize_partial_sample_object(
+                incoming_sample,
+                sample_compression,
+                chunk_compression,
+                dt,
+                ht,
+                min_chunk_size,
+            )
         elif isinstance(incoming_sample, hub.core.tensor.Tensor):
             incoming_sample, shape = serialize_tensor(
                 incoming_sample,
@@ -267,7 +278,9 @@ class BaseChunk(HubMemoryObject):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.min_chunk_size
+        return (
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+        )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
@@ -295,7 +308,7 @@ class BaseChunk(HubMemoryObject):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
-        if self.byte_positions_encoder.is_empty():  # tiled sample
+        if not old_data or self.byte_positions_encoder.is_empty():  # tiled sample
             return new_sample_bytes
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_index]
         left_data = old_data[:old_start_byte]  # type: ignore
@@ -323,7 +336,7 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = data
         self.register_sample_to_headers(None, tile_shape)
         if sample.is_first_write:
-            self.tensor_meta.update_shape_interval(sample.sample_shape)
+            self.tensor_meta.update_shape_interval(sample.sample_shape)  # type: ignore
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
 
@@ -332,3 +345,15 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
         self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
+
+    def _get_partial_sample_tile(self, as_bytes=False):
+        if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
+            shape = self.shapes_encoder._encoded[0][:-1]
+            if len(shape) and np.all(shape):
+                if as_bytes:
+                    return b"0" * int(
+                        np.prod(np.array(shape, dtype=np.uint64))
+                        * np.dtype(self.dtype).itemsize
+                    )
+                return np.zeros(shape, dtype=self.dtype)
+        return None
