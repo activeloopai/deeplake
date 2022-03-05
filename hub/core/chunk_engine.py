@@ -396,7 +396,7 @@ class ChunkEngine:
     @active_appended_chunk.setter
     def active_appended_chunk(self, value):
         if self.active_appended_chunk is not None:
-            self.cache.remove_hub_object(self.active_appended_chunk)
+            self.cache.remove_hub_object(self.active_appended_chunk.key)
         self._active_appended_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
@@ -408,7 +408,7 @@ class ChunkEngine:
     @active_updated_chunk.setter
     def active_updated_chunk(self, value):
         if self.active_updated_chunk is not None:
-            self.cache.remove_hub_object(self.active_updated_chunk)
+            self.cache.remove_hub_object(self.active_updated_chunk.key)
         self._active_updated_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
