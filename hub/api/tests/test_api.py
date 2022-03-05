@@ -704,14 +704,28 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
+def empty_hub_dataset(path, hub_cloud_dev_token):
+    return hub.empty(path, overwrite=True, token=hub_cloud_dev_token)
+
+
 @pytest.mark.parametrize(
-    "path", ["local_path", "s3_path", "gcs_path", "hub_cloud_path"], indirect=True
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["s3_path", "hub_cloud_dev_token"],
+        ["gcs_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
 )
-def test_dataset_copy(path):
+def test_dataset_copy(path, hub_token):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
-    src_ds = hub.empty(src_path, overwrite=True)
+    if src_path.startswith("hub://"):
+        src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
+    else:
+        src_ds = hub.empty(src_path, overwrite=True)
 
     with src_ds:
         src_ds.info.update(key=0)
@@ -756,12 +770,15 @@ def test_dataset_copy(path):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.copy(src_ds, dest_path, overwrite=True)
+    hub.copy(src_path, dest_path, overwrite=True)
     dest_ds = hub.load(dest_path)
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.delete(src_path)
+    hub.delete(dest_path)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):

@@ -23,6 +23,7 @@ from hub.util.exceptions import (
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
+from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
 class dataset:
@@ -368,7 +369,6 @@ class dataset:
         num_workers: int = 0,
         public: bool = False,
     ):
-        print("copy called....")
         src_ds = hub.load(src, read_only=True)
         src_storage = src_ds.storage
 
@@ -390,17 +390,18 @@ class dataset:
                 )
 
         def copy_func(keys):
-            print("running...")
             for key in keys:
-                print(key)
-                dest_storage[key] = src_storage[key]
+                if isinstance(src_storage[key], HubMemoryObject):
+                    dest_storage[key] = src_storage[key].tobytes()
+                else:
+                    dest_storage[key] = src_storage[key]
 
         keys = list(src_storage._all_keys())
-        keys = [keys[i::num_workers] for i in range(num_workers)]
+        if num_workers == 0:
+            keys = [keys]
+        else:
+            keys = [keys[i::num_workers] for i in range(num_workers)]
         compute_provider = get_compute_provider("threaded", num_workers)
-        compute_provider.map_with_progressbar(
-            copy_func, keys, len(keys), f"Copying {src} to {dest}..."
-        )
         compute_provider.map(copy_func, keys)
         compute_provider.close()
 

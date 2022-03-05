@@ -411,3 +411,11 @@ def vstream_path(request):
 def path(request):
     """Used with parametrize to get all dataset paths."""
     return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def hub_token(request):
+    """Used with parametrize to get hub_cloud_dev_token if hub-cloud option is True else None"""
+    if is_opt_true(request, HUB_CLOUD_OPT):
+        return request.getfixturevalue(request.param)
+    return None
