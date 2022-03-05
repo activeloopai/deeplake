@@ -21,6 +21,7 @@ from hub.util.exceptions import (
     SamePathException,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.util.compute import get_compute_provider
 
 
 class dataset:
@@ -324,6 +325,60 @@ class dataset:
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
         return destination_ds
+
+    @staticmethod
+    def copy(
+        src: str,
+        dest: str,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        public: bool = False,
+    ):
+        print("copy called....")
+        src_ds = hub.load(src, read_only=True)
+        src_storage = src_ds.storage
+
+        dest_storage, cache_chain = get_storage_and_cache_chain(
+            dest,
+            creds=creds,
+            token=token,
+            read_only=False,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+
+        if dataset_exists(cache_chain):
+            if overwrite:
+                cache_chain.clear()
+            else:
+                raise DatasetHandlerError(
+                    f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
+                )
+
+        def copy_func(keys):
+            print("running...")
+            for key in keys:
+                print(key)
+                dest_storage[key] = src_storage[key]
+
+        keys = list(src_storage._all_keys())
+        keys = [keys[i::num_workers] for i in range(num_workers)]
+        compute_provider = get_compute_provider("threaded", num_workers)
+        compute_provider.map_with_progressbar(
+            copy_func, keys, len(keys), f"Copying {src} to {dest}..."
+        )
+        compute_provider.map(copy_func, keys)
+        compute_provider.close()
+
+        return dataset_factory(
+            path=dest,
+            storage=cache_chain,
+            read_only=False,
+            public=public,
+            token=token,
+        )
 
     @staticmethod
     def ingest(

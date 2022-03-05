@@ -21,6 +21,7 @@ from hub.util.exceptions import (
 from hub.constants import MB
 
 from click.testing import CliRunner
+import time
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -701,6 +702,66 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+@pytest.mark.parametrize(
+    "path", ["local_path", "s3_path", "gcs_path", "hub_cloud_path"], indirect=True
+)
+def test_dataset_copy(path):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = hub.empty(src_path, overwrite=True)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    dest_ds = hub.copy(src_path, dest_path, overwrite=True)
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == None
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    for tensor in dest_ds.meta.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    with pytest.raises(DatasetHandlerError):
+        hub.copy(src_path, dest_path)
+
+    hub.copy(src_path, dest_path, overwrite=True)
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    dest_ds = hub.load(dest_path)
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.copy(src_ds, dest_path, overwrite=True)
+    dest_ds = hub.load(dest_path)
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
