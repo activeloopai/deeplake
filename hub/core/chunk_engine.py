@@ -795,7 +795,7 @@ class ChunkEngine:
             view = arr
             if index2:
                 for v in index2.values:
-                    view = view[v.value]
+                    view = view[v.value]  # type: ignore
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
@@ -1225,9 +1225,9 @@ class ChunkEngine:
                 )
             )
             if _item_length is None
-            else (lambda: x.length(self._sequence_length) * y.length(_item_length))
+            else (lambda: x.length(self._sequence_length) * y.length(_item_length))  # type: ignore
         )
-        return IndexEntry(idx0_gen)
+        return IndexEntry(idx0_gen)  # type: ignore
 
     def _get_flat_index_from_sequence_index(self, index: Index) -> Index:
         if len(index) == 1:
