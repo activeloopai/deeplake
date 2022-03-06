@@ -903,6 +903,36 @@ def test_ds_append(memory_ds, x_args, y_args, x_size):
     assert len(ds) == 0
 
 
+def test_ds_append_with_ds_view():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.append({"x": [0, 1], "y": [1, 2]})
+    ds2.append(ds1[0])
+    np.testing.assert_array_equal(ds1.x, np.array([[0, 1]]))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.array([[1, 2]]))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
+def test_ds_extend():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.extend({"x": [0, 1, 2, 3], "y": [4, 5, 6, 7]})
+    ds2.extend(ds1)
+    np.testing.assert_array_equal(ds1.x, np.arange(4).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.arange(4, 8).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
 @pytest.mark.parametrize(
     "src_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
