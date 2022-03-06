@@ -1310,7 +1310,7 @@ class ChunkEngine:
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     def ndim(self, index: Index) -> int:
-        ndim = len(self.tensor_meta.min_shape)
+        ndim = len(self.tensor_meta.min_shape) + 1
         if self._is_sequence:
             ndim += 1
         for idx in index.values:
