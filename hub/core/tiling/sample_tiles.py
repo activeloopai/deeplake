@@ -12,6 +12,40 @@ from hub.constants import MB
 class SampleTiles:
     """Stores the tiles corresponding to a sample."""
 
+    def __init__(
+        self,
+        arr: Optional[np.ndarray] = None,
+        compression: Optional[str] = None,
+        chunk_size: int = 16 * MB,
+        store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
+        tile_shape: Optional[Tuple[int, ...]] = None,
+        sample_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
+    ):
+        self.registered = False
+        self.tiles_yielded = 0
+        if arr is not None:
+            self._init_from_array(
+                arr,
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
+        else:
+            self._init_from_sample_shape(
+                sample_shape,  # type: ignore
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
+
     def _init_from_array(
         self,
         arr: np.ndarray,
@@ -62,59 +96,6 @@ class SampleTiles:
         self.layout_shape = tile_shapes.shape
         self.num_tiles = tile_shapes.size
         self.uncompressed_tiles_enumerator = None
-
-    def _get_tile_shape(
-        self, dtype: Union[np.dtype, str], htype: str, chunk_size: int, compression: str
-    ):
-        # Exclude channels axis from tiling for image, video and audio
-        exclude_axis = (
-            None
-            if htype == "generic"
-            and (not compression or compression in BYTE_COMPRESSIONS)
-            else -1
-        )
-        return get_tile_shape(
-            self.sample_shape,
-            np.prod(np.array(self.sample_shape, dtype=np.int64))
-            * np.dtype(dtype).itemsize
-            * get_compression_ratio(compression),
-            chunk_size,
-            exclude_axis,
-        )
-
-    def __init__(
-        self,
-        arr: Optional[np.ndarray] = None,
-        compression: Optional[str] = None,
-        chunk_size: int = 16 * MB,
-        store_uncompressed_tiles: bool = False,
-        htype: Optional[str] = None,
-        tile_shape: Optional[Tuple[int, ...]] = None,
-        sample_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Optional[Union[np.dtype, str]] = None,
-    ):
-        self.registered = False
-        self.tiles_yielded = 0
-        if arr is not None:
-            self._init_from_array(
-                arr,
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
-        else:
-            self._init_from_sample_shape(
-                sample_shape,  # type: ignore
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
 
     def _get_tile_shape(
         self, dtype: Union[np.dtype, str], htype: str, chunk_size: int, compression: str
