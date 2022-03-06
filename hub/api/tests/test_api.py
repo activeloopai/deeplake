@@ -951,6 +951,18 @@ def test_append_with_tensor(src_args, dest_args, size):
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
 
+def test_extend_with_tensor():
+    ds1 = hub.dataset("mem://ds1")
+    ds2 = hub.dataset("mem://ds2")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4])
+    with ds2:
+        ds2.create_tensor("x")
+        ds2.x.extend(ds1.x)
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+
+
 def test_empty_extend(memory_ds):
     ds = memory_ds
     with ds:
