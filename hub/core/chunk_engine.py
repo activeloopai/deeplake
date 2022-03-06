@@ -13,6 +13,7 @@ from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
+from hub.util.shape_interval import ShapeInterval
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
@@ -48,7 +49,7 @@ from hub.util.exceptions import (
 )
 from hub.util.remove_cache import get_base_storage
 from hub.compression import VIDEO_COMPRESSIONS
-from itertools import chain
+from itertools import chain, repeat
 from collections.abc import Iterable
 
 
@@ -1162,68 +1163,97 @@ class ChunkEngine:
     def _sequence_numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ):
-        idx0 = index.values[0].value
-        if isinstance(idx0, int):
-            if idx0 < 0:
-                idx0 += self.num_samples
-            new_index = Index(
-                [IndexEntry(slice(*self.sequence_encoder[idx0]))] + index.values[1:]
-            )
-            return self._numpy(new_index, aslist=aslist, use_data_cache=use_data_cache)
-        elif isinstance(idx0, Iterable):
-            if not aslist:
-                new_idx0 = []
-                s = 0
-                n = None
-                for i in idx0:  # type: ignore
-                    if i < 0:
-                        i += self.num_samples
-                    idxs = range(*self.sequence_encoder[i])
-                    if n is not None and n != len(idxs):
-                        raise Exception("Non uniform sequence. Use `aslist=True`.")
-                    n = len(idxs)
-                    s += 1
-                    new_idx0.append(idxs)
-                new_index = Index([IndexEntry(chain(*new_idx0))] + index.values[1:])  # type: ignore
-                arr = self._numpy(
-                    new_index, aslist=False, use_data_cache=use_data_cache
-                )
-                arr = arr.reshape(s, -1, *arr.shape[1:])  # type: ignore
-                return arr
-            else:
+        arr = self._numpy(
+            self._get_flat_index_from_sequence_index(index),
+            aslist=aslist,
+            use_data_cache=use_data_cache,
+        )
+        if index.subscriptable_at(0) and index.subscriptable_at(1):
+            if aslist:
+                _item_length = self._sequence_item_length
                 ret = []
-                for i in idx0:  # type: ignore
-                    if i < 0:
-                        i += self.num_samples
-                    new_idx0 = list(range(*self.sequence_encoder[i]))  # type: ignore
-                    new_index = Index([IndexEntry(new_idx0)] + index.values[1:])  # type: ignore
-                    arr = self._numpy(
-                        new_index, aslist=True, use_data_cache=use_data_cache
+                for i in index.values[0].indices(self._sequence_length):
+                    item_length = _item_length or index.length_at(
+                        1, -int(np.subtract(*self.sequence_encoder[i]))
                     )
-                    ret.append(arr)
+                    ret.append(arr[:item_length])
+                    arr = arr[item_length:]
                 return ret
-        elif isinstance(idx0, slice):
-            if idx0 == slice(None):
-                arr = self._numpy(index, aslist=aslist, use_data_cache=use_data_cache)
-                if aslist:
-                    ret = []
-                    for i in range(self._sequence_length):
+            else:
+                return arr.reshape(
+                    index.length_at(0, self._sequence_length), -1, *arr.shape[1:]
+                )
+        return arr
+
+    def _get_flat_index_from_sequence_index(self, index: Index) -> Index:
+        if len(index) == 1:
+            index = Index([index.values[0], IndexEntry()])
+        if index.values[0].is_trivial() and index.values[1].is_trivial():
+            return Index([IndexEntry(), *index.values[2:]])
+        if index.subscriptable_at(0) or index.subscriptable_at(1):
+            _item_length = self._sequence_item_length
+            if _item_length is None:
+                def idx0_gen():
+                    for i in index.values[0].indices(self._sequence_length):
                         s, e = self.sequence_encoder[i]
-                        ret.append(arr[s:e])
-                    return ret
+                        for j in index.values[1].indices(e - s):
+                            yield s + j
+            else:
+                def idx0_gen():
+                    for i in index.values[0].indices(self._sequence_length):
+                        for j in index.values[1].indices(_item_length):
+                            yield i * _item_length + j
+            idx0_gen.__len__ = (
+                (lambda: 
+                    sum(
+                        [
+                            index.length_at(1, -np.subtract(*self.sequence_encoder[i]))
+                            for i in index.values[0].indices(self._sequence_length)
+                        ]
+                    )
+                )
+                if _item_length is None
+                else (
+                    lambda: index.length_at(0, self._sequence_length)
+                    * index.length_at(1, _item_length)
+                )
+            )
+            return Index([IndexEntry(list(idx0_gen()))] + index.values[2:])
+        return Index(
+            [
+                IndexEntry(
+                    self.sequence_encoder[index.values[0].value][0]
+                    + index.values[1].value
+                ),
+                *index.values[2:],
+            ]
+        )
+
+    def _get_flat_samples_for_sequence_update(self, samples, index: Index):
+        ndim = self.ndim(index)
+        if isinstance(samples, np.ndarray):
+            if index.subscriptable_at(0) and index.subscriptable_at(1):
+                diff = ndim - samples.ndim
+                if diff < 0:
+                    samples, diff = samples.reshape(samples.shape[-ndim:]), 0
+                if diff > 1:
+                    return samples
+                elif diff == 1:
+                    return samples.reshape(1, *samples.shape).repeat(
+                        self._sequnce_length, 0
+                    )
                 else:
-                    return arr.reshape(self._sequence_length, -1, *arr.shape[1:])  # type: ignore
-            new_idx = Index(
-                [IndexEntry(index.values[0].indices(self._sequence_length))]
-                + index.values[1:]
-            )
-            return self._sequence_numpy(
-                new_idx,
-                aslist=aslist,
-                use_data_cache=use_data_cache,
-            )
+                    return samples.reshape(-1, *samples.shape[2:])
+            return samples
+        elif isinstance(samples, (str, bytes)):  # treated as scalars
+            return samples
+        elif isinstance(samples, Iterable):
+            # Note: broadcasting is not supported here
+            if index.subscriptable_at(0) and index.subscriptable_at(1):
+                return list(chain(*samples))
+            return samples
         else:
-            raise Exception(idx0)
+            return samples  # scalars
 
     def _sequence_update(
         self,
@@ -1231,41 +1261,9 @@ class ChunkEngine:
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
     ):
-        def _flat_samples():
-            flat_samples = samples
-            if isinstance(samples, np.ndarray):
-                if samples.ndim >= 2:
-                    flat_samples = samples.reshape(
-                        samples.shape[0] * samples.shape[1], *samples.shape[2:]
-                    )
-            elif isinstance(samples, Iterable):
-                flat_samples = []
-                for sample in samples:
-                    flat_samples += sample
-            return flat_samples
-
-        idx0 = index.values[0].value
-        if isinstance(idx0, int):
-            if idx0 < 0:
-                idx0 += self.num_samples
-            new_index = Index(
-                [IndexEntry(slice(*self.sequence_encoder[idx0]))] + index.values[1:]
-            )
-            return self._update(new_index, _flat_samples(), operator)
-        elif isinstance(idx0, Iterable):
-            for i, s in zip(index.values[0].indices(self._sequence_length), samples):  # type: ignore
-                self._sequence_update(
-                    Index([IndexEntry(i)] + index.values[1:]), s, operator
-                )
-            return
-        elif isinstance(idx0, slice):
-            if idx0 == slice(None):
-                return self._update(index, samples, operator)
-            new_idx = Index(
-                [IndexEntry(index.values[0].indices(self._sequence_length))]
-                + index.values[1:]
-            )
-            self._sequence_update(new_idx, samples, operator)
+        flat_idx = self._get_flat_index_from_sequence_index(index)
+        samples = self._get_flat_samples_for_sequence_update(samples, index)
+        self._update(flat_idx, samples, operator)
 
     @property
     def _sequence_item_length(self):
@@ -1278,3 +1276,71 @@ class ChunkEngine:
             return e - s
         else:
             return None
+
+    def shape(self, index: Index) -> Tuple[Optional[int], ...]:
+        shape = self.shape_interval.astuple()
+        idxs = index.values
+        skip_dims = 0
+        if self._is_sequence:
+            if not idxs[0].subscriptable():
+                shape = shape[1:]
+                skip_dims += 1
+            if len(idxs) > 1 and not idxs[1].subscriptable():
+                shape = shape[1:]
+                skip_dims += 1
+        else:
+            if None in shape:
+                if not idxs[0].subscriptable():
+                    shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                    skip_dims += 1
+            elif not idxs[0].subscriptable():
+                shape = shape[1:]
+                skip_dims += 1
+        shape = list(shape)  # type: ignore
+        squeeze_dims = set()
+        for i, idx in enumerate(idxs[skip_dims:]):
+            if idx.subscriptable():
+                shape[i] = idx.length(shape[i])  # type: ignore
+            else:
+                squeeze_dims.add(i)
+        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
+
+    def ndim(self, index: Index) -> int:
+        ndim = len(self.tensor_meta.min_shape)
+        if self._is_sequence:
+            ndim += 1
+        for idx in index.values:
+            if not idx.subscriptable():
+                ndim -= 1
+        return ndim
+
+    @property
+    def shape_interval(self) -> ShapeInterval:
+        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+
+        Note:
+            If you are expecting a `tuple`, use `tensor.shape` instead.
+
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape_interval
+            ShapeInterval(lower=(2, 10, 10), upper=(2, 10, 15))
+            >>> str(tensor.shape_interval)
+            (2, 10, 10:15)
+
+        Returns:
+            ShapeInterval: Object containing `lower` and `upper` properties.
+        """
+        meta = self.tensor_meta
+        if self._is_sequence:
+            length = [
+                self._sequence_length,
+                self._sequence_item_length,
+            ]
+        else:
+            length = [meta.length]
+        min_shape = length + list(meta.min_shape)
+        max_shape = length + list(meta.max_shape)
+
+        return ShapeInterval(min_shape, max_shape)

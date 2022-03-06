@@ -350,35 +350,11 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        shape = self.shape_interval.astuple()
-        idxs = self.index.values
-        skip_dims = 0
-        if self._is_sequence:
-            if not idxs[0].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-            if len(idxs) > 1 and not idxs[1].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-        else:
-            if None in shape:
-                if not idxs[0].subscriptable():
-                    shape = self.chunk_engine.read_shape_for_sample(idxs[0].value)  # type: ignore
-                    skip_dims += 1
-            elif not idxs[0].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-        shape = list(shape)  # type: ignore
-        squeeze_dims = set()
-        for i, idx in enumerate(idxs[skip_dims:]):
-            shape[i] = len(list(idx.indices(shape[i])))  # type: ignore
-            if not idx.subscriptable():
-                squeeze_dims.add(i)
-        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
+        return self.chunk_engine.shape(self.index)
 
     @property
     def ndim(self) -> int:
-        return len(self.shape)
+        return self.chunk_engine.ndim(self.index)
 
     @property
     def dtype(self) -> Optional[np.dtype]:
@@ -420,17 +396,7 @@ class Tensor:
         Returns:
             ShapeInterval: Object containing `lower` and `upper` properties.
         """
-        if self._is_sequence:
-            length = [
-                self.chunk_engine._sequence_length,
-                self.chunk_engine._sequence_item_length,
-            ]
-        else:
-            length = [self.meta.length]
-        min_shape = length + list(self.meta.min_shape)
-        max_shape = length + list(self.meta.max_shape)
-
-        return ShapeInterval(min_shape, max_shape)
+        return self.chunk_engine.shape_interval
 
     @property
     def is_dynamic(self) -> bool:
