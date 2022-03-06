@@ -1,4 +1,3 @@
-from types import new_class
 import hub
 import numpy as np
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
