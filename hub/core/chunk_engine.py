@@ -1193,19 +1193,23 @@ class ChunkEngine:
         if index.subscriptable_at(0) or index.subscriptable_at(1):
             _item_length = self._sequence_item_length
             if _item_length is None:
+
                 def idx0_gen():
                     for i in index.values[0].indices(self._sequence_length):
                         s, e = self.sequence_encoder[i]
                         for j in index.values[1].indices(e - s):
                             yield s + j
+
             else:
+
                 def idx0_gen():
                     for i in index.values[0].indices(self._sequence_length):
                         for j in index.values[1].indices(_item_length):
                             yield i * _item_length + j
+
             idx0_gen.__len__ = (
-                (lambda: 
-                    sum(
+                (
+                    lambda: sum(
                         [
                             index.length_at(1, -np.subtract(*self.sequence_encoder[i]))
                             for i in index.values[0].indices(self._sequence_length)

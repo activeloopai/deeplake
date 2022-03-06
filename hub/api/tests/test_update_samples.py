@@ -330,7 +330,6 @@ def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
         np.testing.assert_array_equal(t.numpy(), img.array)
 
 
-
 def test_byte_positions_encoder_update_bug(memory_ds):
     ds = memory_ds
     with ds:
