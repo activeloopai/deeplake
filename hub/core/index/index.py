@@ -125,7 +125,7 @@ def slice_length(s: slice, parent_length: int) -> int:
 def iterable_length(t: Iterable, l: int) -> int:
     """Returns the length of a list of indexes given the length of its parent."""
     try:
-        return len(t)
+        return len(t)  # type: ignore
     except TypeError:
         return len(list(t))
 
@@ -201,7 +201,7 @@ class IndexEntry:
         elif isinstance(self.value, Iterable):
             yield from map(parse_int, self.value)
         elif callable(self.value):
-            yield from self.value()
+            yield from self.value()  # type: ignore
 
     def is_trivial(self):
         """Checks if an IndexEntry represents the entire slice"""

@@ -786,7 +786,17 @@ class ChunkEngine:
         try:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
-            arr = self._numpy(index, use_data_cache=False)
+            if len(index) > 1:
+                index1 = Index(index.values[:1])
+                index2 = Index(index.values[1:])
+            else:
+                index1 = index
+                index2 = None
+            arr = self._numpy(index1, use_data_cache=False)
+            view = arr
+            if index2:
+                for v in index2.values:
+                    view = view[v.value]
         except DynamicTensorNumpyError:
             raise NotImplementedError(
                 "Inplace update operations are not available for dynamic tensors yet."
@@ -795,7 +805,7 @@ class ChunkEngine:
 
         dt, ht = tensor_meta.dtype, tensor_meta.htype
         samples = intelligent_cast(samples, dt, ht)
-        getattr(arr, operator)(samples)
+        getattr(view, operator)(samples)
         self._update(index, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
@@ -1180,10 +1190,45 @@ class ChunkEngine:
                     arr = arr[item_length:]
                 return ret
             else:
-                return arr.reshape(
-                    index.length_at(0, self._sequence_length), -1, *arr.shape[1:]
+                return arr.reshape(  # type: ignore
+                    index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
                 )
         return arr
+
+    def _translate_2d_index(
+        self, x: Optional[IndexEntry] = None, y: Optional[IndexEntry] = None
+    ) -> IndexEntry:
+        x = x or IndexEntry()
+        y = y or IndexEntry()
+        _item_length = self._sequence_item_length
+        if _item_length is None:
+
+            def idx0_gen():
+                for i in x.indices(self._sequence_length):
+                    s, e = self.sequence_encoder[i]
+                    for j in y.indices(e - s):
+                        yield s + j
+
+        else:
+
+            def idx0_gen():
+                for i in x.indices(self._sequence_length):
+                    for j in y.indices(_item_length):
+                        yield i * _item_length + j
+
+        idx0_gen.__len__ = (  # type: ignore
+            (
+                lambda: sum(
+                    [
+                        y.length(-np.subtract(*self.sequence_encoder[i]))
+                        for i in x.indices(self._sequence_length)
+                    ]
+                )
+            )
+            if _item_length is None
+            else (lambda: x.length(self._sequence_length) * y.length(_item_length))
+        )
+        return IndexEntry(idx0_gen)
 
     def _get_flat_index_from_sequence_index(self, index: Index) -> Index:
         if len(index) == 1:
@@ -1191,42 +1236,12 @@ class ChunkEngine:
         if index.values[0].is_trivial() and index.values[1].is_trivial():
             return Index([IndexEntry(), *index.values[2:]])
         if index.subscriptable_at(0) or index.subscriptable_at(1):
-            _item_length = self._sequence_item_length
-            if _item_length is None:
-
-                def idx0_gen():
-                    for i in index.values[0].indices(self._sequence_length):
-                        s, e = self.sequence_encoder[i]
-                        for j in index.values[1].indices(e - s):
-                            yield s + j
-
-            else:
-
-                def idx0_gen():
-                    for i in index.values[0].indices(self._sequence_length):
-                        for j in index.values[1].indices(_item_length):
-                            yield i * _item_length + j
-
-            idx0_gen.__len__ = (
-                (
-                    lambda: sum(
-                        [
-                            index.length_at(1, -np.subtract(*self.sequence_encoder[i]))
-                            for i in index.values[0].indices(self._sequence_length)
-                        ]
-                    )
-                )
-                if _item_length is None
-                else (
-                    lambda: index.length_at(0, self._sequence_length)
-                    * index.length_at(1, _item_length)
-                )
-            )
-            return Index([IndexEntry(list(idx0_gen()))] + index.values[2:])
+            idx0 = self._translate_2d_index(index.values[0], index.values[1])
+            return Index([idx0, *index.values[2:]])  # type: ignore
         return Index(
             [
                 IndexEntry(
-                    self.sequence_encoder[index.values[0].value][0]
+                    self.sequence_encoder[index.values[0].value][0]  # type: ignore
                     + index.values[1].value
                 ),
                 *index.values[2:],
@@ -1241,10 +1256,14 @@ class ChunkEngine:
                 if diff < 0:
                     samples, diff = samples.reshape(samples.shape[-ndim:]), 0
                 if diff > 1:
-                    return samples
-                elif diff == 1:
                     return samples.reshape(1, *samples.shape).repeat(
-                        self._sequnce_length, 0
+                        self._translate_2d_index(*index.values[:2]).length(None), 0  # type: ignore
+                    )
+                elif diff == 1:
+                    return (
+                        samples.reshape(1, *samples.shape)
+                        .repeat(index.length_at(0, self._sequence_length), 0)
+                        .reshape(-1, *samples.shape[1:])
                     )
                 else:
                     return samples.reshape(-1, *samples.shape[2:])
@@ -1309,13 +1328,14 @@ class ChunkEngine:
                 squeeze_dims.add(i)
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
-    def ndim(self, index: Index) -> int:
+    def ndim(self, index: Optional[Index] = None) -> int:
         ndim = len(self.tensor_meta.min_shape) + 1
         if self._is_sequence:
             ndim += 1
-        for idx in index.values:
-            if not idx.subscriptable():
-                ndim -= 1
+        if index:
+            for idx in index.values:
+                if not idx.subscriptable():
+                    ndim -= 1
         return ndim
 
     @property
