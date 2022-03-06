@@ -7,23 +7,25 @@ import functools
 import warnings
 
 import six
-from tensorflow.python.util import deprecation      #pylint: disable=no-name-in-module
-from tensorflow.python.eager import context         #pylint: disable=no-name-in-module
+from tensorflow.python.util import deprecation  # pylint: disable=no-name-in-module
+from tensorflow.python.eager import context  # pylint: disable=no-name-in-module
 
-from tensorflow.python.data.ops import dataset_ops  #pylint: disable=no-name-in-module
-from tensorflow.python.data.util import traverse    #pylint: disable=no-name-in-module
-from tensorflow.python.data.util import nest        #pylint: disable=no-name-in-module
-from tensorflow.python.data.util import structure   #pylint: disable=no-name-in-module
-from tensorflow.python.data.ops import iterator_ops #pylint: disable=no-name-in-module
+from tensorflow.python.data.ops import dataset_ops  # pylint: disable=no-name-in-module
+from tensorflow.python.data.util import traverse  # pylint: disable=no-name-in-module
+from tensorflow.python.data.util import nest  # pylint: disable=no-name-in-module
+from tensorflow.python.data.util import structure  # pylint: disable=no-name-in-module
+from tensorflow.python.data.ops import iterator_ops  # pylint: disable=no-name-in-module
 
-from tensorflow.python.framework import ops         #pylint: disable=no-name-in-module
-from tensorflow.python.framework import function    #pylint: disable=no-name-in-module
-from tensorflow.python.framework import random_seed as core_random_seed #pylint: disable=no-name-in-module
+from tensorflow.python.framework import ops  # pylint: disable=no-name-in-module
+from tensorflow.python.framework import function  # pylint: disable=no-name-in-module
+from tensorflow.python.framework import (
+    random_seed as core_random_seed,
+)  # pylint: disable=no-name-in-module
 
 import tensorflow as tf
 
 
-#pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods
 class HubTensorflowDataset(tf.data.Dataset):
     """Represents a potentially large set of elements.
 
@@ -37,17 +39,22 @@ class HubTensorflowDataset(tf.data.Dataset):
             variant_tensor = self._as_variant_tensor()
         except AttributeError as attr_ex:
             if "_as_variant_tensor" in str(attr_ex):
-                raise AttributeError("Please use _variant_tensor instead of "
-                        "_as_variant_tensor() to obtain the variant "
-                        "associated with a dataset") from attr_ex
-            #pylint: disable=consider-using-f-string
-            six.reraise(AttributeError, "{}: A likely cause of this error is that the super "
-                    "call for this dataset is not the last line of the "
-                    "__init__ method. The base class causes the "
-                    "_as_variant_tensor call in its constructor and "
-                    "if that uses attributes defined in the __init__ "
-                    "method, those attrs need to be defined before the "
-                    "super call.".format(attr_ex))
+                raise AttributeError(
+                    "Please use _variant_tensor instead of "
+                    "_as_variant_tensor() to obtain the variant "
+                    "associated with a dataset"
+                ) from attr_ex
+            # pylint: disable=consider-using-f-string
+            six.reraise(
+                AttributeError,
+                "{}: A likely cause of this error is that the super "
+                "call for this dataset is not the last line of the "
+                "__init__ method. The base class causes the "
+                "_as_variant_tensor call in its constructor and "
+                "if that uses attributes defined in the __init__ "
+                "method, those attrs need to be defined before the "
+                "super call.".format(attr_ex),
+            )
         super(__class__, self).__init__(variant_tensor)
 
     @abc.abstractmethod
@@ -60,7 +67,8 @@ class HubTensorflowDataset(tf.data.Dataset):
         raise NotImplementedError("Dataset._as_variant_tensor")
 
     @deprecation.deprecated(
-        None, "This is a deprecated API that should only be used in TF 1 graph "
+        None,
+        "This is a deprecated API that should only be used in TF 1 graph "
         "mode and legacy TF 2 graph mode available through `tf.compat.v1`. In "
         "all other situations -- namely, eager mode and inside `tf.function` -- "
         "you can consume dataset elements using `for elem in dataset: ...` or "
@@ -71,7 +79,8 @@ class HubTensorflowDataset(tf.data.Dataset):
         "to create a TF 1 graph mode style iterator for a dataset created "
         "through TF 2 APIs. Note that this should be a transient state of your "
         "code base as there are in general no guarantees about the "
-        "interoperability of TF 1 and TF 2 code.")
+        "interoperability of TF 1 and TF 2 code.",
+    )
     def make_one_shot_iterator(self):
         """Creates an iterator for elements of this dataset.
 
@@ -100,7 +109,7 @@ class HubTensorflowDataset(tf.data.Dataset):
         """
         return self._make_one_shot_iterator()
 
-    #pylint: disable=protected-access
+    # pylint: disable=protected-access
     def _make_one_shot_iterator(self):  # pylint: disable=missing-docstring
         if context.executing_eagerly():
             with ops.colocate_with(self._variant_tensor):
@@ -115,8 +124,8 @@ class HubTensorflowDataset(tf.data.Dataset):
         # NOTE(mrry): We capture by value here to ensure that `_make_dataset()` is
         # a 0-argument function.
         @function.Defun(
-            capture_by_value=True,
-            allowlisted_stateful_ops=allowlisted_stateful_ops)
+            capture_by_value=True, allowlisted_stateful_ops=allowlisted_stateful_ops
+        )
         def _make_dataset():
             """Factory function for a dataset."""
             # NOTE(mrry): `Defun` does not capture the graph-level seed from the
@@ -125,7 +134,8 @@ class HubTensorflowDataset(tf.data.Dataset):
             if graph_level_seed is not None:
                 assert op_level_seed is not None
                 core_random_seed.set_random_seed(
-                    (graph_level_seed + 87654321 * op_level_seed) % (2 ** 63 - 1))
+                    (graph_level_seed + 87654321 * op_level_seed) % (2**63 - 1)
+                )
 
             dataset = self._apply_debug_options()
             return dataset._variant_tensor  # pylint: disable=protected-access
@@ -134,26 +144,31 @@ class HubTensorflowDataset(tf.data.Dataset):
             _make_dataset.add_to_graph(ops.get_default_graph())
         except ValueError as err:
             if "Cannot capture a stateful node" in str(err):
-                #pylint: disable=consider-using-f-string
+                # pylint: disable=consider-using-f-string
                 raise ValueError(
                     "Failed to create a one-shot iterator for a dataset. "
                     "`Dataset.make_one_shot_iterator()` does not support datasets that "
                     "capture stateful objects, such as a `Variable` or `LookupTable`. "
                     "In these cases, use `Dataset.make_initializable_iterator()`. "
-                    "(Original error: %s)" % err) from err
+                    "(Original error: %s)" % err
+                ) from err
             six.reraise(ValueError, err)
 
         with ops.colocate_with(self._variant_tensor):
             # pylint: disable=no-member
             return iterator_ops.Iterator(
                 ops.gen_dataset_ops.one_shot_iterator(
-                    dataset_factory=_make_dataset, **self._flat_structure), None,
-                    tf.data.get_output_types.get_legacy_output_types(self),
-                    tf.data.get_output_types.get_legacy_output_shapes(self),
-                    tf.data.get_output_types.get_legacy_output_classes(self))
+                    dataset_factory=_make_dataset, **self._flat_structure
+                ),
+                None,
+                tf.data.get_output_types.get_legacy_output_types(self),
+                tf.data.get_output_types.get_legacy_output_shapes(self),
+                tf.data.get_output_types.get_legacy_output_classes(self),
+            )
 
     @deprecation.deprecated(
-        None, "This is a deprecated API that should only be used in TF 1 graph "
+        None,
+        "This is a deprecated API that should only be used in TF 1 graph "
         "mode and legacy TF 2 graph mode available through `tf.compat.v1`. "
         "In all other situations -- namely, eager mode and inside `tf.function` "
         "-- you can consume dataset elements using `for elem in dataset: ...` "
@@ -165,7 +180,8 @@ class HubTensorflowDataset(tf.data.Dataset):
         "1 graph mode style iterator for a dataset created through TF 2 APIs. "
         "Note that this should be a transient state of your code base as there "
         "are in general no guarantees about the interoperability of TF 1 and TF "
-        "2 code.")
+        "2 code.",
+    )
     def make_initializable_iterator(self, shared_name=None):
         """Creates an iterator for elements of this dataset.
 
@@ -201,11 +217,14 @@ class HubTensorflowDataset(tf.data.Dataset):
         """
         return self._make_initializable_iterator(shared_name)
 
-    def _make_initializable_iterator(self, shared_name=None):  # pylint: disable=missing-docstring
+    def _make_initializable_iterator(
+        self, shared_name=None
+    ):  # pylint: disable=missing-docstring
         if context.executing_eagerly():
             raise RuntimeError(
                 "dataset.make_initializable_iterator is not supported when eager "
-                "execution is enabled. Use `for element in dataset` instead.")
+                "execution is enabled. Use `for element in dataset` instead."
+            )
         dataset_ops._ensure_same_dataset_graph(self)
         dataset = self._apply_debug_options()
         if shared_name is None:
@@ -214,20 +233,26 @@ class HubTensorflowDataset(tf.data.Dataset):
         # pylint: disable=no-member
         with ops.colocate_with(self._variant_tensor):
             iterator_resource = ops.gen_dataset_ops.iterator_v2(
-                container="", shared_name=shared_name, **self._flat_structure)
+                container="", shared_name=shared_name, **self._flat_structure
+            )
 
             initializer = ops.gen_dataset_ops.make_iterator(
                 dataset._variant_tensor,  # pylint: disable=protected-access
-                iterator_resource)
+                iterator_resource,
+            )
 
-            return iterator_ops.Iterator(iterator_resource, initializer,
-                                    tf.data.get_output_types.get_legacy_output_types(dataset),
-                                    tf.data.get_output_types.get_legacy_output_shapes(dataset),
-                                    tf.data.get_output_types.get_legacy_output_classes(dataset))
+            return iterator_ops.Iterator(
+                iterator_resource,
+                initializer,
+                tf.data.get_output_types.get_legacy_output_types(dataset),
+                tf.data.get_output_types.get_legacy_output_shapes(dataset),
+                tf.data.get_output_types.get_legacy_output_classes(dataset),
+            )
 
     @property
     @deprecation.deprecated(
-        None, "Use `tf.compat.v1.data.get_output_classes(dataset)`.")
+        None, "Use `tf.compat.v1.data.get_output_classes(dataset)`."
+    )
     def output_classes(self):
         """Returns the class of each component of an element of this dataset.
 
@@ -235,15 +260,14 @@ class HubTensorflowDataset(tf.data.Dataset):
           A (nested) structure of Python `type` objects corresponding to each
           component of an element of this dataset.
         """
-        #pylint: disable=protected-access
+        # pylint: disable=protected-access
         return nest.map_structure(
-            lambda component_spec: component_spec._to_legacy_output_classes(
-            ),
-            self.element_spec)
+            lambda component_spec: component_spec._to_legacy_output_classes(),
+            self.element_spec,
+        )
 
     @property
-    @deprecation.deprecated(
-        None, "Use `tf.compat.v1.data.get_output_shapes(dataset)`.")
+    @deprecation.deprecated(None, "Use `tf.compat.v1.data.get_output_shapes(dataset)`.")
     def output_shapes(self):
         """Returns the shape of each component of an element of this dataset.
 
@@ -253,13 +277,12 @@ class HubTensorflowDataset(tf.data.Dataset):
         """
         # pylint: disable=protected-access
         return nest.map_structure(
-            lambda component_spec: component_spec._to_legacy_output_shapes(
-            ),
-            self.element_spec)
+            lambda component_spec: component_spec._to_legacy_output_shapes(),
+            self.element_spec,
+        )
 
     @property
-    @deprecation.deprecated(
-        None, "Use `tf.compat.v1.data.get_output_types(dataset)`.")
+    @deprecation.deprecated(None, "Use `tf.compat.v1.data.get_output_types(dataset)`.")
     def output_types(self):
         """Returns the type of each component of an element of this dataset.
 
@@ -269,14 +292,15 @@ class HubTensorflowDataset(tf.data.Dataset):
         """
         # pylint: disable=protected-access
         return nest.map_structure(
-            lambda component_spec: component_spec._to_legacy_output_types(
-            ),
-            self.element_spec)
+            lambda component_spec: component_spec._to_legacy_output_types(),
+            self.element_spec,
+        )
 
     @property
     def element_spec(self):
         return structure.convert_legacy_structure(
-            self.output_types, self.output_shapes, self.output_classes)
+            self.output_types, self.output_shapes, self.output_classes
+        )
 
     @staticmethod
     @functools.wraps(tf.data.Dataset.from_tensors)
@@ -303,20 +327,25 @@ class HubTensorflowDataset(tf.data.Dataset):
 
     @staticmethod
     @functools.wraps(tf.data.Dataset.from_generator)
-    @deprecation.deprecated_args(None, "Use output_signature instead",
-                                 "output_types", "output_shapes")
-    def from_generator(generator,
-                       output_types=None,
-                       output_shapes=None,
-                       args=None,
-                       output_signature=None):
+    @deprecation.deprecated_args(
+        None, "Use output_signature instead", "output_types", "output_shapes"
+    )
+    def from_generator(
+        generator,
+        output_types=None,
+        output_shapes=None,
+        args=None,
+        output_signature=None,
+    ):
         # Calling tf.data.Dataset.from_generator with output_shapes or output_types is
         # deprecated, but this is already checked by the decorator on this function.
         with deprecation.silence():
-            #pylint: disable=not-context-manager
+            # pylint: disable=not-context-manager
             return DatasetAdapter(
-                tf.data.Dataset.from_generator(generator, output_types, output_shapes, args,
-                                               output_signature))
+                tf.data.Dataset.from_generator(
+                    generator, output_types, output_shapes, args, output_signature
+                )
+            )
 
     @staticmethod
     @functools.wraps(tf.data.Dataset.range)
@@ -347,8 +376,9 @@ class HubTensorflowDataset(tf.data.Dataset):
 
     @functools.wraps(tf.data.Dataset.shuffle)
     def shuffle(self, buffer_size, seed=None, reshuffle_each_iteration=None):
-        return DatasetAdapter(super(__class__, self).shuffle(
-            buffer_size, seed, reshuffle_each_iteration))
+        return DatasetAdapter(
+            super(__class__, self).shuffle(buffer_size, seed, reshuffle_each_iteration)
+        )
 
     @functools.wraps(tf.data.Dataset.cache)
     def cache(self, filename=""):
@@ -367,31 +397,36 @@ class HubTensorflowDataset(tf.data.Dataset):
         return DatasetAdapter(super(__class__, self).shard(num_shards, index))
 
     @functools.wraps(tf.data.Dataset.batch)
-    def batch(self,
-              batch_size,
-              drop_remainder=False,
-              num_parallel_calls=None,
-              deterministic=None):
+    def batch(
+        self,
+        batch_size,
+        drop_remainder=False,
+        num_parallel_calls=None,
+        deterministic=None,
+    ):
         return DatasetAdapter(
-            super(__class__, self).batch(batch_size, drop_remainder,
-                                                    num_parallel_calls, deterministic))
+            super(__class__, self).batch(
+                batch_size, drop_remainder, num_parallel_calls, deterministic
+            )
+        )
 
     @functools.wraps(tf.data.Dataset.padded_batch)
-    def padded_batch(self,
-                     batch_size,
-                     padded_shapes=None,
-                     padding_values=None,
-                     drop_remainder=False):
+    def padded_batch(
+        self, batch_size, padded_shapes=None, padding_values=None, drop_remainder=False
+    ):
         return DatasetAdapter(
-            super(__class__, self).padded_batch(batch_size, padded_shapes,
-                                                           padding_values, drop_remainder))
+            super(__class__, self).padded_batch(
+                batch_size, padded_shapes, padding_values, drop_remainder
+            )
+        )
 
-    #pylint: disable=no-else-return
+    # pylint: disable=no-else-return
     @functools.wraps(tf.data.Dataset.map)
     def map(self, map_func, num_parallel_calls=None, deterministic=None):
         if num_parallel_calls is None:
             return DatasetAdapter(
-                dataset_ops.MapDataset(self, map_func, preserve_cardinality=False))
+                dataset_ops.MapDataset(self, map_func, preserve_cardinality=False)
+            )
         else:
             return DatasetAdapter(
                 dataset_ops.ParallelMapDataset(
@@ -399,14 +434,15 @@ class HubTensorflowDataset(tf.data.Dataset):
                     map_func,
                     num_parallel_calls,
                     deterministic,
-                    preserve_cardinality=False))
+                    preserve_cardinality=False,
+                )
+            )
 
-    #pylint: disable=no-else-return
+    # pylint: disable=no-else-return
     @deprecation.deprecated(None, "Use `tf.data.Dataset.map()")
-    def map_with_legacy_function(self,
-                                 map_func,
-                                 num_parallel_calls=None,
-                                 deterministic=None):
+    def map_with_legacy_function(
+        self, map_func, num_parallel_calls=None, deterministic=None
+    ):
         """Maps `map_func` across the elements of this dataset.
 
         Note: This is an escape hatch for existing uses of `map` that do not work
@@ -434,14 +470,15 @@ class HubTensorflowDataset(tf.data.Dataset):
         """
         if num_parallel_calls is None:
             if deterministic is not None:
-                warnings.warn("The `deterministic` argument has no effect unless the "
-                              "`num_parallel_calls` argument is specified.")
+                warnings.warn(
+                    "The `deterministic` argument has no effect unless the "
+                    "`num_parallel_calls` argument is specified."
+                )
             return DatasetAdapter(
                 dataset_ops.MapDataset(
-                    self,
-                    map_func,
-                    preserve_cardinality=False,
-                    use_legacy_function=True))
+                    self, map_func, preserve_cardinality=False, use_legacy_function=True
+                )
+            )
         else:
             return DatasetAdapter(
                 dataset_ops.ParallelMapDataset(
@@ -450,23 +487,29 @@ class HubTensorflowDataset(tf.data.Dataset):
                     num_parallel_calls,
                     deterministic,
                     preserve_cardinality=False,
-                    use_legacy_function=True))
+                    use_legacy_function=True,
+                )
+            )
 
     @functools.wraps(tf.data.Dataset.flat_map)
     def flat_map(self, map_func):
         return DatasetAdapter(super(__class__, self).flat_map(map_func))
 
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     @functools.wraps(tf.data.Dataset.interleave)
-    def interleave(self,
-                   map_func,
-                   cycle_length=None,
-                   block_length=None,
-                   num_parallel_calls=None,
-                   deterministic=None):
+    def interleave(
+        self,
+        map_func,
+        cycle_length=None,
+        block_length=None,
+        num_parallel_calls=None,
+        deterministic=None,
+    ):
         return DatasetAdapter(
-            super(__class__, self).interleave(map_func, cycle_length, block_length,
-                                                         num_parallel_calls, deterministic))
+            super(__class__, self).interleave(
+                map_func, cycle_length, block_length, num_parallel_calls, deterministic
+            )
+        )
 
     @functools.wraps(tf.data.Dataset.filter)
     def filter(self, predicate):
@@ -497,8 +540,9 @@ class HubTensorflowDataset(tf.data.Dataset):
 
     @functools.wraps(tf.data.Dataset.window)
     def window(self, size, shift=None, stride=1, drop_remainder=False):
-        return DatasetAdapter(super(__class__, self).window(
-            size, shift, stride, drop_remainder))
+        return DatasetAdapter(
+            super(__class__, self).window(size, shift, stride, drop_remainder)
+        )
 
     @functools.wraps(tf.data.Dataset.unbatch)
     def unbatch(self):
@@ -511,7 +555,8 @@ class HubTensorflowDataset(tf.data.Dataset):
 
 class DatasetAdapter(HubTensorflowDataset):
     """Wraps a V2 `Dataset` object in the `tf.compat.v1.data.Dataset` API."""
-    #pylint: disable=abstract-method
+
+    # pylint: disable=abstract-method
     def __init__(self, dataset):
         self._dataset = dataset
         super(__class__, self).__init__()

@@ -6,34 +6,50 @@ import sys
 
 from absl.testing import parameterized
 
-from tensorflow.core.framework import dataset_options_pb2  # pylint: disable=no-name-in-module
-from tensorflow.python.data.experimental.ops import distribute_options  # pylint: disable=no-name-in-module
-from tensorflow.python.data.experimental.ops import optimization_options  # pylint: disable=no-name-in-module
-from tensorflow.python.data.experimental.ops import testing  # pylint: disable=no-name-in-module
-from tensorflow.python.data.experimental.ops import threading_options  # pylint: disable=no-name-in-module
-from tensorflow.python.data.kernel_tests import test_base  # pylint: disable=no-name-in-module
+from tensorflow.core.framework import (
+    dataset_options_pb2,
+)  # pylint: disable=no-name-in-module
+from tensorflow.python.data.experimental.ops import (
+    distribute_options,
+)  # pylint: disable=no-name-in-module
+from tensorflow.python.data.experimental.ops import (
+    optimization_options,
+)  # pylint: disable=no-name-in-module
+from tensorflow.python.data.experimental.ops import (
+    testing,
+)  # pylint: disable=no-name-in-module
+from tensorflow.python.data.experimental.ops import (
+    threading_options,
+)  # pylint: disable=no-name-in-module
+from tensorflow.python.data.kernel_tests import (
+    test_base,
+)  # pylint: disable=no-name-in-module
 from tensorflow.python.eager import context  # pylint: disable=no-name-in-module
 from tensorflow.python.eager import def_function  # pylint: disable=no-name-in-module
-from tensorflow.python.framework import combinations  # pylint: disable=no-name-in-module
+from tensorflow.python.framework import (
+    combinations,
+)  # pylint: disable=no-name-in-module
 from tensorflow.python.platform import test  # pylint: disable=no-name-in-module
 
 import tensorflow as tf
 from tf_dataset import HubTensorflowDataset
 
-#pylint: disable=invalid-name
-#pylint: disable=no-member
-#pylint: disable=multiple-statements
-#pylint: disable=protected-access
-#pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name
+# pylint: disable=no-member
+# pylint: disable=multiple-statements
+# pylint: disable=protected-access
+# pylint: disable=missing-function-docstring
 class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
     """
     Test class for testcase collection
     """
+
     def _get_options(self, dataset):
         if context.executing_eagerly():
             return dataset.options()
         return HubTensorflowDataset._options_tensor_to_options(
-            self.evaluate(dataset._options()))
+            self.evaluate(dataset._options())
+        )
 
     @combinations.generate(test_base.default_test_combinations())
     def testOptionsDefault(self):
@@ -50,8 +66,7 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
     def testOptionsTwiceSame(self):
         options = tf.data.Options()
         options.experimental_optimization.autotune = True
-        ds = HubTensorflowDataset.range(0).with_options(options).with_options(
-            options)
+        ds = HubTensorflowDataset.range(0).with_options(options).with_options(options)
         self.assertEqual(options, self._get_options(ds))
 
     @combinations.generate(test_base.default_test_combinations())
@@ -72,8 +87,7 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
     def testOptionsTwiceSameOption(self):
         if sys.version_info >= (3, 8) and platform.system() == "Windows":
             # TODO(b/165013260): Fix this
-            self.skipTest(
-                "Test is currently broken on Windows with Python 3.8")
+            self.skipTest("Test is currently broken on Windows with Python 3.8")
         options1 = tf.data.Options()
         options1.experimental_optimization.autotune = False
         options2 = tf.data.Options()
@@ -81,8 +95,7 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         ds = HubTensorflowDataset.range(0)
         ds = ds.with_options(options1)
         ds = ds.with_options(options2)
-        self.assertTrue(self._get_options(
-            ds).experimental_optimization.autotune)
+        self.assertTrue(self._get_options(ds).experimental_optimization.autotune)
 
     @combinations.generate(test_base.default_test_combinations())
     def testOptionsMergeOptionsFromMultipleInputs(self):
@@ -101,13 +114,15 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
     def testOptionsHaveDefaults(self):
         options1 = tf.data.Options()
         options2 = tf.data.Options()
-        self.assertIsNot(options1.experimental_optimization,
-                         options2.experimental_optimization)
+        self.assertIsNot(
+            options1.experimental_optimization, options2.experimental_optimization
+        )
         self.assertIsNot(options1.threading, options2.threading)
-        self.assertEqual(options1.experimental_optimization,
-                         optimization_options.OptimizationOptions())
-        self.assertEqual(options1.threading,
-                         threading_options.ThreadingOptions())
+        self.assertEqual(
+            options1.experimental_optimization,
+            optimization_options.OptimizationOptions(),
+        )
+        self.assertEqual(options1.threading, threading_options.ThreadingOptions())
 
     @combinations.generate(test_base.default_test_combinations())
     def testMutatingOptionsRaiseValueError(self):
@@ -130,16 +145,18 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
 
         for _ in range(999):
             result = result.concatenate(ds)
-        self.assertDatasetProduces(result, [0]*1000)
+        self.assertDatasetProduces(result, [0] * 1000)
 
     @combinations.generate(test_base.default_test_combinations())
     def testOptionsProtoRoundTrip(self):
         options = tf.data.Options()
         options.experimental_deterministic = True
         options.experimental_external_state_policy = (
-            distribute_options.ExternalStatePolicy.FAIL)
+            distribute_options.ExternalStatePolicy.FAIL
+        )
         options.experimental_distribute.auto_shard_policy = (
-            distribute_options.AutoShardPolicy.DATA)
+            distribute_options.AutoShardPolicy.DATA
+        )
         options.experimental_distribute.num_devices = 1000
         options.experimental_optimization.apply_default_optimizations = True
         options.experimental_optimization.autotune = True
@@ -177,20 +194,18 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         options._from_proto(pb)
         result = options._to_proto()
         expected_pb = dataset_options_pb2.Options()
-        expected_pb.distribute_options.CopyFrom(
-            dataset_options_pb2.DistributeOptions())
+        expected_pb.distribute_options.CopyFrom(dataset_options_pb2.DistributeOptions())
         expected_pb.optimization_options.CopyFrom(
-            dataset_options_pb2.OptimizationOptions())
-        expected_pb.threading_options.CopyFrom(
-            dataset_options_pb2.ThreadingOptions())
+            dataset_options_pb2.OptimizationOptions()
+        )
+        expected_pb.threading_options.CopyFrom(dataset_options_pb2.ThreadingOptions())
         self.assertProtoEquals(expected_pb, result)
 
     @combinations.generate(test_base.default_test_combinations())
     def testThreadingOptionsBackwardCompatibility(self):
         opts = tf.data.Options()
         opts.threading.max_intra_op_parallelism = 20
-        self.assertEqual(
-            opts.experimental_threading.max_intra_op_parallelism, 20)
+        self.assertEqual(opts.experimental_threading.max_intra_op_parallelism, 20)
         opts.experimental_threading.private_threadpool_size = 80
         self.assertEqual(opts.threading.private_threadpool_size, 80)
 
@@ -203,12 +218,13 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         pb = options._to_proto()
         result = tf.data.Options()
         result._from_proto(pb)
-        self.assertEqual(result.experimental_threading.max_intra_op_parallelism,
-                         result.threading.max_intra_op_parallelism)
+        self.assertEqual(
+            result.experimental_threading.max_intra_op_parallelism,
+            result.threading.max_intra_op_parallelism,
+        )
 
     @combinations.generate(test_base.default_test_combinations())
     def testPersistenceOptionsSetOutsideFunction(self):
-
         @def_function.function
         def fn(dataset):
             dataset = dataset.map(lambda x: 10 * x)
@@ -220,12 +236,12 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         dataset = dataset.with_options(options)
         dataset = fn(dataset)
         result = HubTensorflowDataset._options_tensor_to_options(
-            self.evaluate(dataset._options()))
+            self.evaluate(dataset._options())
+        )
         self.assertTrue(result.experimental_slack)
 
     @combinations.generate(test_base.default_test_combinations())
     def testPersistenceOptionsSetInsideFunction(self):
-
         @def_function.function
         def fn(dataset):
             options = tf.data.Options()
@@ -237,7 +253,8 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         dataset = HubTensorflowDataset.range(5)
         dataset = fn(dataset)
         result = HubTensorflowDataset._options_tensor_to_options(
-            self.evaluate(dataset._options()))
+            self.evaluate(dataset._options())
+        )
         self.assertTrue(result.experimental_slack)
 
     @combinations.generate(test_base.default_test_combinations())
@@ -252,23 +269,25 @@ class OptionsTest(test_base.DatasetTestBase, parameterized.TestCase):
         self.assertTrue(result.experimental_slack)
         # Explicitly check that flag is False since assertFalse allows None
         self.assertIs(
-            result.experimental_optimization.apply_default_optimizations, False)
+            result.experimental_optimization.apply_default_optimizations, False
+        )
 
-    @combinations.generate(combinations.times(
-        test_base.default_test_combinations(),
-        combinations.combine(map_parallelization=[True, False])))
+    @combinations.generate(
+        combinations.times(
+            test_base.default_test_combinations(),
+            combinations.combine(map_parallelization=[True, False]),
+        )
+    )
     def testOptionsGraphRoundTripOptimization(self, map_parallelization):
         dataset = HubTensorflowDataset.range(6)
         options = tf.data.Options()
-        options.experimental_optimization.map_parallelization = (
-            map_parallelization)
+        options.experimental_optimization.map_parallelization = map_parallelization
         dataset = dataset.with_options(options)
         dataset = self.graphRoundTrip(dataset)
         expected = "ParallelMap" if map_parallelization else "Map"
         dataset = dataset.apply(testing.assert_next([expected]))
-        dataset = dataset.map(lambda x: x*x)
-        self.assertDatasetProduces(
-            dataset, expected_output=[0, 1, 4, 9, 16, 25])
+        dataset = dataset.map(lambda x: x * x)
+        self.assertDatasetProduces(dataset, expected_output=[0, 1, 4, 9, 16, 25])
 
 
 if __name__ == "__main__":
