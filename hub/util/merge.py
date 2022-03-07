@@ -13,24 +13,10 @@ from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
 
 
-# a b C
-
-# main - a B
-# alt - a b C
-# if C has new changes -> revive
-
-
-# main a b C
-# alt - a b
-# throw warning
-# delete_removed_tensors=False
-
-
 def merge(
     dataset,
     target_id: str,
     conflict_resolution: Optional[str] = None,
-    revive_deleted_common_tensors=True,
     delete_removed_tensors=False,
 ):
 
@@ -54,11 +40,21 @@ def merge(
 
     new_tensors = target_tensors - original_tensors
     common_tensors = target_tensors & original_tensors
+
+    # present in dataset at lca, but deleted in target
     target_deleted_tensors = lca_tensors - target_tensors
+
+    # present in dataset at lca, but deleted in original
     original_deleted_tensors = lca_tensors - original_tensors
 
-    if not revive_deleted_common_tensors:
-        new_tensors = new_tensors - original_deleted_tensors
+    target_diff, _ = dataset.diff(target_commit_id, lca_id, as_dict=True)
+    for tensor in original_deleted_tensors:
+        tensor_diff = target_diff.get(tensor, None)
+
+        # either target doesn't have the tensor, no point in creating again
+        # or target has the tensor but it wasn't modified
+        if not tensor_diff or (not tensor_diff.data_added and not tensor_diff.data_updated):
+            new_tensors.pop(tensor, None)
 
     merge_common_tensors(
         common_tensors,
