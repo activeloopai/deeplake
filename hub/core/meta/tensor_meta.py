@@ -21,7 +21,6 @@ from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
 )
 from hub.htype import (
@@ -41,6 +40,7 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
     max_chunk_size: int
+    hidden: bool
 
     def __init__(
         self,
@@ -59,12 +59,16 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-
         if htype and htype != UNSPECIFIED:
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
+
+    def set_hidden(self, val: bool):
+        ffw_tensor_meta(self)
+        self.hidden = val
+        self.is_dirty = True
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
@@ -164,6 +168,8 @@ class TensorMeta(Meta):
     def __setstate__(self, state: Dict[str, Any]):
         if "chunk_compression" not in state:
             state["chunk_compression"] = None  # Backward compatibility
+        if "hidden" not in state:
+            state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
 

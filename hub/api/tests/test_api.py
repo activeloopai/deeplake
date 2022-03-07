@@ -851,7 +851,7 @@ def test_vc_bug(local_ds_generator):
     a = ds.commit("first")
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
-    assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
+    assert ds._all_tensors_filtered() == ["abc", "a/b/c/d"]
 
 
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
@@ -1017,3 +1017,32 @@ def test_hub_remote_read_videos(storage, memory_ds):
         )
         memory_ds.videos.append(video)
         assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
+
+
+def test_hidden_tensors(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("x", hidden=True)
+        ds.x.append(1)
+        assert ds.tensors == {}
+        ds.create_tensor("y")
+        assert list(ds.tensors.keys()) == ["y"]
+        ds.y.extend([1, 2])
+        assert len(ds) == 2  # length of hidden tensor is not considered
+        ds._hide_tensor("y")
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert len(ds) == 0
+    with ds:
+        ds.create_tensor("w")
+        ds.create_tensor("z")
+        ds.append({"w": 2, "z": 3})  # hidden tensors not required
+
+    # Test access
+    np.testing.assert_array_equal(ds.x, np.array([[1]]))
+    np.testing.assert_array_equal(ds.y, np.array([[1], [2]]))
+
+    assert not ds.w.meta.hidden
+    assert not ds.z.meta.hidden
+    assert ds.x.meta.hidden
+    assert ds.y.meta.hidden
