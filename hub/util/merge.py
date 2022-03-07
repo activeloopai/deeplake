@@ -49,11 +49,11 @@ def merge(
 
     target_diff, _ = dataset.diff(target_commit_id, lca_id, as_dict=True)
     for tensor in original_deleted_tensors:
-        tensor_diff = target_diff.get(tensor, None)
+        diff = target_diff.get(tensor, None)
 
         # either target doesn't have the tensor, no point in creating again
         # or target has the tensor but it wasn't modified
-        if not tensor_diff or (not tensor_diff.data_added and not tensor_diff.data_updated):
+        if not diff or not (diff.data_added or diff.data_updated):
             new_tensors.pop(tensor, None)
 
     merge_common_tensors(
