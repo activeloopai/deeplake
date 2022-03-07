@@ -256,3 +256,18 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
             self._encoded = np.concatenate([top, mid, bottom], axis=0)
         self.is_dirty = True
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        instance = cls()
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded = ids
+        instance.version = version
+        instance.is_dirty = False
+        return instance
+
+    def tobytes(self) -> memoryview:
+        return serialize_chunkids(self.version, [self._encoded])
