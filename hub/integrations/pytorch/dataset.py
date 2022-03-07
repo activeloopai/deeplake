@@ -31,6 +31,8 @@ from warnings import warn
 from queue import Empty
 
 import numpy as np
+import hub
+
 
 mp = torch.multiprocessing.get_context()
 
@@ -244,7 +246,9 @@ class PrefetchConcurrentIterator(Iterable):
 
         while any(self.active_workers):
             try:
-                wid, data = self.data_queue.get(timeout=5)
+                wid, data = self.data_queue.get(
+                    timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                )
 
                 if isinstance(data, ExceptionWrapper):
                     data.reraise()
@@ -299,7 +303,9 @@ class PrefetchConcurrentIterator(Iterable):
             try:
                 for wid in range(self.num_workers):
                     self.request_queues[wid].put(None)
-                    self.workers[wid].join(timeout=5)
+                    self.workers[wid].join(
+                        timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                    )
 
                 for queue in self.request_queues:
                     queue.cancel_join_thread()
