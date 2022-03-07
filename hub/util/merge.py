@@ -9,8 +9,6 @@ from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
 
 
-# conflict_resolution: Optional[str] = None,
-
 # a b C
 
 # main - a B
@@ -27,7 +25,7 @@ from hub.util.version_control import auto_checkout, auto_commit, commit
 def merge(
     dataset,
     target_id: str,
-    strategy=0,
+    conflict_resolution: Optional[str] = None,
     revive_deleted_common_tensors=True,
     delete_removed_tensors=False,
 ):
@@ -65,7 +63,7 @@ def merge(
         original_node,
         target_node,
         lca_node,
-        strategy,
+        conflict_resolution,
     )
     copy_new_tensors(dataset, target_ds, new_tensors)
 
@@ -156,7 +154,7 @@ def merge_common_tensors(
     original_node,
     target_node,
     lca_node,
-    strategy: int = 0,
+    conflict_resolution: Optional[str] = None,
 ):
     check_common_tensor_conflicts(dataset, target_dataset, tensor_names)
 
@@ -195,11 +193,11 @@ def merge_common_tensors(
         merge_common_samples(
             original_tensor,
             target_tensor,
-            strategy,
             original_id_changes_commit_map,
             target_id_changes_commit_map,
             original_id_to_index_map,
             target_id_to_index_map,
+            conflict_resolution,
         )
 
 
@@ -242,11 +240,11 @@ def add_new_samples_to_tensor(
 def merge_common_samples(
     original_tensor,
     target_tensor,
-    strategy,
     original_id_changes_commit_map,
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
+    conflict_resolution: Optional[str] = None,
 ):
     for id in target_id_changes_commit_map:
         target_idx = target_id_to_index_map[id]
@@ -262,5 +260,8 @@ def merge_common_samples(
                 most_recent_common_item = item
                 break
         target_commit_ids = target_commit_ids[:crop]
-        if original_commit_ids[0] == most_recent_common_item or strategy == 0:
+        if (
+            original_commit_ids[0] == most_recent_common_item
+            or conflict_resolution == "theirs"
+        ):
             original_tensor[original_idx] = target_tensor[target_idx]
