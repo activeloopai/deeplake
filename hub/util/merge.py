@@ -1,9 +1,13 @@
 from collections import defaultdict
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode
 from hub.util.diff import get_lowest_common_ancestor, sanitize_commit
-from hub.util.exceptions import MergeMismatchError, MergeNotSupportedError
+from hub.util.exceptions import (
+    MergeConflictError,
+    MergeMismatchError,
+    MergeNotSupportedError,
+)
 from hub.util.keys import get_tensor_commit_diff_key
 from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
@@ -57,9 +61,9 @@ def merge(
         new_tensors = new_tensors - original_deleted_tensors
 
     merge_common_tensors(
+        common_tensors,
         dataset,
         target_ds,
-        common_tensors,
         original_node,
         target_node,
         lca_node,
@@ -110,7 +114,7 @@ def get_changes_commit_ids_for_node(
                 diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
                 diff: CommitDiff = dataset.storage.get_cachable(diff_key, CommitDiff)
                 data_updated = sorted(diff.data_updated)
-                id_tensor_name = tensor_name + "id"
+                id_tensor_name = f"{tensor_name}id"
                 try:
                     id_tensor = dataset[id_tensor_name]
                 except KeyError:
@@ -148,60 +152,45 @@ def copy_new_tensors(dataset, target_dataset, tensor_names: List[str]):
 
 
 def merge_common_tensors(
+    tensor_names: List[str],
     dataset,
     target_dataset,
-    tensor_names: List[str],
     original_node,
     target_node,
     lca_node,
     conflict_resolution: Optional[str] = None,
 ):
-    check_common_tensor_conflicts(dataset, target_dataset, tensor_names)
+    check_common_tensor_mismatches(dataset, target_dataset, tensor_names)
+    new_samples_dict: Dict[str, List[int]] = {}
+    conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
 
     for tensor_name in tensor_names:
-        id_tensor_name = tensor_name + "id"
-        target_tensor = target_dataset[tensor_name]
-        target_id_tensor = target_dataset[id_tensor_name]
-        original_tensor = dataset[tensor_name]
-        original_id_tensor = dataset[id_tensor_name]
-
-        target_id_changes_commit_map = get_changes_commit_ids_for_node(
-            target_dataset, tensor_name, target_node, lca_node
-        )
-
-        original_id_changes_commit_map = get_changes_commit_ids_for_node(
-            dataset, tensor_name, original_node, lca_node
-        )
-
-        original_ids = original_id_tensor.numpy().flatten()
-        original_id_to_index_map = {id: i for i, id in enumerate(original_ids)}
-
-        target_ids = target_id_tensor.numpy().flatten()
-        target_id_to_index_map = {id: i for i, id in enumerate(target_ids)}
-
-        new_elements_ids = set(target_ids) - set(original_ids)
-
-        add_new_samples_to_tensor(
-            original_tensor,
-            target_tensor,
-            new_elements_ids,
-            target_id_changes_commit_map,
-            target_id_to_index_map,
-        )
-
-        # handle common elements
-        merge_common_samples(
-            original_tensor,
-            target_tensor,
-            original_id_changes_commit_map,
-            target_id_changes_commit_map,
-            original_id_to_index_map,
-            target_id_to_index_map,
+        process_tensor(
+            tensor_name,
+            dataset,
+            target_dataset,
+            original_node,
+            target_node,
+            lca_node,
+            new_samples_dict,
+            conflict_samples_dict,
             conflict_resolution,
         )
 
+    if conflict_samples_dict and conflict_resolution is None:
+        raise MergeConflictError(conflict_samples_dict)
 
-def check_common_tensor_conflicts(
+    for tensor_name in tensor_names:
+        merge_tensor(
+            tensor_name,
+            dataset,
+            target_dataset,
+            new_samples_dict,
+            conflict_samples_dict,
+        )
+
+
+def check_common_tensor_mismatches(
     dataset,
     target_dataset,
     tensor_names: List[str],
@@ -224,31 +213,26 @@ def check_common_tensor_conflicts(
                 raise MergeMismatchError(tensor_name, key, value, target_details[key])
 
 
-def add_new_samples_to_tensor(
-    original_tensor,
-    target_tensor,
+def get_new_indexes(
     new_elements_ids,
     target_id_changes_commit_map,
     target_id_to_index_map,
 ):
+    new_indexes = []
     for id in new_elements_ids:
         target_id_changes_commit_map.pop(id, None)
         idx = target_id_to_index_map[id]
-        original_tensor.append(target_tensor[idx])
+        new_indexes.append(idx)
 
 
-def merge_common_samples(
-    original_tensor,
-    target_tensor,
+def find_conflicts(
     original_id_changes_commit_map,
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
-    conflict_resolution: Optional[str] = None,
 ):
+    conflict_indexes = []
     for id in target_id_changes_commit_map:
-        target_idx = target_id_to_index_map[id]
-        original_idx = original_id_to_index_map[id]
         target_commit_ids = target_id_changes_commit_map[id]
         original_commit_ids = original_id_changes_commit_map[id]
         set_original_commit_ids = set(original_commit_ids)
@@ -260,8 +244,71 @@ def merge_common_samples(
                 most_recent_common_item = item
                 break
         target_commit_ids = target_commit_ids[:crop]
-        if (
-            original_commit_ids[0] == most_recent_common_item
-            or conflict_resolution == "theirs"
-        ):
+        if original_commit_ids[0] == most_recent_common_item:
+            target_idx = target_id_to_index_map[id]
+            original_idx = original_id_to_index_map[id]
+            conflict_indexes.append((original_idx, target_idx))
+    return conflict_indexes
+
+
+def process_tensor(
+    tensor_name,
+    dataset,
+    target_dataset,
+    original_node,
+    target_node,
+    lca_node,
+    new_samples_dict,
+    conflict_samples_dict,
+    conflict_resolution: Optional[str] = None,
+):
+    id_tensor_name = f"{tensor_name}id"
+    target_id_tensor = target_dataset[id_tensor_name]
+    original_id_tensor = dataset[id_tensor_name]
+
+    target_id_changes_commit_map = get_changes_commit_ids_for_node(
+        target_dataset, tensor_name, target_node, lca_node
+    )
+
+    original_id_changes_commit_map = get_changes_commit_ids_for_node(
+        dataset, tensor_name, original_node, lca_node
+    )
+
+    original_ids = original_id_tensor.numpy().flatten()
+    original_id_to_index_map = {id: idx for idx, id in enumerate(original_ids)}
+
+    target_ids = target_id_tensor.numpy().flatten()
+    target_id_to_index_map = {id: idx for idx, id in enumerate(target_ids)}
+
+    new_elements_ids = set(target_ids) - set(original_ids)
+
+    new_indexes = get_new_indexes(
+        new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
+    )
+    new_samples_dict[tensor_name] = new_indexes
+
+    if conflict_resolution is None or conflict_resolution == "theirs":
+        conflict_indexes = find_conflicts(
+            original_id_changes_commit_map,
+            target_id_changes_commit_map,
+            original_id_to_index_map,
+            target_id_to_index_map,
+        )
+        if conflict_indexes:
+            conflict_samples_dict[tensor_name] = conflict_indexes
+
+
+def merge_tensor(
+    tensor_name, dataset, target_dataset, new_samples_dict, conflict_samples_dict
+):
+    original_tensor = dataset[tensor_name]
+    target_tensor = target_dataset[tensor_name]
+
+    new_indexes = new_samples_dict[tensor_name]
+    for index in new_indexes:
+        original_tensor.append(target_tensor[index])
+
+    if tensor_name in conflict_samples_dict:
+        conflict_indexes = conflict_samples_dict[tensor_name]
+        for original_idx, target_idx in conflict_indexes:
             original_tensor[original_idx] = target_tensor[target_idx]
