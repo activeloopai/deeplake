@@ -252,7 +252,7 @@ class HubTensorflowDataset(tf.data.Dataset):
     @deprecation.deprecated(
         None, "Use `tf.compat.v1.data.get_output_classes(dataset)`."
     )
-    #@functools.wraps(tf.data.Dataset.output_classes)
+    # @functools.wraps(tf.data.Dataset.output_classes)
     def output_classes(self):
         """Returns the class of each component of an element of this dataset.
 
@@ -267,7 +267,7 @@ class HubTensorflowDataset(tf.data.Dataset):
         )
 
     @deprecation.deprecated(None, "Use `tf.compat.v1.data.get_output_shapes(dataset)`.")
-    #@functools.wraps(tf.data.Dataset.output_shapes)
+    # @functools.wraps(tf.data.Dataset.output_shapes)
     def output_shapes(self):
         """Returns the shape of each component of an element of this dataset.
 
@@ -282,7 +282,7 @@ class HubTensorflowDataset(tf.data.Dataset):
         )
 
     @deprecation.deprecated(None, "Use `tf.compat.v1.data.get_output_types(dataset)`.")
-    #@functools.wraps(tf.data.Dataset.output_types)
+    # @functools.wraps(tf.data.Dataset.output_types)
     def output_types(self):
         """Returns the type of each component of an element of this dataset.
 
