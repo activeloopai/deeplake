@@ -722,10 +722,7 @@ def test_dataset_copy(path, hub_token):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
-    if src_path.startswith("hub://"):
-        src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
-    else:
-        src_ds = hub.empty(src_path, overwrite=True)
+    src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
 
     with src_ds:
         src_ds.info.update(key=0)
@@ -740,7 +737,7 @@ def test_dataset_copy(path, hub_token):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.copy(src_path, dest_path, overwrite=True)
+    dest_ds = hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
 
@@ -757,28 +754,28 @@ def test_dataset_copy(path, hub_token):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.copy(src_path, dest_path)
+        hub.copy(src_path, dest_path, token=hub_token)
 
-    hub.copy(src_path, dest_path, overwrite=True)
+    hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    dest_ds = hub.load(dest_path)
+    dest_ds = hub.load(dest_path, token=hub_token)
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.copy(src_path, dest_path, overwrite=True)
-    dest_ds = hub.load(dest_path)
+    hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
+    dest_ds = hub.load(dest_path, token=hub_token)
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.delete(src_path)
-    hub.delete(dest_path)
+    hub.delete(src_path, token=hub_token)
+    hub.delete(dest_path, token=hub_token)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):

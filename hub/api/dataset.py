@@ -369,7 +369,7 @@ class dataset:
         num_workers: int = 0,
         public: bool = False,
     ):
-        src_ds = hub.load(src, read_only=True)
+        src_ds = hub.load(src, read_only=True, token=token)
         src_storage = src_ds.storage
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
