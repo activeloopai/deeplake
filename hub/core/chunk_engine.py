@@ -593,6 +593,11 @@ class ChunkEngine:
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
+        if isinstance(samples, hub.Tensor):
+            for sample in samples:
+                self.extend([sample])  # TODO optimize this
+            return
+
         samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,

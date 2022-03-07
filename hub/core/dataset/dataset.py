@@ -1,4 +1,5 @@
 # type: ignore
+from unittest import skip
 import numpy as np
 from time import time
 import json
@@ -20,7 +21,6 @@ from hub.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
-    LocalProvider,
 )
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
@@ -1330,6 +1330,32 @@ class Dataset:
     def __bool__(self):
         return True
 
+    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `samples` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `samples` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `samples` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        for i in range(n):
+            self.append({k: v[i] for k, v in samples.items()})
+
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
@@ -1342,6 +1368,8 @@ class Dataset:
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
         """
+        if isinstance(sample, Dataset):
+            sample = sample.tensors
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
