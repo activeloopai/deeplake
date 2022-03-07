@@ -420,13 +420,16 @@ class Dataset:
                 return
 
         with self:
-            delete_tensor(full_name, self)
+            tensor_diff = self[full_name].chunk_engine.commit_diff
+            if not tensor_diff.created:
+                self._dataset_diff.tensor_deleted(full_name)
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             meta.delete_tensor(full_name)
             self.version_state["meta"] = meta
-            key = self.version_state["tensor_names"].pop(full_name)
+            full_key = self.version_state["tensor_names"].pop(full_name)
+            delete_tensor(full_key, self)
             self.version_state["full_tensors"].pop(full_key)
 
         self.storage.maybe_flush()
@@ -555,6 +558,9 @@ class Dataset:
 
         tensor = self[name]
         tensor.meta.name = full_new_name
+        tensor_diff = tensor.chunk_engine.commit_diff
+        if not tensor_diff.created:
+            self._dataset_diff.tensor_renamed(name, full_new_name)
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.rename_tensor(name, full_new_name)

@@ -94,7 +94,7 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-    tensor = dataset[key]
+    tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
