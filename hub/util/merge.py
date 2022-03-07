@@ -1,37 +1,87 @@
 from collections import defaultdict
-from typing import List
+from typing import List, Optional
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode
 from hub.util.diff import get_lowest_common_ancestor, sanitize_commit
-from hub.util.exceptions import MergeError
+from hub.util.exceptions import MergeMismatchError, MergeNotSupportedError
 from hub.util.keys import get_tensor_commit_diff_key
 from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
 
 
-def merge(dataset, target_id, strategy=0):
+# conflict_resolution: Optional[str] = None,
+
+# a b C
+
+# main - a B
+# alt - a b C
+# if C has new changes -> revive
+
+
+# main a b C
+# alt - a b
+# throw warning
+# delete_removed_tensors=False
+
+
+def merge(
+    dataset,
+    target_id: str,
+    strategy=0,
+    revive_deleted_common_tensors=True,
+    delete_removed_tensors=False,
+):
+
     version_state = dataset.version_state
+    commit_node_map = version_state["commit_node_map"]
+
     auto_checkout(dataset)
     target_commit_id = sanitize_commit(target_id, version_state)
     target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     original_node: CommitNode = version_state["commit_node"]
-    target_node: CommitNode = version_state["commit_node_map"][target_commit_id]
+    target_node: CommitNode = commit_node_map[target_commit_id]
+    lca_id = get_lowest_common_ancestor(original_node, target_node)
+    lca_node: CommitNode = commit_node_map[lca_id]
 
-    original_tensor_names = dataset.tensors.keys()
-    target_tensor_names = target_ds.tensors.keys()
+    # TODO: remove this once we have hidden tensors
+    original_tensors = {k for k in dataset.tensors.keys() if "id" not in k}
+    target_tensors = {k for k in target_ds.tensors.keys() if "id" not in k}
+    lca_tensors = get_lca_tensors(dataset, lca_id)
 
-    new_tensor_names = target_tensor_names - original_tensor_names
-    common_tensor_names = target_tensor_names & original_tensor_names
-    deleted_tensor_names = original_tensor_names - target_tensor_names
+    new_tensors = target_tensors - original_tensors
+    common_tensors = target_tensors & original_tensors
+    target_deleted_tensors = lca_tensors - target_tensors
+    original_deleted_tensors = lca_tensors - original_tensors
 
-    merge_common_tensors(dataset, target_ds, common_tensor_names, strategy)
-    copy_new_tensors(dataset, target_ds, new_tensor_names)
-    delete_tensors(dataset, deleted_tensor_names)
+    if not revive_deleted_common_tensors:
+        new_tensors = new_tensors - original_deleted_tensors
+
+    merge_common_tensors(
+        dataset,
+        target_ds,
+        common_tensors,
+        original_node,
+        target_node,
+        lca_node,
+        strategy,
+    )
+    copy_new_tensors(dataset, target_ds, new_tensors)
+
+    if delete_removed_tensors:
+        delete_tensors(dataset, target_deleted_tensors)
 
     original_node.merge_from(target_node)
     commit(dataset, f"Merge {target_id} into {dataset.branch}")
+
+
+def get_lca_tensors(ds, lca_id):
+    original_id = ds.pending_commit_id
+    ds.checkout(lca_id)
+    lca_tensors = {k for k in ds.tensors.keys() if "id" not in k}
+    ds.checkout(original_id)
+    return lca_tensors
 
 
 def auto_commit_target_commit(dataset, target_commit_id: str):
@@ -63,7 +113,10 @@ def get_changes_commit_ids_for_node(
                 diff: CommitDiff = dataset.storage.get_cachable(diff_key, CommitDiff)
                 data_updated = sorted(diff.data_updated)
                 id_tensor_name = tensor_name + "id"
-                id_tensor = dataset[id_tensor_name]
+                try:
+                    id_tensor = dataset[id_tensor_name]
+                except KeyError:
+                    raise MergeNotSupportedError
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
                     changes_commit_map[sample_id].append(commit_id)
@@ -100,17 +153,12 @@ def merge_common_tensors(
     dataset,
     target_dataset,
     tensor_names: List[str],
+    original_node,
+    target_node,
+    lca_node,
     strategy: int = 0,
 ):
     check_common_tensor_conflicts(dataset, target_dataset, tensor_names)
-    version_state = dataset.version_state
-
-    commit_node_map = version_state["commit_node_map"]
-    original_node: CommitNode = version_state["commit_node"]
-    target_commit_id = target_dataset.pending_commit_id
-    target_node: CommitNode = commit_node_map[target_commit_id]
-    lca_id = get_lowest_common_ancestor(original_node, target_node)
-    lca_node: CommitNode = commit_node_map[lca_id]
 
     for tensor_name in tensor_names:
         id_tensor_name = tensor_name + "id"
@@ -175,7 +223,7 @@ def check_common_tensor_conflicts(
         }
         for key, value in original_details.items():
             if value != target_details[key]:
-                raise MergeError(tensor_name, key, value, target_details[key])
+                raise MergeMismatchError(tensor_name, key, value, target_details[key])
 
 
 def add_new_samples_to_tensor(

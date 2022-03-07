@@ -596,6 +596,17 @@ class VersionControlError(Exception):
 
 
 class MergeError(Exception):
+    pass
+
+
+class MergeNotSupportedError(MergeError):
+    def __init__(self):
+        super().__init__(
+            "This dataset was created before merge functionality was added. Create a new dataset to use merge."
+        )
+
+
+class MergeMismatchError(MergeError):
     def __init__(self, tensor_name, mismatch_type, original_value, target_value):
         message = f"Unable to merge, tensor {tensor_name} has different {mismatch_type}. Current:{original_value}, Target: {target_value}"
         super().__init__(message)
