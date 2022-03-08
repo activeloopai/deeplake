@@ -404,7 +404,7 @@ class ChunkEngine:
     @active_appended_chunk.setter
     def active_appended_chunk(self, value):
         if self.active_appended_chunk is not None:
-            self.cache.remove_hub_object(self.active_appended_chunk)
+            self.cache.remove_hub_object(self.active_appended_chunk.key)
         self._active_appended_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
@@ -416,7 +416,7 @@ class ChunkEngine:
     @active_updated_chunk.setter
     def active_updated_chunk(self, value):
         if self.active_updated_chunk is not None:
-            self.cache.remove_hub_object(self.active_updated_chunk)
+            self.cache.remove_hub_object(self.active_updated_chunk.key)
         self._active_updated_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
@@ -605,6 +605,11 @@ class ChunkEngine:
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+
+        if isinstance(samples, hub.Tensor):
+            for sample in samples:
+                self.extend([sample])  # TODO optimize this
+            return
 
         samples = self._sanitize_samples(samples)
         self._samples_to_chunks(

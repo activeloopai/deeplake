@@ -1,4 +1,5 @@
 # type: ignore
+from unittest import skip
 import numpy as np
 from time import time
 import json
@@ -20,7 +21,6 @@ from hub.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
-    LocalProvider,
 )
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
@@ -281,6 +281,7 @@ class Dataset:
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -297,6 +298,7 @@ class Dataset:
             chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -372,17 +374,23 @@ class Dataset:
             sample_compression=sample_compression,
             chunk_compression=chunk_compression,
             version_state=self.version_state,
+            hidden=hidden,
             **meta_kwargs,
         )
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.add_tensor(name)
+        meta.add_tensor(name, hidden=hidden)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         return tensor
+
+    def _hide_tensor(self, tensor: str):
+        self._tensors()[tensor].meta.set_hidden(True)
+        self.meta._hide_tensor(tensor)
+        self.storage.maybe_flush()
 
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
@@ -481,7 +489,7 @@ class Dataset:
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
-                for tensor in self[name]._all_tensors_filtered
+                for tensor in self[name]._all_tensors_filtered(include_hidden=True)
             ]
             meta.delete_group(name)
             for tensor in tensors:
@@ -1102,24 +1110,29 @@ class Dataset:
             if posixpath.dirname(k) == self.group_index
         }
 
-    @property
-    def _all_tensors_filtered(self) -> List[str]:
+    def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
+        hidden_tensors = self.meta.hidden_tensors
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
-            if not self.group_index or t.startswith(self.group_index + "/")
+            if (not self.group_index or t.startswith(self.group_index + "/"))
+            and (include_hidden or t not in hidden_tensors)
         ]
 
-    @property
-    def tensors(self) -> Dict[str, Tensor]:
+    def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
             t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
                 self.index
             ]
-            for t in self._all_tensors_filtered
+            for t in self._all_tensors_filtered(include_hidden)
         }
+
+    @property
+    def tensors(self) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        return self._tensors(include_hidden=False)
 
     @property
     def branches(self):
@@ -1293,7 +1306,7 @@ class Dataset:
         """
 
         if tensors is None:
-            tensors = list(self.tensors.keys())
+            tensors = list(self._tensors())
         elif isinstance(tensors, str):
             tensors = [tensors]
 
@@ -1336,6 +1349,32 @@ class Dataset:
     def __bool__(self):
         return True
 
+    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `samples` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `samples` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `samples` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        for i in range(n):
+            self.append({k: v[i] for k, v in samples.items()})
+
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
@@ -1348,6 +1387,8 @@ class Dataset:
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
         """
+        if isinstance(sample, Dataset):
+            sample = sample.tensors
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
@@ -1355,7 +1396,7 @@ class Dataset:
                         f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
                     )
         for k in sample:
-            if k not in self.tensors:
+            if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError(

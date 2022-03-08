@@ -80,6 +80,7 @@ COMMON_CONFIGS = {
     "dtype": None,
     "max_chunk_size": None,
     "_is_sequence": False,
+    "hidden": False,
 }
 
 

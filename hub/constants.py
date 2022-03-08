@@ -125,3 +125,5 @@ _ENABLE_RANDOM_ASSIGNMENT = False
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
+
+PYTORCH_DATALOADER_TIMEOUT = 30  # seconds
