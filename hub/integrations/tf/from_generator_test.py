@@ -31,7 +31,7 @@ from tensorflow.python.ops.ragged import (
 )  # pylint: disable=no-name-in-module
 from tensorflow.python.platform import test  # pylint: disable=no-name-in-module
 
-from tf_dataset import HubTensorflowDataset
+from .hubtensorflowdataset import HubTensorflowDataset
 
 # pylint: disable=invalid-name
 # pylint: disable=multiple-statements

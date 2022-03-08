@@ -9,7 +9,7 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
 )
 from hub.util.check_installation import tensorflow_installed
-from .tf_dataset import HubTensorflowDataset
+from .hubtensorflowdataset import HubTensorflowDataset
 
 
 def dataset_to_tensorflow(dataset):

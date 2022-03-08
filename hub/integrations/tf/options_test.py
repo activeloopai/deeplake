@@ -32,7 +32,7 @@ from tensorflow.python.framework import (
 from tensorflow.python.platform import test  # pylint: disable=no-name-in-module
 
 import tensorflow as tf
-from tf_dataset import HubTensorflowDataset
+from .hubtensorflowdataset import HubTensorflowDataset
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
