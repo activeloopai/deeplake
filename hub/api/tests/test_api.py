@@ -21,7 +21,6 @@ from hub.util.exceptions import (
 from hub.constants import MB
 
 from click.testing import CliRunner
-import time
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -718,7 +717,9 @@ def empty_hub_dataset(path, hub_cloud_dev_token):
     ],
     indirect=True,
 )
-def test_dataset_copy(path, hub_token):
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progress_bar", [True, False])
+def test_dataset_copy(path, hub_token, num_workers, progress_bar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -737,7 +738,9 @@ def test_dataset_copy(path, hub_token):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
+    dest_ds = hub.copy(
+        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+    )
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
 
@@ -756,7 +759,9 @@ def test_dataset_copy(path, hub_token):
     with pytest.raises(DatasetHandlerError):
         hub.copy(src_path, dest_path, token=hub_token)
 
-    hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
+    hub.copy(
+        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+    )
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
@@ -767,7 +772,9 @@ def test_dataset_copy(path, hub_token):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.copy(src_path, dest_path, overwrite=True, token=hub_token)
+    hub.copy(
+        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+    )
     dest_ds = hub.load(dest_path, token=hub_token)
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]

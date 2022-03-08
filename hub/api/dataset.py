@@ -23,6 +23,8 @@ from hub.util.exceptions import (
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
+from hub.util.remove_cache import get_base_storage
+from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
@@ -365,17 +367,25 @@ class dataset:
         dest: str,
         overwrite: bool = False,
         creds=None,
+        dest_creds=None,
         token=None,
+        dest_token=None,
+        scheduler="threaded",
         num_workers: int = 0,
+        progress_bar=True,
         public: bool = False,
     ):
-        src_ds = hub.load(src, read_only=True, token=token)
-        src_storage = src_ds.storage
+        if token and not dest_token:
+            dest_token = token
+        if creds and not dest_creds:
+            dest_creds = creds
+        src_ds = hub.load(src, read_only=True, creds=creds, token=token)
+        src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
-            creds=creds,
-            token=token,
+            creds=dest_creds,
+            token=dest_token,
             read_only=False,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
@@ -389,28 +399,50 @@ class dataset:
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
                 )
 
-        def copy_func(keys):
+        def copy_func(keys, progress_callback=None):
+            cache = generate_chain(
+                src_storage,
+                memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+                local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+                path=src,
+            )
             for key in keys:
-                if isinstance(src_storage[key], HubMemoryObject):
-                    dest_storage[key] = src_storage[key].tobytes()
+                if isinstance(cache[key], HubMemoryObject):
+                    dest_storage[key] = cache[key].tobytes()
                 else:
-                    dest_storage[key] = src_storage[key]
+                    dest_storage[key] = cache[key]
+                if progress_callback:
+                    progress_callback(1)
+
+        def copy_func_with_progress_bar(pg_callback, keys):
+            copy_func(keys, pg_callback)
 
         keys = list(src_storage._all_keys())
+        len_keys = len(keys)
         if num_workers == 0:
             keys = [keys]
         else:
             keys = [keys[i::num_workers] for i in range(num_workers)]
-        compute_provider = get_compute_provider("threaded", num_workers)
-        compute_provider.map(copy_func, keys)
-        compute_provider.close()
+        compute_provider = get_compute_provider(scheduler, num_workers)
+        try:
+            if progress_bar:
+                compute_provider.map_with_progressbar(
+                    copy_func_with_progress_bar,
+                    keys,
+                    len_keys,
+                    "Copying dataset",
+                )
+            else:
+                compute_provider.map(copy_func, keys)
+        finally:
+            compute_provider.close()
 
         return dataset_factory(
             path=dest,
             storage=cache_chain,
             read_only=False,
             public=public,
-            token=token,
+            token=dest_token,
         )
 
     @staticmethod
