@@ -460,6 +460,11 @@ class TensorDtypeMismatchError(MetaError):
         super().__init__(msg)
 
 
+class InvalidTensorLinkError(MetaError):
+    def __init__(self, msg="Invalid tensor link."):
+        super().__init__(msg)
+
+
 class TensorMetaMutuallyExclusiveKeysError(MetaError):
     def __init__(
         self, keys: Optional[List[str]] = None, custom_message: Optional[str] = None

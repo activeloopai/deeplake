@@ -5,12 +5,13 @@ from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
-from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.tensor_link import get_link_transform
 from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -628,3 +629,20 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+
+    def _append_to_links(self, sample):
+        [
+            self.dataset[k].append(get_link_transform(v["append"])(sample))
+            for k, v in self.meta.links.items()
+        ]
+
+    def _update_links(self, global_sample_index: int, sub_index: Index, new_sample):
+        for k, v in self.meta.links.items():
+            fname = v.get("update", v["append"])
+            func = get_link_transform(fname)
+            self.dataset[k][global_sample_index] = func(
+                new_sample,
+                self.dataset[k][global_sample_index],
+                sub_index=sub_index,
+                partial=not sub_index.is_trivial(),
+            )

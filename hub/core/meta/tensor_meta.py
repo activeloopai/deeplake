@@ -10,6 +10,7 @@ from hub.util.exceptions import (
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
+    InvalidTensorLinkError,
 )
 from hub.util.json import validate_json_schema
 from hub.constants import (
@@ -41,6 +42,7 @@ class TensorMeta(Meta):
     chunk_compression: str
     max_chunk_size: int
     hidden: bool
+    links: Dict[str, Dict[str, str]]
 
     def __init__(
         self,
@@ -121,6 +123,7 @@ class TensorMeta(Meta):
 
         self.__dict__.update(required_meta)
         self.is_dirty = True
+        _validate_links(self.links)
 
     def update_shape_interval(self, shape: Sequence[int]):
         ffw_tensor_meta(self)
@@ -180,6 +183,35 @@ class TensorMeta(Meta):
 
     def __str__(self):
         return str(self.__getstate__())
+
+
+def _validate_links(links: dict):
+    if not isinstance(links, dict):
+        raise InvalidTensorLinkError()
+    allowed_keys = ("append", "update")
+    for out_tensor, funcs in links.items():
+        if not isinstance(out_tensor, str):
+            raise InvalidTensorLinkError()
+        if not isinstance(funcs, dict):
+            raise InvalidTensorLinkError()
+        if "append" not in funcs:
+            raise InvalidTensorLinkError(
+                f"append transform not specified for link {out_tensor}"
+            )
+        try:
+            hub.core.tensor_link.get(funcs["append"])
+        except KeyError:
+            raise InvalidTensorLinkError(f"Invalid append transform: {funcs['append']}")
+        if "update" in funcs:
+            try:
+                hub.core.tensor_link.get(funcs["update"])
+            except KeyError:
+                raise InvalidTensorLinkError(
+                    f"Invalid update transform: {funcs['append']}"
+                )
+        for k in funcs:
+            if k not in allowed_keys:
+                raise InvalidTensorLinkError(f"Invalid key in link meta: {k}")
 
 
 def _required_meta_from_htype(htype: str) -> dict:

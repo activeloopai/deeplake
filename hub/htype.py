@@ -81,6 +81,7 @@ COMMON_CONFIGS = {
     "dtype": None,
     "max_chunk_size": None,
     "hidden": False,
+    "links": {},
 }
 
 
