@@ -739,7 +739,7 @@ class ChunkEngine:
         operator: Optional[str] = None,
     ):
         """Update data at `index` with `samples`."""
-        (self._sequence_update if self._is_sequence else self._update)(
+        (self._sequence_update if self._is_sequence else self._update)(  # type: ignore
             index, samples, operator
         )
 
