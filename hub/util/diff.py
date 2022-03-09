@@ -241,7 +241,7 @@ def get_dataset_changes_for_id(
 
         if dataset_changes.get("renamed"):
             merge_renamed = {}
-            for old, new in dataset_diff.renamed:
+            for old, new in dataset_diff.renamed.items():
                 for tracked_old, tracked_new in dataset_changes["renamed"].items():
                     if new == tracked_old:
                         merge_renamed[old] = tracked_new
