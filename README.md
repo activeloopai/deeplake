@@ -323,5 +323,3 @@ activeloop reporting --off
 
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
-
-Hub uses FFmpeg for video processing. Many thanks to the [FFmpeg](https://www.ffmpeg.org/) team for developing this amazing solution.
