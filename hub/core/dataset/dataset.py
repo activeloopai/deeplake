@@ -26,18 +26,25 @@ from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, verify_htype_key_value
+from hub.htype import (
+    HTYPE_CONFIGURATIONS,
+    UNSPECIFIED,
+    DEFAULT_HTYPE,
+    verify_htype_key_value,
+)
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.htype import parse_sequence_htype
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     InvalidTensorGroupNameError,
     InvalidTensorNameError,
+    TensorMetaInvalidHtype,
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
@@ -302,6 +309,8 @@ class Dataset:
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
+            TensorMetaInvalidHtype: If invalid htype is specified.
+            ValueError: If an illegal argument is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -320,6 +329,13 @@ class Dataset:
 
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
+
+        is_sequence, htype = parse_sequence_htype(htype)
+        if kwargs.get("is_sequence"):
+            raise ValueError(
+                "`is_sequence` must not be specified explicitly by the user. Use a sequence htype instead."
+            )
+        kwargs["is_sequence"] = is_sequence
 
         if not self._is_root():
             return self.root.create_tensor(

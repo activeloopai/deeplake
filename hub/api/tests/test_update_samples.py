@@ -292,6 +292,82 @@ def test_inplace_updates(memory_ds, compression):
     np.testing.assert_array_equal(ds.x[5].numpy(), np.ones((100, 50, 3)))
 
 
+@pytest.mark.parametrize("aslist", (True, False))
+@pytest.mark.parametrize(
+    "idx", [3, slice(None), slice(5, 9), slice(3, 7, 2), [3, 7, 6, 4]]
+)
+def test_sequence_htype(memory_ds, aslist, idx):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence")
+        for _ in range(10):
+            ds.x.append([np.ones((3, 7)) for _ in range(5)])
+    assert ds.x[0].numpy().shape == (5, 3, 7)
+    ds.x[idx] += 1
+    expected = np.ones((10, 5, 3, 7))
+    expected[idx] += 1
+    np.testing.assert_array_equal(np.array(ds.x.numpy(aslist=aslist)), expected)
+    assert ds.x.shape == (10, 5, 3, 7)
+
+
+def test_sequence_htype_with_broadcasting(memory_ds):
+    ds = memory_ds
+    with ds:
+        arr = np.random.randint(0, 10, (2, 7, 9))
+        expected = arr.reshape(1, *arr.shape).repeat(15, 0).reshape(5, 3, *arr.shape)
+        ds.create_tensor("x", htype="sequence")
+        for _ in range(5):
+            ds.x.append([arr] * 3)
+        assert ds.x.shape == expected.shape
+
+        def _check():
+            np.testing.assert_array_equal(ds.x.numpy(), expected)
+
+        ds.x += 3
+        expected += 3
+        _check()
+        ds.x[:3] *= 2
+        expected[:3] *= 2
+        _check()
+        ds.x[0][2][1] *= 7
+        expected[0][2][1] *= 7
+        _check()
+        ds.x[1][:2][0] = np.ones((2, 7, 9), np.int32) * 13
+        expected[1][:2][0] = np.ones((2, 7, 9), np.int32) * 13
+        _check()
+        expected[:, :] = np.ones((2, 7, 9), np.int32) * 17
+        ds.x[:, :] = np.ones((2, 7, 9), np.int32) * 17
+        _check()
+        expected[:, 1:] = np.ones((2, 2, 7, 9), np.int32) - 9
+        ds.x[:, 1:] = np.ones((2, 2, 7, 9), np.int32) - 9
+        _check()
+        expected[:] = np.zeros_like(expected) * 13
+        ds.x[:] = expected
+        _check()
+        ds.x[:] = expected.reshape(1, 1, 1, 1, *expected.shape)
+        _check()
+
+
+@pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
+def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
+    ds = local_ds
+    imgs = list(map(hub.read, compressed_image_paths["jpeg"][:3]))
+    new_imgs = list(map(hub.read, compressed_image_paths["jpeg"][3:6]))
+    arrs = np.random.randint(0, 256, (5, *shape), dtype=np.uint8)
+    with ds:
+        ds.create_tensor("x", htype="sequence[image]", sample_compression="png")
+        for i in range(5):
+            if i % 2:
+                ds.x.append(imgs)
+            else:
+                ds.x.append(arrs)
+    ds.x[0][1] = new_imgs[1]
+    np.testing.assert_array_equal(ds.x[0][1].numpy(), new_imgs[1].array)
+    ds.x[1] = new_imgs
+    for t, img in zip(ds.x[1], new_imgs):
+        np.testing.assert_array_equal(t.numpy(), img.array)
+
+
 def test_byte_positions_encoder_update_bug(memory_ds):
     ds = memory_ds
     with ds:

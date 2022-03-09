@@ -877,15 +877,16 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 @pytest.mark.parametrize(
     "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
 )
-@pytest.mark.parametrize("x_size", [5, (32 * 5000)])
-def test_ds_append(memory_ds, x_args, y_args, x_size):
+@pytest.mark.parametrize("x_size", [5, (32 * 1000)])
+@pytest.mark.parametrize("htype", ["generic", "sequence"])
+def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2**20)
-    ds.create_tensor("y", dtype="uint8", **y_args)
+    ds.create_tensor("x", **x_args, max_chunk_size=2**20, htype=htype)
+    ds.create_tensor("y", dtype="uint8", htype=htype, **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
     ds.append({"x": np.ones(2), "y": [1, 2, 3]})
-    ds.create_tensor("z")
+    ds.create_tensor("z", htype=htype)
     with pytest.raises(KeyError):
         ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
     ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
@@ -1059,6 +1060,53 @@ def test_hub_remote_read_videos(storage, memory_ds):
         )
         memory_ds.videos.append(video)
         assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
+
+
+@pytest.mark.parametrize("aslist", (True, False))
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
+)
+@pytest.mark.parametrize(
+    "idx", [3, slice(None), slice(5, 9), slice(3, 7, 2), [3, 7, 6, 4]]
+)
+def test_sequence_htype(memory_ds, aslist, args, idx):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence", **args)
+        for _ in range(10):
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (10, 5, 2, 7, 3)
+
+
+@pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
+def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
+    ds = local_ds
+    imgs = list(map(hub.read, compressed_image_paths["jpeg"][:3]))
+    arrs = np.random.randint(0, 256, (5, *shape), dtype=np.uint8)
+    with ds:
+        ds.create_tensor("x", htype="sequence[image]", sample_compression="png")
+        for i in range(5):
+            if i % 2:
+                ds.x.append(imgs)
+            else:
+                ds.x.append(arrs)
+    for i in range(5):
+        if i % 2:
+            for j in range(3):
+                np.testing.assert_array_equal(ds.x[i][j].numpy(), imgs[j].array)
+        else:
+            for j in range(5):
+                np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
+
+
+def test_shape_bug(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.x.extend(np.ones((5, 9, 2)))
+    assert ds.x[1:4, 3:7].shape == (3, 4, 2)
 
 
 def test_hidden_tensors(local_ds_generator):

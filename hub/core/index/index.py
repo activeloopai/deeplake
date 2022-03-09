@@ -1,4 +1,5 @@
-from typing import Union, List, Tuple, Iterable, Optional, TypeVar
+from typing import Union, List, Tuple, Iterable, Optional
+from collections.abc import Iterable
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
@@ -121,14 +122,12 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
-def tuple_length(t: Tuple[int], l: int) -> int:
-    """Returns the length of a tuple of indexes given the length of its parent."""
-    return len(t)
-
-
 class IndexEntry:
     def __init__(self, value: IndexValue = slice(None)):
         self.value = value
+
+    def __str__(self):
+        return f"IndexEntry({self.value})"
 
     def __getitem__(self, item: IndexValue):
         """Combines the given `item` and this IndexEntry.
@@ -187,13 +186,14 @@ class IndexEntry:
     def indices(self, length: int):
         """Generates the sequence of integer indices for a target of a given length."""
         parse_int = lambda i: i if i >= 0 else length + i
-
         if isinstance(self.value, int):
             yield parse_int(self.value)
         elif isinstance(self.value, slice):
             yield from range(*self.value.indices(length))
-        elif isinstance(self.value, tuple):
+        elif isinstance(self.value, Iterable):
             yield from map(parse_int, self.value)
+        elif callable(self.value):
+            yield from self.value()  # type: ignore
 
     def is_trivial(self):
         """Checks if an IndexEntry represents the entire slice"""
@@ -231,10 +231,10 @@ class IndexEntry:
             return 1
         elif isinstance(self.value, slice):
             return slice_length(self.value, parent_length)
-        elif isinstance(self.value, tuple):
-            return tuple_length(self.value, parent_length)
-        else:
+        lenf = getattr(self.value, "__len__", None)
+        if lenf is None:
             return 0
+        return lenf()
 
     def validate(self, parent_length: int):
         """Checks that the index is not accessing values outside the range of the parent."""
@@ -417,3 +417,24 @@ class Index:
             else:
                 ret.append(v)
         return ret
+
+    def __len__(self):
+        return len(self.values)
+
+    def subscriptable_at(self, i: int) -> bool:
+        try:
+            return self.values[i].subscriptable()
+        except IndexError:
+            return True
+
+    def length_at(self, i: int, parent_length: int) -> int:
+        try:
+            return self.values[i].length(parent_length)
+        except IndexError:
+            return parent_length
+
+    def trivial_at(self, i: int) -> bool:
+        try:
+            return self.values[i].is_trivial()
+        except IndexError:
+            return True

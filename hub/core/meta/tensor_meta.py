@@ -41,6 +41,7 @@ class TensorMeta(Meta):
     chunk_compression: str
     max_chunk_size: int
     hidden: bool
+    is_sequence: bool
 
     def __init__(
         self,
