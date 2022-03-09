@@ -151,7 +151,7 @@ def _inplace_op(f):
 
     def inner(tensor, other):
         tensor._write_initialization()
-        tensor.chunk_engine.update(tensor.index, other, op)
+        tensor.chunk_engine.update(tensor.index, other, op, callback=tensor._update_links)
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
         return tensor
@@ -248,6 +248,8 @@ class Tensor:
         """
         self._write_initialization()
         self.chunk_engine.extend(samples)
+        for sample in samples:
+            self._append_to_links(sample)
 
     @property
     def info(self):
@@ -507,7 +509,7 @@ class Tensor:
             self.chunk_engine.pad_and_append(num_samples_to_pad, value)
             return
 
-        self.chunk_engine.update(self.index[item_index], value)
+        self.chunk_engine.update(self.index[item_index], value, callback=self._update_links)
 
     def __iter__(self):
         for i in range(len(self)):
