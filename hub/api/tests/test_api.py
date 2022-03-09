@@ -739,7 +739,13 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         src_ds["b"].append(0)
 
     dest_ds = hub.copy(
-        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
     )
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
@@ -757,10 +763,16 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.copy(src_path, dest_path, token=hub_token)
+        hub.copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
 
     hub.copy(
-        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
     )
 
     assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
@@ -773,7 +785,13 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     hub.copy(
-        src_path, dest_path, overwrite=True, token=hub_token, num_workers=num_workers
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
     )
     dest_ds = hub.load(dest_path, token=hub_token)
 

@@ -174,7 +174,7 @@ class LocalProvider(StorageProvider):
             DirectoryAtPathException: If a directory is found at the path.
         """
         full_path = posixpath.join(self.root, path)
-        full_path = posixpath.expanduser(full_path)
+        full_path = os.path.expanduser(full_path)
         full_path = str(pathlib.Path(full_path))
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
