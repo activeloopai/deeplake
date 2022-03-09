@@ -603,7 +603,9 @@ class ChunkEngine:
     def _extend(self, samples, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
             for sample in samples:
-                self._extend([sample], update_commit_diff=update_commit_diff)  # TODO optimize this
+                self._extend(
+                    [sample], update_commit_diff=update_commit_diff
+                )  # TODO optimize this
             return
         if len(samples) == 0:
             return
