@@ -703,10 +703,6 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
-def empty_hub_dataset(path, hub_cloud_dev_token):
-    return hub.empty(path, overwrite=True, token=hub_cloud_dev_token)
-
-
 @pytest.mark.parametrize(
     "path,hub_token",
     [
