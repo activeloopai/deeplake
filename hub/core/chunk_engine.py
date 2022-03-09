@@ -789,6 +789,8 @@ class ChunkEngine:
                 self.commit_diff.update_data(global_sample_index)
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
+            if callback:
+                callback(global_sample_index, Index(index.values[1:]), sample)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -1311,7 +1313,7 @@ class ChunkEngine:
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
         samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(flat_idx, samples, operator, update_commit_diff=False)
+        self._update(flat_idx, samples, operator, update_commit_diff=False, callback=callback)
         list(
             map(
                 self.commit_diff.update_data,
