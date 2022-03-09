@@ -748,7 +748,7 @@ class ChunkEngine:
         index: Index,
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
-        update_commit_diff: bool = False,
+        update_commit_diff: bool = True,
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
