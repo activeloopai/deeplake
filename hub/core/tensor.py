@@ -358,24 +358,24 @@ class Tensor:
 
     @property
     def dtype(self) -> Optional[np.dtype]:
-        if self._base_htype in ("json", "list"):
+        if self.base_htype in ("json", "list"):
             return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None
 
     @property
-    def _is_sequence(self):
-        return self.meta._is_sequence
+    def is_sequence(self):
+        return self.meta.is_sequence
 
     @property
     def htype(self):
-        if self._is_sequence:
+        if self.is_sequence:
             return f"sequence[{self.meta.htype}]"
         return self.meta.htype
 
     @property
-    def _base_htype(self):
+    def base_htype(self):
         return self.meta.htype
 
     @property
@@ -408,7 +408,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        if self._is_sequence:
+        if self.is_sequence:
             return self.chunk_engine._sequence_length
         return self.meta.length
 
@@ -589,7 +589,7 @@ class Tensor:
         pass
 
     def data(self) -> Any:
-        htype = self._base_htype
+        htype = self.base_htype
         if htype in ("json", "text"):
 
             if self.ndim == 1:

@@ -37,6 +37,7 @@ from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.htype import parse_sequence_htype
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -328,18 +329,13 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
-        if htype is not None and htype.startswith("sequence"):
-            if htype == "sequence":
-                htype = DEFAULT_HTYPE
-            else:
-                if htype[len("sequence")] != "[" or htype[-1] != "]":
-                    raise TensorMetaInvalidHtype(
-                        htype, list(HTYPE_CONFIGURATIONS.keys())
-                    )
-                htype = htype.split("[", 1)[1][:-1]
-                if not htype:  # sequence[]
-                    htype = DEFAULT_HTYPE
-            kwargs["_is_sequence"] = True
+        is_sequence, htype = parse_sequence_htype(htype)
+        if kwargs.get("is_sequence"):
+            raise ValueError(
+                "`is_sequence` must not be specified explicitly by the user. Use a sequence htype instead."
+            )
+        kwargs["is_sequence"] = is_sequence
+
         if not self._is_root():
             return self.root.create_tensor(
                 full_path, htype, dtype, sample_compression, chunk_compression, **kwargs

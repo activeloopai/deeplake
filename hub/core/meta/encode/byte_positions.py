@@ -1,8 +1,6 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.serialize import serialize_sequence_encoder, deserialize_sequence_encoder
 
-from typing import List, Sequence, Tuple
+from typing import Sequence
 import numpy as np
 
 
@@ -10,7 +8,7 @@ NUM_BYTES_COLUMN = 0
 START_BYTE_COLUMN = 1
 
 
-class BytePositionsEncoder(Encoder, HubMemoryObject):
+class BytePositionsEncoder(Encoder):
     def get_sum_of_bytes(self, until_row_index: int = -1) -> int:
         """Get the total number of bytes that are accounted for.
         This operation is O(1).
@@ -87,18 +85,3 @@ class BytePositionsEncoder(Encoder, HubMemoryObject):
         start_byte = row_start_byte + (local_sample_index - index_bias) * row_num_bytes
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
-
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        instance = cls()
-        if not buffer:
-            return instance
-        version, ids = deserialize_sequence_encoder(buffer)
-        if ids.nbytes:
-            instance._encoded = ids
-        instance.version = version
-        instance.is_dirty = False
-        return instance
-
-    def tobytes(self) -> memoryview:
-        return memoryview(serialize_sequence_encoder(self.version, self._encoded))

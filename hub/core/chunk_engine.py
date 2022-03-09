@@ -21,7 +21,7 @@ from hub.core.chunk.uncompressed_chunk import UncompressedChunk
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 from hub.core.index.index import Index, IndexEntry
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
-from hub.core.meta.encode.byte_positions import BytePositionsEncoder
+from hub.core.meta.encode.sequence import SequenceEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.casting import get_dtype, get_htype
@@ -131,9 +131,8 @@ class ChunkEngine:
         self._chunk_id_encoder: Optional[ChunkIdEncoder] = None
         self._chunk_id_encoder_commit_id: Optional[str] = None
 
-        self._sequence_encoder: Optional[BytePositionsEncoder] = None
+        self._sequence_encoder: Optional[SequenceEncoder] = None
         self._sequence_encoder_commit_id: Optional[str] = None
-        self.__is_sequence: Optional[bool] = None
 
         self._tile_encoder: Optional[TileEncoder] = None
         self._tile_encoder_commit_id: Optional[str] = None
@@ -621,7 +620,7 @@ class ChunkEngine:
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
-        if self._is_sequence:
+        if self.is_sequence:
             for sample in samples:
                 self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
@@ -739,7 +738,7 @@ class ChunkEngine:
         operator: Optional[str] = None,
     ):
         """Update data at `index` with `samples`."""
-        (self._sequence_update if self._is_sequence else self._update)(  # type: ignore
+        (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
             index, samples, operator
         )
 
@@ -889,7 +888,7 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-        return (self._sequence_numpy if self._is_sequence else self._numpy)(
+        return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache
         )
 
@@ -1095,7 +1094,7 @@ class ChunkEngine:
         if self.num_samples == 0:
             raise IndexError("pop from empty tensor")
         self.commit_diff._pop()  # This will fail if the last sample was added in a previous commit
-        (self._pop_sequence if self._is_sequence else self.__pop)()
+        (self._pop_sequence if self.is_sequence else self.__pop)()
 
     def _pop_sequence(self):
         for _ in range(*self.sequence_encoder[-1]):
@@ -1135,11 +1134,8 @@ class ChunkEngine:
         chunk.is_dirty = False
 
     @property
-    def _is_sequence(self):
-        is_seq = self.__is_sequence
-        if is_seq is None:
-            is_seq = self.__is_sequence = self.tensor_meta._is_sequence
-        return is_seq
+    def is_sequence(self):
+        return self.tensor_meta.is_sequence
 
     @property
     def sequence_encoder_exists(self) -> bool:
@@ -1161,17 +1157,17 @@ class ChunkEngine:
         return self.sequence_encoder.num_samples
 
     @property
-    def sequence_encoder(self) -> BytePositionsEncoder:
+    def sequence_encoder(self) -> SequenceEncoder:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
             CorruptedMetaError: If shape encoding was corrupted.
 
         Returns:
-            A BytePositionsEncoder instance storing the start and end indices of each sequence in the tensor.
+            A SequenceEncoder instance storing the start and end indices of each sequence in the tensor.
         """
 
-        if not self._is_sequence:
+        if not self.is_sequence:
             return  # type: ignore
         commit_id = self.commit_id
         if (
@@ -1181,13 +1177,13 @@ class ChunkEngine:
             commit_id = self.commit_id
             key = get_sequence_encoder_key(self.key, commit_id)
             if not self.sequence_encoder_exists:
-                enc = BytePositionsEncoder()
+                enc = SequenceEncoder()
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_hub_object(key, BytePositionsEncoder)
+                enc = self.meta_cache.get_hub_object(key, SequenceEncoder)
             self._sequence_encoder = enc
             self._sequence_encoder_commit_id = commit_id
             self.meta_cache.register_hub_object(key, enc)
@@ -1336,7 +1332,7 @@ class ChunkEngine:
         shape = self.shape_interval.astuple()
         idxs = index.values
         skip_dims = 0
-        if self._is_sequence:
+        if self.is_sequence:
             if not idxs[0].subscriptable():
                 shape = shape[1:]
                 skip_dims += 1
@@ -1362,7 +1358,7 @@ class ChunkEngine:
 
     def ndim(self, index: Optional[Index] = None) -> int:
         ndim = len(self.tensor_meta.min_shape) + 1
-        if self._is_sequence:
+        if self.is_sequence:
             ndim += 1
         if index:
             for idx in index.values:
@@ -1389,7 +1385,7 @@ class ChunkEngine:
             ShapeInterval: Object containing `lower` and `upper` properties.
         """
         meta = self.tensor_meta
-        if self._is_sequence:
+        if self.is_sequence:
             length = [
                 self._sequence_length,
                 self._sequence_item_length,

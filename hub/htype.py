@@ -79,7 +79,7 @@ COMMON_CONFIGS = {
     "chunk_compression": None,
     "dtype": None,
     "max_chunk_size": None,
-    "_is_sequence": False,
+    "is_sequence": False,
     "hidden": False,
 }
 

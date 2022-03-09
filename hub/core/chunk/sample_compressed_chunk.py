@@ -59,7 +59,6 @@ class SampleCompressedChunk(BaseChunk):
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        shape = self.shapes_encoder[local_index]
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
             if stream and self.is_video_compression:

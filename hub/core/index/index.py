@@ -122,14 +122,6 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
-def iterable_length(t: Iterable, l: int) -> int:
-    """Returns the length of a list of indexes given the length of its parent."""
-    try:
-        return len(t)  # type: ignore
-    except TypeError:
-        return len(list(t))
-
-
 class IndexEntry:
     def __init__(self, value: IndexValue = slice(None)):
         self.value = value
