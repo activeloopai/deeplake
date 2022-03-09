@@ -6,9 +6,7 @@ from hub.util.exceptions import TensorMetaInvalidHtype
 
 
 def parse_sequence_htype(htype: Optional[str]) -> Tuple[bool, str]:
-    if htype in (None, UNSPECIFIED):
-        return False, DEFAULT_HTYPE
-    if htype.startswith("sequence"):
+    if htype and htype.startswith("sequence"):
         if htype == "sequence":
             return True, DEFAULT_HTYPE
         if htype[len("sequence")] != "[" or htype[-1] != "]":
