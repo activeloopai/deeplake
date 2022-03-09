@@ -1213,9 +1213,12 @@ class ChunkEngine:
                     arr = arr[item_length:]
                 return ret
             else:
-                return arr.reshape(  # type: ignore
-                    index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
-                )
+                try:
+                    return arr.reshape(  # type: ignore
+                        index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
+                    )
+                except ValueError as ve:
+                    raise DynamicTensorNumpyError(self.key, index, "shape") from ve
         return arr
 
     def _translate_2d_index(
