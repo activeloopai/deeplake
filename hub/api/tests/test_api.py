@@ -877,15 +877,16 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 @pytest.mark.parametrize(
     "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
 )
-@pytest.mark.parametrize("x_size", [5, (32 * 5000)])
-def test_ds_append(memory_ds, x_args, y_args, x_size):
+@pytest.mark.parametrize("x_size", [5, (32 * 1000)])
+@pytest.mark.parametrize("htype", ["generic", "sequence"])
+def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2**20)
-    ds.create_tensor("y", dtype="uint8", **y_args)
+    ds.create_tensor("x", **x_args, max_chunk_size=2**20, htype=htype)
+    ds.create_tensor("y", dtype="uint8", htype=htype, **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
     ds.append({"x": np.ones(2), "y": [1, 2, 3]})
-    ds.create_tensor("z")
+    ds.create_tensor("z", htype=htype)
     with pytest.raises(KeyError):
         ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
     ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)

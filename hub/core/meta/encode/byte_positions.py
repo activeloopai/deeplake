@@ -100,5 +100,5 @@ class BytePositionsEncoder(Encoder, HubMemoryObject):
         instance.is_dirty = False
         return instance
 
-    def tobytes(self) -> memoryview:
+    def tobytes(self) -> bytes:
         return serialize_sequence_encoder(self.version, self._encoded)

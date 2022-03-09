@@ -548,7 +548,11 @@ class ChunkEngine:
         return samples
 
     def _samples_to_chunks(
-        self, samples, start_chunk: Optional[BaseChunk] = None, register: bool = True
+        self,
+        samples,
+        start_chunk: Optional[BaseChunk] = None,
+        register: bool = True,
+        update_commit_diff: bool = False,
     ):
         current_chunk = start_chunk
         updated_chunks = []
@@ -558,7 +562,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
-        if register:
+        if register and update_commit_diff:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
@@ -572,7 +576,8 @@ class ChunkEngine:
                 if sample.is_last_write:
                     if register:
                         self.tile_encoder.register_sample(sample, self.num_samples - 1)
-                        commit_diff.add_data(1)
+                        if update_commit_diff:
+                            commit_diff.add_data(1)
                     else:
                         tiles[nsamples - len(samples)] = (
                             sample.sample_shape,
@@ -588,31 +593,35 @@ class ChunkEngine:
                 num = int(num_samples_added)
                 if register:
                     enc.register_samples(num)
-                    commit_diff.add_data(num)
+                    if update_commit_diff:
+                        commit_diff.add_data(num)
                 samples = samples[num:]
         if register:
             return updated_chunks
         return updated_chunks, tiles
 
-    def extend(self, samples, _check_sequence=True):
-        if _check_sequence and self._is_sequence:
-            for sample in samples:
-                self.extend(sample, False)
-                self.sequence_encoder.register_samples(len(sample), 1)
-            return
+    def _extend(self, samples, update_commit_diff=True):
         if len(samples) == 0:
             return
-        self._write_initialization()
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
-
         samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
+            update_commit_diff=update_commit_diff,
         )
 
+    def extend(self, samples):
+        self._write_initialization()
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+        if self._is_sequence:
+            for sample in samples:
+                self._extend(sample, False)
+                self.sequence_encoder.register_samples(len(sample), 1)
+                self.commit_diff.add_data(1)
+        else:
+            self._extend(samples)
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
@@ -733,6 +742,7 @@ class ChunkEngine:
         index: Index,
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
+        update_commit_diff: bool = False,
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
@@ -768,7 +778,8 @@ class ChunkEngine:
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
-            self.commit_diff.update_data(global_sample_index)
+            if update_commit_diff:
+                self.commit_diff.update_data(global_sample_index)
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
 
@@ -1075,15 +1086,22 @@ class ChunkEngine:
         )
 
     def _pop(self):
-        """Used only for Dataset.append"""
-        num_samples = self.num_samples
-        if num_samples == 0:
+        if self.num_samples == 0:
             raise IndexError("pop from empty tensor")
         self.commit_diff._pop()  # This will fail if the last sample was added in a previous commit
+        (self._pop_sequence if self._is_sequence else self.__pop)()
+
+    def _pop_sequence(self):
+        for _ in range(*self.sequence_encoder[-1]):
+            self.__pop()
+        self.sequence_encoder._pop()
+
+    def __pop(self):
+        """Used only for Dataset.append"""
         self._write_initialization()
         chunk_ids, delete = self.chunk_id_encoder._pop()
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            del self.tile_encoder[num_samples - 1]
+            del self.tile_encoder[self.num_samples - 1]
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
             chunk_to_update._pop_sample()
@@ -1285,7 +1303,13 @@ class ChunkEngine:
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
         samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(flat_idx, samples, operator)
+        self._update(flat_idx, samples, operator, update_commit_diff=False)
+        list(
+            map(
+                self.commit_diff.update_data,
+                index.values[0].indices(self._sequence_length),
+            )
+        )
 
     @property
     def _sequence_item_length(self):
