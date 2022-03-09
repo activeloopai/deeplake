@@ -1,3 +1,5 @@
+# type: ignore
+
 from typing import Tuple, Optional
 from hub.htype import DEFAULT_HTYPE, UNSPECIFIED, HTYPE_CONFIGURATIONS
 from hub.util.exceptions import TensorMetaInvalidHtype
