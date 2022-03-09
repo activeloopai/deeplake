@@ -851,7 +851,7 @@ def test_vc_bug(local_ds_generator):
     a = ds.commit("first")
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
-    assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
+    assert ds._all_tensors_filtered() == ["abc", "a/b/c/d"]
 
 
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
@@ -904,6 +904,36 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert len(ds) == 0
 
 
+def test_ds_append_with_ds_view():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.append({"x": [0, 1], "y": [1, 2]})
+    ds2.append(ds1[0])
+    np.testing.assert_array_equal(ds1.x, np.array([[0, 1]]))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.array([[1, 2]]))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
+def test_ds_extend():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.extend({"x": [0, 1, 2, 3], "y": [4, 5, 6, 7]})
+    ds2.extend(ds1)
+    np.testing.assert_array_equal(ds1.x, np.arange(4).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.arange(4, 8).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
 @pytest.mark.parametrize(
     "src_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
@@ -920,6 +950,18 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds2.create_tensor("y", **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+
+def test_extend_with_tensor():
+    ds1 = hub.dataset("mem://ds1")
+    ds2 = hub.dataset("mem://ds2")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4])
+    with ds2:
+        ds2.create_tensor("x")
+        ds2.x.extend(ds1.x)
+    np.testing.assert_array_equal(ds1.x, ds2.x)
 
 
 def test_empty_extend(memory_ds):
@@ -1065,3 +1107,32 @@ def test_shape_bug(memory_ds):
     ds.create_tensor("x")
     ds.x.extend(np.ones((5, 9, 2)))
     assert ds.x[1:4, 3:7].shape == (3, 4, 2)
+
+
+def test_hidden_tensors(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("x", hidden=True)
+        ds.x.append(1)
+        assert ds.tensors == {}
+        ds.create_tensor("y")
+        assert list(ds.tensors.keys()) == ["y"]
+        ds.y.extend([1, 2])
+        assert len(ds) == 2  # length of hidden tensor is not considered
+        ds._hide_tensor("y")
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert len(ds) == 0
+    with ds:
+        ds.create_tensor("w")
+        ds.create_tensor("z")
+        ds.append({"w": 2, "z": 3})  # hidden tensors not required
+
+    # Test access
+    np.testing.assert_array_equal(ds.x, np.array([[1]]))
+    np.testing.assert_array_equal(ds.y, np.array([[1], [2]]))
+
+    assert not ds.w.meta.hidden
+    assert not ds.z.meta.hidden
+    assert ds.x.meta.hidden
+    assert ds.y.meta.hidden

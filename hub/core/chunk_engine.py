@@ -404,7 +404,7 @@ class ChunkEngine:
     @active_appended_chunk.setter
     def active_appended_chunk(self, value):
         if self.active_appended_chunk is not None:
-            self.cache.remove_hub_object(self.active_appended_chunk)
+            self.cache.remove_hub_object(self.active_appended_chunk.key)
         self._active_appended_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
@@ -416,7 +416,7 @@ class ChunkEngine:
     @active_updated_chunk.setter
     def active_updated_chunk(self, value):
         if self.active_updated_chunk is not None:
-            self.cache.remove_hub_object(self.active_updated_chunk)
+            self.cache.remove_hub_object(self.active_updated_chunk.key)
         self._active_updated_chunk = value
         if value is not None:
             self.cache.register_hub_object(value.key, value)
@@ -601,6 +601,10 @@ class ChunkEngine:
         return updated_chunks, tiles
 
     def _extend(self, samples, update_commit_diff=True):
+        if isinstance(samples, hub.Tensor):
+            for sample in samples:
+                self._extend([sample], update_commit_diff=update_commit_diff)  # TODO optimize this
+            return
         if len(samples) == 0:
             return
         samples = self._sanitize_samples(samples)
@@ -617,7 +621,7 @@ class ChunkEngine:
         self.cache.autoflush = False
         if self._is_sequence:
             for sample in samples:
-                self._extend(sample, False)
+                self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
         else:
