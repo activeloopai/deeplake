@@ -392,6 +392,12 @@ class dataset:
                 Defaults to 'threaded'.
             progress_bar (bool): Displays a progress bar if True (default).
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
         if token and not dest_token:
             dest_token = token
