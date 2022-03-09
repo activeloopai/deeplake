@@ -12,9 +12,6 @@ CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
-    def tobytes(self) -> memoryview:
-        return serialize_chunkids(self.version, [self._encoded])
-
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
         """Returns the hex of `id` with the "0x" prefix removed. This is the chunk's name and should be used to determine the chunk's key.
@@ -40,18 +37,6 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         use `__getitem__`, then `name_from_id`."""
 
         return self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
-
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        instance = cls()
-        if not buffer:
-            return instance
-        version, ids = deserialize_chunkids(buffer)
-        if ids.nbytes:
-            instance._encoded = ids
-        instance.version = version
-        instance.is_dirty = False
-        return instance
 
     @property
     def num_chunks(self) -> int:
@@ -271,3 +256,18 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
             self._encoded = np.concatenate([top, mid, bottom], axis=0)
         self.is_dirty = True
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        instance = cls()
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded = ids
+        instance.version = version
+        instance.is_dirty = False
+        return instance
+
+    def tobytes(self) -> memoryview:
+        return serialize_chunkids(self.version, [self._encoded])

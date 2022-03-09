@@ -43,6 +43,7 @@ class TensorMeta(Meta):
     max_chunk_size: int
     hidden: bool
     links: Dict[str, Dict[str, str]]
+    is_sequence: bool
 
     def __init__(
         self,
