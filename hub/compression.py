@@ -39,6 +39,29 @@ IMAGE_COMPRESSIONS = [
     "xbm",
 ]
 
+IMAGE_COMPRESSION_EXT_DICT = {"apng": [".png"],
+                              "bmp": [".bmp"],
+                              "dib": [".dib"],
+                              "gif": [".gif"],
+                              "ico": [".ico"],
+                              "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
+                              "jpeg2000": [".jp2", ".j2k", ".jpf", ".jpm", ".jpg2", ".j2c", ".jpc", ".jpx", ".mj2"],
+                              "pcx": [".pcx"],
+                              "png": [".png"],
+                              "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
+                              "sgi": [".sgi"],
+                              "tga": [".tga"],
+                              "tiff": [".tiff", ".tif"],
+                              "webp": [".webp"],
+                              "wmf": [".wmf"],
+                              "xbm": [".xbm"]
+                              }
+
+
+IMAGE_COMPRESSION_EXTENTIONS = ['.png', '.bmp', '.dib', '.gif', '.ico', '.jpg', '.jpeg', '.jfif', '.pjpeg', '.pjp', '.jp2', '.j2k', '.jpf', '.jpm',
+                                '.jpg2', '.j2c', '.jpc', '.jpx', '.mj2', '.pcx', '.png', '.pbm', '.pgm', '.ppm', '.pnm', '.sgi', '.tga', '.tiff', '.tif', '.webp', '.wmf', '.xbm']
+
+
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
@@ -75,7 +98,8 @@ SUPPORTED_COMPRESSIONS = [
     *AUDIO_COMPRESSIONS,
     *VIDEO_COMPRESSIONS,
 ]
-SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
+SUPPORTED_COMPRESSIONS = list(
+    sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
 COMPRESSION_ALIASES = {"jpg": "jpeg", "tif": "tiff", "jp2": "jpeg2000"}
