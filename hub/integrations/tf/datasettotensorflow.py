@@ -2,7 +2,6 @@
 Helper function for exporting tensorflow dataset wrapper
 """
 import warnings
-#import tensorflow as tf
 
 from hub.util.exceptions import (
     ModuleNotInstalledException,

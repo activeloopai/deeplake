@@ -5,6 +5,7 @@ import abc
 
 import tensorflow as tf
 
+
 def hub_tf_adapter(_fn):
     """
     Decorator function
