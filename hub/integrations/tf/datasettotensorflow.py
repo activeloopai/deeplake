@@ -1,10 +1,16 @@
+"""
+Helper function for exporting tensorflow dataset wrapper
+"""
+import warnings
+#import tensorflow as tf
+
 from hub.util.exceptions import (
     ModuleNotInstalledException,
     SampleDecompressionError,
     CorruptedSampleError,
 )
 from hub.util.check_installation import tensorflow_installed
-import warnings
+from .hubtensorflowdataset import HubTensorflowDataset
 
 
 def dataset_to_tensorflow(dataset):
@@ -43,4 +49,4 @@ def dataset_to_tensorflow(dataset):
         return signature
 
     signature = generate_signature()
-    return tf.data.Dataset.from_generator(__iter__, output_signature=signature)
+    return HubTensorflowDataset.from_generator(__iter__, output_signature=signature)
