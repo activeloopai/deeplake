@@ -1,5 +1,6 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from typing import List, Sequence, Tuple
+
+from typing import Sequence
 import numpy as np
 
 
@@ -35,7 +36,7 @@ class BytePositionsEncoder(Encoder):
         row = self._encoded[until_row_index]
         start_byte = row[START_BYTE_COLUMN]
         num_bytes = row[NUM_BYTES_COLUMN]
-        delta = row[LAST_SEEN_INDEX_COLUMN] - last_last_seen_index
+        delta = int(row[LAST_SEEN_INDEX_COLUMN]) - int(last_last_seen_index)
 
         if until_row_index == 0:
             delta += 1

@@ -3,8 +3,6 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
-from hub.util.remove_cache import get_base_storage
-from hub.core.storage import LocalProvider
 import hub
 from uuid import uuid4
 
@@ -13,6 +11,12 @@ first_row = {"images": [1, 2, 3], "labels": [0]}
 second_row = {"images": [6, 7, 5], "labels": [1]}
 rows = [first_row, second_row]
 class_names = ["dog", "cat", "fish"]
+
+
+@hub.compute
+def hub_compute_filter(sample_in, mod):
+    val = sample_in.abc.numpy()[0]
+    return val % mod == 0
 
 
 def _populate_data(ds, n=1):
@@ -157,3 +161,38 @@ def test_group(local_ds):
 
     result = local_ds.filter("labels.t2 == 1", progressbar=False)
     assert len(result) == 1
+
+
+def test_filter_hub_compute(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        for i in range(100):
+            local_ds.abc.append(i)
+
+    result = local_ds.filter(hub_compute_filter(mod=2), progressbar=False)
+    assert len(result) == 50
+
+
+def test_multi_category_labels(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="png")
+        ds.create_tensor(
+            "label", htype="class_label", class_names=["cat", "dog", "tree"]
+        )
+        r = np.random.randint(50, 100, (32, 32, 3), dtype=np.uint8)
+        ds.image.append(r)
+        ds.label.append([0, 1])
+        ds.image.append(r + 2)
+        ds.label.append([1, 2])
+        ds.image.append(r * 2)
+        ds.label.append([0, 2])
+    view1 = ds.filter("label == 0")
+    view2 = ds.filter("label == 'cat'")
+    view3 = ds.filter("'cat' in label")
+    view4 = ds.filter("label.contains('cat')")
+    exp_images = np.array([r, r * 2])
+    exp_labels = np.array([[0, 1], [0, 2]], dtype=np.uint8)
+    for v in (view1, view2, view3, view4):
+        np.testing.assert_array_equal(v.image.numpy(), exp_images)
+        np.testing.assert_array_equal(v.label.numpy(), exp_labels)

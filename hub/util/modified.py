@@ -44,7 +44,7 @@ def get_modified_indexes_for_commit(
     indexes: Set[int] = set()
     try:
         commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-        commit_diff: CommitDiff = storage.get_cachable(commit_diff_key, CommitDiff)
+        commit_diff: CommitDiff = storage.get_hub_object(commit_diff_key, CommitDiff)
 
         data_added = range(*commit_diff.data_added)
         data_updated = commit_diff.data_updated

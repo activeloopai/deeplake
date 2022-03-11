@@ -1,8 +1,10 @@
+import datetime
 import posixpath
 import pickle
 import json
 import os
 import tempfile
+import time
 from typing import Dict, Union
 
 try:
@@ -23,6 +25,7 @@ except ImportError:
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError, RenameError
+from hub.client.client import HubBackendClient
 
 
 class GCloudCredentials:
@@ -228,6 +231,7 @@ class GCSProvider(StorageProvider):
             NotFound,
         )
         self._initialize_provider()
+        self._presigned_urls: Dict[str, float] = {}
 
     def subdir(self, path: str):
         return self.__class__(
@@ -247,7 +251,12 @@ class GCSProvider(StorageProvider):
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
-        self.bucket, self.path = root.split("/", 1)
+        split_root = root.split("/", 1)
+        self.bucket = split_root[0]
+        if len(split_root) > 1:
+            self.path = split_root[1]
+        else:
+            self.path = ""
         if not self.path.endswith("/"):
             self.path += "/"
 
@@ -256,14 +265,17 @@ class GCSProvider(StorageProvider):
 
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {obj.name for obj in self._blob_objects}
+        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def clear(self):
         """Remove all keys below root - empties out mapping"""
         self.check_readonly()
         blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         for blob in blob_objects:
-            blob.delete()
+            try:
+                blob.delete()
+            except Exception:
+                pass
 
     def rename(self, root):
         """Rename root folder"""
@@ -342,3 +354,28 @@ class GCSProvider(StorageProvider):
         self.project = state[3]
         self.read_only = state[4]
         self._initialize_provider()
+
+    def get_presigned_url(self, key):
+        url = None
+        cached = self._presigned_urls.get(key)
+        if cached:
+            url, t_store = cached
+            t_now = time.time()
+            if t_now - t_store > 3200:
+                del self._presigned_urls[key]
+                url = None
+
+        if url is None:
+            if self._is_hub_path:
+                client = HubBackendClient(self.token)
+                org_id, ds_name = self.tag.split("/")
+                url = client.get_presigned_url(org_id, ds_name, key)
+            else:
+                blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+                url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
+            self._presigned_urls[key] = (url, time.time())
+        return url
+
+    def get_object_size(self, key):
+        blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+        return blob.size

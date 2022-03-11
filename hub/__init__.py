@@ -27,6 +27,7 @@ __pdoc__ = {
 }
 from .api.dataset import dataset
 from .api.read import read
+from .api.tiled import tiled
 from .core.dataset import Dataset
 from .core.transform import compute, compose
 from .core.tensor import Tensor
@@ -43,6 +44,7 @@ empty = dataset.empty
 like = dataset.like
 delete = dataset.delete
 rename = dataset.rename
+copy = dataset.copy
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
@@ -71,7 +73,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.2.4"
+__version__ = "2.3.2"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 

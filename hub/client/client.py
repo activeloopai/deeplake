@@ -17,6 +17,7 @@ from hub.client.config import (
     GET_USER_PROFILE,
     SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
+    GET_PRESIGNED_URL_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -276,3 +277,14 @@ class HubBackendClient:
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
+
+    def get_presigned_url(self, org_id, ds_id, chunk_path, expiration=3600):
+        relative_url = GET_PRESIGNED_URL_SUFFIX.format(org_id, ds_id)
+        response = self.request(
+            "GET",
+            relative_url,
+            endpoint=self.endpoint(),
+            params={"chunk_path": chunk_path, "expiration": expiration},
+        ).json()
+        presigned_url = response["data"]
+        return presigned_url

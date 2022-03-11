@@ -10,4 +10,4 @@ humbug>=0.2.6
 tqdm
 numcodecs
 miniaudio~=1.44
-cffi>=1.0.0
+av>=8.1.0; python_version >= '3.7' or sys_platform != 'win32'

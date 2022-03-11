@@ -5,9 +5,10 @@ from hub.core.index import Index
 from hub.core.tensor import Tensor
 
 
-import numpy
+import numpy as np
 
-NP_RESULT = Union[numpy.ndarray, List[numpy.ndarray]]
+
+NP_RESULT = Union[np.ndarray, List[np.ndarray]]
 NP_ACCESS = Callable[[str], NP_RESULT]
 
 
@@ -127,17 +128,17 @@ class EvalObject:
 
     @property
     def min(self):
-        """Returns numpy.min() for the tensor"""
-        return numpy.amin(self.val)
+        """Returns np.min() for the tensor"""
+        return np.amin(self.val)
 
     @property
     def max(self):
-        """Returns numpy.max() for the tensor"""
-        return numpy.amax(self.val)
+        """Returns np.max() for the tensor"""
+        return np.amax(self.val)
 
     @property
     def mean(self):
-        """Returns numpy.mean() for the tensor"""
+        """Returns np.mean() for the tensor"""
         return self.val.mean()
 
     @property
@@ -151,7 +152,13 @@ class EvalObject:
         return self.val.size  # type: ignore
 
     def __eq__(self, o: object) -> bool:
-        return self.val == o
+        if isinstance(self.val, (list, np.ndarray)):
+            if isinstance(o, (list, tuple)):
+                return set(o) == set(self.val)
+            else:
+                return o in self.val
+        else:
+            return self.val == o
 
     def __lt__(self, o: object) -> bool:
         return self.val < o
@@ -164,9 +171,6 @@ class EvalObject:
 
     def __ge__(self, o: object) -> bool:
         return self.val >= o
-
-    def __ne__(self, o: object) -> bool:
-        return self.val != o
 
     def __mod__(self, o: object):
         return self.val % o
@@ -188,6 +192,9 @@ class EvalObject:
 
     def __pow__(self, o: object):
         return self.val**o
+
+    def __contains__(self, o: object):
+        return self.contains(o)
 
 
 class GroupTensor:
@@ -228,11 +235,17 @@ class ClassLabelsTensor(EvalObject):
         _classes = tensor.info["class_names"]  # type: ignore
         self._classes_dict = {v: idx for idx, v in enumerate(_classes)}
 
-    def __eq__(self, o: object) -> bool:
+    def _norm_labels(self, o: object):
         if isinstance(o, str):
-            return self.val == self._classes_dict[o]
-        else:
-            return self.val == o
+            return self._classes_dict[o]
+        elif isinstance(o, int):
+            return o
+        elif isinstance(o, (list, tuple)):
+            return o.__class__(map(self._norm_labels, o))
+
+    def __eq__(self, o: object) -> bool:
+        o = self._norm_labels(o)
+        return super(ClassLabelsTensor, self).__eq__(o)
 
     def __lt__(self, o: object) -> bool:
         if isinstance(o, str):
@@ -254,8 +267,7 @@ class ClassLabelsTensor(EvalObject):
             raise ValueError("label class is not comparable")
         return self.val >= o
 
-    def __ne__(self, o: object) -> bool:
-        if isinstance(o, str):
-            return self.val != self._classes_dict[o]
-        else:
-            return self.val != o
+    def contains(self, v: Any):
+        if isinstance(v, str):
+            v = self._classes_dict[v]
+        return super(ClassLabelsTensor, self).contains(v)

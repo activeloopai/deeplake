@@ -8,14 +8,17 @@ from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.version_control.commit_diff import CommitDiff
+from hub.core.version_control.dataset_diff import DatasetDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from hub.core.storage import LRUCache
 from hub.core.lock import Lock
-from hub.util.exceptions import CallbackInitializationError, CheckoutError, CommitError
+from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
     get_tensor_commit_chunk_set_key,
@@ -108,9 +111,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     save_version_info(version_state, storage)
-    copy_metas(
-        dataset, stored_commit_id, version_state["commit_id"], storage, version_state
-    )
+    copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
@@ -137,14 +138,15 @@ def checkout(
     if address in version_state["branch_commit_map"].keys():
         if create:
             raise CheckoutError(f"Can't create new branch, '{address}' already exists.")
-        version_state["branch"] = address
         new_commit_id = version_state["branch_commit_map"][address]
         if original_commit_id == new_commit_id:
             return
-        version_state["commit_id"] = new_commit_id
-        version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
         if not storage.read_only:
             storage.flush()
+        version_state["commit_id"] = new_commit_id
+        version_state["commit_node"] = version_state["commit_node_map"][new_commit_id]
+        version_state["branch"] = address
+
     elif address in version_state["commit_node_map"].keys():
         if create:
             raise CheckoutError(
@@ -152,11 +154,11 @@ def checkout(
             )
         if address == original_commit_id:
             return
+        if not storage.read_only:
+            storage.flush()
         version_state["commit_id"] = address
         version_state["commit_node"] = version_state["commit_node_map"][address]
         version_state["branch"] = version_state["commit_node"].branch
-        if not storage.read_only:
-            storage.flush()
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
@@ -175,7 +177,7 @@ def checkout(
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
-        copy_metas(dataset, original_commit_id, new_commit_id, storage, version_state)
+        copy_metas(original_commit_id, new_commit_id, storage, version_state)
         create_commit_chunk_sets(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
     else:
@@ -192,34 +194,28 @@ def checkout(
 
 
 def copy_metas(
-    dataset,
     src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
     version_state: Dict[str, Any],
 ) -> None:
     """Copies meta data from one commit to another."""
+    initial_autoflush = storage.autoflush
+    storage.autoflush = False
+
     tensors = version_state["full_tensors"]
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     src_dataset_meta = storage[src_dataset_meta_key]
-    if isinstance(src_dataset_meta, Cachable):
-        storage[dest_dataset_meta_key] = src_dataset_meta.copy()
-    else:
-        storage[dest_dataset_meta_key] = src_dataset_meta
+    dest_dataset_meta = convert_to_bytes(src_dataset_meta)
+    storage[dest_dataset_meta_key] = dest_dataset_meta
 
     try:
         src_dataset_info_key = get_dataset_info_key(src_commit_id)
         dest_dataset_info_key = get_dataset_info_key(dest_commit_id)
         src_dataset_info = storage[src_dataset_info_key]
-        if isinstance(src_dataset_info, Cachable):
-            new_info = src_dataset_info.copy()
-            new_info.initialize_callback_location(
-                dest_dataset_info_key, storage, dataset
-            )
-            storage[dest_dataset_info_key] = new_info
-        else:
-            storage[dest_dataset_info_key] = src_dataset_info
+        dest_dataset_info = convert_to_bytes(src_dataset_info)
+        storage[dest_dataset_info_key] = dest_dataset_info
     except KeyError:
         pass
 
@@ -229,19 +225,15 @@ def copy_metas(
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
         dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
         src_tensor_meta = storage[src_tensor_meta_key]
-        if isinstance(src_tensor_meta, Cachable):
-            storage[dest_tensor_meta_key] = src_tensor_meta.copy()
-        else:
-            storage[dest_tensor_meta_key] = src_tensor_meta
+        dest_tensor_meta = convert_to_bytes(src_tensor_meta)
+        storage[dest_tensor_meta_key] = dest_tensor_meta
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
             dest_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, dest_commit_id)
             src_chunk_id_encoder = storage[src_chunk_id_encoder_key]
-            if isinstance(src_chunk_id_encoder, Cachable):
-                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder.copy()
-            else:
-                storage[dest_chunk_id_encoder_key] = src_chunk_id_encoder
+            dest_chunk_id_encoder = convert_to_bytes(src_chunk_id_encoder)
+            storage[dest_chunk_id_encoder_key] = dest_chunk_id_encoder
         except KeyError:
             pass
 
@@ -249,10 +241,8 @@ def copy_metas(
             src_tile_encoder_key = get_tensor_tile_encoder_key(tensor, src_commit_id)
             dest_tile_encoder_key = get_tensor_tile_encoder_key(tensor, dest_commit_id)
             src_tile_encoder = storage[src_tile_encoder_key]
-            if isinstance(src_tile_encoder, Cachable):
-                storage[dest_tile_encoder_key] = src_tile_encoder.copy()
-            else:
-                storage[dest_tile_encoder_key] = src_tile_encoder
+            dest_tile_encoder = convert_to_bytes(src_tile_encoder)
+            storage[dest_tile_encoder_key] = dest_tile_encoder
         except KeyError:
             pass
 
@@ -260,17 +250,12 @@ def copy_metas(
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
-            if isinstance(src_tensor_info, Cachable):
-                new_info = src_tensor_info.copy()
-                new_info.initialize_callback_location(
-                    dest_tensor_info_key, storage, dataset
-                )
-                storage[dest_tensor_info_key] = new_info
-            else:
-                storage[dest_tensor_info_key] = src_tensor_info
+            dest_tensor_info = convert_to_bytes(src_tensor_info)
+            storage[dest_tensor_info_key] = dest_tensor_info
         except KeyError:
             pass
 
+    storage.autoflush = initial_autoflush
     storage.flush()
 
 
@@ -321,7 +306,7 @@ def discard_old_metas(
             storage.cache_used -= size
         try:
             del storage.cache_storage[key]
-        except (KeyError, CallbackInitializationError):
+        except KeyError:
             pass
 
 
@@ -407,7 +392,7 @@ def load_version_info(storage: LRUCache) -> Dict:
         )  # backward compatiblity
 
 
-def auto_checkout(dataset) -> None:
+def auto_checkout(dataset) -> bool:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
     version_state = dataset.version_state
     if not version_state["commit_node"].is_head_node:
@@ -417,20 +402,38 @@ def auto_checkout(dataset) -> None:
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
         checkout(dataset, auto_branch, True)
+        return True
+    return False
 
 
 def auto_commit(dataset, address: str) -> None:
-    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node."""
+    """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has changes."""
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
-    if commit_node.is_head_node:
-        original_commit_id = version_state["commit_id"]
-        branch = version_state["branch"]
-        logger.info(
-            f"Auto commiting to branch '{branch}' before checkout as currently at head node."
-        )
-        commit(dataset, f"auto commit before checkout to {address}")
-        checkout(dataset, original_commit_id, False)
+    head = commit_node.is_head_node
+    if not head:
+        return
+
+    if not current_commit_has_change(version_state, dataset.storage):
+        parent_id = commit_node.parent.commit_id  # type: ignore
+        checkout(dataset, parent_id, False)
+        return
+
+    original_commit_id = version_state["commit_id"]
+    branch = version_state["branch"]
+    logger.info(
+        f"Auto commiting to branch '{branch}' before checkout as currently at head node."
+    )
+    commit(dataset, f"auto commit before checkout to {address}")
+    checkout(dataset, original_commit_id, False)
+
+
+def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) -> bool:
+    return (
+        current_commit_has_data(version_state, storage)
+        or current_commit_has_info_modified(version_state, storage)
+        or version_state["commit_id"] == FIRST_COMMIT_ID
+    )
 
 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
@@ -443,6 +446,30 @@ def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) ->
         if commit_diff_exists(version_state, storage, tensor):
             # commit diff is created during tensor creation and append/extend/update
             return True
+    return False
+
+
+def current_commit_has_info_modified(
+    version_state: Dict[str, Any], storage: LRUCache
+) -> bool:
+    commit_id = version_state["commit_id"]
+    try:
+        dataset_diff_key = get_dataset_diff_key(commit_id)
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        if dataset_diff.info_modified:
+            return True
+    except KeyError:
+        pass
+
+    for tensor in version_state["full_tensors"].keys():
+        try:
+            tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
+            tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
+            if tensor_diff.info_modified:
+                return True
+        except KeyError:
+            pass
+
     return False
 
 
@@ -464,12 +491,14 @@ def load_meta(dataset):
     from hub.core.tensor import Tensor
 
     version_state = dataset.version_state
-    storage = dataset.storage
-
+    storage: LRUCache = dataset.storage
+    storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
-    meta = storage.get_cachable(meta_key, DatasetMeta)
+    meta = storage.get_hub_object(meta_key, DatasetMeta)
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
+
+    storage.register_hub_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
 
@@ -488,3 +517,7 @@ def warn_node_checkout(commit_node: CommitNode, create: bool):
             warnings.warn(
                 f"The branch ({branch}) that you have checked out to, has no commits."
             )
+
+
+def convert_to_bytes(inp):
+    return inp.tobytes() if isinstance(inp, HubMemoryObject) else inp
