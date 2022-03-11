@@ -34,11 +34,9 @@ def read(
         (1, 136, 720, 1080, 3)
 
         >>> image = hub.read("https://picsum.photos/200/300")
-        >>> image.is_lazy
-        True
         >>> image.compression
         'jpeg'
-        >>> ds.create_tensor("images", htype="image", sample_compression="jpg")
+        >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
         >>> ds.images.append(image)
         >>> ds.images[0].shape
         (300, 200, 3)
@@ -46,9 +44,7 @@ def read(
     Supported file types:
 
         Image: "bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm"
-
         Audio: "flac", "mp3", "wav"
-
         Video: "mp4", "mkv", "avi"
 
     Args:
