@@ -1,5 +1,5 @@
-from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from collections import defaultdict, OrderedDict
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -112,10 +112,12 @@ def compare_commits(
         while commit_node.commit_id != lca_node.commit_id:
             commit_id = commit_node.commit_id
             get_tensor_changes_for_id(commit_id, storage, tensor_changes)
+            merge_dataset_and_tensor_changes(dataset_changes, tensor_changes)
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
+            filter_deleted_renamed(dataset_changes, tensor_changes)
             commit_node = commit_node.parent  # type: ignore
+        filter_deleted_no_rename(dataset_changes, tensor_changes)
         filter_data_updated(tensor_changes)
-        # filter_deleted_renamed(dataset_changes, tensor_changes)
     return (
         dataset_changes_1,
         dataset_changes_2,
@@ -197,7 +199,7 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
         created = change.get("created", False)
         data_added = change["data_added"]
         data_added_str = convert_adds_to_string(data_added)
-        data_updated = change.get("data_updated")
+        data_updated = change["data_updated"]
         info_updated = change.get("info_updated", False)
         all_changes.append(tensor)
         if created:
@@ -220,9 +222,9 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
 
 def has_change(change: Dict):
     created = change.get("created", False)
-    data_added = change.get("data_added", [0, 0])
+    data_added = change["data_added"]
     num_samples_added = data_added[1] - data_added[0]
-    data_updated = change.get("data_updated")
+    data_updated = change["data_updated"]
     info_updated = change.get("info_updated", False)
     return created or num_samples_added > 0 or data_updated or info_updated
 
@@ -239,22 +241,21 @@ def get_dataset_changes_for_id(
             dataset_changes.get("info_updated") or dataset_diff.info_updated
         )
 
-        if dataset_changes.get("renamed"):
-            merge_renamed = {}
+        renamed = dataset_changes.get("renamed")
+        if renamed:
+            merge_renamed = OrderedDict()
             for old, new in dataset_diff.renamed.items():
-                for tracked_old, tracked_new in dataset_changes["renamed"].items():
-                    if new == tracked_old:
-                        merge_renamed[old] = tracked_new
-                        break
-            else:
-                merge_renamed[old] = new
+                if renamed.get(new):
+                    merge_renamed[old] = renamed[new]
+                else:
+                    merge_renamed[old] = new
             dataset_changes["renamed"] = merge_renamed
         else:
-            dataset_changes["renamed"] = dataset_diff.renamed
+            dataset_changes["renamed"] = dataset_diff.renamed.copy()
         if dataset_changes.get("deleted"):
             dataset_changes["deleted"].extend(dataset_diff.deleted)
         else:
-            dataset_changes["deleted"] = dataset_diff.deleted
+            dataset_changes["deleted"] = dataset_diff.deleted.copy()
     except KeyError:
         pass
 
@@ -307,35 +308,92 @@ def filter_data_updated(changes: Dict[str, Dict]):
         change["data_updated"] = upd
 
 
-# def filter_deleted_renamed(
-#     dataset_changes: Dict[str, Dict], tensor_changes: Dict[str, Dict]
-# ):
-#     """Merges chained renames and removes intersection of renamed and deleted tensors."""
-#     deleted = dataset_changes.get("deleted", [])
-#     renamed = dataset_changes.get("renamed", {})
-#     old_names = list(renamed.keys())
-#     print(old_names)
-#     print(renamed)
-#     for old in old_names:
-#         old_name = old
-#         while renamed.get(old_name):
-#             new = renamed.pop(old_name)
-#             try:
-#                 merge_diffs(tensor_changes.pop(old_name), tensor_changes[new])
-#                 print(tensor_changes[new])
-#             except KeyError:
-#                 pass
-#             old_names.remove(old_name)
-#             old_name = new
-#         if old == new:
-#             continue
-#         if new in deleted:
-#             deleted[deleted.index(new)] = old
-#             continue
-#         change = tensor_changes.get(new)
-#         if change and change["created"]:
-#             continue
-#         renamed[old] = new
+def merge_dataset_and_tensor_changes(
+    dataset_changes: Dict[str, Dict], tensor_changes: DefaultDict[str, Dict]
+):
+    """Merge changes of renamed tensors"""
+    rm = set()
+    renamed = dataset_changes.get("renamed")
+    if renamed:
+        for old_name in renamed:
+            new_name = renamed[old_name]
+            tensor_change = tensor_changes.get(new_name)
+            if tensor_change:
+                print(old_name, new_name)
+                merge_diffs(tensor_changes.pop(old_name), tensor_changes[new_name])
+
+        for name in rm:
+            renamed.pop(name)
+
+
+def filter_deleted_renamed(
+    dataset_changes: Dict[str, Dict], tensor_changes: DefaultDict[str, Dict]
+):
+    """Remove items from renamed diff if they have been deleted"""
+    rm = set()
+    renamed = dataset_changes.get("renamed")
+    deleted = dataset_changes.get("deleted")
+    done = []
+
+    if renamed:
+        for name in deleted:
+            if name not in done:
+                for old_name, new_name in renamed.items():
+                    if name == new_name:
+                        if not tensor_changes.get(name).get("created"):
+                            rm.add(old_name)
+                            # propagate delete through commits
+                            deleted[deleted.index(name)] = old_name
+                            done.append(name)
+                            if tensor_changes.get(name):
+                                tensor_changes.pop(name)
+        for name in rm:
+            renamed.pop(name)
+
+
+def filter_deleted_no_rename(dataset_changes, tensor_changes):
+    """Remove deleted tensors and tensors renamed to same name from diff"""
+    rm = []
+    renamed = dataset_changes.get("renamed")
+    deleted = dataset_changes.get("deleted")
+    if renamed:
+        for old_name, new_name in renamed.items():
+            if old_name == new_name:
+                rm.append(old_name)
+
+        for name in rm:
+            renamed.pop(name)
+
+    if deleted:
+        for name in deleted:
+            if tensor_changes.get(name):
+                tensor_changes.pop(name)
+
+
+def merge_diffs(change1, change2):
+    """Merge diff `change1` into `change2`"""
+
+    if change1.get("created"):
+        change2["created"] = change1["created"]
+
+    if change1.get("info_updated"):
+        change2["info_updated"] = change1["info_updated"]
+
+    if change1.get("data_added"):
+        if "data_added" not in change2:
+            change2["data_added"] = change1["data_added"].copy()
+        else:
+            change2["data_added"][0] = change1["data_added"][0]
+    else:
+        change2["data_added"] = change2.get("data_added") or [0, 0]
+
+    if change1.get("data_updated"):
+        if "data_updated" not in change2:
+            change2["data_updated"] = change1["data_updated"].copy()
+        else:
+            change2["data_updated"].update(change1["data_updated"])
+    else:
+        change2["data_updated"] = change2.get("data_updated") or set()
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:

@@ -105,8 +105,10 @@ class DatasetDiff(HubMemoryObject):
             for old, new in self.renamed.items():
                 if name == new:
                     self.renamed.pop(old)
+                    self.deleted.append(old)
                     break
-            self.deleted.append(name)
+            else:
+                self.deleted.append(name)
             self.is_dirty = True
 
 
