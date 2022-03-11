@@ -603,6 +603,10 @@ class CommitError(VersionControlError):
     pass
 
 
+class EmptyCommitError(CommitError):
+    pass
+
+
 class TensorModifiedError(Exception):
     def __init__(self):
         super().__init__(

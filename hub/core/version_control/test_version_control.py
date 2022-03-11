@@ -13,6 +13,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
     InfoError,
     TensorModifiedError,
+    EmptyCommitError,
 )
 
 NO_COMMIT_PASSED_DIFF = ""
@@ -58,6 +59,26 @@ def test_commit(local_ds):
             local_ds.checkout("main", create=True)
         with pytest.raises(CheckoutError):
             local_ds.checkout(a, create=True)
+
+
+"""
+test for checking unchanged dataset commits
+"""
+
+
+def test_unchanged_commit(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        local_ds.abc.append(1)
+        local_ds.log()
+        a = local_ds.commit("first")
+        local_ds.checkout(a)
+        assert local_ds.commit_id == a
+        with pytest.rises(EmptyCommitError):
+            b = local_ds.commit("second")
+        c = local_ds.commit("third", allow_empty=True)
+        local_ds.checkout(c)
+        assert local_ds.commit_id == c
 
 
 def test_commit_checkout(local_ds):
