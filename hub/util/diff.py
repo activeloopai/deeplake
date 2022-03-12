@@ -34,7 +34,7 @@ def get_changes_and_messages_compared_to_prev(
     s = "HEAD" if head else f"{commit_id} (current commit)"
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
-    get_dataset_changes_for_id(commit_id, storage, ds_changes, tensor_changes)
+    get_dataset_changes_for_id(commit_id, storage, ds_changes)
     filter_data_updated(tensor_changes)
     remove_empty_changes(tensor_changes)
 
@@ -113,9 +113,7 @@ def compare_commits(
             get_tensor_changes_for_id(
                 commit_id, storage, tensor_changes, dataset_changes
             )
-            get_dataset_changes_for_id(
-                commit_id, storage, dataset_changes, tensor_changes
-            )
+            get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
         filter_deleted_no_rename(dataset_changes, tensor_changes)
         filter_data_updated(tensor_changes)
@@ -233,8 +231,7 @@ def has_change(change: Dict):
 def get_dataset_changes_for_id(
     commit_id: str,
     storage: LRUCache,
-    dataset_changes: Dict[str, Dict],
-    tensor_changes: Dict[str, Dict],
+    dataset_changes,
 ):
     """Returns the changes made in the dataset for a commit."""
 
@@ -252,10 +249,8 @@ def get_dataset_changes_for_id(
         if renamed:
             merge_renamed = OrderedDict()
             for old, new in dataset_diff.renamed.items():
-                if new in deleted and new not in done:
+                if deleted and new in deleted and new not in done:
                     deleted[deleted.index(new)] = old
-                    # if tensor_changes.get(new):
-                    #     tensor_changes.pop(new)
                     done.append(old)
                     continue
                 if renamed.get(new):
@@ -278,7 +273,7 @@ def get_tensor_changes_for_id(
     commit_id: str,
     storage: LRUCache,
     tensor_changes: Dict[str, Dict],
-    dataset_changes: Dict[str, Dict],
+    dataset_changes,
 ):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)

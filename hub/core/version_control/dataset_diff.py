@@ -1,6 +1,7 @@
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage import LRUCache
 from hub.util.keys import get_dataset_diff_key
+import typing
 from collections import OrderedDict
 
 
@@ -8,8 +9,8 @@ class DatasetDiff(HubMemoryObject):
     def __init__(self) -> None:
         self.is_dirty = False
         self.info_updated = False
-        self.renamed = OrderedDict()
-        self.deleted = []
+        self.renamed: typing.OrderedDict = OrderedDict()
+        self.deleted: typing.List[str] = []
 
     def tobytes(self) -> bytes:
         """Returns bytes representation of the dataset diff
