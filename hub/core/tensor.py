@@ -346,34 +346,32 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        shape = self.shape_interval.astuple()
-        if None in shape:
-            if not self.index.values[0].subscriptable():
-                shape = self.chunk_engine.read_shape_for_sample(self.index.values[0].value)  # type: ignore
-        elif not self.index.values[0].subscriptable():
-            shape = shape[1:]
-        shape = list(shape)  # type: ignore
-        squeeze_dims = set()
-        for i, idx in enumerate(self.index.values[1:]):
-            shape[i] = len(list(idx.indices(shape[i])))  # type: ignore
-            if not idx.subscriptable():
-                squeeze_dims.add(i)
-        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
+        return self.chunk_engine.shape(self.index)
 
     @property
     def ndim(self) -> int:
-        return len(self.shape)
+        return self.chunk_engine.ndim(self.index)
 
     @property
     def dtype(self) -> Optional[np.dtype]:
-        if self.htype in ("json", "list"):
+        if self.base_htype in ("json", "list"):
             return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.dtype)
         return None
 
     @property
+    def is_sequence(self):
+        return self.meta.is_sequence
+
+    @property
     def htype(self):
+        if self.is_sequence:
+            return f"sequence[{self.meta.htype}]"
+        return self.meta.htype
+
+    @property
+    def base_htype(self):
         return self.meta.htype
 
     @property
@@ -394,13 +392,7 @@ class Tensor:
         Returns:
             ShapeInterval: Object containing `lower` and `upper` properties.
         """
-
-        length = [len(self)]
-
-        min_shape = length + list(self.meta.min_shape)
-        max_shape = length + list(self.meta.max_shape)
-
-        return ShapeInterval(min_shape, max_shape)
+        return self.chunk_engine.shape_interval
 
     @property
     def is_dynamic(self) -> bool:
@@ -412,7 +404,9 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return self.chunk_engine.tensor_meta.length
+        if self.is_sequence:
+            return self.chunk_engine._sequence_length
+        return self.meta.length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -434,7 +428,7 @@ class Tensor:
         # catch corrupted datasets / user tampering ASAP
         self.chunk_engine.validate_num_samples_is_synchronized()
 
-        return self.index.length(self.meta.length)
+        return self.index.length(self.num_samples)
 
     def __getitem__(
         self,
@@ -591,7 +585,7 @@ class Tensor:
         pass
 
     def data(self) -> Any:
-        htype = self.htype
+        htype = self.base_htype
         if htype in ("json", "text"):
 
             if self.ndim == 1:

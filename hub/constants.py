@@ -55,8 +55,9 @@ META_ENCODING = "utf8"
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
+ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
+UNSHARDED_ENCODER_FILENAME = "unsharded"
 
 AGREEMENT_FILENAME = "agreement.txt"
 
@@ -124,3 +125,5 @@ _ENABLE_RANDOM_ASSIGNMENT = False
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
+
+PYTORCH_DATALOADER_TIMEOUT = 30  # seconds

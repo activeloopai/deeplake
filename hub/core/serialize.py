@@ -282,6 +282,24 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
+def serialize_sequence_encoder(version: str, enc: np.ndarray) -> bytes:
+    return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
+
+
+def deserialize_sequence_encoder(
+    byts: Union[bytes, memoryview]
+) -> Tuple[str, np.ndarray]:
+    byts = memoryview(byts)
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    enc = (
+        np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
+        .reshape(-1, 3)
+        .copy()
+    )
+    return version, enc
+
+
 def check_sample_shape(shape, num_dims):
     if len(shape) != num_dims:
         raise TensorInvalidSampleShapeError(shape, num_dims)

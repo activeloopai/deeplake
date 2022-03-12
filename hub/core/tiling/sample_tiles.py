@@ -12,6 +12,40 @@ from hub.constants import MB
 class SampleTiles:
     """Stores the tiles corresponding to a sample."""
 
+    def __init__(
+        self,
+        arr: Optional[np.ndarray] = None,
+        compression: Optional[str] = None,
+        chunk_size: int = 16 * MB,
+        store_uncompressed_tiles: bool = False,
+        htype: Optional[str] = None,
+        tile_shape: Optional[Tuple[int, ...]] = None,
+        sample_shape: Optional[Tuple[int, ...]] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
+    ):
+        self.registered = False
+        self.tiles_yielded = 0
+        if arr is not None:
+            self._init_from_array(
+                arr,
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
+        else:
+            self._init_from_sample_shape(
+                sample_shape,  # type: ignore
+                compression,
+                chunk_size,
+                store_uncompressed_tiles,
+                htype,
+                tile_shape,
+                dtype,
+            )
+
     def _init_from_array(
         self,
         arr: np.ndarray,
@@ -81,40 +115,6 @@ class SampleTiles:
             chunk_size,
             exclude_axis,
         )
-
-    def __init__(
-        self,
-        arr: Optional[np.ndarray] = None,
-        compression: Optional[str] = None,
-        chunk_size: int = 16 * MB,
-        store_uncompressed_tiles: bool = False,
-        htype: Optional[str] = None,
-        tile_shape: Optional[Tuple[int, ...]] = None,
-        sample_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Optional[Union[np.dtype, str]] = None,
-    ):
-        self.registered = False
-        self.tiles_yielded = 0
-        if arr is not None:
-            self._init_from_array(
-                arr,
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
-        else:
-            self._init_from_sample_shape(
-                sample_shape,  # type: ignore
-                compression,
-                chunk_size,
-                store_uncompressed_tiles,
-                htype,
-                tile_shape,
-                dtype,
-            )
 
     @property
     def is_first_write(self) -> bool:

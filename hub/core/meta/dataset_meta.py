@@ -8,6 +8,7 @@ class DatasetMeta(Meta):
         self.tensors = []
         self.groups = []
         self.tensor_names = {}
+        self.hidden_tensors = []
 
     @property
     def nbytes(self):
@@ -19,12 +20,21 @@ class DatasetMeta(Meta):
         d["tensors"] = self.tensors
         d["groups"] = self.groups
         d["tensor_names"] = self.tensor_names
+        d["hidden_tensors"] = self.hidden_tensors
         return d
 
-    def add_tensor(self, name, key):
+    def add_tensor(self, name, key, hidden=False):
         if key not in self.tensors:
             self.tensor_names[name] = key
             self.tensors.append(key)
+            if hidden:
+                self.hidden_tensors.append(name)
+            self.is_dirty = True
+
+    def _hide_tensor(self, name):
+        assert name in self.tensor_names
+        if name not in self.hidden_tensors:
+            self.hidden_tensors.append(name)
             self.is_dirty = True
 
     def add_group(self, name):
