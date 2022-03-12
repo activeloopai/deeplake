@@ -423,7 +423,7 @@ def test_dataset_info(local_ds):
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "value"
 
-    a = local_ds.commit("added key, value")
+    a = local_ds.commit("added key, value", allow_empty=True)
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "value"
 
@@ -432,7 +432,7 @@ def test_dataset_info(local_ds):
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
 
-    b = local_ds.commit("added key2, value2")
+    b = local_ds.commit("added key2, value2",  allow_empty=True)
     assert len(local_ds.info) == 2
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
@@ -444,7 +444,7 @@ def test_dataset_info(local_ds):
     local_ds.info.key = "notvalue"
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "notvalue"
-    c = local_ds.commit("changed key to notvalue")
+    c = local_ds.commit("changed key to notvalue", allow_empty=True)
 
     local_ds.checkout(a)
     assert len(local_ds.info) == 1

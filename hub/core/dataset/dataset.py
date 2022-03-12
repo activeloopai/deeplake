@@ -603,7 +603,7 @@ class Dataset:
 
         Args:
             message (str, optional): Used to describe the commit.
-            allow_empty (bool) If True, commit even if there are no changes
+            allow_empty (bool): If True, commit even if there are no changes
 
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
