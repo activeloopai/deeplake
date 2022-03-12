@@ -596,7 +596,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
-    def commit(self, message: Optional[str] = None, allow_empty = False) -> str:
+    def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
@@ -613,7 +613,9 @@ class Dataset:
             EmptyCommitError: if there are no changes and user does not forced to commit unchanged data
         """
         if not allow_empty and not self.has_head_changes:
-            raise EmptyCommitError("There are no changes, commit is not done. Try again with allow_empty=True.")
+            raise EmptyCommitError(
+                "There are no changes, commit is not done. Try again with allow_empty=True."
+            )
 
         return self._commit(message)
 

@@ -74,7 +74,7 @@ def test_unchanged_commit(local_ds):
         a = local_ds.commit("first")
         local_ds.checkout(a)
         assert local_ds.commit_id == a
-        with pytest.rises(EmptyCommitError):
+        with pytest.raises(EmptyCommitError):
             b = local_ds.commit("second")
         c = local_ds.commit("third", allow_empty=True)
         local_ds.checkout(c)
@@ -518,7 +518,7 @@ def test_delete(local_ds):
         local_ds.abc.append(1)
         a = local_ds.commit("first")
         local_ds.delete_tensor("abc")
-        b = local_ds.commit("second")
+        b = local_ds.commit("second", allow_empty=True)
         local_ds.checkout(a)
         assert local_ds.abc[0].numpy() == 1
         local_ds.checkout(b)
@@ -528,7 +528,7 @@ def test_delete(local_ds):
         local_ds["x/y/z"].append(1)
         c = local_ds.commit("third")
         local_ds["x"].delete_tensor("y/z")
-        d = local_ds.commit("fourth")
+        d = local_ds.commit("fourth", allow_empty=True)
         local_ds.checkout(c)
         assert local_ds["x/y/z"][0].numpy() == 1
         local_ds.checkout(d)
@@ -1203,7 +1203,7 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 2
     commit_details_helper(commits, local_ds)
-    local_ds.commit()
+    local_ds.commit(allow_empty=True)
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
@@ -1211,7 +1211,7 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 2
     commit_details_helper(commits, local_ds)
-    local_ds.commit()
+    local_ds.commit(allow_empty=True)
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
@@ -1301,7 +1301,7 @@ def test_modified_samples(memory_ds):
 
         memory_ds.checkout(first_commit)
         memory_ds.checkout("alt", create=True)
-        alt_commit = memory_ds.commit()
+        alt_commit = memory_ds.commit(allow_empty=True)
 
         memory_ds.checkout("main")
 
