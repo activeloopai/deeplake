@@ -225,29 +225,14 @@ class HubCloudDataset(Dataset):
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     def rename(self, path):
-        level = logger.level
-        logger.setLevel(logging.WARNING)
-        path = path.strip("/")
-        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+        path = path.rstrip("/")
+        root, new_name = posixpath.split(path)
+        if root != posixpath.split(self.path)[0]:
             raise RenameError
-        split_path = path.split("/")
-        storage = get_base_storage(self.storage)
-        split_root = storage.root.rstrip("/").split("/")
-        new_url = "/".join([*split_root[:-1], split_path[-1]])
-        storage.rename(new_url)
+        self.client.rename_dataset_entry(self.org_id, self.ds_name, new_name)
 
-        new_ds_name = split_path[3]
-        self.client.create_dataset_entry(
-            self.org_id,
-            new_ds_name,
-            self.version_state["meta"].__getstate__(),
-            public=self.public,
-        )
-        self.client.delete_dataset_entry(self.org_id, self.ds_name)
-
-        self.ds_name = new_ds_name
+        self.ds_name = new_name
         self.path = path
-        logger.setLevel(level)
 
     @property
     def agreement(self) -> Optional[str]:

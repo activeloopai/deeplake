@@ -334,9 +334,11 @@ class S3Provider(StorageProvider):
         """Rename root folder"""
         self.check_readonly()
         self._check_update_creds()
-        items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)[
-            "Contents"
-        ]
+        items = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=self.bucket, Prefix=self.path)
+        for page in pages:
+            items.extend(page["Contents"])
         path = root.replace("s3://", "")
         _, new_path = path.split("/", 1)
         for item in items:

@@ -705,22 +705,22 @@ def test_dataset_delete():
 
 
 @pytest.mark.parametrize(
-    ("ds_generator", "path"),
+    ("ds_generator", "path", "hub_token"),
     [
-        ("local_ds_generator", "local_path"),
-        ("s3_ds_generator", "s3_path"),
-        ("gcs_ds_generator", "gcs_path"),
-        ("hub_cloud_ds_generator", "hub_cloud_path"),
+        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
+        ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
+        ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
     ],
     indirect=True,
 )
-def test_dataset_rename(ds_generator, path):
+def test_dataset_rename(ds_generator, path, hub_token):
     ds = ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
 
     new_path = "/".join([*path.split("/")[:-1], "renamed"])
-    ds = hub.rename(ds.path, new_path)
+    ds = hub.rename(ds.path, new_path, token=hub_token)
 
     assert ds.path == new_path
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
