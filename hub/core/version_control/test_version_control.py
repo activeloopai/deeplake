@@ -714,7 +714,7 @@ def test_rename_diff(local_ds, capsys):
     local_ds.diff(b)
     ds_changes_from_b = {"renamed": OrderedDict({"xyz": "bcd"}), "deleted": ["efg"]}
     tensor_changes_from_b = {
-        "bcd": tensor_diff_helper([1, 2], info_updated=True),
+        "bcd": tensor_diff_helper([1, 3], info_updated=True),
     }
     target = get_diff_helper(
         ds_changes_from_b, {}, tensor_changes_from_b, {}, local_ds.version_state, b
@@ -730,7 +730,7 @@ def test_rename_diff(local_ds, capsys):
 
     local_ds.diff(a)
     ds_changes_from_a = {"deleted": ["xyz"]}
-    tensor_changes_from_a = {"abc": tensor_diff_helper([1, 2], {0}, info_updated=True)}
+    tensor_changes_from_a = {"abc": tensor_diff_helper([1, 3], {0}, info_updated=True)}
     target = get_diff_helper(
         ds_changes_from_a, {}, tensor_changes_from_a, {}, local_ds.version_state, a
     )
