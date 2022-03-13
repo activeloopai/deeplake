@@ -1,6 +1,6 @@
 import hub
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
 from hub.core.version_control.commit_diff import CommitDiff
