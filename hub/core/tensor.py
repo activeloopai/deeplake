@@ -245,6 +245,7 @@ class Tensor:
         Args:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
+            progressbar (bool): Specifies whether a progressbar should be displayed while extending.
 
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
