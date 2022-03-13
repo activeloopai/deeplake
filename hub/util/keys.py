@@ -1,3 +1,4 @@
+import posixpath
 from hub.constants import (
     CHUNKS_FOLDER,
     DATASET_DIFF_FILENAME,
@@ -165,3 +166,13 @@ def get_queries_key() -> str:
 
 def get_queries_lock_key() -> str:
     return QUERIES_LOCK_FILENAME
+
+
+def filter_name(name: str, group_index: str = "") -> str:
+    name = name.strip("/")
+
+    while "//" in name:
+        name = name.replace("//", "/")
+
+    name = posixpath.join(group_index, name)
+    return name

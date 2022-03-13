@@ -66,6 +66,7 @@ from hub.util.keys import (
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
+    filter_name,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -315,12 +316,8 @@ class Dataset:
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        full_name = posixpath.join(self.group_index, name)
+        full_name = filter_name(name, self.group_index)
         full_key = self.version_state["tensor_names"].get(full_name)
         if full_key:
             raise TensorAlreadyExistsError(full_name)
@@ -336,7 +333,7 @@ class Dataset:
         if full_name in self._groups:
             raise TensorGroupAlreadyExistsError(full_name)
 
-        tensor_name = posixpath.split(name)[1]
+        tensor_name = posixpath.split(full_name)[1]
         if not tensor_name or tensor_name in dir(self):
             raise InvalidTensorNameError(tensor_name)
 
@@ -352,8 +349,8 @@ class Dataset:
                 full_key, htype, dtype, sample_compression, chunk_compression, **kwargs
             )
 
-        if "/" in name:
-            self._create_group(posixpath.split(name)[0])
+        if "/" in full_name:
+            self._create_group(posixpath.split(full_name)[0])
 
         # Seperate meta and info
 
@@ -416,12 +413,8 @@ class Dataset:
             TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
         """
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        full_name = posixpath.join(self.group_index, name)
+        full_name = filter_name(name, self.group_index)
         full_key = self.version_state["tensor_names"].get(full_name)
 
         if not full_key:
@@ -472,12 +465,8 @@ class Dataset:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
         """
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        full_path = posixpath.join(self.group_index, name)
+        full_path = filter_name(name, self.group_index)
 
         if full_path not in self._groups:
             raise TensorGroupDoesNotExistError(name)
@@ -551,14 +540,9 @@ class Dataset:
             RenameError: If `new_name` points to a group different from `name`.
         """
         auto_checkout(self)
-        name = name.strip("/")
-        new_name = new_name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        while "//" in new_name:
-            new_name = new_name.replace("//", "/")
+        name = filter_name(name)
+        new_name = filter_name(new_name)
 
         if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
             raise RenameError("New name of tensor cannot point to a different group")
@@ -1352,9 +1336,7 @@ class Dataset:
         """Creates a tensor group. Intermediate groups in the path are also created."""
         if not self._is_root():
             return self.root.create_group(posixpath.join(self.group_index, name))
-        name = name.strip("/")
-        while "//" in name:
-            name = name.replace("//", "/")
+        name = filter_name(name)
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
