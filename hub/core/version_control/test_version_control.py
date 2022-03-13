@@ -432,7 +432,7 @@ def test_dataset_info(local_ds):
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
 
-    b = local_ds.commit("added key2, value2",  allow_empty=True)
+    b = local_ds.commit("added key2, value2", allow_empty=True)
     assert len(local_ds.info) == 2
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
