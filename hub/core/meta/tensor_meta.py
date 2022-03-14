@@ -138,6 +138,8 @@ class TensorMeta(Meta):
 
         self.__dict__.update(required_meta)
         self.is_dirty = True
+        if self.links is None:
+            self.links = {}
         _validate_links(self.links)
 
     def update_shape_interval(self, shape: Sequence[int]):
@@ -245,7 +247,6 @@ def _required_meta_from_htype(htype: str) -> dict:
         "max_shape": [],
         "length": 0,
         "hidden": False,
-        "links": {},
         **defaults,
     }
 
