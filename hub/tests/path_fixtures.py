@@ -402,11 +402,6 @@ def video_paths():
 
 
 @pytest.fixture
-def path(request):
-    return request.getfixturevalue(request.param)
-
-
-@pytest.fixture
 def vstream_path(request):
     """Used with parametrize to use all video stream test datasets."""
     return request.getfixturevalue(request.param)
