@@ -703,6 +703,102 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["s3_path", "hub_cloud_dev_token"],
+        ["gcs_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progress_bar", [True, False])
+def test_dataset_copy(path, hub_token, num_workers, progress_bar):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    dest_ds = hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == None
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    for tensor in dest_ds.meta.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    with pytest.raises(DatasetHandlerError):
+        hub.copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+
+    hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.delete(src_path, token=hub_token)
+    hub.delete(dest_path, token=hub_token)
+
+
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
     username = hub_cloud_path.split("/")[2]
     # this dataset doesn't exist

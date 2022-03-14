@@ -752,6 +752,18 @@ class ChunkEngine:
         callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+        (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
+            index, samples, operator
+        )
+
+    def _update(
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+        update_commit_diff: bool = True,
+    ):
+        """Update data at `index` with `samples`."""
         self._write_initialization()
         self.cached_data = None
         initial_autoflush = self.cache.autoflush

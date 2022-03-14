@@ -310,6 +310,7 @@ class Dataset:
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
             TensorMetaInvalidHtype: If invalid htype is specified.
+            ValueError: If an illegal argument is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
