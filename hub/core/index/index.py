@@ -263,7 +263,7 @@ class Index:
         """
         if isinstance(item, Index):
             item = item.values
-        elif not item:
+        elif item in ((), [], None):
             item = slice(None)
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
