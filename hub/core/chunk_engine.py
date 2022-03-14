@@ -616,17 +616,26 @@ class ChunkEngine:
             update_commit_diff=update_commit_diff,
         )
 
-    def extend(self, samples):
+    def extend(self, samples, callback: Optional[Callable] = None):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+
         if self.is_sequence:
             for sample in samples:
                 self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
+                if callback:
+                    callback(sample, flat=False)
+                    for s in sample:
+                        callback(s, flat=True)
         else:
             self._extend(samples)
+            if callback:
+                for sample in samples:
+                    callback(sample, flat=None)
+
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
@@ -740,7 +749,7 @@ class ChunkEngine:
     ):
         """Update data at `index` with `samples`."""
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index, samples, operator, callback,
+            index, samples, operator, callback=callback,
         )
 
     def _update(
@@ -750,18 +759,6 @@ class ChunkEngine:
         operator: Optional[str] = None,
         update_commit_diff: bool = True,
         callback: Optional[Callable] = None,
-    ):
-        """Update data at `index` with `samples`."""
-        (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index, samples, operator
-        )
-
-    def _update(
-        self,
-        index: Index,
-        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
-        operator: Optional[str] = None,
-        update_commit_diff: bool = True,
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
@@ -777,6 +774,7 @@ class ChunkEngine:
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+        is_sequence = self.is_sequence
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
@@ -802,7 +800,7 @@ class ChunkEngine:
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
             if callback:
-                callback(global_sample_index, Index(index.values[1:]), sample)
+                callback(global_sample_index, sub_index=Index(index.values[1:]), new_sample=sample, flat=True if is_sequence else None)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -1332,6 +1330,11 @@ class ChunkEngine:
                 index.values[0].indices(self._sequence_length),
             )
         )
+        if callback:
+            seq_len = self._sequence_length
+            samples = make_sequence(samples, index_length=index.values[0].length(seq_len))
+            for i, sample in zip(index.values[0].indices(seq_len), samples):
+                callback(i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False)
 
     @property
     def _sequence_item_length(self):

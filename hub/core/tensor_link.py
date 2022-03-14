@@ -8,7 +8,7 @@ class _TensorLinkTransform:
         self.name = f.__name__
         self.f = f
         spec = inspect.getfullargspec(f)
-        self.multi_arg = len(spec.args) > 1 or spec.varargs or spec.varkws
+        self.multi_arg = len(spec.args) > 1 or spec.varargs or spec.varkw
         self.kwargs = [k for k in ("index", "partial") if k in spec.args]
 
     def __call__(self, *args, **kwargs):

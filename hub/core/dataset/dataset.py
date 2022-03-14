@@ -1695,3 +1695,18 @@ class Dataset:
             VDS with the specified hash.
         """
         return self._get_sub_ds(".queries/" + hash)
+
+    def _link_tensors(self, src: str, dest: str, append_f: str, update_f: Optional[str], flatten_sequence: Optional[bool] = None):
+        assert self._is_root()
+        tensors = self._tensors()
+        if src not in tensors:
+            raise TensorDoesNotExistError(src)
+        if dest not in tensors:
+            raise TensorDoesNotExistError(dest)
+        src_tensor = self[src]
+        if flatten_sequence is None:
+            if src_tensor.is_sequence:
+                raise ValueError("`flatten_sequence` arg must be specified when linking a sequence tensor.")
+            flatten_sequence = False
+        src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
+        self.storage.maybe_flush()

@@ -1,18 +1,12 @@
 # type: ignore
 
 from typing import Tuple, Optional
-from hub.htype import DEFAULT_HTYPE, UNSPECIFIED, HTYPE_CONFIGURATIONS
+from hub.htype import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
 from hub.util.exceptions import TensorMetaInvalidHtype
 
 
 def parse_sequence_htype(htype: Optional[str]) -> Tuple[bool, str]:
-<<<<<<< HEAD
-    if htype in (None, UNSPECIFIED):
-        return False, DEFAULT_HTYPE
-    if htype.startswith("sequence"):
-=======
     if htype and htype.startswith("sequence"):
->>>>>>> 98c4cbe3f802462ce445cbf7c94c18f168383d93
         if htype == "sequence":
             return True, DEFAULT_HTYPE
         if htype[len("sequence")] != "[" or htype[-1] != "]":

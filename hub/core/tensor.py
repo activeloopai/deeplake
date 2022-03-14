@@ -247,9 +247,7 @@ class Tensor:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
         self._write_initialization()
-        self.chunk_engine.extend(samples)
-        for sample in samples:
-            self._append_to_links(sample)
+        self.chunk_engine.extend(samples, callback=self._append_to_links)
 
     @property
     def info(self):
@@ -626,19 +624,26 @@ class Tensor:
     def _pop(self):
         self.chunk_engine._pop()
 
-    def _append_to_links(self, sample):
-        [
-            self.dataset[k].append(get_link_transform(v["append"])(sample))
-            for k, v in self.meta.links.items()
-        ]
-
-    def _update_links(self, global_sample_index: int, sub_index: Index, new_sample):
+    def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
-            fname = v.get("update", v["append"])
-            func = get_link_transform(fname)
-            self.dataset[k][global_sample_index] = func(
-                new_sample,
-                self.dataset[k][global_sample_index],
-                sub_index=sub_index,
-                partial=not sub_index.is_trivial(),
-            )
+            if flat is None or v["flatten_sequence"] == flat:
+                self.dataset[k].append(get_link_transform(v["append"])(sample))
+
+    def _update_links(self, global_sample_index: int, sub_index: Index, new_sample, flat: Optional[bool]):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                fname = v.get("update")
+                if fname:
+                    func = get_link_transform(fname)
+                    self.dataset[k][global_sample_index] = func(
+                        new_sample,
+                        self.dataset[k][global_sample_index],
+                        sub_index=sub_index,
+                        partial=not sub_index.is_trivial(),
+                    )
+                else:
+                    if not sub_index.is_trivial():
+                        raise Exception(f"Unable to update linked tensor {k}. Update method required for partial updates.")
+                    fname = v["append"]
+                    func = get_link_transform(fname)
+                    self.dataset[k][global_sample_index] = new_sample

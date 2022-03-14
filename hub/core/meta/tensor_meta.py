@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Union, Optional
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -42,7 +42,7 @@ class TensorMeta(Meta):
     chunk_compression: str
     max_chunk_size: int
     hidden: bool
-    links: Dict[str, Dict[str, str]]
+    links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
 
     def __init__(
@@ -67,6 +67,17 @@ class TensorMeta(Meta):
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
+
+    def add_link(self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool):
+        link = {
+            "append": append_f,
+            "flatten_sequence": flatten_sequence,
+        }
+        if update_f is not None:
+            link["update"] = update_f
+        _validate_links({"name": link})
+        self.links[name] = link
+        self.is_dirty = True
 
     def set_hidden(self, val: bool):
         ffw_tensor_meta(self)
@@ -189,28 +200,32 @@ class TensorMeta(Meta):
 def _validate_links(links: dict):
     if not isinstance(links, dict):
         raise InvalidTensorLinkError()
-    allowed_keys = ("append", "update")
-    for out_tensor, funcs in links.items():
+    allowed_keys = ("append", "update", "flatten_sequence")
+    for out_tensor, args in links.items():
         if not isinstance(out_tensor, str):
             raise InvalidTensorLinkError()
-        if not isinstance(funcs, dict):
+        if not isinstance(args, dict):
             raise InvalidTensorLinkError()
-        if "append" not in funcs:
+        if "append" not in args:
             raise InvalidTensorLinkError(
                 f"append transform not specified for link {out_tensor}"
             )
+        if "flatten_sequence" not in args:
+            raise InvalidTensorLinkError(
+                f"flatten_sequence arg not specified for link {out_tensor}"
+            )           
         try:
-            hub.core.tensor_link.get(funcs["append"])
+            hub.core.tensor_link.get(args["append"])
         except KeyError:
-            raise InvalidTensorLinkError(f"Invalid append transform: {funcs['append']}")
-        if "update" in funcs:
+            raise InvalidTensorLinkError(f"Invalid append transform: {args['append']}")
+        if "update" in args:
             try:
-                hub.core.tensor_link.get(funcs["update"])
+                hub.core.tensor_link.get(args["update"])
             except KeyError:
                 raise InvalidTensorLinkError(
-                    f"Invalid update transform: {funcs['append']}"
+                    f"Invalid update transform: {args['append']}"
                 )
-        for k in funcs:
+        for k in args:
             if k not in allowed_keys:
                 raise InvalidTensorLinkError(f"Invalid key in link meta: {k}")
 
