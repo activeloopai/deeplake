@@ -19,7 +19,7 @@ def dataset_to_tensorflow(dataset):
         )
 
     import tensorflow as tf  # type: ignore
-    from hub.integration.tf.hubtensorflowdataset import HubTensorflowDataset
+    from hub.integration.tf.hubtensorflowdataset import HubTensorflowDataset  # type: ignore
 
     def __iter__():
         for index in range(len(dataset)):
