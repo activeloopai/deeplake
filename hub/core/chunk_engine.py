@@ -1322,8 +1322,8 @@ class ChunkEngine:
         callback: Optional[Callable] = None,
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
-        samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(flat_idx, samples, operator, update_commit_diff=False, callback=callback)
+        flat_samples = self._get_flat_samples_for_sequence_update(samples, index)
+        self._update(flat_idx, flat_samples, operator, update_commit_diff=False, callback=callback)
         list(
             map(
                 self.commit_diff.update_data,
