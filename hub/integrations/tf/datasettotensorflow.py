@@ -9,7 +9,6 @@ from hub.util.exceptions import (
     CorruptedSampleError,
 )
 from hub.util.check_installation import tensorflow_installed
-from .hubtensorflowdataset import HubTensorflowDataset
 
 
 def dataset_to_tensorflow(dataset):
@@ -20,6 +19,7 @@ def dataset_to_tensorflow(dataset):
         )
 
     import tensorflow as tf  # type: ignore
+    from hub.core.integration.tf.hubtensorflowdataset import HubTensorflowDataset
 
     def __iter__():
         for index in range(len(dataset)):
