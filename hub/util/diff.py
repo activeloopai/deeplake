@@ -246,21 +246,23 @@ def get_dataset_changes_for_id(
         deleted = dataset_changes.get("deleted")
         done = []
 
-        if renamed:
-            merge_renamed = OrderedDict()
-            for old, new in dataset_diff.renamed.items():
-                if deleted and new in deleted and new not in done:
-                    deleted[deleted.index(new)] = old
-                    done.append(old)
-                    continue
-                if renamed.get(new):
-                    merge_renamed[old] = renamed[new]
-                    renamed.pop(new)
-                else:
-                    merge_renamed[old] = new
+        merge_renamed = OrderedDict()
+        for old, new in dataset_diff.renamed.items():
+            if deleted and new in deleted and new not in done:
+                deleted[deleted.index(new)] = old
+                done.append(old)
+                continue
+            if renamed and renamed.get(new):
+                merge_renamed[old] = renamed[new]
+                renamed.pop(new)
+            else:
+                merge_renamed[old] = new
+
+        try:
             dataset_changes["renamed"].update(merge_renamed)
-        else:
-            dataset_changes["renamed"] = dataset_diff.renamed.copy()
+        except KeyError:
+            dataset_changes["renamed"] = merge_renamed
+
         if dataset_changes.get("deleted"):
             dataset_changes["deleted"].extend(dataset_diff.deleted)
         else:
@@ -289,11 +291,21 @@ def get_tensor_changes_for_id(
 
             if deleted and tensor in deleted:
                 if commit_diff.created:
+                    try:
+                        renamed.pop(tensor)
+                    except KeyError:
+                        pass
                     deleted.remove(tensor)
                 continue
 
             if renamed:
-                tensor = renamed.get(tensor) or tensor
+                try:
+                    new_name = renamed[tensor]
+                    if commit_diff.created:
+                        renamed.pop(tensor)
+                    tensor = new_name
+                except KeyError:
+                    pass
 
             change = tensor_changes[tensor]
 
@@ -339,6 +351,8 @@ def filter_deleted_no_rename(dataset_changes, tensor_changes):
     if renamed:
         for old_name, new_name in renamed.items():
             if old_name == new_name:
+                rm.append(old_name)
+            if new_name in deleted:
                 rm.append(old_name)
 
         for name in rm:
