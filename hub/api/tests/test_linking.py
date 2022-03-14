@@ -38,7 +38,9 @@ def test_linking_sequence_update(memory_ds):
         id_f2 = lambda *_: 1  # updated samples will have x_id=1
         with LinkTransformTestContext(id_f, "id"):
             with LinkTransformTestContext(id_f2, "id2"):
-                ds._link_tensors("x", "x_id", append_f="id", update_f="id2", flatten_sequence=False)
+                ds._link_tensors(
+                    "x", "x_id", append_f="id", update_f="id2", flatten_sequence=False
+                )
                 ds.x.extend(np.random.random((10, 5, 3, 2)))
                 ds.x[0] += 1
                 ds.x[3] += 1
@@ -46,4 +48,3 @@ def test_linking_sequence_update(memory_ds):
                 expected[0] = 1
                 expected[3] = 1
                 np.testing.assert_array_equal(ds.x_id.numpy(), expected)
-
