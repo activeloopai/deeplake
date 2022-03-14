@@ -719,17 +719,18 @@ def test_dataset_rename(ds_generator, path, hub_token):
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
 
-    new_path = "/".join([*path.split("/")[:-1], "renamed"])
+    new_path = "_".join([path, "renamed"])
+
+    with pytest.raises(RenameError):
+        ds.rename("wrongfolder/new_ds")
+
     ds = hub.rename(ds.path, new_path, token=hub_token)
 
     assert ds.path == new_path
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    ds = hub.dataset(new_path)
+    ds = hub.load(new_path, read_only=True)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
-
-    with pytest.raises(RenameError):
-        ds.rename("wrongfolder/new_ds")
 
     hub.delete(new_path)
 
