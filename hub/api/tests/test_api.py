@@ -729,10 +729,10 @@ def test_dataset_rename(ds_generator, path, hub_token):
     assert ds.path == new_path
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    ds = hub.load(new_path, read_only=True)
+    ds = hub.load(new_path, token=hub_token)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    hub.delete(new_path)
+    hub.delete(new_path, token=hub_token)
 
 
 @pytest.mark.parametrize(
