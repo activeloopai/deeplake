@@ -30,6 +30,7 @@ from hub.htype import (
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
+from hub.core.tensor_link import get_link_transform
 
 
 class TensorMeta(Meta):
@@ -68,7 +69,9 @@ class TensorMeta(Meta):
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
 
-    def add_link(self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool):
+    def add_link(
+        self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool
+    ):
         link = {
             "append": append_f,
             "flatten_sequence": flatten_sequence,
@@ -213,14 +216,14 @@ def _validate_links(links: dict):
         if "flatten_sequence" not in args:
             raise InvalidTensorLinkError(
                 f"flatten_sequence arg not specified for link {out_tensor}"
-            )           
+            )
         try:
-            hub.core.tensor_link.get(args["append"])
+            get_link_transform(args["append"])
         except KeyError:
             raise InvalidTensorLinkError(f"Invalid append transform: {args['append']}")
         if "update" in args:
             try:
-                hub.core.tensor_link.get(args["update"])
+                get_link_transform(args["update"])
             except KeyError:
                 raise InvalidTensorLinkError(
                     f"Invalid update transform: {args['append']}"
@@ -241,6 +244,8 @@ def _required_meta_from_htype(htype: str) -> dict:
         "min_shape": [],
         "max_shape": [],
         "length": 0,
+        "hidden": False,
+        "links": {},
         **defaults,
     }
 

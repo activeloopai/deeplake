@@ -151,7 +151,9 @@ def _inplace_op(f):
 
     def inner(tensor, other):
         tensor._write_initialization()
-        tensor.chunk_engine.update(tensor.index, other, op, callback=tensor._update_links)
+        tensor.chunk_engine.update(
+            tensor.index, other, op, callback=tensor._update_links
+        )
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
         return tensor
@@ -507,7 +509,9 @@ class Tensor:
             self.chunk_engine.pad_and_append(num_samples_to_pad, value)
             return
 
-        self.chunk_engine.update(self.index[item_index], value, callback=self._update_links)
+        self.chunk_engine.update(
+            self.index[item_index], value, callback=self._update_links
+        )
 
     def __iter__(self):
         for i in range(len(self)):
@@ -629,7 +633,13 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 self.dataset[k].append(get_link_transform(v["append"])(sample))
 
-    def _update_links(self, global_sample_index: int, sub_index: Index, new_sample, flat: Optional[bool]):
+    def _update_links(
+        self,
+        global_sample_index: int,
+        sub_index: Index,
+        new_sample,
+        flat: Optional[bool],
+    ):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
@@ -643,7 +653,9 @@ class Tensor:
                     )
                 else:
                     if not sub_index.is_trivial():
-                        raise Exception(f"Unable to update linked tensor {k}. Update method required for partial updates.")
+                        raise Exception(
+                            f"Unable to update linked tensor {k}. Update method required for partial updates."
+                        )
                     fname = v["append"]
                     func = get_link_transform(fname)
                     self.dataset[k][global_sample_index] = new_sample

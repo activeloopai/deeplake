@@ -749,7 +749,10 @@ class ChunkEngine:
     ):
         """Update data at `index` with `samples`."""
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index, samples, operator, callback=callback,
+            index,
+            samples,
+            operator,
+            callback=callback,
         )
 
     def _update(
@@ -800,7 +803,12 @@ class ChunkEngine:
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
             if callback:
-                callback(global_sample_index, sub_index=Index(index.values[1:]), new_sample=sample, flat=True if is_sequence else None)
+                callback(
+                    global_sample_index,
+                    sub_index=Index(index.values[1:]),
+                    new_sample=sample,
+                    flat=True if is_sequence else None,
+                )
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -1323,7 +1331,13 @@ class ChunkEngine:
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
         flat_samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(flat_idx, flat_samples, operator, update_commit_diff=False, callback=callback)
+        self._update(
+            flat_idx,
+            flat_samples,
+            operator,
+            update_commit_diff=False,
+            callback=callback,
+        )
         list(
             map(
                 self.commit_diff.update_data,
@@ -1331,10 +1345,21 @@ class ChunkEngine:
             )
         )
         if callback:
+            if isinstance(samples, np.ndarray):
+                broadcast = samples.ndim < self.ndim(index)
+            elif isinstance(samples, (bytes, str)):  # sacalars:
+                broadcast = True
+            elif isinstance(samples, Iterable):
+                broadcast = False
+            else:
+                broadcast = True
             seq_len = self._sequence_length
-            samples = make_sequence(samples, index_length=index.values[0].length(seq_len))
+            if broadcast:
+                samples = repeat(samples)
             for i, sample in zip(index.values[0].indices(seq_len), samples):
-                callback(i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False)
+                callback(
+                    i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
+                )
 
     @property
     def _sequence_item_length(self):
