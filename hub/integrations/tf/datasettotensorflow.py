@@ -27,7 +27,10 @@ def dataset_to_tensorflow(dataset):
             corrupt_sample_found = False
             for key in dataset.tensors:
                 try:
-                    value = dataset[key][index].numpy()
+                    if dataset[key].meta.htype == "blob":
+                        value = dataset[key][index].tobytes()
+                    else:
+                        value = dataset[key][index].numpy()
                     sample[key] = value
                 except SampleDecompressionError:
                     warnings.warn(
@@ -44,6 +47,9 @@ def dataset_to_tensorflow(dataset):
             shape = dataset[key].shape
             if dtype == "str":
                 dtype = tf.string
+            if dtype == "bytes":
+                dtype = tf.string
+                shape = (None,)
             signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
         return signature
 

@@ -21,6 +21,7 @@ Supported htypes and their respective defaults are:
 | HTYPE          |  DTYPE    |  COMPRESSION  |
 | ------------   |  -------  |  -----------  |
 | image          |  uint8    |  none         |
+| blob           |  bytes    |  none         |
 | class_label    |  uint32   |  none         |
 | bbox           |  float32  |  none         |
 | video          |  uint8    |  none         |
@@ -48,6 +49,9 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},
     "image": {
         "dtype": "uint8",
+    },
+    "blob": {
+        "dtype": "bytes",
     },
     "class_label": {
         "dtype": "uint32",
