@@ -264,16 +264,16 @@ class dataset:
 
     @staticmethod
     def rename(
-        path: str,
-        name: str,
+        old_path: str,
+        new_path: str,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
     ) -> Dataset:
         """Renames dataset at `path` to `name`.
 
         Args:
-            path (str): The path to the dataset to be renamed.
-            name (str): Path to the dataset after renaming.
+            old_path (str): The path to the dataset to be renamed.
+            new_path (str): Path to the dataset after renaming.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
@@ -290,8 +290,8 @@ class dataset:
 
         feature_report_path(path, "rename", {})
 
-        ds = hub.load(path, verbose=False, token=token, creds=creds)
-        ds.rename(name)
+        ds = hub.load(old_path, verbose=False, token=token, creds=creds)
+        ds.rename(new_path)
 
         return ds  # type: ignore
 
