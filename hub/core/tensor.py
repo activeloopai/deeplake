@@ -1,8 +1,6 @@
 import hub
-from hub.util.no_view import no_view
-from hub.util.version_control import checkout, generate_hash
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage.memory import MemoryProvider
+from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -216,7 +214,7 @@ class Tensor:
                 self.key
             ].chunk_engine
 
-    @no_view
+    @invalid_view_op
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -275,7 +273,7 @@ class Tensor:
         else:
             raise TypeError("Info must be set with type Dict")
 
-    @no_view
+    @invalid_view_op
     def append(
         self,
         sample: InputSample,
