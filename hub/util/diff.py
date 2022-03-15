@@ -115,7 +115,7 @@ def compare_commits(
             )
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-        filter_deleted_no_rename(dataset_changes, tensor_changes)
+        filter_deleted_and_renamed_diff(dataset_changes, tensor_changes)
         filter_data_updated(tensor_changes)
     return (
         dataset_changes_1,
@@ -182,7 +182,7 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
     """Returns a string with changes made."""
     all_changes = [separator, message]
     if ds_changes.get("info_updated", False):
-        all_changes.append("- Updated dataset info")
+        all_changes.append("- Updated dataset info \n")
     if ds_changes.get("deleted"):
         for name in ds_changes["deleted"]:
             all_changes.append(f"- Deleted:\t{name}")
@@ -343,7 +343,7 @@ def filter_data_updated(changes: Dict[str, Dict]):
         change["data_updated"] = upd
 
 
-def filter_deleted_no_rename(dataset_changes, tensor_changes):
+def filter_deleted_and_renamed_diff(dataset_changes, tensor_changes):
     """Remove deleted tensors and tensors renamed to same name from diff"""
     rm = []
     renamed = dataset_changes.get("renamed")

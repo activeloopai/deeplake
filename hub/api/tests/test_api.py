@@ -963,13 +963,17 @@ def test_tensor_rename(local_ds_generator):
     with pytest.raises(RenameError):
         ds["x"].rename_tensor("y/y", "y")
 
+    ds.create_tensor("x/y/a/b")
     with pytest.raises(TensorGroupAlreadyExistsError):
-        ds.create_tensor("x/y/a/b")
         ds["x/y"].rename_tensor("y", "a")
 
+    ds.create_tensor("abc/xyz")
     with pytest.raises(InvalidTensorNameError):
-        ds.create_tensor("abc/xyz")
         ds.rename_tensor("abc/xyz", "abc/append")
+
+    ds.create_tensor("abc/efg")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.rename_tensor("abc/xyz", "abc/efg")
 
     ds["x"].rename_tensor("y/y", "y/b")
 

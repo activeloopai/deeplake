@@ -169,6 +169,7 @@ def get_queries_lock_key() -> str:
 
 
 def filter_name(name: str, group_index: str = "") -> str:
+    """Filters tensor name and returns full name of the tensor"""
     name = name.strip("/")
 
     while "//" in name:

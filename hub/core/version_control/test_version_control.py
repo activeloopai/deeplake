@@ -634,6 +634,42 @@ def test_tensor_rename(local_ds):
         assert local_ds["x/y/b"][1].numpy() == 2
 
 
+def test_dataset_diff(local_ds, capsys):
+    local_ds.create_tensor("abc")
+    a = local_ds.commit()
+    local_ds.rename_tensor("abc", "xyz")
+    local_ds.info["hello"] = "world"
+
+    local_ds.diff()
+    dataset_changes = {"info_updated": True, "renamed": {"abc": "xyz"}}
+    target = get_diff_helper(dataset_changes, {}, {}, None)
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == {}, {}
+
+    b = local_ds.commit()
+    local_ds.delete_tensor("xyz")
+
+    local_ds.diff(a)
+    dataset_changes_from_a = {"info_updated": True, "deleted": ["abc"]}
+    target = get_diff_helper(
+        dataset_changes_from_a, {}, {}, {}, local_ds.version_state, a
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert diff == ({}, {})
+
+    # cover DatasetDiff.frombuffer
+    ds = hub.load(local_ds.path)
+    ds.diff(a)
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = ds.diff(a, as_dict=True)
+    assert diff == ({}, {})
+
+
 def test_delete_diff(local_ds, capsys):
     local_ds.create_tensor("x/y/z")
     local_ds["x/y/z"].append([4, 5, 6])
@@ -726,6 +762,7 @@ def test_rename_diff_linear(local_ds, capsys):
 
     a = local_ds.commit()
     with local_ds:
+        local_ds.create_tensor("red")
         local_ds.xyz.append([3, 4, 5])
         local_ds.rename_tensor("xyz", "efg")
         local_ds.rename_tensor("abc", "xyz")
@@ -733,6 +770,7 @@ def test_rename_diff_linear(local_ds, capsys):
 
     b = local_ds.commit()
     with local_ds:
+        local_ds.rename_tensor("red", "blue")
         local_ds.xyz.append([5, 6, 7])
         local_ds.xyz.info["hello"] = "world"
         local_ds.rename_tensor("efg", "abc")
@@ -743,6 +781,7 @@ def test_rename_diff_linear(local_ds, capsys):
     tensor_changes_from_a = {
         "xyz": tensor_diff_helper([1, 2], {0}, info_updated=True),
         "abc": tensor_diff_helper([0, 2]),
+        "blue": tensor_diff_helper(created=True),
     }
     target = get_diff_helper(
         ds_changes_from_a, {}, tensor_changes_from_a, {}, local_ds.version_state, a
@@ -756,6 +795,7 @@ def test_rename_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.rename_tensor("abc", "bcd")
         local_ds.rename_tensor("xyz", "abc")
+        local_ds.delete_tensor("blue")
 
     local_ds.diff(a)
     ds_changes_from_a = {"renamed": OrderedDict({"xyz": "bcd"})}
@@ -778,7 +818,10 @@ def test_rename_diff_linear(local_ds, capsys):
         local_ds.bcd.append([4, 5, 6])
 
     local_ds.diff(b)
-    ds_changes_from_b = {"renamed": OrderedDict({"xyz": "bcd"}), "deleted": ["efg"]}
+    ds_changes_from_b = {
+        "renamed": OrderedDict({"xyz": "bcd"}),
+        "deleted": ["efg", "red"],
+    }
     tensor_changes_from_b = {
         "bcd": tensor_diff_helper([1, 3], info_updated=True),
     }

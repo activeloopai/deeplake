@@ -329,9 +329,6 @@ class Dataset:
             else:
                 full_key = full_name
 
-        if tensor_exists(full_key, self.storage, self.version_state["commit_id"]):
-            raise TensorAlreadyExistsError(full_name)
-
         if full_name in self._groups:
             raise TensorGroupAlreadyExistsError(full_name)
 
@@ -439,16 +436,17 @@ class Dataset:
 
         with self:
             tensor_diff = self[full_name].chunk_engine.commit_diff
+            # if tensor was created in this commit, there's no diff for deleting it.
             if not tensor_diff.created:
                 self._dataset_diff.tensor_deleted(full_name)
+            full_key = self.version_state["tensor_names"].pop(full_name)
+            delete_tensor(full_key, self)
+            self.version_state["full_tensors"].pop(full_key)
             meta_key = get_dataset_meta_key(self.version_state["commit_id"])
             meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             meta.delete_tensor(full_name)
             self.version_state["meta"] = meta
-            full_key = self.version_state["tensor_names"].pop(full_name)
-            delete_tensor(full_key, self)
-            self.version_state["full_tensors"].pop(full_key)
 
         self.storage.maybe_flush()
 
@@ -568,13 +566,14 @@ class Dataset:
         tensor = self[name]
         tensor.meta.name = full_new_name
         tensor_diff = tensor.chunk_engine.commit_diff
+        # if tensor was created in this commit, tensor name has to be updated without adding it to diff.
         if not tensor_diff.created:
             self._dataset_diff.tensor_renamed(name, full_new_name)
+        full_key = self.version_state["tensor_names"].pop(name)
+        self.version_state["tensor_names"][full_new_name] = full_key
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.rename_tensor(name, full_new_name)
-        full_key = self.version_state["tensor_names"].pop(name)
-        self.version_state["tensor_names"][full_new_name] = full_key
         self.storage.maybe_flush()
         return tensor
 
