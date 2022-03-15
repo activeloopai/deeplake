@@ -651,11 +651,3 @@ class Tensor:
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                     )
-                else:
-                    if not sub_index.is_trivial():
-                        raise Exception(
-                            f"Unable to update linked tensor {k}. Update method required for partial updates."
-                        )
-                    fname = v["append"]
-                    func = get_link_transform(fname)
-                    self.dataset[k][global_sample_index] = new_sample
