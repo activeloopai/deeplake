@@ -43,8 +43,18 @@ def break_into_tiles(sample: np.ndarray, tile_shape: Tuple[int, ...]) -> np.ndar
     return tiles
 
 
+def get_tile_shapes(sample_shape: Tuple[int, ...], tile_shape: Tuple[int, ...]):
+    tiles_per_dim = np.ceil(np.divide(sample_shape, tile_shape)).astype(int)
+    tile_shapes = np.empty(tiles_per_dim, dtype=object)
+    for tile_coords in np.ndindex(*tiles_per_dim):
+        low = np.multiply(tile_coords, tile_shape)
+        high = np.minimum(low + tile_shape, sample_shape)
+        tile_shapes[tile_coords] = tuple(high - low)
+    return tile_shapes
+
+
 def serialize_tiles(
-    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], memoryview]
+    tiles: np.ndarray, serialize_func: Callable[[np.ndarray], bytes]
 ) -> np.ndarray:
     """Get a new tile-ordered numpy object array that is the same shape of the tile-grid.
     Each element of the returned numpy object array is a memoryview object representing the serialized tile.

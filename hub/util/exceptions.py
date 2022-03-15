@@ -116,7 +116,7 @@ class InvalidTensorGroupNameError(Exception):
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            f"Tensor '{key}' with index = {str(index)} is a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
+            f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -579,10 +579,6 @@ class DatasetHandlerError(Exception):
         super().__init__(message)
 
 
-class CallbackInitializationError(Exception):
-    pass
-
-
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(
@@ -605,6 +601,17 @@ class CheckoutError(VersionControlError):
 
 class CommitError(VersionControlError):
     pass
+
+
+class EmptyCommitError(CommitError):
+    pass
+
+
+class TensorModifiedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The target commit is not an ancestor of the current commit, modified can't be calculated."
+        )
 
 
 class GCSDefaultCredsNotFoundError(Exception):
@@ -648,4 +655,8 @@ class NotLoggedInError(AgreementError):
 
 
 class BufferError(Exception):
+    pass
+
+
+class InfoError(Exception):
     pass

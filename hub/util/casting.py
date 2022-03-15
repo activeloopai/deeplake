@@ -44,16 +44,40 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"
-    types = set((map(type, val)))
+    types = set((map(type, val)))  # type: ignore
     if dict in types:
         return "json"
     if types == set((str,)):
         return "text"
     if np.object in [  # type: ignore
-        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val
+        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val  # type: ignore
     ]:
         return "json"
     return "generic"
+
+
+def get_empty_sample(htype: str):
+    """Get an empty sample of the given htype.
+
+    Args:
+        htype: htype of the sample.
+
+    Returns:
+        Empty sample.
+
+    Raises:
+        ValueError: if htype is not one of 'text', 'json', and 'list'.
+    """
+    if htype == "text":
+        return ""
+    elif htype == "json":
+        return {}
+    elif htype == "list":
+        return []
+    else:
+        raise ValueError(
+            f"This method should only be used for htypes 'text', 'json' and 'list'. Got {htype}."
+        )
 
 
 def intelligent_cast(

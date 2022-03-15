@@ -2,7 +2,7 @@ from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
 from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
@@ -11,10 +11,7 @@ from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 CHUNK_ID_COLUMN = 0
 
 
-class ChunkIdEncoder(Encoder, Cachable):
-    def tobytes(self) -> memoryview:
-        return serialize_chunkids(self.version, [self._encoded])
-
+class ChunkIdEncoder(Encoder, HubMemoryObject):
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
         """Returns the hex of `id` with the "0x" prefix removed. This is the chunk's name and should be used to determine the chunk's key.
@@ -40,17 +37,6 @@ class ChunkIdEncoder(Encoder, Cachable):
         use `__getitem__`, then `name_from_id`."""
 
         return self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
-
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        instance = cls()
-        if not buffer:
-            return instance
-        version, ids = deserialize_chunkids(buffer)
-        if ids.nbytes:
-            instance._encoded = ids
-        instance.version = version
-        return instance
 
     @property
     def num_chunks(self) -> int:
@@ -235,18 +221,21 @@ class ChunkIdEncoder(Encoder, Cachable):
         chunk_ids_for_last_sample = self[-1]
         if len(chunk_ids_for_last_sample) > 1:
             self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
-            return chunk_ids_for_last_sample, True
+            to_delete = True
         else:
             num_samples_in_last_chunk = self._num_samples_in_last_chunk()
 
             if num_samples_in_last_chunk == 1:
                 self._encoded = self._encoded[:-1]
-                return chunk_ids_for_last_sample, True
+                to_delete = True
             elif num_samples_in_last_chunk > 1:
                 self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-                return chunk_ids_for_last_sample, False
+                to_delete = False
             else:
                 raise IndexError("pop from empty encoder")
+
+        self.is_dirty = True
+        return chunk_ids_for_last_sample, to_delete
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
@@ -266,3 +255,19 @@ class ChunkIdEncoder(Encoder, Cachable):
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
             self._encoded = np.concatenate([top, mid, bottom], axis=0)
+        self.is_dirty = True
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        instance = cls()
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded = ids
+        instance.version = version
+        instance.is_dirty = False
+        return instance
+
+    def tobytes(self) -> memoryview:
+        return serialize_chunkids(self.version, [self._encoded])

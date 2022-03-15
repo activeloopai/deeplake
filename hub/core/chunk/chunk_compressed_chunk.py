@@ -6,13 +6,12 @@ from hub.core.compression import (
     decompress_bytes,
     decompress_multiple,
 )
-from hub.core.sample import Sample  # type: ignore
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.serialize import bytes_to_text, check_sample_shape
+from hub.core.partial_sample import PartialSample
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
-from hub.util.exceptions import SampleDecompressionError
 from .base_chunk import BaseChunk, InputSample
 from hub.core.serialize import infer_chunk_num_bytes
 import hub
@@ -57,7 +56,8 @@ class ChunkCompressedChunk(BaseChunk):
                     self.write_tile(serialized_sample)
                     num_samples += 0.5  # type: ignore
                     tile = serialized_sample.yield_uncompressed_tile()
-                    self.decompressed_bytes = tile.tobytes()
+                    if tile is not None:
+                        self.decompressed_bytes = tile.tobytes()
                     self._changed = True
                 break
             sample_nbytes = len(serialized_sample)
@@ -100,11 +100,12 @@ class ChunkCompressedChunk(BaseChunk):
                     self.write_tile(incoming_sample)
                     num_samples += 0.5  # type: ignore
                     tile = incoming_sample.yield_uncompressed_tile()
-                    self.decompressed_samples = [tile]
+                    if tile is not None:
+                        self.decompressed_samples = [tile]
                     self._changed = True
                 break
             if (
-                num_decompressed_bytes + incoming_sample.nbytes
+                num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
                 compressed_bytes = compress_multiple(
                     self.decompressed_samples + [incoming_sample],  # type: ignore
@@ -116,7 +117,7 @@ class ChunkCompressedChunk(BaseChunk):
                 self._data_bytes = compressed_bytes
                 self._changed = False
 
-            shape = incoming_sample.shape
+            shape = incoming_sample.shape  # type: ignore
             shape = self.normalize_shape(shape)
 
             self.num_dims = self.num_dims or len(shape)
@@ -128,7 +129,19 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples += 1
         return num_samples
 
+    def _get_partial_sample_tile(self, as_bytes=None):
+        if self.decompressed_samples or self.decompressed_bytes:
+            return None
+        if as_bytes is None:
+            as_bytes = self.is_byte_compression
+        return super(ChunkCompressedChunk, self)._get_partial_sample_tile(
+            as_bytes=as_bytes
+        )
+
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
+        partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
+        if partial_sample_tile is not None:
+            return partial_sample_tile
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
@@ -153,7 +166,9 @@ class ChunkCompressedChunk(BaseChunk):
             new_sample, chunk_compression=self.compression, break_into_tiles=False
         )
         self.check_shape_for_update(local_index, shape)
-
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_bytes = partial_sample_tile
         decompressed_buffer = self.decompressed_bytes
 
         new_data_uncompressed = self.create_updated_data(
@@ -171,13 +186,15 @@ class ChunkCompressedChunk(BaseChunk):
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(local_index, shape)
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            self.decompressed_samples = [partial_sample_tile]
         decompressed_samples = self.decompressed_samples
 
         decompressed_samples[local_index] = new_sample  # type: ignore
         self._changed = True
         self.update_in_meta_and_headers(local_index, None, shape)  # type: ignore
 
-        decompressed_samples[local_index] = new_sample  # type: ignore
         self.data_bytes = bytearray(  # type: ignore
             compress_multiple(decompressed_samples, self.compression)  # type: ignore
         )
@@ -186,6 +203,18 @@ class ChunkCompressedChunk(BaseChunk):
     def process_sample_img_compr(self, sample):
         if isinstance(sample, SampleTiles):
             return sample, sample.tile_shape
+        elif isinstance(sample, PartialSample):
+            return (
+                SampleTiles(
+                    compression=self.compression,
+                    chunk_size=self.min_chunk_size,
+                    htype=self.htype,
+                    dtype=self.dtype,
+                    sample_shape=sample.sample_shape,
+                    tile_shape=sample.tile_shape,
+                ),
+                sample.sample_shape,
+            )
         if isinstance(sample, hub.core.tensor.Tensor):
             sample = sample.numpy()
         sample = intelligent_cast(sample, self.dtype, self.htype)
@@ -257,3 +286,4 @@ class ChunkCompressedChunk(BaseChunk):
 
     def prepare_for_write(self):
         ffw_chunk(self)
+        self.is_dirty = True

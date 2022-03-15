@@ -1,13 +1,15 @@
 from datasets import load_dataset  # type: ignore
 from datasets import Dataset  # type: ignore
-from hub.integrations.huggingface import from_huggingface
+from hub.integrations.huggingface import ingest_huggingface
 from hub.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
+
+import hub
 
 
 def test_before_split():
     ds = load_dataset("glue", "mrpc")
-    hub_ds = from_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, "mem://xyz")
 
     splits = ds.keys()
     columns = ds["train"].column_names
@@ -25,7 +27,7 @@ def test_before_split():
 
 def test_split():
     ds = load_dataset("glue", "mrpc", split="train[:5%]")
-    hub_ds = from_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, "mem://xyz")
 
     assert hub_ds.meta.tensors == ds.column_names
 
@@ -35,7 +37,7 @@ def test_split():
 
 def test_seq_with_dict():
     ds = load_dataset("squad", split="train[:5%]")
-    hub_ds = from_huggingface(ds, "mem://xyz")
+    hub_ds = hub.ingest_huggingface(ds, "mem://xyz")
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 
@@ -62,7 +64,7 @@ def test_seq():
     data = {"id": [0, 1], "seq": [arr1, arr2]}
     ds = Dataset.from_dict(data)
 
-    hub_ds = from_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, "mem://xyz")
 
     assert set(hub_ds.meta.tensors) == {"id", "seq"}
     assert_array_equal(hub_ds["seq"], [arr1, arr2])

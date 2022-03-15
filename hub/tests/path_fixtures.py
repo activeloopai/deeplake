@@ -3,6 +3,7 @@ from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
+import hub
 from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
@@ -10,6 +11,7 @@ from hub.constants import (
     LOCAL_OPT,
     MEMORY_OPT,
     PYTEST_GCS_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
     PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
@@ -214,6 +216,16 @@ def s3_path(request):
         S3Provider(path).clear()
 
 
+@pytest.fixture
+def s3_vstream_path(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
 @pytest.fixture(scope="session")
 def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
@@ -236,6 +248,16 @@ def gcs_path(request, gcs_creds):
 
 
 @pytest.fixture
+def gcs_vstream_path(request):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
+@pytest.fixture
 def hub_cloud_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
@@ -249,12 +271,23 @@ def hub_cloud_path(request, hub_cloud_dev_token):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         try:
-            storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
+            hub.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
         except Exception:
             # TODO: investigate flakey `BadRequestException:
             # Invalid Request. One or more request parameters is incorrect.`
             # (on windows 3.8 only)
             pass
+
+
+@pytest.fixture
+def hub_cloud_vstream_path(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+
+    yield path
 
 
 @pytest.fixture
@@ -300,7 +333,7 @@ def compressed_image_paths():
         "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
-        "tiff": "field.tiff",
+        "tiff": ["field.tiff", "field.tif"],
         "png": "flower.png",
         "ico": "sample_ico.ico",
         "jpeg2000": "sample_jpeg2000.jp2",
@@ -366,3 +399,23 @@ def video_paths():
     paths["mp4"] += _download_hub_test_videos()
 
     return paths
+
+
+@pytest.fixture
+def vstream_path(request):
+    """Used with parametrize to use all video stream test datasets."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def path(request):
+    """Used with parametrize to get all dataset paths."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def hub_token(request):
+    """Used with parametrize to get hub_cloud_dev_token if hub-cloud option is True else None"""
+    if is_opt_true(request, HUB_CLOUD_OPT):
+        return request.getfixturevalue(request.param)
+    return None

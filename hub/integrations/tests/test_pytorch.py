@@ -201,6 +201,13 @@ def test_pytorch_transform_dict(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
+    for _ in range(2):
+        for i, (image, image2) in enumerate(dl):
+            np.testing.assert_array_equal(
+                image.numpy(), 2 * i * np.ones((1, i + 1, i + 1))
+            )
+            np.testing.assert_array_equal(image2.numpy(), i * np.ones((1, 12, 12)))
+
 
 @requires_torch
 @enabled_datasets

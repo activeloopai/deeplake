@@ -78,6 +78,7 @@ class Encoder(ABC):
             )
 
         self.version = hub.__version__
+        self.is_dirty = True
 
     @property
     def array(self):
@@ -180,6 +181,8 @@ class Encoder(ABC):
             self._encoded = np.array(
                 [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
             )
+
+        self.is_dirty = True
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
@@ -304,6 +307,7 @@ class Encoder(ABC):
 
         self._post_process_state(start_row_index=max(row_index - 2, 0))
         self._reset_update_state()
+        self.is_dirty = True
 
     def _post_process_state(self, start_row_index: int):
         """Overridden when more complex columns exist in subclasses. Example: byte positions."""
@@ -608,7 +612,7 @@ class Encoder(ABC):
             return False
 
         # a new row should be created above
-        start = self._encoded[: row_index - 1]
+        start = self._encoded[: max(0, row_index - 1)]
         end = self._encoded[row_index:]
         new_row = np.array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
@@ -719,6 +723,14 @@ class Encoder(ABC):
             self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
         else:
             raise IndexError("pop from empty encoder")
+        self.is_dirty = True
 
     def is_empty(self) -> bool:
         return len(self._encoded) == 0
+
+    def tobytes(self) -> memoryview:
+        raise NotImplementedError()
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        raise NotImplementedError()

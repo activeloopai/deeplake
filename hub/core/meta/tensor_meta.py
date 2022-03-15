@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -21,7 +21,6 @@ from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
 )
 from hub.htype import (
@@ -41,6 +40,8 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
     max_chunk_size: int
+    hidden: bool
+    is_sequence: bool
 
     def __init__(
         self,
@@ -59,12 +60,16 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-
         if htype and htype != UNSPECIFIED:
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
+
+    def set_hidden(self, val: bool):
+        ffw_tensor_meta(self)
+        self.hidden = val
+        self.is_dirty = True
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
@@ -79,6 +84,11 @@ class TensorMeta(Meta):
             raise ValueError("Dtype was None, but length was > 0.")
 
         self.dtype = dtype.name
+        self.is_dirty = True
+
+    def set_dtype_str(self, dtype_name: str):
+        self.dtype = dtype_name
+        self.is_dirty = True
 
     def set_htype(self, htype: str, **kwargs):
         """Should only be called once."""
@@ -111,9 +121,12 @@ class TensorMeta(Meta):
                 required_meta.pop(k, None)
 
         self.__dict__.update(required_meta)
+        self.is_dirty = True
 
-    def update_shape_interval(self, shape: Tuple[int, ...]):
+    def update_shape_interval(self, shape: Sequence[int]):
         ffw_tensor_meta(self)
+        initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
+        initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
         if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
@@ -128,6 +141,23 @@ class TensorMeta(Meta):
                 self.min_shape[i] = min(dim, self.min_shape[i])
                 self.max_shape[i] = max(dim, self.max_shape[i])
 
+        if initial_min_shape != self.min_shape or initial_max_shape != self.max_shape:
+            self.is_dirty = True
+
+    def update_length(self, length: int):
+        ffw_tensor_meta(self)
+        self.length += length
+        if length != 0:
+            self.is_dirty = True
+
+    def _pop(self):
+        ffw_tensor_meta(self)
+        self.length -= 1
+        if self.length == 0:
+            self.min_shape = []
+            self.max_shape = []
+        self.is_dirty = True
+
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
 
@@ -139,6 +169,8 @@ class TensorMeta(Meta):
     def __setstate__(self, state: Dict[str, Any]):
         if "chunk_compression" not in state:
             state["chunk_compression"] = None  # Backward compatibility
+        if "hidden" not in state:
+            state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
 

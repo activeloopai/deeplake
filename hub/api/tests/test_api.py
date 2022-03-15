@@ -1,14 +1,17 @@
 import os
+import sys
 import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
+
 from hub.tests.common import assert_array_lists_equal
+from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     InvalidOperationError,
     TensorDtypeMismatchError,
-    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
@@ -19,11 +22,6 @@ from hub.util.exceptions import (
 from hub.constants import MB
 
 from click.testing import CliRunner
-from hub.tests.dataset_fixtures import (
-    enabled_datasets,
-    enabled_persistent_dataset_generators,
-    enabled_non_gcs_datasets,
-)
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -55,17 +53,38 @@ def test_persist(ds_generator):
 
     assert ds_new.meta.version == hub.__version__
 
+    ds_new.create_tensor("label")
+    ds_new.label.extend([1, 2, 3, 4])
 
-@enabled_persistent_dataset_generators
-def test_persist_with(ds_generator):
-    with ds_generator() as ds:
+    ds2 = ds_generator()
+
+    ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
+    assert len(ds2) == 4
+    np.testing.assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
+
+
+def test_persist_keys(local_ds_generator):
+    ds = local_ds_generator()
+
+    ds.create_tensor("image")
+
+    ds_new = local_ds_generator()
+    assert set(ds_new.storage.keys()) == {
+        "dataset_meta.json",
+        "image/commit_diff",
+        "image/tensor_meta.json",
+    }
+
+
+def test_persist_with(local_ds_generator):
+    with local_ds_generator() as ds:
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 224, 224, 3)))
 
-        ds_new = ds_generator()
+        ds_new = local_ds_generator()
         assert len(ds_new) == 0  # shouldn't be flushed yet
 
-    ds_new = ds_generator()
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     engine = ds_new.image.chunk_engine
@@ -79,13 +98,12 @@ def test_persist_with(ds_generator):
     assert ds_new.meta.version == hub.__version__
 
 
-@enabled_persistent_dataset_generators
-def test_persist_clear_cache(ds_generator):
-    ds = ds_generator()
+def test_persist_clear_cache(local_ds_generator):
+    ds = local_ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
-    ds_new = ds_generator()
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -93,33 +111,32 @@ def test_persist_clear_cache(ds_generator):
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
 
-@enabled_datasets
-def test_populate_dataset(ds):
-    assert ds.meta.tensors == []
-    ds.create_tensor("image")
-    assert len(ds) == 0
-    assert len(ds.image) == 0
+def test_populate_dataset(local_ds):
+    assert local_ds.meta.tensors == []
+    local_ds.create_tensor("image")
+    assert len(local_ds) == 0
+    assert len(local_ds.image) == 0
 
-    ds.image.extend(np.ones((4, 28, 28)))
-    assert len(ds) == 4
-    assert len(ds.image) == 4
+    local_ds.image.extend(np.ones((4, 28, 28)))
+    assert len(local_ds) == 4
+    assert len(local_ds.image) == 4
 
     for _ in range(10):
-        ds.image.append(np.ones((28, 28)))
-    assert len(ds.image) == 14
+        local_ds.image.append(np.ones((28, 28)))
+    assert len(local_ds.image) == 14
 
-    ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
-    assert len(ds.image) == 16
+    local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(local_ds.image) == 16
 
-    assert ds.meta.tensors == [
+    assert local_ds.meta.tensors == [
         "image",
     ]
-    assert ds.meta.version == hub.__version__
+    assert local_ds.meta.version == hub.__version__
 
 
 def test_larger_data_memory(memory_ds):
-    memory_ds.create_tensor("image")
-    x = np.ones((4, 4096, 4096))
+    memory_ds.create_tensor("image", max_chunk_size=2 * MB)
+    x = np.ones((4, 1024, 1024))
     memory_ds.image.extend(x)
     assert len(memory_ds) == 4
     assert memory_ds.image.shape == x.shape
@@ -134,7 +151,7 @@ def test_larger_data_memory(memory_ds):
         slice(2, None),
         (0, slice(5, None), slice(None, 714)),
         (2, 100, 1007),
-        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 4095]),
+        (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 1023]),
     ]
     for idx in idxs:
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
@@ -162,23 +179,21 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@enabled_non_gcs_datasets
-def test_compute_fixed_tensor(ds):
-    ds.create_tensor("image")
-    ds.image.extend(np.ones((32, 28, 28)))
-    assert len(ds) == 32
-    np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
+def test_fixed_tensor(local_ds):
+    local_ds.create_tensor("image")
+    local_ds.image.extend(np.ones((32, 28, 28)))
+    assert len(local_ds) == 32
+    np.testing.assert_array_equal(local_ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@enabled_non_gcs_datasets
-def test_compute_dynamic_tensor(ds):
-    ds.create_tensor("image")
+def test_dynamic_tensor(local_ds):
+    local_ds.create_tensor("image")
 
     a1 = np.ones((32, 28, 28))
     a2 = np.ones((10, 36, 11))
     a3 = np.ones((29, 10))
 
-    image = ds.image
+    image = local_ds.image
 
     image.extend(a1)
     image.extend(a2)
@@ -202,9 +217,8 @@ def test_compute_dynamic_tensor(ds):
     assert image.is_dynamic
 
 
-@enabled_datasets
-def test_empty_samples(ds: Dataset):
-    tensor = ds.create_tensor("with_empty")
+def test_empty_samples(local_ds: Dataset):
+    tensor = local_ds.create_tensor("with_empty")
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -228,14 +242,25 @@ def test_empty_samples(ds: Dataset):
     assert_array_lists_equal(actual_list, expected_list)
 
     # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
-    for actual_sample, expected in zip(ds, expected_list):
+    for actual_sample, expected in zip(local_ds, expected_list):
         actual = actual_sample.with_empty.numpy()
         np.testing.assert_array_equal(actual, expected)
 
 
-@enabled_non_gcs_datasets
-def test_safe_downcasting(ds: Dataset):
-    int_tensor = ds.create_tensor("int", dtype="uint8")
+def test_indexed_tensor(local_ds: Dataset):
+    tensor = local_ds.create_tensor("abc")
+    tensor.append([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+    np.testing.assert_array_equal(tensor[0, 1].numpy(), np.array([4, 5, 6]))
+    np.testing.assert_array_equal(
+        tensor[0, 0:2].numpy(), np.array([[1, 2, 3], [4, 5, 6]])
+    )
+    np.testing.assert_array_equal(
+        tensor[0, 0::2].numpy(), np.array([[1, 2, 3], [7, 8, 9]])
+    )
+
+
+def test_safe_downcasting(local_ds):
+    int_tensor = local_ds.create_tensor("int", dtype="uint8")
     int_tensor.append(0)
     int_tensor.append(1)
     int_tensor.extend([2, 3, 4])
@@ -248,7 +273,7 @@ def test_safe_downcasting(ds: Dataset):
     with pytest.raises(TensorDtypeMismatchError):
         int_tensor.append(np.array([1.0]))
 
-    float_tensor = ds.create_tensor("float", dtype="float32")
+    float_tensor = local_ds.create_tensor("float", dtype="float32")
     float_tensor.append(0)
     float_tensor.append(1)
     float_tensor.extend([2, 3.0, 4.0])
@@ -260,9 +285,8 @@ def test_safe_downcasting(ds: Dataset):
     assert len(float_tensor) == 10
 
 
-@enabled_datasets
-def test_scalar_samples(ds: Dataset):
-    tensor = ds.create_tensor("scalars")
+def test_scalar_samples(local_ds):
+    tensor = local_ds.create_tensor("scalars")
 
     assert tensor.meta.dtype is None
 
@@ -336,13 +360,12 @@ def test_scalar_samples(ds: Dataset):
     assert len(tensor) == 22
 
 
-@enabled_datasets
-def test_sequence_samples(ds: Dataset):
-    tensor = ds.create_tensor("arrays")
+def test_sequence_samples(local_ds):
+    tensor = local_ds.create_tensor("arrays")
 
     tensor.append([1, 2, 3])
     tensor.extend([[4, 5, 6]])
-    ds.clear_cache()
+    local_ds.clear_cache()
 
     assert len(tensor) == 2
     expected_list = [[1, 2, 3], [4, 5, 6]]
@@ -353,16 +376,15 @@ def test_sequence_samples(ds: Dataset):
     assert_array_lists_equal(tensor.numpy(aslist=True), expected_list)
 
 
-@enabled_datasets
-def test_iterate_dataset(ds):
+def test_iterate_dataset(local_ds):
     labels = [1, 9, 7, 4]
-    ds.create_tensor("image")
-    ds.create_tensor("label")
+    local_ds.create_tensor("image")
+    local_ds.create_tensor("label")
 
-    ds.image.extend(np.ones((4, 28, 28)))
-    ds.label.extend(np.asarray(labels).reshape((4, 1)))
+    local_ds.image.extend(np.ones((4, 28, 28)))
+    local_ds.label.extend(np.asarray(labels).reshape((4, 1)))
 
-    for idx, sub_ds in enumerate(ds):
+    for idx, sub_ds in enumerate(local_ds):
         img = sub_ds.image.numpy()
         label = sub_ds.label.numpy()
         np.testing.assert_array_equal(img, np.ones((28, 28)))
@@ -612,6 +634,9 @@ def test_like(local_path):
 
     src_ds.d.info.update(key=1)
 
+    assert src_ds.info.key == 0
+    assert src_ds.d.info.key == 1
+
     dest_ds = hub.like(dest_path, src_ds)
 
     assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
@@ -677,6 +702,102 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["s3_path", "hub_cloud_dev_token"],
+        ["gcs_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progress_bar", [True, False])
+def test_dataset_copy(path, hub_token, num_workers, progress_bar):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    dest_ds = hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == None
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    for tensor in dest_ds.meta.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    with pytest.raises(DatasetHandlerError):
+        hub.copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+
+    hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.copy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progress_bar=progress_bar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+
+    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    hub.delete(src_path, token=hub_token)
+    hub.delete(dest_path, token=hub_token)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
@@ -795,7 +916,8 @@ def test_groups(local_ds_generator):
 
 def test_tensor_delete(local_ds_generator):
     ds = local_ds_generator()
-    ds.create_tensor("x")
+    ds.create_tensor("x", max_chunk_size=2 * MB)
+    ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
@@ -826,7 +948,7 @@ def test_vc_bug(local_ds_generator):
     a = ds.commit("first")
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
-    assert ds._all_tensors_filtered == ["abc", "a/b/c/d"]
+    assert ds._all_tensors_filtered() == ["abc", "a/b/c/d"]
 
 
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
@@ -893,15 +1015,16 @@ def test_no_view(memory_ds):
 @pytest.mark.parametrize(
     "y_args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
 )
-@pytest.mark.parametrize("x_size", [5, (32 * 5000)])
-def test_ds_append(memory_ds, x_args, y_args, x_size):
+@pytest.mark.parametrize("x_size", [5, (32 * 1000)])
+@pytest.mark.parametrize("htype", ["generic", "sequence"])
+def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20)
-    ds.create_tensor("y", dtype="uint8", **y_args)
+    ds.create_tensor("x", **x_args, max_chunk_size=2**20, htype=htype)
+    ds.create_tensor("y", dtype="uint8", htype=htype, **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
     ds.append({"x": np.ones(2), "y": [1, 2, 3]})
-    ds.create_tensor("z")
+    ds.create_tensor("z", htype=htype)
     with pytest.raises(KeyError):
         ds.append({"x": np.ones(2), "y": [4, 5, 6, 7]})
     ds.append({"x": np.ones(3), "y": [8, 9, 10]}, skip_ok=True)
@@ -919,22 +1042,64 @@ def test_ds_append(memory_ds, x_args, y_args, x_size):
     assert len(ds) == 0
 
 
+def test_ds_append_with_ds_view():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.append({"x": [0, 1], "y": [1, 2]})
+    ds2.append(ds1[0])
+    np.testing.assert_array_equal(ds1.x, np.array([[0, 1]]))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.array([[1, 2]]))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
+def test_ds_extend():
+    ds1 = hub.dataset("mem://x")
+    ds2 = hub.dataset("mem://y")
+    ds1.create_tensor("x")
+    ds2.create_tensor("x")
+    ds1.create_tensor("y")
+    ds2.create_tensor("y")
+    ds1.extend({"x": [0, 1, 2, 3], "y": [4, 5, 6, 7]})
+    ds2.extend(ds1)
+    np.testing.assert_array_equal(ds1.x, np.arange(4).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.x, ds2.x)
+    np.testing.assert_array_equal(ds1.y, np.arange(4, 8).reshape(-1, 1))
+    np.testing.assert_array_equal(ds1.y, ds2.y)
+
+
 @pytest.mark.parametrize(
     "src_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
 @pytest.mark.parametrize(
     "dest_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
-@pytest.mark.parametrize("size", [(30, 40, 3), (5041, 3037, 3)])
+@pytest.mark.parametrize("size", [(30, 40, 3), (1261, 759, 3)])
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = hub.dataset("mem://ds1")
     ds2 = hub.dataset("mem://ds2")
-    ds1.create_tensor("x", **src_args)
+    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
     ds2.create_tensor("y", **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+
+def test_extend_with_tensor():
+    ds1 = hub.dataset("mem://ds1")
+    ds2 = hub.dataset("mem://ds2")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4])
+    with ds2:
+        ds2.create_tensor("x")
+        ds2.x.extend(ds1.x)
+    np.testing.assert_array_equal(ds1.x, ds2.x)
 
 
 def test_empty_extend(memory_ds):
@@ -989,3 +1154,123 @@ def test_sample_shape(memory_ds):
     assert ds.z[1].shape == (5, 3000, 4000)
     assert ds.w[0][0, :2].shape == (2, 2)
     assert ds.z[1][:2, 10:].shape == (2, 2990, 4000)
+
+
+@enabled_remote_storages
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
+    image_path = color_image_paths["jpeg"]
+    with open(image_path, "rb") as f:
+        byts = f.read()
+
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    image = hub.read("https://picsum.photos/200/300")
+    memory_ds.images.append(image)
+    assert memory_ds.images[0].shape == (300, 200, 3)
+
+    storage["sample/samplejpg.jpg"] = byts
+    image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[1].shape == (323, 480, 3)
+
+    storage["samplejpg.jpg"] = byts
+    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    memory_ds.images.append(image)
+    assert memory_ds.images[2].shape == (323, 480, 3)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+@enabled_remote_storages
+def test_hub_remote_read_videos(storage, memory_ds):
+    memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+
+    video = hub.read(
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    )
+    memory_ds.videos.append(video)
+    assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
+
+    if isinstance(storage, GCSProvider):
+        video = hub.read(
+            "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        )
+        memory_ds.videos.append(video)
+        assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
+
+
+@pytest.mark.parametrize("aslist", (True, False))
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
+)
+@pytest.mark.parametrize(
+    "idx", [3, slice(None), slice(5, 9), slice(3, 7, 2), [3, 7, 6, 4]]
+)
+def test_sequence_htype(memory_ds, aslist, args, idx):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence", **args)
+        for _ in range(10):
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (10, 5, 2, 7, 3)
+
+
+@pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
+def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
+    ds = local_ds
+    imgs = list(map(hub.read, compressed_image_paths["jpeg"][:3]))
+    arrs = np.random.randint(0, 256, (5, *shape), dtype=np.uint8)
+    with ds:
+        ds.create_tensor("x", htype="sequence[image]", sample_compression="png")
+        for i in range(5):
+            if i % 2:
+                ds.x.append(imgs)
+            else:
+                ds.x.append(arrs)
+    for i in range(5):
+        if i % 2:
+            for j in range(3):
+                np.testing.assert_array_equal(ds.x[i][j].numpy(), imgs[j].array)
+        else:
+            for j in range(5):
+                np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
+
+
+def test_shape_bug(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.x.extend(np.ones((5, 9, 2)))
+    assert ds.x[1:4, 3:7].shape == (3, 4, 2)
+
+
+def test_hidden_tensors(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("x", hidden=True)
+        ds.x.append(1)
+        assert ds.tensors == {}
+        ds.create_tensor("y")
+        assert list(ds.tensors.keys()) == ["y"]
+        ds.y.extend([1, 2])
+        assert len(ds) == 2  # length of hidden tensor is not considered
+        ds._hide_tensor("y")
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert len(ds) == 0
+    with ds:
+        ds.create_tensor("w")
+        ds.create_tensor("z")
+        ds.append({"w": 2, "z": 3})  # hidden tensors not required
+
+    # Test access
+    np.testing.assert_array_equal(ds.x, np.array([[1]]))
+    np.testing.assert_array_equal(ds.y, np.array([[1], [2]]))
+
+    assert not ds.w.meta.hidden
+    assert not ds.z.meta.hidden
+    assert ds.x.meta.hidden
+    assert ds.y.meta.hidden

@@ -1,8 +1,16 @@
 from hub.core.sample import Sample  # type: ignore
+from typing import Optional, Dict
 
 
-def read(path: str, verify: bool = False) -> Sample:
-    """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
+def read(
+    path: str,
+    verify: bool = False,
+    creds: Optional[Dict] = None,
+    compression: Optional[str] = None,
+) -> Sample:
+    """Utility that reads raw data from supported files into hub format. Recompresses data into format required by the tensor
+    if permitted by the tensor htype. Simply copies the data in the file if file format matches sample_compression of the tensor,
+    thus maximizing upload speeds.
 
     Note:
         No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
@@ -15,17 +23,37 @@ def read(path: str, verify: bool = False) -> Sample:
         >>> sample.compression
         'jpeg'
 
+        >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        >>> ds.images.append(sample)
+        >>> ds.images.shape
+        (1, 399, 640, 3)
+
+        >>> ds.create_tensor("videos", htype="video", sample_compression="mp4")
+        >>> ds.videos.append(hub.read("path/to/video.mp4"))
+        >>> ds.videos.shape
+        (1, 136, 720, 1080, 3)
+
+        >>> image = hub.read("https://picsum.photos/200/300")
+        >>> image.compression
+        'jpeg'
+        >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        >>> ds.images.append(image)
+        >>> ds.images[0].shape
+        (300, 200, 3)
+
     Supported file types:
+
         Image: "bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm"
         Audio: "flac", "mp3", "wav"
+        Video: "mp4", "mkv", "avi"
 
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
+        creds (optional, Dict): Credentials for s3 and gcp for urls.
+        compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
-
-    sample = Sample(path, verify=verify)
-    return sample
+    return Sample(path, verify=verify, compression=compression, creds=creds)
