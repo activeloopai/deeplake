@@ -439,6 +439,14 @@ def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
+    try:
+        dataset_diff_key = get_dataset_diff_key(commit_id)
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        if dataset_diff.deleted or dataset_diff.renamed:
+            return True
+    except KeyError:
+        pass
+
     for tensor in version_state["full_tensors"].keys():
         if commit_id == FIRST_COMMIT_ID:
             # if the first commit has even a single tensor i.e. it entered the for loop, it has data
