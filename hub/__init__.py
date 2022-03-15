@@ -39,6 +39,7 @@ from .integrations import huggingface
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
 list = dataset.list
+exists = dataset.exists
 load = dataset.load
 empty = dataset.empty
 like = dataset.like

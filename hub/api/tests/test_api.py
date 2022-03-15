@@ -1232,3 +1232,19 @@ def test_hidden_tensors(local_ds_generator):
     assert not ds.z.meta.hidden
     assert ds.x.meta.hidden
     assert ds.y.meta.hidden
+
+
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "gcs_ds_generator",
+        "s3_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
+def test_hub_exists(ds_generator):
+    ds = ds_generator()
+    assert hub.exists(ds.path) == True
+    assert hub.exists("wrongfolder/somedataset") == False
