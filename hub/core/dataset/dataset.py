@@ -278,8 +278,8 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
-    @hub_reporter.record_call
     @invalid_view_op
+    @hub_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -394,8 +394,8 @@ class Dataset:
         self.meta._hide_tensor(tensor)
         self.storage.maybe_flush()
 
-    @hub_reporter.record_call
     @invalid_view_op
+    @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -447,8 +447,8 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    @hub_reporter.record_call
     @invalid_view_op
+    @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -502,8 +502,8 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    @hub_reporter.record_call
     @invalid_view_op
+    @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
@@ -1054,8 +1054,8 @@ class Dataset:
             size += self[group].size_approx()
         return size
 
-    @hub_reporter.record_call
     @invalid_view_op
+    @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
