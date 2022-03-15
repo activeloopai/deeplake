@@ -83,6 +83,7 @@ class UncompressedChunk(BaseChunk):
         buffer = bytes(buffer) if copy else buffer
         if self.dtype == "bytes":
             self.tensor_meta.dtype = np.uint8
+        if np.prod(shape) != len(buffer):
             shape = (len(buffer),)
         return np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
 
