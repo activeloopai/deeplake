@@ -44,7 +44,7 @@ def get_dataset_info_key(commit_id: str) -> str:
 
 def get_dataset_diff_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return "/".join(("dataset_diff", DATASET_DIFF_FILENAME))
+        return DATASET_DIFF_FILENAME
     return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
 
 
