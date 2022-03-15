@@ -1,7 +1,6 @@
 # type: ignore
 from unittest import skip
 import numpy as np
-import pandas as pd
 from time import time
 import json
 from tqdm import tqdm  # type: ignore
@@ -1703,11 +1702,12 @@ class Dataset:
         Returns:
             Pandas dataframe.
         """
+        import pandas as pd
         data_frame = pd.DataFrame()
         list_of_tensors = ds.tensors.keys()
         for tensor_name in list_of_tensors:
             tensor_column = []
-            for i in range(self.__len__):
+            for i in range(self.__len__()):
                 tensor_column.append(ds[tensor_name][i].numpy())
             data_frame[tensor_name] = tensor_column
         return data_frame
