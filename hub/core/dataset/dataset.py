@@ -1703,6 +1703,7 @@ class Dataset:
             Pandas dataframe.
         """
         import pandas as pd
+
         data_frame = pd.DataFrame()
         list_of_tensors = ds.tensors.keys()
         for tensor_name in list_of_tensors:
