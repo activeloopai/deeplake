@@ -19,7 +19,6 @@ def merge(
     conflict_resolution: Optional[str] = None,
     delete_removed_tensors=False,
 ):
-
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
 
@@ -34,11 +33,11 @@ def merge(
     lca_node: CommitNode = commit_node_map[lca_id]
 
     original_tensors = set(dataset.tensors.keys())
-    all_original_tensors = set(dataset._all_tensors_filtered)
+    all_original_tensors = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
 
     target_tensors = set(target_ds.tensors.keys())
-    all_target_tensors = set(target_ds._all_tensors_filtered)
+    all_target_tensors = set(target_ds._all_tensors_filtered())
     check_id_tensors_exist(target_tensors, all_target_tensors)
 
     lca_tensors = get_lca_tensors(dataset, lca_id)
@@ -113,7 +112,7 @@ def get_changes_commit_ids_for_node(
         else:
             try:
                 diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
-                diff: CommitDiff = dataset.storage.get_cachable(diff_key, CommitDiff)
+                diff: CommitDiff = dataset.storage.get_hub_object(diff_key, CommitDiff)
                 data_updated = sorted(diff.data_updated)
                 id_tensor_name = get_sample_id_tensor_key(tensor_name)
                 id_tensor = dataset[id_tensor_name]
@@ -221,6 +220,7 @@ def get_new_indexes(
         target_id_changes_commit_map.pop(id, None)
         idx = target_id_to_index_map[id]
         new_indexes.append(idx)
+    return new_indexes
 
 
 def find_conflicts(
@@ -242,7 +242,10 @@ def find_conflicts(
                 most_recent_common_item = item
                 break
         target_commit_ids = target_commit_ids[:crop]
-        if original_commit_ids[0] == most_recent_common_item:
+        if (
+            most_recent_common_item is None
+            or original_commit_ids[0] == most_recent_common_item
+        ):
             target_idx = target_id_to_index_map[id]
             original_idx = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
@@ -260,7 +263,7 @@ def process_tensor(
     conflict_samples_dict,
     conflict_resolution: Optional[str] = None,
 ):
-    id_tensor_name = f"{tensor_name}id"
+    id_tensor_name = get_sample_id_tensor_key(tensor_name)
     target_id_tensor = target_dataset[id_tensor_name]
     original_id_tensor = dataset[id_tensor_name]
 
