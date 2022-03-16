@@ -63,6 +63,7 @@ from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_sample_id_tensor_key,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
@@ -284,6 +285,7 @@ class Dataset:
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         hidden: bool = False,
+        create_id_tensor: bool = True,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -301,6 +303,8 @@ class Dataset:
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
             hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
+            create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
+                This is useful for merge operations.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -383,6 +387,10 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
+        if create_id_tensor:
+            id_tensor_name = get_sample_id_tensor_key(name)
+            self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
+            self._link_tensors(name, id_tensor_name, append_f="append_id")
         return tensor
 
     def _hide_tensor(self, tensor: str):
