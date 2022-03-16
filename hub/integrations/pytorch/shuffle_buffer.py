@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Sequence
 from random import randrange
 from functools import reduce
 from operator import mul
@@ -76,12 +76,17 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
-        return sum(
-            [
-                tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
-                for _, tensor in sample.items()
-            ]
-        )
+        if isinstance(sample, dict):
+            return sum(
+                [
+                    tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
+                    for _, tensor in sample.items()
+                ]
+            )
+        elif isinstance(sample, Sequence):
+            return sum(
+                [tensor.storage().element_size() * reduce(mul, tensor.shape, 1) for tensor in sample]
+            )
 
     def __len__(self):
         return len(self.buffer)

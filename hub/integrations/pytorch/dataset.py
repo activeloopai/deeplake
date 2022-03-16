@@ -476,22 +476,33 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         try:
             while True:
                 next_batch = next(it)
-                batch_keys = list(next_batch.keys())
+                if isinstance(next_batch, dict):
+                    d = {}
+                    for k, v in next_batch.items():
+                        current_val = v[0]
+                        if isinstance(current_val, torch.Tensor):
+                            current_val = current_val.clone().detach()
+                        d[k] = current_val
+                    val = IterableOrderedDict(d)
+                elif isinstance(next_batch, Sequence):
+                    val = []
+                    for item in next_batch:
+                        if isinstance(item, torch.Tensor):
+                            item = item.clone().detach()
+                        val.append(item)
+                else:
+                    val = next_batch
+                        
 
-                for i in range(len(next_batch[batch_keys[0]])):
-                    val = IterableOrderedDict(
-                        {k: next_batch[k][i].clone().detach() for k in batch_keys}
-                    )
+                if buffer is not None:
+                    result = buffer.exchange(val)
 
-                    if buffer is not None:
-                        result = buffer.exchange(val)
+                    if result:
+                        yield result
+                else:
+                    yield val
 
-                        if result:
-                            yield result
-                    else:
-                        yield val
-
-                del next_batch, batch_keys
+                del next_batch
 
         except StopIteration:
             pass
