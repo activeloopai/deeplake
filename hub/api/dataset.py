@@ -269,7 +269,7 @@ class dataset:
         creds: Optional[dict] = None,
         token: Optional[str] = None,
     ) -> Dataset:
-        """Renames dataset at `path` to `name`.
+        """Renames dataset at `old_path` to `new_path`.
 
         Args:
             old_path (str): The path to the dataset to be renamed.
@@ -288,7 +288,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "rename", {})
+        feature_report_path(old_path, "rename", {})
 
         ds = hub.load(old_path, verbose=False, token=token, creds=creds)
         ds.rename(new_path)
