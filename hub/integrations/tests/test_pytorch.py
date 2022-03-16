@@ -454,6 +454,32 @@ def test_pytorch_large(local_ds):
         np.testing.assert_array_equal(batch["label"][0], idx)
 
 
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_collate(local_ds, shuffle):
+    import torch
+
+    local_ds.create_tensor("a")
+    local_ds.create_tensor("b")
+    local_ds.create_tensor("c")
+    for _ in range(100):
+        local_ds.a.append(0)
+        local_ds.b.append(1)
+        local_ds.c.append(2)
+
+    def my_collate(batch):
+        x = [((x["a"], x["b"]), x["c"]) for x in batch]
+        return torch.utils.data._utils.collate.default_collate(x)
+
+    ptds = local_ds.pytorch(batch_size=4, shuffle=shuffle, collate_fn=my_collate)
+    for batch in ptds:
+        assert len(batch) == 2
+        assert len(batch[0]) == 2
+        np.testing.assert_array_equal(batch[0][0], np.array([0, 0, 0, 0]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[0][1], np.array([1, 1, 1, 1]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[1], np.array([2, 2, 2, 2]).reshape(4, 1))
+
+
 def run_ddp(rank, size, ds, q, backend="gloo"):
     import torch.distributed as dist
     import os
