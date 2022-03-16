@@ -4,6 +4,8 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _open_video,
+    _read_metadata_from_vstream,
 )
 from hub.compression import (
     get_compression_type,
@@ -147,6 +149,20 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def get_video_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            container, vstream = _open_video(self.path)
+        else:
+            container, vstream = _open_video(self.buffer)
+        shape, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"shape": shape, "fps": fps, "timebase": timebase}
+
+    @property
+    def meta(self):
+        meta = {}
+        if get_compression_type(self.compression) == VIDEO_COMPRESSION:
+            meta.update(self.get_video_meta())
 
     @property
     def is_lazy(self) -> bool:
