@@ -587,16 +587,32 @@ class Dataset:
         """
         return self._commit(message)
 
-    def merge(self, target_id: str, strategy: Optional[int] = 0):
+    def merge(
+        self,
+        target_id: str,
+        conflict_resolution: Optional[str] = None,
+        delete_removed_tensors: bool = False,
+    ):
         """Merges the target_id into the current dataset.
 
         Args:
             target_id (str): The commit_id or branch to merge.
-            strategy (int, optional): The strategy to use when merging.
+            conflict_resolution (str, optional): The strategy to use to resolve merge conflicts.
+                Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
+                Must be one of the following:
+                - None - this is the default value, will raise an exception if there are conflicts.
+                - "ours" - during conflicts, values from the current dataset will be used.
+                - "theirs" - during conflicts, values from target id will be used.
+            delete_removed_tensors (bool, optional): If true, deleted tensors will be deleted from the dataset.
         """
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
+            )
+
+        if conflict_resolution not in [None, "ours", "theirs"]:
+            raise ValueError(
+                f"conflict_resolution must be one of None, 'ours', or 'theirs'. Got {conflict_resolution}"
             )
 
         try_flushing(self)
@@ -604,7 +620,7 @@ class Dataset:
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
 
-        merge(self, target_id, strategy)
+        merge(self, target_id, conflict_resolution, delete_removed_tensors)
 
         self.storage.autoflush = self._initial_autoflush.pop()
 
