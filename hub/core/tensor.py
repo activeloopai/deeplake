@@ -1,6 +1,6 @@
 import hub
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage.memory import MemoryProvider
+from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
@@ -214,6 +214,7 @@ class Tensor:
                 self.key
             ].chunk_engine
 
+    @invalid_view_op
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -272,7 +273,11 @@ class Tensor:
         else:
             raise TypeError("Info must be set with type Dict")
 
-    def append(self, sample: InputSample):
+    @invalid_view_op
+    def append(
+        self,
+        sample: InputSample,
+    ):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,
         which can be used to load files. See examples down below.
 
