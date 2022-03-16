@@ -1,8 +1,9 @@
+from email.mime import base
 import hub
-from hub.util.dataset import try_flushing
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage import MemoryProvider
+from hub.constants import MB
 
 
 def remove_memory_cache(storage: StorageProvider):
@@ -44,7 +45,7 @@ def get_dataset_with_zero_size_cache(ds):
 
 
 def create_read_copy_dataset(dataset, commit_id=None):
-    base_storage = get_base_storage(dataset.storage)
+    base_storage = get_base_storage(dataset.storage).copy()
     storage = LRUCache(MemoryProvider(), base_storage, 256 * MB)
     ds = dataset.__class__(
         storage,
@@ -58,3 +59,4 @@ def create_read_copy_dataset(dataset, commit_id=None):
     )
     if commit_id is not None:
         ds.checkout(commit_id)
+    return ds
