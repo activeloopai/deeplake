@@ -6,7 +6,7 @@ from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
-from functools import reduce
+from functools import reduce, partial
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
@@ -23,7 +23,12 @@ from hub.util.keys import (
     tensor_exists,
     get_tensor_info_key,
 )
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+    get_sample_info_tensor_key,
+)
 from hub.util.modified import get_modified_indexes
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
@@ -31,7 +36,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID, MB
+from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE
 from hub.util.version_control import auto_checkout
 
 
@@ -650,9 +655,44 @@ class Tensor:
                 fname = v.get("update")
                 if fname:
                     func = get_link_transform(fname)
-                    self.dataset[k][global_sample_index] = func(
+                    val = func(
                         new_sample,
                         self.dataset[k][global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                     )
+                    if val != _NO_LINK_UPDATE:
+                        self.dataset[k][global_sample_index] = val
+
+    @property
+    def _sample_info_tensor(self):
+        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+
+    def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
+        if self.is_sequence:
+            return [
+                sample_info_tensor[i].data()
+                for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
+            ]
+        else:
+            return sample_info_tensor[global_sample_index].data()
+
+    def _sample_info(self, index: Index):
+        sample_info_tensor = self._sample_info_tensor
+        if sample_info_tensor is None:
+            return None
+        if index.subscriptable_at(0):
+            return list(
+                map(
+                    partial(
+                        self._get_sample_info_at_index,
+                        sample_info_tensor=sample_info_tensor,
+                    ),
+                    index.values[0].indices(self.num_samples),
+                )
+            )
+        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)
+
+    @property
+    def sample_info(self):
+        return self._sample_info(self.index)

@@ -1,6 +1,8 @@
 from typing import Callable
 from hub.core.index import Index
+from hub.constants import _NO_LINK_UPDATE
 import inspect
+import hub
 
 
 class _TensorLinkTransform:
@@ -32,6 +34,25 @@ def append_test(sample):
 @link
 def update_test(new_sample, old_value, sub_index: Index, partial: bool):
     return old_value
+
+
+@link
+def append_info(sample):
+    if isinstance(sample, hub.core.sample.Sample):
+        meta = sample.meta
+        meta["modified"] = False
+        return meta
+    return {}
+
+
+@link
+def update_info(new_sample, old_value, sub_index: Index, partial: bool):
+    if isinstance(new_sample, hub.core.sample.Sample) and not partial:
+        meta = old_value.data()
+        if "modified" in meta:
+            meta["modified"] = True
+            return meta
+    return _NO_LINK_UPDATE
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}
