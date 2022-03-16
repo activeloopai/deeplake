@@ -8,7 +8,7 @@ from hub.util.exceptions import (
     MergeMismatchError,
     MergeNotSupportedError,
 )
-from hub.util.keys import get_tensor_commit_diff_key
+from hub.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
 from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
 
@@ -33,9 +33,14 @@ def merge(
     lca_id = get_lowest_common_ancestor(original_node, target_node)
     lca_node: CommitNode = commit_node_map[lca_id]
 
-    # TODO: remove this once we have hidden tensors
-    original_tensors = {k for k in dataset.tensors.keys() if "id" not in k}
-    target_tensors = {k for k in target_ds.tensors.keys() if "id" not in k}
+    original_tensors = set(dataset.tensors.keys())
+    all_original_tensors = set(dataset._all_tensors_filtered)
+    check_id_tensors_exist(original_tensors, all_original_tensors)
+
+    target_tensors = set(target_ds.tensors.keys())
+    all_target_tensors = set(target_ds._all_tensors_filtered)
+    check_id_tensors_exist(target_tensors, all_target_tensors)
+
     lca_tensors = get_lca_tensors(dataset, lca_id)
 
     new_tensors = target_tensors - original_tensors
@@ -110,11 +115,8 @@ def get_changes_commit_ids_for_node(
                 diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
                 diff: CommitDiff = dataset.storage.get_cachable(diff_key, CommitDiff)
                 data_updated = sorted(diff.data_updated)
-                id_tensor_name = f"{tensor_name}id"
-                try:
-                    id_tensor = dataset[id_tensor_name]
-                except KeyError:
-                    raise MergeNotSupportedError
+                id_tensor_name = get_sample_id_tensor_key(tensor_name)
+                id_tensor = dataset[id_tensor_name]
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
                     changes_commit_map[sample_id].append(commit_id)
@@ -308,3 +310,10 @@ def merge_tensor(
         conflict_indexes = conflict_samples_dict[tensor_name]
         for original_idx, target_idx in conflict_indexes:
             original_tensor[original_idx] = target_tensor[target_idx]
+
+
+def check_id_tensors_exist(tensors, all_tensors):
+    for tensor_name in tensors:
+        id_tensor = get_sample_id_tensor_key(tensor_name)
+        if id_tensor not in all_tensors:
+            raise MergeNotSupportedError
