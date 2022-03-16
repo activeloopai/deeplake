@@ -53,5 +53,6 @@ class PytorchTransformFunction:
             for tensor, fn in self.transform_dict.items():
                 value = data_in[tensor]
                 data_out[tensor] = value if fn is None else fn(value)
+            data_out = IterableOrderedDict(data_out)
             return data_out
         return data_in

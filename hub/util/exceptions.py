@@ -116,7 +116,7 @@ class InvalidTensorGroupNameError(Exception):
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            f"Tensor '{key}' with index = {str(index)} is a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
+            f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -457,6 +457,11 @@ class TensorDtypeMismatchError(MetaError):
             msg += f" Htype '{htype}' expects samples to have dtype='{htype_dtype}'."
             super().__init__("")
 
+        super().__init__(msg)
+
+
+class InvalidTensorLinkError(MetaError):
+    def __init__(self, msg="Invalid tensor link."):
         super().__init__(msg)
 
 

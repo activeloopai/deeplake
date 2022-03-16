@@ -5,6 +5,7 @@ from hub.compression import (
     get_compression_type,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -281,6 +282,24 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
+def serialize_sequence_encoder(version: str, enc: np.ndarray) -> bytes:
+    return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
+
+
+def deserialize_sequence_encoder(
+    byts: Union[bytes, memoryview]
+) -> Tuple[str, np.ndarray]:
+    byts = memoryview(byts)
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    enc = (
+        np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
+        .reshape(-1, 3)
+        .copy()
+    )
+    return version, enc
+
+
 def check_sample_shape(shape, num_dims):
     if len(shape) != num_dims:
         raise TensorInvalidSampleShapeError(shape, num_dims)
@@ -377,6 +396,28 @@ def serialize_numpy_and_base_types(
             out = compressed_bytes  # type: ignore
 
     return out, shape
+
+
+def serialize_partial_sample_object(
+    incoming_sample: PartialSample,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+):
+    shape = incoming_sample.shape
+    return (
+        SampleTiles(
+            compression=sample_compression or chunk_compression,
+            chunk_size=min_chunk_size,
+            htype=htype,
+            dtype=dtype,
+            sample_shape=shape,
+            tile_shape=incoming_sample.tile_shape,
+        ),
+        shape,
+    )
 
 
 def serialize_sample_object(

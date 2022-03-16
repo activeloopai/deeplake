@@ -14,37 +14,48 @@ from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
 from hub.core.storage import StorageProvider
 from hub.constants import FIRST_COMMIT_ID
+from hub.client.utils import get_user_name
 
 
-def _get_lock_bytes() -> bytes:
-    return uuid.getnode().to_bytes(6, "little") + struct.pack("d", time.time())
+def _get_lock_bytes(username: Optional[str] = None) -> bytes:
+    byts = uuid.getnode().to_bytes(6, "little") + struct.pack("d", time.time())
+    ## TODO Uncomment lines below once this version has propogated through the userbase.
+    # if username:
+    #     byts += username.encode("utf-8")
+    return byts
 
 
-def _parse_lock_bytes(byts) -> Tuple[int, float]:
+def _parse_lock_bytes(byts) -> Tuple[int, int, str]:
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
-    timestamp = struct.unpack("d", byts[6:])[0]
-    return nodeid, timestamp
+    timestamp = struct.unpack("d", byts[6:14])[0]
+    username = str(byts[14:], "utf-8")
+    return nodeid, timestamp, username
 
 
 class Lock(object):
     def __init__(self, storage: StorageProvider, path: str):
         self.storage = storage
         self.path = path
+        username = get_user_name()
+        if username == "public":
+            self.username = None
+        else:
+            self.username = username
 
     def acquire(self, timeout=10, force=False):
         try:
-            nodeid, timestamp = _parse_lock_bytes(self.storage[self.path])
+            nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
         except KeyError:
             self.storage[self.path] = _get_lock_bytes()
             return
         if nodeid == uuid.getnode():
-            self.storage[self.path] = _get_lock_bytes()
+            self.storage[self.path] = _get_lock_bytes(self.username)
             return
         while self.path in self.storage:
             if time.time() - timestamp >= timeout:
                 if force:
-                    self.storage[self.path] = _get_lock_bytes()
+                    self.storage[self.path] = _get_lock_bytes(self.username)
                     return
                 else:
                     raise LockedException()
@@ -91,6 +102,11 @@ class PersistentLock(Lock):
         self.acquired = False
         self._thread_lock = threading.Lock()
         self._previous_update_timestamp = None
+        username = get_user_name()
+        if username == "public":
+            self.username = None
+        else:
+            self.username = username
         self.acquire()
         atexit.register(self.release)
 
@@ -106,14 +122,14 @@ class PersistentLock(Lock):
                         # Its been too long since last update, another machine might have locked the storage
                         lock_bytes = self.storage.get(self.path)
                         if lock_bytes:
-                            nodeid, timestamp = _parse_lock_bytes(lock_bytes)
+                            nodeid, _, _ = _parse_lock_bytes(lock_bytes)
                             if nodeid != uuid.getnode():
                                 if self.lock_lost_callback:
                                     self.lock_lost_callback()
                                 self.acquired = False
                                 return
                     self._previous_update_timestamp = time.time()
-                    self.storage[self.path] = _get_lock_bytes()
+                    self.storage[self.path] = _get_lock_bytes(self.username)
                 except Exception:
                     pass
                 time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
@@ -128,7 +144,7 @@ class PersistentLock(Lock):
         if lock_bytes is not None:
             nodeid = None
             try:
-                nodeid, timestamp = _parse_lock_bytes(lock_bytes)
+                nodeid, timestamp, _ = _parse_lock_bytes(lock_bytes)
             except Exception:  # parse error from corrupt lock file, ignore
                 pass
             if nodeid:

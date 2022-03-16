@@ -265,7 +265,7 @@ class GCSProvider(StorageProvider):
 
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {obj.name for obj in self._blob_objects}
+        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def clear(self):
         """Remove all keys below root - empties out mapping"""

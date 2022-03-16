@@ -612,7 +612,7 @@ class Encoder(ABC):
             return False
 
         # a new row should be created above
-        start = self._encoded[: row_index - 1]
+        start = self._encoded[: max(0, row_index - 1)]
         end = self._encoded[row_index:]
         new_row = np.array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
@@ -727,3 +727,10 @@ class Encoder(ABC):
 
     def is_empty(self) -> bool:
         return len(self._encoded) == 0
+
+    def tobytes(self) -> memoryview:
+        raise NotImplementedError()
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        raise NotImplementedError()

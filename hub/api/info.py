@@ -20,11 +20,11 @@ class Info(HubMemoryObject):
             ds.storage.check_readonly()
             if not ds.version_state["commit_node"].is_head_node:
                 raise InfoError("Cannot modify info from a non-head commit.")
-            self.is_dirty = True
             if key:
                 ds[key].chunk_engine.commit_diff.modify_info()
             else:
                 ds._dataset_diff.modify_info()
+            self.is_dirty = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
