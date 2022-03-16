@@ -1,6 +1,8 @@
 from typing import Callable
 from hub.core.index import Index
 import inspect
+from hub.util.generate_id import generate_id
+import numpy as np
 
 
 class _TensorLinkTransform:
@@ -22,6 +24,11 @@ class _TensorLinkTransform:
 
 
 link = _TensorLinkTransform
+
+
+@link
+def append_id(sample):
+    return generate_id(np.uint32)
 
 
 @link
