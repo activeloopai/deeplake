@@ -177,9 +177,6 @@ class ChunkEngine:
     def commit_id(self):
         return self.version_state["commit_id"]
 
-        self.tensor_meta.num_compressed_bytes = self.num_compressed_bytes
-        self.tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
-
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
@@ -561,6 +558,9 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
+        tensor_meta.num_compressed_bytes = self.num_compressed_bytes
+        tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
+        tensor_meta.is_dirty = True
         return samples
 
     def _samples_to_chunks(
@@ -590,12 +590,14 @@ class ChunkEngine:
                 current_chunk = self._create_new_chunk()
                 continue
 
-            self.tensor_meta.num_compressed_bytes -= num_compressed_bytes_current
-            self.tensor_meta.num_uncompressed_bytes -= num_uncompressed_bytes_current
-            self.tensor_meta.num_compressed_bytes += current_chunk.num_data_bytes
+            self.tensor_meta.num_compressed_bytes += (
+                current_chunk.num_data_bytes - num_compressed_bytes_current
+            )
             self.tensor_meta.num_uncompressed_bytes += (
                 self._get_chunk_uncompressed_size(current_chunk)
+                - num_uncompressed_bytes_current
             )
+            self.tensor_meta.is_dirty = True
 
             if num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -1080,11 +1082,12 @@ class ChunkEngine:
             )
 
     def _get_all_chunks(self):
-        chunks = [
-            chunk
-            for i in range(self.num_chunks)
-            for chunk in self.get_chunks_for_sample(i)
-        ]
+        chunks = []
+        for key in self.list_all_chunks_path():
+            try:
+                chunks.append(self.get_chunk(key))
+            except KeyError:
+                continue
         return chunks
 
     def _get_num_compressed_bytes(self):

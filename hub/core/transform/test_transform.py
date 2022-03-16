@@ -299,12 +299,12 @@ def test_chain_transform_list_small(local_ds, scheduler):
         scheduler=scheduler,
     )
     assert len(ds_out) == 600
-    assert ds_out.image.num_compressed_bytes == 337 * 200 * np.dtype(int).itemsize * 600
     assert (
-        ds_out.image.num_uncompressed_bytes == 337 * 200 * np.dtype(int).itemsize * 600
+        ds_out.image.num_uncompressed_bytes
+        == 337 * 200 * np.dtype(float).itemsize * 600
     )
-    assert ds_out.label.num_compressed_bytes == 1 * np.dtype(int).itemsize * 600
-    assert ds_out.label.num_uncompressed_bytes == 1 * np.dtype(int).itemsize * 600
+    assert ds_out.label.num_compressed_bytes == 1 * np.dtype(float).itemsize * 600
+    assert ds_out.label.num_uncompressed_bytes == 1 * np.dtype(float).itemsize * 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
