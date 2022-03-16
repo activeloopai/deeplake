@@ -13,6 +13,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
     InfoError,
     TensorModifiedError,
+    EmptyCommitError,
 )
 
 NO_COMMIT_PASSED_DIFF = ""
@@ -58,6 +59,26 @@ def test_commit(local_ds):
             local_ds.checkout("main", create=True)
         with pytest.raises(CheckoutError):
             local_ds.checkout(a, create=True)
+
+
+"""
+test for checking unchanged dataset commits
+"""
+
+
+def test_unchanged_commit(local_ds):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        local_ds.abc.append(1)
+        local_ds.log()
+        a = local_ds.commit("first")
+        local_ds.checkout(a)
+        assert local_ds.commit_id == a
+        with pytest.raises(EmptyCommitError):
+            b = local_ds.commit("second")
+        c = local_ds.commit("third", allow_empty=True)
+        local_ds.checkout(c)
+        assert local_ds.commit_id == c
 
 
 def test_commit_checkout(local_ds):
@@ -402,7 +423,7 @@ def test_dataset_info(local_ds):
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "value"
 
-    a = local_ds.commit("added key, value")
+    a = local_ds.commit("added key, value", allow_empty=True)
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "value"
 
@@ -411,7 +432,7 @@ def test_dataset_info(local_ds):
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
 
-    b = local_ds.commit("added key2, value2")
+    b = local_ds.commit("added key2, value2", allow_empty=True)
     assert len(local_ds.info) == 2
     assert local_ds.info.key == "value"
     assert local_ds.info.key2 == "value2"
@@ -423,7 +444,7 @@ def test_dataset_info(local_ds):
     local_ds.info.key = "notvalue"
     assert len(local_ds.info) == 1
     assert local_ds.info.key == "notvalue"
-    c = local_ds.commit("changed key to notvalue")
+    c = local_ds.commit("changed key to notvalue", allow_empty=True)
 
     local_ds.checkout(a)
     assert len(local_ds.info) == 1
@@ -497,7 +518,7 @@ def test_delete(local_ds):
         local_ds.abc.append(1)
         a = local_ds.commit("first")
         local_ds.delete_tensor("abc")
-        b = local_ds.commit("second")
+        b = local_ds.commit("second", allow_empty=True)
         local_ds.checkout(a)
         assert local_ds.abc[0].numpy() == 1
         local_ds.checkout(b)
@@ -507,7 +528,7 @@ def test_delete(local_ds):
         local_ds["x/y/z"].append(1)
         c = local_ds.commit("third")
         local_ds["x"].delete_tensor("y/z")
-        d = local_ds.commit("fourth")
+        d = local_ds.commit("fourth", allow_empty=True)
         local_ds.checkout(c)
         assert local_ds["x/y/z"][0].numpy() == 1
         local_ds.checkout(d)
@@ -1182,7 +1203,7 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 2
     commit_details_helper(commits, local_ds)
-    local_ds.commit()
+    local_ds.commit(allow_empty=True)
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
@@ -1190,7 +1211,7 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 2
     commit_details_helper(commits, local_ds)
-    local_ds.commit()
+    local_ds.commit(allow_empty=True)
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
@@ -1280,7 +1301,7 @@ def test_modified_samples(memory_ds):
 
         memory_ds.checkout(first_commit)
         memory_ds.checkout("alt", create=True)
-        alt_commit = memory_ds.commit()
+        alt_commit = memory_ds.commit(allow_empty=True)
 
         memory_ds.checkout("main")
 
