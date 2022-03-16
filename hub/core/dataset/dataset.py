@@ -1065,6 +1065,7 @@ class Dataset:
         storage.rename(path)
         self.path = path
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
