@@ -30,6 +30,9 @@ def merge(
     original_node: CommitNode = version_state["commit_node"]
     target_node: CommitNode = commit_node_map[target_commit_id]
     lca_id = get_lowest_common_ancestor(original_node, target_node)
+    if lca_id == target_commit_id:
+        print("No merge needed, target id is an ancestor of the current commit")
+        return
     lca_node: CommitNode = commit_node_map[lca_id]
 
     original_tensors = set(dataset.tensors.keys())
@@ -234,18 +237,14 @@ def find_conflicts(
         target_commit_ids = target_id_changes_commit_map[id]
         original_commit_ids = original_id_changes_commit_map[id]
         set_original_commit_ids = set(original_commit_ids)
-        crop = len(target_commit_ids)
-        most_recent_common_item = None
+        idx = None
         for i, item in enumerate(target_commit_ids):
             if item in set_original_commit_ids:
-                crop = i
-                most_recent_common_item = item
+                idx = i
                 break
-        target_commit_ids = target_commit_ids[:crop]
-        if (
-            most_recent_common_item is None
-            or original_commit_ids[0] == most_recent_common_item
-        ):
+
+        # if no id is common or if a commit id other than the most recent commit_id is in common, there's a conflict
+        if idx is None or idx > 0:
             target_idx = target_id_to_index_map[id]
             original_idx = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
