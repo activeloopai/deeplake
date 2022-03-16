@@ -9,6 +9,8 @@ import posixpath
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
+from hub.util.invalid_view_op import invalid_view_op
+import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -276,6 +278,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor(
         self,
@@ -391,6 +394,7 @@ class Dataset:
         self.meta._hide_tensor(tensor)
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
@@ -443,6 +447,7 @@ class Dataset:
 
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
@@ -497,6 +502,7 @@ class Dataset:
 
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
@@ -848,6 +854,7 @@ class Dataset:
                 raise e
 
     @read_only.setter
+    @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
@@ -1047,6 +1054,7 @@ class Dataset:
             size += self[group].size_approx()
         return size
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
