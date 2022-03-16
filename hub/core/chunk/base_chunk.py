@@ -1,16 +1,23 @@
 from abc import abstractmethod
+import struct
 import numpy as np
 from typing import List, Optional, Tuple, Union
 import warnings
 
 import hub
-from hub.compression import BYTE_COMPRESSION, IMAGE_COMPRESSION, get_compression_type
+from hub.compression import (
+    BYTE_COMPRESSION,
+    IMAGE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    get_compression_type,
+)
 from hub.constants import CONVERT_GRAYSCALE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample  # type: ignore
+from hub.core.partial_sample import PartialSample
 from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
@@ -19,8 +26,10 @@ from hub.core.serialize import (
     serialize_sample_object,
     serialize_text,
     serialize_tensor,
+    serialize_partial_sample_object,
+    get_header_from_url,
 )
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
 
@@ -40,7 +49,7 @@ InputSample = Union[
 SerializedOutput = Tuple[bytes, Tuple]
 
 
-class BaseChunk(Cachable):
+class BaseChunk(HubMemoryObject):
     def __init__(
         self,
         min_chunk_size: int,
@@ -51,6 +60,7 @@ class BaseChunk(Cachable):
         encoded_byte_positions: Optional[np.ndarray] = None,
         data: Optional[memoryview] = None,
     ):
+        super().__init__()
         self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
@@ -64,6 +74,7 @@ class BaseChunk(Cachable):
         compression_type = get_compression_type(compression)
         self.is_byte_compression = compression_type == BYTE_COMPRESSION
         self.is_image_compression = compression_type == IMAGE_COMPRESSION
+        self.is_video_compression = compression_type == VIDEO_COMPRESSION
         self.is_convert_candidate = self.htype == "image" or self.is_image_compression
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
@@ -119,7 +130,11 @@ class BaseChunk(Cachable):
 
     @property
     def is_empty(self):
-        return self.num_data_bytes == 0
+        return (
+            self.num_data_bytes == 0
+            and len(self.shapes_encoder.array) == 0
+            and len(self.byte_positions_encoder.array) == 0
+        )
 
     def tobytes(self) -> memoryview:
         return serialize_chunk(
@@ -130,12 +145,19 @@ class BaseChunk(Cachable):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True):  # type: ignore
+    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False):  # type: ignore
         if not buffer:
             return cls(*chunk_args)
-        version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
+        if url:
+            version, shapes, byte_positions, header_size = get_header_from_url(
+                buffer.decode("utf-8")
+            )
+            data = memoryview(buffer + struct.pack("<i", header_size))
+        else:
+            version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
         chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
+        chunk.is_dirty = False
         return chunk
 
     @abstractmethod
@@ -159,6 +181,7 @@ class BaseChunk(Cachable):
     def prepare_for_write(self):
         ffw_chunk(self)
         self._make_data_bytearray()
+        self.is_dirty = True
 
     def register_sample_to_headers(
         self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
@@ -189,10 +212,10 @@ class BaseChunk(Cachable):
         dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
         if self.is_text_like:
             incoming_sample, shape = serialize_text(
-                incoming_sample, sample_compression, dt, ht
+                incoming_sample, sample_compression, dt, ht  # type: ignore
             )
         elif isinstance(incoming_sample, Sample):
-            incoming_sample, shape = serialize_sample_object(
+            incoming_sample, shape = serialize_sample_object(  # type: ignore
                 incoming_sample,
                 sample_compression,
                 chunk_compression,
@@ -203,6 +226,15 @@ class BaseChunk(Cachable):
                 store_uncompressed_tiles,
             )
             shape = self.convert_to_rgb(shape)
+        elif isinstance(incoming_sample, PartialSample):
+            incoming_sample, shape = serialize_partial_sample_object(
+                incoming_sample,
+                sample_compression,
+                chunk_compression,
+                dt,
+                ht,
+                min_chunk_size,
+            )
         elif isinstance(incoming_sample, hub.core.tensor.Tensor):
             incoming_sample, shape = serialize_tensor(
                 incoming_sample,
@@ -233,7 +265,7 @@ class BaseChunk(Cachable):
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         shape = self.normalize_shape(shape)
-        return incoming_sample, shape
+        return incoming_sample, shape  # type: ignore
 
     def convert_to_rgb(self, shape):
         if self.is_convert_candidate and CONVERT_GRAYSCALE:
@@ -246,7 +278,9 @@ class BaseChunk(Cachable):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        return self.num_data_bytes + buffer_nbytes + sample_nbytes < self.min_chunk_size
+        return (
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+        )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
@@ -255,7 +289,7 @@ class BaseChunk(Cachable):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
         if self._update_tensor_meta_length:
-            self.tensor_meta.length += 1
+            self.tensor_meta.update_length(1)
         self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -274,7 +308,7 @@ class BaseChunk(Cachable):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
-        if self.byte_positions_encoder.is_empty():  # tiled sample
+        if not old_data or self.byte_positions_encoder.is_empty():  # tiled sample
             return new_sample_bytes
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_index]
         left_data = old_data[:old_start_byte]  # type: ignore
@@ -302,12 +336,24 @@ class BaseChunk(Cachable):
         self.data_bytes = data
         self.register_sample_to_headers(None, tile_shape)
         if sample.is_first_write:
-            self.tensor_meta.update_shape_interval(sample.sample_shape)
+            self.tensor_meta.update_shape_interval(sample.sample_shape)  # type: ignore
             if self._update_tensor_meta_length:
-                self.tensor_meta.length += 1
+                self.tensor_meta.update_length(1)
 
     def _pop_sample(self):
         self.prepare_for_write()
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
         self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
+
+    def _get_partial_sample_tile(self, as_bytes=False):
+        if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
+            shape = self.shapes_encoder._encoded[0][:-1]
+            if len(shape) and np.all(shape):
+                if as_bytes:
+                    return b"0" * int(
+                        np.prod(np.array(shape, dtype=np.uint64))
+                        * np.dtype(self.dtype).itemsize
+                    )
+                return np.zeros(shape, dtype=self.dtype)
+        return None

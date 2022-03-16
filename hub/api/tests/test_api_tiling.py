@@ -1,6 +1,8 @@
 import pytest
 import numpy as np
 
+from hub.constants import MB
+
 compressions_paremetrized = pytest.mark.parametrize(
     "compression",
     [
@@ -15,11 +17,11 @@ compressions_paremetrized = pytest.mark.parametrize(
 
 def test_simple(memory_ds):
     with memory_ds:
-        memory_ds.create_tensor("abc")
-        memory_ds.abc.extend(np.ones((3, 1003, 2001, 5)))
-    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
+        memory_ds.create_tensor("abc", max_chunk_size=2 * MB)
+        memory_ds.abc.extend(np.ones((3, 253, 501, 5)))
+    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
     memory_ds.commit()
-    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 1003, 2001, 5)))
+    np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
 
 
 @compressions_paremetrized
@@ -40,7 +42,7 @@ def test_mixed_small_large(local_ds_generator, compression):
     ]
 
     with ds:
-        ds.create_tensor("abc", max_chunk_size=2 ** 21, **compression)
+        ds.create_tensor("abc", max_chunk_size=2**21, **compression)
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)
@@ -104,7 +106,7 @@ def test_updates(memory_ds, compression):
     arr6 += 1
 
     with memory_ds:
-        memory_ds.create_tensor("abc", max_chunk_size=2 ** 21, **compression)
+        memory_ds.create_tensor("abc", max_chunk_size=2**21, **compression)
         for i in range(10):
             if i % 5 == 0:
                 memory_ds.abc.append(arr1)
@@ -143,3 +145,20 @@ def test_cachable_overflow(memory_ds):
     assert len(ds) == 3
     assert len(ds.x) == 3
     assert len(ds.y) == 3
+
+
+@compressions_paremetrized
+def test_empty_array(memory_ds, compression):
+    ds = memory_ds
+    arr_list = [
+        np.random.randint(0, 255, (3894, 4279, 0), dtype=np.uint8),
+        np.random.randint(0, 255, (1089, 1027, 3), dtype=np.uint8),
+    ]
+    with ds:
+        ds.create_tensor("x", **compression, max_chunk_size=1 * MB)
+        ds.x.extend(arr_list)
+    assert len(ds) == 2
+    assert len(ds.x) == 2
+
+    for i in range(2):
+        np.testing.assert_array_equal(ds.x[i].numpy(), arr_list[i])

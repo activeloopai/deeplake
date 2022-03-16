@@ -181,8 +181,7 @@ def test_json_transform(ds, compression, scheduler="threaded"):
 
 
 @enabled_non_gcs_datasets
-@pytest.mark.parametrize("compression", ["lz4", None])
-def test_list_transform(ds, compression, scheduler="threaded"):
+def test_list_transform(ds, scheduler="threaded"):
     ds.create_tensor("list", htype="list")
 
     items = [

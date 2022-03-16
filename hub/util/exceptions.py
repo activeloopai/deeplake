@@ -69,7 +69,7 @@ class TensorMetaMissingKey(Exception):
         super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
-class TensorDoesNotExistError(KeyError):
+class TensorDoesNotExistError(KeyError, AttributeError):
     def __init__(self, tensor_name: str):
         super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
@@ -116,7 +116,7 @@ class InvalidTensorGroupNameError(Exception):
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            f"Tensor '{key}' with index = {str(index)} is a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
+            f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -482,6 +482,10 @@ class TransformError(Exception):
     pass
 
 
+class FilterError(Exception):
+    pass
+
+
 class InvalidInputDataError(TransformError):
     def __init__(self, operation):
         super().__init__(
@@ -499,11 +503,17 @@ class UnsupportedSchedulerError(TransformError):
 
 
 class TensorMismatchError(TransformError):
-    def __init__(self, tensors, output_keys):
-        super().__init__(
-            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
-            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
-        )
+    def __init__(self, tensors, output_keys, skip_ok=False):
+        if skip_ok:
+            super().__init__(
+                f"One or more tensors generated during hub compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
+        else:
+            super().__init__(
+                f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+            )
 
 
 class InvalidOutputDatasetError(TransformError):
@@ -569,10 +579,6 @@ class DatasetHandlerError(Exception):
         super().__init__(message)
 
 
-class CallbackInitializationError(Exception):
-    pass
-
-
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(
@@ -591,6 +597,21 @@ class VersionControlError(Exception):
 
 class CheckoutError(VersionControlError):
     pass
+
+
+class CommitError(VersionControlError):
+    pass
+
+
+class EmptyCommitError(CommitError):
+    pass
+
+
+class TensorModifiedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The target commit is not an ancestor of the current commit, modified can't be calculated."
+        )
 
 
 class GCSDefaultCredsNotFoundError(Exception):
@@ -613,9 +634,19 @@ class AgreementNotAcceptedError(AgreementError):
 
 
 class NotLoggedInError(AgreementError):
-    def __init__(self):
-        super().__init__(
+    def __init__(self, msg=None):
+        msg = msg or (
             "This dataset includes an agreement that needs to be accepted before you can use it.\n"
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
+
+        super().__init__(msg)
+
+
+class BufferError(Exception):
+    pass
+
+
+class InfoError(Exception):
+    pass

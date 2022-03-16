@@ -26,10 +26,10 @@ def get_base_storage(storage: StorageProvider):
 
 def get_dataset_with_zero_size_cache(ds):
     """Returns a dataset with same storage but cache size set to zero."""
-    try_flushing(ds)
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
-    return hub.core.dataset.dataset_factory(
+    commit_id = ds.pending_commit_id
+    ds = hub.core.dataset.dataset_factory(
         path=ds.path,
         storage=zero_cache_storage,
         index=ds.index,
@@ -37,5 +37,7 @@ def get_dataset_with_zero_size_cache(ds):
         read_only=ds.read_only,
         token=ds.token,
         verbose=False,
-        version_state=ds.version_state,
     )
+    if ds.pending_commit_id != commit_id:
+        ds.checkout(commit_id)
+    return ds

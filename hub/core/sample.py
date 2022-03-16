@@ -1,12 +1,9 @@
-# type: ignore
 from hub.core.compression import (
     compress_array,
-    compress_bytes,
     decompress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
-    _to_hub_mkv,
 )
 from hub.compression import (
     get_compression_type,
@@ -18,14 +15,23 @@ from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
-    BYTE_COMPRESSION,
 )
 from hub.util.exceptions import CorruptedSampleError
+from hub.util.path import get_path_type, is_remote_path
 import numpy as np
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
 from io import BytesIO
+
+from urllib.request import urlopen
+
+from hub.core.storage.s3 import S3Provider
+
+try:
+    from hub.core.storage.gcs import GCSProvider
+except ImportError:
+    GCSProvider = None  # type: ignore
 
 
 class Sample:
@@ -33,13 +39,14 @@ class Sample:
 
     def __init__(
         self,
-        path: str = None,
+        path: Optional[str] = None,
         array: np.ndarray = None,
         buffer: Union[bytes, memoryview] = None,
         compression: str = None,
         verify: bool = False,
         shape: Tuple[int] = None,
         dtype: Optional[str] = None,
+        creds: Optional[Dict] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -56,6 +63,7 @@ class Sample:
             verify (bool): If a path is provided, verifies the sample if True.
             shape (Tuple[int]): Shape of the sample.
             dtype (str, optional): Data type of the sample.
+            creds (optional, Dict): Credentials for s3 and gcp for urls.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -72,16 +80,17 @@ class Sample:
         self._dtype = dtype or None
         self.path = None
         self._buffer = None
+        self._creds = creds or {}
 
         if path is not None:
             self.path = path
-            self._compression = None
+            self._compression = compression
             self._verified = False
             self._verify = verify
 
         if array is not None:
             self._array = array
-            self._shape = array.shape
+            self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
             self._compression = None
 
@@ -120,11 +129,24 @@ class Sample:
     def _read_meta(self, f=None):
         if self._shape is not None:
             return
+        store = False
+        if self._compression is None and self.path:
+            self._compression = get_compression(path=self.path)
         if f is None:
-            f = self.path if self.path else self.compressed_bytes[self._compression]
+            if self.path:
+                if is_remote_path(self.path):
+                    f = self._read_from_path()
+                    self._buffer = f
+                    store = True
+                else:
+                    f = self.path
+            else:
+                f = self._buffer
         self._compression, self._shape, self._typestr = read_meta_from_compressed_file(
-            f
+            f, compression=self._compression
         )
+        if store:
+            self._compressed_bytes[self._compression] = f
 
     @property
     def is_lazy(self) -> bool:
@@ -171,21 +193,12 @@ class Sample:
             if self.path is not None:
                 if self._compression is None:
                     self._compression = get_compression(path=self.path)
-                if self._compression in (
-                    "mp4",
-                    "mkv",
-                ):  # mp4 byte stream is not seekable, may not be able to extract duration from mkv byte stream
-                    compressed_bytes = _to_hub_mkv(self.path)
-                else:
-                    with open(self.path, "rb") as f:
-                        compressed_bytes = f.read()
-                    if self._compression is None:
-                        self._compression = get_compression(
-                            header=compressed_bytes[:32]
-                        )
+                compressed_bytes = self._read_from_path()
+                if self._compression is None:
+                    self._compression = get_compression(header=compressed_bytes[:32])
                 if self._compression == compression:
                     if self._verify:
-                        self._shape, self._typestr = verify_compressed_file(
+                        self._shape, self._typestr = verify_compressed_file(  # type: ignore
                             compressed_bytes, self._compression
                         )
                     else:
@@ -215,7 +228,9 @@ class Sample:
                 ):
                     self._compression = compr
                     if self._array is None:
-                        self._array = decompress_array(self.path, compression=compr)
+                        self._array = decompress_array(
+                            self.path, compression=compr, shape=self.shape
+                        )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
                     img = Image.open(self.path)
@@ -237,7 +252,7 @@ class Sample:
                 self._uncompressed_bytes = self._array.tobytes()
                 self._typestr = self._array.__array_interface__["typestr"]
             else:
-                self._uncompressed_bytes = self._array.tobytes()
+                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
 
         return self._uncompressed_bytes
 
@@ -250,9 +265,15 @@ class Sample:
                 compr = get_compression(path=self.path)
             if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
                 self._compression = compr
-                array = decompress_array(self.path or self._buffer, compression=compr)
+                if self.path and is_remote_path(self.path):
+                    compressed = self.buffer
+                else:
+                    compressed = self.path or self._buffer
+                array = decompress_array(
+                    compressed, compression=compr, shape=self.shape
+                )
                 if self._shape is None:
-                    self._shape = array.shape
+                    self._shape = array.shape  # type: ignore
                     self._typestr = array.__array_interface__["typestr"]
                 self._array = array
             else:
@@ -280,13 +301,58 @@ class Sample:
     def __repr__(self):
         return str(self)
 
-    def __array__(self):
-        return self.array
+    def __array__(self, dtype=None):
+        arr = self.array
+        if dtype is not None:
+            arr = arr.astype(dtype)
+        return arr
 
     def __eq__(self, other):
         if self.path is not None and other.path is not None:
             return self.path == other.path
         return self.buffer == other.buffer
+
+    def _read_from_path(self) -> bytes:  # type: ignore
+        path_type = get_path_type(self.path)
+        if path_type == "local":
+            return self._read_from_local()
+        elif path_type == "gcs":
+            return self._read_from_gcs()
+        elif path_type == "s3":
+            return self._read_from_s3()
+        elif path_type == "http":
+            return self._read_from_http()
+
+    def _read_from_local(self) -> bytes:
+        with open(self.path, "rb") as f:  # type: ignore
+            return f.read()
+
+    def _get_root_and_key(self, path):
+        split_path = path.split("/", 2)
+        if len(split_path) > 2:
+            root, key = "/".join(split_path[:2]), split_path[2]
+        else:
+            root, key = split_path
+        return root, key
+
+    def _read_from_s3(self) -> bytes:
+        path = self.path.replace("s3://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        s3 = S3Provider(root, **self._creds)
+        return s3[key]
+
+    def _read_from_gcs(self) -> bytes:
+        if GCSProvider is None:
+            raise Exception(
+                "GCP dependencies not installed. Install them with pip install hub[gcs]"
+            )
+        path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        gcs = GCSProvider(root, **self._creds)
+        return gcs[key]
+
+    def _read_from_http(self) -> bytes:
+        return urlopen(self.path).read()  # type: ignore
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

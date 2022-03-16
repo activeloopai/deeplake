@@ -1,4 +1,6 @@
 import os
+import pathlib
+import posixpath
 import shutil
 from typing import Optional, Set
 
@@ -25,6 +27,9 @@ class LocalProvider(StorageProvider):
             raise FileAtPathException(root)
         self.root = root
         self.files: Optional[Set[str]] = None
+
+    def subdir(self, path: str):
+        return self.__class__(os.path.join(self.root, path))
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
@@ -148,7 +153,10 @@ class LocalProvider(StorageProvider):
             for root, dirs, files in os.walk(full_path):
                 for file in files:
                     key_set.add(
-                        os.path.relpath(os.path.join(full_path, file), full_path)
+                        posixpath.relpath(
+                            posixpath.join(pathlib.Path(root).as_posix(), file),
+                            pathlib.Path(full_path).as_posix(),
+                        )
                     )
             self.files = key_set
         return self.files
@@ -165,8 +173,9 @@ class LocalProvider(StorageProvider):
         Raises:
             DirectoryAtPathException: If a directory is found at the path.
         """
-        full_path = os.path.join(self.root, path)
+        full_path = posixpath.join(self.root, path)
         full_path = os.path.expanduser(full_path)
+        full_path = str(pathlib.Path(full_path))
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
         return full_path

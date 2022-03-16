@@ -88,6 +88,12 @@ def filter_tr(sample_in, sample_out):
 
 
 @hub.compute
+def populate_cc_bug(sample_in, samples_out):
+    samples_out.xyz.append(sample_in)
+    return samples_out
+
+
+@hub.compute
 def inplace_transform(sample_in, samples_out):
     samples_out.img.append(2 * sample_in.img.numpy())
     samples_out.img.append(3 * sample_in.img.numpy())
@@ -97,7 +103,7 @@ def inplace_transform(sample_in, samples_out):
 
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
-        ds.img[index].numpy(), target * np.ones((500, 500, 3))
+        ds.img[index].numpy(), target * np.ones((200, 200, 3))
     )
     np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
 
@@ -131,6 +137,7 @@ def test_single_transform_hub_dataset(ds, scheduler):
                 data_in,
                 ds_out,
                 num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                progressbar=False,
                 scheduler=scheduler,
             )
         data_in.delete()
@@ -161,8 +168,7 @@ def test_single_transform_hub_dataset(ds, scheduler):
     data_in.delete()
 
 
-@enabled_datasets
-def test_groups(ds):
+def test_groups(local_ds):
     with CliRunner().isolated_filesystem():
         expected_imbytes = 0
         expected_lbytes = 0
@@ -177,14 +183,16 @@ def test_groups(ds):
                 expected_imbytes += im.nbytes
                 expected_lbytes += l.nbytes
         data_in = hub.dataset("./test/transform_hub_in_generic")
-        ds_out = ds
+        ds_out = local_ds
         ds_out.create_tensor("stuff/image")
         ds_out.create_tensor("stuff/label")
 
         data_in = data_in.data
         ds_out = ds_out.stuff
 
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        fn2(copy=1, mul=2).eval(
+            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -203,8 +211,7 @@ def test_groups(ds):
         assert ds_out.label.num_uncompressed_bytes == expected_lbytes
 
 
-@enabled_datasets
-def test_groups_2(ds):
+def test_groups_2(local_ds):
     with CliRunner().isolated_filesystem():
         with hub.dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/z/y/x/image")
@@ -213,14 +220,16 @@ def test_groups_2(ds):
                 data_in.data.z.y.x.image.append(i * np.ones((i, i)))
                 data_in.data.z.y.x.label.append(i * np.ones((1,)))
         data_in = hub.dataset("./test/transform_hub_in_generic")
-        ds_out = ds
+        ds_out = local_ds
         ds_out.create_tensor("stuff/x/y/z/image")
         ds_out.create_tensor("stuff/x/y/z/label")
 
         data_in = data_in.data
         ds_out = ds_out.stuff
 
-        fn5(copy=1, mul=2).eval(data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        fn5(copy=1, mul=2).eval(
+            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -235,10 +244,9 @@ def test_groups_2(ds):
         assert ds_out.x.y.z.image.shape_interval.upper == (99, 99, 99)
 
 
-@enabled_non_gcs_datasets
 @parametrize_num_workers
 @all_schedulers
-def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
+def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
     expected_imbytes = 0
     expected_lbytes = 0
     data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
@@ -252,24 +260,11 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
             expected_lbytes += l.nbytes
             data_in.image.append(im)
             data_in.label.append(l)
-    ds_out = ds
+    ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-        and num_workers > 0
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        # num_workers = 0 automatically does single threaded irrespective of the scheduler
-        with pytest.raises(InvalidOutputDatasetError):
-            fn2(copy=1, mul=2).eval(
-                data_in, ds_out, num_workers=num_workers, scheduler=scheduler
-            )
-        data_in.delete()
-        return
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+        data_in, ds_out, num_workers=num_workers, progressbar=False, scheduler=scheduler
     )
     assert len(ds_out) == 99
     assert ds_out.image.num_compressed_bytes == expected_imbytes
@@ -290,25 +285,18 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers, scheduler):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
-def test_chain_transform_list_small(ds, scheduler):
-    ls = [i for i in range(100)]
-    ds_out = ds
+def test_chain_transform_list_small(local_ds, scheduler):
+    ls = list(range(100))
+    ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(
-                ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
-            )
-        return
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 600
     assert ds_out.image.num_compressed_bytes == 337 * 200 * np.dtype(int).itemsize * 600
@@ -335,7 +323,11 @@ def test_chain_transform_list_big(local_ds, scheduler):
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 12
     for i in range(2):
@@ -364,7 +356,11 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
             ds_out.commit()
 
     pipeline.eval(
-        ls, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        ls,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 610
     for i in range(10):
@@ -407,28 +403,17 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
 
 @all_schedulers
 @all_compressions
-@enabled_non_gcs_datasets
-def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
+def test_transform_hub_read(local_ds, cat_path, sample_compression, scheduler):
     data_in = [cat_path] * 10
-    ds_out = ds
+    ds_out = local_ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
 
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        with pytest.raises(InvalidOutputDatasetError):
-            read_image().eval(
-                data_in,
-                ds_out,
-                num_workers=TRANSFORM_TEST_NUM_WORKERS,
-                scheduler=scheduler,
-            )
-        return
-
     read_image().eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 10
     for i in range(10):
@@ -438,27 +423,17 @@ def test_transform_hub_read(ds, cat_path, sample_compression, scheduler):
 
 @all_schedulers
 @all_compressions
-@enabled_non_gcs_datasets
-def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler):
+def test_transform_hub_read_pipeline(local_ds, cat_path, sample_compression, scheduler):
     data_in = [cat_path] * 10
-    ds_out = ds
+    ds_out = local_ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
     pipeline = hub.compose([read_image(), crop_image(copy=2)])
-    if (
-        isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-        and scheduler != "threaded"
-    ):
-        # any scheduler other than `threaded` will not work with a dataset stored in memory
-        with pytest.raises(InvalidOutputDatasetError):
-            pipeline.eval(
-                data_in,
-                ds_out,
-                num_workers=TRANSFORM_TEST_NUM_WORKERS,
-                scheduler=scheduler,
-            )
-        return
     pipeline.eval(
-        data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+        data_in,
+        ds_out,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler=scheduler,
     )
     assert len(ds_out) == 20
     for i in range(20):
@@ -466,10 +441,9 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression, scheduler
         np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
 
-@enabled_non_gcs_datasets
-def test_hub_like(ds, scheduler="threaded"):
+def test_hub_like(local_ds, scheduler="threaded"):
     with CliRunner().isolated_filesystem():
-        data_in = ds
+        data_in = local_ds
         with data_in:
             data_in.create_tensor("image", htype="image", sample_compression="png")
             data_in.create_tensor("label", htype="class_label")
@@ -477,21 +451,12 @@ def test_hub_like(ds, scheduler="threaded"):
                 data_in.image.append(i * np.ones((i, i), dtype="uint8"))
                 data_in.label.append(i * np.ones((1,), dtype="uint32"))
         ds_out = hub.like("./transform_hub_like", data_in)
-        if (
-            isinstance(remove_memory_cache(ds.storage), MemoryProvider)
-            and scheduler != "threaded"
-        ):
-            # any scheduler other than `threaded` will not work with a dataset stored in memory
-            with pytest.raises(InvalidOutputDatasetError):
-                fn2(copy=1, mul=2).eval(
-                    data_in,
-                    ds_out,
-                    num_workers=TRANSFORM_TEST_NUM_WORKERS,
-                    scheduler=scheduler,
-                )
-            return
         fn2(copy=1, mul=2).eval(
-            data_in, ds_out, num_workers=TRANSFORM_TEST_NUM_WORKERS, scheduler=scheduler
+            data_in,
+            ds_out,
+            num_workers=TRANSFORM_TEST_NUM_WORKERS,
+            progressbar=False,
+            scheduler=scheduler,
         )
         assert len(ds_out) == 99
         for index in range(1, 100):
@@ -510,7 +475,7 @@ def test_transform_empty(local_ds):
     local_ds.create_tensor("image")
 
     ls = list(range(10))
-    filter_tr().eval(ls, local_ds)
+    filter_tr().eval(ls, local_ds, progressbar=False)
 
     assert len(local_ds) == 5
 
@@ -545,7 +510,7 @@ def test_bad_transform(memory_ds):
         return sample_out
 
     with pytest.raises(TransformError):
-        fn_filter().eval(ds, ds2, progressbar=True)
+        fn_filter().eval(ds, ds2, progressbar=False)
 
 
 def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="threaded"):
@@ -568,12 +533,16 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
         # num_workers = 0 automatically does single threaded irrespective of the scheduler
         with pytest.raises(InvalidOutputDatasetError):
             fn2(copy=1, mul=2).eval(
-                data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+                data_in,
+                ds_out,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=False,
             )
         data_in.delete()
         return
     fn2(copy=1, mul=2).eval(
-        data_in, ds_out, num_workers=num_workers, scheduler=scheduler
+        data_in, ds_out, num_workers=num_workers, scheduler=scheduler, progressbar=False
     )
 
     def test_ds_out():
@@ -660,19 +629,21 @@ def test_inplace_transform(local_ds_generator):
         ds.create_tensor("label")
         for i in range(10):
             if i == 5:
-                ds.img.append(np.zeros((500, 500, 3)))
+                ds.img.append(np.zeros((200, 200, 3)))
             else:
-                ds.img.append(np.ones((500, 500, 3)))
+                ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         a = ds.commit()
         assert len(ds) == 10
         for i in range(10):
             if i != 5:
                 check_target_array(ds, i, 1)
-        ds.img[5] = np.ones((500, 500, 3))
+        ds.img[5] = np.ones((200, 200, 3))
         b = ds.commit()
 
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert ds.img.chunk_engine.num_samples == len(ds) == 20
 
         for i in range(20):
@@ -722,13 +693,15 @@ def test_inplace_transform_without_commit(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(10):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 10
         for i in range(10):
             check_target_array(ds, i, 1)
 
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         assert ds.img.chunk_engine.num_samples == len(ds) == 20
 
         for i in range(20):
@@ -748,14 +721,14 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.create_tensor("img")
         ds.create_tensor("label")
         for _ in range(10):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 10
         for i in range(10):
             check_target_array(ds, i, 1)
         a = ds.commit()
         for _ in range(5):
-            ds.img.append(np.ones((500, 500, 3)))
+            ds.img.append(np.ones((200, 200, 3)))
             ds.label.append(1)
         assert len(ds) == 15
         for i in range(15):
@@ -764,7 +737,9 @@ def test_inplace_transform_non_head(local_ds_generator):
         ds.checkout(a)
 
         # transforming non-head node
-        inplace_transform().eval(ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        inplace_transform().eval(
+            ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+        )
         br = ds.branch
 
         assert len(ds) == 20
@@ -797,3 +772,136 @@ def test_inplace_transform_non_head(local_ds_generator):
     for i in range(20):
         target = 2 if i % 2 == 0 else 3
         check_target_array(ds, i, target)
+
+
+def test_inplace_transform_clear_chunks(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+
+        for _ in range(10):
+            ds.img.append(np.ones((500, 500, 3)))
+            ds.label.append(np.ones(3))
+
+    prev_chunks = set(
+        [
+            f"{tensor.key}/chunks/{chunk}"
+            for tensor in [ds.img, ds.label]
+            for chunk in tensor.chunk_engine.list_all_chunks()
+        ]
+    )
+    inplace_transform().eval(ds)
+    after_chunks = set(
+        [
+            f"{tensor.key}/chunks/{chunk}"
+            for tensor in [ds.img, ds.label]
+            for chunk in tensor.chunk_engine.list_all_chunks()
+        ]
+    )
+
+    # all chunks where replaced
+    assert len(after_chunks.intersection(prev_chunks)) == 0
+
+    # test all new chunks where created
+    for chunk in after_chunks:
+        assert ds.storage[chunk] is not None
+
+    # test all old chunks where removed
+    for chunk in prev_chunks:
+        try:
+            assert ds.storage[chunk] is None
+        except KeyError:
+            pass
+
+
+def test_transform_skip_ok(local_ds_generator):
+    ds = local_ds_generator()
+    ls = list(range(100))
+    with ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        ds.create_tensor("unused")
+
+    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline.eval(
+        ls,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        scheduler="processed",
+        skip_ok=True,
+    )
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            )
+
+    assert len(ds.unused) == 0
+
+    # test persistence
+    ds = local_ds_generator()
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds.label[index].numpy(), 15 * i * np.ones((1,))
+            )
+    assert len(ds.unused) == 0
+
+
+def test_inplace_transform_skip_ok(local_ds_generator):
+    ds = local_ds_generator()
+
+    with ds:
+        ds.create_tensor("img")
+        ds.create_tensor("label")
+        ds.create_tensor("unused")
+        ds.img.extend(np.ones((10, 200, 200, 3)))
+        ds.label.extend([1 for _ in range(10)])
+        ds.unused.extend(5 * np.ones((10, 10, 10)))
+        for i in range(10):
+            check_target_array(ds, i, 1)
+
+    inplace_transform().eval(
+        ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False, skip_ok=True
+    )
+    assert ds.img.chunk_engine.num_samples == 20
+
+    for i in range(20):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    assert len(ds.unused) == 10
+    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+
+    # test persistence
+    ds = local_ds_generator()
+
+    assert ds.img.chunk_engine.num_samples == 20
+
+    for i in range(20):
+        target = 2 if i % 2 == 0 else 3
+        check_target_array(ds, i, target)
+
+    assert len(ds.unused) == 10
+    np.testing.assert_array_equal(ds.unused.numpy(), 5 * np.ones((10, 10, 10)))
+
+
+def test_chunk_compression_bug(local_ds):
+    xyz = np.zeros((480, 640), dtype=np.float32)
+    length = 55
+    dataset = [xyz] * length
+    with local_ds as ds:
+        ds.create_tensor("xyz", chunk_compression="lz4")
+        populate_cc_bug().eval(dataset, ds, num_workers=2, scheduler="threaded")
+
+    for index in range(length):
+        np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)

@@ -15,7 +15,9 @@ from hub.client.config import (
     DATASET_SUFFIX,
     LIST_DATASETS,
     GET_USER_PROFILE,
+    SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
+    GET_PRESIGNED_URL_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -79,9 +81,9 @@ class HubBackendClient:
             requests.Response: The response received from the server.
         """
         params = params or {}
-        data = data or {}
-        files = files or {}
-        json = json or {}
+        data = data or None
+        files = files or None
+        json = json or None
         endpoint = endpoint or self.endpoint()
         endpoint = endpoint.strip("/")
         relative_url = relative_url.strip("/")
@@ -89,7 +91,6 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-
         response = requests.request(
             method,
             request_url,
@@ -102,7 +103,7 @@ class HubBackendClient:
         )
 
         # clearer error than `ServerUnderMaintenence`
-        if "password" in json and json["password"] is None:
+        if json is not None and "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
@@ -131,7 +132,7 @@ class HubBackendClient:
             LoginException: If there is an issue retrieving the auth token.
         """
         json = {"username": username, "password": password}
-        response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
+        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
 
         try:
             token_dict = response.json()
@@ -178,6 +179,14 @@ class HubBackendClient:
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
+
+    def send_event(self, event_json: dict):
+        """Sends an event to the backend.
+
+        Args:
+            event_json (dict): The event to be sent.
+        """
+        self.request("POST", SEND_EVENT_SUFFIX, json=event_json)
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
         tag = f"{username}/{dataset_name}"
@@ -268,3 +277,14 @@ class HubBackendClient:
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)
         self.request("PUT", suffix, endpoint=self.endpoint(), json={"public": public})
+
+    def get_presigned_url(self, org_id, ds_id, chunk_path, expiration=3600):
+        relative_url = GET_PRESIGNED_URL_SUFFIX.format(org_id, ds_id)
+        response = self.request(
+            "GET",
+            relative_url,
+            endpoint=self.endpoint(),
+            params={"chunk_path": chunk_path, "expiration": expiration},
+        ).json()
+        presigned_url = response["data"]
+        return presigned_url

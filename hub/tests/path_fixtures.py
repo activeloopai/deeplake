@@ -3,6 +3,7 @@ from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
+import hub
 from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
@@ -10,6 +11,7 @@ from hub.constants import (
     LOCAL_OPT,
     MEMORY_OPT,
     PYTEST_GCS_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
     PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
@@ -25,9 +27,6 @@ from hub.tests.common import (
     is_opt_true,
 )
 import pytest
-import requests
-import shutil
-import tempfile
 import sys
 
 
@@ -37,21 +36,49 @@ S3 = "s3"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
+_GIT_CLONE_CACHE_DIR = ".test_resources"
 
-def _download_hub_test_images(tempdir):
-    cwd = os.getcwd()
-    os.chdir(tempdir)
-    try:
-        os.system(
-            "git clone https://www.github.com/activeloopai/hub-test-resources.git"
-        )
-        d = "hub-test-resources/images/jpeg"
-        return [os.path.join(tempdir, d, f) for f in os.listdir(d)]
-    finally:
-        os.chdir(cwd)
+_HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
+_PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
 
 
-def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
+def _repo_name_from_git_url(url):
+    repo_name = posixpath.split(url)[-1]
+    repo_name = repo_name.split("@", 1)[0]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+    return repo_name
+
+
+def _git_clone(url):
+    _repo_name = _repo_name_from_git_url(url)
+    cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
+    if not os.path.isdir(cached_dir):
+        if not os.path.isdir(_GIT_CLONE_CACHE_DIR):
+            os.mkdir(_GIT_CLONE_CACHE_DIR)
+        cwd = os.getcwd()
+        os.chdir(_GIT_CLONE_CACHE_DIR)
+        try:
+            os.system(f"git clone " + url)
+        finally:
+            os.chdir(cwd)
+    assert os.path.isdir(cached_dir)
+    return cached_dir
+
+
+def _download_hub_test_images():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    jpeg_path = path + "/images/jpeg"
+    return [os.path.join(jpeg_path, f) for f in os.listdir(jpeg_path)]
+
+
+def _download_hub_test_videos():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    mp4_path = path + "/videos/mp4"
+    return [os.path.join(mp4_path, f) for f in os.listdir(mp4_path)]
+
+
+def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
         "broken",
@@ -60,31 +87,30 @@ def _download_pil_test_images(tempdir, ext=[".jpg", ".png"]):
         "chunk_no_fctl",
         "syntax_num_frames_zero",
     ]
-    cwd = os.getcwd()
-    os.chdir(tempdir)
-    try:
-        os.system("git clone https://www.github.com/python-pillow/Pillow.git")
-        dirs = [
-            "Pillow/Tests/images",
-            "Pillow/Tests/images/apng",
-            "Pillow/Tests/images/imagedraw",
+
+    path = _git_clone(_PILLOW_URL)
+    dirs = [
+        path + x
+        for x in [
+            "/Tests/images",
+            "/Tests/images/apng",
+            "/Tests/images/imagedraw",
         ]
-        for d in dirs:
-            for f in os.listdir(d):
-                brk = False
-                for k in corrupt_file_keys:
-                    if k in f:
-                        brk = True
-                        break
-                if brk:
-                    continue
-                for e in ext:
-                    if f.lower().endswith(e):
-                        paths[e].append(os.path.join(tempdir, d, f))
-                        break
-        return paths
-    finally:
-        os.chdir(cwd)
+    ]
+    for d in dirs:
+        for f in os.listdir(d):
+            brk = False
+            for k in corrupt_file_keys:
+                if k in f:
+                    brk = True
+                    break
+            if brk:
+                continue
+            for e in ext:
+                if f.lower().endswith(e):
+                    paths[e].append(os.path.join(d, f))
+                    break
+    return paths
 
 
 def _get_path_composition_configs(request):
@@ -190,6 +216,16 @@ def s3_path(request):
         S3Provider(path).clear()
 
 
+@pytest.fixture
+def s3_vstream_path(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
 @pytest.fixture(scope="session")
 def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
@@ -212,6 +248,16 @@ def gcs_path(request, gcs_creds):
 
 
 @pytest.fixture
+def gcs_vstream_path(request):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
+@pytest.fixture
 def hub_cloud_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
@@ -224,7 +270,24 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
+        try:
+            hub.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
+        except Exception:
+            # TODO: investigate flakey `BadRequestException:
+            # Invalid Request. One or more request parameters is incorrect.`
+            # (on windows 3.8 only)
+            pass
+
+
+@pytest.fixture
+def hub_cloud_vstream_path(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+
+    yield path
 
 
 @pytest.fixture
@@ -270,7 +333,7 @@ def compressed_image_paths():
         "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],
         "wmf": "crown.wmf",
         "dib": "dog.dib",
-        "tiff": "field.tiff",
+        "tiff": ["field.tiff", "field.tif"],
         "png": "flower.png",
         "ico": "sample_ico.ico",
         "jpeg2000": "sample_jpeg2000.jp2",
@@ -289,17 +352,12 @@ def compressed_image_paths():
 
     # Since we implement our own meta data reading for jpegs and pngs,
     # we test against images from PIL repo to cover all edge cases.
-    tmpdir = tempfile.mkdtemp()
-    pil_image_paths = _download_pil_test_images(tmpdir)
+    pil_image_paths = _download_pil_test_images()
     paths["jpeg"] += pil_image_paths[".jpg"]
     paths["png"] += pil_image_paths[".png"]
-    hub_test_images = _download_hub_test_images(tmpdir)
+    hub_test_images = _download_hub_test_images()
     paths["jpeg"] += hub_test_images
     yield paths
-    try:
-        shutil.rmtree(tmpdir)
-    except PermissionError:
-        pass
 
 
 @pytest.fixture
@@ -329,10 +387,35 @@ def audio_paths():
 
 @pytest.fixture
 def video_paths():
-    paths = {"mp4": "samplemp4.mp4", "mkv": "samplemkv.mkv", "avi": "sampleavi.avi"}
+    paths = {
+        "mp4": ["samplemp4.mp4"],
+        "mkv": ["samplemkv.mkv"],
+        "avi": ["sampleavi.avi"],
+    }
 
     parent = get_dummy_data_path("video")
     for k in paths:
-        paths[k] = os.path.join(parent, paths[k])
+        paths[k] = [os.path.join(parent, fname) for fname in paths[k]]
+    paths["mp4"] += _download_hub_test_videos()
 
     return paths
+
+
+@pytest.fixture
+def vstream_path(request):
+    """Used with parametrize to use all video stream test datasets."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def path(request):
+    """Used with parametrize to get all dataset paths."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def hub_token(request):
+    """Used with parametrize to get hub_cloud_dev_token if hub-cloud option is True else None"""
+    if is_opt_true(request, HUB_CLOUD_OPT):
+        return request.getfixturevalue(request.param)
+    return None

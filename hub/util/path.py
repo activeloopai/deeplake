@@ -1,6 +1,5 @@
-from hub.util.keys import get_dataset_meta_key, get_tensor_meta_key
+from typing import Optional
 from hub.core.storage.provider import StorageProvider
-from hub.core.storage import LRUCache
 import glob
 import os
 
@@ -11,6 +10,8 @@ def is_hub_cloud_path(path: str):
 
 def get_path_from_storage(storage) -> str:
     """Extracts the underlying path from a given storage."""
+    from hub.core.storage.lru_cache import LRUCache
+
     if isinstance(storage, LRUCache):
         return get_path_from_storage(storage.next_storage)
     elif isinstance(storage, StorageProvider):
@@ -56,3 +57,20 @@ def find_root(path: str) -> str:
         return find_root(subs[0])
 
     return path
+
+
+def get_path_type(path: Optional[str]) -> str:
+    if not isinstance(path, str):
+        path = str(path)
+    if path.startswith("http://") or path.startswith("https://"):
+        return "http"
+    elif path.startswith("gcs://") or path.startswith("gcp://"):
+        return "gcs"
+    elif path.startswith("s3://"):
+        return "s3"
+    else:
+        return "local"
+
+
+def is_remote_path(path: str) -> bool:
+    return get_path_type(path) != "local"

@@ -1,20 +1,25 @@
 from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction
+from hub.util.compute import get_compute_provider
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
+    DistributedScheduler,
+    IOBlock,
     SampleStreaming,
     Schedule,
     SequentialMultithreadScheduler,
     ShufflingSchedulerWrapper,
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
+    Streaming,
 )
 from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
 import torch.utils.data
+import torch.distributed as dist
 
 from torch.multiprocessing import Queue, Process
 from torch._utils import ExceptionWrapper
@@ -26,6 +31,8 @@ from warnings import warn
 from queue import Empty
 
 import numpy as np
+import hub
+
 
 mp = torch.multiprocessing.get_context()
 
@@ -120,9 +127,7 @@ def _worker_loop(
                     data = next(it)
 
                     data = _process(data, transform)
-                    data = {
-                        k: torch.as_tensor(v).share_memory_() for k, v in data.items()
-                    }
+                    data = {k: torch.as_tensor(v) for k, v in data.items()}
 
                     data_queue.put((wid, data))
                     requested -= 1
@@ -241,7 +246,9 @@ class PrefetchConcurrentIterator(Iterable):
 
         while any(self.active_workers):
             try:
-                wid, data = self.data_queue.get(timeout=5)
+                wid, data = self.data_queue.get(
+                    timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                )
 
                 if isinstance(data, ExceptionWrapper):
                     data.reraise()
@@ -296,7 +303,9 @@ class PrefetchConcurrentIterator(Iterable):
             try:
                 for wid in range(self.num_workers):
                     self.request_queues[wid].put(None)
-                    self.workers[wid].join(timeout=5)
+                    self.workers[wid].join(
+                        timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                    )
 
                 for queue in self.request_queues:
                     queue.cancel_join_thread()
@@ -336,10 +345,17 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         self.transform = transform
         self.tensors = tensors
         self.use_local_cache = use_local_cache
-        self.scheduler = ShufflingSchedulerWrapper(
-            MultiThreadedNaiveScheduler(self.num_workers)
-        )
 
+        if dist.is_initialized():
+            self.scheduler = ShufflingSchedulerWrapper(
+                DistributedScheduler(num_workers)
+            )
+        else:
+            self.scheduler = ShufflingSchedulerWrapper(
+                MultiThreadedNaiveScheduler(self.num_workers)
+            )
+
+        self.scheduler = ShufflingSchedulerWrapper(self.scheduler)
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
@@ -379,6 +395,9 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
+
+        if dist.is_initialized():
+            self.scheduler = DistributedScheduler(num_workers)
 
         if shuffle:
             self.scheduler = ShufflingSchedulerWrapper(self.scheduler)
@@ -470,7 +489,9 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 batch_keys = list(next_batch.keys())
 
                 for i in range(len(next_batch[batch_keys[0]])):
-                    val = IterableOrderedDict({k: next_batch[k][i] for k in batch_keys})
+                    val = IterableOrderedDict(
+                        {k: next_batch[k][i].clone().detach() for k in batch_keys}
+                    )
 
                     if buffer is not None:
                         result = buffer.exchange(val)

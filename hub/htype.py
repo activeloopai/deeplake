@@ -31,7 +31,6 @@ Supported htypes and their respective defaults are:
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
 | list           |  List     |  none         |
-
 """
 
 from typing import Dict
@@ -55,7 +54,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "class_names": [],
         "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
-    "bbox": {"dtype": "float32"},
+    "bbox": {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     "audio": {"dtype": "float64"},
     "video": {"dtype": "uint8"},
     "binary_mask": {
@@ -70,6 +69,10 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "text": {"dtype": "str"},
 }
 
+HTYPE_VERIFICATIONS: Dict[str, Dict] = {
+    "bbox": {"coords": {"type": dict, "keys": ["type", "mode"]}}
+}
+
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
     "sample_compression": None,
@@ -78,6 +81,8 @@ COMMON_CONFIGS = {
     "max_chunk_size": None,
     "num_compressed_bytes": None,
     "num_uncompressed_bytes": None,
+    "is_sequence": False,
+    "hidden": False,
 }
 
 
@@ -86,3 +91,16 @@ for config in HTYPE_CONFIGURATIONS.values():
         # only update if not specified explicitly
         if key not in config:
             config[key] = v
+
+
+def verify_htype_key_value(htype, key, value):
+    htype_verifications = HTYPE_VERIFICATIONS.get(htype, {})
+    if key in htype_verifications:
+        expected_type = htype_verifications[key].get("type")
+        if expected_type and not isinstance(value, expected_type):
+            raise TypeError(f"{key} must be of type {expected_type}, not {type(value)}")
+        if expected_type == dict:
+            expected_keys = set(htype_verifications[key].get("keys"))
+            present_keys = set(value.keys())
+            if expected_keys and not present_keys.issubset(expected_keys):
+                raise KeyError(f"{key} must have keys belong to {expected_keys}")

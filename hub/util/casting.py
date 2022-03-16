@@ -3,6 +3,7 @@ from functools import reduce
 import numpy as np
 from hub.util.exceptions import TensorDtypeMismatchError
 from hub.core.sample import Sample  # type: ignore
+import hub
 
 
 def _get_bigger_dtype(d1, d2):
@@ -35,6 +36,48 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         return reduce(_get_bigger_dtype, map(get_dtype, val))
     else:
         raise TypeError(f"Cannot infer numpy dtype for {val}")
+
+
+def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
+    """Get the htype of a non-uniform mixed dtype sequence of samples."""
+    if isinstance(val, hub.core.tensor.Tensor):
+        return val.meta.htype
+    if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
+        return "generic"
+    types = set((map(type, val)))  # type: ignore
+    if dict in types:
+        return "json"
+    if types == set((str,)):
+        return "text"
+    if np.object in [  # type: ignore
+        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val  # type: ignore
+    ]:
+        return "json"
+    return "generic"
+
+
+def get_empty_sample(htype: str):
+    """Get an empty sample of the given htype.
+
+    Args:
+        htype: htype of the sample.
+
+    Returns:
+        Empty sample.
+
+    Raises:
+        ValueError: if htype is not one of 'text', 'json', and 'list'.
+    """
+    if htype == "text":
+        return ""
+    elif htype == "json":
+        return {}
+    elif htype == "list":
+        return []
+    else:
+        raise ValueError(
+            f"This method should only be used for htypes 'text', 'json' and 'list'. Got {htype}."
+        )
 
 
 def intelligent_cast(

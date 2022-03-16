@@ -1,3 +1,5 @@
+import math
+import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
@@ -107,7 +109,7 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     data_slice, inp = transform_input
-    output_storage, group_index, tensors, pipeline, version_state = inp
+    output_storage, group_index, tensors, pipeline, version_state, skip_ok = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -116,7 +118,13 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
-        data_slice, pipeline, tensors, all_chunk_engines, group_index, pg_callback
+        data_slice,
+        pipeline,
+        tensors,
+        all_chunk_engines,
+        group_index,
+        pg_callback,
+        skip_ok,
     )
 
     # retrieve relevant objects from memory
@@ -148,6 +156,7 @@ def _transform_sample_and_update_chunk_engines(
     tensors: List[str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
+    skip_ok: bool = False,
 ):
     result = transform_sample(sample, pipeline)
     if is_empty_transform_dataset(result):
@@ -156,8 +165,14 @@ def _transform_sample_and_update_chunk_engines(
         posixpath.join(group_index, k): result[k] for k in result.tensors
     }
     result = result_resolved  # type: ignore
-    if set(result.keys()) != set(tensors):
-        raise TensorMismatchError(list(tensors), list(result.keys()))
+    result_keys = set(result.keys())
+
+    if skip_ok:
+        if not result_keys.issubset(tensors):
+            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+
     for tensor, value in result.items():
         all_chunk_engines[tensor].extend(value.numpy_compressed())
 
@@ -169,6 +184,7 @@ def transform_data_slice_and_append(
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     pg_callback=None,
+    skip_ok=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
 
@@ -177,7 +193,7 @@ def transform_data_slice_and_append(
     last_reported_num_samples = 0
     for i, sample in enumerate(data_slice):
         _transform_sample_and_update_chunk_engines(
-            sample, pipeline, tensors, all_chunk_engines, group_index
+            sample, pipeline, tensors, all_chunk_engines, group_index, skip_ok
         )
         if pg_callback is not None:
             curr_time = time.time()
@@ -203,13 +219,12 @@ def create_worker_chunk_engines(
         for i in range(num_tries):
             try:
                 # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
                 memory_cache.autoflush = False
-                storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
-
                 storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
                 existing_meta = storage_chunk_engine.tensor_meta
                 chunk_size = storage_chunk_engine.max_chunk_size
@@ -243,13 +258,18 @@ def add_cache_to_dataset_slice(
     # TODO: adjust this size once we get rid of cachable
     cache_size = 64 * len(tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-    dataset_slice = hub.Dataset(
-        cached_store,
+    commit_id = dataset_slice.pending_commit_id
+    # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
+    dataset_slice = hub.core.dataset.dataset_factory(
+        path=dataset_slice.path,
+        storage=cached_store,
         index=dataset_slice.index,
-        group_index=dataset_slice.group_index,  # type: ignore
+        group_index=dataset_slice.group_index,
         read_only=dataset_slice.read_only,
+        token=dataset_slice.token,
         verbose=False,
     )
+    dataset_slice.checkout(commit_id)
     return dataset_slice
 
 
@@ -275,6 +295,7 @@ def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
+
     for tensor in tensors:
         if len(ds_out[tensor]) != len(ds_out):
             raise InvalidOutputDatasetError(
@@ -291,15 +312,15 @@ def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
         )
 
 
-def get_pbar_description(transform_functions: List):
-    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `TransformFunction`s."""
+def get_pbar_description(compute_functions: List):
+    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
 
-    num_funcs = len(transform_functions)
+    num_funcs = len(compute_functions)
     if num_funcs == 0:
         return "Evaluating"
 
     func_names: List[str] = []
-    for transform_function in transform_functions:
+    for transform_function in compute_functions:
         func_names.append(transform_function.func.__name__)
 
     if num_funcs == 1:
@@ -307,3 +328,59 @@ def get_pbar_description(transform_functions: List):
 
     names_desc = ", ".join(func_names)
     return f"Evaluating [{names_desc}]"
+
+
+def create_slices(data_in, num_workers):
+    size = math.ceil(len(data_in) / num_workers)
+    return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+
+def get_old_chunk_paths(target_ds, generated_tensors, overwrite):
+    old_chunk_paths = []
+    if overwrite:
+        for key in generated_tensors:
+            tensor = target_ds[key]
+            old_chunk_paths.extend(tensor.chunk_engine.list_all_chunks_path())
+
+    return old_chunk_paths
+
+
+def delete_overwritten_chunks(old_chunk_paths, storage, overwrite):
+    if not overwrite:
+        return
+
+    storage.delete_multiple(old_chunk_paths)
+
+
+def get_lengths_generated(all_tensor_metas, tensors):
+    all_num_samples = []
+    all_tensors_generated_length = {tensor: 0 for tensor in tensors}
+    for tensor_meta_dict in all_tensor_metas:
+        num_samples_dict = {}
+        for tensor, meta in tensor_meta_dict.items():
+            all_tensors_generated_length[tensor] += meta.length
+            num_samples_dict[tensor] = meta.length
+        all_num_samples.append(num_samples_dict)
+    return all_num_samples, all_tensors_generated_length
+
+
+def check_lengths(all_tensors_generated_length, skip_ok):
+    if not skip_ok:
+        return
+
+    first_length = None
+    for length in all_tensors_generated_length.values():
+        if first_length is None:
+            first_length = length
+        elif length not in [0, first_length]:
+            warnings.warn(
+                "Length of all tensors generated is not the same, this may lead to unexpected behavior."
+            )
+            break
+
+
+def sanitize_workers_scheduler(num_workers, scheduler):
+    if num_workers <= 0:
+        scheduler = "serial"
+    num_workers = max(num_workers, 1)
+    return num_workers, scheduler

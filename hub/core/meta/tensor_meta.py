@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -21,11 +21,11 @@ from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
 )
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
+    DEFAULT_HTYPE,
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
@@ -42,6 +42,8 @@ class TensorMeta(Meta):
     max_chunk_size: int
     num_compressed_bytes: int
     num_uncompressed_bytes: int
+    hidden: bool
+    is_sequence: bool
 
     def __init__(
         self,
@@ -59,22 +61,17 @@ class TensorMeta(Meta):
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
 
-        if htype != UNSPECIFIED:
-            _validate_htype_exists(htype)
-            _validate_htype_overwrites(htype, kwargs)
-            _replace_unspecified_values(htype, kwargs)
-            _validate_required_htype_overwrites(htype, kwargs)
-            _format_values(htype, kwargs)
-
-            required_meta = _required_meta_from_htype(htype)
-            required_meta.update(kwargs)
-
-            self._required_meta_keys = tuple(required_meta.keys())
-            self.__dict__.update(required_meta)
-        else:
-            self._required_meta_keys = tuple()
-
         super().__init__()
+        if htype and htype != UNSPECIFIED:
+            self.set_htype(htype, **kwargs)
+        else:
+            self.set_htype(DEFAULT_HTYPE, **kwargs)
+            self.htype = None  # type: ignore
+
+    def set_hidden(self, val: bool):
+        ffw_tensor_meta(self)
+        self.hidden = val
+        self.is_dirty = True
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
@@ -89,9 +86,49 @@ class TensorMeta(Meta):
             raise ValueError("Dtype was None, but length was > 0.")
 
         self.dtype = dtype.name
+        self.is_dirty = True
 
-    def update_shape_interval(self, shape: Tuple[int, ...]):
+    def set_dtype_str(self, dtype_name: str):
+        self.dtype = dtype_name
+        self.is_dirty = True
+
+    def set_htype(self, htype: str, **kwargs):
+        """Should only be called once."""
         ffw_tensor_meta(self)
+
+        if getattr(self, "htype", None) is not None:
+            raise ValueError(
+                f"Tensor meta already has a htype ({self.htype}). Incoming: {htype}."
+            )
+
+        if getattr(self, "length", 0) > 0:
+            raise ValueError("Htype was None, but length was > 0.")
+
+        if not kwargs:
+            kwargs = HTYPE_CONFIGURATIONS[htype]
+
+        _validate_htype_exists(htype)
+        _validate_htype_overwrites(htype, kwargs)
+        _replace_unspecified_values(htype, kwargs)
+        _validate_required_htype_overwrites(htype, kwargs)
+        _format_values(htype, kwargs)
+
+        required_meta = _required_meta_from_htype(htype)
+        required_meta.update(kwargs)
+
+        self._required_meta_keys = tuple(required_meta.keys())
+
+        for k in self._required_meta_keys:
+            if getattr(self, k, None):
+                required_meta.pop(k, None)
+
+        self.__dict__.update(required_meta)
+        self.is_dirty = True
+
+    def update_shape_interval(self, shape: Sequence[int]):
+        ffw_tensor_meta(self)
+        initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
+        initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
         if not self.min_shape:  # both min_shape and max_shape are set together
             self.min_shape = list(shape)
@@ -106,6 +143,23 @@ class TensorMeta(Meta):
                 self.min_shape[i] = min(dim, self.min_shape[i])
                 self.max_shape[i] = max(dim, self.max_shape[i])
 
+        if initial_min_shape != self.min_shape or initial_max_shape != self.max_shape:
+            self.is_dirty = True
+
+    def update_length(self, length: int):
+        ffw_tensor_meta(self)
+        self.length += length
+        if length != 0:
+            self.is_dirty = True
+
+    def _pop(self):
+        ffw_tensor_meta(self)
+        self.length -= 1
+        if self.length == 0:
+            self.min_shape = []
+            self.max_shape = []
+        self.is_dirty = True
+
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
 
@@ -117,6 +171,8 @@ class TensorMeta(Meta):
     def __setstate__(self, state: Dict[str, Any]):
         if "chunk_compression" not in state:
             state["chunk_compression"] = None  # Backward compatibility
+        if "hidden" not in state:
+            state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
 
@@ -221,7 +277,6 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
 
 def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
-
     sample_compression = htype_overwrite["sample_compression"]
     sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
     if sample_compression not in hub.compressions:
