@@ -1123,7 +1123,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
 
     __repr__ = __str__
 
