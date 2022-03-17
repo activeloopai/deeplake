@@ -744,8 +744,7 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         progress_bar=progress_bar,
     )
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
-
+    assert dest_ds._all_tensors_filtered(include_hidden=False) == ["a", "b", "c", "d"]
     assert dest_ds.a.meta.htype == "image"
     assert dest_ds.a.meta.sample_compression == "png"
     assert dest_ds.b.meta.htype == "class_label"
@@ -771,12 +770,12 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         progress_bar=progress_bar,
     )
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert dest_ds._all_tensors_filtered(include_hidden=False) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     dest_ds = hub.load(dest_path, token=hub_token)
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert dest_ds._all_tensors_filtered(include_hidden=False) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
@@ -791,7 +790,7 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
     )
     dest_ds = hub.load(dest_path, token=hub_token)
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert dest_ds._all_tensors_filtered(include_hidden=False) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
