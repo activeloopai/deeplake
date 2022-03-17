@@ -47,11 +47,14 @@ class DatasetQuery:
                     for tensor in self._tensors
                 }
                 p.update(self._groups)
-                if eval(self._cquery, p):
-                    idx_map.append(local_idx)
-                    self._pg_callback(local_idx, True)
-                else:
-                    self._pg_callback(local_idx, False)
+                try:
+                    if eval(self._cquery, p):
+                        idx_map.append(local_idx)
+                        self._pg_callback(local_idx, True)
+                    else:
+                        self._pg_callback(local_idx, False)
+                except (NameError, KeyError):
+                    pass
         return idx_map
 
     def _wrap_value(self, tensor, val):
