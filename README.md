@@ -37,7 +37,7 @@ Use the same API to upload, download, and stream datasets to/from AWS S3/S3-comp
 Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
 </details>
 <details>
-  <summary><b>Lazy NumPy-like Slicing</b></summary>
+  <summary><b>Lazy NumPy-like Indexing</b></summary>
 Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 </details>
 <details>
