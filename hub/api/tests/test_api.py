@@ -130,7 +130,7 @@ def test_populate_dataset(local_ds):
     assert len(local_ds.image) == 16
 
     assert local_ds.meta.tensors == [
-        "image",
+        "image", "_image_id"
     ]
     assert local_ds.meta.version == hub.__version__
 
