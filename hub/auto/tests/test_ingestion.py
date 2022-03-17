@@ -1,4 +1,3 @@
-from hub.util.auto import ingestion_summary
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
 from hub.util.exceptions import (
@@ -6,8 +5,10 @@ from hub.util.exceptions import (
     SamePathException,
     TensorAlreadyExistsError,
 )
+import numpy as np
 import pytest
 import hub
+import pandas as pd  # type: ignore
 
 
 def test_ingestion_simple(memory_ds: Dataset):
@@ -121,3 +122,57 @@ def test_overwrite(local_ds: Dataset):
             summary=False,
             overwrite=False,
         )
+
+
+def test_csv(memory_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    with pytest.raises(InvalidPathException):
+        hub.ingest(
+            src="tests_auto/csv/cities.csv",
+            dest=memory_ds.path,
+            progress_bar=False,
+            summary=False,
+            overwrite=False,
+        )
+
+    ds = hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        progress_bar=False,
+        summary=False,
+        overwrite=False,
+    )
+    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
+
+    assert list(ds.tensors) == ["Year", "Score", "Title"]
+
+    assert ds["Year"].dtype == np.dtype("int")
+    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
+
+    assert ds["Score"].dtype == np.dtype("int")
+    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+
+    assert ds["Title"].htype == "text"
+    assert ds["Title"].dtype == str
+    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
+
+
+def test_dataframe(memory_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
+    ds = hub.ingest_dataframe(df, memory_ds.path, progress_bar=False)
+
+    with pytest.raises(Exception):
+        hub.ingest_dataframe(123, memory_ds.path)
+
+    assert list(ds.tensors) == ["Year", "Score", "Title"]
+
+    assert ds["Year"].dtype == np.dtype("int")
+    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
+
+    assert ds["Score"].dtype == np.dtype("int")
+    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+
+    assert ds["Title"].htype == "text"
+    assert ds["Title"].dtype == str
+    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)

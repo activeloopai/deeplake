@@ -1,5 +1,6 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-    <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
+     <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
+</h1>
     </br>
     <h1 align="center">Dataset Format for AI
  </h1>
@@ -25,18 +26,37 @@
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
 
+<details>
+  <summary><b>Storage Agnostic API</b></summary>
+Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
+</details>
+<details>
+  <summary><b>Compressed Storage</b></summary>
+Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
+</details>
+<details>
+  <summary><b>Lazy NumPy-like Indexing</b></summary>
+Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+</details>
+<details>
+  <summary><b>Dataset Version Control</b></summary>
+Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
+</details>
+<details>
+  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
+Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+</details>
+<details>
+  <summary><b>Distributed Transformations</b></summary>
+Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
+</details>
+<details>
+  <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
+Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+</details>
 
-Hub includes the following features:
-
-* **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
-* **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
-* **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
-* **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
-* **Distributed transforms**: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
-* **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
 <div align="center">
 <a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
@@ -51,6 +71,14 @@ Hub is written in 100% Python and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
+```
+
+**By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
+```sh
+pip3 install hub[audio]  -> Audio support via miniaudio
+pip3 install hub[video]  -> Video support via pyav
+pip3 install hub[gcp]    -> GCS support via google-* dependencies
+pip3 install hub[all]    -> Installs everything - audio, video and GCS support
 ```
 
 ### 🧠 Training a PyTorch model on a Hub dataset
@@ -230,7 +258,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 
 
 <details>
-  <summary><b>Hub vs DVC</b></summary>
+  <summary><b>Activeloop Hub vs DVC</b></summary>
   
 Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Hub is a Python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
@@ -238,7 +266,7 @@ Hub and DVC offer dataset version control similar to git for data, but their met
 
 
 <details>
-  <summary><b> Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
+  <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
 Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/7jWZXOEJwDoNJS25uiforF/tensorflow-tf.data-&-hub:-how-to-implement-your-tensorflow-data-pipelines-with-hub-/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
@@ -248,8 +276,14 @@ Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets 
 
 <details>
   <summary><b>Activeloop Hub vs HuggingFace</b></summary>
-
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
+
+
+</details>
+
+<details>
+  <summary><b>Activeloop Hub vs WebDatasets</b></summary>
+Hub and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Hub enables simple indexing and modification of the dataset without having to recreate it.
 
 
 </details>

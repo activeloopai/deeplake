@@ -69,7 +69,7 @@ class TensorMetaMissingKey(Exception):
         super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
-class TensorDoesNotExistError(KeyError):
+class TensorDoesNotExistError(KeyError, AttributeError):
     def __init__(self, tensor_name: str):
         super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
@@ -116,7 +116,7 @@ class InvalidTensorGroupNameError(Exception):
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            f"Tensor '{key}' with index = {str(index)} is a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
+            f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -579,10 +579,6 @@ class DatasetHandlerError(Exception):
         super().__init__(message)
 
 
-class CallbackInitializationError(Exception):
-    pass
-
-
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(
@@ -607,12 +603,31 @@ class CommitError(VersionControlError):
     pass
 
 
+class EmptyCommitError(CommitError):
+    pass
+
+
+class TensorModifiedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The target commit is not an ancestor of the current commit, modified can't be calculated."
+        )
+
+
 class GCSDefaultCredsNotFoundError(Exception):
     def __init__(self):
         super().__init__(
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class InvalidOperationError(Exception):
+    def __init__(self, method: str, type: str):
+        if method == "read_only":
+            super().__init__("read_only property cannot be toggled for a dataset view.")
+        else:
+            super().__init__(f"{method} method cannot be called on a {type} view.")
 
 
 class AgreementError(Exception):
@@ -627,13 +642,19 @@ class AgreementNotAcceptedError(AgreementError):
 
 
 class NotLoggedInError(AgreementError):
-    def __init__(self):
-        super().__init__(
+    def __init__(self, msg=None):
+        msg = msg or (
             "This dataset includes an agreement that needs to be accepted before you can use it.\n"
             "You need to be signed in to accept this agreement.\n"
             "You can login using 'activeloop login' on the command line if you have an account or using 'activeloop register' if you don't have one."
         )
 
+        super().__init__(msg)
+
 
 class BufferError(Exception):
+    pass
+
+
+class InfoError(Exception):
     pass

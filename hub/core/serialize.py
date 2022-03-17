@@ -1,5 +1,11 @@
-from hub.compression import BYTE_COMPRESSION, get_compression_type
+from hub.compression import (
+    BYTE_COMPRESSION,
+    VIDEO_COMPRESSION,
+    AUDIO_COMPRESSION,
+    get_compression_type,
+)
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
@@ -11,6 +17,7 @@ import hub
 import numpy as np
 import struct
 import json
+from urllib.request import Request, urlopen
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
@@ -111,6 +118,53 @@ def write_actual_data(data, buffer, offset) -> int:
         buffer[offset : offset + n] = byts
         offset += n
     return offset
+
+
+def get_header_from_url(url: str):
+
+    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    itemsize = enc_dtype.itemsize
+
+    headers = {"Range": "bytes=0-100"}
+
+    request = Request(url, None, headers)
+    byts = urlopen(request).read()
+
+    len_version = byts[0]  # length of version string
+    version = str(byts[1 : len_version + 1], "ascii")
+    offset = 1 + len_version
+
+    shape_info_nrows, shape_info_ncols = struct.unpack("<ii", byts[offset : offset + 8])
+    shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
+    offset += 8
+
+    if shape_info_nbytes == 0:
+        shape_info = np.array([], dtype=enc_dtype)
+    else:
+        shape_info = (
+            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            .reshape(shape_info_nrows, shape_info_ncols)
+            .copy()
+        )
+        offset += shape_info_nbytes
+
+    byte_positions_rows = int.from_bytes(byts[offset : offset + 4], "little")
+    byte_positions_nbytes = byte_positions_rows * 3 * itemsize
+    offset += 4
+
+    if byte_positions_nbytes == 0:
+        byte_positions = np.array([], dtype=enc_dtype)
+    else:
+        byte_positions = (
+            np.frombuffer(
+                byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+            )
+            .reshape(byte_positions_rows, 3)
+            .copy()
+        )
+        offset += byte_positions_nbytes
+
+    return version, shape_info, byte_positions, offset
 
 
 def deserialize_chunk(
@@ -228,6 +282,24 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
+def serialize_sequence_encoder(version: str, enc: np.ndarray) -> bytes:
+    return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
+
+
+def deserialize_sequence_encoder(
+    byts: Union[bytes, memoryview]
+) -> Tuple[str, np.ndarray]:
+    byts = memoryview(byts)
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    enc = (
+        np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
+        .reshape(-1, 3)
+        .copy()
+    )
+    return version, enc
+
+
 def check_sample_shape(shape, num_dims):
     if len(shape) != num_dims:
         raise TensorInvalidSampleShapeError(shape, num_dims)
@@ -289,7 +361,7 @@ def serialize_text(
     """Converts the sample into bytes"""
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
-        incoming_sample = compress_bytes(incoming_sample, sample_compression)
+        incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
     return incoming_sample, shape
 
 
@@ -326,6 +398,28 @@ def serialize_numpy_and_base_types(
     return out, shape
 
 
+def serialize_partial_sample_object(
+    incoming_sample: PartialSample,
+    sample_compression: Optional[str],
+    chunk_compression: Optional[str],
+    dtype: str,
+    htype: str,
+    min_chunk_size: int,
+):
+    shape = incoming_sample.shape
+    return (
+        SampleTiles(
+            compression=sample_compression or chunk_compression,
+            chunk_size=min_chunk_size,
+            htype=htype,
+            dtype=dtype,
+            sample_shape=shape,
+            tile_shape=incoming_sample.tile_shape,
+        ),
+        shape,
+    )
+
+
 def serialize_sample_object(
     incoming_sample: Sample,
     sample_compression: Optional[str],
@@ -350,19 +444,23 @@ def serialize_sample_object(
 
         compressed_bytes = out.compressed_bytes(sample_compression)
 
-        if len(compressed_bytes) > min_chunk_size and break_into_tiles:
-            out = SampleTiles(
+        if (
+            compression_type not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION)
+            and len(compressed_bytes) > min_chunk_size
+            and break_into_tiles
+        ):
+            out = SampleTiles(  # type: ignore
                 out.array, tile_compression, min_chunk_size, store_tiles, htype
             )
         else:
-            out = compressed_bytes
+            out = compressed_bytes  # type: ignore
     else:
-        out = intelligent_cast(out.array, dtype, htype)
+        out = intelligent_cast(out.array, dtype, htype)  # type: ignore
 
-        if out.nbytes > min_chunk_size and break_into_tiles:
-            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)
+        if out.nbytes > min_chunk_size and break_into_tiles:  # type: ignore
+            out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
-            out = out.tobytes()
+            out = out.tobytes()  # type: ignore
     return out, shape
 
 

@@ -42,6 +42,7 @@ DATASET_INFO_FILENAME = "dataset_info.json"
 TENSOR_INFO_FILENAME = "tensor_info.json"
 
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
+DATASET_DIFF_FILENAME = "dataset_diff"
 TENSOR_COMMIT_CHUNK_SET_FILENAME = "chunk_set"
 TENSOR_COMMIT_DIFF_FILENAME = "commit_diff"
 
@@ -54,8 +55,9 @@ META_ENCODING = "utf8"
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
+ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
+UNSHARDED_ENCODER_FILENAME = "unsharded"
 
 AGREEMENT_FILENAME = "agreement.txt"
 
@@ -114,3 +116,14 @@ TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL = 5  # seconds
 CONVERT_GRAYSCALE = True
 
 PARTIAL_NUM_SAMPLES = 0.5
+
+QUERIES_FILENAME = "queries.json"
+QUERIES_LOCK_FILENAME = "queries.lock"
+
+_ENABLE_HUB_SUB_DATASETS = False
+_ENABLE_RANDOM_ASSIGNMENT = False
+
+# Frequency for sending progress events and writing to vds
+QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
+
+PYTORCH_DATALOADER_TIMEOUT = 30  # seconds

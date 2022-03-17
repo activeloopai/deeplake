@@ -1,3 +1,4 @@
+from functools import partial
 import numpy as np
 from typing import List, Union
 from hub.core.serialize import check_sample_shape, bytes_to_text
@@ -51,7 +52,7 @@ class UncompressedChunk(BaseChunk):
             check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
-                incoming_samples[i] = serialized_sample
+                incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
                     self.write_tile(serialized_sample)
                     num_samples += 0.5
@@ -68,11 +69,14 @@ class UncompressedChunk(BaseChunk):
         return num_samples
 
     def read_sample(self, local_index: int, cast: bool = True, copy: bool = False):
+        partial_sample_tile = self._get_partial_sample_tile()
+        if partial_sample_tile is not None:
+            return partial_sample_tile
         buffer = self.memoryview_data
+        shape = self.shapes_encoder[local_index]
         if not self.byte_positions_encoder.is_empty():
             sb, eb = self.byte_positions_encoder[local_index]
             buffer = buffer[sb:eb]
-        shape = self.shapes_encoder[local_index]
         if self.is_text_like:
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)

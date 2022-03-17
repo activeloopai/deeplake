@@ -1,9 +1,11 @@
 from hub.constants import (
     CHUNKS_FOLDER,
+    DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
     DATASET_LOCK_FILENAME,
-    ENCODED_CHUNK_NAMES_FILENAME,
+    UNSHARDED_ENCODER_FILENAME,
     ENCODED_CHUNK_NAMES_FOLDER,
+    ENCODED_SEQUENCE_NAMES_FOLDER,
     ENCODED_TILE_NAMES_FOLDER,
     FIRST_COMMIT_ID,
     DATASET_META_FILENAME,
@@ -14,6 +16,8 @@ from hub.constants import (
     VERSION_CONTROL_INFO_FILENAME,
     VERSION_CONTROL_INFO_FILENAME_OLD,
     VERSION_CONTROL_INFO_LOCK_FILENAME,
+    QUERIES_FILENAME,
+    QUERIES_LOCK_FILENAME,
 )
 
 
@@ -37,6 +41,12 @@ def get_dataset_info_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return DATASET_INFO_FILENAME
     return "/".join(("versions", commit_id, DATASET_INFO_FILENAME))
+
+
+def get_dataset_diff_key(commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return DATASET_DIFF_FILENAME
+    return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
 
 
 def get_version_control_info_key() -> str:
@@ -63,14 +73,14 @@ def get_tensor_meta_key(key: str, commit_id: str) -> str:
 
 def get_tensor_tile_encoder_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return "/".join((key, ENCODED_TILE_NAMES_FOLDER, ENCODED_CHUNK_NAMES_FILENAME))
+        return "/".join((key, ENCODED_TILE_NAMES_FOLDER, UNSHARDED_ENCODER_FILENAME))
     return "/".join(
         (
             "versions",
             commit_id,
             key,
             ENCODED_TILE_NAMES_FOLDER,
-            ENCODED_CHUNK_NAMES_FILENAME,
+            UNSHARDED_ENCODER_FILENAME,
         )
     )
 
@@ -99,7 +109,7 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
             (
                 key,
                 ENCODED_CHUNK_NAMES_FOLDER,
-                ENCODED_CHUNK_NAMES_FILENAME,
+                UNSHARDED_ENCODER_FILENAME,
             )
         )
     return "/".join(
@@ -108,7 +118,27 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
             commit_id,
             key,
             ENCODED_CHUNK_NAMES_FOLDER,
-            ENCODED_CHUNK_NAMES_FILENAME,
+            UNSHARDED_ENCODER_FILENAME,
+        )
+    )
+
+
+def get_sequence_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join(
+            (
+                key,
+                ENCODED_SEQUENCE_NAMES_FOLDER,
+                UNSHARDED_ENCODER_FILENAME,
+            )
+        )
+    return "/".join(
+        (
+            "versions",
+            commit_id,
+            key,
+            ENCODED_SEQUENCE_NAMES_FOLDER,
+            UNSHARDED_ENCODER_FILENAME,
         )
     )
 
@@ -127,3 +157,11 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
+
+
+def get_queries_key() -> str:
+    return QUERIES_FILENAME
+
+
+def get_queries_lock_key() -> str:
+    return QUERIES_LOCK_FILENAME

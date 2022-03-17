@@ -1,32 +1,53 @@
 # type: ignore
-from collections import defaultdict
+from unittest import skip
 import numpy as np
+from time import time
+import json
 from tqdm import tqdm  # type: ignore
 import posixpath
-import warnings
+
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
+from hub.util.invalid_view_op import invalid_view_op
+import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
-from hub.core.lock import lock_version, unlock_version
+from hub.core.lock import lock_dataset, unlock_dataset, Lock
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import LRUCache, S3Provider, GCSProvider
+from hub.core.storage import (
+    LRUCache,
+    S3Provider,
+    GCSProvider,
+    MemoryProvider,
+)
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED
+from hub.core.version_control.dataset_diff import load_dataset_diff
+from hub.htype import (
+    HTYPE_CONFIGURATIONS,
+    UNSPECIFIED,
+    DEFAULT_HTYPE,
+    verify_htype_key_value,
+)
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
+from hub.util.cache_chain import generate_chain
+from hub.util.hash import hash_inputs
+from hub.util.htype import parse_sequence_htype
+from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     InvalidTensorGroupNameError,
     InvalidTensorNameError,
+    TensorMetaInvalidHtype,
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
@@ -37,30 +58,34 @@ from hub.util.exceptions import (
     InvalidTensorGroupNameError,
     LockedException,
     TensorGroupAlreadyExistsError,
+    ReadOnlyModeError,
+    NotLoggedInError,
+    EmptyCommitError,
 )
 from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
     tensor_exists,
+    get_queries_key,
+    get_queries_lock_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
-from hub.util.diff import (
-    compare_commits,
-    get_all_changes_string,
-    filter_data_updated,
-    get_changes_for_id,
-)
+from hub.util.diff import get_all_changes_string, get_changes_and_messages
 from hub.util.version_control import (
     auto_checkout,
     checkout,
     commit,
-    current_commit_has_data,
+    current_commit_has_change,
     load_meta,
     warn_node_checkout,
     load_version_info,
 )
+from hub.client.utils import get_user_name
+
+
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
 class Dataset:
@@ -109,11 +134,9 @@ class Dataset:
         d["path"] = path or get_path_from_storage(storage)
         d["storage"] = storage
         d["_read_only"] = read_only
-        d["_locked_out"] = False
+        d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
-        d["is_first_load"] = is_first_load = version_state is None
-        self.__dict__.update(d)
-        d.clear()
+        d["is_first_load"] = version_state is None
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
@@ -121,19 +144,23 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["_info"] = None
+        d["_ds_diff"] = None
         self.__dict__.update(d)
         self._set_derived_attributes()
         self._first_load_init()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
+        self._is_filtered_view = False
+        self._view_info = None
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        warnings.warn(
+        always_warn(
             "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
         )
+        self._locked_out = True
 
     def __enter__(self):
         self._initial_autoflush.append(self.storage.autoflush)
@@ -171,19 +198,23 @@ class Dataset:
         """
         if self.path.startswith("mem://"):
             raise MemoryDatasetCanNotBePickledError
-        return {
-            "path": self.path,
-            "_read_only": self._read_only,
-            "index": self.index,
-            "group_index": self.group_index,
-            "public": self.public,
-            "storage": self.storage,
-            "_token": self.token,
-            "verbose": self.verbose,
-            "version_state": self.version_state,
-            "org_id": self.org_id,
-            "ds_name": self.ds_name,
-        }
+        keys = [
+            "path",
+            "_read_only",
+            "index",
+            "group_index",
+            "public",
+            "storage",
+            "_token",
+            "verbose",
+            "version_state",
+            "org_id",
+            "ds_name",
+            "_is_filtered_view",
+            "_view_info",
+        ]
+        state = {k: getattr(self, k) for k in keys}
+        return state
 
     def __setstate__(self, state: Dict[str, Any]):
         """Restores dataset from a pickled state.
@@ -201,6 +232,7 @@ class Dataset:
         self._initial_autoflush = []
         self.is_first_load = True
         self._info = None
+        self._ds_diff = None
         self._set_derived_attributes()
 
     def __getitem__(
@@ -246,6 +278,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor(
         self,
@@ -254,6 +287,7 @@ class Dataset:
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -270,6 +304,7 @@ class Dataset:
             chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -279,6 +314,8 @@ class Dataset:
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
+            TensorMetaInvalidHtype: If invalid htype is specified.
+            ValueError: If an illegal argument is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -298,6 +335,13 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
+        is_sequence, htype = parse_sequence_htype(htype)
+        if kwargs.get("is_sequence"):
+            raise ValueError(
+                "`is_sequence` must not be specified explicitly by the user. Use a sequence htype instead."
+            )
+        kwargs["is_sequence"] = is_sequence
+
         if not self._is_root():
             return self.root.create_tensor(
                 full_path, htype, dtype, sample_compression, chunk_compression, **kwargs
@@ -314,6 +358,7 @@ class Dataset:
         meta_kwargs = {}
         for k, v in kwargs.items():
             if k in info_keys:
+                verify_htype_key_value(htype, k, v)
                 info_kwargs[k] = v
             else:
                 meta_kwargs[k] = v
@@ -331,19 +376,25 @@ class Dataset:
             sample_compression=sample_compression,
             chunk_compression=chunk_compression,
             version_state=self.version_state,
+            hidden=hidden,
             **meta_kwargs,
         )
-        meta = self.version_state["meta"]
-        meta.tensors.append(name)
+        meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
+        meta.add_tensor(name, hidden=hidden)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
-        tensor.info.update(info_kwargs)
+        if info_kwargs:
+            tensor.info.update(info_kwargs)
+        self.storage.maybe_flush()
         return tensor
 
+    def _hide_tensor(self, tensor: str):
+        self._tensors()[tensor].meta.set_hidden(True)
+        self.meta._hide_tensor(tensor)
+        self.storage.maybe_flush()
+
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
@@ -386,18 +437,17 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
-            ffw_dataset_meta(meta)
-            meta.tensors.remove(name)
-            self.storage[meta_key] = meta
             delete_tensor(name, self)
+            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
+            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
+            ffw_dataset_meta(meta)
+            meta.delete_tensor(name)
+            self.version_state["meta"] = meta
+            self.version_state["full_tensors"].pop(name)
 
         self.storage.maybe_flush()
 
-        self.version_state["meta"] = meta
-        self.version_state["full_tensors"].pop(name)
-
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
@@ -439,23 +489,20 @@ class Dataset:
                 return
 
         with self:
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            meta = self.version_state["meta"]
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
-                for tensor in self[name]._all_tensors_filtered
+                for tensor in self[name]._all_tensors_filtered(include_hidden=True)
             ]
-            meta.groups = list(filter(lambda g: not g.startswith(name), meta.groups))
-            meta.tensors = list(filter(lambda t: not t.startswith(name), meta.tensors))
-            self.storage[meta_key] = meta
+            meta.delete_group(name)
             for tensor in tensors:
                 delete_tensor(tensor, self)
                 self.version_state["full_tensors"].pop(tensor)
 
         self.storage.maybe_flush()
-        self.version_state["meta"] = meta
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
@@ -475,12 +522,8 @@ class Dataset:
         del meta["length"]
         del meta["version"]
 
-        destination_tensor = self.create_tensor(
-            name,
-            **meta,
-        )
+        destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
-
         return destination_tensor
 
     __getattr__ = __getitem__
@@ -529,47 +572,65 @@ class Dataset:
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
 
-        if (
-            isinstance(storage, (S3Provider, GCSProvider))
-            and self.is_first_load
-            and (not self.read_only or self._locked_out)
+        if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
+            not self.read_only or self._locked_out
         ):
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
-                lock_version(
-                    storage,
-                    version=self.version_state["commit_id"],
-                    callback=self._lock_lost_handler,
+                lock_dataset(
+                    self,
+                    lock_lost_callback=self._lock_lost_handler,
                 )
             except LockedException as e:
                 self.read_only = True
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                warnings.warn(
+                always_warn(
                     "Checking out dataset in read only mode as another machine has locked this version for writing."
                 )
                 return False
         return True
 
     def _unlock(self):
-        unlock_version(get_base_storage(self.storage), self.version_state["commit_id"])
+        unlock_dataset(self)
 
-    def commit(self, message: Optional[str] = None) -> str:
+    def __del__(self):
+        try:
+            self._unlock()
+        except Exception:  # python shutting down
+            pass
+
+    def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
 
         Args:
             message (str, optional): Used to describe the commit.
+            allow_empty (bool): If True, commit even if there are no changes
 
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
+
+        Raises:
+            Exception: if dataset is a filtered view.
+            EmptyCommitError: if there are no changes and user does not forced to commit unchanged data
         """
+        if not allow_empty and not self.has_head_changes:
+            raise EmptyCommitError(
+                "There are no changes, commit is not done. Try again with allow_empty=True."
+            )
+
         return self._commit(message)
 
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+
         try_flushing(self)
 
         self._initial_autoflush.append(self.storage.autoflush)
@@ -581,6 +642,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
@@ -596,14 +658,21 @@ class Dataset:
             create (bool): If True, creates a new branch with name as address.
 
         Returns:
-            str, optional: The commit_id of the branch/commit that was checked out.
-                If there are no commits present after checking out, returns the commit_id before the branch, if there are no commits, returns None.
+            str: The commit_id of the dataset after checkout.
+
+        Raises:
+            Exception: if dataset is a filtered view.
         """
         return self._checkout(address, create)
 
     def _checkout(
         self, address: str, create: bool = False, hash: Optional[str] = None
     ) -> Optional[str]:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+
         try_flushing(self)
 
         self._initial_autoflush.append(self.storage.autoflush)
@@ -615,6 +684,7 @@ class Dataset:
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
+        self._ds_diff = None
 
         # do not store address
         hub_reporter.feature_report(
@@ -688,47 +758,19 @@ class Dataset:
             ValueError: If both id_1 is None and id_2 is not None.
         """
         version_state, storage = self.version_state, self.storage
-        commit_node = version_state["commit_node"]
-        if id_1 is None and id_2 is None:
-            changes1: Dict[str, Dict] = defaultdict(dict)
-            commit_id = commit_node.commit_id
-            if commit_node.is_head_node:
-                message1 = "Diff in HEAD:\n"
-            else:
-                message1 = f"Diff in {commit_id} (current commit):\n"
-            get_changes_for_id(commit_id, storage, changes1)
-            filter_data_updated(changes1)
-            changes2 = message2 = None
-        else:
-            if id_1 is None:
-                raise ValueError("Can't specify id_1 without specifying id_2")
-            elif id_2 is None:
-                commit1: str = commit_node.commit_id
-                commit2 = id_1
-                if commit_node.is_head_node:
-                    message1 = "Diff in HEAD:\n"
-                else:
-                    message1 = f"Diff in {commit1} (current commit):\n"
-                message2 = f"Diff in {commit2} (target id):\n"
-            else:
-                commit1 = id_1
-                commit2 = id_2
-                message1 = f"Diff in {commit1} (target id 1):\n"
-                message2 = f"Diff in {commit2} (target id 2):\n"
-            changes1, changes2 = compare_commits(
-                commit1, commit2, version_state, storage
-            )
+        res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
-            if changes2 is None:
-                return changes1
-            return changes1, changes2
-        all_changes = get_all_changes_string(changes1, message1, changes2, message2)
+            tensor_changes_1 = res[2]
+            tensor_changes_2 = res[3]
+            if id_1 is None and id_2 is None:
+                return tensor_changes_1
+            return tensor_changes_1, tensor_changes_2
+        all_changes = get_all_changes_string(*res)
         print(all_changes)
         return None
 
     def _populate_meta(self):
         """Populates the meta information for the dataset."""
-
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -742,11 +784,12 @@ class Dataset:
             if self.read_only:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            self.version_state["meta"] = DatasetMeta()
-            self.storage[meta_key] = self.version_state["meta"]
-            self.flush()
+            meta = DatasetMeta()
+            key = get_dataset_meta_key(self.version_state["commit_id"])
+            self.version_state["meta"] = meta
+            self.storage.register_hub_object(key, meta)
             self._register_dataset()
+            self.flush()
 
     def _register_dataset(self):
         """overridden in HubCloudDataset"""
@@ -783,7 +826,7 @@ class Dataset:
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
         commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_data(
+        return not commit_node.children and current_commit_has_change(
             self.version_state, self.storage
         )
 
@@ -811,6 +854,7 @@ class Dataset:
                 raise e
 
     @read_only.setter
+    @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
@@ -883,18 +927,24 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
+        store_result: bool = False,
+        result_path: Optional[str] = None,
+        result_ds_args: Optional[dict] = None,
     ):
         """Filters the dataset in accordance of filter function `f(x: sample) -> bool`
 
         Args:
-            function(Callable | str): filter function that takes sample as argument and returns True/False
+            function(Callable | str): Filter function that takes sample as argument and returns True/False
                 if sample should be included in result. Also supports simplified expression evaluations.
                 See hub.core.query.DatasetQuery for more details.
-            num_workers(int): level of parallelization of filter evaluations.
+            num_workers(int): Level of parallelization of filter evaluations.
                 `0` indicates in-place for-loop evaluation, multiprocessing is used otherwise.
-            scheduler(str): scheduler to use for multiprocessing evaluation.
+            scheduler(str): Scheduler to use for multiprocessing evaluation.
                 `threaded` is default
-            progressbar(bool): display progress bar while filtering. True is default
+            progressbar(bool): Display progress bar while filtering. True is default
+            store_result (bool): If True, result of the filter will be saved to a dataset asynchronously.
+            result_path (Optional, str): Path to save the filter result. Only applicable if `store_result` is True.
+            result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `store_result` is True.
 
         Returns:
             View on Dataset with elements, that satisfy filter function
@@ -908,24 +958,17 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
         from hub.core.query import DatasetQuery
 
-        if isinstance(function, str):
-            query_text = function
-            return query_dataset(
-                self,
-                function,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-            )
-        else:
-            query_text = "UDF"
-            return filter_dataset(
-                self,
-                function,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-            )
+        fn = query_dataset if isinstance(function, str) else filter_dataset
+        return fn(
+            self,
+            function,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+            store_result=store_result,
+            result_path=result_path,
+            result_ds_args=result_ds_args,
+        )
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -943,14 +986,32 @@ class Dataset:
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta()  # TODO: use the same scheme as `load_info`
+        elif not self._read_only:
+            self._lock()  # for ref counting
         if not self.is_iteration:
             self.index.validate(self.num_samples)
 
     @property
     def info(self):
+        """Returns the information about the dataset."""
         if self._info is None:
-            self.__dict__["_info"] = load_info(get_dataset_info_key(self.version_state["commit_id"]), self.storage, self)  # type: ignore
+            path = get_dataset_info_key(self.version_state["commit_id"])
+            self.__dict__["_info"] = load_info(path, self)  # type: ignore
         return self._info
+
+    @info.setter
+    def info(self, value):
+        if isinstance(value, dict):
+            info = self.info
+            info.replace_with(value)
+        else:
+            raise TypeError("Info must be set with type Dict")
+
+    @property
+    def _dataset_diff(self):
+        if self._ds_diff is None:
+            self.__dict__["_ds_diff"] = load_dataset_diff(self)
+        return self._ds_diff
 
     @hub_reporter.record_call
     def tensorflow(self):
@@ -993,6 +1054,7 @@ class Dataset:
             size += self[group].size_approx()
         return size
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
@@ -1039,18 +1101,12 @@ class Dataset:
         Acesses storage only for the first call.
         """
         ret = self.version_state["full_tensors"].get(name)
-        if ret is None:
-            load_meta(self)
-            ret = self.version_state["full_tensors"].get(name)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
         This is faster than checking `if group in self._groups:`
         """
-        if name in self.version_state["meta"].groups:
-            return True
-        load_meta(self)
         return name in self.version_state["meta"].groups
 
     @property
@@ -1068,25 +1124,29 @@ class Dataset:
             if posixpath.dirname(k) == self.group_index
         }
 
-    @property
-    def _all_tensors_filtered(self) -> List[str]:
+    def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
-        load_meta(self)
+        hidden_tensors = self.meta.hidden_tensors
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
-            if not self.group_index or t.startswith(self.group_index + "/")
+            if (not self.group_index or t.startswith(self.group_index + "/"))
+            and (include_hidden or t not in hidden_tensors)
         ]
 
-    @property
-    def tensors(self) -> Dict[str, Tensor]:
+    def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
             t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
                 self.index
             ]
-            for t in self._all_tensors_filtered
+            for t in self._all_tensors_filtered(include_hidden)
         }
+
+    @property
+    def tensors(self) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        return self._tensors(include_hidden=False)
 
     @property
     def branches(self):
@@ -1130,8 +1190,7 @@ class Dataset:
     @property
     def _groups(self) -> List[str]:
         """Names of all groups in the root dataset"""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        return self.storage.get_cachable(meta_key, DatasetMeta).groups  # type: ignore
+        return self.meta.groups  # type: ignore
 
     @property
     def _groups_filtered(self) -> List[str]:
@@ -1179,7 +1238,7 @@ class Dataset:
 
     @property
     def parent(self):
-        """Returns the parent of this group. Returns None if this is the root dataset"""
+        """Returns the parent of this group. Returns None if this is the root dataset."""
         if self._is_root():
             return None
         autoflush = self.storage.autoflush
@@ -1199,6 +1258,7 @@ class Dataset:
 
     @property
     def root(self):
+        """Returns the root dataset of a group."""
         if self._is_root():
             return self
         autoflush = self.storage.autoflush
@@ -1218,20 +1278,15 @@ class Dataset:
 
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
-        meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-        meta = self.storage.get_cachable(meta_key, DatasetMeta)
-        groups = meta.groups
+        meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
             raise InvalidTensorGroupNameError(name)
         fullname = name
         while name:
             if name in self.version_state["full_tensors"]:
                 raise TensorAlreadyExistsError(name)
-            groups.append(name)
+            meta.add_group(name)
             name, _ = posixpath.split(name)
-        meta.groups = list(set(groups))
-        self.storage[meta_key] = meta
-        self.storage.maybe_flush()
         return self[fullname]
 
     def create_group(self, name: str) -> "Dataset":
@@ -1244,6 +1299,44 @@ class Dataset:
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
+
+    def rechunk(
+        self,
+        tensors: Optional[Union[str, List[str]]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
+    ):
+        """Rewrites the underlying chunks to make their sizes optimal.
+        This is usually needed in cases where a lot of updates have been made to the data.
+
+        Args:
+            tensors (str or list of str, optional): Name/names of the tensors to rechunk.
+                If None, all tensors in the dataset are rechunked.
+            num_workers (int): The number of workers to use for rechunking. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+        """
+
+        if tensors is None:
+            tensors = list(self._tensors())
+        elif isinstance(tensors, str):
+            tensors = [tensors]
+
+        # identity function that rechunks
+        @hub.compute
+        def rechunking(sample_in, samples_out):
+            for tensor in tensors:
+                samples_out[tensor].append(sample_in[tensor])
+
+        rechunking().eval(
+            self,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+            skip_ok=True,
+        )
 
     # the below methods are used by cloudpickle dumps
     def __origin__(self):
@@ -1267,7 +1360,49 @@ class Dataset:
     def __args__(self):
         return None
 
+    def __bool__(self):
+        return True
+
+    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `samples` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `samples` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `samples` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        for i in range(n):
+            self.append({k: v[i] for k, v in samples.items()})
+
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `sample` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `sample` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        if isinstance(sample, Dataset):
+            sample = sample.tensors
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
@@ -1275,7 +1410,7 @@ class Dataset:
                         f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
                     )
         for k in sample:
-            if k not in self.tensors:
+            if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError(
@@ -1309,3 +1444,271 @@ class Dataset:
                                 "Error while attepting to rollback appends"
                             ) from e2
                     raise e
+
+    def _view_hash(self) -> str:
+        """Generates a unique hash for a filtered dataset view."""
+        return hash_inputs(
+            self.path,
+            *[e.value for e in self.index.values],
+            self.pending_commit_id,
+            getattr(self, "_query", None),
+        )
+
+    def _get_view_info(self):
+        if self._view_info is None:
+            tm = getattr(self, "_created_at", time())
+            hash = self._view_hash()
+            info = {
+                "id": hash,
+                "description": "Virtual Datasource",
+                "virtual-datasource": True,
+                "source-dataset": self.path,
+                "source-dataset-version": self.version_state["commit_id"],
+                "created_at": tm,
+            }
+
+            query = getattr(self, "_query", None)
+            if query:
+                info["query"] = query
+                info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+            self._view_info = info
+        return self._view_info
+
+    @staticmethod
+    def _write_queries_json(ds, info):
+        base_storage = get_base_storage(ds.storage)
+        storage_read_only = base_storage.read_only
+        if ds._locked_out:
+            # Ignore storage level lock since we have file level lock
+            base_storage.read_only = False
+        lock = Lock(base_storage, get_queries_lock_key())
+        lock.acquire(timeout=10, force=True)
+        queries_key = get_queries_key()
+        try:
+            try:
+                queries = json.loads(base_storage[queries_key].decode("utf-8"))
+            except KeyError:
+                queries = []
+            queries.append(info)
+            base_storage[queries_key] = json.dumps(queries).encode("utf-8")
+        finally:
+            lock.release()
+            base_storage.read_only = storage_read_only
+
+    def _write_vds(self, vds):
+        """Writes the indices of this view to a vds."""
+        info = self._get_view_info()
+        with vds:
+            vds.info.update(info)
+            vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                list(self.index.values[0].indices(len(self)))
+            )
+
+    def _store_view_in_subdir(self):
+        """Stores this view under ".queries" sub directory of same storage."""
+
+        info = self._get_view_info()
+        hash = info["id"]
+        path = f".queries/{hash}"
+        self.flush()
+        get_base_storage(self.storage).subdir(path).clear()
+        vds = self._sub_ds(path, empty=True)
+        self._write_vds(vds)
+        Dataset._write_queries_json(self, info)
+        return vds
+
+    def _store_view_in_user_queries_dataset(self):
+        """Stores this view under hub://username/queries
+        Only applicable for views of hub datasets.
+        """
+        if len(self.index.values) > 1:
+            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
+        username = get_user_name()
+        if username == "public":
+            raise NotLoggedInError("Unable to save query result. Not logged in.")
+
+        info = self._get_view_info()
+        hash = info["id"]
+
+        queries_ds_path = f"hub://{username}/queries"
+
+        try:
+            queries_ds = hub.dataset(
+                queries_ds_path, verbose=False
+            )  # create if doesn't exist
+        except PathNotEmptyException:
+            hub.delete(queries_ds_path, force=True)
+            queries_ds = hub.dataset(queries_ds_path, verbose=False)
+
+        queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
+
+        path = f"hub://{username}/queries/{hash}"
+
+        vds = hub.empty(path, overwrite=True)
+
+        self._write_vds(vds)
+
+        Dataset._write_queries_json(queries_ds, info)
+
+        return vds
+
+    def _store_view_in_path(self, path, **ds_args):
+        """Stores this view at a given dataset path"""
+        vds = hub.dataset(path, **ds_args)
+        self._write_vds(vds)
+        return vds
+
+    def store(self, path: Optional[str] = None, **ds_args) -> str:
+        """Stores a dataset view as a virtual dataset (VDS)
+
+        Args:
+            path (Optional, str): If specified, the VDS will stored as a standalone dataset at the specified path. If not,
+                the VDS is stored under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
+                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is stored
+                is stored under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
+        Returns:
+            (str) Path to the stored VDS.
+        """
+        return self._store(path, False, **ds_args)
+
+    def _store(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+        """Stores a dataset view as a virtual dataset (VDS)
+
+        Args:
+            path (Optional, str): If specified, the VDS will stored as a standalone dataset at the specified path. If not,
+                the VDS is stored under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
+                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is stored
+                is stored under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
+                Default False.
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
+        Returns:
+            If _ret_ds is True, the VDS is returned, else path to the VDS is returned.
+
+        Raises:
+            NotImplementedError: When storing sub-sample slices and saving views inplace for in-memory datasets.
+            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+        """
+        if len(self.index.values) > 1:
+            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
+
+        if path is None and hasattr(self, "_vds"):
+            vds = self._vds
+        elif path is None:
+            if isinstance(self, MemoryProvider):
+                raise NotImplementedError(
+                    "Saving views inplace is not supported for in-memory datasets."
+                )
+            if self.read_only:
+                if isinstance(self, hub.core.dataset.HubCloudDataset):
+                    vds = self._store_view_in_user_queries_dataset()
+                else:
+                    raise ReadOnlyModeError(
+                        "Cannot save view in read only dataset. Speicify a path to store the view in a different location."
+                    )
+            else:
+                vds = self._store_view_in_subdir()
+        else:
+            vds = self._store_view_in_path(path, **ds_args)
+        if _ret_ds:
+            return vds
+        return vds.path
+
+    def _get_view(self):
+        """Returns a view for this VDS. Only works if this Dataset is a virtual dataset.
+
+        Returns:
+            A view of the source dataset based on the indices from VDS.
+
+        Raises:
+            Exception: If this is not a VDS.
+        """
+        try:
+            ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
+        except KeyError:
+            raise Exception("Dataset._get_view() works only for virtual datasets.")
+        ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
+        ds._vds = self
+        return ds
+
+    def _get_empty_vds(
+        self, vds_path: Optional[str] = None, query: Optional[str] = None, **vds_args
+    ):
+        """Returns an empty VDS with this dataset as the source dataset. Internal.
+
+        Args:
+            vds_path (Optional, str): If specified, the vds will be stored at this path. Else the vds will be stored
+                under `.queries` subdirectory.
+            query (Optional, str): Query string associated with this view.
+            vds_args (dict): Additional args for creating vds when path is specified.
+
+        Returns:
+            Empty VDS with this dataset as the source dataset.
+        """
+        view = self[:0]
+        if query:
+            view._query = query
+        return view._store(vds_path, _ret_ds=True, **vds_args)
+
+    def _get_query_history(self) -> List[str]:
+        """
+        Internal. Returns a list of hashes which can be passed to Dataset._get_stored_vds to get a dataset view.
+        """
+        try:
+            queries = json.loads(self.storage[get_queries_key()].decode("utf-8"))
+            return queries
+        except KeyError:
+            return []
+
+    def _sub_ds(
+        self,
+        path,
+        empty=False,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+    ):
+        """Loads a nested dataset. Internal.
+        Note: Virtual datasets are returned as such, they are not converted to views.
+
+        Args:
+            path (str): Path to sub directory
+            empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
+            memory_cache_size (int): Memory cache size for the sub dataset.
+            local_cache_size (int): Local storage cache size for the sub dataset.
+
+        Returns:
+            Sub dataset
+        """
+        base_storage = get_base_storage(self.storage)
+        sub_storage = base_storage.subdir(path)
+
+        if self.path.startswith("hub://"):
+            path = posixpath.join(self.path, path)
+            cls = hub.core.dataset.HubCloudDataset
+        else:
+            path = sub_storage.root
+            cls = hub.core.dataset.Dataset
+
+        return cls(
+            generate_chain(
+                sub_storage,
+                memory_cache_size * MB,
+                local_cache_size * MB,
+            ),
+            path=path,
+            token=self._token,
+        )
+
+    def _get_stored_vds(self, hash: str):
+        """Returns a vds stored under the `.queries` subdirectory given its hash.
+
+        Args:
+            hash (str): Hash of the required vds.
+
+        Returns:
+            VDS with the specified hash.
+        """
+        return self._get_sub_ds(".queries/" + hash)
