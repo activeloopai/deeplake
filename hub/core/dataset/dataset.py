@@ -450,6 +450,10 @@ class Dataset:
             self.version_state["meta"] = meta
             self.version_state["full_tensors"].pop(name)
 
+        id_tensor_name = get_sample_id_tensor_key(name)
+        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
+            self.delete_tensor(id_tensor_name)
+
         self.storage.maybe_flush()
 
     @hub_reporter.record_call
