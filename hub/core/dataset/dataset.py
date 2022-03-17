@@ -88,6 +88,32 @@ from hub.client.utils import get_user_name
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
+def max_array_length(arrMax, arrToCompare):  # helper for __str__
+    for i in range(len(arrMax)):
+        str_length = len(arrToCompare[i])
+        if arrMax[i] < str_length:
+            arrMax[i] = str_length
+    return arrMax
+
+
+def get_string(
+    tableArray, maxArr
+):  # gets string from array of arrays as a table (helper for __str__)
+    temp_str = ""
+    for row in tableArray:
+        temp_str += "\n"
+        for colNo in range(len(row)):
+            max_col = maxArr[colNo]
+            length = len(row[colNo])
+            starting_loc = (max_col - length) // 2
+            temp_str += (
+                " " * starting_loc
+                + row[colNo]
+                + " " * (max_col - length - starting_loc)
+            )
+    return temp_str
+
+
 class Dataset:
     def __init__(
         self,
@@ -1076,6 +1102,32 @@ class Dataset:
         self.storage.clear()
 
     def __str__(self):
+        head = [
+            "tensor",
+            "htype",
+            "dtype",
+            "shape",
+        ]  # To add more attributes change head, divider, row_array and table_str
+        divider = ["-------"] * 4
+        tensor_dict = self.version_state[
+            "full_tensors"
+        ]  # Creating a list of tensors in the dataset
+        maxColumnLength = [7, 7, 7, 7]  # length of "attribute name" length
+        count = 0
+        tableArray = [head, divider]  # collects all the rows
+        for tensor in tensor_dict:
+            tensor_object = tensor_dict[tensor]
+
+            tensor_name = tensor
+            tensor_htype = tensor_object.htype
+            tensor_shape = str(tensor_object.shape)
+            tensor_dtype = tensor_object.dtype.name
+            rowArray = [tensor_name, tensor_htype, tensor_shape, tensor_dtype]
+            tableArray.append(rowArray)
+            maxColumnLength = max_array_length(maxColumnLength, rowArray)
+            count += 1
+        maxColumnLength = [elem + 2 for elem in maxColumnLength]
+
         path_str = ""
         if self.path:
             path_str = f"path='{self.path}', "
@@ -1091,8 +1143,12 @@ class Dataset:
         group_index_str = (
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
-
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+        # tensors = self.version_state["full_tensors"].values()
+        return (
+            f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+            + "\n"
+            + get_string(tableArray, maxColumnLength)
+        )
 
     __repr__ = __str__
 
