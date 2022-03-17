@@ -390,7 +390,9 @@ class Dataset:
         if create_id_tensor:
             id_tensor_name = get_sample_id_tensor_key(name)
             self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
-            self._link_tensors(name, id_tensor_name, append_f="append_id", flatten_sequence=True)
+            self._link_tensors(
+                name, id_tensor_name, append_f="append_id", flatten_sequence=True
+            )
         return tensor
 
     def _hide_tensor(self, tensor: str):

@@ -72,6 +72,8 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
+        "_image_id/tensor_meta.json",
+        "_image_id/commit_diff",
     }
 
 
