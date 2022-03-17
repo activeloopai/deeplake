@@ -1,6 +1,6 @@
 numpy
 pillow
-boto3>=1.20.24
+boto3
 click
 google-cloud-storage~=1.42.0
 google-auth~=2.0.1

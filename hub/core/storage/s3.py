@@ -23,7 +23,6 @@ from botocore.exceptions import (
     ConnectionClosedError,
     EndpointConnectionError,
     IncompleteReadError,
-    ResponseStreamingError,
 )
 
 CONNECTION_ERRORS = (
@@ -33,8 +32,16 @@ CONNECTION_ERRORS = (
     ConnectionClosedError,
     EndpointConnectionError,
     IncompleteReadError,
-    ResponseStreamingError,
 )
+
+try:
+    from botocore.exceptions import (
+        ResponseStreamingError,
+    )
+
+    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)
+except ImportError:
+    pass
 
 
 class S3ReloadCredentialsManager:
