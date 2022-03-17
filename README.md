@@ -47,13 +47,12 @@ Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in you
   <summary><b>Dataset Version Control</b></summary>
 Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
 </details>
-
 <details>
   <summary><b>Integrations with Deep Learning Frameworks</b></summary>
 Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
-  <summary><b>Distributed Transforms</b></summary>
+  <summary><b>Distributed Transformations</b></summary>
 Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
 </details>
 <details>
