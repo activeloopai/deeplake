@@ -1118,9 +1118,24 @@ def test_tracked_sizes(memory_ds: Dataset):
     memory_ds["abc"].extend([1, 2, 3, 4])
     memory_ds["abc"].append([5, 6, 7, 8])
 
-    assert memory_ds["abc"].num_compressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+    chunks = memory_ds.abc.chunk_engine._get_all_chunks()
+    header_size = sum(
+        [
+            len(chunk.version)
+            + chunk.shapes_encoder.nbytes
+            + chunk.byte_positions_encoder.nbytes
+            + 13
+            for chunk in chunks
+        ]
+    )
+
     assert (
-        memory_ds["abc"].num_uncompressed_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize
+        memory_ds["abc"].num_compressed_bytes
+        == 8 * np.dtype(MAX_INT_DTYPE).itemsize + header_size
+    )
+    assert (
+        memory_ds["abc"].num_uncompressed_bytes
+        == 8 * np.dtype(MAX_INT_DTYPE).itemsize + header_size
     )
 
 

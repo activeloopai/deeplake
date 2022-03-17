@@ -48,6 +48,7 @@ from hub.util.exceptions import (
 )
 from hub.util.remove_cache import get_base_storage
 from hub.compression import VIDEO_COMPRESSIONS
+from hub.core.serialize import infer_chunk_num_bytes
 from itertools import chain, repeat
 from collections.abc import Iterable
 
@@ -581,17 +582,18 @@ class ChunkEngine:
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         while len(samples) > 0:
-            num_compressed_bytes_current = current_chunk.num_data_bytes
+            num_compressed_bytes_current = current_chunk.nbytes
             num_uncompressed_bytes_current = self._get_chunk_uncompressed_size(
                 current_chunk
             )
+
             num_samples_added = current_chunk.extend_if_has_space(samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk()
                 continue
 
             self.tensor_meta.num_compressed_bytes += (
-                current_chunk.num_data_bytes - num_compressed_bytes_current
+                current_chunk.nbytes - num_compressed_bytes_current
             )
             self.tensor_meta.num_uncompressed_bytes += (
                 self._get_chunk_uncompressed_size(current_chunk)
@@ -677,6 +679,9 @@ class ChunkEngine:
             self.write_chunk_to_storage(self.active_appended_chunk)
 
         self.active_appended_chunk = chunk
+        self.tensor_meta.num_compressed_bytes += chunk.nbytes
+        self.tensor_meta.num_uncompressed_bytes += chunk.nbytes
+        self.tensor_meta.is_dirty = True
         return chunk
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
@@ -1094,24 +1099,28 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return 0
 
-        chunks = self._get_all_chunks()
-        nbytes = 0
-
-        for chunk in chunks:
-            nbytes += chunk.num_data_bytes
+        nbytes = sum([chunk.nbytes for chunk in self._get_all_chunks()])
 
         return nbytes
 
-    def _get_chunk_uncompressed_size(self, chunk):
+    def _get_chunk_uncompressed_size(self, chunk: BaseChunk):
         dtype = self.tensor_meta.dtype
         if not dtype:
             return 0
-        itemsize = np.dtype(dtype).itemsize
 
+        itemsize = np.dtype(dtype).itemsize
+        header_size = (
+            len(chunk.version)
+            + chunk.shapes_encoder.nbytes
+            + chunk.byte_positions_encoder.nbytes
+            + 13
+        )
         shapes = [
             chunk.shapes_encoder[i] for i in range(chunk.shapes_encoder.num_samples)
         ]
-        nbytes = sum([np.prod(shape).item() for shape in shapes]) * itemsize
+        nbytes = (
+            sum([np.prod(shape).item() for shape in shapes]) * itemsize + header_size
+        )
         return nbytes
 
     def _get_num_uncompressed_bytes(self):

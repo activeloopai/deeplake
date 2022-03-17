@@ -250,6 +250,20 @@ def test_audio(local_ds, compression, audio_paths):
         np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore
 
 
+def _get_header_size(ds, tensor):
+    chunks = ds[tensor].chunk_engine._get_all_chunks()
+    header_size = sum(
+        [
+            len(chunk.version)
+            + chunk.shapes_encoder.nbytes
+            + chunk.byte_positions_encoder.nbytes
+            + 13
+            for chunk in chunks
+        ]
+    )
+    return header_size
+
+
 def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
     from PIL import Image  # type: ignore
 
@@ -281,13 +295,14 @@ def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
     image = memory_ds.create_tensor("image", sample_compression="png")
     _populate_compressed_samples(image, cat_path, flower_path)
 
+    header_size = _get_header_size(memory_ds, "image")
     assert (
         image.num_compressed_bytes
-        == (cat_png_size + flower_png_size + ones_png_size) * 2
+        == (cat_png_size + flower_png_size + ones_png_size) * 2 + header_size
     )
     assert (
         image.num_uncompressed_bytes
-        == sum([np.prod(shape).item() for shape in shapes]) * 2
+        == sum([np.prod(shape).item() for shape in shapes]) * 2 + header_size
     )
     assert image.chunk_engine._get_num_compressed_bytes() == image.num_compressed_bytes
     assert (
@@ -300,7 +315,8 @@ def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
     )
     image.extend([hub.read(cat_path)] * 5)
 
-    assert image.num_uncompressed_bytes == np.prod(cat_shape) * 5
+    header_size = _get_header_size(memory_ds, "ch_image")
+    assert image.num_uncompressed_bytes == np.prod(cat_shape) * 5 + header_size
 
 
 def test_tracked_sizes_persistence(local_ds_generator: Dataset, flower_path):
@@ -312,11 +328,12 @@ def test_tracked_sizes_persistence(local_ds_generator: Dataset, flower_path):
     image = ds.create_tensor("image", sample_compression="png")
     image.append(hub.read(flower_path))
 
-    assert image.num_compressed_bytes == flower_png_size
-    assert image.num_uncompressed_bytes == np.prod(flower_shape)
+    header_size = _get_header_size(ds, "image")
+    assert image.num_compressed_bytes == flower_png_size + header_size
+    assert image.num_uncompressed_bytes == np.prod(flower_shape) + header_size
 
     ds = local_ds_generator()  # type: ignore
     image = ds["image"]
 
-    assert image.num_compressed_bytes == flower_png_size
-    assert image.num_uncompressed_bytes == np.prod(flower_shape)
+    assert image.num_compressed_bytes == flower_png_size + header_size
+    assert image.num_uncompressed_bytes == np.prod(flower_shape) + header_size

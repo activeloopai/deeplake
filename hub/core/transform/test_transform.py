@@ -244,6 +244,20 @@ def test_groups_2(local_ds):
         assert ds_out.x.y.z.image.shape_interval.upper == (99, 99, 99)
 
 
+def _get_header_size(ds, tensor):
+    chunks = ds[tensor].chunk_engine._get_all_chunks()
+    header_size = sum(
+        [
+            len(chunk.version)
+            + chunk.shapes_encoder.nbytes
+            + chunk.byte_positions_encoder.nbytes
+            + 13
+            for chunk in chunks
+        ]
+    )
+    return header_size
+
+
 @parametrize_num_workers
 @all_schedulers
 def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
@@ -267,10 +281,11 @@ def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
         data_in, ds_out, num_workers=num_workers, progressbar=False, scheduler=scheduler
     )
     assert len(ds_out) == 99
-    assert ds_out.image.num_compressed_bytes == expected_imbytes
-    assert ds_out.image.num_uncompressed_bytes == expected_imbytes
-    assert ds_out.label.num_compressed_bytes == expected_lbytes
-    assert ds_out.label.num_uncompressed_bytes == expected_lbytes
+    header_size = _get_header_size(ds_out, "image")
+    assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
+    assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+    assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
+    assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -299,12 +314,20 @@ def test_chain_transform_list_small(local_ds, scheduler):
         scheduler=scheduler,
     )
     assert len(ds_out) == 600
+    header_size = _get_header_size(ds_out, "image")
     assert (
         ds_out.image.num_uncompressed_bytes
-        == 337 * 200 * np.dtype(float).itemsize * 600
+        == 337 * 200 * np.dtype(float).itemsize * 600 + header_size
     )
-    assert ds_out.label.num_compressed_bytes == 1 * np.dtype(float).itemsize * 600
-    assert ds_out.label.num_uncompressed_bytes == 1 * np.dtype(float).itemsize * 600
+    header_size = _get_header_size(ds_out, "label")
+    assert (
+        ds_out.label.num_compressed_bytes
+        == 1 * np.dtype(float).itemsize * 600 + header_size
+    )
+    assert (
+        ds_out.label.num_uncompressed_bytes
+        == 1 * np.dtype(float).itemsize * 600 + header_size
+    )
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
