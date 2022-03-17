@@ -946,7 +946,7 @@ def test_vc_bug(local_ds_generator):
     a = ds.commit("first")
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
-    assert ds._all_tensors_filtered() == ["abc", "a/b/c/d"]
+    assert ds._all_tensors_filtered(include_hidden=False) == ["abc", "a/b/c/d"]
 
 
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
