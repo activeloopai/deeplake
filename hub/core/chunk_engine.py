@@ -40,6 +40,7 @@ from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_tensor_info_key,
 )
 from hub.util.exceptions import (
     CorruptedMetaError,
@@ -648,19 +649,22 @@ class ChunkEngine:
         return chunk
 
     def clear(self):
-        """Deletes all samples."""
+        """Clears all samples and cachables."""
         self.cache.check_readonly()
+
+        commit_id = self.version_state["commit_id"]
 
         enc = self.chunk_id_encoder
         n_chunks = self.num_chunks
         chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
-        chunk_keys = [
-            get_chunk_key(self.key, name, self.version_state["commit_id"])
-            for name in chunk_names
-        ]
+        chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
 
-        enc_key = get_chunk_id_encoder_key(self.key, self.version_state["commit_id"])
-        del self.meta_cache[enc_key]
+        enc_key = get_chunk_id_encoder_key(self.key, commit_id)
+        try:
+            self._chunk_id_encoder = None
+            del self.meta_cache[enc_key]
+        except KeyError:
+            pass
 
         for key in chunk_keys:
             try:
@@ -668,18 +672,29 @@ class ChunkEngine:
             except KeyError:
                 pass
 
+        info_key = get_tensor_info_key(key, commit_id)
+        try:
+            self._info = None
+            del self.cache[info_key]
+        except KeyError:
+            pass
+
+        self.commit_diff.clear_data()
+
+        tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
+        try:
+            self._tile_encoder = None
+            del self.cache[tile_encoder_key]
+        except KeyError:
+            pass
+
         self.tensor_meta.length = 0
         self.tensor_meta.min_shape = []
         self.tensor_meta.max_shape = []
+        self.tensor_meta.is_dirty = True
 
         self.cache.maybe_flush()
-
-    def update_chunk_in_cache(self, chunk):
-        """Updates the chunk in the cache. Also, updates the sizes of cachables in cache."""
-        self.cache[chunk.key] = chunk
-        self.add_cachables_to_cache_dirty_keys()
-        self.active_appended_chunk = chunk
-        return chunk
+        self.meta_cache.maybe_flush()
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
         new_chunks, tiles = self._samples_to_chunks(

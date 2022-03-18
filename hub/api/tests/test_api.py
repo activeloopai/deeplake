@@ -968,7 +968,7 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-def test_clear(local_ds_generator):
+def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
     a.extend([1, 2, 3, 4])
@@ -978,15 +978,17 @@ def test_clear(local_ds_generator):
 
     image = ds.create_tensor("image", htype="image", sample_compression="png")
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
     image.clear()
     assert len(ds) == 0
     assert len(image) == 0
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
 
     ds = local_ds_generator()
-    assert len(ds) == 0
-    assert len(image) == 0
+    assert len(ds) == 1
+    assert len(image) == 1
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
 

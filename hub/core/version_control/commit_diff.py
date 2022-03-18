@@ -11,6 +11,7 @@ class CommitDiff(HubMemoryObject):
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
         self.info_updated = False
+        self.cleared = False
 
         # this is stored for in place transforms in which we no longer need to considered older diffs about added/updated data
         self.data_transformed = False
@@ -35,6 +36,7 @@ class CommitDiff(HubMemoryObject):
                 self.data_added[1].to_bytes(8, "big"),
                 len(self.data_updated).to_bytes(8, "big"),
                 *(idx.to_bytes(8, "big") for idx in self.data_updated),
+                self.cleared.to_bytes(1, "big"),
             ]
         )
 
@@ -55,6 +57,8 @@ class CommitDiff(HubMemoryObject):
             int.from_bytes(data[27 + i * 8 : 35 + i * 8], "big")
             for i in range(num_updates)
         }
+        pos = 35 + num_updates * 8
+        commit_diff.cleared = bool(int.from_bytes(data[pos : pos + 1], "big"))
         commit_diff.is_dirty = False
         return commit_diff
 
@@ -83,6 +87,14 @@ class CommitDiff(HubMemoryObject):
         if global_index not in self.data_added:
             self.data_updated.add(global_index)
             self.is_dirty = True
+
+    def clear_data(self):
+        """Clears data"""
+        self.data_added = [0, 0]
+        self.data_updated = set()
+        self.info_updated = False
+        self.cleared = True
+        self.is_dirty = True
 
     def transform_data(self) -> None:
         """Stores information that the data has been transformed using an inplace transform."""
