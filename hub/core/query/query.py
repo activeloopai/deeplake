@@ -28,7 +28,11 @@ class DatasetQuery:
             for tensor in dataset.tensors.keys()
             if normalize_query_tensors(tensor) in query
         ]
-        self._blocks = expand(dataset, self._tensors)
+        try:
+            self._blocks = expand(dataset, self._tensors)
+        except Exception:
+            self._blocks = []
+            pass
         self._np_access: List[NP_ACCESS] = [
             _get_np(dataset, block) for block in self._blocks
         ]
