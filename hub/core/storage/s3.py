@@ -34,6 +34,15 @@ CONNECTION_ERRORS = (
     IncompleteReadError,
 )
 
+try:
+    from botocore.exceptions import (
+        ResponseStreamingError,
+    )
+
+    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)  # type: ignore
+except ImportError:
+    pass
+
 
 class S3ReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
