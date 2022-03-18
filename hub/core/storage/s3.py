@@ -39,7 +39,7 @@ try:
         ResponseStreamingError,
     )
 
-    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)
+    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)  # type: ignore
 except ImportError:
     pass
 
