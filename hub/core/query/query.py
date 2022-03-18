@@ -30,7 +30,7 @@ class DatasetQuery:
         ]
         try:
             self._blocks = expand(dataset, self._tensors)
-        except Exception:
+        except (NameError, KeyError, ValueError):
             self._blocks = []
             pass
         self._np_access: List[NP_ACCESS] = [
@@ -57,7 +57,7 @@ class DatasetQuery:
                         self._pg_callback(local_idx, True)
                     else:
                         self._pg_callback(local_idx, False)
-                except Exception:
+                except (NameError, KeyError, ValueError):
                     pass
         return idx_map
 
