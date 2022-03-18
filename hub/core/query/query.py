@@ -53,7 +53,7 @@ class DatasetQuery:
                         self._pg_callback(local_idx, True)
                     else:
                         self._pg_callback(local_idx, False)
-                except (NameError, KeyError):
+                except Exception:
                     pass
         return idx_map
 
