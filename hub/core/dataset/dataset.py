@@ -618,7 +618,7 @@ class Dataset:
             Exception: if dataset is a filtered view.
             EmptyCommitError: if there are no changes and user does not forced to commit unchanged data
         """
-        if not allow_empty and not self.has_head_changes:
+        if not allow_empty and not self.has_changes:
             raise EmptyCommitError(
                 "There are no changes, commit is not done. Try again with allow_empty=True."
             )
@@ -826,9 +826,11 @@ class Dataset:
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
         commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_change(
-            self.version_state, self.storage
-        )
+        return not commit_node.children and self.has_changes
+
+    @property
+    def has_changes(self):
+        return current_commit_has_change(self.version_state, self.storage)
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
