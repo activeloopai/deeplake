@@ -632,6 +632,10 @@ class CommitError(VersionControlError):
     pass
 
 
+class EmptyCommitError(CommitError):
+    pass
+
+
 class TensorModifiedError(Exception):
     def __init__(self):
         super().__init__(
@@ -645,6 +649,14 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class InvalidOperationError(Exception):
+    def __init__(self, method: str, type: str):
+        if method == "read_only":
+            super().__init__("read_only property cannot be toggled for a dataset view.")
+        else:
+            super().__init__(f"{method} method cannot be called on a {type} view.")
 
 
 class AgreementError(Exception):

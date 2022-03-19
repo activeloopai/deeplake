@@ -5,9 +5,12 @@ from time import time
 import json
 from tqdm import tqdm  # type: ignore
 import posixpath
+
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
+from hub.util.invalid_view_op import invalid_view_op
+import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -58,6 +61,7 @@ from hub.util.exceptions import (
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
     NotLoggedInError,
+    EmptyCommitError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -75,7 +79,7 @@ from hub.util.version_control import (
     auto_checkout,
     checkout,
     commit,
-    current_commit_has_data,
+    current_commit_has_change,
     load_meta,
     warn_node_checkout,
     load_version_info,
@@ -276,6 +280,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor(
         self,
@@ -400,6 +405,7 @@ class Dataset:
         self.meta._hide_tensor(tensor)
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
@@ -456,6 +462,7 @@ class Dataset:
 
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
@@ -510,6 +517,7 @@ class Dataset:
 
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
@@ -609,20 +617,27 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
-    def commit(self, message: Optional[str] = None) -> str:
+    def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
 
         Args:
             message (str, optional): Used to describe the commit.
+            allow_empty (bool): If True, commit even if there are no changes
 
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
 
         Raises:
             Exception: if dataset is a filtered view.
+            EmptyCommitError: if there are no changes and user does not forced to commit unchanged data
         """
+        if not allow_empty and not self.has_head_changes:
+            raise EmptyCommitError(
+                "There are no changes, commit is not done. Try again with allow_empty=True."
+            )
+
         return self._commit(message)
 
     def merge(
@@ -867,7 +882,7 @@ class Dataset:
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
         commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_data(
+        return not commit_node.children and current_commit_has_change(
             self.version_state, self.storage
         )
 
@@ -895,6 +910,7 @@ class Dataset:
                 raise e
 
     @read_only.setter
+    @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
@@ -1094,6 +1110,7 @@ class Dataset:
             size += self[group].size_approx()
         return size
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
