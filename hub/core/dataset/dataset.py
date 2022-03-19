@@ -641,7 +641,11 @@ class Dataset:
                 - None - this is the default value, will raise an exception if there are conflicts.
                 - "ours" - during conflicts, values from the current dataset will be used.
                 - "theirs" - during conflicts, values from target id will be used.
-            delete_removed_tensors (bool, optional): If true, deleted tensors will be deleted from the dataset.
+            delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
+
+        Raises:
+            Exception: if dataset is a filtered view.
+            ValueError: if the conflict resolution strategy is not one of the None, "ours", or "theirs".
         """
         if self._is_filtered_view:
             raise Exception(
