@@ -1105,8 +1105,8 @@ class Dataset:
         head = [
             "tensor",
             "htype",
-            "dtype",
             "shape",
+            "dtype",
         ]  # To add more attributes change head, divider, row_array and table_str
         divider = ["-------"] * 4
         tensor_dict = self.version_state[
