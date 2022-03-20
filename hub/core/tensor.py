@@ -562,7 +562,7 @@ class Tensor:
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        head = ["tensor", "htype", "dtype", "shape"]
+        head = ["tensor", "htype", "shape", "dtype"]
         divider = ["-------"] * 4
         maxColumnLength = [7, 7, 7, 7]
         selfArray = [
