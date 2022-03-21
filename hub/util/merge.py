@@ -17,18 +17,18 @@ def merge(
     dataset,
     target_id: str,
     conflict_resolution: Optional[str] = None,
-    delete_removed_tensors=False,
+    delete_removed_tensors: bool = False,
 ):
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
 
     auto_checkout(dataset)
-    target_commit_id = sanitize_commit(target_id, version_state)
     target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     original_node: CommitNode = version_state["commit_node"]
     target_node: CommitNode = commit_node_map[target_commit_id]
+
     lca_id = get_lowest_common_ancestor(original_node, target_node)
     if lca_id == target_commit_id:
         print("No merge needed, target id is an ancestor of the current commit")
@@ -44,7 +44,6 @@ def merge(
     check_id_tensors_exist(target_tensors, all_target_tensors)
 
     lca_tensors = get_lca_tensors(dataset, lca_id)
-
     new_tensors = target_tensors - original_tensors
     common_tensors = target_tensors & original_tensors
 
@@ -90,6 +89,7 @@ def get_lca_tensors(ds, lca_id: str):
 
 
 def auto_commit_target_commit(dataset, target_commit_id: str):
+    target_commit_id = sanitize_commit(target_commit_id, dataset.version_state)
     original_id = dataset.pending_commit_id
     original_branch = dataset.branch
     dataset.checkout(target_commit_id)
