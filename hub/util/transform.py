@@ -109,7 +109,15 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     data_slice, inp = transform_input
-    output_storage, group_index, tensors, pipeline, version_state, skip_ok = inp
+    (
+        output_storage,
+        group_index,
+        tensors,
+        visible_tensors,
+        pipeline,
+        version_state,
+        skip_ok,
+    ) = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -120,7 +128,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
     transform_data_slice_and_append(
         data_slice,
         pipeline,
-        tensors,
+        visible_tensors,
         all_chunk_engines,
         group_index,
         pg_callback,
