@@ -42,11 +42,10 @@ def merge(
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
-
     finalize_merge(dataset, nodes)
 
 
-def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id):
+def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id: str):
     original_tensors: Set[str] = set(dataset.tensors.keys())
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
@@ -70,7 +69,7 @@ def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id):
         diff = target_diff.get(tensor, None)
 
         # either target doesn't have the tensor, no point in creating again or target has the tensor but it wasn't modified
-        if not diff or not (diff.data_added or diff.data_updated):
+        if not diff or not (diff["data_added"] or diff["data_updated"]):
             new_tensors.discard(tensor)
 
     return new_tensors, common_tensors, target_deleted_tensors
@@ -163,7 +162,7 @@ def merge_common_tensors(
     nodes: Dict[str, CommitNode],
     conflict_resolution: Optional[str] = None,
 ):
-    check_common_tensor_mismatches(dataset, target_dataset, tensor_names)
+    check_common_tensor_mismatches(tensor_names, dataset, target_dataset)
     new_samples_dict: Dict[str, List[int]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
 
@@ -193,11 +192,7 @@ def merge_common_tensors(
         )
 
 
-def check_common_tensor_mismatches(
-    dataset,
-    target_dataset,
-    tensor_names: Set[str],
-):
+def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_dataset):
     for tensor_name in tensor_names:
         target_meta = target_dataset[tensor_name].meta
         original_meta = dataset[tensor_name].meta
@@ -217,9 +212,7 @@ def check_common_tensor_mismatches(
 
 
 def get_new_indexes(
-    new_elements_ids,
-    target_id_changes_commit_map,
-    target_id_to_index_map,
+    new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
 ):
     new_indexes = []
     for id in new_elements_ids:
