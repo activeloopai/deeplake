@@ -85,7 +85,10 @@ class ShuffleBuffer:
             )
         elif isinstance(sample, Sequence):
             return sum(
-                [tensor.storage().element_size() * reduce(mul, tensor.shape, 1) for tensor in sample]
+                [
+                    tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
+                    for tensor in sample
+                ]
             )
 
     def __len__(self):
