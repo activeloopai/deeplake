@@ -47,15 +47,3 @@ def _unregister_link_transform(fname: str):
 
 def get_link_transform(fname: str):
     return _funcs[fname]
-
-
-class LinkTransformTestContext:
-    def __init__(self, func: Callable, name: str):
-        self.func = func
-        self.name = name
-
-    def __enter__(self):
-        _register_link_transform(self.name, self.func)
-
-    def __exit__(self, *args, **kwargs):
-        _unregister_link_transform(self.name)

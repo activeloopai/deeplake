@@ -2,7 +2,7 @@ import pytest
 import hub
 import numpy as np
 import uuid
-from hub.core.tensor_link import LinkTransformTestContext
+from hub.tests.common import LinkTransformTestContext
 
 
 def test_linking(memory_ds):

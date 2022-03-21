@@ -79,7 +79,7 @@ class TensorMeta(Meta):
         if update_f is not None:
             link["update"] = update_f
         _validate_links({"name": link})
-        self.links[name] = link
+        self.links[name] = link  # type: ignore
         self.is_dirty = True
 
     def set_hidden(self, val: bool):
