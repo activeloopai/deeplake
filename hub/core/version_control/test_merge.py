@@ -17,7 +17,6 @@ def test_merge(local_ds):
 
         ds.merge(f, conflict_resolution="theirs")
         assert ds.image[0].numpy() == 3
-        c = ds.commit()
 
         ds.image[0] = 4
         assert ds.image[0].numpy() == 4
@@ -31,7 +30,6 @@ def test_merge(local_ds):
 
         ds.merge("main", conflict_resolution="theirs")
         assert ds.image[0].numpy() == 4
-        h = ds.commit()
 
         ds.image[0] = 5
         assert ds.image[0].numpy() == 5
