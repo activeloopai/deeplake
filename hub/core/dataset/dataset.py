@@ -1168,7 +1168,6 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-
         return self._token
 
     @property
