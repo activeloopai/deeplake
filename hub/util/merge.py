@@ -306,10 +306,14 @@ def merge_tensor(
 ):
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
+    id_tensor_name = get_sample_id_tensor_key(tensor_name)
+    original_id_tensor = dataset[id_tensor_name]
+    target_id_tensor = target_dataset[id_tensor_name]
 
     new_indexes = new_samples_dict[tensor_name]
     for index in new_indexes:
         original_tensor.append(target_tensor[index])
+        original_id_tensor[-1] = target_id_tensor[index]
 
     if tensor_name in conflict_samples_dict:
         conflict_indexes = conflict_samples_dict[tensor_name]
