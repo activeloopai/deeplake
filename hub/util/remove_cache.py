@@ -1,4 +1,3 @@
-from email.mime import base
 import hub
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
@@ -45,6 +44,12 @@ def get_dataset_with_zero_size_cache(ds):
 
 
 def create_read_copy_dataset(dataset, commit_id=None):
+    """Creates a read-only copy of the given dataset object, without copying underlying data.
+
+    Args:
+        dataset: The Dataset object to copy.
+        commit_id: The commit id to checkout the new read-only copy to.
+    """
     base_storage = get_base_storage(dataset.storage).copy()
     storage = LRUCache(MemoryProvider(), base_storage, 256 * MB)
     ds = dataset.__class__(

@@ -165,19 +165,21 @@ def merge_common_tensors(
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
 
     for tensor_name in tensor_names:
-        process_tensor(
+        new_indexes, conflict_indexes = process_tensor(
             tensor_name,
             dataset,
             target_dataset,
             original_node,
             target_node,
             lca_node,
-            new_samples_dict,
-            conflict_samples_dict,
             conflict_resolution,
         )
+        new_samples_dict[tensor_name] = new_indexes
+        if conflict_indexes:
+            conflict_samples_dict[tensor_name] = conflict_indexes
 
     if conflict_samples_dict and conflict_resolution is None:
+        # There are conflicts and a conflict resolution strategy has not been specified, unable to merge
         raise MergeConflictError(conflict_samples_dict)
 
     for tensor_name in tensor_names:
@@ -258,8 +260,6 @@ def process_tensor(
     original_node: CommitNode,
     target_node: CommitNode,
     lca_node: CommitNode,
-    new_samples_dict,
-    conflict_samples_dict,
     conflict_resolution: Optional[str] = None,
 ):
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
@@ -285,8 +285,7 @@ def process_tensor(
     new_indexes = get_new_indexes(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
-    new_samples_dict[tensor_name] = new_indexes
-
+    conflict_indexes = None
     if conflict_resolution is None or conflict_resolution == "theirs":
         conflict_indexes = find_conflicts(
             original_id_changes_commit_map,
@@ -294,8 +293,7 @@ def process_tensor(
             original_id_to_index_map,
             target_id_to_index_map,
         )
-        if conflict_indexes:
-            conflict_samples_dict[tensor_name] = conflict_indexes
+    return new_indexes, conflict_indexes
 
 
 def merge_tensor(
