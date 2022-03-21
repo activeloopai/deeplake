@@ -22,7 +22,8 @@ def merge(
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
     auto_checkout(dataset)
-    target_commit_id = auto_commit_target_id(dataset, target_id)
+    target_commit_id = sanitize_commit(target_id, version_state)
+    target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     nodes: Dict[str, CommitNode] = {}
@@ -45,7 +46,10 @@ def merge(
     finalize_merge(dataset, nodes)
 
 
-def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id: str):
+def get_new_common_and_deleted_tensors(
+    dataset, target_ds, lca_id: str
+) -> Tuple[Set[str]]:
+    """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors.keys())
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
@@ -76,6 +80,7 @@ def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id: str):
 
 
 def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
+    """Finalizes the merge operation by linking the nodes and subsequently commiting."""
     original_node = nodes["original"]
     target_node = nodes["target"]
     original_node.merge_from(target_node)
@@ -83,7 +88,8 @@ def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
     commit(dataset, f"Merge {target_id} into {dataset.branch}")
 
 
-def get_lca_tensors(dataset, lca_id: str):
+def get_lca_tensors(dataset, lca_id: str) -> Set[str]:
+    """Gets the names of tensors present in the lca commit"""
     original_id = dataset.pending_commit_id
     dataset.checkout(lca_id)
     lca_tensors: Set[str] = set(dataset.tensors.keys())
@@ -91,15 +97,15 @@ def get_lca_tensors(dataset, lca_id: str):
     return lca_tensors
 
 
-def auto_commit_target_id(dataset, target_id: str):
-    target_id = sanitize_commit(target_id, dataset.version_state)
+def auto_commit_target_commit(dataset, target_commit_id: str) -> str:
+    """Automatically commits the dataset at the target id if it is the head of a branch."""
     original_id = dataset.pending_commit_id
     original_branch = dataset.branch
-    dataset.checkout(target_id)
+    dataset.checkout(target_commit_id)
     auto_commit(dataset, f"Auto commit before merging into {original_branch}")
-    target_id = dataset.pending_commit_id
+    target_commit_id = dataset.pending_commit_id
     dataset.checkout(original_id)
-    return target_id
+    return target_commit_id
 
 
 def get_changes_commit_ids_for_node(
@@ -132,12 +138,14 @@ def get_changes_commit_ids_for_node(
 
 
 def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool):
+    """Deletes tensors from the dataset if delete_removed_tensors is True."""
     if delete_removed_tensors:
         for tensor_name in tensor_names:
             dataset.delete_tensor(tensor_name)
 
 
 def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
+    """Copies tensors from the target_commit to the dataset."""
     for tensor_name in tensor_names:
         target_tensor = target_dataset[tensor_name]
         htype = target_tensor.meta.htype
@@ -183,7 +191,7 @@ def merge_common_tensors(
         raise MergeConflictError(conflict_samples_dict)
 
     for tensor_name in tensor_names:
-        merge_tensor(
+        merge_tensor_data(
             tensor_name,
             dataset,
             target_dataset,
@@ -193,6 +201,7 @@ def merge_common_tensors(
 
 
 def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_dataset):
+    """Checks common tensors for mismatches in htype, sample_compression and chunk_compression."""
     for tensor_name in tensor_names:
         target_meta = target_dataset[tensor_name].meta
         original_meta = dataset[tensor_name].meta
@@ -292,9 +301,10 @@ def process_tensor(
     return new_indexes, conflict_indexes
 
 
-def merge_tensor(
+def merge_tensor_data(
     tensor_name: str, dataset, target_dataset, new_samples_dict, conflict_samples_dict
 ):
+    """Merges actual data present in 2 versions of a common tensor."""
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
@@ -313,6 +323,7 @@ def merge_tensor(
 
 
 def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):
+    """Checks whether hidden id tensors exist for each tensor."""
     for tensor_name in visible_tensors:
         id_tensor = get_sample_id_tensor_key(tensor_name)
         if id_tensor not in all_tensors:
