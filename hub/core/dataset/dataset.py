@@ -336,10 +336,6 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         is_sequence, htype = parse_sequence_htype(htype)
-        if kwargs.get("is_sequence"):
-            raise ValueError(
-                "`is_sequence` must not be specified explicitly by the user. Use a sequence htype instead."
-            )
         kwargs["is_sequence"] = is_sequence
 
         if not self._is_root():
