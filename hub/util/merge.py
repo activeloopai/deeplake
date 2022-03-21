@@ -284,7 +284,7 @@ def find_new_and_conflict_indexes(
 
     Returns:
         A tuple of the form (new_indexes, conflict_indexes), where
-        - new_indexes is a list of indexes for new samples and 
+        - new_indexes is a list of indexes for new samples
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
     """
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
