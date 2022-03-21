@@ -175,7 +175,7 @@ def merge_common_tensors(
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
 
     for tensor_name in tensor_names:
-        new_indexes, conflict_indexes = process_tensor(
+        new_indexes, conflict_indexes = find_new_and_conflict_indexes(
             tensor_name,
             dataset,
             target_dataset,
@@ -222,8 +222,8 @@ def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_datas
 
 def get_new_indexes(
     new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
-):
-    new_indexes = []
+) -> List[int]:
+    new_indexes: List[int] = []
     for id in new_elements_ids:
         target_id_changes_commit_map.pop(id, None)
         idx = target_id_to_index_map[id]
@@ -236,8 +236,18 @@ def find_conflicts(
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
-):
-    conflict_indexes = []
+) -> List[Tuple[int]]:
+    """Finds the conflicts between the original commit and target id.
+
+    Args:
+        original_id_changes_commit_map: A dictionary mapping sample ids to a list of commit ids that modified the sample.
+        target_id_changes_commit_map: A dictionary mapping sample ids to a list of commit ids that modified the sample.
+        original_id_to_index_map: A dictionary mapping sample ids to their index in the original commit.
+        target_id_to_index_map: A dictionary mapping sample ids to their index in the target id.
+    Returns:
+        A list of tuples of the form (original_idx, target_idx)
+    """
+    conflict_indexes: List[Tuple[int]] = []
     for id in target_id_changes_commit_map:
         target_commit_ids = target_id_changes_commit_map[id]
         original_commit_ids = original_id_changes_commit_map[id]
@@ -256,13 +266,27 @@ def find_conflicts(
     return conflict_indexes
 
 
-def process_tensor(
+def find_new_and_conflict_indexes(
     tensor_name: str,
     dataset,
     target_dataset,
     nodes: Dict[str, CommitNode],
     conflict_resolution: Optional[str] = None,
-):
+) -> Tuple[List[int], List[Tuple[int]]]:
+    """Finds the new and conflict indexes for a given tensor.
+
+    Args:
+        tensor_name (str): The name of the tensor to find the new and conflict indexes for.
+        dataset: The original state of the dataset.
+        target_dataset: The target state of the dataset.
+        nodes (dict): A dictionary containing original, target and lca nodes.
+        conflict_resolution (str): The conflict resolution strategy to use.
+
+    Returns:
+        A tuple of the form (new_indexes, conflict_indexes), where
+        - new_indexes is a list of indexes for new samples and 
+        - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
+    """
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
     target_id_tensor = target_dataset[id_tensor_name]
     original_id_tensor = dataset[id_tensor_name]
@@ -290,7 +314,7 @@ def process_tensor(
     new_indexes = get_new_indexes(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
-    conflict_indexes = None
+    conflict_indexes: List[Tuple[int]] = []
     if conflict_resolution is None or conflict_resolution == "theirs":
         conflict_indexes = find_conflicts(
             original_id_changes_commit_map,
