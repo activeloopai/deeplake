@@ -21,7 +21,6 @@ def merge(
 ):
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
-
     auto_checkout(dataset)
     target_commit_id = auto_commit_target_id(dataset, target_id)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
@@ -42,9 +41,7 @@ def merge(
 
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
-
-    if delete_removed_tensors:
-        delete_tensors(deleted_tensors, dataset)
+    delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
 
     finalize_merge(dataset, nodes)
 
@@ -135,9 +132,10 @@ def get_changes_commit_ids_for_node(
     return changes_commit_map
 
 
-def delete_tensors(tensor_names: Set[str], dataset):
-    for tensor_name in tensor_names:
-        dataset.delete_tensor(tensor_name)
+def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool):
+    if delete_removed_tensors:
+        for tensor_name in tensor_names:
+            dataset.delete_tensor(tensor_name)
 
 
 def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
