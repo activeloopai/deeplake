@@ -23,7 +23,7 @@ def merge(
     commit_node_map = version_state["commit_node_map"]
 
     auto_checkout(dataset)
-    target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
+    target_commit_id = auto_commit_target_id(dataset, target_id)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     original_node: CommitNode = version_state["commit_node"]
@@ -35,6 +35,28 @@ def merge(
         return
     lca_node: CommitNode = commit_node_map[lca_id]
 
+    new_tensors, common_tensors, deleted_tensors = get_new_common_and_deleted_tensors(
+        dataset, target_ds, lca_id
+    )
+
+    merge_common_tensors(
+        common_tensors,
+        dataset,
+        target_ds,
+        original_node,
+        target_node,
+        lca_node,
+        conflict_resolution,
+    )
+    copy_new_tensors(new_tensors, dataset, target_ds)
+
+    if delete_removed_tensors:
+        delete_tensors(deleted_tensors, dataset)
+
+    finalize_merge(dataset, original_node, target_node)
+
+
+def get_new_common_and_deleted_tensors(dataset, target_ds, lca_id):
     original_tensors: Set[str] = set(dataset.tensors.keys())
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
@@ -53,50 +75,40 @@ def merge(
     # present in dataset at lca, but deleted in original
     original_deleted_tensors = lca_tensors - original_tensors
 
-    target_diff, _ = dataset.diff(target_commit_id, lca_id, as_dict=True)
+    target_diff, _ = target_ds.diff(lca_id, as_dict=True)
     for tensor in original_deleted_tensors:
         diff = target_diff.get(tensor, None)
 
-        # either target doesn't have the tensor, no point in creating again
-        # or target has the tensor but it wasn't modified
+        # either target doesn't have the tensor, no point in creating again or target has the tensor but it wasn't modified
         if not diff or not (diff.data_added or diff.data_updated):
             new_tensors.discard(tensor)
 
-    merge_common_tensors(
-        common_tensors,
-        dataset,
-        target_ds,
-        original_node,
-        target_node,
-        lca_node,
-        conflict_resolution,
-    )
-    copy_new_tensors(dataset, target_ds, new_tensors)
+    return new_tensors, common_tensors, target_deleted_tensors
 
-    if delete_removed_tensors:
-        delete_tensors(dataset, target_deleted_tensors)
 
+def finalize_merge(dataset, original_node: CommitNode, target_node: CommitNode):
     original_node.merge_from(target_node)
+    target_id = target_node.commit_id
     commit(dataset, f"Merge {target_id} into {dataset.branch}")
 
 
-def get_lca_tensors(ds, lca_id: str):
-    original_id = ds.pending_commit_id
-    ds.checkout(lca_id)
-    lca_tensors: Set[str] = set(ds.tensors.keys())
-    ds.checkout(original_id)
+def get_lca_tensors(dataset, lca_id: str):
+    original_id = dataset.pending_commit_id
+    dataset.checkout(lca_id)
+    lca_tensors: Set[str] = set(dataset.tensors.keys())
+    dataset.checkout(original_id)
     return lca_tensors
 
 
-def auto_commit_target_commit(dataset, target_commit_id: str):
-    target_commit_id = sanitize_commit(target_commit_id, dataset.version_state)
+def auto_commit_target_id(dataset, target_id: str):
+    target_id = sanitize_commit(target_id, dataset.version_state)
     original_id = dataset.pending_commit_id
     original_branch = dataset.branch
-    dataset.checkout(target_commit_id)
+    dataset.checkout(target_id)
     auto_commit(dataset, f"Auto commit before merging into {original_branch}")
-    target_commit_id = dataset.pending_commit_id
+    target_id = dataset.pending_commit_id
     dataset.checkout(original_id)
-    return target_commit_id
+    return target_id
 
 
 def get_changes_commit_ids_for_node(
@@ -128,12 +140,12 @@ def get_changes_commit_ids_for_node(
     return changes_commit_map
 
 
-def delete_tensors(dataset, tensor_names: Set[str]):
+def delete_tensors(tensor_names: Set[str], dataset):
     for tensor_name in tensor_names:
         dataset.delete_tensor(tensor_name)
 
 
-def copy_new_tensors(dataset, target_dataset, tensor_names: Set[str]):
+def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
     for tensor_name in tensor_names:
         target_tensor = target_dataset[tensor_name]
         htype = target_tensor.meta.htype
