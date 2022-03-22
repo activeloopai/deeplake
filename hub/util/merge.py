@@ -286,8 +286,8 @@ def find_updated_and_conflicts(
 
         # if no id is common or if a commit id other than the most recent commit_id is in common, there's a conflict
         elif idx is None or idx > 0:
-            target_idx: int = target_id_to_index_map[id]
-            original_idx: int = original_id_to_index_map[id]
+            target_idx = target_id_to_index_map[id]
+            original_idx = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
     return updated_indexes, conflict_indexes
 
@@ -297,7 +297,7 @@ def find_new_updated_and_conflict_indexes(
     dataset,
     target_dataset,
     nodes: Dict[str, CommitNode],
-) -> Tuple[List[int], List[Tuple[int, int]]]:
+) -> Tuple[List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Finds the new and conflict indexes for a given tensor.
 
     Args:
