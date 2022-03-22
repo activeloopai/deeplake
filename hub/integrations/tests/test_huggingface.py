@@ -14,7 +14,7 @@ def test_before_split():
     splits = ds.keys()
     columns = ds["train"].column_names
 
-    assert set(hub_ds.meta.visible_tensors) == {
+    assert set(hub_ds.tensors) == {
         f"{split}/{column}" for split in splits for column in columns
     }
 
@@ -29,7 +29,7 @@ def test_split():
     ds = load_dataset("glue", "mrpc", split="train[:5%]")
     hub_ds = ingest_huggingface(ds, "mem://xyz")
 
-    assert hub_ds.meta.visible_tensors == ds.column_names
+    assert list(hub_ds.tensors) == ds.column_names
 
     for column in ds.column_names:
         assert_array_equal(hub_ds[column].numpy().reshape(-1), ds[column])
@@ -41,7 +41,7 @@ def test_seq_with_dict():
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 
-    assert set(hub_ds.meta.visible_tensors) == keys
+    assert set(hub_ds.tensors) == keys
 
     for key in ("id", "title", "context", "question"):
         assert_array_equal(hub_ds[key].numpy().reshape(-1), ds[key])
@@ -66,7 +66,7 @@ def test_seq():
 
     hub_ds = ingest_huggingface(ds, "mem://xyz")
 
-    assert set(hub_ds.meta.visible_tensors) == {"id", "seq"}
+    assert set(hub_ds.tensors) == {"id", "seq"}
     assert_array_equal(hub_ds["seq"], [arr1, arr2])
 
     arr = [["abcd"], ["efgh"]]

@@ -50,11 +50,11 @@ def get_new_common_and_deleted_tensors(
     dataset, target_ds, lca_id: str
 ) -> Tuple[Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
-    original_tensors: Set[str] = set(dataset.tensors.keys())
+    original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
 
-    target_tensors: Set[str] = set(target_ds.tensors.keys())
+    target_tensors: Set[str] = set(target_ds.tensors)
     all_target_tensors: Set[str] = set(target_ds._all_tensors_filtered())
     check_id_tensors_exist(target_tensors, all_target_tensors)
 
