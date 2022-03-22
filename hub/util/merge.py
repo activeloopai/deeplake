@@ -19,6 +19,11 @@ def merge(
     conflict_resolution: Optional[str] = None,
     delete_removed_tensors: bool = False,
 ):
+    """Merge works by comparing the states of the dataset at the target commit and the current commit.
+    The new tensors in the target are added. The deleted tensors in the target are removed if delete_removed_tensors is True.
+    For the common tensors, we compare ids of the samples. The samples with newer ids are added to the dataset.
+    For samples with the same ids, we compare the changes history of the sample and resolve conflicts according to the conflict_resolution argument.
+    """
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
     auto_checkout(dataset)
@@ -122,17 +127,21 @@ def get_changes_commit_ids_for_node(
             for idx in changes:
                 changes_commit_map[idx].extend(changes[idx])
         else:
+            diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
             try:
-                diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
-                diff: CommitDiff = dataset.storage.get_hub_object(diff_key, CommitDiff)
+                diff: Optional[CommitDiff] = dataset.storage.get_hub_object(
+                    diff_key, CommitDiff
+                )
+            except KeyError:
+                diff = None
+
+            if diff is not None:
                 data_updated = sorted(diff.data_updated)
                 id_tensor_name = get_sample_id_tensor_key(tensor_name)
                 id_tensor = dataset[id_tensor_name]
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
                     changes_commit_map[sample_id].append(commit_id)
-            except KeyError:
-                pass
         current_node = current_node.parent
     return changes_commit_map
 
