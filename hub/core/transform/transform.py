@@ -157,7 +157,7 @@ class Pipeline:
             target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
             target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e)
+            raise TransformError(e) from e
         finally:
             compute_provider.close()
             if overwrite:
@@ -182,9 +182,10 @@ class Pipeline:
         """
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
-        visible_tensors = target_ds.meta.visible_tensors
+        visible_tensors = list(target_ds.tensors)
         visible_tensors = [target_ds[t].key for t in visible_tensors]
-        tensors = target_ds.meta.tensors
+
+        tensors = list(target_ds._tensors())
         tensors = [target_ds[t].key for t in tensors]
         group_index = target_ds.group_index
         version_state = target_ds.version_state
