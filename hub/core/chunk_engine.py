@@ -2,6 +2,7 @@ import hub
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
+from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
@@ -148,6 +149,8 @@ class ChunkEngine:
 
         self._info: Optional[Info] = None
         self._info_commit_id: Optional[str] = None
+
+        self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
 
         tensor_meta = self.tensor_meta
 
@@ -1441,3 +1444,11 @@ class ChunkEngine:
         max_shape = length + list(meta.max_shape)
 
         return ShapeInterval(min_shape, max_shape)
+
+    def _transform_callback(self, sample, flat: Optional[bool]):
+        assert self._all_chunk_engines is not None
+        for k, v in self.tensor_meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                self._all_chunk_engines[k].extend(
+                    [get_link_transform(v["append"])(sample)]
+                )

@@ -182,7 +182,9 @@ def _transform_sample_and_update_chunk_engines(
         raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
 
     for tensor, value in result.items():
-        all_chunk_engines[tensor].extend(value.numpy_compressed())
+        chunk_engine = all_chunk_engines[tensor]
+        callback = chunk_engine._transform_callback
+        chunk_engine.extend(value.numpy_compressed(), callback=callback)
 
 
 def transform_data_slice_and_append(
@@ -242,6 +244,7 @@ def create_worker_chunk_engines(
                     sample_compression=existing_meta.sample_compression,
                     chunk_compression=existing_meta.chunk_compression,
                     max_chunk_size=chunk_size,
+                    links=existing_meta.links,
                 )
                 meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
                 memory_cache[meta_key] = new_tensor_meta  # type: ignore
@@ -249,6 +252,7 @@ def create_worker_chunk_engines(
                 storage_chunk_engine = ChunkEngine(
                     tensor, storage_cache, version_state, memory_cache
                 )
+                storage_chunk_engine._all_chunk_engines = all_chunk_engines
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
             except (JSONDecodeError, KeyError):
