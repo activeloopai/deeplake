@@ -1446,6 +1446,7 @@ class ChunkEngine:
         return ShapeInterval(min_shape, max_shape)
 
     def _transform_callback(self, sample, flat: Optional[bool]):
+        """Used in transforms to handle linked tensors."""
         assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
