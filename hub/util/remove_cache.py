@@ -49,6 +49,9 @@ def create_read_copy_dataset(dataset, commit_id=None):
     Args:
         dataset: The Dataset object to copy.
         commit_id: The commit id to checkout the new read-only copy to.
+
+    Returns:
+        A new Dataset object in read-only mode.
     """
     base_storage = get_base_storage(dataset.storage).copy()
     storage = LRUCache(MemoryProvider(), base_storage, 256 * MB)
