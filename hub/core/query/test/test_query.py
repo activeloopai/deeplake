@@ -79,16 +79,10 @@ def test_different_size_ds_query(local_ds):
     assert len(result) == 0
 
     # invalid queries
-    result = ds.filter("images == ln", progressbar=False)
+    result = ds.filter("images == 'ln'", progressbar=False)
     assert len(result) == 0
 
-    result = ds.filter("img == 1", progressbar=False)
-    assert len(result) == 0
-
-    result = ds.filter("labels == lb", progressbar=False)
-    assert len(result) == 0
-
-    result = ds.filter("lbl == 1", progressbar=False)
+    result = ds.filter("labels == 'lb'", progressbar=False)
     assert len(result) == 0
 
 

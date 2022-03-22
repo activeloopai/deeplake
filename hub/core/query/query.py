@@ -28,11 +28,7 @@ class DatasetQuery:
             for tensor in dataset.tensors.keys()
             if normalize_query_tensors(tensor) in query
         ]
-        try:
-            self._blocks = expand(dataset, self._tensors)
-        except (NameError, KeyError, ValueError):
-            self._blocks = []
-            pass
+        self._blocks = expand(dataset, self._tensors)
         self._np_access: List[NP_ACCESS] = [
             _get_np(dataset, block) for block in self._blocks
         ]
@@ -51,14 +47,11 @@ class DatasetQuery:
                     for tensor in self._tensors
                 }
                 p.update(self._groups)
-                try:
-                    if eval(self._cquery, p):
-                        idx_map.append(local_idx)
-                        self._pg_callback(local_idx, True)
-                    else:
-                        self._pg_callback(local_idx, False)
-                except (NameError, KeyError, ValueError):
-                    pass
+                if eval(self._cquery, p):
+                    idx_map.append(local_idx)
+                    self._pg_callback(local_idx, True)
+                else:
+                    self._pg_callback(local_idx, False)
         return idx_map
 
     def _wrap_value(self, tensor, val):
@@ -251,7 +244,10 @@ class ClassLabelsTensor(EvalObject):
             return o.__class__(map(self._norm_labels, o))
 
     def __eq__(self, o: object) -> bool:
-        o = self._norm_labels(o)
+        try:
+            o = self._norm_labels(o)
+        except KeyError:
+            return False
         return super(ClassLabelsTensor, self).__eq__(o)
 
     def __lt__(self, o: object) -> bool:
