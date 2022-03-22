@@ -244,6 +244,7 @@ def find_conflicts(
         target_id_changes_commit_map: A dictionary mapping sample ids to a list of commit ids that modified the sample.
         original_id_to_index_map: A dictionary mapping sample ids to their index in the original commit.
         target_id_to_index_map: A dictionary mapping sample ids to their index in the target id.
+
     Returns:
         A list of tuples of the form (original_idx, target_idx)
     """
