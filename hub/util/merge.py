@@ -277,7 +277,9 @@ def find_updated_and_conflicts(
                 break
 
         # this means that the sample was only modified in the target commit, no conflict
-        if not original_commit_ids or (idx is not None and target_commit_ids[idx] == original_commit_ids[0]):
+        if not original_commit_ids or (
+            idx is not None and target_commit_ids[idx] == original_commit_ids[0]
+        ):
             target_idx: int = target_id_to_index_map[id]
             original_idx: int = original_id_to_index_map[id]
             updated_indexes.append((original_idx, target_idx))
