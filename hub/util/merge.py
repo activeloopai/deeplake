@@ -181,17 +181,22 @@ def merge_common_tensors(
 ):
     check_common_tensor_mismatches(tensor_names, dataset, target_dataset)
     new_samples_dict: Dict[str, List[int]] = {}
+    updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
 
     for tensor_name in tensor_names:
-        new_indexes, conflict_indexes = find_new_and_conflict_indexes(
+        (
+            new_indexes,
+            updated_indexes,
+            conflict_indexes,
+        ) = find_new_updated_and_conflict_indexes(
             tensor_name,
             dataset,
             target_dataset,
             nodes,
-            conflict_resolution,
         )
         new_samples_dict[tensor_name] = new_indexes
+        updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:
             conflict_samples_dict[tensor_name] = conflict_indexes
 
@@ -205,7 +210,9 @@ def merge_common_tensors(
             dataset,
             target_dataset,
             new_samples_dict,
+            updated_samples_dict,
             conflict_samples_dict,
+            conflict_resolution,
         )
 
 
@@ -240,12 +247,12 @@ def get_new_indexes(
     return new_indexes
 
 
-def find_conflicts(
+def find_updated_and_conflicts(
     original_id_changes_commit_map,
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
-) -> List[Tuple[int, int]]:
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Finds the conflicts between the original commit and target id.
 
     Args:
@@ -255,8 +262,9 @@ def find_conflicts(
         target_id_to_index_map: A dictionary mapping sample ids to their index in the target id.
 
     Returns:
-        A list of tuples of the form (original_idx, target_idx)
+        A tuple of list of tuples of the form (original_idx, target_idx)
     """
+    updated_indexes: List[Tuple[int, int]] = []
     conflict_indexes: List[Tuple[int, int]] = []
     for id in target_id_changes_commit_map:
         target_commit_ids = target_id_changes_commit_map[id]
@@ -268,20 +276,25 @@ def find_conflicts(
                 idx = i
                 break
 
+        # this means that the sample was only modified in the target commit, no conflict
+        if not original_commit_ids or (idx is not None and target_commit_ids[idx] == original_commit_ids[0]):
+            target_idx: int = target_id_to_index_map[id]
+            original_idx: int = original_id_to_index_map[id]
+            updated_indexes.append((original_idx, target_idx))
+
         # if no id is common or if a commit id other than the most recent commit_id is in common, there's a conflict
-        if idx is None or idx > 0:
+        elif idx is None or idx > 0:
             target_idx: int = target_id_to_index_map[id]
             original_idx: int = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
-    return conflict_indexes
+    return updated_indexes, conflict_indexes
 
 
-def find_new_and_conflict_indexes(
+def find_new_updated_and_conflict_indexes(
     tensor_name: str,
     dataset,
     target_dataset,
     nodes: Dict[str, CommitNode],
-    conflict_resolution: Optional[str] = None,
 ) -> Tuple[List[int], List[Tuple[int, int]]]:
     """Finds the new and conflict indexes for a given tensor.
 
@@ -290,11 +303,11 @@ def find_new_and_conflict_indexes(
         dataset: The original state of the dataset.
         target_dataset: The target state of the dataset.
         nodes (dict): A dictionary containing original, target and lca nodes.
-        conflict_resolution (str): The conflict resolution strategy to use.
 
     Returns:
-        A tuple of the form (new_indexes, conflict_indexes), where
+        A tuple of the form (new_indexes, updated_indexes, conflict_indexes), where
         - new_indexes is a list of indexes for new samples
+        - updated_indexes is a list of tuples of the form (original_idx, target_idx)
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
     """
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
@@ -325,18 +338,24 @@ def find_new_and_conflict_indexes(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
     conflict_indexes: List[Tuple[int, int]] = []
-    if conflict_resolution is None or conflict_resolution == "theirs":
-        conflict_indexes = find_conflicts(
-            original_id_changes_commit_map,
-            target_id_changes_commit_map,
-            original_id_to_index_map,
-            target_id_to_index_map,
-        )
-    return new_indexes, conflict_indexes
+    updated_indexes: List[Tuple[int, int]] = []
+    updated_indexes, conflict_indexes = find_updated_and_conflicts(
+        original_id_changes_commit_map,
+        target_id_changes_commit_map,
+        original_id_to_index_map,
+        target_id_to_index_map,
+    )
+    return new_indexes, updated_indexes, conflict_indexes
 
 
 def merge_tensor_data(
-    tensor_name: str, dataset, target_dataset, new_samples_dict, conflict_samples_dict
+    tensor_name: str,
+    dataset,
+    target_dataset,
+    new_samples_dict,
+    updated_samples_dict,
+    conflict_samples_dict,
+    conflict_resolution,
 ):
     """Merges actual data present in 2 versions of a common tensor."""
     original_tensor = dataset[tensor_name]
@@ -346,11 +365,16 @@ def merge_tensor_data(
     target_id_tensor = target_dataset[id_tensor_name]
 
     new_indexes = new_samples_dict[tensor_name]
+    new_indexes.sort()
     for index in new_indexes:
         original_tensor.append(target_tensor[index])
         original_id_tensor[-1] = target_id_tensor[index]
 
-    if tensor_name in conflict_samples_dict:
+    updated_indexes = updated_samples_dict[tensor_name]
+    for original_idx, target_idx in updated_indexes:
+        original_tensor[original_idx] = target_tensor[target_idx]
+
+    if conflict_resolution == "theirs" and tensor_name in conflict_samples_dict:
         conflict_indexes = conflict_samples_dict[tensor_name]
         for original_idx, target_idx in conflict_indexes:
             original_tensor[original_idx] = target_tensor[target_idx]
