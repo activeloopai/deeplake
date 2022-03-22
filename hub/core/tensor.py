@@ -152,7 +152,10 @@ def _inplace_op(f):
     def inner(tensor, other):
         tensor._write_initialization()
         tensor.chunk_engine.update(
-            tensor.index, other, op, callback=tensor._update_links
+            tensor.index,
+            other,
+            op,
+            link_callback=tensor._update_links if tensor.meta.links else None,
         )
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
@@ -250,7 +253,9 @@ class Tensor:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
         self._write_initialization()
-        self.chunk_engine.extend(samples, callback=self._append_to_links)
+        self.chunk_engine.extend(
+            samples, link_callback=self._append_to_links if self.meta.links else None
+        )
 
     @property
     def info(self):
@@ -515,7 +520,9 @@ class Tensor:
             return
 
         self.chunk_engine.update(
-            self.index[item_index], value, callback=self._update_links
+            self.index[item_index],
+            value,
+            link_callback=self._update_links if self.meta.links else None,
         )
 
     def __iter__(self):

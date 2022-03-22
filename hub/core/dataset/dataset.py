@@ -1776,6 +1776,19 @@ class Dataset:
         update_f: Optional[str] = None,
         flatten_sequence: Optional[bool] = None,
     ):
+        """Internal. Links a source tensor to a destination tensor. Appends / updates made to the source tensor will be reflected in the destination tensor.
+
+        Args:
+            src (str): Name of the source tensor.
+            dest (str): Name of the destination tensor.
+            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
+
+        Raises:
+            TensorDoesNotExistError: If source or destination tensors do not exist in this dataset.
+            ValueError: If source tensor is a sequence tensor and `flatten_sequence` argument is not specified.
+        """
         assert self._is_root()
         tensors = self._tensors()
         if src not in tensors:
