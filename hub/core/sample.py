@@ -24,6 +24,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
+from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from urllib.request import urlopen
@@ -369,6 +370,28 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
+
+    def getexif(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            img = Image.open(self.path)
+        else:
+            img = Image.open(BytesIO(self.buffer))
+        return {
+            TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
+            for k, v in img.getexif().items()
+        }
+
+    @property
+    def meta(self) -> dict:
+        meta = {}
+        if get_compression_type(self.compression) == IMAGE_COMPRESSION:
+            meta["exif"] = self.getexif()
+        # TODO: video and audio meta data
+        meta["shape"] = self.shape
+        meta["format"] = self.compression
+        if self.path:
+            meta["filename"] = self.path
+        return meta
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
