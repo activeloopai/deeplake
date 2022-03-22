@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def test_merge(local_ds):
     with local_ds as ds:
         ds.create_tensor("image")
@@ -45,3 +48,52 @@ def test_merge(local_ds):
         ds.merge("alt", conflict_resolution="theirs")
         assert ds.image[0].numpy() == 6
         assert ds.image[1].numpy() == 10
+
+
+def test_complex_merge(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+            ds.label.append(i)
+        a = ds.commit("added 10 images and labels")
+        ds.checkout("other", create=True)
+        for i in range(10, 15):
+            ds.image.append(i * np.ones((200, 200, 3)))
+        for i in range(3, 7):
+            ds.label[i] = 2 * i
+
+        b = ds.commit("added 5 more images and changed 4 labels")
+        assert len(ds.image) == 15
+        assert len(ds.label) == 10
+        commit_id = ds.commit_id
+        ds.merge("main")
+        assert len(ds.image) == 15
+        assert len(ds.label) == 10
+        assert ds.commit_id == commit_id
+
+        ds.checkout("main")
+        ds.merge("other")
+        assert len(ds.image) == 15
+        assert len(ds.label) == 10
+        for i in range(10):
+            target = 1 if i not in range(3, 7) else 2
+            assert ds.label[i].numpy() == target * i
+        for i in range(15):
+            np.testing.assert_array_equal(
+                ds.image[i].numpy(), i * np.ones((200, 200, 3))
+            )
+
+        ds.checkout("other")
+        ds.merge("main")
+
+        assert len(ds.image) == 15
+        assert len(ds.label) == 10
+        for i in range(10):
+            target = 1 if i not in range(3, 7) else 2
+            assert ds.label[i].numpy() == target * i
+        for i in range(15):
+            np.testing.assert_array_equal(
+                ds.image[i].numpy(), i * np.ones((200, 200, 3))
+            )
