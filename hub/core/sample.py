@@ -156,14 +156,8 @@ class Sample:
             container, vstream = _open_video(self.path)
         else:
             container, vstream = _open_video(self.buffer)
-        shape, fps, timebase = _read_metadata_from_vstream(container, vstream)
-        return {"shape": shape, "fps": fps, "timebase": timebase}
-
-    @property
-    def meta(self):
-        meta = {}
-        if get_compression_type(self.compression) == VIDEO_COMPRESSION:
-            meta.update(self.get_video_meta())
+        shape, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"shape": shape, "duration": duration, "fps": fps, "timebase": timebase}
 
     @property
     def is_lazy(self) -> bool:
@@ -384,8 +378,11 @@ class Sample:
     @property
     def meta(self) -> dict:
         meta = {}
-        if get_compression_type(self.compression) == IMAGE_COMPRESSION:
+        compression_type = get_compression_type(self.compression)
+        if compression_type == IMAGE_COMPRESSION:
             meta["exif"] = self.getexif()
+        if compression_type == VIDEO_COMPRESSION:
+            meta.update(self.get_video_meta())
         # TODO: video and audio meta data
         meta["shape"] = self.shape
         meta["format"] = self.compression

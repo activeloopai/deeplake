@@ -799,23 +799,23 @@ def _open_video(file: Union[str, bytes, memoryview]):
 
 
 def _read_metadata_from_vstream(container, vstream):
-    nframes = vstream.frames
+    duration = vstream.duration
+    if duration is None:
+        duration = container.duration
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
 
+    nframes = vstream.frames
     if nframes == 0:
-        duration = vstream.duration
-        if duration is None:
-            duration = container.duration
-            time_base = 1 / av.time_base
-        else:
-            time_base = vstream.time_base.numerator / vstream.time_base.denominator
-        fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
         nframes = math.floor(fps * duration * time_base)
 
     height = vstream.codec_context.height
     width = vstream.codec_context.width
     shape = (nframes, height, width, 3)
 
-    return shape, fps, time_base
+    return shape, duration, fps, time_base
 
 
 def _read_video_shape(
@@ -838,7 +838,7 @@ def _decompress_video(
             "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
         )
     container, vstream = _open_video(file)
-    nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)
+    nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
     if start is None:
         start = 0
