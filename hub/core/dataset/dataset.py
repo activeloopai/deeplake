@@ -1375,7 +1375,7 @@ class Dataset:
         """
 
         if tensors is None:
-            tensors = list(self._tensors())
+            tensors = list(self.tensors)
         elif isinstance(tensors, str):
             tensors = [tensors]
 
