@@ -28,7 +28,7 @@ link = _TensorLinkTransform
 
 @link
 def append_id(sample):
-    return generate_id(np.uint32)
+    return generate_id(np.uint64)
 
 
 @link
