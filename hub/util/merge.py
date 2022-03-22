@@ -48,7 +48,7 @@ def merge(
 
 def get_new_common_and_deleted_tensors(
     dataset, target_ds, lca_id: str
-) -> Tuple[Set[str]]:
+) -> Tuple[Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
@@ -236,7 +236,7 @@ def find_conflicts(
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
-) -> List[Tuple[int]]:
+) -> List[Tuple[int, int]]:
     """Finds the conflicts between the original commit and target id.
 
     Args:
@@ -248,7 +248,7 @@ def find_conflicts(
     Returns:
         A list of tuples of the form (original_idx, target_idx)
     """
-    conflict_indexes: List[Tuple[int]] = []
+    conflict_indexes: List[Tuple[int, int]] = []
     for id in target_id_changes_commit_map:
         target_commit_ids = target_id_changes_commit_map[id]
         original_commit_ids = original_id_changes_commit_map[id]
@@ -261,8 +261,8 @@ def find_conflicts(
 
         # if no id is common or if a commit id other than the most recent commit_id is in common, there's a conflict
         if idx is None or idx > 0:
-            target_idx = target_id_to_index_map[id]
-            original_idx = original_id_to_index_map[id]
+            target_idx: int = target_id_to_index_map[id]
+            original_idx: int = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
     return conflict_indexes
 
@@ -273,7 +273,7 @@ def find_new_and_conflict_indexes(
     target_dataset,
     nodes: Dict[str, CommitNode],
     conflict_resolution: Optional[str] = None,
-) -> Tuple[List[int], List[Tuple[int]]]:
+) -> Tuple[List[int], List[Tuple[int, int]]]:
     """Finds the new and conflict indexes for a given tensor.
 
     Args:
@@ -315,7 +315,7 @@ def find_new_and_conflict_indexes(
     new_indexes = get_new_indexes(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
-    conflict_indexes: List[Tuple[int]] = []
+    conflict_indexes: List[Tuple[int, int]] = []
     if conflict_resolution is None or conflict_resolution == "theirs":
         conflict_indexes = find_conflicts(
             original_id_changes_commit_map,

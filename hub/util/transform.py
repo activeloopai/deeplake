@@ -223,7 +223,7 @@ def create_worker_chunk_engines(
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
     """
-    all_chunk_engines = {}
+    all_chunk_engines: Dict[str, ChunkEngine] = {}
     num_tries = 1000
     for tensor in tensors:
         for i in range(num_tries):
