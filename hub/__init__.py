@@ -43,6 +43,7 @@ load = dataset.load
 empty = dataset.empty
 like = dataset.like
 delete = dataset.delete
+rename = dataset.rename
 copy = dataset.copy
 dataset_cl = Dataset
 ingest = dataset.ingest

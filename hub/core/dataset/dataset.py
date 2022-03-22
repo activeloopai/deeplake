@@ -51,6 +51,7 @@ from hub.util.exceptions import (
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
+    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -1049,6 +1050,16 @@ class Dataset:
         for group in self._groups_filtered:
             size += self[group].size_approx()
         return size
+
+    @invalid_view_op
+    @hub_reporter.record_call
+    def rename(self, path):
+        path = path.rstrip("/")
+        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+            raise RenameError
+        storage = get_base_storage(self.storage)
+        storage.rename(path)
+        self.path = path
 
     @invalid_view_op
     @hub_reporter.record_call

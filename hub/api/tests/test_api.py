@@ -10,6 +10,7 @@ from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
+    RenameError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorAlreadyExistsError,
@@ -702,6 +703,37 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+@pytest.mark.parametrize(
+    ("ds_generator", "path", "hub_token"),
+    [
+        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
+        ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
+        ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_dataset_rename(ds_generator, path, hub_token):
+    ds = ds_generator()
+    ds.create_tensor("abc")
+    ds.abc.append([1, 2, 3, 4])
+
+    new_path = "_".join([path, "renamed"])
+
+    with pytest.raises(RenameError):
+        ds.rename("wrongfolder/new_ds")
+
+    ds = hub.rename(ds.path, new_path, token=hub_token)
+
+    assert ds.path == new_path
+    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    ds = hub.load(new_path, token=hub_token)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    hub.delete(new_path, token=hub_token)
 
 
 @pytest.mark.parametrize(
