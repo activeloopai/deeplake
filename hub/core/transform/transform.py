@@ -3,6 +3,7 @@ import hub
 from typing import Callable, List, Optional
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.core.storage.memory import MemoryProvider
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.dataset import try_flushing
@@ -157,7 +158,7 @@ class Pipeline:
             target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
             target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e)
+            raise TransformError(e) from e
         finally:
             compute_provider.close()
             if overwrite:
@@ -186,8 +187,12 @@ class Pipeline:
         tensors = [target_ds.tensors[t].key for t in tensors]
         group_index = target_ds.group_index
         version_state = target_ds.version_state
-        args = (storage, group_index, tensors, self, version_state, skip_ok)
-        map_inp = zip(slices, repeat(args))
+        if isinstance(storage, MemoryProvider):
+            storages = [storage] * len(slices)
+        else:
+            storages = [storage.copy() for _ in slices]
+        args = (group_index, tensors, self, version_state, skip_ok)
+        map_inp = zip(slices, storages, repeat(args))
 
         if progressbar:
             desc = get_pbar_description(self.functions)
