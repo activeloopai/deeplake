@@ -1,4 +1,7 @@
 import numpy as np
+import pytest
+
+from hub.util.exceptions import MergeMismatchError, MergeNotSupportedError
 
 
 def test_merge(local_ds):
@@ -97,3 +100,36 @@ def test_complex_merge(local_ds):
             np.testing.assert_array_equal(
                 ds.image[i].numpy(), i * np.ones((200, 200, 3))
             )
+
+
+def test_merge_not_supported(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image", create_id_tensor=False)
+        ds.create_tensor("label")
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+            ds.label.append(i)
+        a = ds.commit("added 10 images and labels")
+        ds.checkout("other", create=True)
+        for i in range(10, 15):
+            ds.image.append(i * np.ones((200, 200, 3)))
+        for i in range(3, 7):
+            ds.label[i] = 2 * i
+
+        b = ds.commit("added 5 more images and changed 4 labels")
+        assert len(ds.image) == 15
+        assert len(ds.label) == 10
+        ds.checkout("main")
+        with pytest.raises(MergeNotSupportedError):
+            ds.merge("other")
+
+
+def test_tensor_mismatch(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        ds.checkout("alt", create=True)
+        ds.create_tensor("xyz", htype="bbox")
+        ds.checkout("main")
+        ds.create_tensor("xyz", htype="class_label")
+        with pytest.raises(MergeMismatchError):
+            ds.merge("alt")
