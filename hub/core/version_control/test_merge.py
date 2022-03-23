@@ -135,7 +135,7 @@ def test_tensor_mismatch(local_ds):
             ds.merge("alt")
 
 
-def test_new_tensor_creation(local_ds):
+def test_new_tensor_creation_merge(local_ds):
     with local_ds as ds:
         ds.create_tensor("image")
         ds.checkout("alt", create=True)
@@ -156,3 +156,34 @@ def test_new_tensor_creation(local_ds):
         assert len(ds.xyz) == 100
         for i in range(100):
             assert ds.xyz[i].numpy() == i
+
+
+def test_tensor_deletion_merge(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+            ds.label.append(i)
+
+        a = ds.commit("added 10 images and labels")
+        ds.checkout("other", create=True)
+
+        ds.delete_tensor("image")
+        ds.label.append(10)
+        ds.commit()
+        ds.checkout("main")
+        ds.merge("other")
+        assert "image" in ds.tensors
+        for i in range(10):
+            np.testing.assert_array_equal(
+                ds.image[i].numpy(), i * np.ones((200, 200, 3))
+            )
+            assert ds.label[i].numpy() == i
+        assert ds.label[10].numpy() == 10
+
+        ds.merge("other", delete_removed_tensors=True)
+        assert "image" not in ds.tensors
+        assert "label" in ds.tensors
+        for i in range(11):
+            assert ds.label[i].numpy() == i
