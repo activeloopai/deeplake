@@ -133,3 +133,26 @@ def test_tensor_mismatch(local_ds):
         ds.create_tensor("xyz", htype="class_label")
         with pytest.raises(MergeMismatchError):
             ds.merge("alt")
+
+
+def test_new_tensor_creation(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        ds.checkout("alt", create=True)
+        ds.create_tensor("xyz")
+        for i in range(100):
+            ds.xyz.append(i)
+        ds.commit()
+        ds.checkout("main")
+        ds.merge("alt")
+        assert "xyz" in ds.tensors
+        assert len(ds.xyz) == 100
+        for i in range(100):
+            assert ds.xyz[i].numpy() == i
+
+        # merging twice to confirm, that extra items are not added
+        ds.merge("alt")
+        assert "xyz" in ds.tensors
+        assert len(ds.xyz) == 100
+        for i in range(100):
+            assert ds.xyz[i].numpy() == i
