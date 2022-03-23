@@ -196,3 +196,9 @@ class LocalProvider(StorageProvider):
     def __contains__(self, key) -> bool:
         full_path = self._check_is_file(key)
         return os.path.exists(full_path)
+
+    def __getstate__(self):
+        return self.root
+
+    def __setstate__(self, state):
+        self.__init__(state)

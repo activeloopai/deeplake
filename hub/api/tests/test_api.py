@@ -74,6 +74,8 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
+        "_image_id/tensor_meta.json",
+        "_image_id/commit_diff",
     }
 
 
@@ -129,9 +131,7 @@ def test_populate_dataset(local_ds):
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
 
-    assert local_ds.meta.tensors == [
-        "image",
-    ]
+    assert local_ds.meta.tensors == ["image", "_image_id"]
     assert local_ds.meta.version == hub.__version__
 
 
@@ -777,8 +777,7 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         progress_bar=progress_bar,
     )
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
-
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     assert dest_ds.a.meta.htype == "image"
     assert dest_ds.a.meta.sample_compression == "png"
     assert dest_ds.b.meta.htype == "class_label"
@@ -804,12 +803,12 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         progress_bar=progress_bar,
     )
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     dest_ds = hub.load(dest_path, token=hub_token)
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
@@ -824,7 +823,7 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
     )
     dest_ds = hub.load(dest_path, token=hub_token)
 
-    assert dest_ds.meta.tensors == ["a", "b", "c", "d"]
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
@@ -980,7 +979,7 @@ def test_vc_bug(local_ds_generator):
     a = ds.commit("first")
     ds.checkout(a)
     ds.create_tensor("a/b/c/d")
-    assert ds._all_tensors_filtered() == ["abc", "a/b/c/d"]
+    assert list(ds.tensors) == ["abc", "a/b/c/d"]
 
 
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):

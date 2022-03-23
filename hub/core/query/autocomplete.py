@@ -54,6 +54,16 @@ def _tokenize(s: str):
     return list(tokenize(BytesIO(s.encode("utf-8")).readline))[1:-2]
 
 
+def _filter_hidden_tensors(tensors):
+    tensor_keys = set(tensors.keys())
+    for key in tensor_keys:
+        tensor = tensors[key]
+        meta = tensor.meta
+        if hasattr(meta, "hidden") and tensor.meta.hidden:
+            tensors.pop(key)
+    return tensors
+
+
 def _parse(s: str, ds: hub.Dataset) -> List[dict]:
     """Tokenizes a query string and assigns a token type to each token.
 
@@ -69,7 +79,7 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
 
     """
     pytokens = _tokenize(s)
-    tensors = ds._ungrouped_tensors
+    tensors = _filter_hidden_tensors(ds._ungrouped_tensors)
     groups = set(ds._groups_filtered)
     hubtokens: List[Dict[str, Any]] = []
     group_in_progress = None
@@ -79,7 +89,7 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
         ts = t.string
         if t.type == 1:  # (NAME)
             if group_in_progress:
-                if ts in group_in_progress._ungrouped_tensors:
+                if ts in _filter_hidden_tensors(group_in_progress._ungrouped_tensors):
                     ht["type"] = "TENSOR"
                     group_in_progress = None
                 elif ts in group_in_progress._groups_filtered:
@@ -147,7 +157,10 @@ def _sort_suggestions(s: List[dict]) -> None:
 
 def _initial_suggestions(ds: hub.Dataset):
     """Suggestions for empty string query."""
-    tensors = [{"string": k, "type": "TENSOR"} for k in ds._ungrouped_tensors]
+    tensors = [
+        {"string": k, "type": "TENSOR"}
+        for k in _filter_hidden_tensors(ds._ungrouped_tensors)
+    ]
     _sort_suggestions(tensors)
     groups = [{"string": k, "type": "GROUP"} for k in ds._groups_filtered]
     _sort_suggestions(groups)
@@ -171,9 +184,10 @@ def _const_suggestions():
 
 def _group_suggestions(ds, group):
     """Suggestions when last token of a query is a group name."""
-    return [{"string": k, "type": "TENSOR"} for k in group._ungrouped_tensors] + [
-        {"string": k, "type": "GROUP"} for k in group._groups_filtered
-    ]
+    return [
+        {"string": k, "type": "TENSOR"}
+        for k in _filter_hidden_tensors(group._ungrouped_tensors)
+    ] + [{"string": k, "type": "GROUP"} for k in group._groups_filtered]
 
 
 def _parse_last_tensor(tokens, ds):
