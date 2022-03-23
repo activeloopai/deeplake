@@ -6,6 +6,7 @@ from hub.core.compression import (
     get_compression,
     _open_video,
     _read_metadata_from_vstream,
+    _read_audio_meta,
 )
 from hub.compression import (
     get_compression_type,
@@ -158,6 +159,20 @@ class Sample:
             container, vstream = _open_video(self.buffer)
         shape, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
         return {"shape": shape, "duration": duration, "fps": fps, "timebase": timebase}
+
+    def get_audio_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_audio_meta(self.path)
+        else:
+            info = _read_audio_meta(self.buffer)
+        return {
+            "nchannels": info["nchannels"],
+            "sample_rate": info["sample_rate"],
+            "sample_format": info["sample_format_name"],
+            "sample_width": info["sample_width"],
+            "num_frames": info["num_frames"],
+            "duration": info["duration"],
+        }
 
     @property
     def is_lazy(self) -> bool:
@@ -383,6 +398,8 @@ class Sample:
             meta["exif"] = self.getexif()
         if compression_type == VIDEO_COMPRESSION:
             meta.update(self.get_video_meta())
+        if compression_type == AUDIO_COMPRESSION:
+            meta.update(self.get_audio_meta())
         # TODO: video and audio meta data
         meta["shape"] = self.shape
         meta["format"] = self.compression

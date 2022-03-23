@@ -756,6 +756,18 @@ def _decompress_audio(
     )
 
 
+def _read_audio_meta(file: Union[bytes, memoryview, str], compression: str) -> dict:
+    if not _MINIAUDIO_INSTALLED:
+        raise ModuleNotFoundError(
+            "Miniaudio is not installed. Run `pip install hub[audio]`."
+        )
+    f_info = globals()[
+        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
+    ]
+    info = f_info(file)
+    return info.__dict__
+
+
 def _read_audio_shape(
     file: Union[bytes, memoryview, str], compression: str
 ) -> Tuple[int, ...]:
