@@ -1,3 +1,5 @@
+import math
+import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
@@ -217,13 +219,12 @@ def create_worker_chunk_engines(
         for i in range(num_tries):
             try:
                 # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
                 memory_cache.autoflush = False
-                storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
-
                 storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
                 existing_meta = storage_chunk_engine.tensor_meta
                 chunk_size = storage_chunk_engine.max_chunk_size
@@ -327,3 +328,59 @@ def get_pbar_description(compute_functions: List):
 
     names_desc = ", ".join(func_names)
     return f"Evaluating [{names_desc}]"
+
+
+def create_slices(data_in, num_workers):
+    size = math.ceil(len(data_in) / num_workers)
+    return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+
+def get_old_chunk_paths(target_ds, generated_tensors, overwrite):
+    old_chunk_paths = []
+    if overwrite:
+        for key in generated_tensors:
+            tensor = target_ds[key]
+            old_chunk_paths.extend(tensor.chunk_engine.list_all_chunks_path())
+
+    return old_chunk_paths
+
+
+def delete_overwritten_chunks(old_chunk_paths, storage, overwrite):
+    if not overwrite:
+        return
+
+    storage.delete_multiple(old_chunk_paths)
+
+
+def get_lengths_generated(all_tensor_metas, tensors):
+    all_num_samples = []
+    all_tensors_generated_length = {tensor: 0 for tensor in tensors}
+    for tensor_meta_dict in all_tensor_metas:
+        num_samples_dict = {}
+        for tensor, meta in tensor_meta_dict.items():
+            all_tensors_generated_length[tensor] += meta.length
+            num_samples_dict[tensor] = meta.length
+        all_num_samples.append(num_samples_dict)
+    return all_num_samples, all_tensors_generated_length
+
+
+def check_lengths(all_tensors_generated_length, skip_ok):
+    if not skip_ok:
+        return
+
+    first_length = None
+    for length in all_tensors_generated_length.values():
+        if first_length is None:
+            first_length = length
+        elif length not in [0, first_length]:
+            warnings.warn(
+                "Length of all tensors generated is not the same, this may lead to unexpected behavior."
+            )
+            break
+
+
+def sanitize_workers_scheduler(num_workers, scheduler):
+    if num_workers <= 0:
+        scheduler = "serial"
+    num_workers = max(num_workers, 1)
+    return num_workers, scheduler

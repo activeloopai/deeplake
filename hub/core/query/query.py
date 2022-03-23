@@ -5,9 +5,10 @@ from hub.core.index import Index
 from hub.core.tensor import Tensor
 
 
-import numpy
+import numpy as np
 
-NP_RESULT = Union[numpy.ndarray, List[numpy.ndarray]]
+
+NP_RESULT = Union[np.ndarray, List[np.ndarray]]
 NP_ACCESS = Callable[[str], NP_RESULT]
 
 
@@ -16,7 +17,7 @@ class DatasetQuery:
         self,
         dataset,
         query: str,
-        progress_callback: Callable[[int], None] = lambda _: None,
+        progress_callback: Callable[[int, bool], None] = lambda *_: None,
     ):
         self._dataset = dataset
         self._query = query
@@ -27,30 +28,30 @@ class DatasetQuery:
             for tensor in dataset.tensors.keys()
             if normalize_query_tensors(tensor) in query
         ]
+        self._blocks = expand(dataset, self._tensors)
         self._np_access: List[NP_ACCESS] = [
-            _get_np(dataset, block) for block in expand(dataset, self._tensors)
+            _get_np(dataset, block) for block in self._blocks
         ]
         self._wrappers = self._export_tensors()
         self._groups = self._export_groups(self._wrappers)
 
     def execute(self) -> List[int]:
         idx_map: List[int] = list()
-        max_size = len(self._dataset)
+        idx: int = 0
 
-        for f in self._np_access:
+        for f, blk in zip(self._np_access, self._blocks):
             cache = {tensor: f(tensor) for tensor in self._tensors}
-            for local_idx in range(max_size):
+            for local_idx in range(len(blk)):
                 p = {
                     tensor: self._wrap_value(tensor, cache[tensor][local_idx])
                     for tensor in self._tensors
                 }
-
                 p.update(self._groups)
-
                 if eval(self._cquery, p):
                     idx_map.append(local_idx)
-                self._pg_callback(1)
-
+                    self._pg_callback(local_idx, True)
+                else:
+                    self._pg_callback(local_idx, False)
         return idx_map
 
     def _wrap_value(self, tensor, val):
@@ -127,17 +128,17 @@ class EvalObject:
 
     @property
     def min(self):
-        """Returns numpy.min() for the tensor"""
-        return numpy.amin(self.val)
+        """Returns np.min() for the tensor"""
+        return np.amin(self.val)
 
     @property
     def max(self):
-        """Returns numpy.max() for the tensor"""
-        return numpy.amax(self.val)
+        """Returns np.max() for the tensor"""
+        return np.amax(self.val)
 
     @property
     def mean(self):
-        """Returns numpy.mean() for the tensor"""
+        """Returns np.mean() for the tensor"""
         return self.val.mean()
 
     @property
@@ -151,7 +152,13 @@ class EvalObject:
         return self.val.size  # type: ignore
 
     def __eq__(self, o: object) -> bool:
-        return self.val == o
+        if isinstance(self.val, (list, np.ndarray)):
+            if isinstance(o, (list, tuple)):
+                return set(o) == set(self.val)
+            else:
+                return o in self.val
+        else:
+            return self.val == o
 
     def __lt__(self, o: object) -> bool:
         return self.val < o
@@ -165,8 +172,29 @@ class EvalObject:
     def __ge__(self, o: object) -> bool:
         return self.val >= o
 
-    def __ne__(self, o: object) -> bool:
-        return self.val != o
+    def __mod__(self, o: object):
+        return self.val % o
+
+    def __add__(self, o: object):
+        return self.val + o
+
+    def __sub__(self, o: object):
+        return self.val - o
+
+    def __div__(self, o: object):
+        return self.val / o
+
+    def __floordiv__(self, o: object):
+        return self.val // o
+
+    def __mul__(self, o: object):
+        return self.val * o
+
+    def __pow__(self, o: object):
+        return self.val**o
+
+    def __contains__(self, o: object):
+        return self.contains(o)
 
 
 class GroupTensor:
@@ -207,11 +235,17 @@ class ClassLabelsTensor(EvalObject):
         _classes = tensor.info["class_names"]  # type: ignore
         self._classes_dict = {v: idx for idx, v in enumerate(_classes)}
 
-    def __eq__(self, o: object) -> bool:
+    def _norm_labels(self, o: object):
         if isinstance(o, str):
-            return self.val == self._classes_dict[o]
-        else:
-            return self.val == o
+            return self._classes_dict[o]
+        elif isinstance(o, int):
+            return o
+        elif isinstance(o, (list, tuple)):
+            return o.__class__(map(self._norm_labels, o))
+
+    def __eq__(self, o: object) -> bool:
+        o = self._norm_labels(o)
+        return super(ClassLabelsTensor, self).__eq__(o)
 
     def __lt__(self, o: object) -> bool:
         if isinstance(o, str):
@@ -233,8 +267,7 @@ class ClassLabelsTensor(EvalObject):
             raise ValueError("label class is not comparable")
         return self.val >= o
 
-    def __ne__(self, o: object) -> bool:
-        if isinstance(o, str):
-            return self.val != self._classes_dict[o]
-        else:
-            return self.val != o
+    def contains(self, v: Any):
+        if isinstance(v, str):
+            v = self._classes_dict[v]
+        return super(ClassLabelsTensor, self).contains(v)

@@ -1,11 +1,12 @@
 from typing import Set
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
-class CommitChunkSet(Cachable):
+class CommitChunkSet(HubMemoryObject):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:
+        self.is_dirty = False
         self.chunks: Set[str] = set()
 
     def tobytes(self) -> bytes:
@@ -16,7 +17,9 @@ class CommitChunkSet(Cachable):
     def frombuffer(cls, buffer: bytes):
         """Loads a CommitChunkSet from a buffer."""
         instance = cls()
-        instance.chunks = set(buffer.decode("utf-8").split(","))
+        if buffer:
+            instance.chunks = set(buffer.decode("utf-8").split(","))
+        instance.is_dirty = False
         return instance
 
     @property
@@ -28,3 +31,4 @@ class CommitChunkSet(Cachable):
     def add(self, chunk_name: str) -> None:
         """Adds a new chunk name to the CommitChunkSet."""
         self.chunks.add(chunk_name)
+        self.is_dirty = True

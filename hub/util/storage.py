@@ -1,7 +1,7 @@
 from hub.core.storage.gcs import GCSProvider
 from hub.util.cache_chain import generate_chain
 from hub.constants import LOCAL_CACHE_PREFIX, MB
-from hub.util.tag import check_hub_path
+from hub.util.tag import process_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
@@ -13,6 +13,7 @@ from hub.core.storage import (
     LRUCache,
 )
 from hub.client.client import HubBackendClient
+import posixpath
 
 
 def storage_provider_from_path(
@@ -20,6 +21,7 @@ def storage_provider_from_path(
     creds: Optional[dict],
     read_only: bool = False,
     token: Optional[str] = None,
+    is_hub_path: bool = False,
 ):
     """Construct a StorageProvider given a path.
 
@@ -28,7 +30,8 @@ def storage_provider_from_path(
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
-        token (str): token for authentication into activeloop
+        token (str): token for authentication into activeloop.
+        is_hub_path (bool): whether the path points to a hub dataset.
 
     Returns:
         If given a path starting with s3:// returns the S3Provider.
@@ -49,8 +52,16 @@ def storage_provider_from_path(
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
+        profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
-            path, key, secret, session_token, endpoint_url, region, token=token
+            path,
+            key,
+            secret,
+            session_token,
+            endpoint_url,
+            region,
+            profile_name=profile,
+            token=token,
         )
     elif path.startswith("gcp://") or path.startswith("gcs://"):
         storage = GCSProvider(path, creds)
@@ -65,6 +76,8 @@ def storage_provider_from_path(
             storage = LocalProvider(path)
         else:
             raise ValueError(f"Local path {path} must be a path to a local directory")
+    if not storage._is_hub_path:
+        storage._is_hub_path = is_hub_path
 
     if read_only:
         storage.enable_readonly()
@@ -74,9 +87,7 @@ def storage_provider_from_path(
 def storage_provider_from_hub_path(
     path: str, read_only: bool = False, token: str = None
 ):
-    check_hub_path(path)
-    tag = path[6:]
-    org_id, ds_name = tag.split("/")
+    path, org_id, ds_name, subdir = process_hub_path(path)
     client = HubBackendClient(token=token)
 
     mode = "r" if read_only else None
@@ -89,7 +100,11 @@ def storage_provider_from_hub_path(
         print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True
 
-    storage = storage_provider_from_path(url, creds, read_only)
+    url = posixpath.join(url, subdir)
+
+    storage = storage_provider_from_path(
+        path=url, creds=creds, read_only=read_only, is_hub_path=True
+    )
     storage._set_hub_creds_info(path, expiration)
     return storage
 
@@ -112,7 +127,12 @@ def get_storage_and_cache_chain(
     Returns:
         A tuple of the storage provider and the storage chain.
     """
-    storage = storage_provider_from_path(path, creds, read_only, token)
+    storage = storage_provider_from_path(
+        path=path,
+        creds=creds,
+        read_only=read_only,
+        token=token,
+    )
     memory_cache_size_bytes = memory_cache_size * MB
     local_cache_size_bytes = local_cache_size * MB
     storage_chain = generate_chain(
