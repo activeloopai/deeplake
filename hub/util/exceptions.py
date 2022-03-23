@@ -607,7 +607,7 @@ class MergeError(Exception):
 class MergeNotSupportedError(MergeError):
     def __init__(self):
         super().__init__(
-            "This dataset was created before merge functionality was added. Create a new dataset to use merge."
+            "This dataset was either created before merge functionality was added or id tensor wasn't created for one or more tensors. Create a new dataset to use merge."
         )
 
 
