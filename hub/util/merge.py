@@ -77,7 +77,7 @@ def get_new_common_and_deleted_tensors(
     for tensor in original_deleted_tensors:
         diff = target_diff.get(tensor, None)
 
-        # either target doesn't have the tensor, no point in creating again or target has the tensor but it wasn't modified
+        # target has tensor but with no changes since lca, no point in creating again
         if not diff or not (diff["data_added"] or diff["data_updated"]):
             new_tensors.discard(tensor)
 

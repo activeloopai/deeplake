@@ -187,3 +187,39 @@ def test_tensor_deletion_merge(local_ds):
         assert "label" in ds.tensors
         for i in range(11):
             assert ds.label[i].numpy() == i
+
+
+def test_tensor_revival(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+            ds.label.append(i)
+
+        a = ds.commit("added 10 images and labels")
+        ds.delete_tensor("image")
+        ds.delete_tensor("label")
+
+        ds.checkout(a)
+        ds.checkout("other", create=True)
+
+        assert "image" in ds.tensors
+        assert "label" in ds.tensors
+        for i in range(10, 15):
+            ds.label.append(i)
+        ds.commit()
+        ds.checkout("main")
+        assert "image" not in ds.tensors
+        assert "label" not in ds.tensors
+
+        ds.merge("other")
+
+        # not revived as this had no changes in other
+        assert "image" not in ds.tensors
+
+        # revived as this had changes in other
+        assert "label" in ds.tensors
+        for i in range(15):
+            assert ds.label[i].numpy() == i
