@@ -672,7 +672,7 @@ class ChunkEngine:
             except KeyError:
                 pass
 
-        info_key = get_tensor_info_key(key, commit_id)
+        info_key = get_tensor_info_key(self.key, commit_id)
         try:
             self._info = None
             del self.cache[info_key]
@@ -681,7 +681,7 @@ class ChunkEngine:
 
         self.commit_diff.clear_data()
 
-        tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
+        tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
         try:
             self._tile_encoder = None
             del self.cache[tile_encoder_key]

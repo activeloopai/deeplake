@@ -985,10 +985,11 @@ def test_tensor_clear(local_ds_generator):
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    a.append([1, 2, 3])
 
     ds = local_ds_generator()
     assert len(ds) == 1
-    assert len(image) == 1
+    assert len(image) == 4
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
 
