@@ -53,8 +53,13 @@ def create_read_copy_dataset(dataset, commit_id=None):
     Returns:
         A new Dataset object in read-only mode.
     """
-    base_storage = get_base_storage(dataset.storage).copy()
-    storage = LRUCache(MemoryProvider(), base_storage, 256 * MB)
+    base_storage = get_base_storage(dataset.storage)
+    if isinstance(base_storage, MemoryProvider):
+        new_storage = base_storage.copy()
+        new_storage.dict = base_storage.dict
+    else:
+        new_storage = base_storage.copy()
+    storage = LRUCache(MemoryProvider(), new_storage, 256 * MB)
     ds = dataset.__class__(
         storage,
         index=dataset.index,
