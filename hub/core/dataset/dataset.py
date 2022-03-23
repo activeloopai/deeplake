@@ -52,6 +52,7 @@ from hub.util.exceptions import (
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
+    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -341,10 +342,6 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         is_sequence, htype = parse_sequence_htype(htype)
-        if kwargs.get("is_sequence"):
-            raise ValueError(
-                "`is_sequence` must not be specified explicitly by the user. Use a sequence htype instead."
-            )
         kwargs["is_sequence"] = is_sequence
 
         if not self._is_root():
@@ -947,7 +944,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
@@ -1109,6 +1106,16 @@ class Dataset:
         for group in self._groups_filtered:
             size += self[group].size_approx()
         return size
+
+    @invalid_view_op
+    @hub_reporter.record_call
+    def rename(self, path):
+        path = path.rstrip("/")
+        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+            raise RenameError
+        storage = get_base_storage(self.storage)
+        storage.rename(path)
+        self.path = path
 
     @invalid_view_op
     @hub_reporter.record_call
