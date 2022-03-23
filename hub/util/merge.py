@@ -157,16 +157,7 @@ def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
     """Copies tensors from the target_commit to the dataset."""
     for tensor_name in tensor_names:
         target_tensor = target_dataset[tensor_name]
-        htype = target_tensor.meta.htype
-        sample_compression = target_tensor.meta.sample_compression
-        chunk_compression = target_tensor.meta.chunk_compression
-        dataset.create_tensor(
-            tensor_name,
-            htype=htype,
-            sample_compression=sample_compression,
-            chunk_compression=chunk_compression,
-        )
-        new_tensor = dataset[tensor_name]
+        new_tensor = dataset.create_tensor_like(tensor_name, target_tensor)
         id_tensor_name = get_sample_id_tensor_key(tensor_name)
         new_id_tensor = dataset[id_tensor_name]
         target_id_tensor = target_dataset[id_tensor_name]
@@ -174,7 +165,6 @@ def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
         for sample, sample_id in zip(target_tensor, target_id_tensor):
             new_tensor.append(sample)
             new_id_tensor[-1] = sample_id
-        new_tensor.info.update(target_tensor.info)
 
 
 def merge_common_tensors(
