@@ -417,7 +417,7 @@ class S3Provider(StorageProvider):
             )
 
     def _locate_and_load_creds(self):
-        session = boto3.session.Session(profile_name=self.profile_name)
+        session = boto3.session.Session(profile_name=self.profile_name)._session
         component_locator = ComponentLocator()
         component_locator.lazy_register_component(
             "credential_provider", session._create_credential_resolver
