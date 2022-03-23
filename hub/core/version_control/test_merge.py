@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from hub.util.exceptions import MergeMismatchError, MergeNotSupportedError
+from hub.util.exceptions import (
+    MergeConflictError,
+    MergeMismatchError,
+    MergeNotSupportedError,
+)
 
 
 def test_merge(local_ds):
@@ -223,3 +227,26 @@ def test_tensor_revival(local_ds):
         assert "label" in ds.tensors
         for i in range(15):
             assert ds.label[i].numpy() == i
+
+
+def test_conflicts(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+
+        a = ds.commit("added 10 images")
+        ds.checkout("other", create=True)
+        for i in range(10, 15):
+            ds.image.append(i * np.ones((200, 200, 3)))
+        ds.image[4] = 25 * np.ones((200, 200, 3))
+
+        b = ds.commit("added 5 more images and changed 4th")
+        ds.checkout("main")
+        ds.image[4] = 50 * np.ones((200, 200, 3))
+
+        with pytest.raises(MergeConflictError):
+            ds.merge("other")
+
+        ds.merge("other", conflict_resolution="theirs")
+        np.testing.assert_array_equal(ds.image[4].numpy(), 25 * np.ones((200, 200, 3)))
