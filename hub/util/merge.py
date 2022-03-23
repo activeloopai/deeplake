@@ -167,8 +167,13 @@ def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
             chunk_compression=chunk_compression,
         )
         new_tensor = dataset[tensor_name]
-        for item in target_tensor:
-            new_tensor.append(item)
+        id_tensor_name = get_sample_id_tensor_key(tensor_name)
+        new_id_tensor = dataset[id_tensor_name]
+        target_id_tensor = target_dataset[id_tensor_name]
+
+        for sample, sample_id in zip(target_tensor, target_id_tensor):
+            new_tensor.append(sample)
+            new_id_tensor[-1] = sample_id
         new_tensor.info.update(target_tensor.info)
 
 
