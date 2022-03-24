@@ -650,6 +650,7 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 self.dataset[k].append(get_link_transform(v["append"])(sample))
 
+
     def _update_links(
         self,
         global_sample_index: int,

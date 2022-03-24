@@ -374,7 +374,7 @@ class Sample:
         meta["shape"] = self.shape
         meta["format"] = self.compression
         if self.path:
-            meta["filename"] = self.path
+            meta["filename"] = str(self.path)
         return meta
 
 
