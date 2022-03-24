@@ -258,6 +258,16 @@ def gcs_path(request, gcs_creds):
 
 
 @pytest.fixture
+def gcs_vstream_path(request):
+    if not is_opt_true(request, GCS_OPT):
+        pytest.skip()
+        return
+
+    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
+@pytest.fixture
 def gdrive_path(request):
     if not is_opt_true(request, GDRIVE_OPT):
         pytest.skip()
@@ -270,16 +280,6 @@ def gdrive_path(request):
 
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         GDriveProvider(path).clear()
-
-
-@pytest.fixture
-def gcs_vstream_path(request):
-    if not is_opt_true(request, GCS_OPT):
-        pytest.skip()
-        return
-
-    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
-    yield path
 
 
 @pytest.fixture

@@ -29,7 +29,13 @@ enabled_persistent_storages = pytest.mark.parametrize(
 
 enabled_remote_storages = pytest.mark.parametrize(
     "storage",
-    ["s3_storage", "gcs_storage", "gcs_root_storage", "s3_root_storage"],
+    [
+        "s3_storage",
+        "gcs_storage",
+        "gdrive_storage",
+        "gcs_root_storage",
+        "s3_root_storage",
+    ],
     indirect=True,
 )
 
