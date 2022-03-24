@@ -639,7 +639,7 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                self.dataset[k].append(get_link_transform(v["append"])(sample))
+                Tensor(k, self.dataset).append(get_link_transform(v["append"])(sample))
 
     def _update_links(
         self,
@@ -653,9 +653,9 @@ class Tensor:
                 fname = v.get("update")
                 if fname:
                     func = get_link_transform(fname)
-                    self.dataset[k][global_sample_index] = func(
+                    Tensor(k, self.dataset)[global_sample_index] = func(
                         new_sample,
-                        self.dataset[k][global_sample_index],
+                        Tensor(k, self.dataset)[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                     )

@@ -13,7 +13,10 @@ class DatasetMeta(Meta):
     @property
     def visible_tensors(self):
         return list(
-            filter(lambda t: t not in self.hidden_tensors, self.tensor_names.keys())
+            filter(
+                lambda t: self.tensor_names[t] not in self.hidden_tensors,
+                self.tensor_names.keys(),
+            )
         )
 
     @property
@@ -34,13 +37,13 @@ class DatasetMeta(Meta):
             self.tensor_names[name] = key
             self.tensors.append(key)
             if hidden:
-                self.hidden_tensors.append(name)
+                self.hidden_tensors.append(key)
             self.is_dirty = True
 
     def _hide_tensor(self, name):
         assert name in self.tensor_names
         if name not in self.hidden_tensors:
-            self.hidden_tensors.append(name)
+            self.hidden_tensors.append(self.tensor_names[name])
             self.is_dirty = True
 
     def add_group(self, name):

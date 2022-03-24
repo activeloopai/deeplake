@@ -69,7 +69,7 @@ from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
-    get_sample_id_tensor_key,
+    get_sample_id_tensor_name,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
@@ -396,10 +396,13 @@ class Dataset:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         if create_id_tensor:
-            id_tensor_name = get_sample_id_tensor_key(name)
+            id_tensor_name = get_sample_id_tensor_name(name)
             self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
             self._link_tensors(
-                name, id_tensor_name, append_f="append_id", flatten_sequence=True
+                name,
+                id_tensor_name,
+                append_f="append_id",
+                flatten_sequence=True,
             )
         return tensor
 
@@ -447,21 +450,23 @@ class Dataset:
                 return
 
         with self:
-            tensor_diff = self[full_name].chunk_engine.commit_diff
-            # if tensor was created in this commit, there's no diff for deleting it.
-            if not tensor_diff.created:
-                self._dataset_diff.tensor_deleted(full_name)
+            meta = self.meta
             full_key = self.version_state["tensor_names"].pop(full_name)
+            if full_key not in meta.hidden_tensors:
+                tensor_diff = Tensor(full_key, self).chunk_engine.commit_diff
+                # if tensor was created in this commit, there's no diff for deleting it.
+                if not tensor_diff.created:
+                    self._dataset_diff.tensor_deleted(full_name)
             delete_tensor(full_key, self)
             self.version_state["full_tensors"].pop(full_key)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
             ffw_dataset_meta(meta)
             meta.delete_tensor(full_name)
             self.version_state["meta"] = meta
 
-        id_tensor_name = get_sample_id_tensor_key(name)
-        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
+        id_tensor_name, id_tensor_key = map(
+            get_sample_id_tensor_name, (full_name, full_key)
+        )
+        if tensor_exists(id_tensor_key, self.storage, self.version_state["commit_id"]):
             self.delete_tensor(id_tensor_name)
 
         self.storage.maybe_flush()
@@ -535,6 +540,7 @@ class Dataset:
         del meta["length"]
         del meta["version"]
         del meta["name"]
+        del meta["links"]
 
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
@@ -583,15 +589,22 @@ class Dataset:
 
         tensor = self[name]
         tensor.meta.name = full_new_name
-        tensor_diff = tensor.chunk_engine.commit_diff
-        # if tensor was created in this commit, tensor name has to be updated without adding it to diff.
-        if not tensor_diff.created:
-            self._dataset_diff.tensor_renamed(name, full_new_name)
         full_key = self.version_state["tensor_names"].pop(name)
+        meta = self.meta
+        if full_key not in meta.hidden_tensors:
+            tensor_diff = tensor.chunk_engine.commit_diff
+            # if tensor was created in this commit, tensor name has to be updated without adding it to diff.
+            if not tensor_diff.created:
+                self._dataset_diff.tensor_renamed(name, full_new_name)
         self.version_state["tensor_names"][full_new_name] = full_key
-        meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.rename_tensor(name, full_new_name)
+        id_tensor_key = get_sample_id_tensor_name(full_key)
+        if tensor_exists(id_tensor_key, self.storage, self.version_state["commit_id"]):
+            id_tensor_old, id_tensor_new = map(
+                get_sample_id_tensor_name, (name, full_new_name)
+            )
+            self.rename_tensor(id_tensor_old, id_tensor_new)
         self.storage.maybe_flush()
         return tensor
 
@@ -1248,11 +1261,12 @@ class Dataset:
     def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
         hidden_tensors = self.meta.hidden_tensors
+        tensor_names = self.version_state["tensor_names"]
         return [
             posixpath.relpath(t, self.group_index)
-            for t in self.version_state["tensor_names"]
+            for t in tensor_names
             if (not self.group_index or t.startswith(self.group_index + "/"))
-            and (include_hidden or t not in hidden_tensors)
+            and (include_hidden or tensor_names[t] not in hidden_tensors)
         ]
 
     def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
@@ -1860,11 +1874,12 @@ class Dataset:
         if dest not in tensors:
             raise TensorDoesNotExistError(dest)
         src_tensor = self[src]
+        dest_key = self.version_state["tensor_names"][dest]
         if flatten_sequence is None:
             if src_tensor.is_sequence:
                 raise ValueError(
                     "`flatten_sequence` arg must be specified when linking a sequence tensor."
                 )
             flatten_sequence = False
-        src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
+        src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()

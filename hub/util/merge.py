@@ -8,7 +8,7 @@ from hub.util.exceptions import (
     MergeMismatchError,
     MergeNotSupportedError,
 )
-from hub.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
+from hub.util.keys import get_sample_id_tensor_name, get_tensor_commit_diff_key
 from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
 
@@ -57,11 +57,11 @@ def get_new_common_and_deleted_tensors(
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
-    check_id_tensors_exist(original_tensors, all_original_tensors)
+    check_id_tensors_exist(original_tensors, all_original_tensors, dataset)
 
     target_tensors: Set[str] = set(target_ds.tensors)
     all_target_tensors: Set[str] = set(target_ds._all_tensors_filtered())
-    check_id_tensors_exist(target_tensors, all_target_tensors)
+    check_id_tensors_exist(target_tensors, all_target_tensors, target_ds)
 
     lca_tensors = get_lca_tensors(dataset, lca_id)
     new_tensors = target_tensors - original_tensors
@@ -137,7 +137,7 @@ def get_changes_commit_ids_for_node(
 
             if diff is not None:
                 data_updated = sorted(diff.data_updated)
-                id_tensor_name = get_sample_id_tensor_key(tensor_name)
+                id_tensor_name = get_sample_id_tensor_name(tensor_name)
                 id_tensor = dataset[id_tensor_name]
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
@@ -158,7 +158,7 @@ def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
     for tensor_name in tensor_names:
         target_tensor = target_dataset[tensor_name]
         new_tensor = dataset.create_tensor_like(tensor_name, target_tensor)
-        id_tensor_name = get_sample_id_tensor_key(tensor_name)
+        id_tensor_name = get_sample_id_tensor_name(tensor_name)
         new_id_tensor = dataset[id_tensor_name]
         target_id_tensor = target_dataset[id_tensor_name]
 
@@ -307,7 +307,7 @@ def find_new_updated_and_conflict_indexes(
         - updated_indexes is a list of tuples of the form (original_idx, target_idx)
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
     """
-    id_tensor_name = get_sample_id_tensor_key(tensor_name)
+    id_tensor_name = get_sample_id_tensor_name(tensor_name)
     target_id_tensor = target_dataset[id_tensor_name]
     original_id_tensor = dataset[id_tensor_name]
 
@@ -357,7 +357,7 @@ def merge_tensor_data(
     """Merges actual data present in 2 versions of a common tensor."""
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
-    id_tensor_name = get_sample_id_tensor_key(tensor_name)
+    id_tensor_name = get_sample_id_tensor_name(tensor_name)
     original_id_tensor = dataset[id_tensor_name]
     target_id_tensor = target_dataset[id_tensor_name]
 
@@ -377,9 +377,9 @@ def merge_tensor_data(
             original_tensor[original_idx] = target_tensor[target_idx]
 
 
-def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):
+def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str], dataset):
     """Checks whether hidden id tensors exist for each tensor."""
     for tensor_name in visible_tensors:
-        id_tensor = get_sample_id_tensor_key(tensor_name)
+        id_tensor = get_sample_id_tensor_name(tensor_name)
         if id_tensor not in all_tensors:
             raise MergeNotSupportedError
