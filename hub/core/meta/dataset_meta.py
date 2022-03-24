@@ -11,6 +11,12 @@ class DatasetMeta(Meta):
         self.hidden_tensors = []
 
     @property
+    def visible_tensors(self):
+        return list(
+            filter(lambda t: t not in self.hidden_tensors, self.tensor_names.keys())
+        )
+
+    @property
     def nbytes(self):
         # TODO: can optimize this
         return len(self.tobytes())

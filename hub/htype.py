@@ -81,6 +81,7 @@ COMMON_CONFIGS = {
     "max_chunk_size": None,
     "is_sequence": False,
     "hidden": False,
+    "links": None,
 }
 
 

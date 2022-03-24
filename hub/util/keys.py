@@ -46,7 +46,7 @@ def get_dataset_info_key(commit_id: str) -> str:
 
 def get_dataset_diff_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return "/".join(("dataset_diff", DATASET_DIFF_FILENAME))
+        return DATASET_DIFF_FILENAME
     return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
 
 
@@ -177,3 +177,8 @@ def filter_name(name: str, group_index: str = "") -> str:
 
     name = posixpath.join(group_index, name)
     return name
+
+
+def get_sample_id_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_id")
