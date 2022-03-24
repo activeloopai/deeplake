@@ -188,6 +188,17 @@ class LocalProvider(StorageProvider):
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
 
+    def rename(self, path):
+        """Renames root folder"""
+        os.rename(self.root, path)
+        self.root = path
+
     def __contains__(self, key) -> bool:
         full_path = self._check_is_file(key)
         return os.path.exists(full_path)
+
+    def __getstate__(self):
+        return self.root
+
+    def __setstate__(self, state):
+        self.__init__(state)

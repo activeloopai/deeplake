@@ -64,6 +64,7 @@ def test_different_size_ds_query(local_ds):
     with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")
+        ds.create_tensor("test", htype="class_label")
 
         ds.images.append([0])
         ds.images.append([1])
@@ -72,10 +73,22 @@ def test_different_size_ds_query(local_ds):
         ds.labels.append([0])
         ds.labels.append([1])
 
+        ds.test.append([0])
+
     result = ds.filter("labels == 0", progressbar=False)
     assert len(result) == 1
 
     result = ds.filter("images == 2", progressbar=False)
+    assert len(result) == 0
+
+    # invalid queries
+    result = ds.filter("images == 'ln'", progressbar=False)
+    assert len(result) == 0
+
+    result = ds.filter("labels == 'lb'", progressbar=False)
+    assert len(result) == 0
+
+    result = ds.filter("test == 'lb'", progressbar=False)
     assert len(result) == 0
 
 

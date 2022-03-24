@@ -157,7 +157,7 @@ class Pipeline:
             target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
             target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e)
+            raise TransformError(e) from e
         finally:
             compute_provider.close()
             if overwrite:
@@ -182,11 +182,22 @@ class Pipeline:
         """
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
-        tensors = list(target_ds.tensors)
-        tensors = [target_ds.tensors[t].key for t in tensors]
+        visible_tensors = list(target_ds.tensors)
+        visible_tensors = [target_ds[t].key for t in visible_tensors]
+
+        tensors = list(target_ds._tensors())
+        tensors = [target_ds[t].key for t in tensors]
         group_index = target_ds.group_index
         version_state = target_ds.version_state
-        args = (storage, group_index, tensors, self, version_state, skip_ok)
+        args = (
+            storage,
+            group_index,
+            tensors,
+            visible_tensors,
+            self,
+            version_state,
+            skip_ok,
+        )
         map_inp = zip(slices, repeat(args))
 
         if progressbar:

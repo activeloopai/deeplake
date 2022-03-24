@@ -600,6 +600,30 @@ class VersionControlError(Exception):
     pass
 
 
+class MergeError(Exception):
+    pass
+
+
+class MergeNotSupportedError(MergeError):
+    def __init__(self):
+        super().__init__(
+            "This dataset was either created before merge functionality was added or id tensor wasn't created for one or more tensors. Create a new dataset to use merge."
+        )
+
+
+class MergeMismatchError(MergeError):
+    def __init__(self, tensor_name, mismatch_type, original_value, target_value):
+        message = f"Unable to merge, tensor {tensor_name} has different {mismatch_type}. Current:{original_value}, Target: {target_value}"
+        super().__init__(message)
+
+
+class MergeConflictError(MergeError):
+    def __init__(self, conflict_dict):
+        tensor_names = [k for k, v in conflict_dict.items() if v]
+        message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
+        super().__init__(message)
+
+
 class CheckoutError(VersionControlError):
     pass
 
@@ -659,6 +683,11 @@ class NotLoggedInError(AgreementError):
 
 class BufferError(Exception):
     pass
+
+
+class RenameError(Exception):
+    def __init__(self):
+        super().__init__("Only name of the dataset can be different in new path.")
 
 
 class InfoError(Exception):

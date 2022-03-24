@@ -3,6 +3,9 @@ from hub.core.index import Index
 from hub.constants import _NO_LINK_UPDATE
 import inspect
 import hub
+import inspect
+from hub.util.generate_id import generate_id
+import numpy as np
 
 
 class _TensorLinkTransform:
@@ -24,6 +27,11 @@ class _TensorLinkTransform:
 
 
 link = _TensorLinkTransform
+
+
+@link
+def append_id(sample):
+    return generate_id(np.uint64)
 
 
 @link
@@ -68,15 +76,3 @@ def _unregister_link_transform(fname: str):
 
 def get_link_transform(fname: str):
     return _funcs[fname]
-
-
-class LinkTransformTestContext:
-    def __init__(self, func: Callable, name: str):
-        self.func = func
-        self.name = name
-
-    def __enter__(self):
-        _register_link_transform(self.name, self.func)
-
-    def __exit__(self, *args, **kwargs):
-        _unregister_link_transform(self.name)
