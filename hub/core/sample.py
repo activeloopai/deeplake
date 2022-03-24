@@ -4,6 +4,9 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _open_video,
+    _read_metadata_from_vstream,
+    _read_audio_meta,
 )
 from hub.compression import (
     get_compression_type,
@@ -148,6 +151,28 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def _get_video_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            container, vstream = _open_video(self.path)
+        else:
+            container, vstream = _open_video(self.buffer)
+        _, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"duration": duration, "fps": fps, "timebase": timebase}
+
+    def _get_audio_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_audio_meta(self.path)
+        else:
+            info = _read_audio_meta(self.buffer)
+        return {
+            "nchannels": info["nchannels"],
+            "sample_rate": info["sample_rate"],
+            "sample_format": info["sample_format_name"],
+            "sample_width": info["sample_width"],
+            "num_frames": info["num_frames"],
+            "duration": info["duration"],
+        }
 
     @property
     def is_lazy(self) -> bool:
@@ -355,7 +380,7 @@ class Sample:
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
 
-    def _get_exif(self) -> dict:
+    def _getexif(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
             img = Image.open(self.path)
         else:
@@ -368,9 +393,13 @@ class Sample:
     @property
     def meta(self) -> dict:
         meta = {}
-        if get_compression_type(self.compression) == IMAGE_COMPRESSION:
-            meta["exif"] = self._get_exif()
-        # TODO: video and audio meta data
+        compression_type = get_compression_type(self.compression)
+        if compression_type == IMAGE_COMPRESSION:
+            meta["exif"] = self._getexif()
+        if compression_type == VIDEO_COMPRESSION:
+            meta.update(self._get_video_meta())
+        if compression_type == AUDIO_COMPRESSION:
+            meta.update(self._get_audio_meta())
         meta["shape"] = self.shape
         meta["format"] = self.compression
         if self.path:
