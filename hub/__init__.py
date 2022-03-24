@@ -43,6 +43,7 @@ load = dataset.load
 empty = dataset.empty
 like = dataset.like
 delete = dataset.delete
+rename = dataset.rename
 copy = dataset.copy
 dataset_cl = Dataset
 ingest = dataset.ingest
@@ -72,7 +73,7 @@ __all__ = [
     "delete",
 ]
 
-__version__ = "2.3.2"
+__version__ = "2.3.3"
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 

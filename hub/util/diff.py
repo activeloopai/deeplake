@@ -239,8 +239,9 @@ def get_tensor_changes_for_id(
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_hub_object(meta_key, DatasetMeta)
+    tensors = meta.visible_tensors
 
-    for tensor in meta.tensors:
+    for tensor in tensors:
         try:
             commit_diff: CommitDiff
             commit_diff_key = get_tensor_commit_diff_key(tensor, commit_id)

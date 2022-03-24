@@ -183,15 +183,18 @@ class Pipeline:
         """
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
-        tensors = list(target_ds.tensors)
-        tensors = [target_ds.tensors[t].key for t in tensors]
+        visible_tensors = list(target_ds.tensors)
+        visible_tensors = [target_ds[t].key for t in visible_tensors]
+
+        tensors = list(target_ds._tensors())
+        tensors = [target_ds[t].key for t in tensors]
         group_index = target_ds.group_index
         version_state = target_ds.version_state
         if isinstance(storage, MemoryProvider):
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
-        args = (group_index, tensors, self, version_state, skip_ok)
+        args = group_index, tensors, visible_tensors, self, version_state, skip_ok
         map_inp = zip(slices, storages, repeat(args))
 
         if progressbar:

@@ -337,6 +337,31 @@ class S3Provider(StorageProvider):
         else:
             super().clear()
 
+    def rename(self, root):
+        """Rename root folder"""
+        self.check_readonly()
+        self._check_update_creds()
+        items = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=self.bucket, Prefix=self.path)
+        for page in pages:
+            items.extend(page["Contents"])
+        path = root.replace("s3://", "")
+        _, new_path = path.split("/", 1)
+        for item in items:
+            old_key = item["Key"]
+            copy_source = {"Bucket": self.bucket, "Key": old_key}
+            new_key = "/".join([new_path, posixpath.relpath(old_key, self.path)])
+            self.client.copy_object(
+                CopySource=copy_source, Bucket=self.bucket, Key=new_key
+            )
+            self.client.delete_object(Bucket=self.bucket, Key=old_key)
+
+        self.root = root
+        self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
+
     def _state_keys(self):
         """Keys used to store the state of the provider."""
         return {
