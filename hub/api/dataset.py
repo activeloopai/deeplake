@@ -396,6 +396,33 @@ class dataset:
 
     @staticmethod
     def copy(
+        src: Union[str, Dataset],
+        dest: str,
+        overwrite: bool = False,
+        src_creds=None,
+        dest_creds=None,
+        src_token=None,
+        dest_token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+    ):
+        if isinstance(src, str):
+            src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
+        else:
+            src_ds = src
+        src_ds.copy(
+            dest,
+            overwrite=overwrite,
+            dest_creds=dest_creds,
+            dest_token=dest_token,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+        )
+
+    @staticmethod
+    def deep_copy(
         src: str,
         dest: str,
         overwrite: bool = False,
@@ -405,10 +432,10 @@ class dataset:
         dest_token=None,
         num_workers: int = 0,
         scheduler="threaded",
-        progress_bar=True,
+        progressbar=True,
         public: bool = True,
     ):
-        """Copies dataset at `src` to `dest`.
+        """Copies dataset at `src` to `dest` including version control history.
 
         Args:
             src (str): Path to the dataset to be copied.
@@ -423,7 +450,7 @@ class dataset:
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
-            progress_bar (bool): Displays a progress bar if True (default).
+            progressbar (bool): Displays a progress bar if True (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
 
         Returns:
@@ -478,7 +505,7 @@ class dataset:
             keys = [keys[i::num_workers] for i in range(num_workers)]
         compute_provider = get_compute_provider(scheduler, num_workers)
         try:
-            if progress_bar:
+            if progressbar:
                 compute_provider.map_with_progressbar(
                     copy_func_with_progress_bar,
                     keys,

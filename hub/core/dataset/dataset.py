@@ -1,5 +1,5 @@
 # type: ignore
-from unittest import skip
+import sys
 import numpy as np
 from time import time
 import json
@@ -1811,3 +1811,58 @@ class Dataset:
             flatten_sequence = False
         src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
+
+    def copy(
+        self,
+        dest: str,
+        overwrite: bool = False,
+        dest_creds=None,
+        dest_token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+    ):
+        """Copies this dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str): Destination path to copy to.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
+            dest_token (str, optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        dest_ds = hub.like(
+            dest,
+            self,
+            creds=dest_creds,
+            token=dest_token,
+            overwrite=overwrite,
+        )
+        with dest_ds:
+            dest_ds.info.update(self.info)
+        for tensor in self.tensors:
+            if progressbar:
+                sys.stderr.write(f"Copying tensor: {tensor}.\n")
+            hub.compute(_copy_tensor, name="tensor copy transform")(
+                tensor_name=tensor
+            ).eval(
+                self,
+                dest_ds,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+                skip_ok=True,
+            )
+
+
+def _copy_tensor(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(sample_in[tensor_name])

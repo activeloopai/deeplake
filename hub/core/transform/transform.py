@@ -30,11 +30,12 @@ from hub.util.version_control import auto_checkout, load_meta
 
 
 class ComputeFunction:
-    def __init__(self, func, args, kwargs):
+    def __init__(self, func, args, kwargs, name: Optional[str] = None):
         """Creates a ComputeFunction object that can be evaluated using .eval or used as a part of a Pipeline."""
         self.func = func
         self.args = args
         self.kwargs = kwargs
+        self.name = self.func.__name__ if name is None else name
 
     def eval(
         self,
@@ -130,7 +131,8 @@ class Pipeline:
             data_in = get_dataset_with_zero_size_cache(data_in)
 
         target_ds = data_in if overwrite else ds_out
-        check_transform_ds_out(target_ds, scheduler)
+        if not skip_ok:
+            check_transform_ds_out(target_ds, scheduler)
 
         # if overwrite then we've already flushed and autocheckecked out data_in which is target_ds now
         if not overwrite:
@@ -291,6 +293,7 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
 def compute(
     fn,
+    name: Optional[str] = None,
 ) -> Callable[..., ComputeFunction]:  # noqa: DAR101, DAR102, DAR201, DAR401
     """Compute is a decorator for functions.
     The functions should have atleast 2 argument, the first two will correspond to sample_in and samples_out.
@@ -344,6 +347,6 @@ def compute(
     """
 
     def inner(*args, **kwargs):
-        return ComputeFunction(fn, args, kwargs)
+        return ComputeFunction(fn, args, kwargs, name)
 
     return inner

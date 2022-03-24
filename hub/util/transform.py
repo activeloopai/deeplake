@@ -331,10 +331,7 @@ def get_pbar_description(compute_functions: List):
     if num_funcs == 0:
         return "Evaluating"
 
-    func_names: List[str] = []
-    for transform_function in compute_functions:
-        func_names.append(transform_function.func.__name__)
-
+    func_names: List[str] = [f.name for f in compute_functions]
     if num_funcs == 1:
         return f"Evaluating {func_names[0]}"
 

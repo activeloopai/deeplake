@@ -45,6 +45,7 @@ like = dataset.like
 delete = dataset.delete
 rename = dataset.rename
 copy = dataset.copy
+deep_copy = dataset.deep_copy
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
