@@ -4,6 +4,7 @@ from botocore.config import Config
 import numpy as np
 import multiprocessing
 import sys
+from hub.util.check_latest_version import warn_if_update_required
 
 if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
@@ -73,6 +74,7 @@ __all__ = [
 ]
 
 __version__ = "2.3.2"
+warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 
