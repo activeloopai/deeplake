@@ -226,6 +226,67 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3GetError(err) from err
 
+    def _get_bytes(
+        self,
+        path,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None):
+        range = None
+        if start_byte != None and end_byte != None:
+            range = f"bytes={start_byte}-{end_byte - 1}"
+        elif start_byte != None:
+            range = f"bytes={start_byte}-"
+        elif end_byte != None:
+            range = f"bytes=-{end_byte - 1}"
+        resp = self.client.get_object(
+            Bucket=self.bucket,
+            Key=path,
+            Range=range
+        )
+        return resp["Body"].read()
+
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+        """
+        self._check_update_creds()
+        path = "".join((self.path, path))
+        try:
+            return self._get_bytes(path, start_byte, end_byte)
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "NoSuchKey":
+                raise KeyError(err)
+            reload = self.need_to_reload_creds(err)
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
+            with manager(self, S3GetError):
+                return self._get_bytes(path, start_byte, end_byte)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    return self._get_bytes(path, start_byte, end_byte)
+                except Exception:
+                    pass
+            raise S3GetError(err)
+        except Exception as err:
+            raise S3GetError(err)
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
 

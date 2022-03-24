@@ -171,6 +171,38 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+        """
+        if path in self.hub_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.hub_objects[path][start_byte:end_byte]
+        elif path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path][start_byte:end_byte]
+        else:
+            if self.next_storage is not None:
+                return self.next_storage.get_bytes(path, start_byte, end_byte)
+            raise KeyError(path)
+
     def __setitem__(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 

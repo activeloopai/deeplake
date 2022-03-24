@@ -1,10 +1,10 @@
-# Streams video from a chunk
-
 from typing import Optional
+import uuid
 from flask import Flask, request, Response
 from numpy import disp
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.dataset.dataset import Dataset
 from hub.core import dataset
+from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
 import logging
 import re
@@ -13,59 +13,22 @@ import threading
 
 from IPython.display import IFrame, display
 
+from hub.visualizer.visual_context import VisualContext
+
+visualizer = None
 
 _PORT: Optional[int] = None
 _SERVER_THREAD: Optional[threading.Thread] = None
+_APP = Flask("dataset_visualizer")
 
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
-ds = None
-
-def visualize(dataset: dataset):
-    global ds
-    ds = dataset
-    if _is_server_running:
-        _stop_server()
-    url = _start_server()
-    print(f"Using PORT {_PORT}")
-    display(IFrame(f"http://localhost:3000/iframe?url={url}", width="100%", height=600))
-
-
-def _get_free_port():
-    with socketserver.TCPServer(("localhost", 0), None) as s:
-        return s.server_address[1]
-
-
-def _is_server_running() -> bool:
-    return _SERVER_THREAD and _SERVER_THREAD.is_alive()
-
-
 def _run_app():
     try:
         _APP.run(host="0.0.0.0", port=_PORT, threaded=True)
-    except Exception:  # thread termination
+    except Exception:
         pass
-
-def _start_server():
-    global _PORT
-    global _SERVER_THREAD
-    if _is_server_running():
-        return
-    _PORT = _get_free_port()
-    _SERVER_THREAD = threading.Thread(target=_run_app, daemon=True)
-    _SERVER_THREAD.start()
-    return f"http://localhost:{_PORT}/"
-
-def _stop_server():
-    global _SERVER_THREAD
-    if not _is_server_running():
-        return
-    terminate_thread(_SERVER_THREAD)
-    _SERVER_THREAD = None
-
-
-_APP = Flask("dataset_visualizer")
 
 @_APP.after_request
 def after_request(response):
@@ -77,8 +40,16 @@ def after_request(response):
 @_APP.route('/<path:path>')
 def access_data(path):
     try:
+        paths = path.split('/', 1)
         range_header = request.headers.get("Range", None)
         start, end = 0, None
+        ds: Dataset = visualizer.get(paths[0])
+        storage: StorageProvider = ds.storage
+        if request.method == "HEAD":
+            if paths[1] in storage.keys:
+                return Response("OK", 200)
+            else:
+                return Response("", 404)
         if range_header:
             match = re.search(r"(\d+)-(\d*)", range_header)
             groups = match.groups()
@@ -86,18 +57,11 @@ def access_data(path):
             if groups[0]:
                 start = int(groups[0])
             if groups[1]:
-                end = int(groups[1])
+                end = int(groups[1]) + 1
 
-        c = ds.storage[path]
-        if isinstance(c, HubMemoryObject):
-            c = c.tobytes()
-        if start == None:
-            start = 0
-        if end == None:
-            end = len(c) - 1
-
+        c = storage.get_bytes(paths[1], start, end)
         resp = Response(
-            c[start:end + 1],
+            c,
             206,
             content_type="application/octet-stream",
         )
@@ -112,3 +76,64 @@ def access_data(path):
             404,
             content_type="application/octet-stream",
         )
+
+class _Visualizer:
+    """
+    Visualizer class to manage visualization of the datasets.
+    """
+
+    def __init__(self):
+        self.start_server()
+        self._datasets = {}
+
+    def add(self, ds: dataset) -> str:
+        id = str(uuid.uuid4())
+        self._datasets[id] = ds
+        return id
+
+    def get(self, id: str) -> dataset:
+        return self._datasets[id]
+
+    def get_free_port(self):
+        with socketserver.TCPServer(("localhost", 0), None) as s:
+            return s.server_address[1]
+
+
+    def is_server_running(self) -> bool:
+        return _SERVER_THREAD and _SERVER_THREAD.is_alive()
+
+    def start_server(self):
+        global _PORT
+        global _SERVER_THREAD
+        if self.is_server_running():
+            return
+        _PORT = self.get_free_port()
+        _SERVER_THREAD = threading.Thread(target=_run_app, daemon=True)
+        _SERVER_THREAD.start()
+        return f"http://localhost:{_PORT}/"
+
+    def stop_server(self):
+        global _SERVER_THREAD
+        if not self.is_server_running():
+            return
+        terminate_thread(_SERVER_THREAD)
+        _SERVER_THREAD = None
+
+visualizer = _Visualizer()
+
+def visualize(ds: dataset):
+    """
+    Visualizes the given dataset in the Jupyter notebook and returns the corresponding context.
+
+    Args:
+        ds: dataset The dataset to visualize.
+    
+    Returns:
+        VisualContext: The corresponding context to use later to interact with the visualizer.
+    """
+    global visualizer
+    id = visualizer.add(ds)
+    url = f"http://localhost:{_PORT}/{id}/"
+    iframe = IFrame(f"https://app.dev.activeloop.ai/visualizer/hub?url={url}", width="100%", height=600)
+    display(iframe)
+    return VisualContext(id, ds, iframe)
