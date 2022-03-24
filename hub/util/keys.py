@@ -1,3 +1,4 @@
+import posixpath
 from hub.constants import (
     CHUNKS_FOLDER,
     DATASET_DIFF_FILENAME,
@@ -165,3 +166,8 @@ def get_queries_key() -> str:
 
 def get_queries_lock_key() -> str:
     return QUERIES_LOCK_FILENAME
+
+
+def get_sample_id_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_id")

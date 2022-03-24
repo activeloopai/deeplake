@@ -1,11 +1,12 @@
 import hub
 import numpy as np
-from typing import Any, Dict, Optional, Sequence, Union, List, Tuple
+from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
+from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage import S3Provider, GCSProvider
@@ -148,6 +149,8 @@ class ChunkEngine:
 
         self._info: Optional[Info] = None
         self._info_commit_id: Optional[str] = None
+
+        self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
 
         tensor_meta = self.tensor_meta
 
@@ -616,17 +619,26 @@ class ChunkEngine:
             update_commit_diff=update_commit_diff,
         )
 
-    def extend(self, samples):
+    def extend(self, samples, link_callback: Optional[Callable] = None):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+
         if self.is_sequence:
             for sample in samples:
                 self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
+                if link_callback:
+                    link_callback(sample, flat=False)
+                    for s in sample:
+                        link_callback(s, flat=True)
         else:
             self._extend(samples)
+            if link_callback:
+                for sample in samples:
+                    link_callback(sample, flat=None)
+
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
@@ -736,10 +748,14 @@ class ChunkEngine:
         index: Index,
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
+        link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index, samples, operator
+            index,
+            samples,
+            operator,
+            link_callback=link_callback,
         )
 
     def _update(
@@ -748,6 +764,7 @@ class ChunkEngine:
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
         update_commit_diff: bool = True,
+        link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
@@ -763,6 +780,7 @@ class ChunkEngine:
         samples = make_sequence(samples, index_length)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+        is_sequence = self.is_sequence
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
@@ -787,6 +805,13 @@ class ChunkEngine:
                 self.commit_diff.update_data(global_sample_index)
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
+            if link_callback:
+                link_callback(
+                    global_sample_index,
+                    sub_index=Index(index.values[1:]),
+                    new_sample=sample,
+                    flat=True if is_sequence else None,
+                )
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -1305,16 +1330,39 @@ class ChunkEngine:
         index: Index,
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: Optional[str] = None,
+        link_callback: Optional[Callable] = None,
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
-        samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(flat_idx, samples, operator, update_commit_diff=False)
+        flat_samples = self._get_flat_samples_for_sequence_update(samples, index)
+        self._update(
+            flat_idx,
+            flat_samples,
+            operator,
+            update_commit_diff=False,
+            link_callback=link_callback,
+        )
         list(
             map(
                 self.commit_diff.update_data,
                 index.values[0].indices(self._sequence_length),
             )
         )
+        if link_callback:
+            if isinstance(samples, np.ndarray):
+                broadcast = samples.ndim < self.ndim(index)
+            elif isinstance(samples, (bytes, str)):  # sacalars:
+                broadcast = True
+            elif isinstance(samples, Iterable):
+                broadcast = False
+            else:
+                broadcast = True
+            seq_len = self._sequence_length
+            if broadcast:
+                samples = repeat(samples)  # type: ignore
+            for i, sample in zip(index.values[0].indices(seq_len), samples):  # type: ignore
+                link_callback(
+                    i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
+                )
 
     @property
     def _sequence_item_length(self):
@@ -1396,3 +1444,12 @@ class ChunkEngine:
         max_shape = length + list(meta.max_shape)
 
         return ShapeInterval(min_shape, max_shape)
+
+    def _transform_callback(self, sample, flat: Optional[bool]):
+        """Used in transforms to handle linked tensors."""
+        assert self._all_chunk_engines is not None
+        for k, v in self.tensor_meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                self._all_chunk_engines[k].extend(
+                    [get_link_transform(v["append"])(sample)]
+                )
