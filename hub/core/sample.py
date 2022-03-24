@@ -355,7 +355,7 @@ class Sample:
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
 
-    def getexif(self) -> dict:
+    def _get_exif(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
             img = Image.open(self.path)
         else:
@@ -369,7 +369,7 @@ class Sample:
     def meta(self) -> dict:
         meta = {}
         if get_compression_type(self.compression) == IMAGE_COMPRESSION:
-            meta["exif"] = self.getexif()
+            meta["exif"] = self._get_exif()
         # TODO: video and audio meta data
         meta["shape"] = self.shape
         meta["format"] = self.compression

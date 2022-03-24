@@ -186,7 +186,7 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, self.version_state["full_tensors"].values()), default=0)
+        return min(map(len, filter(lambda t: t.key not in self.meta.hidden_tensors, self.version_state["full_tensors"].values())), default=0)
 
     @property
     def meta(self) -> DatasetMeta:

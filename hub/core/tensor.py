@@ -393,6 +393,10 @@ class Tensor:
         return self.meta.htype
 
     @property
+    def hidden(self) -> bool:
+        return self.meta.hidden
+
+    @property
     def base_htype(self):
         return self.meta.htype
 
