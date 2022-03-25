@@ -8,6 +8,7 @@ from hub.core.tensor import Tensor
 
 from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     RenameError,
@@ -999,8 +1000,9 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-def test_tensor_clear(local_ds_generator):
-    ds = local_ds_generator()
+@enabled_persistent_dataset_generators
+def test_tensor_clear(ds_generator):
+    ds = ds_generator()
     a = ds.create_tensor("a")
     a.extend([1, 2, 3, 4])
     a.clear()
@@ -1018,7 +1020,7 @@ def test_tensor_clear(local_ds_generator):
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
     a.append([1, 2, 3])
 
-    ds = local_ds_generator()
+    ds = ds_generator()
     assert len(ds) == 1
     assert len(image) == 4
     assert image.htype == "image"

@@ -664,25 +664,14 @@ class ChunkEngine:
         """Clears all samples and cachables."""
         self.cache.check_readonly()
 
-        commit_id = self.version_state["commit_id"]
+        commit_id = self.commit_id
 
-        enc = self.chunk_id_encoder
-        n_chunks = self.num_chunks
-        chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
-        chunk_keys = [get_chunk_key(self.key, name, commit_id) for name in chunk_names]
+        chunk_folder_path = get_chunk_key(self.key, "", commit_id)
+        self.base_storage.clear(prefix=chunk_folder_path)
 
         enc_key = get_chunk_id_encoder_key(self.key, commit_id)
-        try:
-            self._chunk_id_encoder = None
-            del self.meta_cache[enc_key]
-        except KeyError:
-            pass
-
-        for key in chunk_keys:
-            try:
-                del self.cache[key]
-            except KeyError:
-                pass
+        self._chunk_id_encoder = None
+        del self.meta_cache[enc_key]
 
         info_key = get_tensor_info_key(self.key, commit_id)
         try:

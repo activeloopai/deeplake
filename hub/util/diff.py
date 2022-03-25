@@ -290,16 +290,9 @@ def filter_data_updated(changes: Dict[str, Dict]):
     """Removes the intersection of data added and data updated from data updated."""
     for change in changes.values():
         # only show the elements in data_updated that are not in data_added
-        try:
-            data_added_range = range(
-                change["data_added"][0], change["data_added"][1] + 1
-            )
-            upd = {
-                data for data in change["data_updated"] if data not in data_added_range
-            }
-            change["data_updated"] = upd
-        except KeyError:
-            continue
+        data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
+        upd = {data for data in change["data_updated"] if data not in data_added_range}
+        change["data_updated"] = upd
 
 
 def filter_cleared(changes: Dict[str, Dict]):

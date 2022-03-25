@@ -319,14 +319,15 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         yield from self._all_keys()
 
-    def clear(self):
-        """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+    def clear(self, prefix=""):
+        """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root). Exercise caution!"""
         self.check_readonly()
         self._check_update_creds()
+        path = posixpath.join(self.path, prefix) if prefix else self.path
         if self.resource is not None:
             try:
                 bucket = self.resource.Bucket(self.bucket)
-                bucket.objects.filter(Prefix=self.path).delete()
+                bucket.objects.filter(Prefix=path).delete()
             except Exception as err:
                 reload = self.need_to_reload_creds(err)
                 manager = S3ReloadCredentialsManager if reload else S3ResetClientManager

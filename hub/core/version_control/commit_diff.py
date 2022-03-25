@@ -26,6 +26,7 @@ class CommitDiff(HubMemoryObject):
         4. The next 8 + 8 bytes are the two elements of the data_added list.
         5. The next 8 bytes are the number of elements in the data_updated set, let's call this m.
         6. The next 8 * m bytes are the elements of the data_updated set.
+        7. The last byte is a boolean value indicating whether the tensor was cleared in the commit or not.
         """
         return b"".join(
             [

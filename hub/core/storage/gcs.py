@@ -267,10 +267,11 @@ class GCSProvider(StorageProvider):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
-    def clear(self):
-        """Remove all keys below root - empties out mapping"""
+    def clear(self, prefix=""):
+        """Remove all keys with given prefix below root - empties out mapping"""
         self.check_readonly()
-        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        path = posixpath.join(self.path, prefix) if prefix else self.path
+        blob_objects = self.client_bucket.list_blobs(prefix=path)
         for blob in blob_objects:
             try:
                 blob.delete()
@@ -329,7 +330,10 @@ class GCSProvider(StorageProvider):
         """Remove key"""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
-        blob.delete()
+        try:
+            blob.delete()
+        except self.missing_exceptions:
+            raise KeyError(key)
 
     def __contains__(self, key):
         """Does key exist in mapping?"""
