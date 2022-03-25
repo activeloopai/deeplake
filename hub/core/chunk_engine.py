@@ -671,7 +671,10 @@ class ChunkEngine:
 
         enc_key = get_chunk_id_encoder_key(self.key, commit_id)
         self._chunk_id_encoder = None
-        del self.meta_cache[enc_key]
+        try:
+            del self.meta_cache[enc_key]
+        except KeyError:
+            pass
 
         info_key = get_tensor_info_key(self.key, commit_id)
         try:
