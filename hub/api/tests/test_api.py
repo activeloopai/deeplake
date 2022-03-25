@@ -10,7 +10,6 @@ from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
-    RenameError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,

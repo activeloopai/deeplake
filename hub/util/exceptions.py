@@ -682,17 +682,12 @@ class NotLoggedInError(AgreementError):
 
 
 class RenameError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg="Only name of the dataset can be different in new path."):
         super().__init__(msg)
 
 
 class BufferError(Exception):
     pass
-
-
-class RenameError(Exception):
-    def __init__(self):
-        super().__init__("Only name of the dataset can be different in new path.")
 
 
 class InfoError(Exception):

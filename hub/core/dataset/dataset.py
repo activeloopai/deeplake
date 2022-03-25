@@ -52,7 +52,6 @@ from hub.util.exceptions import (
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
-    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -334,7 +333,7 @@ class Dataset:
             raise TensorAlreadyExistsError(full_name)
         else:
             if full_name in self.version_state["full_tensors"]:
-                full_key = f"{name}_{uuid.uuid4().hex[:4]}"
+                full_key = f"{full_name}_{uuid.uuid4().hex[:4]}"
             else:
                 full_key = full_name
 
@@ -396,10 +395,10 @@ class Dataset:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         if create_id_tensor:
-            id_tensor_name = get_sample_id_tensor_name(name)
+            id_tensor_name = get_sample_id_tensor_name(full_name)
             self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
             self._link_tensors(
-                name,
+                full_name,
                 id_tensor_name,
                 append_f="append_id",
                 flatten_sequence=True,
@@ -1253,7 +1252,7 @@ class Dataset:
     def _ungrouped_tensors(self) -> Dict[str, Tensor]:
         """Top level tensors in this group that do not belong to any sub groups"""
         return {
-            posixpath.basename(k): v
+            posixpath.basename(k): self.version_state["full_tensors"][v]
             for k, v in self.version_state["tensor_names"].items()
             if posixpath.dirname(k) == self.group_index
         }
