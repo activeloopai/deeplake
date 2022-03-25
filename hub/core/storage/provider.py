@@ -175,3 +175,14 @@ class StorageProvider(ABC, MutableMapping):
     def empty(self) -> bool:
         lock_key = get_dataset_lock_key()
         return len(self) - int(lock_key in self) <= 0
+
+    def copy(self):
+        """Returns a copy of the provider.
+
+        Returns:
+            StorageProvider: A copy of the provider.
+        """
+        cls = self.__class__
+        new_provider = cls.__new__(cls)
+        new_provider.__setstate__(self.__getstate__())
+        return new_provider

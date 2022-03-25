@@ -41,6 +41,7 @@ from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
 from hub.util.htype import parse_sequence_htype
+from hub.util.merge import merge
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -51,6 +52,7 @@ from hub.util.exceptions import (
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
+    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -66,6 +68,7 @@ from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_sample_id_tensor_key,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
@@ -288,6 +291,7 @@ class Dataset:
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         hidden: bool = False,
+        create_id_tensor: bool = True,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -305,6 +309,8 @@ class Dataset:
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
             hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
+            create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
+                This is useful for merge operations.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -383,6 +389,12 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
+        if create_id_tensor:
+            id_tensor_name = get_sample_id_tensor_key(name)
+            self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
+            self._link_tensors(
+                name, id_tensor_name, append_f="append_id", flatten_sequence=True
+            )
         return tensor
 
     def _hide_tensor(self, tensor: str):
@@ -440,6 +452,10 @@ class Dataset:
             meta.delete_tensor(name)
             self.version_state["meta"] = meta
             self.version_state["full_tensors"].pop(name)
+
+        id_tensor_name = get_sample_id_tensor_key(name)
+        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
+            self.delete_tensor(id_tensor_name)
 
         self.storage.maybe_flush()
 
@@ -620,6 +636,47 @@ class Dataset:
             )
 
         return self._commit(message)
+
+    def merge(
+        self,
+        target_id: str,
+        conflict_resolution: Optional[str] = None,
+        delete_removed_tensors: bool = False,
+    ):
+        """Merges the target_id into the current dataset.
+
+        Args:
+            target_id (str): The commit_id or branch to merge.
+            conflict_resolution (str, optional): The strategy to use to resolve merge conflicts.
+                Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
+                Must be one of the following:
+                - None - this is the default value, will raise an exception if there are conflicts.
+                - "ours" - during conflicts, values from the current dataset will be used.
+                - "theirs" - during conflicts, values from target id will be used.
+            delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
+
+        Raises:
+            Exception: if dataset is a filtered view.
+            ValueError: if the conflict resolution strategy is not one of the None, "ours", or "theirs".
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+
+        if conflict_resolution not in [None, "ours", "theirs"]:
+            raise ValueError(
+                f"conflict_resolution must be one of None, 'ours', or 'theirs'. Got {conflict_resolution}"
+            )
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+
+        merge(self, target_id, conflict_resolution, delete_removed_tensors)
+
+        self.storage.autoflush = self._initial_autoflush.pop()
 
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         if self._is_filtered_view:
@@ -887,7 +944,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
@@ -1052,6 +1109,16 @@ class Dataset:
 
     @invalid_view_op
     @hub_reporter.record_call
+    def rename(self, path):
+        path = path.rstrip("/")
+        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+            raise RenameError
+        storage = get_base_storage(self.storage)
+        storage.rename(path)
+        self.path = path
+
+    @invalid_view_op
+    @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
@@ -1088,7 +1155,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
 
     __repr__ = __str__
 
@@ -1108,7 +1175,6 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-
         return self._token
 
     @property
@@ -1316,7 +1382,7 @@ class Dataset:
         """
 
         if tensors is None:
-            tensors = list(self._tensors())
+            tensors = list(self.tensors)
         elif isinstance(tensors, str):
             tensors = [tensors]
 
@@ -1708,3 +1774,40 @@ class Dataset:
             VDS with the specified hash.
         """
         return self._get_sub_ds(".queries/" + hash)
+
+    def _link_tensors(
+        self,
+        src: str,
+        dest: str,
+        append_f: str,
+        update_f: Optional[str] = None,
+        flatten_sequence: Optional[bool] = None,
+    ):
+        """Internal. Links a source tensor to a destination tensor. Appends / updates made to the source tensor will be reflected in the destination tensor.
+
+        Args:
+            src (str): Name of the source tensor.
+            dest (str): Name of the destination tensor.
+            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
+
+        Raises:
+            TensorDoesNotExistError: If source or destination tensors do not exist in this dataset.
+            ValueError: If source tensor is a sequence tensor and `flatten_sequence` argument is not specified.
+        """
+        assert self._is_root()
+        tensors = self._tensors()
+        if src not in tensors:
+            raise TensorDoesNotExistError(src)
+        if dest not in tensors:
+            raise TensorDoesNotExistError(dest)
+        src_tensor = self[src]
+        if flatten_sequence is None:
+            if src_tensor.is_sequence:
+                raise ValueError(
+                    "`flatten_sequence` arg must be specified when linking a sequence tensor."
+                )
+            flatten_sequence = False
+        src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
+        self.storage.maybe_flush()
