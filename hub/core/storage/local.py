@@ -184,7 +184,7 @@ class LocalProvider(StorageProvider):
         """Deletes ALL data with keys having given prefix on the local machine (under self.root). Exercise caution!"""
         self.check_readonly()
         full_path = os.path.expanduser(self.root)
-        if prefix:
+        if prefix and self.files:
             self.files = set(file for file in self.files if not file.startswith(prefix))
             full_path = os.path.join(full_path, prefix)
         else:
