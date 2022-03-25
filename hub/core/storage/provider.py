@@ -182,7 +182,6 @@ class StorageProvider(ABC, MutableMapping):
         Returns:
             StorageProvider: A copy of the provider.
         """
-        # use setstate and get state to copy the storage provider
         cls = self.__class__
         new_provider = cls.__new__(cls)
         new_provider.__setstate__(self.__getstate__())
