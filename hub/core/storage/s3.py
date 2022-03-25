@@ -287,6 +287,7 @@ class S3Provider(StorageProvider):
             raise S3GetError(err)
         except Exception as err:
             raise S3GetError(err)
+
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
 

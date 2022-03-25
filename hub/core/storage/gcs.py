@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 try:
     from google.cloud import storage  # type: ignore
@@ -307,6 +307,34 @@ class GCSProvider(StorageProvider):
         try:
             blob = self.client_bucket.get_blob(self._get_path_from_key(key))
             return blob.download_as_bytes(retry=self.retry)
+        except self.missing_exceptions:
+            raise KeyError(key)
+
+    def get_bytes(
+        self,
+        key: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+        """
+        try:
+            blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+            if end_byte != None:
+                end_byte -= 1
+            return blob.download_as_bytes(retry=self.retry, start=start_byte, end=end_byte)
         except self.missing_exceptions:
             raise KeyError(key)
 
