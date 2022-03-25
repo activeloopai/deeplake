@@ -5,7 +5,11 @@ import shutil
 from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
+from hub.util.exceptions import (
+    DirectoryAtPathException,
+    FileAtPathException,
+    PathNotEmptyException,
+)
 
 
 class LocalProvider(StorageProvider):
@@ -190,6 +194,8 @@ class LocalProvider(StorageProvider):
 
     def rename(self, path):
         """Renames root folder"""
+        if os.path.isfile(path) or (os.path.isdir(path) and len(os.listdir(path)) > 0):
+            raise PathNotEmptyException(use_hub=False)
         os.rename(self.root, path)
         self.root = path
 

@@ -24,7 +24,11 @@ except ImportError:
 
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import GCSDefaultCredsNotFoundError, RenameError
+from hub.util.exceptions import (
+    GCSDefaultCredsNotFoundError,
+    RenameError,
+    PathNotEmptyException,
+)
 from hub.client.client import HubBackendClient
 
 
@@ -285,6 +289,9 @@ class GCSProvider(StorageProvider):
         if new_bucket != self.client_bucket.name:
             raise RenameError
         blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        dest_objects = self.client_bucket.list_blobs(prefix=new_path)
+        for blob in dest_objects:
+            raise PathNotEmptyException(use_hub=False)
         for blob in blob_objects:
             new_key = "/".join([new_path, posixpath.relpath(blob.name, self.path)])
             self.client_bucket.rename_blob(blob, new_key)

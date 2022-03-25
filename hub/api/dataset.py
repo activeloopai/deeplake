@@ -284,6 +284,11 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path or if new path is to a different directory.
+
+        Example::
+
+            hub.rename("hub://username/image_ds", "hub://username/new_ds")
+            hub.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
         """
         if creds is None:
             creds = {}
