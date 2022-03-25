@@ -250,3 +250,40 @@ def test_conflicts(local_ds):
 
         ds.merge("other", conflict_resolution="theirs")
         np.testing.assert_array_equal(ds.image[4].numpy(), 25 * np.ones((200, 200, 3)))
+
+
+def test_merge_rename(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image")
+        for i in range(10):
+            ds.image.append(i * np.ones((200, 200, 3)))
+
+        a = ds.commit("added 10 images")
+        ds.checkout("alt", create=True)
+        ds.rename_tensor("image", "image_copy")
+        for i in range(10, 15):
+            ds.image_copy.append(i * np.ones((200, 200, 3)))
+
+        b = ds.commit("renamed image to image_copy and added 5 more images")
+        ds.checkout("main")
+
+        ds.merge("alt")
+        np.testing.assert_array_equal(ds.image[9].numpy(), 9 * np.ones((200, 200, 3)))
+        np.testing.assert_array_equal(
+            ds.image_copy[14].numpy(), 14 * np.ones((200, 200, 3))
+        )
+        ds.create_tensor("abc")
+        ds.abc.append([1, 2, 3])
+
+        c = ds.commit("created abc and added 1 sample")
+        ds.checkout("alt")
+        ds.create_tensor("xyz")
+        ds.xyz.append([2, 3, 4])
+
+        d = ds.commit("created xyz and added 1 sample")
+        ds.rename_tensor("xyz", "abc")
+        e = ds.commit("renamed xyz to abc")
+        ds.checkout("main")
+
+        ds.merge("alt")
+        np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3], [2, 3, 4]]))
