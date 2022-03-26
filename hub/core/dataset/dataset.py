@@ -395,7 +395,7 @@ class Dataset:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         if create_id_tensor:
-            id_tensor_name = get_sample_id_tensor_name(full_name)
+            id_tensor_name = get_sample_id_tensor_name(full_key)
             self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
             self._link_tensors(
                 full_name,

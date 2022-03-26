@@ -257,33 +257,57 @@ def test_merge_rename(local_ds):
         ds.create_tensor("image")
         for i in range(10):
             ds.image.append(i * np.ones((200, 200, 3)))
-
+        ds.create_tensor("base")
+        ds.base.append([1, 2, 3])
+        ds.create_tensor("red")
+        ds.red.append([0, 0, 0])
         a = ds.commit("added 10 images")
+
         ds.checkout("alt", create=True)
         ds.rename_tensor("image", "image_copy")
         for i in range(10, 15):
             ds.image_copy.append(i * np.ones((200, 200, 3)))
+        b = ds.commit("image -> image_copy, added 5 more images")
 
-        b = ds.commit("renamed image to image_copy and added 5 more images")
+        ds.base.append([2, 3, 4])
+        ds.rename_tensor("base", "base1")
+        ds.base1[0] = [4, 5, 6]
+        a1 = ds.commit("base -> base1, added [1], updated [0]")
+
+        ds.rename_tensor("base1", "base2")
+        ds.base2.append([0, 1, 0])
+        a2 = ds.commit("base1 -> base2, added [2]")
+
         ds.checkout("main")
+        ds.base[0] = [0, 0, 0]
+        ds.rename_tensor("base", "base2")
+        c = ds.commit("base -> base2, updated [0]")
 
-        ds.merge("alt")
+        with pytest.raises(MergeConflictError):
+            ds.merge("alt")
+
+        ds.merge("alt", conflict_resolution="theirs")
         np.testing.assert_array_equal(ds.image[9].numpy(), 9 * np.ones((200, 200, 3)))
         np.testing.assert_array_equal(
             ds.image_copy[14].numpy(), 14 * np.ones((200, 200, 3))
         )
+        np.testing.assert_array_equal(
+            ds.base2.numpy(), np.array([[4, 5, 6], [2, 3, 4], [0, 1, 0]])
+        )
         ds.create_tensor("abc")
         ds.abc.append([1, 2, 3])
+        d = ds.commit("created abc and added 1 sample")
 
-        c = ds.commit("created abc and added 1 sample")
         ds.checkout("alt")
         ds.create_tensor("xyz")
         ds.xyz.append([2, 3, 4])
+        ds.rename_tensor("red", "blue")
+        e = ds.commit("created xyz and added 1 sample")
 
-        d = ds.commit("created xyz and added 1 sample")
         ds.rename_tensor("xyz", "abc")
-        e = ds.commit("renamed xyz to abc")
-        ds.checkout("main")
+        f = ds.commit("renamed xyz to abc")
 
-        ds.merge("alt")
+        ds.checkout("main")
+        ds.merge("alt", delete_removed_tensors=True)
+        assert "red" not in ds.tensors  # red was removed in comparison to lca
         np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3], [2, 3, 4]]))

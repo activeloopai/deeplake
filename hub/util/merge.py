@@ -1,16 +1,19 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from hub.core.version_control.commit_diff import CommitDiff
+from hub.core.version_control.dataset_diff import DatasetDiff
 from hub.core.version_control.commit_node import CommitNode
 from hub.util.diff import get_lowest_common_ancestor, sanitize_commit
 from hub.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
     MergeNotSupportedError,
+    TensorDoesNotExistError,
 )
 from hub.util.keys import get_sample_id_tensor_name, get_tensor_commit_diff_key
 from hub.util.remove_cache import create_read_copy_dataset
 from hub.util.version_control import auto_checkout, auto_commit, commit
+from hub.core.tensor import Tensor
 
 
 def merge(
@@ -57,20 +60,20 @@ def get_new_common_and_deleted_tensors(
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
-    check_id_tensors_exist(original_tensors, all_original_tensors, dataset)
+    check_id_tensors_exist(original_tensors, all_original_tensors)
 
     target_tensors: Set[str] = set(target_ds.tensors)
     all_target_tensors: Set[str] = set(target_ds._all_tensors_filtered())
-    check_id_tensors_exist(target_tensors, all_target_tensors, target_ds)
+    check_id_tensors_exist(target_tensors, all_target_tensors)
 
     lca_tensors = get_lca_tensors(dataset, lca_id)
     new_tensors = target_tensors - original_tensors
     common_tensors = target_tensors & original_tensors
 
-    # present in dataset at lca, but deleted in target
+    # present in dataset at lca, but deleted or renamed in target
     target_deleted_tensors = lca_tensors - target_tensors
 
-    # present in dataset at lca, but deleted in original
+    # present in dataset at lca, but deleted or renamed in original
     original_deleted_tensors = lca_tensors - original_tensors
 
     target_diff, _ = target_ds.diff(lca_id, as_dict=True)
@@ -118,6 +121,7 @@ def get_changes_commit_ids_for_node(
 ):
     changes_commit_map = defaultdict(list)
     current_node = commit_node
+    tensor_key = dataset.version_state["tensor_names"][tensor_name]
     while current_node and current_node.commit_id != lca_node.commit_id:
         commit_id = current_node.commit_id
         if current_node.is_merge_node:
@@ -127,7 +131,7 @@ def get_changes_commit_ids_for_node(
             for idx in changes:
                 changes_commit_map[idx].extend(changes[idx])
         else:
-            diff_key = get_tensor_commit_diff_key(tensor_name, commit_id)
+            diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
             try:
                 diff: Optional[CommitDiff] = dataset.storage.get_hub_object(
                     diff_key, CommitDiff
@@ -137,8 +141,8 @@ def get_changes_commit_ids_for_node(
 
             if diff is not None:
                 data_updated = sorted(diff.data_updated)
-                id_tensor_name = get_sample_id_tensor_name(tensor_name)
-                id_tensor = dataset[id_tensor_name]
+                id_tensor_key = get_sample_id_tensor_name(tensor_key)
+                id_tensor = Tensor(id_tensor_key, dataset)
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
                     changes_commit_map[sample_id].append(commit_id)
@@ -150,7 +154,11 @@ def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool
     """Deletes tensors from the dataset if delete_removed_tensors is True."""
     if delete_removed_tensors:
         for tensor_name in tensor_names:
-            dataset.delete_tensor(tensor_name)
+            try:
+                dataset.delete_tensor(tensor_name)
+            # tensor could have been renamed.
+            except TensorDoesNotExistError:
+                pass
 
 
 def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
@@ -377,7 +385,7 @@ def merge_tensor_data(
             original_tensor[original_idx] = target_tensor[target_idx]
 
 
-def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str], dataset):
+def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):
     """Checks whether hidden id tensors exist for each tensor."""
     for tensor_name in visible_tensors:
         id_tensor = get_sample_id_tensor_name(tensor_name)
