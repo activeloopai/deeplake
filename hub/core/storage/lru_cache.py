@@ -246,18 +246,30 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
-    def clear(self):
+    def clear(self, prefix=""):
         """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.check_readonly()
-        self.cache_used = 0
-        self.lru_sizes.clear()
-        self.dirty_keys.clear()
-        self.cache_storage.clear()
-        self.hub_objects.clear()
+        if prefix:
+            rm = [path for path in self.hub_objects if path.startswith(prefix)]
+            for path in rm:
+                self.remove_hub_object(path)
+
+            rm = [path for path in self.lru_sizes if path.startswith(prefix)]
+            for path in rm:
+                size = self.lru_sizes.pop(path)
+                self.cache_used -= size
+                self.dirty_keys.discard(path)
+        else:
+            self.cache_used = 0
+            self.lru_sizes.clear()
+            self.dirty_keys.clear()
+            self.hub_objects.clear()
+
+        self.cache_storage.clear(prefix=prefix)
         if self.next_storage is not None:
-            self.next_storage.clear()
+            self.next_storage.clear(prefix=prefix)
 
     def __len__(self):
         """Returns the number of files present in the cache and the underlying storage.

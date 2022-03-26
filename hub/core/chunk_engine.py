@@ -667,7 +667,7 @@ class ChunkEngine:
         commit_id = self.commit_id
 
         chunk_folder_path = get_chunk_key(self.key, "", commit_id)
-        self.base_storage.clear(prefix=chunk_folder_path)
+        self.cache.clear(prefix=chunk_folder_path)
 
         enc_key = get_chunk_id_encoder_key(self.key, commit_id)
         self._chunk_id_encoder = None
