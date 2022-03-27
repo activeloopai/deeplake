@@ -310,7 +310,12 @@ class GCSProvider(StorageProvider):
         except self.missing_exceptions:
             raise KeyError(key)
 
-    def get_bytes(self, path: str, start_byte: int = None, end_byte: int = None):
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
         """Gets the object present at the path within the given byte range.
 
         Args:
