@@ -120,13 +120,10 @@ visualizer = _Visualizer()
 
 def visualize(ds: dataset):
     """
-    Visualizes the given dataset in the Jupyter notebook and returns the corresponding context.
+    Visualizes the given dataset in the Jupyter notebook.
 
     Args:
         ds: dataset The dataset to visualize.
-    
-    Returns:
-        VisualContext: The corresponding context to use later to interact with the visualizer.
     """
     global visualizer
     id = visualizer.add(ds)
