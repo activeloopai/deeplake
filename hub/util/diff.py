@@ -115,7 +115,7 @@ def compare_commits(
             )
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-        filter_deleted_and_renamed_diff(dataset_changes, tensor_changes)
+        filter_renamed_diff(dataset_changes, tensor_changes)
         filter_data_updated(tensor_changes)
     return (
         dataset_changes_1,
@@ -293,10 +293,6 @@ def get_tensor_changes_for_id(
 
             if deleted and tensor in deleted:
                 if commit_diff.created:
-                    try:
-                        renamed.pop(tensor)
-                    except KeyError:
-                        pass
                     deleted.remove(tensor)
                 continue
 
@@ -304,7 +300,7 @@ def get_tensor_changes_for_id(
                 try:
                     new_name = renamed[tensor]
                     if commit_diff.created:
-                        renamed.pop(tensor)
+                        renamed.pop(tensor, None)
                     tensor = new_name
                 except KeyError:
                     pass
@@ -345,7 +341,7 @@ def filter_data_updated(changes: Dict[str, Dict]):
         change["data_updated"] = upd
 
 
-def filter_deleted_and_renamed_diff(dataset_changes, tensor_changes):
+def filter_renamed_diff(dataset_changes, tensor_changes):
     """Remove deleted tensors and tensors renamed to same name from diff"""
     rm = []
     renamed = dataset_changes.get("renamed")
@@ -354,18 +350,9 @@ def filter_deleted_and_renamed_diff(dataset_changes, tensor_changes):
         for old_name, new_name in renamed.items():
             if old_name == new_name:
                 rm.append(old_name)
-            if new_name in deleted:
-                rm.append(old_name)
 
         for name in rm:
             renamed.pop(name)
-
-    if deleted:
-        for name in deleted:
-            if tensor_changes.get(name):
-                if tensor_changes.get(name).get("created"):
-                    deleted.remove(name)
-                tensor_changes.pop(name)
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:

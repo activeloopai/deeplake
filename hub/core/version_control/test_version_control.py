@@ -690,23 +690,29 @@ def test_delete_diff(local_ds, capsys):
     d = local_ds.commit()
     local_ds["x/y/z"][0] = [1, 3, 4]
     e = local_ds.commit()
+    local_ds.create_tensor("a/b/c")
     local_ds.delete_tensor("x/y/z")
 
     local_ds.diff(c)
     ds_changes_f_from_c = {"deleted": ["x/y/z", "a/b/c"]}
-    target = get_diff_helper(ds_changes_f_from_c, {}, {}, {}, local_ds.version_state, c)
+    tensor_changes_f_from_c = {"a/b/c": tensor_diff_helper(created=True)}
+    target = get_diff_helper(
+        ds_changes_f_from_c, {}, tensor_changes_f_from_c, {}, local_ds.version_state, c
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    assert diff == {}, {}
+    assert diff == tensor_changes_f_from_c, {}
 
     local_ds.diff(a)
     ds_changes_from_a = {"deleted": ["x/y/z"]}
-    target = get_diff_helper(ds_changes_from_a, {}, {}, {}, local_ds.version_state, a)
+    target = get_diff_helper(
+        ds_changes_from_a, {}, tensor_changes_f_from_c, {}, local_ds.version_state, a
+    )
     captured = capsys.readouterr()
     assert captured.out == target
     diff = local_ds.diff(as_dict=True)
-    assert diff == {}, {}
+    assert diff == tensor_changes_f_from_c, {}
 
 
 def test_rename_diff_single(local_ds, capsys):
