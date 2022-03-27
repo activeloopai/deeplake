@@ -22,7 +22,7 @@ class HubMemoryObject(ABC):
         d = {str(k): v for k, v in self.__getstate__().items()}
         return bytes(json.dumps(d, sort_keys=True, indent=4), "utf-8")
 
-    def __getitem__(self, item: Union[int, slice]):
+    def __getitem__(self, item: slice):
         return self.tobytes()[item]
 
     @classmethod
