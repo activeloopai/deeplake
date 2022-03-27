@@ -82,36 +82,14 @@ from hub.util.version_control import (
     warn_node_checkout,
     load_version_info,
 )
+from hub.util.pretty_print import (
+    max_array_length,
+    get_string,
+)
 from hub.client.utils import get_user_name
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
-
-
-def max_array_length(arrMax, arrToCompare):  # helper for __str__
-    for i in range(len(arrMax)):
-        str_length = len(arrToCompare[i])
-        if arrMax[i] < str_length:
-            arrMax[i] = str_length
-    return arrMax
-
-
-def get_string(
-    tableArray, maxArr
-):  # gets string from array of arrays as a table (helper for __str__)
-    temp_str = ""
-    for row in tableArray:
-        temp_str += "\n"
-        for colNo in range(len(row)):
-            max_col = maxArr[colNo]
-            length = len(row[colNo])
-            starting_loc = (max_col - length) // 2
-            temp_str += (
-                " " * starting_loc
-                + row[colNo]
-                + " " * (max_col - length - starting_loc)
-            )
-    return temp_str
 
 
 class Dataset:
@@ -1101,18 +1079,19 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-    def __str__(self):
+    def summary(self):
         head = [
             "tensor",
             "htype",
             "shape",
             "dtype",
+            "compression",
         ]  # To add more attributes change head, divider, row_array and table_str
-        divider = ["-------"] * 4
+        divider = ["-------"] * 5
         tensor_dict = self.version_state[
             "full_tensors"
         ]  # Creating a list of tensors in the dataset
-        maxColumnLength = [7, 7, 7, 7]  # length of "attribute name" length
+        maxColumnLength = [7, 7, 7, 7, 7]  # length of "attribute name" length
         count = 0
         tableArray = [head, divider]  # collects all the rows
         for tensor in tensor_dict:
@@ -1122,11 +1101,26 @@ class Dataset:
             tensor_htype = tensor_object.htype
             tensor_shape = str(tensor_object.shape)
             tensor_dtype = tensor_object.dtype.name
-            rowArray = [tensor_name, tensor_htype, tensor_shape, tensor_dtype]
+            tensor_compression = tensor_object.meta.sample_compression
+            if tensor_compression == None:
+                tensor_compression = "None"
+            rowArray = [
+                tensor_name,
+                tensor_htype,
+                tensor_shape,
+                tensor_dtype,
+                tensor_compression,
+            ]
             tableArray.append(rowArray)
             maxColumnLength = max_array_length(maxColumnLength, rowArray)
             count += 1
         maxColumnLength = [elem + 2 for elem in maxColumnLength]
+
+        return get_string(tableArray, maxColumnLength)
+
+    def __str__(self):
+
+        pretty_print = self.summary()
 
         path_str = ""
         if self.path:
@@ -1143,11 +1137,10 @@ class Dataset:
         group_index_str = (
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
-        # tensors = self.version_state["full_tensors"].values()
         return (
             f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
             + "\n"
-            + get_string(tableArray, maxColumnLength)
+            + pretty_print
         )
 
     __repr__ = __str__
