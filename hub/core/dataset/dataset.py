@@ -82,7 +82,7 @@ from hub.util.version_control import (
     warn_node_checkout,
     load_version_info,
 )
-from hub.util.pretty_print import(
+from hub.util.pretty_print import (
     max_array_length,
     get_string,
 )
@@ -90,7 +90,6 @@ from hub.client.utils import get_user_name
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
-
 
 
 class Dataset:
@@ -1080,7 +1079,6 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-
     def summary(self):
         head = [
             "tensor",
@@ -1106,19 +1104,24 @@ class Dataset:
             tensor_compression = tensor_object.meta.sample_compression
             if tensor_compression == None:
                 tensor_compression = "None"
-            rowArray = [tensor_name, tensor_htype, tensor_shape, tensor_dtype, tensor_compression]
+            rowArray = [
+                tensor_name,
+                tensor_htype,
+                tensor_shape,
+                tensor_dtype,
+                tensor_compression,
+            ]
             tableArray.append(rowArray)
             maxColumnLength = max_array_length(maxColumnLength, rowArray)
             count += 1
         maxColumnLength = [elem + 2 for elem in maxColumnLength]
 
-
         return get_string(tableArray, maxColumnLength)
 
     def __str__(self):
-        
+
         pretty_print = self.summary()
-        
+
         path_str = ""
         if self.path:
             path_str = f"path='{self.path}', "

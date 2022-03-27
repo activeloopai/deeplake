@@ -30,7 +30,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.util.pretty_print import(
+from hub.util.pretty_print import (
     max_array_length,
     get_string,
 )
@@ -537,7 +537,6 @@ class Tensor:
         """
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
-    
 
     def summary(self):
         head = ["tensor", "htype", "shape", "dtype", "compression"]
@@ -546,7 +545,13 @@ class Tensor:
         selfArray = [
             head,
             divider,
-            [str(self.key), self.htype, str(self.shape), self.dtype.name, self.meta.sample_compression],
+            [
+                str(self.key),
+                self.htype,
+                str(self.shape),
+                self.dtype.name,
+                self.meta.sample_compression,
+            ],
         ]
         # adding information about tensors
         maxColumnLength = max_array_length(
@@ -555,18 +560,12 @@ class Tensor:
         maxColumnLength = [elem + 2 for elem in maxColumnLength]
         return get_string(selfArray, maxColumnLength)
 
-
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        pretty_print = self.summary()   # get the string for table format of the tensors
-        return (
-            f"Tensor(key={repr(self.key)}{index_str})"
-            + "\n"
-            + pretty_print
-        )
-
+        pretty_print = self.summary()  # get the string for table format of the tensors
+        return f"Tensor(key={repr(self.key)}{index_str})" + "\n" + pretty_print
 
     __repr__ = __str__
 
