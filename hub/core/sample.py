@@ -162,9 +162,9 @@ class Sample:
 
     def _get_audio_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
-            info = _read_audio_meta(self.path)
+            info = _read_audio_meta(self.path, self.compression)
         else:
-            info = _read_audio_meta(self.buffer)
+            info = _read_audio_meta(self.buffer, self.compression)
         return {
             "nchannels": info["nchannels"],
             "sample_rate": info["sample_rate"],
