@@ -34,6 +34,13 @@ CONNECTION_ERRORS = (
     IncompleteReadError,
 )
 
+try:
+    from botocore.exceptions import ResponseStreamingError
+
+    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)  # type: ignore
+except ImportError:
+    pass
+
 
 class S3ReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
@@ -170,9 +177,9 @@ class S3Provider(StorageProvider):
                     return
                 except Exception:
                     pass
-            raise S3SetError(err)
+            raise S3SetError(err) from err
         except Exception as err:
-            raise S3SetError(err)
+            raise S3SetError(err) from err
 
     def _get(self, path):
         resp = self.client.get_object(
@@ -201,7 +208,7 @@ class S3Provider(StorageProvider):
             return self._get(path)
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
-                raise KeyError(err)
+                raise KeyError(err) from err
             reload = self.need_to_reload_creds(err)
             manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
             with manager(self, S3GetError):
@@ -214,9 +221,9 @@ class S3Provider(StorageProvider):
                     return self._get(path)
                 except Exception:
                     pass
-            raise S3GetError(err)
+            raise S3GetError(err) from err
         except Exception as err:
-            raise S3GetError(err)
+            raise S3GetError(err) from err
 
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
@@ -251,9 +258,9 @@ class S3Provider(StorageProvider):
                     return
                 except Exception:
                     pass
-            raise S3DeletionError(err)
+            raise S3DeletionError(err) from err
         except Exception as err:
-            raise S3DeletionError(err)
+            raise S3DeletionError(err) from err
 
     @property
     def num_tries(self):
@@ -280,7 +287,7 @@ class S3Provider(StorageProvider):
                     Bucket=self.bucket, Prefix=self.path
                 )
         except Exception as err:
-            raise S3ListError(err)
+            raise S3ListError(err) from err
 
         if items["KeyCount"] <= 0:
             return set()
@@ -329,6 +336,31 @@ class S3Provider(StorageProvider):
 
         else:
             super().clear()
+
+    def rename(self, root):
+        """Rename root folder"""
+        self.check_readonly()
+        self._check_update_creds()
+        items = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=self.bucket, Prefix=self.path)
+        for page in pages:
+            items.extend(page["Contents"])
+        path = root.replace("s3://", "")
+        _, new_path = path.split("/", 1)
+        for item in items:
+            old_key = item["Key"]
+            copy_source = {"Bucket": self.bucket, "Key": old_key}
+            new_key = "/".join([new_path, posixpath.relpath(old_key, self.path)])
+            self.client.copy_object(
+                CopySource=copy_source, Bucket=self.bucket, Key=new_key
+            )
+            self.client.delete_object(Bucket=self.bucket, Key=old_key)
+
+        self.root = root
+        self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
 
     def _state_keys(self):
         """Keys used to store the state of the provider."""
@@ -410,8 +442,7 @@ class S3Provider(StorageProvider):
             )
 
     def _locate_and_load_creds(self):
-        boto3.setup_default_session(profile_name=self.profile_name)
-        session = boto3._get_default_session()._session
+        session = boto3.session.Session(profile_name=self.profile_name)._session
         component_locator = ComponentLocator()
         component_locator.lazy_register_component(
             "credential_provider", session._create_credential_resolver
@@ -441,8 +472,9 @@ class S3Provider(StorageProvider):
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
         }
-        self.client = boto3.client("s3", **args)
-        self.resource = boto3.resource("s3", **args)
+        session = boto3.session.Session(profile_name=self.profile_name)
+        self.client = session.client("s3", **args)
+        self.resource = session.resource("s3", **args)
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
