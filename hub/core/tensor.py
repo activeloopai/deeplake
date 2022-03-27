@@ -30,32 +30,12 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
+from hub.util.pretty_print import(
+    max_array_length,
+    get_string,
+)
 from hub.constants import FIRST_COMMIT_ID, MB
 from hub.util.version_control import auto_checkout
-
-
-def max_array_length(arrMax, arrToCompare):  # helper for __str__
-    for i in range(len(arrMax)):
-        str_length = len(arrToCompare[i])
-        if arrMax[i] < str_length:
-            arrMax[i] = str_length
-    return arrMax
-
-
-def get_string(tableArray, maxArr):  # gets string from array of arrays as a table
-    temp_str = ""
-    for row in tableArray:
-        temp_str += "\n"
-        for colNo in range(len(row)):
-            max_col = maxArr[colNo]
-            length = len(row[colNo])
-            starting_loc = (max_col - length) // 2
-            temp_str += (
-                " " * starting_loc
-                + row[colNo]
-                + " " * (max_col - length - starting_loc)
-            )
-    return temp_str
 
 
 def create_tensor(
@@ -557,29 +537,36 @@ class Tensor:
         """
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
+    
 
-    def __str__(self):
-        index_str = f", index={self.index}"
-        if self.index.is_trivial():
-            index_str = ""
-        head = ["tensor", "htype", "shape", "dtype"]
-        divider = ["-------"] * 4
-        maxColumnLength = [7, 7, 7, 7]
+    def summary(self):
+        head = ["tensor", "htype", "shape", "dtype", "compression"]
+        divider = ["-------"] * 5
+        maxColumnLength = [7, 7, 7, 7, 7]
         selfArray = [
             head,
             divider,
-            [str(self.key), self.htype, str(self.shape), self.dtype.name],
+            [str(self.key), self.htype, str(self.shape), self.dtype.name, self.meta.sample_compression],
         ]
         # adding information about tensors
         maxColumnLength = max_array_length(
             maxColumnLength, selfArray[2]
         )  # 3rd element of slefarray corresponds to tensor att
         maxColumnLength = [elem + 2 for elem in maxColumnLength]
+        return get_string(selfArray, maxColumnLength)
+
+
+    def __str__(self):
+        index_str = f", index={self.index}"
+        if self.index.is_trivial():
+            index_str = ""
+        pretty_print = self.summary()   # get the string for table format of the tensors
         return (
             f"Tensor(key={repr(self.key)}{index_str})"
             + "\n"
-            + get_string(selfArray, maxColumnLength)
+            + pretty_print
         )
+
 
     __repr__ = __str__
 
