@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from ctypes import Union
 import json
-from typing import Any, Dict, SupportsIndex
-
+from typing import Any, Dict
 
 class HubMemoryObject(ABC):
     def __init__(self):
@@ -23,8 +22,8 @@ class HubMemoryObject(ABC):
         d = {str(k): v for k, v in self.__getstate__().items()}
         return bytes(json.dumps(d, sort_keys=True, indent=4), "utf-8")
 
-    def __getitem__(self, index: SupportsIndex):
-        return self.tobytes()[index]
+    def __getitem__(self, item: Union[int, slice]):
+        return self.tobytes()[item]
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

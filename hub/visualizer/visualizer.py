@@ -96,7 +96,6 @@ class _Visualizer:
         with socketserver.TCPServer(("localhost", 0), None) as s:
             return s.server_address[1]
 
-
     def is_server_running(self) -> bool:
         return _SERVER_THREAD and _SERVER_THREAD.is_alive()
 
