@@ -225,9 +225,7 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3GetError(err) from err
 
-    def _get_bytes(
-        self, path, start_byte: int = None, end_byte: int = None
-    ):
+    def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
         range = None
         if start_byte != None and end_byte != None:
             assert end_byte is not None
@@ -240,12 +238,7 @@ class S3Provider(StorageProvider):
         resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
         return resp["Body"].read()
 
-    def get_bytes(
-        self,
-        path: str,
-        start_byte: int = None,
-        end_byte: int = None
-    ):
+    def get_bytes(self, path: str, start_byte: int = None, end_byte: int = None):
         """Gets the object present at the path within the given byte range.
 
         Args:
@@ -269,8 +262,8 @@ class S3Provider(StorageProvider):
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err) from err
             reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager # type: ignore
-            with manager(self, S3GetError): # type: ignore
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
+            with manager(self, S3GetError):  # type: ignore
                 return self._get_bytes(path, start_byte, end_byte)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries

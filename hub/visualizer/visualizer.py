@@ -1,6 +1,6 @@
 from typing import Optional
 import uuid
-from flask import Flask, request, Response # type: ignore
+from flask import Flask, request, Response  # type: ignore
 from hub.core.dataset import Dataset
 from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
@@ -9,7 +9,7 @@ import re
 import socketserver
 import threading
 
-from IPython.display import IFrame, display # type: ignore
+from IPython.display import IFrame, display  # type: ignore
 
 visualizer = None
 
