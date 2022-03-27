@@ -312,9 +312,9 @@ class GCSProvider(StorageProvider):
 
     def get_bytes(
         self,
-        key: str,
-        start_byte: Optional[int] = None,
-        end_byte: Optional[int] = None,
+        path: str,
+        start_byte: int = None,
+        end_byte: int = None
     ):
         """Gets the object present at the path within the given byte range.
 
@@ -331,12 +331,15 @@ class GCSProvider(StorageProvider):
             KeyError: If an object is not found at the path.
         """
         try:
-            blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+            blob = self.client_bucket.get_blob(self._get_path_from_key(path))
             if end_byte != None:
+                assert end_byte is not None
                 end_byte -= 1
-            return blob.download_as_bytes(retry=self.retry, start=start_byte, end=end_byte)
+            return blob.download_as_bytes(
+                retry=self.retry, start=start_byte, end=end_byte
+            )
         except self.missing_exceptions:
-            raise KeyError(key)
+            raise KeyError(path)
 
     def __setitem__(self, key, value):
         """Store value in key"""

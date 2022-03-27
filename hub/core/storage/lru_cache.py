@@ -194,7 +194,7 @@ class LRUCache(StorageProvider):
         if path in self.hub_objects:
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.hub_objects[path][start_byte:end_byte]
+            return self.hub_objects[path].tobytes()[start_byte:end_byte]
         elif path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path][start_byte:end_byte]

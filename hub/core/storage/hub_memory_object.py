@@ -3,6 +3,7 @@ from ctypes import Union
 import json
 from typing import Any, Dict
 
+
 class HubMemoryObject(ABC):
     def __init__(self):
         self.is_dirty = True
@@ -21,9 +22,6 @@ class HubMemoryObject(ABC):
     def tobytes(self) -> bytes:
         d = {str(k): v for k, v in self.__getstate__().items()}
         return bytes(json.dumps(d, sort_keys=True, indent=4), "utf-8")
-
-    def __getitem__(self, item: slice):
-        return self.tobytes()[item]
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

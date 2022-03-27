@@ -227,29 +227,25 @@ class S3Provider(StorageProvider):
             raise S3GetError(err) from err
 
     def _get_bytes(
-        self,
-        path,
-        start_byte: Optional[int] = None,
-        end_byte: Optional[int] = None):
+        self, path, start_byte: int = None, end_byte: int = None
+    ):
         range = None
         if start_byte != None and end_byte != None:
+            assert end_byte is not None
             range = f"bytes={start_byte}-{end_byte - 1}"
         elif start_byte != None:
             range = f"bytes={start_byte}-"
         elif end_byte != None:
+            assert end_byte is not None
             range = f"bytes=-{end_byte - 1}"
-        resp = self.client.get_object(
-            Bucket=self.bucket,
-            Key=path,
-            Range=range
-        )
+        resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
         return resp["Body"].read()
 
     def get_bytes(
         self,
         path: str,
-        start_byte: Optional[int] = None,
-        end_byte: Optional[int] = None,
+        start_byte: int = None,
+        end_byte: int = None
     ):
         """Gets the object present at the path within the given byte range.
 
@@ -264,6 +260,7 @@ class S3Provider(StorageProvider):
         Raises:
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
+            S3GetError: Any other error other than KeyError while retrieving the object.
         """
         self._check_update_creds()
         path = "".join((self.path, path))

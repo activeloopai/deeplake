@@ -1,9 +1,9 @@
 from typing import Optional
 import uuid
 from flask import Flask, request, Response
-from numpy import disp
-from hub.core.dataset.dataset import Dataset
-from hub.core import dataset
+from numpy import disp, isin
+from hub.core.dataset import Dataset
+from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
 import logging
@@ -22,11 +22,13 @@ _APP = Flask("dataset_visualizer")
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
+
 def _run_app():
     try:
         _APP.run(host="0.0.0.0", port=_PORT, threaded=True)
     except Exception:
         pass
+
 
 @_APP.after_request
 def after_request(response):
@@ -35,10 +37,11 @@ def after_request(response):
     response.headers.add("Access-Control-Allow-Headers", "*")
     return response
 
-@_APP.route('/<path:path>')
+
+@_APP.route("/<path:path>")
 def access_data(path):
     try:
-        paths = path.split('/', 1)
+        paths = path.split("/", 1)
         range_header = request.headers.get("Range", None)
         start, end = 0, None
         ds: Dataset = visualizer.get(paths[0])
@@ -75,6 +78,7 @@ def access_data(path):
             content_type="application/octet-stream",
         )
 
+
 class _Visualizer:
     """
     Visualizer class to manage visualization of the datasets.
@@ -84,12 +88,12 @@ class _Visualizer:
         self.start_server()
         self._datasets = {}
 
-    def add(self, ds: dataset) -> str:
+    def add(self, ds: Dataset) -> str:
         id = str(uuid.uuid4())
         self._datasets[id] = ds
         return id
 
-    def get(self, id: str) -> dataset:
+    def get(self, id: str) -> Dataset:
         return self._datasets[id]
 
     def get_free_port(self):
@@ -97,7 +101,9 @@ class _Visualizer:
             return s.server_address[1]
 
     def is_server_running(self) -> bool:
-        return _SERVER_THREAD and _SERVER_THREAD.is_alive()
+        if _SERVER_THREAD:
+            return _SERVER_THREAD.is_alive()
+        return False
 
     def start_server(self):
         global _PORT
@@ -116,9 +122,11 @@ class _Visualizer:
         terminate_thread(_SERVER_THREAD)
         _SERVER_THREAD = None
 
+
 visualizer = _Visualizer()
 
-def visualize(ds: dataset):
+
+def visualize(ds: Dataset):
     """
     Visualizes the given dataset in the Jupyter notebook.
 
@@ -126,8 +134,12 @@ def visualize(ds: dataset):
         ds: dataset The dataset to visualize.
     """
     global visualizer
-    id = visualizer.add(ds)
-    url = f"http://localhost:{_PORT}/{id}/"
-    iframe = IFrame(f"https://app.dev.activeloop.ai/visualizer/hub?url={url}", width="100%", height=900)
-    display(iframe)
-
+    if visualizer:
+        id = visualizer.add(ds)
+        url = f"http://localhost:{_PORT}/{id}/"
+        iframe = IFrame(
+            f"https://app.dev.activeloop.ai/visualizer/hub?url={url}",
+            width="100%",
+            height=900,
+        )
+        display(iframe)
