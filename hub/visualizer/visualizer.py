@@ -13,8 +13,6 @@ import threading
 
 from IPython.display import IFrame, display
 
-from hub.visualizer.visual_context import VisualContext
-
 visualizer = None
 
 _PORT: Optional[int] = None
@@ -134,6 +132,6 @@ def visualize(ds: dataset):
     global visualizer
     id = visualizer.add(ds)
     url = f"http://localhost:{_PORT}/{id}/"
-    iframe = IFrame(f"https://app.dev.activeloop.ai/visualizer/hub?url={url}", width="100%", height=600)
+    iframe = IFrame(f"https://app.dev.activeloop.ai/visualizer/hub?url={url}", width="100%", height=900)
     display(iframe)
-    return VisualContext(id, ds, iframe)
+
