@@ -201,7 +201,6 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
-            ReadOnlyError: If the provider is in read-only mode.
         """
         self._check_update_creds()
         path = "".join((self.path, path))
@@ -268,10 +267,10 @@ class S3Provider(StorageProvider):
             return self._get_bytes(path, start_byte, end_byte)
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
-                raise KeyError(err)
+                raise KeyError(err) from err
             reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3GetError):
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager # type: ignore
+            with manager(self, S3GetError): # type: ignore
                 return self._get_bytes(path, start_byte, end_byte)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
@@ -281,9 +280,9 @@ class S3Provider(StorageProvider):
                     return self._get_bytes(path, start_byte, end_byte)
                 except Exception:
                     pass
-            raise S3GetError(err)
+            raise S3GetError(err) from err
         except Exception as err:
-            raise S3GetError(err)
+            raise S3GetError(err) from err
 
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
