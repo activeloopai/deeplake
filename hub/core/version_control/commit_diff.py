@@ -58,7 +58,7 @@ class CommitDiff(HubMemoryObject):
             int.from_bytes(data[27 + i * 8 : 35 + i * 8], "big")
             for i in range(num_updates)
         }
-        pos = 35 + num_updates * 8
+        pos = 35 + (num_updates - 1) * 8
         commit_diff.cleared = bool(int.from_bytes(data[pos : pos + 1], "big"))
         commit_diff.is_dirty = False
         return commit_diff

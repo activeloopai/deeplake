@@ -651,14 +651,15 @@ def test_clear_diff(local_ds, capsys):
         local_ds.xyz.clear()
         local_ds.xyz.append([1, 2, 3])
         local_ds.abc.append([3, 4, 2])
+    c = local_ds.commit()
 
-    local_ds.diff(a)
+    local_ds.diff(c, a)
     tensor_changes_from_a = {
         "abc": tensor_diff_helper([0, 2], cleared=True),
         "xyz": tensor_diff_helper([0, 1], created=True),
     }
     target = get_diff_helper(
-        {}, {}, tensor_changes_from_a, {}, local_ds.version_state, a
+        {}, {}, tensor_changes_from_a, {}, local_ds.version_state, c, a
     )
     captured = capsys.readouterr()
     assert captured.out == target
