@@ -57,7 +57,7 @@ def merge(
 
 def get_new_common_deleted_and_cleared_tensors(
     dataset, target_ds, lca_id: str
-) -> Tuple[Set[str], Set[str], Set[str]]:
+) -> Tuple[Set[str], Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
