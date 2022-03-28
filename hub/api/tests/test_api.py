@@ -8,6 +8,7 @@ from hub.core.tensor import Tensor
 
 from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     RenameError,
@@ -1006,6 +1007,33 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+@enabled_persistent_dataset_generators
+def test_tensor_clear(ds_generator):
+    ds = ds_generator()
+    a = ds.create_tensor("a")
+    a.extend([1, 2, 3, 4])
+    a.clear()
+    assert len(ds) == 0
+    assert len(a) == 0
+
+    image = ds.create_tensor("image", htype="image", sample_compression="png")
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.clear()
+    assert len(ds) == 0
+    assert len(image) == 0
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    a.append([1, 2, 3])
+
+    ds = ds_generator()
+    assert len(ds) == 1
+    assert len(image) == 4
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
 
 
 def test_no_view(memory_ds):

@@ -41,6 +41,7 @@ from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_tensor_info_key,
 )
 from hub.util.exceptions import (
     CorruptedMetaError,
@@ -656,9 +657,48 @@ class ChunkEngine:
         chunk._update_tensor_meta_length = register
         if self.active_appended_chunk is not None:
             self.write_chunk_to_storage(self.active_appended_chunk)
-
         self.active_appended_chunk = chunk
         return chunk
+
+    def clear(self):
+        """Clears all samples and cachables."""
+        self.cache.check_readonly()
+
+        commit_id = self.commit_id
+
+        chunk_folder_path = get_chunk_key(self.key, "", commit_id)
+        self.cache.clear(prefix=chunk_folder_path)
+
+        enc_key = get_chunk_id_encoder_key(self.key, commit_id)
+        self._chunk_id_encoder = None
+        try:
+            del self.meta_cache[enc_key]
+        except KeyError:
+            pass
+
+        info_key = get_tensor_info_key(self.key, commit_id)
+        try:
+            self._info = None
+            del self.cache[info_key]
+        except KeyError:
+            pass
+
+        self.commit_diff.clear_data()
+
+        tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
+        try:
+            self._tile_encoder = None
+            del self.cache[tile_encoder_key]
+        except KeyError:
+            pass
+
+        self.tensor_meta.length = 0
+        self.tensor_meta.min_shape = []
+        self.tensor_meta.max_shape = []
+        self.tensor_meta.is_dirty = True
+
+        self.cache.maybe_flush()
+        self.meta_cache.maybe_flush()
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
         new_chunks, tiles = self._samples_to_chunks(
