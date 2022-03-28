@@ -748,7 +748,7 @@ def test_dataset_rename(ds_generator, path, hub_token):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_deep_copy(path, hub_token, num_workers, progressbar):
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -767,7 +767,7 @@ def test_dataset_deep_copy(path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.deep_copy(
+    dest_ds = hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
@@ -791,9 +791,9 @@ def test_dataset_deep_copy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.deep_copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+        hub.deepcopy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
 
-    hub.deep_copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
@@ -812,7 +812,7 @@ def test_dataset_deep_copy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.deep_copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,

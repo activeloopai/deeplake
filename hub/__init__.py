@@ -45,7 +45,7 @@ like = dataset.like
 delete = dataset.delete
 rename = dataset.rename
 copy = dataset.copy
-deep_copy = dataset.deep_copy
+deepcopy = dataset.deepcopy
 dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
@@ -62,6 +62,8 @@ __all__ = [
     "empty",
     "compute",
     "compose",
+    "copy",
+    "deepcopy"
     "like",
     "list",
     "dataset_cl",

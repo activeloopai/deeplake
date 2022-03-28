@@ -422,7 +422,7 @@ class dataset:
         )
 
     @staticmethod
-    def deep_copy(
+    def deepcopy(
         src: str,
         dest: str,
         overwrite: bool = False,

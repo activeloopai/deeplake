@@ -1861,6 +1861,7 @@ class Dataset:
                 scheduler=scheduler,
                 progressbar=progressbar,
                 skip_ok=True,
+                check_lengths=False,
             )
 
 
