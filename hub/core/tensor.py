@@ -654,7 +654,6 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 self.dataset[k].append(get_link_transform(v["append"])(sample))
 
-
     def _update_links(
         self,
         global_sample_index: int,
@@ -703,7 +702,7 @@ class Tensor:
                     index.values[0].indices(self.num_samples),
                 )
             )
-        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)
+        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
 
     @property
     def sample_info(self):
