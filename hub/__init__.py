@@ -74,6 +74,8 @@ __all__ = [
     "htypes",
     "config",
     "delete",
+    "copy",
+    "rename",
 ]
 
 __version__ = "2.3.3"

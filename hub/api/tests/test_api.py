@@ -19,6 +19,8 @@ from hub.util.exceptions import (
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    PathNotEmptyException,
+    BadRequestException,
 )
 from hub.constants import MB
 
@@ -724,6 +726,13 @@ def test_dataset_rename(ds_generator, path, hub_token):
 
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
+
+    if ds.path.startswith("hub://"):
+        with pytest.raises(BadRequestException):
+            ds.rename(ds.path)
+    else:
+        with pytest.raises(PathNotEmptyException):
+            ds.rename(ds.path)
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
 
