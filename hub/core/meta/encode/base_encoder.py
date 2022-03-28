@@ -727,3 +727,10 @@ class Encoder(ABC):
 
     def is_empty(self) -> bool:
         return len(self._encoded) == 0
+
+    def tobytes(self) -> memoryview:
+        raise NotImplementedError()
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        raise NotImplementedError()

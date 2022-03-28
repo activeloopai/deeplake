@@ -26,18 +26,37 @@
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
 
+<details>
+  <summary><b>Storage Agnostic API</b></summary>
+Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
+</details>
+<details>
+  <summary><b>Compressed Storage</b></summary>
+Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
+</details>
+<details>
+  <summary><b>Lazy NumPy-like Indexing</b></summary>
+Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+</details>
+<details>
+  <summary><b>Dataset Version Control</b></summary>
+Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
+</details>
+<details>
+  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
+Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+</details>
+<details>
+  <summary><b>Distributed Transformations</b></summary>
+Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
+</details>
+<details>
+  <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
+Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+</details>
 
-Hub includes the following features:
-
-* **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
-* **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
-* **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
-* **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
-* **Distributed transforms**: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
-* **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
 <div align="center">
 <a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
@@ -323,5 +342,3 @@ activeloop reporting --off
 
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
-
-Hub uses FFmpeg for video processing. Many thanks to the [FFmpeg](https://www.ffmpeg.org/) team for developing this amazing solution.

@@ -1,20 +1,17 @@
 from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
+from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
-from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
+from hub.util.generate_id import generate_id
 
 
 CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
-    def tobytes(self) -> memoryview:
-        return serialize_chunkids(self.version, [self._encoded])
-
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
         """Returns the hex of `id` with the "0x" prefix removed. This is the chunk's name and should be used to determine the chunk's key.
@@ -41,18 +38,6 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         return self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
 
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        instance = cls()
-        if not buffer:
-            return instance
-        version, ids = deserialize_chunkids(buffer)
-        if ids.nbytes:
-            instance._encoded = ids
-        instance.version = version
-        instance.is_dirty = False
-        return instance
-
     @property
     def num_chunks(self) -> int:
         if self.num_samples == 0:
@@ -70,7 +55,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             ENCODING_DTYPE: The random chunk ID.
         """
 
-        id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
+        id = generate_id(ENCODING_DTYPE)
         if register:
             if self.num_samples == 0:
                 self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
@@ -271,3 +256,18 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
             self._encoded = np.concatenate([top, mid, bottom], axis=0)
         self.is_dirty = True
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        instance = cls()
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded = ids
+        instance.version = version
+        instance.is_dirty = False
+        return instance
+
+    def tobytes(self) -> memoryview:
+        return serialize_chunkids(self.version, [self._encoded])

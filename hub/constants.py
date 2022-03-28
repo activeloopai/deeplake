@@ -55,15 +55,13 @@ META_ENCODING = "utf8"
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
+ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
+UNSHARDED_ENCODER_FILENAME = "unsharded"
 
 AGREEMENT_FILENAME = "agreement.txt"
 
 ENCODING_DTYPE = np.uint32
-# caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
-UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
-
 
 # environment variables
 ENV_HUB_DEV_USERNAME = "ACTIVELOOP_HUB_USERNAME"
@@ -124,3 +122,5 @@ _ENABLE_RANDOM_ASSIGNMENT = False
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
+
+PYTORCH_DATALOADER_TIMEOUT = 30  # seconds

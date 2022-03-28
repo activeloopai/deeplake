@@ -7,6 +7,11 @@ class DatasetMeta(Meta):
         super().__init__()
         self.tensors = []
         self.groups = []
+        self.hidden_tensors = []
+
+    @property
+    def visible_tensors(self):
+        return list(filter(lambda t: t not in self.hidden_tensors, self.tensors))
 
     @property
     def nbytes(self):
@@ -17,11 +22,20 @@ class DatasetMeta(Meta):
         d = super().__getstate__()
         d["tensors"] = self.tensors
         d["groups"] = self.groups
+        d["hidden_tensors"] = self.hidden_tensors
         return d
 
-    def add_tensor(self, name):
+    def add_tensor(self, name, hidden=False):
         if name not in self.tensors:
             self.tensors.append(name)
+            if hidden:
+                self.hidden_tensors.append(name)
+            self.is_dirty = True
+
+    def _hide_tensor(self, name):
+        assert name in self.tensors
+        if name not in self.hidden_tensors:
+            self.hidden_tensors.append(name)
             self.is_dirty = True
 
     def add_group(self, name):

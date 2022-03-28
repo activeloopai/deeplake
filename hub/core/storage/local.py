@@ -5,7 +5,11 @@ import shutil
 from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
+from hub.util.exceptions import (
+    DirectoryAtPathException,
+    FileAtPathException,
+    PathNotEmptyException,
+)
 
 
 class LocalProvider(StorageProvider):
@@ -173,20 +177,38 @@ class LocalProvider(StorageProvider):
         Raises:
             DirectoryAtPathException: If a directory is found at the path.
         """
-        full_path = os.path.join(self.root, path)
+        full_path = posixpath.join(self.root, path)
         full_path = os.path.expanduser(full_path)
+        full_path = str(pathlib.Path(full_path))
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
         return full_path
 
-    def clear(self):
-        """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
+    def clear(self, prefix=""):
+        """Deletes ALL data with keys having given prefix on the local machine (under self.root). Exercise caution!"""
         self.check_readonly()
-        self.files = set()
         full_path = os.path.expanduser(self.root)
+        if prefix and self.files:
+            self.files = set(file for file in self.files if not file.startswith(prefix))
+            full_path = os.path.join(full_path, prefix)
+        else:
+            self.files = set()
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
+
+    def rename(self, path):
+        """Renames root folder"""
+        if os.path.isfile(path) or (os.path.isdir(path) and len(os.listdir(path)) > 0):
+            raise PathNotEmptyException(use_hub=False)
+        os.rename(self.root, path)
+        self.root = path
 
     def __contains__(self, key) -> bool:
         full_path = self._check_is_file(key)
         return os.path.exists(full_path)
+
+    def __getstate__(self):
+        return self.root
+
+    def __setstate__(self, state):
+        self.__init__(state)

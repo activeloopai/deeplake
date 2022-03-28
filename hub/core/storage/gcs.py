@@ -24,8 +24,12 @@ except ImportError:
 
 
 from hub.core.storage.provider import StorageProvider
+from hub.util.exceptions import (
+    GCSDefaultCredsNotFoundError,
+    RenameError,
+    PathNotEmptyException,
+)
 from hub.client.client import HubBackendClient
-from hub.util.exceptions import GCSDefaultCredsNotFoundError
 
 
 class GCloudCredentials:
@@ -265,17 +269,38 @@ class GCSProvider(StorageProvider):
 
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {obj.name for obj in self._blob_objects}
+        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
-    def clear(self):
-        """Remove all keys below root - empties out mapping"""
+    def clear(self, prefix=""):
+        """Remove all keys with given prefix below root - empties out mapping"""
         self.check_readonly()
-        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        path = posixpath.join(self.path, prefix) if prefix else self.path
+        blob_objects = self.client_bucket.list_blobs(prefix=path)
         for blob in blob_objects:
             try:
                 blob.delete()
             except Exception:
                 pass
+
+    def rename(self, root):
+        """Rename root folder"""
+        self.check_readonly()
+        path = root.replace("gcs://", "").replace("gcp://", "")
+        new_bucket, new_path = path.split("/", 1)
+        if new_bucket != self.client_bucket.name:
+            raise RenameError
+        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        dest_objects = self.client_bucket.list_blobs(prefix=new_path)
+        for blob in dest_objects:
+            raise PathNotEmptyException(use_hub=False)
+        for blob in blob_objects:
+            new_key = "/".join([new_path, posixpath.relpath(blob.name, self.path)])
+            self.client_bucket.rename_blob(blob, new_key)
+
+        self.root = root
+        self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
 
     def __getitem__(self, key):
         """Retrieve data"""
@@ -312,7 +337,10 @@ class GCSProvider(StorageProvider):
         """Remove key"""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
-        blob.delete()
+        try:
+            blob.delete()
+        except self.missing_exceptions:
+            raise KeyError(key)
 
     def __contains__(self, key):
         """Does key exist in mapping?"""

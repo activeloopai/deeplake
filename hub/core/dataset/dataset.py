@@ -1,12 +1,16 @@
 # type: ignore
+from unittest import skip
 import numpy as np
 from time import time
 import json
 from tqdm import tqdm  # type: ignore
 import posixpath
+
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
+from hub.util.invalid_view_op import invalid_view_op
+import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -20,27 +24,35 @@ from hub.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
-    LocalProvider,
 )
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import HTYPE_CONFIGURATIONS, UNSPECIFIED, verify_htype_key_value
+from hub.htype import (
+    HTYPE_CONFIGURATIONS,
+    UNSPECIFIED,
+    DEFAULT_HTYPE,
+    verify_htype_key_value,
+)
 from hub.integrations import dataset_to_tensorflow
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
+from hub.util.htype import parse_sequence_htype
+from hub.util.merge import merge
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     InvalidTensorGroupNameError,
     InvalidTensorNameError,
+    TensorMetaInvalidHtype,
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
+    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -50,11 +62,13 @@ from hub.util.exceptions import (
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
     NotLoggedInError,
+    EmptyCommitError,
 )
 from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_sample_id_tensor_key,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
@@ -66,12 +80,13 @@ from hub.util.version_control import (
     auto_checkout,
     checkout,
     commit,
-    current_commit_has_data,
+    current_commit_has_change,
     load_meta,
     warn_node_checkout,
     load_version_info,
 )
 from hub.client.utils import get_user_name
+from hub.util.storage import storage_provider_from_path
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -267,6 +282,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor(
         self,
@@ -275,6 +291,8 @@ class Dataset:
         dtype: Union[str, np.dtype] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
+        create_id_tensor: bool = True,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -291,6 +309,9 @@ class Dataset:
             chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
+            create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
+                This is useful for merge operations.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -300,6 +321,8 @@ class Dataset:
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
+            TensorMetaInvalidHtype: If invalid htype is specified.
+            ValueError: If an illegal argument is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -318,6 +341,9 @@ class Dataset:
 
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
+
+        is_sequence, htype = parse_sequence_htype(htype)
+        kwargs["is_sequence"] = is_sequence
 
         if not self._is_root():
             return self.root.create_tensor(
@@ -353,18 +379,31 @@ class Dataset:
             sample_compression=sample_compression,
             chunk_compression=chunk_compression,
             version_state=self.version_state,
+            hidden=hidden,
             **meta_kwargs,
         )
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.add_tensor(name)
+        meta.add_tensor(name, hidden=hidden)
         tensor = Tensor(name, self)  # type: ignore
         self.version_state["full_tensors"][name] = tensor
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
+        if create_id_tensor:
+            id_tensor_name = get_sample_id_tensor_key(name)
+            self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
+            self._link_tensors(
+                name, id_tensor_name, append_f="append_id", flatten_sequence=True
+            )
         return tensor
 
+    def _hide_tensor(self, tensor: str):
+        self._tensors()[tensor].meta.set_hidden(True)
+        self.meta._hide_tensor(tensor)
+        self.storage.maybe_flush()
+
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
@@ -415,8 +454,13 @@ class Dataset:
             self.version_state["meta"] = meta
             self.version_state["full_tensors"].pop(name)
 
+        id_tensor_name = get_sample_id_tensor_key(name)
+        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
+            self.delete_tensor(id_tensor_name)
+
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
@@ -462,7 +506,7 @@ class Dataset:
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
-                for tensor in self[name]._all_tensors_filtered
+                for tensor in self[name]._all_tensors_filtered(include_hidden=True)
             ]
             meta.delete_group(name)
             for tensor in tensors:
@@ -471,6 +515,7 @@ class Dataset:
 
         self.storage.maybe_flush()
 
+    @invalid_view_op
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
@@ -570,21 +615,69 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
-    def commit(self, message: Optional[str] = None) -> str:
+    def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
         Note: Commiting from a non-head node in any branch, will lead to an auto checkout to a new branch.
         This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
 
         Args:
             message (str, optional): Used to describe the commit.
+            allow_empty (bool): If True, commit even if there are no changes
 
         Returns:
             str: the commit id of the stored commit that can be used to access the snapshot.
 
         Raises:
             Exception: if dataset is a filtered view.
+            EmptyCommitError: if there are no changes and user does not forced to commit unchanged data
         """
+        if not allow_empty and not self.has_head_changes:
+            raise EmptyCommitError(
+                "There are no changes, commit is not done. Try again with allow_empty=True."
+            )
+
         return self._commit(message)
+
+    def merge(
+        self,
+        target_id: str,
+        conflict_resolution: Optional[str] = None,
+        delete_removed_tensors: bool = False,
+    ):
+        """Merges the target_id into the current dataset.
+
+        Args:
+            target_id (str): The commit_id or branch to merge.
+            conflict_resolution (str, optional): The strategy to use to resolve merge conflicts.
+                Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
+                Must be one of the following:
+                - None - this is the default value, will raise an exception if there are conflicts.
+                - "ours" - during conflicts, values from the current dataset will be used.
+                - "theirs" - during conflicts, values from target id will be used.
+            delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
+
+        Raises:
+            Exception: if dataset is a filtered view.
+            ValueError: if the conflict resolution strategy is not one of the None, "ours", or "theirs".
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+
+        if conflict_resolution not in [None, "ours", "theirs"]:
+            raise ValueError(
+                f"conflict_resolution must be one of None, 'ours', or 'theirs'. Got {conflict_resolution}"
+            )
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+
+        merge(self, target_id, conflict_resolution, delete_removed_tensors)
+
+        self.storage.autoflush = self._initial_autoflush.pop()
 
     def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
         if self._is_filtered_view:
@@ -787,7 +880,7 @@ class Dataset:
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
         commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_data(
+        return not commit_node.children and current_commit_has_change(
             self.version_state, self.storage
         )
 
@@ -815,6 +908,7 @@ class Dataset:
                 raise e
 
     @read_only.setter
+    @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
@@ -851,7 +945,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch.
+            shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
@@ -1014,6 +1108,30 @@ class Dataset:
             size += self[group].size_approx()
         return size
 
+    @invalid_view_op
+    @hub_reporter.record_call
+    def rename(self, path: str):
+        """Renames the dataset to `path`.
+
+        Args:
+            path (str): New path to the dataset.
+
+        Raises:
+            RenameError: If `path` points to a different directory.
+
+        Example::
+
+            ds = hub.load("hub://username/dataset")
+            ds.rename("hub://username/renamed_dataset")
+        """
+        path = path.rstrip("/")
+        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
+            raise RenameError
+        storage = get_base_storage(self.storage)
+        storage.rename(path)
+        self.path = path
+
+    @invalid_view_op
     @hub_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
@@ -1051,7 +1169,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
 
     __repr__ = __str__
 
@@ -1071,7 +1189,6 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-
         return self._token
 
     @property
@@ -1083,24 +1200,29 @@ class Dataset:
             if posixpath.dirname(k) == self.group_index
         }
 
-    @property
-    def _all_tensors_filtered(self) -> List[str]:
+    def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
+        hidden_tensors = self.meta.hidden_tensors
         return [
             posixpath.relpath(t, self.group_index)
             for t in self.version_state["full_tensors"]
-            if not self.group_index or t.startswith(self.group_index + "/")
+            if (not self.group_index or t.startswith(self.group_index + "/"))
+            and (include_hidden or t not in hidden_tensors)
         ]
 
-    @property
-    def tensors(self) -> Dict[str, Tensor]:
+    def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
             t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
                 self.index
             ]
-            for t in self._all_tensors_filtered
+            for t in self._all_tensors_filtered(include_hidden)
         }
+
+    @property
+    def tensors(self) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        return self._tensors(include_hidden=False)
 
     @property
     def branches(self):
@@ -1274,7 +1396,7 @@ class Dataset:
         """
 
         if tensors is None:
-            tensors = list(self.tensors.keys())
+            tensors = list(self.tensors)
         elif isinstance(tensors, str):
             tensors = [tensors]
 
@@ -1317,6 +1439,32 @@ class Dataset:
     def __bool__(self):
         return True
 
+    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in `samples` if set to True.
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in `samples` and `skip_ok` is False.
+            TensorDoesNotExistError: If tensor in `samples` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        for i in range(n):
+            self.append({k: v[i] for k, v in samples.items()})
+
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
@@ -1329,6 +1477,8 @@ class Dataset:
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
         """
+        if isinstance(sample, Dataset):
+            sample = sample.tensors
         if not skip_ok:
             for k in self.tensors:
                 if k not in sample:
@@ -1336,7 +1486,7 @@ class Dataset:
                         f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
                     )
         for k in sample:
-            if k not in self.tensors:
+            if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError(
@@ -1638,3 +1788,40 @@ class Dataset:
             VDS with the specified hash.
         """
         return self._get_sub_ds(".queries/" + hash)
+
+    def _link_tensors(
+        self,
+        src: str,
+        dest: str,
+        append_f: str,
+        update_f: Optional[str] = None,
+        flatten_sequence: Optional[bool] = None,
+    ):
+        """Internal. Links a source tensor to a destination tensor. Appends / updates made to the source tensor will be reflected in the destination tensor.
+
+        Args:
+            src (str): Name of the source tensor.
+            dest (str): Name of the destination tensor.
+            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
+
+        Raises:
+            TensorDoesNotExistError: If source or destination tensors do not exist in this dataset.
+            ValueError: If source tensor is a sequence tensor and `flatten_sequence` argument is not specified.
+        """
+        assert self._is_root()
+        tensors = self._tensors()
+        if src not in tensors:
+            raise TensorDoesNotExistError(src)
+        if dest not in tensors:
+            raise TensorDoesNotExistError(dest)
+        src_tensor = self[src]
+        if flatten_sequence is None:
+            if src_tensor.is_sequence:
+                raise ValueError(
+                    "`flatten_sequence` arg must be specified when linking a sequence tensor."
+                )
+            flatten_sequence = False
+        src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
+        self.storage.maybe_flush()

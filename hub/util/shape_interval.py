@@ -5,7 +5,7 @@ from typing import Optional, Sequence, Tuple
 
 
 def _contains_negatives(shape: Sequence[int]):
-    return any(x < 0 for x in shape)
+    return any(x and x < 0 for x in shape)
 
 
 class ShapeInterval:
@@ -39,7 +39,7 @@ class ShapeInterval:
                 "Upper cannot contain negative components.", upper=upper
             )
 
-        if not all(l <= u for l, u in zip(lower, upper)):
+        if not all(l is None or u is None or l <= u for l, u in zip(lower, upper)):
             raise InvalidShapeIntervalError(
                 "lower[i] must always be <= upper[i].", lower=lower, upper=upper
             )
