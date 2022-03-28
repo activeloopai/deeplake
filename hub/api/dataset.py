@@ -407,6 +407,25 @@ class dataset:
         scheduler="threaded",
         progressbar=True,
     ):
+        """Copies this dataset view at `src` to `dest`. Version control history is not included.
+
+        Args:
+            src (Union[str, Dataset]): The Dataset or the path to the dataset to be copied.
+            dest (str): Destination path to copy to.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
+            dest_token (str, optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
         if isinstance(src, str):
             src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         else:
