@@ -61,6 +61,7 @@ __all__ = [
     "__version__",
     "load",
     "empty",
+    "exists",
     "compute",
     "compose",
     "like",
