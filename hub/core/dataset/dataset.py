@@ -1863,6 +1863,7 @@ class Dataset:
                 skip_ok=True,
                 check_lengths=False,
             )
+        return dest_ds
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
