@@ -311,3 +311,23 @@ def test_merge_rename(local_ds):
         ds.merge("alt", delete_removed_tensors=True)
         assert "red" not in ds.tensors  # red was removed in comparison to lca
         np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3], [2, 3, 4]]))
+
+
+def test_clear_merge(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.append([1, 2, 3])
+        a = ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.append([2, 3, 4])
+        b = ds.commit()
+        ds.abc.clear()
+        c = ds.commit()
+
+        ds.checkout("main")
+        ds.abc.append([5, 6, 3])
+        d = ds.commit()
+        ds.merge("alt")
+
+        np.testing.assert_array_equal(ds.abc.numpy(), np.array([]))

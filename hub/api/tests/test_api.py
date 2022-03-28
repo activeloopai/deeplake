@@ -8,6 +8,7 @@ from hub.core.tensor import Tensor
 
 from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     InvalidOperationError,
@@ -20,6 +21,8 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     InvalidTensorNameError,
     RenameError,
+    PathNotEmptyException,
+    BadRequestException,
 )
 from hub.constants import MB
 
@@ -726,6 +729,13 @@ def test_dataset_rename(ds_generator, path, hub_token):
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
 
+    if ds.path.startswith("hub://"):
+        with pytest.raises(BadRequestException):
+            ds.rename(ds.path)
+    else:
+        with pytest.raises(PathNotEmptyException):
+            ds.rename(ds.path)
+
     ds = hub.rename(ds.path, new_path, token=hub_token)
 
     assert ds.path == new_path
@@ -1043,6 +1053,33 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
+@enabled_persistent_dataset_generators
+def test_tensor_clear(ds_generator):
+    ds = ds_generator()
+    a = ds.create_tensor("a")
+    a.extend([1, 2, 3, 4])
+    a.clear()
+    assert len(ds) == 0
+    assert len(a) == 0
+
+    image = ds.create_tensor("image", htype="image", sample_compression="png")
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.clear()
+    assert len(ds) == 0
+    assert len(image) == 0
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    a.append([1, 2, 3])
+
+    ds = ds_generator()
+    assert len(ds) == 1
+    assert len(image) == 4
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
+
+
 def test_no_view(memory_ds):
     memory_ds.create_tensor("a")
     memory_ds.a.extend([0, 1, 2, 3])
@@ -1349,3 +1386,19 @@ def test_hidden_tensors(local_ds_generator):
     assert not ds.z.meta.hidden
     assert ds.x.meta.hidden
     assert ds.y.meta.hidden
+
+
+@pytest.mark.parametrize(
+    ("ds_generator", "path", "hub_token"),
+    [
+        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
+        ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
+        ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_hub_exists(ds_generator, path, hub_token):
+    ds = ds_generator()
+    assert hub.exists(path, token=hub_token) == True
+    assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False

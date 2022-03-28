@@ -44,19 +44,23 @@ def merge(
         return
     nodes["lca"] = commit_node_map[lca_id]
 
-    new_tensors, common_tensors, deleted_tensors = get_new_common_and_deleted_tensors(
-        dataset, target_ds, lca_id
-    )
+    (
+        new_tensors,
+        common_tensors,
+        deleted_tensors,
+        cleared_tensors,
+    ) = get_new_common_deleted_and_cleared_tensors(dataset, target_ds, lca_id)
 
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
+    clear_tensors(cleared_tensors, dataset)
     finalize_merge(dataset, nodes)
 
 
-def get_new_common_and_deleted_tensors(
+def get_new_common_deleted_and_cleared_tensors(
     dataset, target_ds, lca_id: str
-) -> Tuple[Set[str], Set[str], Set[str]]:
+) -> Tuple[Set[str], Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
@@ -76,6 +80,8 @@ def get_new_common_and_deleted_tensors(
     # present in dataset at lca, but deleted or renamed in original
     original_deleted_tensors = lca_tensors - original_tensors
 
+    target_cleared_tensors: Set[str] = set()
+
     target_diff, _ = target_ds.diff(lca_id, as_dict=True)
     for tensor in original_deleted_tensors:
         diff = target_diff.get(tensor, None)
@@ -84,7 +90,13 @@ def get_new_common_and_deleted_tensors(
         if not diff or not (diff["data_added"] or diff["data_updated"]):
             new_tensors.discard(tensor)
 
-    return new_tensors, common_tensors, target_deleted_tensors
+    for tensor in common_tensors:
+        diff = target_diff.get(tensor, None)
+
+        if diff and diff["cleared"]:
+            target_cleared_tensors.add(tensor)
+
+    return new_tensors, common_tensors, target_deleted_tensors, target_cleared_tensors
 
 
 def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
@@ -159,6 +171,11 @@ def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool
             # tensor could have been renamed.
             except TensorDoesNotExistError:
                 pass
+
+
+def clear_tensors(tensor_names: Set[str], dataset):
+    for tensor_name in tensor_names:
+        dataset[tensor_name].clear()
 
 
 def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):

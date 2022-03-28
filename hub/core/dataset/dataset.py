@@ -87,6 +87,7 @@ from hub.util.version_control import (
     load_version_info,
 )
 from hub.client.utils import get_user_name
+from hub.util.storage import storage_provider_from_path
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -1179,7 +1180,20 @@ class Dataset:
 
     @invalid_view_op
     @hub_reporter.record_call
-    def rename(self, path):
+    def rename(self, path: str):
+        """Renames the dataset to `path`.
+
+        Args:
+            path (str): New path to the dataset.
+
+        Raises:
+            RenameError: If `path` points to a different directory.
+
+        Example::
+
+            ds = hub.load("hub://username/dataset")
+            ds.rename("hub://username/renamed_dataset")
+        """
         path = path.rstrip("/")
         if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
             raise RenameError

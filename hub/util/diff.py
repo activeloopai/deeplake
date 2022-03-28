@@ -35,6 +35,7 @@ def get_changes_and_messages_compared_to_prev(
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
     get_dataset_changes_for_id(commit_id, storage, ds_changes)
+    filter_cleared(tensor_changes)
     filter_data_updated(tensor_changes)
     remove_empty_changes(tensor_changes)
 
@@ -115,8 +116,9 @@ def compare_commits(
             )
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-        filter_renamed_diff(dataset_changes, tensor_changes)
         filter_data_updated(tensor_changes)
+        filter_renamed_diff(dataset_changes)
+        filter_cleared(tensor_changes)
     return (
         dataset_changes_1,
         dataset_changes_2,
@@ -196,13 +198,17 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
     for tensor in tensors:
         change = tensor_changes[tensor]
         created = change.get("created", False)
-        data_added = change["data_added"]
+        cleared = change.get("cleared", False)
+        data_added = change.get("data_added", [0, 0])
         data_added_str = convert_adds_to_string(data_added)
-        data_updated = change["data_updated"]
+        data_updated = change.get("data_updated", set())
         info_updated = change.get("info_updated", False)
         all_changes.append(tensor)
         if created:
             all_changes.append("* Created tensor")
+
+        if cleared:
+            all_changes.append("* Cleared tensor")
 
         if data_added_str:
             all_changes.append(data_added_str)
@@ -221,11 +227,12 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
 
 def has_change(change: Dict):
     created = change.get("created", False)
-    data_added = change["data_added"]
+    cleared = change.get("cleared")
+    data_added = change.get("data_added", [0, 0])
     num_samples_added = data_added[1] - data_added[0]
-    data_updated = change["data_updated"]
+    data_updated = change.get("data_updated", set())
     info_updated = change.get("info_updated", False)
-    return created or num_samples_added > 0 or data_updated or info_updated
+    return created or cleared or num_samples_added > 0 or data_updated or info_updated
 
 
 def get_dataset_changes_for_id(
@@ -308,6 +315,12 @@ def get_tensor_changes_for_id(
             change = tensor_changes[tensor]
 
             change["created"] = change.get("created") or commit_diff.created
+            # ignore older diffs if tensor was cleared
+            if change.get("cleared"):
+                continue
+
+            change["cleared"] = change.get("cleared") or commit_diff.cleared
+
             change["info_updated"] = (
                 change.get("info_updated") or commit_diff.info_updated
             )
@@ -341,7 +354,7 @@ def filter_data_updated(changes: Dict[str, Dict]):
         change["data_updated"] = upd
 
 
-def filter_renamed_diff(dataset_changes, tensor_changes):
+def filter_renamed_diff(dataset_changes):
     """Remove deleted tensors and tensors renamed to same name from diff"""
     rm = []
     renamed = dataset_changes.get("renamed")
@@ -353,6 +366,13 @@ def filter_renamed_diff(dataset_changes, tensor_changes):
 
         for name in rm:
             renamed.pop(name)
+
+
+def filter_cleared(changes: Dict[str, Dict]):
+    """Removes cleared flag if created flag is true."""
+    for change in changes.values():
+        if change["created"] and change["cleared"]:
+            change["cleared"] = False
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
