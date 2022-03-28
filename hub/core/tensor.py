@@ -7,7 +7,7 @@ from hub.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
-from hub.core.index import Index
+from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
@@ -705,13 +705,17 @@ class Tensor:
                 shapes = sample_shape_tensor.numpy(
                     Index(
                         [
-                            slice(
-                                *self.chunk_engine.sequence_encoder[global_sample_index]
+                            IndexEntry(
+                                slice(
+                                    *self.chunk_engine.sequence_encoder[
+                                        global_sample_index
+                                    ]
+                                )
                             )
                         ]
                     )
                 )
-                return (len(shapes),) + (
+                return (len(shapes),) + tuple(
                     int(shapes[0, i]) if np.all(shapes[:, i] == shapes[0, i]) else None
                     for i in range(shapes.shape[1])
                 )
