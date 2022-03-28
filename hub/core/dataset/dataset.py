@@ -1157,16 +1157,24 @@ class Dataset:
         maxColumnLength = [7, 7, 7, 7, 7]  # length of "attribute name" length
         count = 0
         tableArray = [head, divider]  # collects all the rows
-        for tensor in tensor_dict:
-            tensor_object = tensor_dict[tensor]
+        for tensor_name in tensor_dict:
+            tensor_object = tensor_dict[tensor_name]
 
-            tensor_name = tensor
             tensor_htype = tensor_object.htype
+            if tensor_htype == None:
+                tensor_htype = "None"
+
             tensor_shape = str(tensor_object.shape)
-            tensor_dtype = tensor_object.dtype.name
+
             tensor_compression = tensor_object.meta.sample_compression
             if tensor_compression == None:
                 tensor_compression = "None"
+
+            if tensor_object.dtype == None:
+                tensor_dtype = "None"
+            else:
+                tensor_dtype = tensor_object.dtype.name
+
             rowArray = [
                 tensor_name,
                 tensor_htype,

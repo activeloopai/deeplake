@@ -554,15 +554,31 @@ class Tensor:
         head = ["tensor", "htype", "shape", "dtype", "compression"]
         divider = ["-------"] * 5
         maxColumnLength = [7, 7, 7, 7, 7]
+
+        tensor_htype = self.htype
+        if tensor_htype == None:
+            tensor_htype = "None"
+
+        tensor_shape = str(self.shape)
+
+        tensor_compression = self.meta.sample_compression
+        if tensor_compression == None:
+            tensor_compression = "None"
+
+        if self.dtype == None:
+            tensor_dtype = "None"
+        else:
+            tensor_dtype = self.dtype.name
+
         selfArray = [
             head,
             divider,
             [
                 str(self.key),
-                self.htype,
-                str(self.shape),
-                self.dtype.name,
-                self.meta.sample_compression,
+                tensor_htype,
+                tensor_shape,
+                tensor_dtype,
+                tensor_compression,
             ],
         ]
         # adding information about tensors
