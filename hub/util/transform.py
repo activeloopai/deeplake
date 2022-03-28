@@ -108,16 +108,8 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
-    data_slice, inp = transform_input
-    (
-        output_storage,
-        group_index,
-        tensors,
-        visible_tensors,
-        pipeline,
-        version_state,
-        skip_ok,
-    ) = inp
+    data_slice, output_storage, inp = transform_input
+    group_index, tensors, visible_tensors, pipeline, version_state, skip_ok = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -302,7 +294,9 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str, check_lengths: bool) -> None:
+def check_transform_ds_out(
+    ds_out: hub.Dataset, scheduler: str, check_lengths: bool
+) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError

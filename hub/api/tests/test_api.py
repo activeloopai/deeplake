@@ -1330,3 +1330,19 @@ def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
     )
     local_ds = hub.load(local_ds.path)
     np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
+
+
+@pytest.mark.parametrize(
+    ("ds_generator", "path", "hub_token"),
+    [
+        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
+        ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
+        ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_hub_exists(ds_generator, path, hub_token):
+    ds = ds_generator()
+    assert hub.exists(path, token=hub_token) == True
+    assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
