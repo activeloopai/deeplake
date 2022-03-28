@@ -1,16 +1,17 @@
 import hub
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage.memory import MemoryProvider
+from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
-from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.tensor_link import get_link_transform
 from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -150,7 +151,12 @@ def _inplace_op(f):
 
     def inner(tensor, other):
         tensor._write_initialization()
-        tensor.chunk_engine.update(tensor.index, other, op)
+        tensor.chunk_engine.update(
+            tensor.index,
+            other,
+            op,
+            link_callback=tensor._update_links if tensor.meta.links else None,
+        )
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
         return tensor
@@ -214,6 +220,7 @@ class Tensor:
                 self.key
             ].chunk_engine
 
+    @invalid_view_op
     def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -246,7 +253,9 @@ class Tensor:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
         self._write_initialization()
-        self.chunk_engine.extend(samples)
+        self.chunk_engine.extend(
+            samples, link_callback=self._append_to_links if self.meta.links else None
+        )
 
     @property
     def info(self):
@@ -272,7 +281,11 @@ class Tensor:
         else:
             raise TypeError("Info must be set with type Dict")
 
-    def append(self, sample: InputSample):
+    @invalid_view_op
+    def append(
+        self,
+        sample: InputSample,
+    ):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,
         which can be used to load files. See examples down below.
 
@@ -506,7 +519,11 @@ class Tensor:
             self.chunk_engine.pad_and_append(num_samples_to_pad, value)
             return
 
-        self.chunk_engine.update(self.index[item_index], value)
+        self.chunk_engine.update(
+            self.index[item_index],
+            value,
+            link_callback=self._update_links if self.meta.links else None,
+        )
 
     def __iter__(self):
         for i in range(len(self)):
@@ -622,3 +639,27 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+
+    def _append_to_links(self, sample, flat: Optional[bool]):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                self.dataset[k].append(get_link_transform(v["append"])(sample))
+
+    def _update_links(
+        self,
+        global_sample_index: int,
+        sub_index: Index,
+        new_sample,
+        flat: Optional[bool],
+    ):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                fname = v.get("update")
+                if fname:
+                    func = get_link_transform(fname)
+                    self.dataset[k][global_sample_index] = func(
+                        new_sample,
+                        self.dataset[k][global_sample_index],
+                        sub_index=sub_index,
+                        partial=not sub_index.is_trivial(),
+                    )
