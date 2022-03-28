@@ -76,6 +76,8 @@ def test_persist_keys(local_ds_generator):
         "image/tensor_meta.json",
         "_image_id/tensor_meta.json",
         "_image_id/commit_diff",
+        "_image_shape/tensor_meta.json",
+        "_image_shape/commit_diff",
     }
 
 
@@ -131,7 +133,7 @@ def test_populate_dataset(local_ds):
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
 
-    assert local_ds.meta.tensors == ["image", "_image_id"]
+    assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
 
 

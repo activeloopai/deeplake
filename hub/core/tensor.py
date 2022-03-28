@@ -27,7 +27,9 @@ from hub.util.keys import (
     get_tensor_meta_key,
     tensor_exists,
     get_tensor_info_key,
+    get_sample_id_tensor_key,
     get_sample_info_tensor_key,
+    get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
 from hub.util.shape_interval import ShapeInterval
@@ -368,7 +370,15 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        return self.chunk_engine.shape(self.index)
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shape(
+            self.index, sample_shape_provider=sample_shape_provider
+        )
 
     @property
     def ndim(self) -> int:
@@ -648,12 +658,12 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+        [self.dataset[link]._pop() for link in self.meta.links]
 
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 self.dataset[k].append(get_link_transform(v["append"])(sample))
-
 
     def _update_links(
         self,
@@ -673,12 +683,45 @@ class Tensor:
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                     )
-                    if val != _NO_LINK_UPDATE:
+                    if val is not _NO_LINK_UPDATE:
                         self.dataset[k][global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):
         return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+
+    @property
+    def _sample_shape_tensor(self):
+        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+
+    @property
+    def _sample_id_tensor(self):
+        return self.dataset._tensors().get(get_sample_id_tensor_key(self.key))
+
+    def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
+        if self.is_sequence:
+
+            def get_sample_shape(global_sample_index: int):
+                shapes = sample_shape_tensor.numpy(
+                    Index(
+                        [
+                            slice(
+                                *self.chunk_engine.sequence_encoder[global_sample_index]
+                            )
+                        ]
+                    )
+                )
+                return (len(shapes),) + (
+                    int(shapes[0, i]) if np.all(shapes[:, i] == shapes[0, i]) else None
+                    for i in range(shapes.shape[1])
+                )
+
+        else:
+
+            def get_sample_shape(global_sample_index: int):
+                return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
+
+        return get_sample_shape
 
     def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
         if self.is_sequence:
@@ -686,8 +729,7 @@ class Tensor:
                 sample_info_tensor[i].data()
                 for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
             ]
-        else:
-            return sample_info_tensor[global_sample_index].data()
+        return sample_info_tensor[global_sample_index].data()
 
     def _sample_info(self, index: Index):
         sample_info_tensor = self._sample_info_tensor

@@ -55,12 +55,24 @@ def append_info(sample):
 
 @link
 def update_info(new_sample, old_value, sub_index: Index, partial: bool):
-    if isinstance(new_sample, hub.core.sample.Sample) and not partial:
+    if partial:
         meta = old_value.data()
         if "modified" in meta:
             meta["modified"] = True
             return meta
+    else:
+        return append_info.f(new_sample)
     return _NO_LINK_UPDATE
+
+
+@link
+def append_shape(sample):
+    return np.array(getattr(sample, "shape", np.array(sample).shape))
+
+
+@link
+def append_len(sample):
+    return len(sample)
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}

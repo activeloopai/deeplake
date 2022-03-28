@@ -1,3 +1,4 @@
+from random import sample
 import hub
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
@@ -868,7 +869,8 @@ class ChunkEngine:
         return buffer[sb:eb].tobytes()
 
     def read_shape_for_sample(
-        self, global_sample_index: int, url: bool = False
+        self,
+        global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
         if self.compression in VIDEO_COMPRESSIONS:
@@ -1376,7 +1378,9 @@ class ChunkEngine:
         else:
             return None
 
-    def shape(self, index: Index) -> Tuple[Optional[int], ...]:
+    def shape(
+        self, index: Index, sample_shape_provider: Optional[Callable] = None
+    ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
         idxs = index.values
         skip_dims = 0
@@ -1390,7 +1394,16 @@ class ChunkEngine:
         else:
             if None in shape:
                 if not idxs[0].subscriptable():
-                    shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                    if self.tensor_meta.htype in ("text", "json"):
+                        shape = (1,)
+                    else:
+                        if sample_shape_provider:
+                            try:
+                                shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            except Exception:  # Happens during transforms, sample shape tensor is not populated yet
+                                shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                        else:
+                            shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                     skip_dims += 1
             elif not idxs[0].subscriptable():
                 shape = shape[1:]

@@ -73,11 +73,12 @@ from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
-    get_sample_id_tensor_key,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
+    get_sample_id_tensor_key,
     get_sample_info_tensor_key,
+    get_sample_shape_tensor_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -186,7 +187,16 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, filter(lambda t: t.key not in self.meta.hidden_tensors, self.version_state["full_tensors"].values())), default=0)
+        return min(
+            map(
+                len,
+                filter(
+                    lambda t: t.key not in self.meta.hidden_tensors,
+                    self.version_state["full_tensors"].values(),
+                ),
+            ),
+            default=0,
+        )
 
     @property
     def meta(self) -> DatasetMeta:
@@ -297,7 +307,8 @@ class Dataset:
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         hidden: bool = False,
-        include_sample_info: bool = True,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
         **kwargs,
     ):
@@ -316,7 +327,8 @@ class Dataset:
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
             hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
-            include_sample_info (bool): If True, meta data of individual samples will be stored in a hidden tensor. This data can be accessed via `tensor[i].sample_info`.
+            create_sample_info_tensor (bool): If True, meta data of individual samples will be stored in a hidden tensor. This data can be accessed via `tensor[i].sample_info`.
+            create_shape_tensor (bool): If True, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
                 This is useful for merge operations.
 
@@ -397,15 +409,43 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if include_sample_info and htype in ("image", "audio", "video"):
+        if create_sample_info_tensor and htype in ("image", "audio", "video"):
             self._create_sample_info_tensor(name)
+        if create_shape_tensor and htype not in ("text", "json"):
+            self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
-            id_tensor_name = get_sample_id_tensor_key(name)
-            self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
-            self._link_tensors(
-                name, id_tensor_name, append_f="append_id", flatten_sequence=True
-            )
+            self._create_sample_id_tensor(name)
         return tensor
+
+    def _create_sample_shape_tensor(self, tensor: str, htype: str):
+        shape_tensor = get_sample_shape_tensor_key(tensor)
+        self.create_tensor(
+            shape_tensor,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+        )
+        f = "append_len" if htype == "list" else "append_shape"
+        self._link_tensors(
+            tensor, shape_tensor, append_f=f, update_f=f, flatten_sequence=True
+        )
+
+    def _create_sample_id_tensor(self, tensor: str):
+        id_tensor = get_sample_id_tensor_key(tensor)
+        self.create_tensor(
+            id_tensor,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+        )
+        self._link_tensors(
+            tensor,
+            id_tensor,
+            append_f="append_id",
+            flatten_sequence=False,
+        )
 
     def _create_sample_info_tensor(self, tensor: str):
         sample_info_tensor = get_sample_info_tensor_key(tensor)
@@ -414,6 +454,9 @@ class Dataset:
             htype="json",
             max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
             hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
         )
         self._link_tensors(
             tensor,
@@ -479,10 +522,13 @@ class Dataset:
             self.version_state["meta"] = meta
             self.version_state["full_tensors"].pop(name)
 
-        id_tensor_name = get_sample_id_tensor_key(name)
-        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
-            self.delete_tensor(id_tensor_name)
-
+        for t in (
+            get_sample_id_tensor_key(name),
+            get_sample_info_tensor_key(name),
+            get_sample_shape_tensor_key(name),
+        ):
+            if tensor_exists(t, self.storage, self.version_state["commit_id"]):
+                self.delete_tensor(t)
         self.storage.maybe_flush()
 
     @invalid_view_op
