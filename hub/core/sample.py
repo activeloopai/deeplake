@@ -392,7 +392,7 @@ class Sample:
 
     @property
     def meta(self) -> dict:
-        meta = {}
+        meta: Dict[str, Union[Dict, str]] = {}
         compression_type = get_compression_type(self.compression)
         if compression_type == IMAGE_COMPRESSION:
             meta["exif"] = self._getexif()

@@ -745,7 +745,7 @@ class Tensor:
                     index.values[0].indices(self.num_samples),
                 )
             )
-        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)
+        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
 
     @property
     def sample_info(self):
