@@ -434,7 +434,7 @@ class dataset:
             src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         else:
             src_ds = src
-        src_ds.copy(
+        return src_ds.copy(
             dest,
             overwrite=overwrite,
             dest_creds=dest_creds,
