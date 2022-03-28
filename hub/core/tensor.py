@@ -22,7 +22,7 @@ from hub.util.keys import (
     get_tensor_tile_encoder_key,
     tensor_exists,
     get_tensor_info_key,
-    get_sample_id_tensor_key,
+    get_sample_id_tensor_name,
 )
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.util.modified import get_modified_indexes
@@ -311,7 +311,7 @@ class Tensor:
     def clear(self):
         """Deletes all samples from the tensor"""
         self.chunk_engine.clear()
-        sample_id_key = get_sample_id_tensor_key(self.key)
+        sample_id_key = get_sample_id_tensor_name(self.key)
         try:
             sample_id_tensor = Tensor(sample_id_key, self.dataset)
             sample_id_tensor.chunk_engine.clear()
