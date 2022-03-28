@@ -62,7 +62,7 @@ class ComputeFunction:
             progressbar (bool): Displays a progress bar if True (default).
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
-            check_lengths (bool): If True, checks whether output tensors have the same lengths.
+            check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -112,7 +112,8 @@ class Pipeline:
             progressbar (bool): Displays a progress bar if True (default).
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
-            check_lengths (bool): If True, checks whether output tensors have the same lengths.
+            check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
+
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
