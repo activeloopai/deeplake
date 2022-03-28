@@ -1400,7 +1400,7 @@ class ChunkEngine:
                         if sample_shape_provider:
                             try:
                                 shape = sample_shape_provider(idxs[0].value)  # type: ignore
-                            except Exception:  # Happens during transforms, sample shape tensor is not populated yet
+                            except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
                                 shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                         else:
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
