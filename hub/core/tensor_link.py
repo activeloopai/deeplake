@@ -67,7 +67,7 @@ def update_info(new_sample, old_value, sub_index: Index, partial: bool):
 
 @link
 def append_shape(sample):
-    return np.array(getattr(sample, "shape", np.array(sample).shape))
+    return getattr(sample, "shape", None) or np.array(sample).shape
 
 
 @link
