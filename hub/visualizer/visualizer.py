@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 import uuid
 from flask import Flask, request, Response  # type: ignore
 from hub.core.dataset import Dataset
@@ -124,7 +124,11 @@ class _Visualizer:
 visualizer = _Visualizer()
 
 
-def visualize(ds: Dataset):
+def visualize(
+    ds: Dataset,
+    width: Union[int, str, None] = None,
+    height: Union[int, str, None] = None,
+):
     """
     Visualizes the given dataset in the Jupyter notebook.
 
@@ -137,7 +141,7 @@ def visualize(ds: Dataset):
         url = f"http://localhost:{_PORT}/{id}/"
         iframe = IFrame(
             f"https://app.dev.activeloop.ai/visualizer/hub?url={url}",
-            width="100%",
-            height=900,
+            width=width or "100%",
+            height=height or 900,
         )
         display(iframe)
