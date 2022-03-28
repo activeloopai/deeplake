@@ -1862,6 +1862,7 @@ class Dataset:
                 progressbar=progressbar,
                 skip_ok=True,
             )
+        return dest_ds
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
