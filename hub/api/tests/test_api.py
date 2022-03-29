@@ -586,12 +586,12 @@ def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
 
 
 def test_index_range(memory_ds):
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[0]
 
     memory_ds.create_tensor("label")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds.label[0]
 
     memory_ds.label.extend([5, 6, 7])
@@ -603,13 +603,13 @@ def test_index_range(memory_ds):
         memory_ds.label[valid_idx]
 
     for invalid_idx in [3, 4, -4, -5]:
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds[invalid_idx]
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds.label[invalid_idx]
 
     memory_ds[[0, 1, 2]]
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
@@ -852,6 +852,7 @@ def test_compressions_list():
         "apng",
         "avi",
         "bmp",
+        "dcm",
         "dib",
         "flac",
         "gif",
@@ -882,6 +883,7 @@ def test_htypes_list():
         "bbox",
         "binary_mask",
         "class_label",
+        "dicom",
         "generic",
         "image",
         "json",
