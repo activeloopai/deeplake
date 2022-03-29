@@ -46,6 +46,7 @@ def read(
         Image: "bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm"
         Audio: "flac", "mp3", "wav"
         Video: "mp4", "mkv", "avi"
+        Dicom: "dcm"
 
     Args:
         path (str): Path to a supported file.

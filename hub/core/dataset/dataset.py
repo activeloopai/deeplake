@@ -409,7 +409,7 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video"):
+        if create_sample_info_tensor and htype in ("image", "audio", "video", "dicom"):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)
@@ -425,6 +425,7 @@ class Dataset:
             create_id_tensor=False,
             create_sample_info_tensor=False,
             create_shape_tensor=False,
+            max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
         )
         f = "append_len" if htype == "list" else "append_shape"
         self._link_tensors(

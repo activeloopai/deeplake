@@ -67,6 +67,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },
     "list": {"dtype": "List"},
     "text": {"dtype": "str"},
+    "dicom": {"sample_compression": "dcm"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
