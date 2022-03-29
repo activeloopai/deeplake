@@ -84,10 +84,10 @@ from hub.util.version_control import (
     load_meta,
     warn_node_checkout,
     load_version_info,
+    copy_metas,
+    create_commit_chunk_sets,
 )
 from hub.client.utils import get_user_name
-from hub.util.storage import storage_provider_from_path
-
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -1878,6 +1878,23 @@ class Dataset:
                 check_lengths=False,
             )
         return dest_ds
+
+    @invalid_view_op
+    def reset(self):
+        """Resets the uncommitted changes present in the branch"""
+        storage, version_state = self.storage, self.version_state
+        if version_state["commit_node"].children:
+            print("You are not at the head node of the branch, cannot reset.")
+            return
+        if not self.has_head_changes:
+            print("There are no uncommitted changes on this branch")
+            return
+
+        prefix = "/".join(("versions", commit_id))
+        storage.clear(prefix=prefix)
+        copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
+        create_commit_chunk_sets(self.commit_id, storage, version_state)
+        load_meta(self)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
