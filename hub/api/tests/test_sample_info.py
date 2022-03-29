@@ -1,9 +1,12 @@
-import hub
-import numpy as np
-import av
 from miniaudio import mp3_get_file_info
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
+
+import hub
+import pytest
+import numpy as np
+import os
+import sys
 
 
 def get_exif_helper(path):
@@ -42,7 +45,12 @@ def test_image_samples(local_ds_generator, compressed_image_paths):
         assert sample_info["filename"] == jpg_path
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_video_samples(local_ds_generator, video_paths):
+    import av
+
     ds = local_ds_generator()
     mp4 = ds.create_tensor("mp4_videos", htype="video", sample_compression="mp4")
     mp4_paths = video_paths["mp4"]
