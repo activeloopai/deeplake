@@ -1881,7 +1881,9 @@ class Dataset:
 
     @invalid_view_op
     def reset(self):
-        """Resets the uncommitted changes present in the branch"""
+        """Resets the uncommitted changes present in the branch.
+        Note: The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+        """
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
             print("You are not at the head node of the branch, cannot reset.")
