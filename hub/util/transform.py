@@ -108,16 +108,8 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
-    data_slice, inp = transform_input
-    (
-        output_storage,
-        group_index,
-        tensors,
-        visible_tensors,
-        pipeline,
-        version_state,
-        skip_ok,
-    ) = inp
+    data_slice, output_storage, inp = transform_input
+    group_index, tensors, visible_tensors, pipeline, version_state, skip_ok = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, output_storage, version_state
     )
@@ -302,17 +294,20 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             )
 
 
-def check_transform_ds_out(ds_out: hub.Dataset, scheduler: str) -> None:
+def check_transform_ds_out(
+    ds_out: hub.Dataset, scheduler: str, check_lengths: bool
+) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
 
-    for tensor in tensors:
-        if len(ds_out[tensor]) != len(ds_out):
-            raise InvalidOutputDatasetError(
-                "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-            )
+    if check_lengths:
+        for tensor in tensors:
+            if len(ds_out[tensor]) != len(ds_out):
+                raise InvalidOutputDatasetError(
+                    "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+                )
 
     output_base_storage = get_base_storage(ds_out.storage)
     if isinstance(output_base_storage, MemoryProvider) and scheduler not in [
@@ -331,10 +326,7 @@ def get_pbar_description(compute_functions: List):
     if num_funcs == 0:
         return "Evaluating"
 
-    func_names: List[str] = []
-    for transform_function in compute_functions:
-        func_names.append(transform_function.func.__name__)
-
+    func_names: List[str] = [f.name for f in compute_functions]
     if num_funcs == 1:
         return f"Evaluating {func_names[0]}"
 

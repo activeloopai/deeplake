@@ -34,8 +34,6 @@ def create_dataloader_nesteddataloader(
             transform=transform,
             num_workers=num_workers,
             buffer_size=buffer_size,
-            batch_size=batch_size,
-            collate_fn=collate_fn,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
