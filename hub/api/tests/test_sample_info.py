@@ -49,7 +49,7 @@ def test_image_samples(local_ds_generator, compressed_image_paths):
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 def test_video_samples(local_ds_generator, video_paths):
-    import av
+    import av  # type: ignore
 
     ds = local_ds_generator()
     mp4 = ds.create_tensor("mp4_videos", htype="video", sample_compression="mp4")
