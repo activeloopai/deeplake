@@ -8,6 +8,7 @@ from hub.core.tensor import Tensor
 
 from hub.tests.common import assert_array_lists_equal
 from hub.tests.storage_fixtures import enabled_remote_storages
+from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     RenameError,
@@ -756,8 +757,8 @@ def test_dataset_rename(ds_generator, path, hub_token):
     indirect=True,
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("progress_bar", [True, False])
-def test_dataset_copy(path, hub_token, num_workers, progress_bar):
+@pytest.mark.parametrize("progressbar", [True, False])
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -776,14 +777,14 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.copy(
+    dest_ds = hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
@@ -800,16 +801,16 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+        hub.deepcopy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
 
-    hub.copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
@@ -821,14 +822,14 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
     dest_ds = hub.load(dest_path, token=hub_token)
 
@@ -1006,6 +1007,33 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     for i in range(3):
         assert ds.image[i].tobytes() == image_bytes
         assert ds.audio[i].tobytes() == audio_bytes
+
+
+@enabled_persistent_dataset_generators
+def test_tensor_clear(ds_generator):
+    ds = ds_generator()
+    a = ds.create_tensor("a")
+    a.extend([1, 2, 3, 4])
+    a.clear()
+    assert len(ds) == 0
+    assert len(a) == 0
+
+    image = ds.create_tensor("image", htype="image", sample_compression="png")
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    image.clear()
+    assert len(ds) == 0
+    assert len(image) == 0
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
+    image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
+    a.append([1, 2, 3])
+
+    ds = ds_generator()
+    assert len(ds) == 1
+    assert len(image) == 4
+    assert image.htype == "image"
+    assert image.meta.sample_compression == "png"
 
 
 def test_no_view(memory_ds):
@@ -1314,3 +1342,44 @@ def test_hidden_tensors(local_ds_generator):
     assert not ds.z.meta.hidden
     assert ds.x.meta.hidden
     assert ds.y.meta.hidden
+
+
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progressbar", [True, False])
+@pytest.mark.parametrize(
+    "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
+)
+def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        for _ in range(10):
+            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.label.append(np.random.randint(0, 10, (1,)))
+
+    hub.copy(
+        ds[index],
+        local_ds.path,
+        overwrite=True,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    local_ds = hub.load(local_ds.path)
+    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
+
+
+@pytest.mark.parametrize(
+    ("ds_generator", "path", "hub_token"),
+    [
+        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
+        ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
+        ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_hub_exists(ds_generator, path, hub_token):
+    ds = ds_generator()
+    assert hub.exists(path, token=hub_token) == True
+    assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False

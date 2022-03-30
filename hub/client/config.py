@@ -1,6 +1,7 @@
 import os
 
 TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
+HUB_PYPI_VERSION_PATH = os.path.expanduser("~/.activeloop/pypi_version.json")
 REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.json")
 ALL_AGREEMENTS_PATH = os.path.expanduser("~/.activeloop/agreements")
 

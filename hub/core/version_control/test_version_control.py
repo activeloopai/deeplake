@@ -34,6 +34,64 @@ def commit_details_helper(commits, ds):
         assert ds.get_commit_details(commit["commit"]) == commit
 
 
+def get_diff_helper(
+    ds_changes_1,
+    ds_changes_2,
+    tensor_changes_1,
+    tensor_changes_2,
+    version_state=None,
+    a=None,
+    b=None,
+):
+    if a and b:
+        lca_id = get_lca_id_helper(version_state, a, b)
+        message0 = TWO_COMMIT_PASSED_DIFF % lca_id
+        message1 = f"Diff in {a} (target id 1):\n"
+        message2 = f"Diff in {b} (target id 2):\n"
+    elif a:
+        lca_id = get_lca_id_helper(version_state, a)
+        message0 = ONE_COMMIT_PASSED_DIFF % lca_id
+        message1 = "Diff in HEAD:\n"
+        message2 = f"Diff in {a} (target id):\n"
+    else:
+        message0 = NO_COMMIT_PASSED_DIFF
+        message1 = "Diff in HEAD relative to the previous commit:\n"
+        message2 = ""
+
+    target = (
+        get_all_changes_string(
+            ds_changes_1,
+            ds_changes_2,
+            tensor_changes_1,
+            tensor_changes_2,
+            message0,
+            message1,
+            message2,
+        )
+        + "\n"
+    )
+
+    return target
+
+
+def tensor_diff_helper(
+    data_added=[0, 0],
+    data_updated=set(),
+    created=False,
+    cleared=False,
+    info_updated=False,
+    data_transformed_in_place=False,
+):
+    return {
+        "data_added": data_added,
+        "data_updated": data_updated,
+        "created": created,
+        "cleared": cleared,
+        "info_updated": info_updated,
+        "data_transformed_in_place": data_transformed_in_place,
+    }
+
+
 def test_commit(local_ds):
     with local_ds:
         local_ds.create_tensor("abc")
@@ -548,6 +606,67 @@ def test_delete(local_ds):
         assert list(local_ds.groups) == ["x"]
 
 
+def test_clear_diff(local_ds, capsys):
+    with local_ds:
+        local_ds.create_tensor("abc")
+        local_ds.abc.append([1, 2, 3])
+        local_ds.abc.clear()
+        local_ds.abc.append([4, 5, 6])
+        local_ds.abc.append([1, 2, 3])
+
+    local_ds.diff()
+    tensor_changes = {"abc": tensor_diff_helper([0, 2], created=True)}
+    target = get_diff_helper({}, {}, tensor_changes, None)
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)
+    assert diff == tensor_changes
+
+    a = local_ds.commit()
+
+    with local_ds:
+        local_ds.abc.append([3, 4, 5])
+        local_ds.create_tensor("xyz")
+        local_ds.abc.clear()
+        local_ds.abc.append([1, 0, 0])
+        local_ds.xyz.append([0, 1, 0])
+
+    local_ds.diff(a)
+    tensor_changes_from_a = {
+        "abc": tensor_diff_helper([0, 1], cleared=True),
+        "xyz": tensor_diff_helper([0, 1], created=True),
+    }
+    target = get_diff_helper(
+        {}, {}, tensor_changes_from_a, {}, local_ds.version_state, a
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert diff == (tensor_changes_from_a, {})
+
+    b = local_ds.commit()
+
+    with local_ds:
+        local_ds.xyz.append([0, 0, 1])
+        local_ds.xyz.clear()
+        local_ds.xyz.append([1, 2, 3])
+        local_ds.abc.append([3, 4, 2])
+    c = local_ds.commit()
+
+    local_ds.diff(c, a)
+    tensor_changes_from_a = {
+        "abc": tensor_diff_helper([0, 2], cleared=True),
+        "xyz": tensor_diff_helper([0, 1], created=True),
+    }
+    target = get_diff_helper(
+        {}, {}, tensor_changes_from_a, {}, local_ds.version_state, c, a
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(a, as_dict=True)
+    assert diff == (tensor_changes_from_a, {})
+
+
 def test_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("xyz")
@@ -568,6 +687,7 @@ def test_diff_linear(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {0},
             "created": False,
+            "cleared": False,
             "info_updated": True,
             "data_transformed_in_place": False,
         },
@@ -575,6 +695,7 @@ def test_diff_linear(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {2},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -582,6 +703,7 @@ def test_diff_linear(local_ds, capsys):
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -740,6 +862,7 @@ def test_diff_branch(local_ds, capsys):
             "data_added": [3, 6],
             "data_updated": {2},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -747,6 +870,7 @@ def test_diff_branch(local_ds, capsys):
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -756,6 +880,7 @@ def test_diff_branch(local_ds, capsys):
             "data_added": [3, 5],
             "data_updated": {0, 2},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1025,6 +1150,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [3, 6],
             "data_updated": {0},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1034,6 +1160,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [0, 1],
             "data_updated": set(),
             "created": True,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1041,6 +1168,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [0, 3],
             "data_updated": set(),
             "created": True,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1048,6 +1176,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {1},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1113,6 +1242,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [3, 3],
             "data_updated": {1},
             "created": False,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1120,6 +1250,7 @@ def test_complex_diff(local_ds, capsys):
             "data_added": [0, 0],
             "data_updated": set(),
             "created": True,
+            "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
         },
@@ -1215,6 +1346,31 @@ def test_commits(local_ds):
     commits = local_ds.commits
     assert len(commits) == 3
     commit_details_helper(commits, local_ds)
+
+
+def test_clear(local_ds):
+    local_ds.create_tensor("abc")
+    local_ds.abc.append([1, 2, 3])
+    a = local_ds.commit("first")
+    local_ds.abc.clear()
+    b = local_ds.commit("second")
+    local_ds.abc.append([4, 5, 6, 7])
+    c = local_ds.commit("third")
+    local_ds.abc.clear()
+
+    assert len(local_ds.abc.numpy()) == 0
+
+    local_ds.checkout(a)
+
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[1, 2, 3]]))
+
+    local_ds.checkout(b)
+
+    assert len(local_ds.abc.numpy()) == 0
+
+    local_ds.checkout(c)
+
+    np.testing.assert_array_equal(local_ds.abc.numpy(), np.array([[4, 5, 6, 7]]))
 
 
 def test_custom_commit_hash(local_ds):
