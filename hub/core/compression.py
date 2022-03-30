@@ -890,3 +890,7 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _decompress_with_opencv(buff):
+    pass
