@@ -56,7 +56,6 @@ ingest_huggingface = huggingface.ingest_huggingface
 tensor = Tensor
 
 __all__ = [
-    "dataset",
     "tensor",
     "read",
     "__version__",

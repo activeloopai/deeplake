@@ -27,6 +27,8 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
+__all__ = []
+
 
 class dataset:
     def __new__(
@@ -209,11 +211,15 @@ class dataset:
         """Loads an existing dataset
 
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str): The full path to the dataset. Can be:
+
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
