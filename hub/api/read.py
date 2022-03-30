@@ -17,14 +17,8 @@ def read(
             `tensor.append` and `tensor.extend`.
 
     Examples:
-        >>> sample = hub.read("path/to/cat.jpeg")
-        >>> type(sample.array)
-        <class 'numpy.ndarray'>
-        >>> sample.compression
-        'jpeg'
-
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
-        >>> ds.images.append(sample)
+        >>> ds.images.append(hub.read("path/to/cat.jpg"))
         >>> ds.images.shape
         (1, 399, 640, 3)
 
@@ -33,11 +27,8 @@ def read(
         >>> ds.videos.shape
         (1, 136, 720, 1080, 3)
 
-        >>> image = hub.read("https://picsum.photos/200/300")
-        >>> image.compression
-        'jpeg'
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
-        >>> ds.images.append(image)
+        >>> ds.images.append(hub.read("https://picsum.photos/200/300"))
         >>> ds.images[0].shape
         (300, 200, 3)
 
