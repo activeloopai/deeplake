@@ -12,6 +12,7 @@ from hub.compression import (
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    OPENCV_SUPPORTED_COMPRESSIONS,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
@@ -23,6 +24,13 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
+
+try:
+    import cv2
+
+    _OPENCV_INSTALLED = True
+except ImportError:
+    _OPENCV_INSTALLED = False
 
 try:
     from miniaudio import (  # type: ignore
@@ -307,10 +315,14 @@ def decompress_array(
     try:
         if shape is not None and 0 in shape:
             return np.zeros(shape, dtype=dtype)
-        if not isinstance(buffer, str):
-            buffer = BytesIO(buffer)  # type: ignore
-        img = Image.open(buffer)  # type: ignore
-        arr = np.array(img)
+        if (
+            hub.constants.USE_OPENCV
+            and _OPENCV_INSTALLED
+            and compression in OPENCV_SUPPORTED_COMPRESSIONS
+        ):
+            arr = _decompress_with_opencv(buffer, compression)
+        else:
+            arr = _decompress_with_pillow(buffer, compression)
         if shape is not None:
             arr = arr.reshape(shape)
         return arr
@@ -686,6 +698,8 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
         if marker == _JPEG_SOFS[-1]:
             break
         offset = idx + int.from_bytes(buf[idx + 2 : idx + 4], "big") + 2
+        if not getattr(marker, "readonly", True):
+            marker = bytes(marker)
         if marker not in _JPEG_SKIP_MARKERS:
             sof_idx = idx
     if sof_idx == -1:
@@ -892,5 +906,69 @@ def _decompress_video(
     return video
 
 
-def _decompress_with_opencv(buff):
-    pass
+def _decompress_with_pillow(
+    buffer: Union[str, bytes, memoryview], compression: str
+) -> np.ndarray:
+    if not isinstance(buffer, str):
+        buffer = BytesIO(buffer)  # type: ignore
+    img = Image.open(buffer)  # type: ignore
+    return np.array(img)
+
+
+def _decompress_with_opencv(
+    file: Union[str, bytes, memoryview], compression: str
+) -> np.ndarray:
+    if isinstance(file, str):
+        image = cv2.imread(file, cv2.IMREAD_UNCHANGED)
+    else:
+        image = cv2.imdecode(np.frombuffer(file, np.byte), cv2.IMREAD_UNCHANGED)
+
+    if compression == "png":
+        if isinstance(file, str):
+            with open(file, "rb") as f:
+                pil_shape, pil_dtype = _read_png_shape_and_dtype(f)
+        else:
+            pil_shape, pil_dtype = _read_png_shape_and_dtype(file)
+        if pil_shape[-1] == 4:
+            return _decompress_with_pillow(file, compression)
+        if pil_shape != image.shape:
+            return _decompress_with_pillow(file, compression)
+        if pil_dtype != image.dtype.str:
+            image = image.astype(pil_dtype)
+        # if pil_dtype != image.dtype.str:
+        #     if image.shape[-1] == 4:
+        #         image = cv2.convertScaleAbs(image, alpha=(255.0 / 65535.0))
+        #         # BGRA -> RGBA
+        #         image = image[..., [2, 1, 0, 3]]
+        #     else:
+        #         pass
+        #         # image = image.astype(pil_dtype)
+    if image.shape[-1] == 3:
+        if compression == "jpeg":
+            if isinstance(file, str):
+                with open(file, "rb") as f:
+                    shape = _read_jpeg_shape(f)
+            else:
+                shape = _read_jpeg_shape(file)
+            if shape[-1] == 4:
+                # BGR -> CMYK
+                image = _bgr_to_cmyk(image)
+            else:
+                # BGR -> RGB
+                image = image[..., [2, 1, 0]]
+        else:
+            # BGR -> RGB
+            image = image[..., [2, 1, 0]]
+
+    return image
+
+
+def _bgr_to_cmyk(bgr: np.ndarray):
+    bgr_norm = bgr.astype(float) / 255.0
+
+    mx = np.max(bgr_norm, axis=2)
+    K = 1 - mx
+    C = (1 - bgr_norm[..., 2] - K) / mx
+    M = (1 - bgr_norm[..., 1] - K) / mx
+    Y = (1 - bgr_norm[..., 0] - K) / mx
+    return (np.dstack((C, M, Y, K)) * 255).astype(np.uint8)

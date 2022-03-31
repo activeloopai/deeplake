@@ -96,6 +96,9 @@ for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
 
 
+OPENCV_SUPPORTED_COMPRESSIONS = set(["jpeg", "jpeg2000", "png", "tiff"])
+
+
 def get_compression_type(c):
     """Returns the compression type for the given compression name."""
     if c is None:

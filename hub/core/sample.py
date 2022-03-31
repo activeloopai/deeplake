@@ -201,7 +201,7 @@ class Sample:
                         self._shape, self._typestr = verify_compressed_file(  # type: ignore
                             compressed_bytes, self._compression
                         )
-                    else:
+                    elif self._shape is None:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
                             compressed_bytes, compression=self._compression
                         )

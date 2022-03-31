@@ -190,3 +190,17 @@ def test_apng(memory_ds):
             ds[k].extend(v)
         for arr1, arr2 in zip(ds[k].numpy(aslist=True), v):
             np.testing.assert_array_equal(arr1, arr2)
+
+
+def test_opencv(compressed_image_paths):
+
+    for compression, paths in compressed_image_paths.items():
+        if compression not in hub.compression.OPENCV_SUPPORTED_COMPRESSIONS:
+            continue
+        for path in paths:
+            pil_arr = np.array(Image.open(path))
+            ocv_arr = hub.core.compression._decompress_with_opencv(path, compression)
+            assert pil_arr.dtype == ocv_arr.dtype
+            assert pil_arr.shape == ocv_arr.shape
+            if compression == "png":
+                np.testing.assert_array_equal(pil_arr, ocv_arr)
