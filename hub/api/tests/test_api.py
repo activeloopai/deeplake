@@ -80,6 +80,8 @@ def test_persist_keys(local_ds_generator):
         "image/tensor_meta.json",
         "_image_id/tensor_meta.json",
         "_image_id/commit_diff",
+        "_image_shape/tensor_meta.json",
+        "_image_shape/commit_diff",
     }
 
 
@@ -135,7 +137,7 @@ def test_populate_dataset(local_ds):
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
 
-    assert local_ds.meta.tensors == ["image", "_image_id"]
+    assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
 
 
@@ -588,12 +590,12 @@ def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
 
 
 def test_index_range(memory_ds):
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[0]
 
     memory_ds.create_tensor("label")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds.label[0]
 
     memory_ds.label.extend([5, 6, 7])
@@ -605,13 +607,13 @@ def test_index_range(memory_ds):
         memory_ds.label[valid_idx]
 
     for invalid_idx in [3, 4, -4, -5]:
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds[invalid_idx]
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds.label[invalid_idx]
 
     memory_ds[[0, 1, 2]]
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
@@ -758,8 +760,8 @@ def test_dataset_rename(ds_generator, path, hub_token):
     indirect=True,
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("progress_bar", [True, False])
-def test_dataset_copy(path, hub_token, num_workers, progress_bar):
+@pytest.mark.parametrize("progressbar", [True, False])
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -778,14 +780,14 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.copy(
+    dest_ds = hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
@@ -802,16 +804,16 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.copy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+        hub.deepcopy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
 
-    hub.copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
@@ -823,14 +825,14 @@ def test_dataset_copy(path, hub_token, num_workers, progress_bar):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.copy(
+    hub.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
         src_token=hub_token,
         dest_token=hub_token,
         num_workers=num_workers,
-        progress_bar=progress_bar,
+        progressbar=progressbar,
     )
     dest_ds = hub.load(dest_path, token=hub_token)
 
@@ -1386,6 +1388,31 @@ def test_hidden_tensors(local_ds_generator):
     assert not ds.z.meta.hidden
     assert ds.x.meta.hidden
     assert ds.y.meta.hidden
+
+
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progressbar", [True, False])
+@pytest.mark.parametrize(
+    "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
+)
+def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label")
+        for _ in range(10):
+            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.label.append(np.random.randint(0, 10, (1,)))
+
+    hub.copy(
+        ds[index],
+        local_ds.path,
+        overwrite=True,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    local_ds = hub.load(local_ds.path)
+    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
 
 
 @pytest.mark.parametrize(

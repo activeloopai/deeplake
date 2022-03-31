@@ -179,6 +179,16 @@ def filter_name(name: str, group_index: str = "") -> str:
     return name
 
 
-def get_sample_id_tensor_name(name: str):
-    group, name = posixpath.split(name)
-    return posixpath.join(group, f"_{name}_id")
+def get_sample_info_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_info")
+
+
+def get_sample_id_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_id")
+
+
+def get_sample_shape_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_shape")
