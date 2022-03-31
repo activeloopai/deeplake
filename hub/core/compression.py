@@ -817,9 +817,7 @@ def _read_shape_from_vstream(container, vstream):
     return (nframes, height, width)
 
 
-def _read_video_shape(
-    file: Union[str, bytes, memoryview],
-):
+def _read_video_shape(file: Union[str, bytes, memoryview],):
     container, vstream = _open_video(file)
     shape = _read_shape_from_vstream(container, vstream)
     return (*shape, 3)

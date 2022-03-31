@@ -68,9 +68,10 @@ class SampleCompressedChunk(BaseChunk):
 
                 # create subfile url to pass to ffmpeg. header_size + sb will give starting point of video bytes.
                 # https://ffmpeg.org/ffmpeg-protocols.html#subfile
-                buffer = (
-                    f"subfile,,start,{header_size + sb},end,{header_size + eb},,:"
-                    + bytes(buffer[:-4]).decode("utf-8")
+                buffer = f"subfile,,start,{header_size + sb},end,{header_size + eb},,:" + bytes(
+                    buffer[:-4]
+                ).decode(
+                    "utf-8"
                 )
             else:
                 buffer = buffer[sb:eb]

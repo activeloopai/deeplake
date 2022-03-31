@@ -571,8 +571,7 @@ class Dataset:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
                 lock_dataset(
-                    self,
-                    lock_lost_callback=self._lock_lost_handler,
+                    self, lock_lost_callback=self._lock_lost_handler,
                 )
             except LockedException as e:
                 self.read_only = True
@@ -1676,11 +1675,7 @@ class Dataset:
             cls = hub.core.dataset.Dataset
 
         return cls(
-            generate_chain(
-                sub_storage,
-                memory_cache_size * MB,
-                local_cache_size * MB,
-            ),
+            generate_chain(sub_storage, memory_cache_size * MB, local_cache_size * MB,),
             path=path,
             token=self._token,
         )

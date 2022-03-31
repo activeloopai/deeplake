@@ -125,10 +125,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
 
 
 def checkout(
-    dataset,
-    address: str,
-    create: bool = False,
-    hash: Optional[str] = None,
+    dataset, address: str, create: bool = False, hash: Optional[str] = None,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     storage = dataset.storage
@@ -186,9 +183,7 @@ def checkout(
         )
 
     discard_old_metas(
-        original_commit_id,
-        storage,
-        version_state["full_tensors"],
+        original_commit_id, storage, version_state["full_tensors"],
     )
     load_meta(dataset)
 
@@ -260,9 +255,7 @@ def copy_metas(
 
 
 def create_commit_chunk_sets(
-    dest_commit_id: str,
-    storage: LRUCache,
-    version_state: Dict[str, Any],
+    dest_commit_id: str, storage: LRUCache, version_state: Dict[str, Any],
 ) -> None:
     """Creates commit chunk sets for all tensors in new commit."""
     tensor_list = version_state["full_tensors"].keys()
@@ -272,9 +265,7 @@ def create_commit_chunk_sets(
 
 
 def discard_old_metas(
-    src_commit_id: str,
-    storage: LRUCache,
-    tensors: Dict,
+    src_commit_id: str, storage: LRUCache, tensors: Dict,
 ):
     """Discards the metas of the previous commit from cache, during checkout or when a new commit is made."""
     all_src_keys = []

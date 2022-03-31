@@ -6,9 +6,6 @@ import shutil
 from hub.util.exceptions import AutoCompressionError
 from hub.compression import IMAGE_COMPRESSION_EXTENTIONS
 
-# def get_most_common_extension(
-#     local_path: str, allowed_extensions: Tuple = (".jpeg", ".png", ".jpg")
-# ):
 
 def get_most_common_extension(
     local_path: str, allowed_extensions: IMAGE_COMPRESSION_EXTENTIONS
@@ -83,20 +80,10 @@ def ingestion_summary(local_path: str, skipped_files: list):
         level = root.replace(local_path, "").count(os.sep)
         indent = " " * 6 * (level)
         if at_root == True:
-            print(
-                "{}{}/    ".format(
-                    indent,
-                    os.path.basename(root),
-                )
-            )
+            print("{}{}/    ".format(indent, os.path.basename(root),))
             at_root = False
         else:
-            print(
-                "{}{}/    ".format(
-                    indent,
-                    os.path.basename(root),
-                )
-            )
+            print("{}{}/    ".format(indent, os.path.basename(root),))
 
         subindent = " " * 6 * (level + 1)
         for f in files:

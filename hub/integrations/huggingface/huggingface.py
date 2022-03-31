@@ -63,11 +63,7 @@ def _create_tensor_from_feature(key, feature, src, ds):
     return True
 
 
-def ingest_huggingface(
-    src,
-    dest,
-    use_progressbar=True,
-) -> Dataset:
+def ingest_huggingface(src, dest, use_progressbar=True,) -> Dataset:
     """Converts hugging face datasets to hub format.
 
     Args:

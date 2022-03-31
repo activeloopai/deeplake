@@ -175,10 +175,7 @@ class S3Provider(StorageProvider):
             raise S3SetError(err)
 
     def _get(self, path):
-        resp = self.client.get_object(
-            Bucket=self.bucket,
-            Key=path,
-        )
+        resp = self.client.get_object(Bucket=self.bucket, Key=path,)
         return resp["Body"].read()
 
     def __getitem__(self, path):

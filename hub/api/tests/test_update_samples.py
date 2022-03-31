@@ -78,9 +78,7 @@ def _make_update_assert_equal(
 @pytest.mark.parametrize(
     "compression",
     [
-        {
-            "image_compression": {"sample_compression": None},
-        },
+        {"image_compression": {"sample_compression": None},},
         {
             "image_compression": {"sample_compression": None},
             "label_compression": {"sample_compression": "lz4"},

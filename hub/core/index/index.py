@@ -254,8 +254,7 @@ class IndexEntry:
 
 class Index:
     def __init__(
-        self,
-        item: Union[IndexValue, "Index", List[IndexEntry]] = slice(None),
+        self, item: Union[IndexValue, "Index", List[IndexEntry]] = slice(None),
     ):
         """Initializes an Index from an IndexValue, another Index, or the values from another Index.
 

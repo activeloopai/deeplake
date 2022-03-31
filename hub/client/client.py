@@ -169,10 +169,7 @@ class HubBackendClient:
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         response = self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"mode": mode},
+            "GET", relative_url, endpoint=self.endpoint(), params={"mode": mode},
         ).json()
         full_url = response.get("path")
         creds = response["creds"]
@@ -213,11 +210,7 @@ class HubBackendClient:
     def delete_dataset_entry(self, username, dataset_name):
         tag = f"{username}/{dataset_name}"
         suffix = f"{DATASET_SUFFIX}/{tag}"
-        self.request(
-            "DELETE",
-            suffix,
-            endpoint=self.endpoint(),
-        ).json()
+        self.request("DELETE", suffix, endpoint=self.endpoint(),).json()
 
     def get_user_organizations(self):
         """Get list of user organizations from the backend. If user is not logged in, returns ['public'].
@@ -262,14 +255,10 @@ class HubBackendClient:
             )
         else:
             public_datasets = self.request(
-                "GET",
-                suffix_public,
-                endpoint=self.endpoint(),
+                "GET", suffix_public, endpoint=self.endpoint(),
             ).json()
             user_datasets = self.request(
-                "GET",
-                suffix_user,
-                endpoint=self.endpoint(),
+                "GET", suffix_user, endpoint=self.endpoint(),
             ).json()
             res_datasets = public_datasets + user_datasets
         return [ds["_id"] for ds in res_datasets]

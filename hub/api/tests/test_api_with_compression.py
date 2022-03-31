@@ -26,10 +26,7 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
         )  # test safe downcasting of python scalars
 
         tensor.extend(
-            [
-                hub.read(flower_path),
-                hub.read(cat_path),
-            ]
+            [hub.read(flower_path), hub.read(cat_path),]
         )
 
 

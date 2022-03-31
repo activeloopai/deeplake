@@ -225,16 +225,14 @@ class AuthorizationException(Exception):
 
 class InvalidPasswordException(AuthorizationException):
     def __init__(
-        self,
-        message="The password you provided was invalid.",
+        self, message="The password you provided was invalid.",
     ):
         super().__init__(message)
 
 
 class CouldNotCreateNewDatasetException(AuthorizationException):
     def __init__(
-        self,
-        path: str,
+        self, path: str,
     ):
 
         extra = ""
@@ -263,8 +261,7 @@ class BadRequestException(Exception):
 
 class OverLimitException(Exception):
     def __init__(
-        self,
-        message="You are over the allowed limits for this operation.",
+        self, message="You are over the allowed limits for this operation.",
     ):
         super().__init__(message)
 
