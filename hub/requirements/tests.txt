@@ -14,3 +14,5 @@ types-click
 boto3-stubs[essential]
 
 lz4
+
+opencv-python
