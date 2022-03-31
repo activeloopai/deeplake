@@ -8,7 +8,7 @@ from hub.compression import IMAGE_COMPRESSION_EXTENTIONS
 
 
 def get_most_common_extension(
-    local_path: str, allowed_extensions: IMAGE_COMPRESSION_EXTENTIONS
+    local_path: str, allowed_extensions: Tuple = tuple(IMAGE_COMPRESSION_EXTENTIONS)
 ):
     """Determines the most frequently used extension in a directory of files.
 
