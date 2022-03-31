@@ -417,11 +417,11 @@ class Dataset:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         if create_sample_info_tensor and htype in ("image", "audio", "video"):
-            self._create_sample_info_tensor(key)
+            self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
-            self._create_sample_shape_tensor(key, htype=htype)
+            self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
-            self._create_sample_id_tensor(key)
+            self._create_sample_id_tensor(name)
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
@@ -508,7 +508,7 @@ class Dataset:
             return self.root.delete_tensor(name, large_ok)
 
         if not large_ok:
-            chunk_engine = self.version_state["full_tensors"][full_key].chunk_engine
+            chunk_engine = self.version_state["full_tensors"][key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
             if size_approx > hub.constants.DELETE_SAFETY_SIZE:
                 logger.info(
@@ -519,7 +519,7 @@ class Dataset:
         with self:
             meta = self.meta
             key = self.version_state["tensor_names"].pop(name)
-            if full_key not in meta.hidden_tensors:
+            if key not in meta.hidden_tensors:
                 tensor_diff = Tensor(key, self).chunk_engine.commit_diff
                 # if tensor was created in this commit, there's no diff for deleting it.
                 if not tensor_diff.created:
@@ -530,8 +530,18 @@ class Dataset:
             meta.delete_tensor(name)
             self.version_state["meta"] = meta
 
-        for t_name, t_key in [map(func, (name, key)) for func in (get_sample_id_tensor_key, get_sample_info_tensor_key, get_sample_shape_tensor_key)]:
-            if tensor_exists(t_key, self.storage, self.version_state["commit_id"]):
+        for t_name in [
+            func(name)
+            for func in (
+                get_sample_id_tensor_key,
+                get_sample_info_tensor_key,
+                get_sample_shape_tensor_key,
+            )
+        ]:
+            t_key = self.meta.tensor_names.get(t_name)
+            if t_key and tensor_exists(
+                t_key, self.storage, self.version_state["commit_id"]
+            ):
                 self.delete_tensor(t_name)
 
         self.storage.maybe_flush()
@@ -661,13 +671,19 @@ class Dataset:
         self.version_state["tensor_names"][new_name] = key
         ffw_dataset_meta(meta)
         meta.rename_tensor(name, new_name)
-        
-        for func in (get_sample_id_tensor_key, get_sample_info_tensor_key, get_sample_shape_tensor_key):
-            t_key = func(key)
-            if tensor_exists(t_key, self.storage, self.version_state["commit_id"]):
-                t_old, t_new = map(func, (name, new_name))
+
+        for func in (
+            get_sample_id_tensor_key,
+            get_sample_info_tensor_key,
+            get_sample_shape_tensor_key,
+        ):
+            t_old, t_new = map(func, (name, new_name))
+            t_key = self.meta.tensor_names.get(t_old)
+            if t_key and tensor_exists(
+                t_key, self.storage, self.version_state["commit_id"]
+            ):
                 self.rename_tensor(t_old, t_new)
-                
+
         self.storage.maybe_flush()
         return tensor
 
