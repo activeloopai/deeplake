@@ -153,8 +153,8 @@ def get_changes_commit_ids_for_node(
 
             if diff is not None:
                 data_updated = sorted(diff.data_updated)
-                id_tensor_key = get_sample_id_tensor_key(tensor_key)
-                id_tensor = Tensor(id_tensor_key, dataset)
+                id_tensor_key = get_sample_id_tensor_key(tensor_name)
+                id_tensor = dataset[id_tensor_key]
                 for idx in data_updated:
                     sample_id = id_tensor[idx].numpy()[0]
                     changes_commit_map[sample_id].append(commit_id)
