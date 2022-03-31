@@ -714,7 +714,7 @@ def _read_dicom_shape_and_dtype(
             "Pydicom not found. Install using `pip install pydicom`"
         )
     if not hasattr(f, "read"):
-        f = BytesIO(f)
+        f = BytesIO(f)  #type: ignore
     dcm = dcmread(f)
     nchannels = dcm[0x0028, 0x0002].value
     shape = (dcm.Rows, dcm.Columns, nchannels)
