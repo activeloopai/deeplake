@@ -72,6 +72,14 @@ from hub.util.keys import (
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
+    get_tensor_meta_key,
+    get_tensor_commit_diff_key,
+    get_tensor_tile_encoder_key,
+    get_tensor_info_key,
+    get_tensor_commit_chunk_set_key,
+    get_chunk_id_encoder_key,
+    get_dataset_diff_key,
+    get_sequence_encoder_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -1892,11 +1900,42 @@ class Dataset:
             print("There are no uncommitted changes on this branch")
             return
 
-        prefix = "/".join(("versions", commit_id))
-        storage.clear(prefix=prefix)
-        copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
-        create_commit_chunk_sets(self.commit_id, storage, version_state)
-        load_meta(self)
+        # delete metas first
+        self._delete_metas()
+
+        if self.commit_id is None:
+            storage.clear()
+            self._populate_meta()
+        else:
+            prefix = "/".join(("versions", self.pending_commit_id))
+            storage.clear(prefix=prefix)
+            copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
+            create_commit_chunk_sets(self.commit_id, storage, version_state)
+            load_meta(self)
+        self._info = None
+        self._ds_diff = None
+
+    def _delete_metas(self):
+        """Deletes all metas in the dataset."""
+        commit_id = self.pending_commit_id
+        meta_keys = [get_dataset_meta_key(commit_id)]
+        meta_keys.append(get_dataset_diff_key(commit_id))
+        meta_keys.append(get_dataset_info_key(commit_id))
+
+        for tensor in self.tensors:
+            meta_keys.append(get_tensor_meta_key(commit_id, tensor))
+            meta_keys.append(get_tensor_tile_encoder_key(commit_id, tensor))
+            meta_keys.append(get_tensor_info_key(commit_id, tensor))
+            meta_keys.append(get_tensor_commit_chunk_set_key(commit_id, tensor))
+            meta_keys.append(get_tensor_commit_diff_key(commit_id, tensor))
+            meta_keys.append(get_chunk_id_encoder_key(commit_id, tensor))
+            meta_keys.append(get_sequence_encoder_key(commit_id, tensor))
+
+        for key in meta_keys:
+            try:
+                del self.storage[key]
+            except KeyError:
+                pass
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
