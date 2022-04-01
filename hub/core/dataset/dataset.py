@@ -1966,7 +1966,7 @@ class Dataset:
             print("You are not at the head node of the branch, cannot reset.")
             return
         if not self.has_head_changes:
-            print("There are no uncommitted changes on this branch")
+            print("There are no uncommitted changes on this branch.")
             return
 
         # delete metas first
