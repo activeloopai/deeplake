@@ -298,7 +298,7 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return _decompress_audio(buffer, compression)
+        return _decompress_audio(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
 
@@ -608,7 +608,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError("png")
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
-                shape, typestr = _read_audio_shape(file, compression), "<f4"
+                shape, typestr = _read_audio_shape(file), "<f4"
             except Exception as e:
                 raise CorruptedSampleError(compression)
         elif compression in ("mp4", "mkv", "avi"):
@@ -731,45 +731,6 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
     return shape, typstr  # type: ignore
 
 
-def _decompress_audio(
-    file: Union[bytes, memoryview, str], compression: Optional[str]
-) -> np.ndarray:
-    if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError(
-            "Miniaudio is not installed. Run `pip install hub[audio]`."
-        )
-    decompressor = globals()[
-        f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
-    ]
-    if isinstance(file, memoryview):
-        if (
-            isinstance(file.obj, bytes)
-            and file.strides == (1,)
-            and file.shape == (len(file.obj),)
-        ):
-            file = file.obj
-        else:
-            file = bytes(file)
-    raw_audio = decompressor(file)
-    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
-        raw_audio.num_frames, raw_audio.nchannels
-    )
-
-
-def _read_audio_shape(
-    file: Union[bytes, memoryview, str], compression: str
-) -> Tuple[int, ...]:
-    if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError(
-            "Miniaudio is not installed. Run `pip install hub[audio]`."
-        )
-    f_info = globals()[
-        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
-    ]
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
-
-
 def _frame_to_stamp(nframe, stream):
     """Convert frame number to timestamp based on fps of video stream."""
     fps = stream.guessed_rate.numerator / stream.guessed_rate.denominator
@@ -890,3 +851,84 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _open_audio(file: Union[str, bytes, memoryview]):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "PyAV is not installed. Please run `pip install hub[audio]`"
+        )
+    if isinstance(file, str):
+        container = av.open(
+            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+        )
+    else:
+        container = av.open(BytesIO(file))
+
+    astreams = container.streams.audio
+
+    if len(astreams) == 0:
+        raise IndexError("No audio streams available!")
+
+    astream = astreams[0]
+
+    return container, astream
+
+
+def _read_shape_from_astream(container, astream):
+    duration = astream.duration
+    if duration is None:
+        duration = container.duration
+        time_base = 1 / av.time_base
+    else:
+        time_base = astream.time_base.numerator / astream.time_base.denominator
+    sample_rate = astream.sample_rate
+    nsamples = math.floor(sample_rate * duration * time_base)
+    nchannels = astream.channels
+
+    # possible for some files with bad meta
+    if nsamples < 0:
+        nsamples = 0
+    return (nsamples, nchannels)
+
+
+def _read_audio_shape(
+    file: Union[bytes, memoryview, str],
+) -> Tuple[int, ...]:
+    container, astream = _open_audio(file)
+    shape = _read_shape_from_astream(container, astream)
+    return shape
+
+
+def _decompress_audio(
+    file: Union[bytes, memoryview, str],
+):
+    container, astream = _open_audio(file)
+    shape = _read_shape_from_astream(container, astream)
+
+    if shape[0] == 0:
+        audio = None
+        for frame in container.decode(audio=0):
+            if not frame.is_corrupt:
+                audio = frame.to_ndarray().astype("<f4")
+                break
+
+        if audio is not None:
+            for frame in container.decode(audio=0):
+                if not frame.is_corrupt:
+                    audio = np.concatenate(
+                        (audio, frame.to_ndarray().astype("<f4")), axis=1
+                    )
+
+        return np.transpose(audio)
+
+    audio = np.zeros(shape, dtype="<f4")
+    sample_count = 0
+
+    for frame in container.decode(audio=0):
+        if not frame.is_corrupt:
+            audio[sample_count : sample_count + frame.samples] = (
+                frame.to_ndarray().transpose().astype("<f4")
+            )
+            sample_count += frame.samples
+    return audio
