@@ -8,9 +8,10 @@ def read(
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
 ) -> Sample:
-    """Utility that reads raw data from supported files into hub format. Recompresses data into format required by the tensor
-    if permitted by the tensor htype. Simply copies the data in the file if file format matches sample_compression of the tensor,
-    thus maximizing upload speeds.
+    """Utility that reads raw data from supported files into hub format.
+
+    - Recompresses data into format required by the tensor if permitted by the tensor htype.
+    - Simply copies the data in the file if file format matches sample_compression of the tensor, thus maximizing upload speeds.
 
     Note:
         No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
