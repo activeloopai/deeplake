@@ -27,8 +27,6 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
-__all__ = []
-
 
 class dataset:
     """Returns a Dataset object referencing either a new or existing dataset.
@@ -401,7 +399,7 @@ class dataset:
 
         feature_report_path(path, "like", {"Overwrite": overwrite})
 
-        destination_ds = dataset.empty(
+        destination_ds = dataset._empty(
             path,
             creds=creds,
             overwrite=overwrite,
@@ -409,7 +407,7 @@ class dataset:
         )
         source_ds = source
         if isinstance(source, str):
-            source_ds = dataset.load(source)
+            source_ds = dataset._load(source)
 
         for tensor_name in source_ds.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
@@ -675,7 +673,7 @@ class dataset:
                 if not os.path.isfile(src):
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
-                ds = dataset.ingest_dataframe(
+                ds = dataset._ingest_dataframe(
                     source, dest, dest_creds, progress_bar, **dataset_kwargs
                 )
                 return ds
