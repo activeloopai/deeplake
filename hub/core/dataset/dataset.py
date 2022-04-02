@@ -1,5 +1,5 @@
 # type: ignore
-from unittest import skip
+import sys
 import numpy as np
 from time import time
 import json
@@ -14,7 +14,12 @@ import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+    SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
+)
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
 from hub.core.lock import lock_dataset, unlock_dataset, Lock
@@ -68,10 +73,20 @@ from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
-    get_sample_id_tensor_key,
     tensor_exists,
     get_queries_key,
     get_queries_lock_key,
+    get_sample_id_tensor_key,
+    get_sample_info_tensor_key,
+    get_sample_shape_tensor_key,
+    get_tensor_meta_key,
+    get_tensor_commit_diff_key,
+    get_tensor_tile_encoder_key,
+    get_tensor_info_key,
+    get_tensor_commit_chunk_set_key,
+    get_chunk_id_encoder_key,
+    get_dataset_diff_key,
+    get_sequence_encoder_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -84,10 +99,10 @@ from hub.util.version_control import (
     load_meta,
     warn_node_checkout,
     load_version_info,
+    copy_metas,
+    create_commit_chunk_sets,
 )
 from hub.client.utils import get_user_name
-from hub.util.storage import storage_provider_from_path
-
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -181,7 +196,16 @@ class Dataset:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.
         """
-        return min(map(len, self.version_state["full_tensors"].values()), default=0)
+        return min(
+            map(
+                len,
+                filter(
+                    lambda t: t.key not in self.meta.hidden_tensors,
+                    self.version_state["full_tensors"].values(),
+                ),
+            ),
+            default=0,
+        )
 
     @property
     def meta(self) -> DatasetMeta:
@@ -292,6 +316,8 @@ class Dataset:
         sample_compression: str = UNSPECIFIED,
         chunk_compression: str = UNSPECIFIED,
         hidden: bool = False,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
         **kwargs,
     ):
@@ -310,6 +336,8 @@ class Dataset:
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
             hidden (bool): If True, the tensor will be hidden from ds.tensors but can still be accessed via ds[tensor_name]
+            create_sample_info_tensor (bool): If True, meta data of individual samples will be stored in a hidden tensor. This data can be accessed via `tensor[i].sample_info`.
+            create_shape_tensor (bool): If True, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
                 This is useful for merge operations.
 
@@ -390,13 +418,62 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
+        if create_sample_info_tensor and htype in ("image", "audio", "video"):
+            self._create_sample_info_tensor(name)
+        if create_shape_tensor and htype not in ("text", "json"):
+            self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
-            id_tensor_name = get_sample_id_tensor_key(name)
-            self.create_tensor(id_tensor_name, hidden=True, create_id_tensor=False)
-            self._link_tensors(
-                name, id_tensor_name, append_f="append_id", flatten_sequence=True
-            )
+            self._create_sample_id_tensor(name)
         return tensor
+
+    def _create_sample_shape_tensor(self, tensor: str, htype: str):
+        shape_tensor = get_sample_shape_tensor_key(tensor)
+        self.create_tensor(
+            shape_tensor,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+        )
+        f = "append_len" if htype == "list" else "append_shape"
+        self._link_tensors(
+            tensor, shape_tensor, append_f=f, update_f=f, flatten_sequence=True
+        )
+
+    def _create_sample_id_tensor(self, tensor: str):
+        id_tensor = get_sample_id_tensor_key(tensor)
+        self.create_tensor(
+            id_tensor,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+        )
+        self._link_tensors(
+            tensor,
+            id_tensor,
+            append_f="append_id",
+            flatten_sequence=False,
+        )
+
+    def _create_sample_info_tensor(self, tensor: str):
+        sample_info_tensor = get_sample_info_tensor_key(tensor)
+        self.create_tensor(
+            sample_info_tensor,
+            htype="json",
+            max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+        )
+        self._link_tensors(
+            tensor,
+            sample_info_tensor,
+            "append_info",
+            "update_info",
+            flatten_sequence=True,
+        )
 
     def _hide_tensor(self, tensor: str):
         self._tensors()[tensor].meta.set_hidden(True)
@@ -454,10 +531,13 @@ class Dataset:
             self.version_state["meta"] = meta
             self.version_state["full_tensors"].pop(name)
 
-        id_tensor_name = get_sample_id_tensor_key(name)
-        if tensor_exists(id_tensor_name, self.storage, self.version_state["commit_id"]):
-            self.delete_tensor(id_tensor_name)
-
+        for t in (
+            get_sample_id_tensor_key(name),
+            get_sample_info_tensor_key(name),
+            get_sample_shape_tensor_key(name),
+        ):
+            if tensor_exists(t, self.storage, self.version_state["commit_id"]):
+                self.delete_tensor(t)
         self.storage.maybe_flush()
 
     @invalid_view_op
@@ -1825,3 +1905,110 @@ class Dataset:
             flatten_sequence = False
         src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
+
+    def copy(
+        self,
+        dest: str,
+        overwrite: bool = False,
+        dest_creds=None,
+        dest_token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+    ):
+        """Copies this dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str): Destination path to copy to.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
+            dest_token (str, optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        dest_ds = hub.like(
+            dest,
+            self,
+            creds=dest_creds,
+            token=dest_token,
+            overwrite=overwrite,
+        )
+        with dest_ds:
+            dest_ds.info.update(self.info)
+        for tensor in self.tensors:
+            if progressbar:
+                sys.stderr.write(f"Copying tensor: {tensor}.\n")
+            hub.compute(_copy_tensor, name="tensor copy transform")(
+                tensor_name=tensor
+            ).eval(
+                self,
+                dest_ds,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+                skip_ok=True,
+                check_lengths=False,
+            )
+        return dest_ds
+
+    @invalid_view_op
+    def reset(self):
+        """Resets the uncommitted changes present in the branch.
+        Note: The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+        """
+        storage, version_state = self.storage, self.version_state
+        if version_state["commit_node"].children:
+            print("You are not at the head node of the branch, cannot reset.")
+            return
+        if not self.has_head_changes:
+            print("There are no uncommitted changes on this branch.")
+            return
+
+        # delete metas first
+        self._delete_metas()
+
+        if self.commit_id is None:
+            storage.clear()
+            self._populate_meta()
+        else:
+            prefix = "/".join(("versions", self.pending_commit_id))
+            storage.clear(prefix=prefix)
+            copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
+            create_commit_chunk_sets(self.commit_id, storage, version_state)
+        load_meta(self)
+        self._info = None
+        self._ds_diff = None
+
+    def _delete_metas(self):
+        """Deletes all metas in the dataset."""
+        commit_id = self.pending_commit_id
+        meta_keys = [get_dataset_meta_key(commit_id)]
+        meta_keys.append(get_dataset_diff_key(commit_id))
+        meta_keys.append(get_dataset_info_key(commit_id))
+
+        for tensor in self.tensors:
+            meta_keys.append(get_tensor_meta_key(commit_id, tensor))
+            meta_keys.append(get_tensor_tile_encoder_key(commit_id, tensor))
+            meta_keys.append(get_tensor_info_key(commit_id, tensor))
+            meta_keys.append(get_tensor_commit_chunk_set_key(commit_id, tensor))
+            meta_keys.append(get_tensor_commit_diff_key(commit_id, tensor))
+            meta_keys.append(get_chunk_id_encoder_key(commit_id, tensor))
+            meta_keys.append(get_sequence_encoder_key(commit_id, tensor))
+
+        for key in meta_keys:
+            try:
+                del self.storage[key]
+            except KeyError:
+                pass
+
+
+def _copy_tensor(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(sample_in[tensor_name])

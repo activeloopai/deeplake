@@ -23,26 +23,6 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
-
-try:
-    from miniaudio import (  # type: ignore
-        mp3_read_file_f32,
-        mp3_read_f32,
-        mp3_get_file_info,
-        mp3_get_info,
-        flac_read_file_f32,
-        flac_read_f32,
-        flac_get_file_info,
-        flac_get_info,
-        wav_read_file_f32,
-        wav_read_f32,
-        wav_get_file_info,
-        wav_get_info,
-    )
-
-    _MINIAUDIO_INSTALLED = True
-except ImportError:
-    _MINIAUDIO_INSTALLED = False
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 
@@ -759,31 +739,32 @@ def _open_video(file: Union[str, bytes, memoryview]):
     return container, vstream
 
 
-def _read_shape_from_vstream(container, vstream):
-    nframes = vstream.frames
+def _read_metadata_from_vstream(container, vstream):
+    duration = vstream.duration
+    if duration is None:
+        duration = container.duration
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
 
+    nframes = vstream.frames
     if nframes == 0:
-        duration = vstream.duration
-        if duration is None:
-            duration = container.duration
-            time_base = 1 / av.time_base
-        else:
-            time_base = vstream.time_base.numerator / vstream.time_base.denominator
-        fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
         nframes = math.floor(fps * duration * time_base)
 
     height = vstream.codec_context.height
     width = vstream.codec_context.width
+    shape = (nframes, height, width, 3)
 
-    return (nframes, height, width)
+    return shape, duration, fps, time_base
 
 
 def _read_video_shape(
     file: Union[str, bytes, memoryview],
 ):
     container, vstream = _open_video(file)
-    shape = _read_shape_from_vstream(container, vstream)
-    return (*shape, 3)
+    shape = _read_metadata_from_vstream(container, vstream)[0]
+    return shape
 
 
 def _decompress_video(
@@ -798,7 +779,7 @@ def _decompress_video(
             "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
         )
     container, vstream = _open_video(file)
-    nframes, height, width = _read_shape_from_vstream(container, vstream)
+    nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
     if start is None:
         start = 0
@@ -898,6 +879,17 @@ def _read_audio_shape(
     container, astream = _open_audio(file)
     shape = _read_shape_from_astream(container, astream)
     return shape
+
+
+def _read_audio_meta(file: Union[bytes, memoryview, str], compression: str) -> dict:
+    container, astream = _open_audio(file)
+    meta = {}
+    meta["duration"] = astream.duration or container.duration
+    meta["sample_rate"] = astream.sample_rate
+    meta["time_base"] = astream.time_base
+    meta["frame_size"] = astream.frame_size
+    meta["nchannels"] = astream.channels
+    return meta
 
 
 def _decompress_audio(

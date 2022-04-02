@@ -1463,3 +1463,75 @@ def test_modified_samples(memory_ds):
 
         with pytest.raises(TensorModifiedError):
             memory_ds.image.modified_samples(alt_commit)
+
+
+def test_reset(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        for i in range(10):
+            ds.abc.append(i)
+            ds.xyz.append(np.ones((100, 100, 3)) * i)
+        ds.info.hello = "world"
+        ds.abc.info.hello = "world"
+        assert list(local_ds.tensors) == ["abc", "xyz"]
+        assert local_ds.info.hello == "world"
+        for i in range(10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), i)
+            np.testing.assert_array_equal(ds.xyz[i].numpy(), np.ones((100, 100, 3)) * i)
+
+        ds.reset()
+        assert not list(local_ds.tensors)
+        assert "hello" not in local_ds.info
+
+        ds.create_tensor("abc")
+        for i in range(10):
+            ds.abc.append(i)
+        ds.info.hello = "world"
+        ds.abc.info.hello = "world"
+        assert list(local_ds.tensors) == ["abc"]
+        assert local_ds.info.hello == "world"
+        assert local_ds.abc.info.hello == "world"
+        assert len(ds) == 10
+
+        for i in range(10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), i)
+
+        ds.commit()
+        ds.reset()
+
+        assert list(local_ds.tensors) == ["abc"]
+        assert local_ds.info.hello == "world"
+        assert local_ds.abc.info.hello == "world"
+        for i in range(10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), i)
+
+        for i in range(10):
+            ds.abc[i] = 0
+        for i in range(10, 15):
+            ds.abc.append(i)
+
+        ds.info.hello = "new world"
+        ds.abc.info.hello1 = "world1"
+
+        assert ds.info.hello == "new world"
+        assert local_ds.abc.info.hello == "world"
+        assert ds.abc.info.hello1 == "world1"
+        assert len(ds) == 15
+
+        for i in range(10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), 0)
+
+        for i in range(10, 15):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), i)
+
+        ds.reset()
+
+        assert list(local_ds.tensors) == ["abc"]
+        assert local_ds.info.hello == "world"
+        assert local_ds.abc.info.hello == "world"
+        assert "hello1" not in ds.abc.info
+        assert len(ds) == 10
+
+        for i in range(10):
+            np.testing.assert_array_equal(ds.abc[i].numpy(), i)

@@ -4,6 +4,9 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _open_video,
+    _read_metadata_from_vstream,
+    _read_audio_meta,
 )
 from hub.compression import (
     get_compression_type,
@@ -22,6 +25,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
+from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from urllib.request import urlopen
@@ -147,6 +151,28 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def _get_video_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            container, vstream = _open_video(self.path)
+        else:
+            container, vstream = _open_video(self.buffer)
+        _, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"duration": duration, "fps": fps, "timebase": timebase}
+
+    def _get_audio_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_audio_meta(self.path, self.compression)
+        else:
+            info = _read_audio_meta(self.buffer, self.compression)
+        return {
+            "nchannels": info["nchannels"],
+            "sample_rate": info["sample_rate"],
+            "sample_format": info["sample_format_name"],
+            "sample_width": info["sample_width"],
+            "num_frames": info["num_frames"],
+            "duration": info["duration"],
+        }
 
     @property
     def is_lazy(self) -> bool:
@@ -353,6 +379,32 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
+
+    def _getexif(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            img = Image.open(self.path)
+        else:
+            img = Image.open(BytesIO(self.buffer))
+        return {
+            TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
+            for k, v in img.getexif().items()
+        }
+
+    @property
+    def meta(self) -> dict:
+        meta: Dict[str, Union[Dict, str]] = {}
+        compression_type = get_compression_type(self.compression)
+        if compression_type == IMAGE_COMPRESSION:
+            meta["exif"] = self._getexif()
+        if compression_type == VIDEO_COMPRESSION:
+            meta.update(self._get_video_meta())
+        if compression_type == AUDIO_COMPRESSION:
+            meta.update(self._get_audio_meta())
+        meta["shape"] = self.shape
+        meta["format"] = self.compression
+        if self.path:
+            meta["filename"] = str(self.path)
+        return meta
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
