@@ -352,11 +352,15 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
         },
     }
     if do_commit:
+        change["image"]["cleared"] = False
+        change["label"]["cleared"] = False
         change["image"]["created"] = False
         change["label"]["created"] = False
         change["image"]["data_added"] = [10, 610]
         change["label"]["data_added"] = [10, 610]
     else:
+        change["image"]["cleared"] = False
+        change["label"]["cleared"] = False
         change["image"]["created"] = True
         change["label"]["created"] = True
         change["image"]["data_added"] = [0, 610]
@@ -617,6 +621,7 @@ def test_inplace_transform(local_ds_generator):
         change = {
             "img": {
                 "created": False,
+                "cleared": False,
                 "data_added": [0, 20],
                 "data_updated": set(),
                 "data_transformed_in_place": True,
@@ -624,6 +629,7 @@ def test_inplace_transform(local_ds_generator):
             },
             "label": {
                 "created": False,
+                "cleared": False,
                 "data_added": [0, 20],
                 "data_updated": set(),
                 "data_transformed_in_place": True,

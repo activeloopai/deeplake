@@ -5,12 +5,13 @@ from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
-from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
-from functools import reduce
-from hub.core.index import Index
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
+from functools import reduce, partial
+from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.tensor_link import get_link_transform
 from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
@@ -21,8 +22,16 @@ from hub.util.keys import (
     get_tensor_tile_encoder_key,
     tensor_exists,
     get_tensor_info_key,
+    get_sample_id_tensor_key,
 )
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+    get_sample_id_tensor_key,
+    get_sample_info_tensor_key,
+    get_sample_shape_tensor_key,
+)
 from hub.util.modified import get_modified_indexes
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
@@ -30,7 +39,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID, MB
+from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE
 from hub.util.version_control import auto_checkout
 
 
@@ -150,7 +159,12 @@ def _inplace_op(f):
 
     def inner(tensor, other):
         tensor._write_initialization()
-        tensor.chunk_engine.update(tensor.index, other, op)
+        tensor.chunk_engine.update(
+            tensor.index,
+            other,
+            op,
+            link_callback=tensor._update_links if tensor.meta.links else None,
+        )
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
         return tensor
@@ -247,7 +261,9 @@ class Tensor:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
         self._write_initialization()
-        self.chunk_engine.extend(samples)
+        self.chunk_engine.extend(
+            samples, link_callback=self._append_to_links if self.meta.links else None
+        )
 
     @property
     def info(self):
@@ -303,6 +319,18 @@ class Tensor:
         """
         self.extend([sample])
 
+    def clear(self):
+        """Deletes all samples from the tensor"""
+        self.chunk_engine.clear()
+        sample_id_key = get_sample_id_tensor_key(self.key)
+        try:
+            sample_id_tensor = Tensor(sample_id_key, self.dataset)
+            sample_id_tensor.chunk_engine.clear()
+            self.meta.links.clear()
+            self.meta.is_dirty = True
+        except TensorDoesNotExistError:
+            pass
+
     def modified_samples(
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
@@ -355,7 +383,15 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        return self.chunk_engine.shape(self.index)
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shape(
+            self.index, sample_shape_provider=sample_shape_provider
+        )
 
     @property
     def ndim(self) -> int:
@@ -378,6 +414,10 @@ class Tensor:
         if self.is_sequence:
             return f"sequence[{self.meta.htype}]"
         return self.meta.htype
+
+    @property
+    def hidden(self) -> bool:
+        return self.meta.hidden
 
     @property
     def base_htype(self):
@@ -511,7 +551,11 @@ class Tensor:
             self.chunk_engine.pad_and_append(num_samples_to_pad, value)
             return
 
-        self.chunk_engine.update(self.index[item_index], value)
+        self.chunk_engine.update(
+            self.index[item_index],
+            value,
+            link_callback=self._update_links if self.meta.links else None,
+        )
 
     def __iter__(self):
         for i in range(len(self)):
@@ -627,3 +671,99 @@ class Tensor:
 
     def _pop(self):
         self.chunk_engine._pop()
+        [self.dataset[link]._pop() for link in self.meta.links]
+
+    def _append_to_links(self, sample, flat: Optional[bool]):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                self.dataset[k].append(get_link_transform(v["append"])(sample))
+
+    def _update_links(
+        self,
+        global_sample_index: int,
+        sub_index: Index,
+        new_sample,
+        flat: Optional[bool],
+    ):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                fname = v.get("update")
+                if fname:
+                    func = get_link_transform(fname)
+                    val = func(
+                        new_sample,
+                        self.dataset[k][global_sample_index],
+                        sub_index=sub_index,
+                        partial=not sub_index.is_trivial(),
+                    )
+                    if val is not _NO_LINK_UPDATE:
+                        self.dataset[k][global_sample_index] = val
+
+    @property
+    def _sample_info_tensor(self):
+        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+
+    @property
+    def _sample_shape_tensor(self):
+        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+
+    @property
+    def _sample_id_tensor(self):
+        return self.dataset._tensors().get(get_sample_id_tensor_key(self.key))
+
+    def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
+        if self.is_sequence:
+
+            def get_sample_shape(global_sample_index: int):
+                shapes = sample_shape_tensor.numpy(
+                    Index(
+                        [
+                            IndexEntry(
+                                slice(
+                                    *self.chunk_engine.sequence_encoder[
+                                        global_sample_index
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+                return (len(shapes),) + tuple(
+                    int(shapes[0, i]) if np.all(shapes[:, i] == shapes[0, i]) else None
+                    for i in range(shapes.shape[1])
+                )
+
+        else:
+
+            def get_sample_shape(global_sample_index: int):
+                return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
+
+        return get_sample_shape
+
+    def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
+        if self.is_sequence:
+            return [
+                sample_info_tensor[i].data()
+                for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
+            ]
+        return sample_info_tensor[global_sample_index].data()
+
+    def _sample_info(self, index: Index):
+        sample_info_tensor = self._sample_info_tensor
+        if sample_info_tensor is None:
+            return None
+        if index.subscriptable_at(0):
+            return list(
+                map(
+                    partial(
+                        self._get_sample_info_at_index,
+                        sample_info_tensor=sample_info_tensor,
+                    ),
+                    index.values[0].indices(self.num_samples),
+                )
+            )
+        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
+
+    @property
+    def sample_info(self):
+        return self._sample_info(self.index)

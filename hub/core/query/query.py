@@ -244,7 +244,10 @@ class ClassLabelsTensor(EvalObject):
             return o.__class__(map(self._norm_labels, o))
 
     def __eq__(self, o: object) -> bool:
-        o = self._norm_labels(o)
+        try:
+            o = self._norm_labels(o)
+        except KeyError:
+            return False
         return super(ClassLabelsTensor, self).__eq__(o)
 
     def __lt__(self, o: object) -> bool:
