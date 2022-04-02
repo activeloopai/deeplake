@@ -88,8 +88,12 @@ def test_video_samples(local_ds_generator, video_paths):
         assert sample_info["filename"] == mp4_path
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_audio_samples(local_ds_generator, audio_paths):
-    import av #type: ignore
+    import av  # type: ignore
+
     ds = local_ds_generator()
     mp3 = ds.create_tensor("mp3_audios", htype="audio", sample_compression="mp3")
     mp3_paths = [audio_paths["mp3"]]
@@ -115,4 +119,3 @@ def test_audio_samples(local_ds_generator, audio_paths):
         assert sample_info["nchannels"] == astream.channels
         assert sample_info["sample_rate"] == astream.sample_rate
         assert sample_info["duration"] == astream.duration or container.duration
-        
