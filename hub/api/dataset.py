@@ -429,7 +429,7 @@ class dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        """Copies this dataset view at `src` to `dest`. Version control history is not included.
+        """Copies this dataset at `src` to `dest`. Version control history is not included.
 
         Args:
             src (Union[str, Dataset]): The Dataset or the path to the dataset to be copied.

@@ -1891,7 +1891,7 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        """Copies this dataset view to `dest`. Version control history is not included.
+        """Copies this dataset or dataset view to `dest`. Version control history is not included.
 
         Args:
             dest (str): Destination path to copy to.
