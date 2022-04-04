@@ -103,7 +103,6 @@ from hub.util.version_control import (
     create_commit_chunk_sets,
 )
 from hub.client.utils import get_user_name
-from hub.visualizer import visualize
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -2020,6 +2019,7 @@ class Dataset:
             width: Union[int, str, None] Optional width of the visualizer canvas.
             height: Union[int, str, None] Optional height of the visualizer canvas.
         """
+        from hub.visualizer import visualize
         visualize(self.storage, width=width, height=height)
 
 
