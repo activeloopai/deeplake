@@ -2020,6 +2020,7 @@ class Dataset:
             height: Union[int, str, None] Optional height of the visualizer canvas.
         """
         from hub.visualizer import visualize
+
         visualize(self.storage, width=width, height=height)
 
 
