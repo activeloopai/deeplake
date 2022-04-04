@@ -1385,3 +1385,12 @@ def test_hub_exists(ds_generator, path, hub_token):
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
+
+
+def test_pyav_not_installed(local_ds, video_paths):
+    pyav_installed = hub.core.compression._PYAV_INSTALLED
+    hub.core.compression._PYAV_INSTALLED = False
+    local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    with pytest.raises(hub.util.exceptions.CorruptedSampleError):
+        local_ds.videos.append(hub.read(video_paths["mp4"][0]))
+    hub.core.compression._PYAV_INSTALLED = pyav_installed
