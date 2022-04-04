@@ -97,6 +97,8 @@ def test_audio_samples(local_ds_generator, audio_paths):
     ds = local_ds_generator()
     mp3 = ds.create_tensor("mp3_audios", htype="audio", sample_compression="mp3")
     mp3_paths = [audio_paths["mp3"]]
+    for mp3_path in mp3_paths:
+        ds.mp3_audios.append(hub.read(mp3_path))
 
     for i, (mp3_path, sample_info) in enumerate(zip(mp3_paths, mp3.sample_info)):
         container = av.open(mp3_path)
