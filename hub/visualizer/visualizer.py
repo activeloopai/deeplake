@@ -1,7 +1,6 @@
 from typing import Dict, Optional, Union
 import uuid
 from flask import Flask, request, Response  # type: ignore
-from hub.core.dataset import Dataset
 from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
 import logging
@@ -39,19 +38,19 @@ class _Visualizer:
     """
 
     _port: Optional[int] = None
-    _datasets: Dict = {}
+    _storages: Dict = {}
 
     def __init__(self):
         self.start_server()
-        self._datasets = {}
+        self._storages = {}
 
-    def add(self, ds: Dataset) -> str:
+    def add(self, storage: StorageProvider) -> str:
         id = str(uuid.uuid4())
-        self._datasets[id] = ds
+        self._storages[id] = storage
         return id
 
-    def get(self, id: str) -> Dataset:
-        return self._datasets[id]
+    def get(self, id: str) -> StorageProvider:
+        return self._storages[id]
 
     @property
     def port(self):
@@ -94,7 +93,7 @@ visualizer = _Visualizer()
 
 
 def visualize(
-    ds: Dataset,
+    storage: StorageProvider,
     width: Union[int, str, None] = None,
     height: Union[int, str, None] = None,
 ):
@@ -102,14 +101,14 @@ def visualize(
     Visualizes the given dataset in the Jupyter notebook.
 
     Args:
-        ds: dataset The dataset to visualize.
+        storage: StorageProvider The storage of the dataset.
         width: Union[int, str, None] Optional width of the visualizer canvas.
         height: Union[int, str, None] Optional height of the visualizer canvas.
     """
-    id = visualizer.add(ds)
+    id = visualizer.add(storage)
     url = f"http://localhost:{visualizer.port}/{id}/"
     iframe = IFrame(
-        f"https://app.dev.activeloop.ai/visualizer/hub?url={url}",
+        f"https://app.activeloop.ai/visualizer/hub?url={url}",
         width=width or "100%",
         height=height or 900,
     )
@@ -122,8 +121,7 @@ def access_data(path):
         paths = path.split("/", 1)
         range_header = request.headers.get("Range", None)
         start, end = 0, None
-        ds: Dataset = visualizer.get(paths[0])
-        storage: StorageProvider = ds.storage
+        storage: StorageProvider = visualizer.get(paths[0])
         if request.method == "HEAD":
             if paths[1] in storage.keys:
                 return Response("OK", 200)

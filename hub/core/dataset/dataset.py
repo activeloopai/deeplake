@@ -103,6 +103,7 @@ from hub.util.version_control import (
     create_commit_chunk_sets,
 )
 from hub.client.utils import get_user_name
+from hub.visualizer import visualize
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -2008,6 +2009,18 @@ class Dataset:
                 del self.storage[key]
             except KeyError:
                 pass
+
+    def visualize(
+        self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
+    ):
+        """
+        Visualizes the dataset in the Jupyter notebook.
+
+        Args:
+            width: Union[int, str, None] Optional width of the visualizer canvas.
+            height: Union[int, str, None] Optional height of the visualizer canvas.
+        """
+        visualize(self.storage, width=width, height=height)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):

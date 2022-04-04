@@ -18,7 +18,7 @@ def test_local_server(ds_generator):
     ds = ds_generator()
     ds.create_tensor("images", htype="image", sample_compression="jpg")
     ds.images.append(np.random.randint(0, 255, size=(400, 400, 3), dtype="uint8"))
-    id = visualizer.add(ds)
+    id = visualizer.add(ds.storage)
     url = f"http://localhost:{visualizer.port}/{id}/"
     response = requests.request("GET", url + "dataset_meta.json")
     assert response.status_code == 206
