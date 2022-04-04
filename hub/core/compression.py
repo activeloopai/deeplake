@@ -857,15 +857,17 @@ def _open_audio(file: Union[str, bytes, memoryview]):
 
 
 def _read_shape_from_astream(container, astream):
+    nchannels = astream.channels
     duration = astream.duration
     if duration is None:
         duration = container.duration
+        if duration is None:
+            return (0, nchannels)
         time_base = 1 / av.time_base
     else:
         time_base = astream.time_base.numerator / astream.time_base.denominator
     sample_rate = astream.sample_rate
     nsamples = math.floor(sample_rate * duration * time_base)
-    nchannels = astream.channels
 
     # possible for some files with bad meta
     if nsamples < 0:
