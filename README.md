@@ -51,6 +51,10 @@ Hub comes with built-in integrations for Pytorch and Tensorflow. Train your mode
 <details>
   <summary><b>Distributed Transformations</b></summary>
 Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
+<details>
+  <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
+Hub community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
+</details>
 </details>
 <details>
   <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
@@ -84,7 +88,7 @@ pip3 install hub[all]         -> Installs everything - audio, video and GCS supp
 
 ### 🧠 Training a PyTorch model on a Hub dataset
 
-#### Load CIFAR-10, one of the readily available datasets in Hub:
+#### Load CIFAR 10, one of the readily available datasets in Hub:
 
 ```python
 import hub
@@ -101,7 +105,7 @@ ds.tensors.keys()    # dict_keys(['images', 'labels'])
 ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
-#### Train a PyTorch model on the Cifar-10 dataset without the need to download it
+#### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
 
 First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
 
@@ -225,7 +229,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-You can also access other publicly available hub datasets, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Hub format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub

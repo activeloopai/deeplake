@@ -79,6 +79,8 @@ def test_persist_keys(local_ds_generator):
         "image/tensor_meta.json",
         "_image_id/tensor_meta.json",
         "_image_id/commit_diff",
+        "_image_shape/tensor_meta.json",
+        "_image_shape/commit_diff",
     }
 
 
@@ -134,7 +136,7 @@ def test_populate_dataset(local_ds):
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
 
-    assert local_ds.meta.tensors == ["image", "_image_id"]
+    assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
 
 
@@ -587,12 +589,12 @@ def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
 
 
 def test_index_range(memory_ds):
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[0]
 
     memory_ds.create_tensor("label")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds.label[0]
 
     memory_ds.label.extend([5, 6, 7])
@@ -604,13 +606,13 @@ def test_index_range(memory_ds):
         memory_ds.label[valid_idx]
 
     for invalid_idx in [3, 4, -4, -5]:
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds[invalid_idx]
-        with pytest.raises(ValueError):
+        with pytest.raises(IndexError):
             memory_ds.label[invalid_idx]
 
     memory_ds[[0, 1, 2]]
-    with pytest.raises(ValueError):
+    with pytest.raises(IndexError):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
@@ -1383,3 +1385,12 @@ def test_hub_exists(ds_generator, path, hub_token):
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
+
+
+def test_pyav_not_installed(local_ds, video_paths):
+    pyav_installed = hub.core.compression._PYAV_INSTALLED
+    hub.core.compression._PYAV_INSTALLED = False
+    local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    with pytest.raises(hub.util.exceptions.CorruptedSampleError):
+        local_ds.videos.append(hub.read(video_paths["mp4"][0]))
+    hub.core.compression._PYAV_INSTALLED = pyav_installed
