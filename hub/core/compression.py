@@ -881,14 +881,22 @@ def _read_audio_shape(
     return shape
 
 
-def _read_audio_meta(file: Union[bytes, memoryview, str], compression: str) -> dict:
+def _read_audio_meta(
+    file: Union[bytes, memoryview, str],
+) -> dict:
     container, astream = _open_audio(file)
     meta = {}
-    meta["duration"] = astream.duration or container.duration
+    if astream.duration:
+        meta["duration"] = astream.duration
+        meta["time_base"] = astream.time_base.numerator / astream.time_base.denominator
+    else:
+        meta["duration"] = container.duration
+        meta["time_base"] = 1 / av.time_base
     meta["sample_rate"] = astream.sample_rate
-    meta["time_base"] = astream.time_base
+    meta["duration"] = astream.duration or container.duration
     meta["frame_size"] = astream.frame_size
     meta["nchannels"] = astream.channels
+    meta["sample_format"] = astream.format.name
     return meta
 
 
