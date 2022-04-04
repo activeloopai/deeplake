@@ -42,19 +42,20 @@ from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
-list = dataset._list
-exists = dataset._exists
-load = dataset._load
-empty = dataset._empty
-like = dataset._like
-delete = dataset._delete
-rename = dataset._rename
-copy = dataset._copy
-deepcopy = dataset._deepcopy
-ingest = dataset._ingest
-ingest_kaggle = dataset._ingest_kaggle
-ingest_dataframe = dataset._ingest_dataframe
+list = dataset.list
+exists = dataset.exists
+load = dataset.load
+empty = dataset.empty
+like = dataset.like
+delete = dataset.delete
+rename = dataset.rename
+copy = dataset.copy
+deepcopy = dataset.deepcopy
+ingest = dataset.ingest
+ingest_kaggle = dataset.ingest_kaggle
+ingest_dataframe = dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
+dataset = dataset.init
 tensor = Tensor
 
 __all__ = [
