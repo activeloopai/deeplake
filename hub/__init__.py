@@ -29,7 +29,7 @@ __pdoc__ = {
     "Dataset.token": False,
     "Dataset.num_samples": False,
 }
-from .api.dataset import dataset
+from .api.dataset import dataset as api_dataset
 from .api.read import read
 from .api.tiled import tiled
 from .core.dataset import Dataset
@@ -42,20 +42,20 @@ from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
-list = dataset.list
-exists = dataset.exists
-load = dataset.load
-empty = dataset.empty
-like = dataset.like
-delete = dataset.delete
-rename = dataset.rename
-copy = dataset.copy
-deepcopy = dataset.deepcopy
-ingest = dataset.ingest
-ingest_kaggle = dataset.ingest_kaggle
-ingest_dataframe = dataset.ingest_dataframe
+list = api_dataset.list
+exists = api_dataset.exists
+load = api_dataset.load
+empty = api_dataset.empty
+like = api_dataset.like
+delete = api_dataset.delete
+rename = api_dataset.rename
+copy = api_dataset.copy
+deepcopy = api_dataset.deepcopy
+ingest = api_dataset.ingest
+ingest_kaggle = api_dataset.ingest_kaggle
+ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
-dataset = dataset.init
+dataset = api_dataset.init
 tensor = Tensor
 
 __all__ = [

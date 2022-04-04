@@ -55,7 +55,7 @@ class dataset:
 
         Args:
             path (str): The full path to the dataset. Can be:
-
+                -
                 - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
@@ -672,7 +672,7 @@ class dataset:
                 if not os.path.isfile(src):
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
-                ds = dataset._ingest_dataframe(
+                ds = dataset.ingest_dataframe(
                     source, dest, dest_creds, progress_bar, **dataset_kwargs
                 )
                 return ds
