@@ -252,8 +252,8 @@ class Sample:
         else:
             compressed = self._buffer
         self._array = decompress_array(
-                    compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
-                )
+            compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
+        )
         self._uncompressed_bytes = self._array.tobytes()
         self._typestr = self._array.__array_interface__["typestr"]
         self._dtype = np.dtype(self._typestr).name

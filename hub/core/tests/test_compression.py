@@ -213,4 +213,3 @@ def test_opencv_err(corrupt_image_paths):
         with pytest.raises(OSError):
             with open(path, "rb") as f:
                 arr = hub.core.compression._decompress_with_opencv(f.read(), compr)
-                print (arr)

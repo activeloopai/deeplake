@@ -6,7 +6,6 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.util.redirect import Redirect
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
@@ -690,7 +689,11 @@ def _read_jpeg_shape_from_file(f) -> Tuple[int, ...]:
 def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     """Gets shape of a jpeg file from its contents"""
     # Look for Start of Frame
-    mv = memoryview(buf)
+    if isinstance(buf, bytes):
+        mv = memoryview(buf)
+    else:
+        mv = buf
+        buf = bytes(mv)
     sof_idx = -1
     offset = 0
     while True:
@@ -946,7 +949,7 @@ def _decompress_with_opencv(
                 with open(file, "rb") as f:
                     pil_shape, pil_dtype = func(f)
             else:
-                    pil_shape, pil_dtype = func(file)
+                pil_shape, pil_dtype = func(file)
         except Exception as e:
             raise OSError("Invalid png") from e  # OSError to match pillow behavior
         if pil_shape[-1] == 4:
@@ -963,7 +966,7 @@ def _decompress_with_opencv(
                     with open(file, "rb") as f:
                         shape = func(f)
                 else:
-                        shape = func(file)
+                    shape = func(file)
             except Exception as e:
                 raise OSError("Invalid jpg") from e  # OSError to match pillow behavior
             if shape[-1] == 4:
