@@ -21,8 +21,8 @@
   <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
  
- 
 
+*Read this in other languages: [简体中文](README.zh-cn.md)*
 
 ## About Hub
 
