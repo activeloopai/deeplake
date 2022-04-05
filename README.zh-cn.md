@@ -18,7 +18,7 @@
    <a href="https://github.com/activeloopai/examples/"><b>例子</b></a> &bull; 
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>博客</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack 社区</b></a> &bull;
-  <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
+  <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter（推特）</b></a>
  </h3>
  
  
@@ -26,7 +26,7 @@
 
 ## 关于 Hub
 
-Hub 是一种数据集格式，提供简单的 API 以用于创建、存储和协作处理任何规模的 AI 数据集。Hub 的数据布局可在大规模训练模型的同时实现数据的快速转换和流式传输。谷歌、Waymo、红十字会、牛津大学和 Omdena 都在使用 Hub。 Hub 包括以下功能：
+Hub 是一种数据集格式，提供简单的 API 以用于创建、存储和协作处理任何规模的 AI 数据集。Hub 的数据布局可在大规模训练模型的同时实现数据的快速转换和流式传输。谷歌、Waymo、红十字会、牛津大学都在使用 Hub。 Hub 包括以下功能：
 
 <details>
   <summary><b>与存储无关的 API</b></summary>
@@ -50,7 +50,7 @@ Hub 带有 Pytorch 和 Tensorflow 的内置集成。用几行代码训练你的�
 </details>
 <details>
   <summary><b>分布式转换</b></summary>
-使用多线程、多处理或我们的内置<a href="https://www.ray.io/">Ray</a>集成快速转换您的数据集。
+使用多线程、多处理或我们的内置<a href="https://www.ray.io/">Ray</a>集成快速在您的数据集进行转换操作。
 </details>
 <details>
   <summary><b>在几秒钟内可用100 多个最流行的图像、视频和音频数据集</b></summary>
@@ -59,7 +59,7 @@ Hub 社区已经上传<a href="https://docs.activeloop.ai/datasets/?utm_source=g
 </details>
 <details>
   <summary><b><a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop平台</a>提供即时可视化支持</b></summary>
-Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+Hub 数据集在<a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop 平台</a> 中通过边界框、掩码、注释等立即实现可视化（见下文）.
 </details>
 
 
@@ -78,7 +78,7 @@ Hub 是用 100% Python 编写的，可以使用 pip 快速安装。
 pip3 install hub
 ```
 
-**默认情况下，Hub 不安装音频、视频和谷歌云(GCS)支持的依赖项。它们可以使用以下方式安装：**:
+**默认情况下，Hub 不安装音频、视频和谷歌云(GCS)支持的依赖项。它们可以使用以下方式安装：**
 ```sh
 pip3 install hub[audio]  -> 通过 miniaudio 支持音频
 pip3 install hub[video]  -> 通过 pyav 支持视频
@@ -168,7 +168,7 @@ for epoch in range(2):
 
 
 
-让我们在 Activeloop 云中创建一个数据集。Activeloop 云为每位用户提供高达 300 GB 的免费存储空间（更多信息请点击此处(#-for-students-and-educators)）。如果您还没有账号，请从终端使用`activeloop register` 创建一个新帐户。系统将要求您输入用户名、电子邮件 ID 和密码。您在此处输入的用户名将用于数据集路径。
+让我们在 Activeloop 云中创建一个数据集。Activeloop 云为每位用户提供高达 300 GB 的免费存储空间（更多信息请点击[此处](#-for-students-and-educators)）。如果您还没有账号，请从终端使用`activeloop register` 创建一个新帐户。系统将要求您输入用户名、电子邮件 ID 和密码。您在此处输入的用户名将用于数据集路径。
 
 ```sh
 $ activeloop register
@@ -270,7 +270,7 @@ Hub 和 DVC 为数据提供类似于 git 的数据集版本控制，但它们存
 <details>
   <summary><b>Activeloop Hub vs TensorFlow 数据集 (TFDS)</b></summary>
   
-Hub 和 TFDS 将流行的数据集无缝连接到 ML 框架。Hub 数据集与 PyTorch 和 TensorFlow 兼容，而 TFDS 仅与 TensorFlow 兼容。Hub 和 TFDS 之间的一个关键区别在于，Hub 数据集是为从云端流式传输而设计的，而 TFDS 必须在使用前在本地下载。因此使用 Hub 可以直接从 TensorFlow 数据集导入数据集，并将它们流式传输到 PyTorch 或 TensorFlow。除了提供对流行的公开数据集的访问之外，Hub 还提供强大的工具来创建自定义数据集，将它们存储在各种云存储提供商上，并通过简单的 API 与他人协作。TFDS 主要专注于让公众轻松访问常用数据集，而自定义数据集的管理不是主要关注点。一个详细的对比介绍可以在[这里](https://www.activeloop.ai/resources/7jWZXOEJwDoNJS25uiforF/tensorflow-tf.data-&-hub:-how-to-implement-your-tensorflow-data-pipelines-with-hub-/?utm_source=github&utm_medium=repo&utm_campaign=readme)看到.
+Hub 和 TFDS 将流行的数据集无缝连接到 ML 框架。Hub 数据集与 PyTorch 和 TensorFlow 兼容，而 TFDS 仅与 TensorFlow 兼容。Hub 和 TFDS 之间的一个关键区别在于，Hub 数据集是为从云端流式传输而设计的，而 TFDS 必须在使用前在本地下载。因此使用 Hub 可以直接从 TensorFlow 数据集导入数据集，并将它们流式传输到 PyTorch 或 TensorFlow。除了提供对流行的公开数据集的访问之外，Hub 还提供强大的工具来创建自定义数据集，将它们存储在各种云存储提供商上，并通过简单的 API 与他人协作。TFDS 主要专注于让公众轻松访问常用数据集，而自定义数据集的管理不是主要关注点。一个详细的对比介绍可以在[这里](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/)看到.
 
 </details>
 
