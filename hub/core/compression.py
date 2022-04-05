@@ -983,6 +983,7 @@ def _decompress_with_opencv(
 
 
 def _bgr_to_cmyk(bgr: np.ndarray):
+    """Convert a numpy array from bgr to cmyk color space"""
     bgr_norm = bgr.astype(float) / 255.0
 
     mx = np.max(bgr_norm, axis=2)
