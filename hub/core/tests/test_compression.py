@@ -204,3 +204,13 @@ def test_opencv(compressed_image_paths):
             assert pil_arr.shape == ocv_arr.shape
             if compression == "png":
                 np.testing.assert_array_equal(pil_arr, ocv_arr)
+
+
+def test_opencv_err(corrupt_image_paths):
+    for compr, path in corrupt_image_paths.items():
+        with pytest.raises(OSError):
+            arr = hub.core.compression._decompress_with_opencv(path, compr)
+        with pytest.raises(OSError):
+            with open(path, "rb") as f:
+                arr = hub.core.compression._decompress_with_opencv(f.read(), compr)
+                print (arr)

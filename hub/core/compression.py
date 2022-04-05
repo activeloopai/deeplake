@@ -6,6 +6,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
+from hub.util.redirect import Redirect
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
@@ -18,7 +19,7 @@ from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
-from io import BytesIO
+from io import BytesIO, StringIO
 import mmap
 import struct
 import sys
@@ -476,8 +477,12 @@ def _verify_jpeg(f):
 
 def _verify_jpeg_buffer(buf: bytes):
     # Start of Image
-    mview = memoryview(buf)
-    assert buf.startswith(b"\xff\xd8")
+    if isinstance(buf, bytes):
+        mview = memoryview(buf)
+    else:
+        mview = buf
+        buf = bytes(mview)
+    assert mview[:2] == (b"\xff\xd8")
     # Look for Start of Frame
     sof_idx = -1
     offset = 0
@@ -494,7 +499,6 @@ def _verify_jpeg_buffer(buf: bytes):
             sof_idx = idx
     if sof_idx == -1:
         raise Exception()
-
     length = int.from_bytes(mview[sof_idx + 2 : sof_idx + 4], "big")
     assert mview[sof_idx + length + 2 : sof_idx + length + 4] in [
         b"\xff\xc4",
@@ -929,40 +933,39 @@ def _decompress_with_pillow(
 
 
 def _decompress_with_opencv(
-    file: Union[str, bytes, memoryview], compression: str
+    file: Union[str, bytes, memoryview], compression: str, verify: bool = True
 ) -> np.ndarray:
     if isinstance(file, str):
         image = cv2.imread(file, cv2.IMREAD_UNCHANGED)
     else:
         image = cv2.imdecode(np.frombuffer(file, np.byte), cv2.IMREAD_UNCHANGED)
-
     if compression == "png":
-        if isinstance(file, str):
-            with open(file, "rb") as f:
-                pil_shape, pil_dtype = _read_png_shape_and_dtype(f)
-        else:
-            pil_shape, pil_dtype = _read_png_shape_and_dtype(file)
+        func = _verify_png if verify else _read_png_shape_and_dtype
+        try:
+            if isinstance(file, str):
+                with open(file, "rb") as f:
+                    pil_shape, pil_dtype = func(f)
+            else:
+                    pil_shape, pil_dtype = func(file)
+        except Exception as e:
+            raise OSError("Invalid png") from e  # OSError to match pillow behavior
         if pil_shape[-1] == 4:
             return _decompress_with_pillow(file, compression)
         if pil_shape != image.shape:
             return _decompress_with_pillow(file, compression)
         if pil_dtype != image.dtype.str:
             image = image.astype(pil_dtype)
-        # if pil_dtype != image.dtype.str:
-        #     if image.shape[-1] == 4:
-        #         image = cv2.convertScaleAbs(image, alpha=(255.0 / 65535.0))
-        #         # BGRA -> RGBA
-        #         image = image[..., [2, 1, 0, 3]]
-        #     else:
-        #         pass
-        #         # image = image.astype(pil_dtype)
     if image.shape[-1] == 3:
         if compression == "jpeg":
-            if isinstance(file, str):
-                with open(file, "rb") as f:
-                    shape = _read_jpeg_shape(f)
-            else:
-                shape = _read_jpeg_shape(file)
+            func = _verify_jpeg if verify else _read_jpeg_shape
+            try:
+                if isinstance(file, str):
+                    with open(file, "rb") as f:
+                        shape = func(f)
+                else:
+                        shape = func(file)
+            except Exception as e:
+                raise OSError("Invalid jpg") from e  # OSError to match pillow behavior
             if shape[-1] == 4:
                 # BGR -> CMYK
                 image = _bgr_to_cmyk(image)

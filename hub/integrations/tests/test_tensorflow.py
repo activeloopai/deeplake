@@ -48,8 +48,8 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
                 local_ds.image.append(img_good)
             local_ds.image.append(img_bad)
     num_samples = 0
+    tds = local_ds.tensorflow()
     with pytest.warns(UserWarning):
-        tds = local_ds.tensorflow()
         for batch in tds:
             num_samples += 1  # batch_size = 1
     assert num_samples == 30
