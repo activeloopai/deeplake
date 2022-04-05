@@ -40,6 +40,7 @@ from hub.compression import (
     VIDEO_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
     BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
 )
 
 DEFAULT_HTYPE = "generic"
@@ -85,14 +86,16 @@ _image_compressions = IMAGE_COMPRESSIONS[:]
 _image_compressions.remove("dcm")
 
 HTYPE_SUPPORTED_COMPRESSIONS = {
-    "image": _image_compressions + BYTE_COMPRESSIONS,
-    "video": VIDEO_COMPRESSIONS,
-    "audio": AUDIO_COMPRESSIONS,
-    "text": BYTE_COMPRESSIONS,
-    "list": BYTE_COMPRESSIONS,
-    "json": BYTE_COMPRESSIONS,
+    "image": _image_compressions + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES),
+    "video": VIDEO_COMPRESSIONS[:],
+    "audio": AUDIO_COMPRESSIONS[:],
+    "text": BYTE_COMPRESSIONS[:],
+    "list": BYTE_COMPRESSIONS[:],
+    "json": BYTE_COMPRESSIONS[:],
     "dicom": ["dcm"],
 }
+
+
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
