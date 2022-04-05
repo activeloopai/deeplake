@@ -22,6 +22,8 @@ def check_storage_provider(storage):
     storage[FILE_1] = b"hello world"
     assert storage[FILE_1] == b"hello world"
     assert storage.get_bytes(FILE_1, 2, 5) == b"llo"
+    assert storage.get_bytes(FILE_1, 2) == b"llo world"
+    assert storage.get_bytes(FILE_1, None, 2) == b"he"
 
     storage.set_bytes(FILE_1, b"abcde", 6)
     assert storage[FILE_1] == b"hello abcde"

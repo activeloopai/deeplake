@@ -68,7 +68,7 @@ class _Visualizer:
     def start_server(self):
         global _SERVER_THREAD
         if self.is_server_running():
-            return
+            return f"http://localhost:{self.port}/"
         self._port = self.get_free_port()
 
         def run_app():
@@ -123,7 +123,7 @@ def access_data(path):
         start, end = 0, None
         storage: StorageProvider = visualizer.get(paths[0])
         if request.method == "HEAD":
-            if paths[1] in storage.keys:
+            if paths[1] in storage.keys():
                 return Response("OK", 200)
             else:
                 return Response("", 404)
