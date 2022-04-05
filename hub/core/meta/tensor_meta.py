@@ -283,7 +283,8 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             )
     supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
     if (
-        compr != UNSPECIFIED
+        compr
+        and compr != UNSPECIFIED
         and supported_compressions
         and compr not in supported_compressions
     ):
