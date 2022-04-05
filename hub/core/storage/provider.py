@@ -165,7 +165,7 @@ class StorageProvider(ABC, MutableMapping):
             self.flush()
 
     @abstractmethod
-    def clear(self):
+    def clear(self, prefix=""):
         """Delete the contents of the provider."""
 
     def delete_multiple(self, paths: Sequence[str]):
@@ -182,7 +182,6 @@ class StorageProvider(ABC, MutableMapping):
         Returns:
             StorageProvider: A copy of the provider.
         """
-        # use setstate and get state to copy the storage provider
         cls = self.__class__
         new_provider = cls.__new__(cls)
         new_provider.__setstate__(self.__getstate__())
