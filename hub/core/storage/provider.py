@@ -165,7 +165,7 @@ class StorageProvider(ABC, MutableMapping):
             self.flush()
 
     @abstractmethod
-    def clear(self):
+    def clear(self, prefix=""):
         """Delete the contents of the provider."""
 
     def delete_multiple(self, paths: Sequence[str]):

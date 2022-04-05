@@ -1,5 +1,8 @@
 from typing import Callable
 from hub.core.index import Index
+from hub.constants import _NO_LINK_UPDATE
+import inspect
+import hub
 import inspect
 from hub.util.generate_id import generate_id
 import numpy as np
@@ -11,7 +14,7 @@ class _TensorLinkTransform:
         self.f = f
         spec = inspect.getfullargspec(f)
         self.multi_arg = len(spec.args) > 1 or spec.varargs or spec.varkw
-        self.kwargs = [k for k in ("index", "partial") if k in spec.args]
+        self.kwargs = [k for k in ("index", "sub_index", "partial") if k in spec.args]
 
     def __call__(self, *args, **kwargs):
         if self.multi_arg:
@@ -39,6 +42,37 @@ def append_test(sample):
 @link
 def update_test(new_sample, old_value, sub_index: Index, partial: bool):
     return old_value
+
+
+@link
+def append_info(sample):
+    if isinstance(sample, hub.core.sample.Sample):
+        meta = sample.meta
+        meta["modified"] = False
+        return meta
+    return {}
+
+
+@link
+def update_info(new_sample, old_value, sub_index: Index, partial: bool):
+    if partial:
+        meta = old_value.data()
+        if "modified" in meta:
+            meta["modified"] = True
+            return meta
+    else:
+        return append_info.f(new_sample)
+    return _NO_LINK_UPDATE
+
+
+@link
+def append_shape(sample):
+    return np.array(getattr(sample, "shape", None) or np.array(sample).shape)
+
+
+@link
+def append_len(sample):
+    return len(sample)
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}
