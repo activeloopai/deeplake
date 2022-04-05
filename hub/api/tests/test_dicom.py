@@ -2,6 +2,7 @@ import hub
 import pytest
 from pydicom.data import get_testdata_file
 from pydicom import dcmread
+from hub.util.exceptions import UnsupportedCompressionError
 
 
 def test_dicom_basic(memory_ds):
@@ -9,10 +10,15 @@ def test_dicom_basic(memory_ds):
     path = get_testdata_file("MR_small.dcm")
     with ds:
         ds.create_tensor("x", htype="dicom")
+        with pytest.raises(UnsupportedCompressionError):
+            ds.create_tensor("y", htype="dicom", sample_compression="jpg")
         dcm = hub.read(path)
         assert dcm.dtype == "int16"
         assert dcm.shape == (64, 64, 1)
         ds.x.append(dcm)
+        dcm = hub.read(path, verify=True)
+        assert dcm.dtype == "int16"
+        assert dcm.shape == (64, 64, 1)
         ds.x.append(dcm)
     assert ds.x.dtype == "int16"
     arr = ds.x.numpy()

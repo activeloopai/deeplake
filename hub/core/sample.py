@@ -1,4 +1,3 @@
-from ast import Bytes
 from hub.core.compression import (
     compress_array,
     decompress_array,
