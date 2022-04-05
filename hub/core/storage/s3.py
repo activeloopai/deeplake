@@ -234,7 +234,7 @@ class S3Provider(StorageProvider):
             range = f"bytes={start_byte}-"
         elif end_byte != None:
             assert end_byte is not None
-            range = f"bytes=-{end_byte - 1}"
+            range = f"bytes=0-{end_byte - 1}"
         resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
         return resp["Body"].read()
 
