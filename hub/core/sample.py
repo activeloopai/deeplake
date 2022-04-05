@@ -7,12 +7,14 @@ from hub.core.compression import (
     _open_video,
     _read_metadata_from_vstream,
     _read_audio_meta,
+    _OPENCV_INSTALLED,
 )
 from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
+    OPENCV_SUPPORTED_COMPRESSIONS,
 )
 from hub.compression import (
     get_compression_type,
@@ -240,82 +242,30 @@ class Sample:
             self._compressed_bytes[compression] = compressed_bytes
         return compressed_bytes
 
+    def _decompress(self):
+        if self._array is not None:
+            if self._uncompressed_bytes is None:
+                self._uncompressed_bytes = self._array.tobytes()
+            return
+        if self.path and get_path_type(self.path) == "local":
+            compressed = self.path
+        else:
+            compressed = self._buffer
+        self._array = decompress_array(
+                    compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
+                )
+        self._uncompressed_bytes = self._array.tobytes()
+        self._typestr = self._array.__array_interface__["typestr"]
+        self._dtype = np.dtype(self._typestr).name
+
     def uncompressed_bytes(self) -> bytes:
         """Returns uncompressed bytes."""
-
-        if self._uncompressed_bytes is None:
-            if self.path is not None:
-                compr = self._compression
-                if compr is None:
-                    compr = get_compression(path=self.path)
-                if get_compression_type(compr) in (
-                    AUDIO_COMPRESSION,
-                    VIDEO_COMPRESSION,
-                ):
-                    self._compression = compr
-                    if self._array is None:
-                        self._array = decompress_array(
-                            self.path, compression=compr, shape=self.shape
-                        )
-                    self._uncompressed_bytes = self._array.tobytes()
-                else:
-                    img = Image.open(self.path)
-                    if img.mode == "1":
-                        # Binary images need to be extended from bits to bytes
-                        self._uncompressed_bytes = img.tobytes("raw", "L")
-                    else:
-                        self._uncompressed_bytes = img.tobytes()
-            elif self._compressed_bytes:
-                compr = self._compression
-                if compr is None:
-                    compr = get_compression(path=self.path)
-                buffer = self._buffer
-                if buffer is None:
-                    buffer = self._compressed_bytes[compr]
-                self._array = decompress_array(
-                    buffer, compression=compr, shape=self.shape, dtype=self.dtype
-                )
-                self._uncompressed_bytes = self._array.tobytes()
-                self._typestr = self._array.__array_interface__["typestr"]
-            else:
-                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
-
+        self._decompress()
         return self._uncompressed_bytes
 
     @property
     def array(self) -> np.ndarray:
-
-        if self._array is None:
-            compr = self._compression
-            if compr is None:
-                compr = get_compression(path=self.path)
-            if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
-                self._compression = compr
-                if self.path and is_remote_path(self.path):
-                    compressed = self.buffer
-                else:
-                    compressed = self.path or self._buffer
-                array = decompress_array(
-                    compressed, compression=compr, shape=self.shape
-                )
-                if self._shape is None:
-                    self._shape = array.shape  # type: ignore
-                    self._typestr = array.__array_interface__["typestr"]
-                self._array = array
-            else:
-                self._read_meta()
-                data = self.uncompressed_bytes()
-                array_interface = {
-                    "shape": self._shape,
-                    "typestr": self._typestr,
-                    "version": 3,
-                    "data": data,
-                }
-
-                class ArrayData:
-                    __array_interface__ = array_interface
-
-                self._array = np.array(ArrayData, None)
+        self._decompress()
         return self._array
 
     def __str__(self):
