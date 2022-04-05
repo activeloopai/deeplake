@@ -34,6 +34,7 @@ from hub.util.exceptions import (
 from hub.util.pretty_print import (
     max_array_length,
     get_string,
+    summary_tensor,
 )
 from hub.constants import FIRST_COMMIT_ID, MB
 from hub.util.version_control import auto_checkout
@@ -550,51 +551,51 @@ class Tensor:
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
-    def summary(self):
-        head = ["tensor", "htype", "shape", "dtype", "compression"]
-        divider = ["-------"] * 5
-        maxColumnLength = [7, 7, 7, 7, 7]
+    # def summary(self):
+    #     head = ["tensor", "htype", "shape", "dtype", "compression"]
+    #     divider = ["-------"] * 5
+    #     max_column_length = [7, 7, 7, 7, 7]
 
-        tensor_htype = self.htype
-        if tensor_htype == None:
-            tensor_htype = "None"
+    #     tensor_htype = self.htype
+    #     if tensor_htype == None:
+    #         tensor_htype = "None"
 
-        tensor_shape = str(self.shape)
+    #     tensor_shape = str(self.shape) 
 
-        tensor_compression = self.meta.sample_compression
-        if tensor_compression == None:
-            tensor_compression = "None"
+    #     tensor_compression = self.meta.sample_compression
+    #     if tensor_compression == None:
+    #         tensor_compression = "None"
 
-        if self.dtype == None:
-            tensor_dtype = "None"
-        else:
-            tensor_dtype = self.dtype.name
+    #     if self.dtype == None:
+    #         tensor_dtype = "None"
+    #     else:
+    #         tensor_dtype = self.dtype.name
 
-        selfArray = [
-            head,
-            divider,
-            [
-                str(self.key),
-                tensor_htype,
-                tensor_shape,
-                tensor_dtype,
-                tensor_compression,
-            ],
-        ]
-        # adding information about tensors
-        maxColumnLength = max_array_length(
-            maxColumnLength, selfArray[2]
-        )  # 3rd element of slefarray corresponds to tensor att
-        maxColumnLength = [elem + 2 for elem in maxColumnLength]
-        return get_string(selfArray, maxColumnLength)
+    #     selfArray = [
+    #         head,
+    #         divider,
+    #         [
+    #             str(self.key),
+    #             tensor_htype,
+    #             tensor_shape,
+    #             tensor_dtype,
+    #             tensor_compression,
+    #         ],
+    #     ]
+    #     # adding information about tensors
+    #     max_column_length = max_array_length(
+    #         max_column_length, selfArray[2]
+    #     )  # 3rd element of slefarray corresponds to tensor att
+    #     max_column_length = [elem + 2 for elem in max_column_length]
+    #     return get_string(selfArray, max_column_length)
 
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        pretty_print = self.summary()  # get the string for table format of the tensors
+        pretty_print = summary_tensor(self)  # get the string for table format of the tensors
         return f"Tensor(key={repr(self.key)}{index_str})" + "\n" + pretty_print
-
+    
     __repr__ = __str__
 
     def __array__(self) -> np.ndarray:
