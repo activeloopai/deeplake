@@ -45,7 +45,7 @@ from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
-from hub.util.htype import parse_sequence_htype
+from hub.util.htype import parse_complex_htype
 from hub.util.merge import merge
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
@@ -370,8 +370,9 @@ class Dataset:
         if not name or name in dir(self):
             raise InvalidTensorNameError(name)
 
-        is_sequence, htype = parse_sequence_htype(htype)
+        is_sequence, is_link, htype = parse_complex_htype(htype)
         kwargs["is_sequence"] = is_sequence
+        kwargs["is_link"] = is_link
 
         if not self._is_root():
             return self.root.create_tensor(
