@@ -55,5 +55,3 @@ def test_local_server(ds_generator):
 
     response = requests.request("GET", url + "not_exists/not_exists")
     assert response.status_code == 404
-    ds.visualize()
-    visualizer.stop_server()
