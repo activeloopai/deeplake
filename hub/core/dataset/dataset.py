@@ -88,6 +88,7 @@ from hub.util.version_control import (
 from hub.util.pretty_print import (
     max_array_length,
     get_string,
+    summary_dataset,
 )
 from hub.client.utils import get_user_name
 
@@ -1142,56 +1143,9 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-    def summary(self):
-        head = [
-            "tensor",
-            "htype",
-            "shape",
-            "dtype",
-            "compression",
-        ]  # To add more attributes change head, divider, row_array and table_str
-        divider = ["-------"] * 5
-        tensor_dict = self.version_state[
-            "full_tensors"
-        ]  # Creating a list of tensors in the dataset
-        maxColumnLength = [7, 7, 7, 7, 7]  # length of "attribute name" length
-        count = 0
-        tableArray = [head, divider]  # collects all the rows
-        for tensor_name in tensor_dict:
-            tensor_object = tensor_dict[tensor_name]
-
-            tensor_htype = tensor_object.htype
-            if tensor_htype == None:
-                tensor_htype = "None"
-
-            tensor_shape = str(tensor_object.shape)
-
-            tensor_compression = tensor_object.meta.sample_compression
-            if tensor_compression == None:
-                tensor_compression = "None"
-
-            if tensor_object.dtype == None:
-                tensor_dtype = "None"
-            else:
-                tensor_dtype = tensor_object.dtype.name
-
-            rowArray = [
-                tensor_name,
-                tensor_htype,
-                tensor_shape,
-                tensor_dtype,
-                tensor_compression,
-            ]
-            tableArray.append(rowArray)
-            maxColumnLength = max_array_length(maxColumnLength, rowArray)
-            count += 1
-        maxColumnLength = [elem + 2 for elem in maxColumnLength]
-
-        return get_string(tableArray, maxColumnLength)
-
     def __str__(self):
 
-        pretty_print = self.summary()
+        pretty_print = summary_dataset(self)
 
         path_str = ""
         if self.path:
