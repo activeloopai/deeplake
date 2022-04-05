@@ -551,14 +551,15 @@ class Tensor:
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
-
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        pretty_print = summary_tensor(self)  # get the string for table format of the tensors
+        pretty_print = summary_tensor(
+            self
+        )  # get the string for table format of the tensors
         return f"Tensor(key={repr(self.key)}{index_str})" + "\n" + pretty_print
-    
+
     __repr__ = __str__
 
     def __array__(self) -> np.ndarray:

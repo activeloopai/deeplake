@@ -1,3 +1,6 @@
+import time
+
+
 def max_array_length(arr_max, arr_to_compare):  # helper for __str__
     for i in range(len(arr_max)):
         str_length = len(arr_to_compare[i])
@@ -25,7 +28,13 @@ def get_string(
 
 
 def summary_tensor(tensor):
-    head = ["tensor", "htype", "shape", "dtype", "compression"]
+    head = [
+        "tensor",
+        "htype",
+        "shape",
+        "dtype",
+        "compression",
+    ]
     divider = ["-------"] * 5
     max_column_length = [7, 7, 7, 7, 7]
 
@@ -33,7 +42,7 @@ def summary_tensor(tensor):
     if tensor_htype == None:
         tensor_htype = "None"
 
-    tensor_shape = str(tensor.shape) 
+    tensor_shape = str(tensor.shape)
 
     tensor_compression = tensor.meta.sample_compression
     if tensor_compression == None:
@@ -93,7 +102,7 @@ def summary_dataset(dataset):
             tensor_dtype = "None"
         else:
             tensor_dtype = tensor_object.dtype.name
-            
+
         row_array = [
             tensor_name,
             tensor_htype,
@@ -107,4 +116,3 @@ def summary_dataset(dataset):
     max_column_length = [elem + 2 for elem in max_column_length]
 
     return get_string(table_array, max_column_length)
-    

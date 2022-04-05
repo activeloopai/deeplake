@@ -1143,7 +1143,6 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-
     def __str__(self):
 
         pretty_print = summary_dataset(self)
