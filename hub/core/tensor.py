@@ -551,43 +551,6 @@ class Tensor:
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
-    # def summary(self):
-    #     head = ["tensor", "htype", "shape", "dtype", "compression"]
-    #     divider = ["-------"] * 5
-    #     max_column_length = [7, 7, 7, 7, 7]
-
-    #     tensor_htype = self.htype
-    #     if tensor_htype == None:
-    #         tensor_htype = "None"
-
-    #     tensor_shape = str(self.shape) 
-
-    #     tensor_compression = self.meta.sample_compression
-    #     if tensor_compression == None:
-    #         tensor_compression = "None"
-
-    #     if self.dtype == None:
-    #         tensor_dtype = "None"
-    #     else:
-    #         tensor_dtype = self.dtype.name
-
-    #     selfArray = [
-    #         head,
-    #         divider,
-    #         [
-    #             str(self.key),
-    #             tensor_htype,
-    #             tensor_shape,
-    #             tensor_dtype,
-    #             tensor_compression,
-    #         ],
-    #     ]
-    #     # adding information about tensors
-    #     max_column_length = max_array_length(
-    #         max_column_length, selfArray[2]
-    #     )  # 3rd element of slefarray corresponds to tensor att
-    #     max_column_length = [elem + 2 for elem in max_column_length]
-    #     return get_string(selfArray, max_column_length)
 
     def __str__(self):
         index_str = f", index={self.index}"

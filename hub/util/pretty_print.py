@@ -44,7 +44,7 @@ def summary_tensor(tensor):
     else:
         tensor_dtype = tensor.dtype.name
 
-    selfArray = [
+    self_array = [
         head,
         divider,
         [
@@ -57,10 +57,10 @@ def summary_tensor(tensor):
     ]
     # adding information about tensors
     max_column_length = max_array_length(
-        max_column_length, selfArray[2]
+        max_column_length, self_array[2]
     )  # 3rd element of slefarray corresponds to tensor att
     max_column_length = [elem + 2 for elem in max_column_length]
-    return get_string(selfArray, max_column_length)
+    return get_string(self_array, max_column_length)
 
 
 def summary_dataset(dataset):
@@ -107,3 +107,4 @@ def summary_dataset(dataset):
     max_column_length = [elem + 2 for elem in max_column_length]
 
     return get_string(table_array, max_column_length)
+    
