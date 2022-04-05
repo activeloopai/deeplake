@@ -793,6 +793,10 @@ def _frame_to_stamp(nframe, stream):
 
 
 def _open_video(file: Union[str, bytes, memoryview]):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "PyAV is not installed. Run `pip install hub[video]`."
+        )
     if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
@@ -845,10 +849,6 @@ def _decompress_video(
     step: Optional[int],
     reverse: bool,
 ):
-    if not _PYAV_INSTALLED:
-        raise ModuleNotFoundError(
-            "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
-        )
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 

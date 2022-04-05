@@ -235,22 +235,25 @@ class Tensor:
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
         Example:
-            numpy input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend(np.zeros((100, 28, 28, 1)))
-                >>> len(tensor)
-                100
+            Numpy input:
 
-            file input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend([
-                        hub.read("path/to/image1"),
-                        hub.read("path/to/image2"),
-                    ])
-                >>> len(tensor)
-                2
+            >>> len(tensor)
+            0
+            >>> tensor.extend(np.zeros((100, 28, 28, 1)))
+            >>> len(tensor)
+            100
+
+
+            File input:
+
+            >>> len(tensor)
+            0
+            >>> tensor.extend([
+                    hub.read("path/to/image1"),
+                    hub.read("path/to/image2"),
+                ])
+            >>> len(tensor)
+            2
 
 
         Args:
@@ -298,7 +301,7 @@ class Tensor:
         which can be used to load files. See examples down below.
 
         Examples:
-            numpy input:
+            Numpy input:
 
             >>> len(tensor)
             0
@@ -306,7 +309,7 @@ class Tensor:
             >>> len(tensor)
             1
 
-            file input:
+            File input:
 
             >>> len(tensor)
             0
@@ -335,7 +338,7 @@ class Tensor:
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
         """Returns a slice of the tensor with only those elements that were modified/added.
-        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a target id.
+        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a `target id`.
 
         Args:
             target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to None.
@@ -654,10 +657,12 @@ class Tensor:
             return self.numpy()
 
     def tobytes(self) -> bytes:
-        """Returns the bytes of the tensor. Only works for a single sample of tensor.
-        If the tensor is uncompressed, this returns the bytes of the numpy array.
-        If the tensor is sample compressed, this returns the compressed bytes of the sample.
-        If the tensor is chunk compressed, this raises an error.
+        """Returns the bytes of the tensor.
+
+        - Only works for a single sample of tensor.
+        - If the tensor is uncompressed, this returns the bytes of the numpy array.
+        - If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        - If the tensor is chunk compressed, this raises an error.
 
         Returns:
             bytes: The bytes of the tensor.

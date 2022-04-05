@@ -10,14 +10,17 @@ if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
 
 __pdoc__ = {
-    "core": False,
     "api": False,
+    "auto": False,
     "cli": False,
     "client": False,
+    "compression": False,
     "constants": False,
     "config": False,
+    "htype": False,
     "integrations": False,
     "tests": False,
+    "util": False,
     "Dataset.clear_cache": False,
     "Dataset.delete": False,
     "Dataset.flush": False,
@@ -26,7 +29,7 @@ __pdoc__ = {
     "Dataset.token": False,
     "Dataset.num_samples": False,
 }
-from .api.dataset import dataset
+from .api.dataset import dataset as api_dataset
 from .api.read import read
 from .api.tiled import tiled
 from .core.dataset import Dataset
@@ -39,24 +42,23 @@ from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
-list = dataset.list
-exists = dataset.exists
-load = dataset.load
-empty = dataset.empty
-like = dataset.like
-delete = dataset.delete
-rename = dataset.rename
-copy = dataset.copy
-deepcopy = dataset.deepcopy
-dataset_cl = Dataset
-ingest = dataset.ingest
-ingest_kaggle = dataset.ingest_kaggle
-ingest_dataframe = dataset.ingest_dataframe
+list = api_dataset.list
+exists = api_dataset.exists
+load = api_dataset.load
+empty = api_dataset.empty
+like = api_dataset.like
+delete = api_dataset.delete
+rename = api_dataset.rename
+copy = api_dataset.copy
+deepcopy = api_dataset.deepcopy
+ingest = api_dataset.ingest
+ingest_kaggle = api_dataset.ingest_kaggle
+ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
+dataset = api_dataset.init
 tensor = Tensor
 
 __all__ = [
-    "dataset",
     "tensor",
     "read",
     "__version__",
@@ -66,9 +68,11 @@ __all__ = [
     "compute",
     "compose",
     "copy",
-    "deepcopy" "like",
+    "dataset",
+    "Dataset",
+    "deepcopy",
+    "like",
     "list",
-    "dataset_cl",
     "ingest",
     "ingest_kaggle",
     "ingest_huggingface",
@@ -80,7 +84,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.3.3"
+__version__ = "2.3.4"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
