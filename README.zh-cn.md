@@ -168,7 +168,7 @@ for epoch in range(2):
 
 
 
-让我们在 Activeloop 云中创建一个数据集。Activeloop 云为每位用户提供高达 300 GB 的免费存储空间（更多信息请点击[此处](#-for-students-and-educators)）。如果您还没有账号，请从终端使用`activeloop register` 创建一个新帐户。系统将要求您输入用户名、电子邮件 ID 和密码。您在此处输入的用户名将用于数据集路径。
+让我们在 Activeloop 云中创建一个数据集。Activeloop 云为每位用户提供高达 300 GB 的免费存储空间（更多信息请点击[此处](#-对于学生和教育工作者)）。如果您还没有账号，请从终端使用`activeloop register` 创建一个新帐户。系统将要求您输入用户名、电子邮件 ID 和密码。您在此处输入的用户名将用于数据集路径。
 
 ```sh
 $ activeloop register
