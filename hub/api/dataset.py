@@ -29,8 +29,8 @@ from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
 class dataset:
-    def __new__(
-        cls,
+    @staticmethod
+    def init(
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
@@ -46,12 +46,20 @@ class dataset:
         Important:
             Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
+        Examples:
+            ```
+            ds = hub.dataset("hub://username/dataset")
+            ds = hub.dataset("s3://mybucket/my_dataset")
+            ds = hub.dataset("./datasets/my_dataset", overwrite=True)
+            ```
+
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
@@ -146,18 +154,20 @@ class dataset:
             Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            path (str): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            overwrite (bool): __WARNING__: If set to True this overwrites the dataset if it already exists. This can __NOT__ be undone! Defaults to False.
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
@@ -209,18 +219,20 @@ class dataset:
         """Loads an existing dataset
 
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
@@ -270,13 +282,19 @@ class dataset:
         token: Optional[str] = None,
     ) -> Dataset:
         """Renames dataset at `old_path` to `new_path`.
+        Examples:
+            ```
+            hub.rename("hub://username/image_ds", "hub://username/new_ds")
+            hub.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
+            ```
 
         Args:
             old_path (str): The path to the dataset to be renamed.
             new_path (str): Path to the dataset after renaming.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+                -
+                - This takes precedence over credentials present in the environment. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
@@ -284,11 +302,6 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path or if new path is to a different directory.
-
-        Example::
-
-            hub.rename("hub://username/image_ds", "hub://username/new_ds")
-            hub.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
         """
         if creds is None:
             creds = {}
@@ -310,7 +323,8 @@ class dataset:
         verbose: bool = False,
     ) -> None:
         """Deletes a dataset at a given path.
-        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        This is an __IRREVERSIBLE__ operation. Data once deleted can not be recovered.
 
         Args:
             path (str): The path to the dataset to be deleted.
@@ -318,8 +332,9 @@ class dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
@@ -372,8 +387,9 @@ class dataset:
             source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
@@ -412,15 +428,16 @@ class dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        """Copies this dataset view at `src` to `dest`. Version control history is not included.
+        """Copies this dataset at `src` to `dest`. Version control history is not included.
 
         Args:
             src (Union[str, Dataset]): The Dataset or the path to the dataset to be copied.
             dest (str): Destination path to copy to.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             src_token (str, optional): Activeloop token, used for fetching credentials to the dataset at `src` if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
             dest_token (str, optional): token used to for fetching credentials to `dest`.
@@ -470,8 +487,9 @@ class dataset:
             dest (str): Destination path to copy to.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             src_token (str, optional): Activeloop token, used for fetching credentials to the dataset at `src` if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
             dest_token (str, optional): token used to for fetching credentials to `dest`.
@@ -612,11 +630,12 @@ class dataset:
 
         Args:
             src (str): Local path to where the unstructured dataset is stored or path to csv file.
-            dest (str): Destination path where the structured dataset will be stored. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            dest (str): Destination path where the structured dataset will be stored. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
@@ -702,10 +721,11 @@ class dataset:
             tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str): Local path to where the raw kaggle dataset will be downlaoded to.
             dest (str): Destination path where the structured dataset will be stored. Can be:
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and `exist_ok` is True, ingestion will proceed without error.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.

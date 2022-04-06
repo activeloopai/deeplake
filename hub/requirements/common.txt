@@ -12,3 +12,4 @@ numcodecs
 miniaudio~=1.44
 av>=8.1.0; python_version >= '3.7' or sys_platform != 'win32'
 pydicom
+IPython
