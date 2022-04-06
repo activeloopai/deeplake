@@ -13,12 +13,13 @@ from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
-from hub.constants import FIRST_COMMIT_ID
 from hub.constants import (
+    FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
+    DEFAULT_READONLY,
 )
 from hub.core.fast_forwarding import ffw_dataset_meta
 from hub.core.index import Index
@@ -113,7 +114,7 @@ class Dataset:
         storage: LRUCache,
         index: Optional[Index] = None,
         group_index: str = "",
-        read_only: bool = False,
+        read_only: bool = DEFAULT_READONLY,
         public: Optional[bool] = False,
         token: Optional[str] = None,
         verbose: bool = True,
