@@ -96,7 +96,6 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
 }
 
 
-
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
     "sample_compression": None,
