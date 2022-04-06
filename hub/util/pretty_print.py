@@ -1,6 +1,3 @@
-import time
-
-
 def max_array_length(arr_max, arr_to_compare):  # helper for __str__
     for i in range(len(arr_max)):
         str_length = len(arr_to_compare[i])
