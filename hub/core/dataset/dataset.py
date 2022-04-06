@@ -2064,6 +2064,20 @@ class Dataset:
             except KeyError:
                 pass
 
+    def visualize(
+        self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
+    ):
+        """
+        Visualizes the dataset in the Jupyter notebook.
+
+        Args:
+            width: Union[int, str, None] Optional width of the visualizer canvas.
+            height: Union[int, str, None] Optional height of the visualizer canvas.
+        """
+        from hub.visualizer import visualize
+
+        visualize(self.storage, width=width, height=height)
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
