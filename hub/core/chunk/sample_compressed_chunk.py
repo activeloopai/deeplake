@@ -47,7 +47,7 @@ class SampleCompressedChunk(BaseChunk):
                     break
         return num_samples
 
-    def read_sample(
+    def read_sample(  # type: ignore
         self,
         local_index: int,
         cast: bool = True,
