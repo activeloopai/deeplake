@@ -165,12 +165,10 @@ def test_stringify(memory_ds):
 
     assert (
         str(ds)
-        # == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])"
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
     )
     assert (
         str(ds[1:2])
-        # == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
     )
     assert (
