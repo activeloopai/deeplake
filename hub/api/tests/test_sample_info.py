@@ -1,12 +1,11 @@
-from miniaudio import mp3_get_file_info  # type: ignore
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
-
-import hub
-import pytest
+from miniaudio import mp3_get_file_info  # type: ignore
 import numpy as np
+import pytest
 import os
 import sys
+import hub
 
 
 def get_exif_helper(path):

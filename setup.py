@@ -31,6 +31,7 @@ extras = {
     "audio": ["miniaudio"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
     "video": ["av"],
+    "dicom": ["pydicom"],
     "visualizer": ["IPython", "flask"],
 }
 

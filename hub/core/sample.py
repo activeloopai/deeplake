@@ -114,10 +114,10 @@ class Sample:
 
     @property
     def dtype(self):
-        if self._dtype:
-            return self._dtype
-        self._read_meta()
-        return np.dtype(self._typestr).name
+        if self._dtype is None:
+            self._read_meta()
+            self._dtype = np.dtype(self._typestr).name
+        return self._dtype
 
     @property
     def shape(self):
@@ -129,6 +129,23 @@ class Sample:
         if self._compression is None and self.path:
             self._read_meta()
         return self._compression
+
+    def _load_dicom(self):
+        if self._array is not None:
+            return
+        try:
+            from pydicom import dcmread
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+        self._array = dcm.pixel_array
+        self._shape = self._array.shape
+        self._typestr = self._array.__array_interface__["typestr"]
 
     def _read_meta(self, f=None):
         if self._shape is not None:
@@ -151,6 +168,33 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def _get_dicom_meta(self) -> dict:
+        try:
+            from pydicom import dcmread
+            from pydicom.dataelem import RawDataElement
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+
+        meta = {
+            x.keyword: {
+                "name": x.name,
+                "tag": str(x.tag),
+                "value": x.value
+                if isinstance(x.value, (str, int, float))
+                else x.to_json_dict(None, None).get("Value", ""),  # type: ignore
+                "vr": x.VR,
+            }
+            for x in dcm
+            if not isinstance(x.value, bytes)
+        }
+        return meta
 
     def _get_video_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
@@ -244,13 +288,20 @@ class Sample:
         """Returns uncompressed bytes."""
 
         if self._uncompressed_bytes is None:
+            if self._array is not None:
+                self._uncompressed_bytes = self._array.tobytes()
+                return self._uncompressed_bytes
             if self.path is not None:
                 compr = self._compression
                 if compr is None:
                     compr = get_compression(path=self.path)
-                if get_compression_type(compr) in (
-                    AUDIO_COMPRESSION,
-                    VIDEO_COMPRESSION,
+                if (
+                    get_compression_type(compr)
+                    in (
+                        AUDIO_COMPRESSION,
+                        VIDEO_COMPRESSION,
+                    )
+                    or compr == "dcm"
                 ):
                     self._compression = compr
                     if self._array is None:
@@ -393,12 +444,15 @@ class Sample:
     @property
     def meta(self) -> dict:
         meta: Dict[str, Union[Dict, str]] = {}
-        compression_type = get_compression_type(self.compression)
-        if compression_type == IMAGE_COMPRESSION:
+        compression = self.compression
+        compression_type = get_compression_type(compression)
+        if compression == "dcm":
+            meta.update(self._get_dicom_meta())
+        elif compression_type == IMAGE_COMPRESSION:
             meta["exif"] = self._getexif()
-        if compression_type == VIDEO_COMPRESSION:
+        elif compression_type == VIDEO_COMPRESSION:
             meta.update(self._get_video_meta())
-        if compression_type == AUDIO_COMPRESSION:
+        elif compression_type == AUDIO_COMPRESSION:
             meta.update(self._get_audio_meta())
         meta["shape"] = self.shape
         meta["format"] = self.compression
