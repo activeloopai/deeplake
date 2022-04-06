@@ -1193,7 +1193,11 @@ class Dataset:
         return self._ds_diff
 
     @hub_reporter.record_call
-    def tensorflow(self):
+    def tensorflow(
+        self,
+        tensors: Optional[Sequence[str]],
+        tobytes: Union[bool, Sequence[str]] = False,
+    ):
         """Converts the dataset into a tensorflow compatible format.
 
         See:
@@ -1202,7 +1206,7 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
-        return dataset_to_tensorflow(self)
+        return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
 
     def flush(self):
         """Necessary operation after writes if caches are being used.
