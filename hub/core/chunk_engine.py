@@ -938,7 +938,9 @@ class ChunkEngine:
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        return chunk.read_sample(local_sample_index, cast=cast, copy=copy, decompress=decompress)
+        return chunk.read_sample(
+            local_sample_index, cast=cast, copy=copy, decompress=decompress
+        )
 
     def numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True

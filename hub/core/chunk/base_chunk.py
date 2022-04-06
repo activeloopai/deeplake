@@ -165,7 +165,13 @@ class BaseChunk(HubMemoryObject):
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
-    def read_sample(self, local_index: int, cast: bool = True, copy: bool = False, decompress: bool = True):
+    def read_sample(
+        self,
+        local_index: int,
+        cast: bool = True,
+        copy: bool = False,
+        decompress: bool = True,
+    ):
         """Reads a sample from the chunk."""
 
     @abstractmethod

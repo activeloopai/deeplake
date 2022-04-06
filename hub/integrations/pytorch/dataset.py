@@ -59,7 +59,13 @@ def cast_type(tensor: np.ndarray):
 
 
 def _process(tensor, transform: PytorchTransformFunction):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
+    def copy(x):
+        try:
+            return cast_type(x.copy())
+        except AttributeError:
+            return bytes(x)
+
+    tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
     return tensor
 

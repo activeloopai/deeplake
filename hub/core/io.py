@@ -275,7 +275,9 @@ class SampleStreaming(Streaming):
         else:
             for k in tobytes:
                 if k not in tensors:
-                    raise Exception(f"Tensor {k} is not present in the list of provided tensors: {tensors}.")
+                    raise Exception(
+                        f"Tensor {k} is not present in the list of provided tensors: {tensors}."
+                    )
             self.tobytes = {k: k in tobytes for k in tensors}
 
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
@@ -322,10 +324,14 @@ class SampleStreaming(Streaming):
                             chunk = engine.get_chunk(c_key)
                         chunks.append(chunk)
                     if len(chunks) == 1:
-                        data = engine.read_sample_from_chunk(idx, chunk, decompress=decompress)
+                        data = engine.read_sample_from_chunk(
+                            idx, chunk, decompress=decompress
+                        )
                     else:
                         if not decompress:
-                            raise NotImplementedError("`tobytes=True` is not supported by tiled samples as it can cause recompression.")
+                            raise NotImplementedError(
+                                "`tobytes=True` is not supported by tiled samples as it can cause recompression."
+                            )
                         data = combine_chunks(chunks, idx, engine.tile_encoder)
 
                     if data is not None:

@@ -68,7 +68,13 @@ class UncompressedChunk(BaseChunk):
 
         return num_samples
 
-    def read_sample(self, local_index: int, cast: bool = True, copy: bool = False, decompress: bool = True):
+    def read_sample(
+        self,
+        local_index: int,
+        cast: bool = True,
+        copy: bool = False,
+        decompress: bool = True,
+    ):
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile

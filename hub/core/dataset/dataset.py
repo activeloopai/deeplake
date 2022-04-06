@@ -1083,6 +1083,7 @@ class Dataset:
             self,
             transform=transform,
             tensors=tensors,
+            tobytes=tobytes,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
