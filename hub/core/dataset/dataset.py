@@ -1164,7 +1164,7 @@ class Dataset:
         )
 
         return (
-            f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self.version_state['meta'].tensors})"
+            f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
             + "\n"
             + pretty_print
         )
