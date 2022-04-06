@@ -23,6 +23,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
 )
+from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import MB
 
 from click.testing import CliRunner
@@ -183,6 +184,26 @@ def test_stringify(memory_ds):
     assert (
         str(ds[1:2].image)
         == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+    )
+
+
+def test_summary(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("abc")
+    ds.abc.extend(np.ones((4, 4)))
+    ds.create_tensor("images", htype="image", dtype="int32", sample_compression="jpeg")
+
+    assert (
+        summary_dataset(ds)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   \n images    image    (0,)     int32    jpeg   "
+    )
+    assert (
+        summary_tensor(ds.abc)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   "
+    )
+    assert (
+        summary_tensor(ds.images)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n images    image    (0,)     int32    jpeg   "
     )
 
 
