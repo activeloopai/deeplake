@@ -210,7 +210,10 @@ def test_summary(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
+    assert (
+        str(ds)
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- "
+    )
 
 
 def test_fixed_tensor(local_ds):
