@@ -43,7 +43,7 @@ def coalesce_tiles(
 
 
 def combine_chunks(
-    chunks: List[BaseChunk], sample_index: int, tile_encoder: TileEncoder
+    chunks: List[BaseChunk], sample_index: int, tile_encoder: TileEncoder,
 ) -> np.ndarray:
     dtype = chunks[0].dtype
     shape = tile_encoder.get_sample_shape(sample_index)
