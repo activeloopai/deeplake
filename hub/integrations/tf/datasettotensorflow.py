@@ -42,7 +42,7 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
                 try:
                     value = dataset[key][index]
                     if tobytes[key]:
-                        value = value.tobytes()
+                        value = [value.tobytes()]
                     else:
                         value = value.numpy()
                     sample[key] = value
@@ -57,16 +57,12 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
     def generate_signature():
         signature = {}
         for key in tensors:
-            tobytes = tobytes[key]
-            if tobytes or dtype == "str":
+            tb = tobytes[key]
+            dtype = dataset[key].meta.dtype
+            if tb or dtype == "str":
                 dtype = tf.string
-            else:
-                dtype = dataset[key].meta.dtype
-            if tobytes:
-                shape = (None,)
-            else:
-                shape = dataset[key].shape
-            signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
+            shape = (1,) if tb else dataset[key].shape[1:]
+            signature[key] = tf.TensorSpec(shape=shape, dtype=dtype)
         return signature
 
     signature = generate_signature()

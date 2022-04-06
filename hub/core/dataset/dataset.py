@@ -1195,7 +1195,7 @@ class Dataset:
     @hub_reporter.record_call
     def tensorflow(
         self,
-        tensors: Optional[Sequence[str]],
+        tensors: Optional[Sequence[str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Converts the dataset into a tensorflow compatible format.
