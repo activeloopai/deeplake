@@ -57,10 +57,15 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
     def generate_signature():
         signature = {}
         for key in tensors:
-            dtype = dataset[key].meta.dtype
-            shape = dataset[key].shape
-            if dtype == "str" or tobytes[key]:
+            tobytes = tobytes[key]
+            if tobytes or dtype == "str":
                 dtype = tf.string
+            else:
+                dtype = dataset[key].meta.dtype
+            if tobytes:
+                shape = (None,)
+            else:
+                shape = dataset[key].shape
             signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
         return signature
 
