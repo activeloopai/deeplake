@@ -171,10 +171,16 @@ def test_stringify(memory_ds):
     assert (
         str(ds[1:2])
         # == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "    
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
     )
-    assert str(ds.image) == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
-    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+    assert (
+        str(ds.image)
+        == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+    )
+    assert (
+        str(ds[1:2].image)
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+    )
 
 
 def test_stringify_with_path(local_ds):
