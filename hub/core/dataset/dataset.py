@@ -1203,6 +1203,10 @@ class Dataset:
         See:
             https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
+        Args:
+            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            tobytes (bool): If True, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
+
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
