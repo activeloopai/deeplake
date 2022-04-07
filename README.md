@@ -21,8 +21,8 @@
   <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
  
- 
 
+*Read this in other languages: [简体中文](README.zh-cn.md)*
 
 ## About Hub
 
@@ -79,10 +79,11 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[audio]  -> Audio support via miniaudio
-pip3 install hub[video]  -> Video support via pyav
-pip3 install hub[gcp]    -> GCS support via google-* dependencies
-pip3 install hub[all]    -> Installs everything - audio, video and GCS support
+pip3 install hub[audio]       -> Audio support via miniaudio
+pip3 install hub[video]       -> Video support via pyav
+pip3 install hub[gcp]         -> GCS support via google-* dependencies
+pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
+pip3 install hub[all]         -> Installs everything - audio, video and GCS support
 ```
 
 ### 🧠 Training a PyTorch model on a Hub dataset
@@ -272,7 +273,7 @@ Hub and DVC offer dataset version control similar to git for data, but their met
 <details>
   <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
-Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/7jWZXOEJwDoNJS25uiforF/tensorflow-tf.data-&-hub:-how-to-implement-your-tensorflow-data-pipelines-with-hub-/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 

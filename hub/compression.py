@@ -67,7 +67,9 @@ IMAGE_COMPRESSIONS = [
     c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
 
+
 IMAGE_COMPRESSIONS.insert(0, "apng")
+IMAGE_COMPRESSIONS.insert(2, "dcm")
 
 SUPPORTED_COMPRESSIONS = [
     *BYTE_COMPRESSIONS,

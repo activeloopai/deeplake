@@ -263,31 +263,41 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
     The __eval__ method evaluates the pipeline/transform function.
 
-    It has the following arguments:-
+    It has the following arguments:
 
-    - data_in: Input passed to the transform to generate output dataset.
-    It should support \__getitem__ and \__len__. This can be a Hub dataset.
-    - ds_out (Dataset, optional): The dataset object to which the transform will get written.
-    If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
-    It should have all keys being generated in output already present as tensors.
-    It's initial state should be either:-
-        - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
-        - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
-    - num_workers (int): The number of workers to use for performing the transform.
-    Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-    - scheduler (str): The scheduler to be used to compute the transformation.
-    Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
-    - progressbar (bool): Displays a progress bar if True (default).
-    - skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
-    This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
+    - `data_in`: Input passed to the transform to generate output dataset.
+        - It should support \__getitem__ and \__len__. This can be a Hub dataset.
 
-    It raises the following errors:-
+    - `ds_out (Dataset, optional)`: The dataset object to which the transform will get written.
+        - If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+        - It should have all keys being generated in output already present as tensors.
+        - It's initial state should be either:
+            - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+            - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
 
-    - InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
-    - InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
-    - TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-    - UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-    - TransformError: All other exceptions raised if there are problems while running the pipeline.
+    - `num_workers (int)`: The number of workers to use for performing the transform.
+        - Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+
+    - `scheduler (str)`: The scheduler to be used to compute the transformation.
+        - Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+
+    - `progressbar (bool)`: Displays a progress bar if True (default).
+
+    - `skip_ok (bool)`: If True, skips the check for output tensors generated.
+        - This allows the user to skip certain tensors in the function definition.
+        - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
+
+    It raises the following errors:
+
+    - `InvalidInputDataError`: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+
+    - `InvalidOutputDatasetError`: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+
+    - `TensorMismatchError`: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
+
+    - `UnsupportedSchedulerError`: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+
+    - `TransformError`: All other exceptions raised if there are problems while running the pipeline.
     """
     if not functions:
         raise HubComposeEmptyListError
@@ -302,9 +312,13 @@ def compute(
     name: Optional[str] = None,
 ) -> Callable[..., ComputeFunction]:  # noqa: DAR101, DAR102, DAR201, DAR401
     """Compute is a decorator for functions.
-    The functions should have atleast 2 argument, the first two will correspond to sample_in and samples_out.
+
+    The functions should have atleast 2 argument, the first two will correspond to `sample_in` and `samples_out`.
+
     There can be as many other arguments as required.
+
     The output should be appended/extended to the second argument in a hub like syntax.
+
     Any value returned by the fn will be ignored.
 
     Example::
@@ -325,31 +339,41 @@ def compute(
 
     The __eval__ method evaluates the pipeline/transform function.
 
-    It has the following arguments:-
+    It has the following arguments:
 
-    - data_in: Input passed to the transform to generate output dataset.
-    It should support \__getitem__ and \__len__. This can be a Hub dataset.
-    - ds_out (Dataset, optional): The dataset object to which the transform will get written.
-    If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
-    It should have all keys being generated in output already present as tensors.
-    It's initial state should be either:-
-        - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
-        - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
-    - num_workers (int): The number of workers to use for performing the transform.
-    Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-    - scheduler (str): The scheduler to be used to compute the transformation.
-    Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
-    - progressbar (bool): Displays a progress bar if True (default).
-    - skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
-    This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
+    - `data_in`: Input passed to the transform to generate output dataset.
+        - It should support \__getitem__ and \__len__. This can be a Hub dataset.
 
-    It raises the following errors:-
+    - `ds_out (Dataset, optional)`: The dataset object to which the transform will get written.
+        - If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+        - It should have all keys being generated in output already present as tensors.
+        - It's initial state should be either:
+            - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+            - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
 
-    - InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
-    - InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
-    - TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-    - UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-    - TransformError: All other exceptions raised if there are problems while running the pipeline.
+    - `num_workers (int)`: The number of workers to use for performing the transform.
+        - Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+
+    - `scheduler (str)`: The scheduler to be used to compute the transformation.
+        - Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+
+    - `progressbar (bool)`: Displays a progress bar if True (default).
+
+    - `skip_ok (bool)`: If True, skips the check for output tensors generated.
+        - This allows the user to skip certain tensors in the function definition.
+        - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
+
+    It raises the following errors:
+
+    - `InvalidInputDataError`: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+
+    - `InvalidOutputDatasetError`: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+
+    - `TensorMismatchError`: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
+
+    - `UnsupportedSchedulerError`: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+
+    - `TransformError`: All other exceptions raised if there are problems while running the pipeline.
     """
 
     def inner(*args, **kwargs):
