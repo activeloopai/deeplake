@@ -5,7 +5,11 @@ import shutil
 from typing import Optional, Set
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
+from hub.util.exceptions import (
+    DirectoryAtPathException,
+    FileAtPathException,
+    PathNotEmptyException,
+)
 
 
 class LocalProvider(StorageProvider):
@@ -180,16 +184,22 @@ class LocalProvider(StorageProvider):
             raise DirectoryAtPathException
         return full_path
 
-    def clear(self):
-        """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
+    def clear(self, prefix=""):
+        """Deletes ALL data with keys having given prefix on the local machine (under self.root). Exercise caution!"""
         self.check_readonly()
-        self.files = set()
         full_path = os.path.expanduser(self.root)
+        if prefix and self.files:
+            self.files = set(file for file in self.files if not file.startswith(prefix))
+            full_path = os.path.join(full_path, prefix)
+        else:
+            self.files = set()
         if os.path.exists(full_path):
             shutil.rmtree(full_path)
 
     def rename(self, path):
         """Renames root folder"""
+        if os.path.isfile(path) or (os.path.isdir(path) and len(os.listdir(path)) > 0):
+            raise PathNotEmptyException(use_hub=False)
         os.rename(self.root, path)
         self.root = path
 

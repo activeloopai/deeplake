@@ -1,3 +1,4 @@
+from random import sample
 import hub
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
@@ -41,6 +42,7 @@ from hub.util.keys import (
     get_tensor_commit_chunk_set_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_tensor_info_key,
 )
 from hub.util.exceptions import (
     CorruptedMetaError,
@@ -656,9 +658,48 @@ class ChunkEngine:
         chunk._update_tensor_meta_length = register
         if self.active_appended_chunk is not None:
             self.write_chunk_to_storage(self.active_appended_chunk)
-
         self.active_appended_chunk = chunk
         return chunk
+
+    def clear(self):
+        """Clears all samples and cachables."""
+        self.cache.check_readonly()
+
+        commit_id = self.commit_id
+
+        chunk_folder_path = get_chunk_key(self.key, "", commit_id)
+        self.cache.clear(prefix=chunk_folder_path)
+
+        enc_key = get_chunk_id_encoder_key(self.key, commit_id)
+        self._chunk_id_encoder = None
+        try:
+            del self.meta_cache[enc_key]
+        except KeyError:
+            pass
+
+        info_key = get_tensor_info_key(self.key, commit_id)
+        try:
+            self._info = None
+            del self.cache[info_key]
+        except KeyError:
+            pass
+
+        self.commit_diff.clear_data()
+
+        tile_encoder_key = get_tensor_tile_encoder_key(self.key, commit_id)
+        try:
+            self._tile_encoder = None
+            del self.cache[tile_encoder_key]
+        except KeyError:
+            pass
+
+        self.tensor_meta.length = 0
+        self.tensor_meta.min_shape = []
+        self.tensor_meta.max_shape = []
+        self.tensor_meta.is_dirty = True
+
+        self.cache.maybe_flush()
+        self.meta_cache.maybe_flush()
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
         new_chunks, tiles = self._samples_to_chunks(
@@ -868,7 +909,8 @@ class ChunkEngine:
         return buffer[sb:eb].tobytes()
 
     def read_shape_for_sample(
-        self, global_sample_index: int, url: bool = False
+        self,
+        global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
         if self.compression in VIDEO_COMPRESSIONS:
@@ -1376,7 +1418,9 @@ class ChunkEngine:
         else:
             return None
 
-    def shape(self, index: Index) -> Tuple[Optional[int], ...]:
+    def shape(
+        self, index: Index, sample_shape_provider: Optional[Callable] = None
+    ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
         idxs = index.values
         skip_dims = 0
@@ -1390,7 +1434,16 @@ class ChunkEngine:
         else:
             if None in shape:
                 if not idxs[0].subscriptable():
-                    shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                    if self.tensor_meta.htype in ("text", "json"):
+                        shape = (1,)
+                    else:
+                        if sample_shape_provider:
+                            try:
+                                shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
+                                shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                        else:
+                            shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                     skip_dims += 1
             elif not idxs[0].subscriptable():
                 shape = shape[1:]

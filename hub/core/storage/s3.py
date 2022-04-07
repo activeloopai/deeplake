@@ -15,6 +15,7 @@ from hub.util.exceptions import (
     S3ListError,
     S3SetError,
     S3Error,
+    PathNotEmptyException,
 )
 from botocore.exceptions import (
     ReadTimeoutError,
@@ -319,14 +320,15 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         yield from self._all_keys()
 
-    def clear(self):
-        """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+    def clear(self, prefix=""):
+        """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root). Exercise caution!"""
         self.check_readonly()
         self._check_update_creds()
+        path = posixpath.join(self.path, prefix) if prefix else self.path
         if self.resource is not None:
             try:
                 bucket = self.resource.Bucket(self.bucket)
-                bucket.objects.filter(Prefix=self.path).delete()
+                bucket.objects.filter(Prefix=path).delete()
             except Exception as err:
                 reload = self.need_to_reload_creds(err)
                 manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
@@ -348,6 +350,14 @@ class S3Provider(StorageProvider):
             items.extend(page["Contents"])
         path = root.replace("s3://", "")
         _, new_path = path.split("/", 1)
+        try:
+            dest_objects = self.client.list_objects_v2(
+                Bucket=self.bucket, Prefix=new_path
+            )["Contents"]
+            for item in dest_objects:
+                raise PathNotEmptyException(use_hub=False)
+        except KeyError:
+            pass
         for item in items:
             old_key = item["Key"]
             copy_source = {"Bucket": self.bucket, "Key": old_key}

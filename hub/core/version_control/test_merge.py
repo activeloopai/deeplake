@@ -250,3 +250,23 @@ def test_conflicts(local_ds):
 
         ds.merge("other", conflict_resolution="theirs")
         np.testing.assert_array_equal(ds.image[4].numpy(), 25 * np.ones((200, 200, 3)))
+
+
+def test_clear_merge(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.append([1, 2, 3])
+        a = ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.append([2, 3, 4])
+        b = ds.commit()
+        ds.abc.clear()
+        c = ds.commit()
+
+        ds.checkout("main")
+        ds.abc.append([5, 6, 3])
+        d = ds.commit()
+        ds.merge("alt")
+
+        np.testing.assert_array_equal(ds.abc.numpy(), np.array([]))

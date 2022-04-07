@@ -168,6 +168,16 @@ def get_queries_lock_key() -> str:
     return QUERIES_LOCK_FILENAME
 
 
+def get_sample_info_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_info")
+
+
 def get_sample_id_tensor_key(key: str):
     group, key = posixpath.split(key)
     return posixpath.join(group, f"_{key}_id")
+
+
+def get_sample_shape_tensor_key(key: str):
+    group, key = posixpath.split(key)
+    return posixpath.join(group, f"_{key}_shape")
