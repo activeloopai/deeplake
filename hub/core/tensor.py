@@ -39,7 +39,15 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE
+
+from hub.util.pretty_print import (
+    max_array_length,
+    get_string,
+    summary_tensor,
+)
+from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+
+
 from hub.util.version_control import auto_checkout
 
 
@@ -585,7 +593,10 @@ class Tensor:
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        pretty_print = summary_tensor(
+            self
+        )  # get the string for table format of the tensors
+        return f"Tensor(key={repr(self.key)}{index_str})" + "\n" + pretty_print
 
     __repr__ = __str__
 

@@ -23,6 +23,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
 )
+from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import MB
 
 from click.testing import CliRunner
@@ -167,22 +168,52 @@ def test_stringify(memory_ds):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
+
     assert (
         str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
     )
-    assert str(ds.image) == "Tensor(key='image')"
-    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, None)]))"
+    assert (
+        str(ds.image)
+        == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+    )
+    assert (
+        str(ds[1:2].image)
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+    )
+
+
+def test_summary(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("abc")
+    ds.abc.extend(np.ones((4, 4)))
+    ds.create_tensor("images", htype="image", dtype="int32", sample_compression="jpeg")
+
+    assert (
+        summary_dataset(ds)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   \n images    image    (0,)     int32    jpeg   "
+    )
+    assert (
+        summary_tensor(ds.abc)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   "
+    )
+    assert (
+        summary_tensor(ds.images)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n images    image    (0,)     int32    jpeg   "
+    )
 
 
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
+    assert (
+        str(ds)
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- "
+    )
 
 
 def test_fixed_tensor(local_ds):
