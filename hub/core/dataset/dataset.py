@@ -842,9 +842,12 @@ class Dataset:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
-
+        if self._locked_out:
+            self.storage.disable_readonly()
+            self._read_only = False
+            base_storage = get_base_storage(self.storage)
+            base_storage.disable_readonly()
         try_flushing(self)
-
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
         try:

@@ -22,6 +22,7 @@ from hub.util.exceptions import (
     InvalidTensorNameError,
     PathNotEmptyException,
     BadRequestException,
+    ReadOnlyModeError,
 )
 from hub.constants import MB
 
@@ -1396,3 +1397,13 @@ def test_pyav_not_installed(local_ds, video_paths):
     with pytest.raises(hub.util.exceptions.CorruptedSampleError):
         local_ds.videos.append(hub.read(video_paths["mp4"][0]))
     hub.core.compression._PYAV_INSTALLED = pyav_installed
+
+
+def test_create_branch_when_locked_out(local_ds):
+    local_ds.read_only = True
+    local_ds._locked_out = True
+    with pytest.raises(ReadOnlyModeError):
+        local_ds.create_tensor("x")
+    local_ds.checkout("branch", create=True)
+    assert local_ds.branch == "branch"
+    local_ds.create_tensor("x")
