@@ -19,6 +19,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
+from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import CorruptedSampleError
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
@@ -51,6 +52,7 @@ class Sample:
         shape: Tuple[int] = None,
         dtype: Optional[str] = None,
         creds: Optional[Dict] = None,
+        storage: Optional[StorageProvider] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -68,6 +70,7 @@ class Sample:
             shape (Tuple[int]): Shape of the sample.
             dtype (str, optional): Data type of the sample.
             creds (optional, Dict): Credentials for s3 and gcp for urls.
+            storage (optional, StorageProvider): Storage provider.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -83,6 +86,7 @@ class Sample:
         self._shape = shape or None
         self._dtype = dtype or None
         self.path = None
+        self.storage = storage
         self._buffer = None
         self._creds = creds or {}
 
@@ -259,7 +263,12 @@ class Sample:
                         )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
-                    img = Image.open(self.path)
+                    if is_remote_path(self.path):
+                        f = BytesIO(self._read_from_path())
+                        self._buffer = f
+                    else:
+                        f = self.path
+                    img = Image.open(f)
                     if img.mode == "1":
                         # Binary images need to be extended from bits to bytes
                         self._uncompressed_bytes = img.tobytes("raw", "L")
@@ -362,6 +371,9 @@ class Sample:
         return root, key
 
     def _read_from_s3(self) -> bytes:
+        if self.storage is not None:
+            assert isinstance(self.storage, S3Provider)
+            return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         s3 = S3Provider(root, **self._creds)
@@ -372,6 +384,9 @@ class Sample:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
+        if self.storage is not None:
+            assert isinstance(self.storage, GCSProvider)
+            return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)

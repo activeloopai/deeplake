@@ -526,3 +526,11 @@ class S3Provider(StorageProvider):
         path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
+
+    def get_object_from_full_url(self, url: str):
+        root = url.replace("s3://", "")
+        split_root = root.split("/", 1)
+        bucket = split_root[0]
+        path = split_root[1] if len(split_root) > 1 else ""
+        resp = self.client.get_object(Bucket=bucket, Key=path)
+        return resp["Body"].read()

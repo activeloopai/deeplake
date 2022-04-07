@@ -205,7 +205,15 @@ class Pipeline:
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
-        args = group_index, tensors, visible_tensors, self, version_state, skip_ok
+        args = (
+            group_index,
+            tensors,
+            visible_tensors,
+            self,
+            version_state,
+            target_ds.link_creds,
+            skip_ok,
+        )
         map_inp = zip(slices, storages, repeat(args))
 
         if progressbar:

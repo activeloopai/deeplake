@@ -250,8 +250,8 @@ class GCSProvider(StorageProvider):
             self.token = None
         self.scoped_credentials = GCloudCredentials(self.token, project=self.project)
         self.retry = retry.Retry(deadline=60)
-        client = storage.Client(credentials=self.scoped_credentials.credentials)
-        self.client_bucket = client.get_bucket(self.bucket)
+        self.client = storage.Client(credentials=self.scoped_credentials.credentials)
+        self.client_bucket = self.client.get_bucket(self.bucket)
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
@@ -390,3 +390,17 @@ class GCSProvider(StorageProvider):
     def get_object_size(self, key):
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
         return blob.size
+
+    def get_object_from_full_url(self, url: str):
+        root = url.replace("gcp://", "").replace("gcs://", "")
+        split_root = root.split("/", 1)
+        bucket = split_root[0]
+        path = split_root[1] if len(split_root) > 1 else ""
+
+        client_bucket = self.client.get_bucket(bucket)
+
+        try:
+            blob = client_bucket.get_blob(path)
+            return blob.download_as_bytes(retry=self.retry)
+        except self.missing_exceptions:
+            raise KeyError(path)

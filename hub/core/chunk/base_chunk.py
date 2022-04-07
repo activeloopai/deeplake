@@ -68,7 +68,9 @@ class BaseChunk(HubMemoryObject):
 
         self.tensor_meta = tensor_meta
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
-        self.is_text_like = self.htype in {"json", "list", "text"}
+        self.is_text_like = (
+            self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
+        )
 
         self.compression = compression
         compression_type = get_compression_type(compression)

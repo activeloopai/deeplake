@@ -45,6 +45,7 @@ class TensorMeta(Meta):
     hidden: bool
     links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
+    is_link: bool
 
     def __init__(
         self,

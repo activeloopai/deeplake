@@ -3,6 +3,7 @@ import warnings
 import hub
 from typing import Any, Dict, List, Tuple, Optional
 from json.decoder import JSONDecodeError
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
@@ -109,9 +110,17 @@ def store_data_slice(transform_input: Tuple) -> TransformOut:
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
     data_slice, output_storage, inp = transform_input
-    group_index, tensors, visible_tensors, pipeline, version_state, skip_ok = inp
+    (
+        group_index,
+        tensors,
+        visible_tensors,
+        pipeline,
+        version_state,
+        link_creds,
+        skip_ok,
+    ) = inp
     all_chunk_engines = create_worker_chunk_engines(
-        tensors, output_storage, version_state
+        tensors, output_storage, version_state, link_creds
     )
 
     if isinstance(data_slice, hub.Dataset):
@@ -210,7 +219,7 @@ def transform_data_slice_and_append(
 
 
 def create_worker_chunk_engines(
-    tensors: List[str], output_storage: StorageProvider, version_state
+    tensors: List[str], output_storage: StorageProvider, version_state, link_creds
 ) -> Dict[str, ChunkEngine]:
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
@@ -226,9 +235,22 @@ def create_worker_chunk_engines(
                 storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
+                meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
+                existing_meta = storage_cache.get_hub_object(meta_key, TensorMeta)
+
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
-                storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
-                existing_meta = storage_chunk_engine.tensor_meta
+                if existing_meta.is_link:
+                    storage_chunk_engine = LinkedChunkEngine(
+                        tensor,
+                        storage_cache,
+                        version_state,
+                        link_creds=link_creds,
+                    )
+                else:
+                    storage_chunk_engine = ChunkEngine(
+                        tensor, storage_cache, version_state
+                    )
+
                 chunk_size = storage_chunk_engine.max_chunk_size
                 new_tensor_meta = TensorMeta(
                     htype=existing_meta.htype,
@@ -272,6 +294,7 @@ def add_cache_to_dataset_slice(
         read_only=dataset_slice.read_only,
         token=dataset_slice.token,
         verbose=False,
+        link_creds=dataset_slice.link_creds,
     )
     dataset_slice.checkout(commit_id)
     return dataset_slice

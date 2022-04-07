@@ -9,6 +9,7 @@ import posixpath
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
+from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
@@ -87,6 +88,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_dataset_diff_key,
     get_sequence_encoder_key,
+    get_dataset_linked_creds_key,
 )
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
@@ -120,6 +122,7 @@ class Dataset:
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[str] = None,
         is_iteration: bool = False,
+        link_creds=None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -162,6 +165,7 @@ class Dataset:
         d["public"] = public
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
+        d["link_creds"] = link_creds
         d["_info"] = None
         d["_ds_diff"] = None
         self.__dict__.update(d)
@@ -285,6 +289,7 @@ class Dataset:
                     verbose=False,
                     version_state=self.version_state,
                     path=self.path,
+                    link_creds=self.link_creds,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -302,6 +307,7 @@ class Dataset:
                 version_state=self.version_state,
                 path=self.path,
                 is_iteration=is_iteration,
+                link_creds=self.link_creds,
             )
         else:
             raise InvalidKeyTypeError(item)
@@ -419,12 +425,13 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video"):
-            self._create_sample_info_tensor(name)
-        if create_shape_tensor and htype not in ("text", "json"):
-            self._create_sample_shape_tensor(name, htype=htype)
-        if create_id_tensor:
-            self._create_sample_id_tensor(name)
+        if not is_link:
+            if create_sample_info_tensor and htype in ("image", "audio", "video"):
+                self._create_sample_info_tensor(name)
+            if create_shape_tensor and htype not in ("text", "json"):
+                self._create_sample_shape_tensor(name, htype=htype)
+            if create_id_tensor:
+                self._create_sample_id_tensor(name)
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
@@ -662,6 +669,22 @@ class Dataset:
         # keeps track of the full unindexed tensors
         version_state["full_tensors"] = {}
         self.__dict__["version_state"] = version_state
+
+    def _load_link_creds(self):
+        if self.link_creds is not None:
+            return
+
+        link_creds_key = get_dataset_linked_creds_key()
+        try:
+            data_bytes = self.storage[link_creds_key]
+        except KeyError:
+            data_bytes = None
+        if data_bytes is None:
+            link_creds = LinkCreds()
+        else:
+            link_creds = LinkCreds.frombuffer(data_bytes)
+
+        self.link_creds = link_creds
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
@@ -1117,6 +1140,7 @@ class Dataset:
         if self.is_first_load:
             self.storage.autoflush = True
             self._load_version_info()
+            self._load_link_creds()
             self._set_read_only(
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
@@ -1409,6 +1433,7 @@ class Dataset:
             verbose=self.verbose,
             version_state=self.version_state,
             path=self.path,
+            link_creds=self.link_creds,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -1429,6 +1454,7 @@ class Dataset:
             verbose=self.verbose,
             version_state=self.version_state,
             path=self.path,
+            link_creds=self.link_creds,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2009,6 +2035,12 @@ class Dataset:
                 del self.storage[key]
             except KeyError:
                 pass
+
+    def add_link_creds(self, creds_key: str):
+        self.link_creds.add_creds(creds_key)
+
+    def populate_creds(self, creds_key: str, creds: dict):
+        self.link_creds.populate_creds(creds_key, creds)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):

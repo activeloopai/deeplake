@@ -282,11 +282,11 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def serialize_sequence_encoder(version: str, enc: np.ndarray) -> bytes:
+def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
     return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
 
 
-def deserialize_sequence_encoder(
+def deserialize_sequence_or_creds_encoder(
     byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray]:
     byts = memoryview(byts)

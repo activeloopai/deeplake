@@ -1,4 +1,5 @@
 import hub
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
@@ -204,15 +205,26 @@ class Tensor:
         self.index = index or Index()
         self.version_state = dataset.version_state
         self.is_iteration = is_iteration
+        commit_id = self.version_state["commit_id"]
 
         if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, self.version_state["commit_id"]
+            self.key, self.storage, commit_id
         ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = chunk_engine or ChunkEngine(
-            self.key, self.storage, self.version_state
-        )
+        meta_key = get_tensor_meta_key(self.key, commit_id)
+        meta = self.storage.get_hub_object(meta_key, TensorMeta)
+        if chunk_engine is not None:
+            self.chunk_engine = chunk_engine
+        elif meta.is_link:
+            self.chunk_engine = LinkedChunkEngine(
+                self.key,
+                self.storage,
+                self.version_state,
+                link_creds=dataset.link_creds,
+            )
+        else:
+            self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
