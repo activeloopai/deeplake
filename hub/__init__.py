@@ -20,7 +20,6 @@ __pdoc__ = {
     "tests": False,
     "util": False,
     "Dataset.clear_cache": False,
-    "Dataset.delete": False,
     "Dataset.flush": False,
     "Dataset.read_only": False,
     "Dataset.size_approx": False,
