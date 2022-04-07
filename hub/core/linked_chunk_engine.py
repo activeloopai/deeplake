@@ -90,44 +90,11 @@ class LinkedChunkEngine(ChunkEngine):
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
 
-    def _samples_to_chunks(
-        self,
-        samples,
-        start_chunk: Optional[BaseChunk] = None,
-        register: bool = True,
-        update_commit_diff: bool = False,
-    ):
-        creds = [sample.creds_key for sample in samples]
-        samples = [sample.path for sample in samples]
-        current_chunk = start_chunk
-        updated_chunks = []
-        if current_chunk is None:
-            current_chunk = self._create_new_chunk(register)
-            updated_chunks.append(current_chunk)
-        enc = self.chunk_id_encoder
+    def register_new_creds(self, num_samples_added, samples):
+        assert isinstance(num_samples_added, int)
         link_creds = self.link_creds
-        tiles = {}
-        if register and update_commit_diff:
-            commit_diff = self.commit_diff
-        while len(samples) > 0:
-            num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
-            for i in range(num_samples_added):
-                creds_key = creds[i]
-                encoded_creds_key = link_creds.get_encoding(creds_key)
-                self.creds_encoder.register_samples(encoded_creds_key, 1)
-            if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register)
-                updated_chunks.append(current_chunk)
-            else:
-                if not updated_chunks:
-                    updated_chunks.append(current_chunk)
-                num = int(num_samples_added)
-                if register:
-                    enc.register_samples(num)
-                    if update_commit_diff:
-                        commit_diff.add_data(num)
-                samples = samples[num:]
-                creds = creds[num:]
-        if register:
-            return updated_chunks
-        return updated_chunks, tiles
+        creds_encoder = self.creds_encoder
+        for i in range(num_samples_added):
+            creds_key = samples[i].creds_key
+            encoded_creds_key = link_creds.get_encoding(creds_key)
+            creds_encoder.register_samples(encoded_creds_key, 1)

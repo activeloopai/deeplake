@@ -573,6 +573,7 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
+            self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
@@ -606,6 +607,9 @@ class ChunkEngine:
         if register:
             return updated_chunks
         return updated_chunks, tiles
+
+    def register_new_creds(self, num_samples_added, samples):
+        return
 
     def _extend(self, samples, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
@@ -915,7 +919,7 @@ class ChunkEngine:
         global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        if self.compression in VIDEO_COMPRESSIONS:
+        if self.compression in VIDEO_COMPRESSIONS or self.tensor.htype == "video":
             chunks = [
                 self.get_video_chunk(idx)[0]
                 for idx in self.chunk_id_encoder[global_sample_index]
