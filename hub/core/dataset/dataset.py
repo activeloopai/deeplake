@@ -850,19 +850,20 @@ class Dataset:
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
+        err = False
         try:
             self._unlock()
             checkout(self, address, create, hash)
-            self._lock()
         except Exception as e:
+            err = True
             if self._locked_out:
                 self.storage.enable_readonly()
                 self._read_only = True
                 base_storage.enable_readonly()
-            else:
-                self._lock()
             raise e
         finally:
+            if not (err and self._locked_out):
+                self._lock()
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
