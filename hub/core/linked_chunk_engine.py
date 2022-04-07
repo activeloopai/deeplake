@@ -136,7 +136,7 @@ class LinkedChunkEngine(ChunkEngine):
         register: bool = True,
         update_commit_diff: bool = False,
     ):
-        creds = [sample.creds for sample in samples]
+        creds = [sample.creds_key for sample in samples]
         samples = [sample.path for sample in samples]
         current_chunk = start_chunk
         updated_chunks = []

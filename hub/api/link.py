@@ -4,6 +4,6 @@ from typing import Optional, Dict
 
 def link(
     path: str,
-    creds: Optional[Dict] = None,
+    creds_key: Optional[str] = None,
 ) -> LinkedSample:
-    return LinkedSample(path, creds)
+    return LinkedSample(path, creds_key)
