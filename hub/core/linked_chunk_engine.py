@@ -113,21 +113,12 @@ class LinkedChunkEngine(ChunkEngine):
 
     # TODO, override def extend for callbacks
 
-    def _sanitize_samples(self, samples):
-        check_samples_type(samples)
+    def check_each_sample(self, samples):
         for sample in samples:
             if not isinstance(sample, LinkedSample):
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
-        tensor_meta = self.tensor_meta
-        if tensor_meta.htype is None:
-            tensor_meta.set_htype(get_htype(samples))
-        if tensor_meta.dtype is None:
-            tensor_meta.set_dtype(get_dtype(samples))
-        if self._convert_to_list(samples):
-            samples = list(samples)
-        return samples
 
     def _samples_to_chunks(
         self,

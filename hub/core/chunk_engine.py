@@ -540,8 +540,12 @@ class ChunkEngine:
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
+    def check_each_sample(self, samples):
+        return
+
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
+        self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
         if tensor_meta.htype is None:
             tensor_meta.set_htype(get_htype(samples))
@@ -646,7 +650,6 @@ class ChunkEngine:
 
     def _create_new_chunk(self, register=True) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
-
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
