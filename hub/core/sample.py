@@ -310,7 +310,10 @@ class Sample:
                         )
                     self._uncompressed_bytes = self._array.tobytes()
                 else:
-                    img = Image.open(self.path)
+                    if self.path.startswith("http"):
+                        img = Image.open(urlopen(self.path))
+                    else:
+                        img = Image.open(self.path)
                     if img.mode == "1":
                         # Binary images need to be extended from bits to bytes
                         self._uncompressed_bytes = img.tobytes("raw", "L")
