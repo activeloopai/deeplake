@@ -338,22 +338,26 @@ def test_readonly_with_two_workers(local_ds):
 
 @requires_torch
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    img_good = hub.read(compressed_image_paths["jpeg"][0])
-    img_bad = hub.read(corrupt_image_paths["jpeg"])
-    with local_ds:
-        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
-        for i in range(3):
-            for i in range(10):
-                local_ds.image.append(img_good)
-            local_ds.image.append(img_bad)
-    num_samples = 0
-    num_batches = 0
-    dl = local_ds.pytorch(num_workers=0, batch_size=2)
-    for (batch,) in dl:
-        num_batches += 1
-        num_samples += len(batch)
-    assert num_samples == 30
-    assert num_batches == 15
+    hub.constants._USE_OPENCV = False
+    try:
+        img_good = hub.read(compressed_image_paths["jpeg"][0])
+        img_bad = hub.read(corrupt_image_paths["jpeg"])
+        with local_ds:
+            local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+            for i in range(3):
+                for i in range(10):
+                    local_ds.image.append(img_good)
+                local_ds.image.append(img_bad)
+        num_samples = 0
+        num_batches = 0
+        dl = local_ds.pytorch(num_workers=0, batch_size=2)
+        for (batch,) in dl:
+            num_batches += 1
+            num_samples += len(batch)
+        assert num_samples == 30
+        assert num_batches == 15
+    finally:
+        hub.constants._USE_OPENCV = True
 
 
 @requires_torch

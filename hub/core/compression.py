@@ -936,7 +936,7 @@ def _decompress_with_pillow(
 
 
 def _decompress_with_opencv(
-    file: Union[str, bytes, memoryview], compression: str, verify: bool = True
+    file: Union[str, bytes, memoryview], compression: str, verify: bool = False
 ) -> np.ndarray:
     if isinstance(file, str):
         image = cv2.imread(file, cv2.IMREAD_UNCHANGED)

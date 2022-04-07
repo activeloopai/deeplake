@@ -39,20 +39,24 @@ def test_tensorflow_small(local_ds):
 
 @requires_tensorflow
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    img_good = hub.read(compressed_image_paths["jpeg"][0])
-    img_bad = hub.read(corrupt_image_paths["jpeg"])
-    with local_ds:
-        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
-        for i in range(3):
-            for i in range(10):
-                local_ds.image.append(img_good)
-            local_ds.image.append(img_bad)
-    num_samples = 0
-    tds = local_ds.tensorflow()
-    with pytest.warns(UserWarning):
-        for batch in tds:
-            num_samples += 1  # batch_size = 1
-    assert num_samples == 30
+    hub.constants._USE_OPENCV = False
+    try:
+        img_good = hub.read(compressed_image_paths["jpeg"][0])
+        img_bad = hub.read(corrupt_image_paths["jpeg"])
+        with local_ds:
+            local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+            for i in range(3):
+                for i in range(10):
+                    local_ds.image.append(img_good)
+                local_ds.image.append(img_bad)
+        num_samples = 0
+        tds = local_ds.tensorflow()
+        with pytest.warns(UserWarning):
+            for batch in tds:
+                num_samples += 1  # batch_size = 1
+        assert num_samples == 30
+    finally:
+        hub.constants._USE_OPENCV = True
 
 
 @requires_tensorflow
