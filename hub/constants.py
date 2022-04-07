@@ -129,4 +129,6 @@ _NO_LINK_UPDATE = "___!@#_no_link_update_###"
 
 SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE = 4 * MB
 
-DEFAULT_READONLY = os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
+DEFAULT_READONLY = (
+    os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
+)
