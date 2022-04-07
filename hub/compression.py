@@ -1,3 +1,6 @@
+import itertools
+
+
 """
 Supported compressions (formats):
 
