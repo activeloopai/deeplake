@@ -269,6 +269,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
     if (
         htype == "image"
+        and not htype_overwrite["is_link"]
         and htype_overwrite["chunk_compression"] == UNSPECIFIED
         and htype_overwrite["sample_compression"] == UNSPECIFIED
     ):
