@@ -1,4 +1,3 @@
-from random import sample
 import hub
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
@@ -962,6 +961,70 @@ class ChunkEngine:
             index, aslist, use_data_cache
         )
 
+    def get_video_sample(self, global_sample_index, index):
+        enc = self.chunk_id_encoder
+        chunk_ids = enc[global_sample_index]
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        chunk, stream = self.get_video_chunk(chunk_ids[0])
+        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+        sample = chunk.read_sample(
+            local_sample_index,
+            sub_index=sub_index,
+            stream=stream,
+        )[tuple(entry.value for entry in index.values[2:])]
+        return sample
+
+    def get_basic_sample(self, global_sample_index, index):
+        enc = self.chunk_id_encoder
+        chunk_ids = enc[global_sample_index]
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
+        sample = chunk.read_sample(local_sample_index)[
+            tuple(entry.value for entry in index.values[1:])
+        ]
+        return sample
+
+    def get_non_tiled_sample(self, global_sample_index, index):
+        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
+            sample = self.get_video_sample(global_sample_index, index)
+        else:
+            sample = self.get_basic_sample(global_sample_index, index)
+        return sample
+
+    def get_full_tiled_sample(self, global_sample_index):
+        chunks = self.get_chunks_for_sample(global_sample_index)
+        return combine_chunks(chunks, global_sample_index, self.tile_encoder)
+
+    def get_partial_tiled_sample(self, global_sample_index, index):
+        tile_enc = self.tile_encoder
+        chunk_ids = self.chunk_id_encoder[global_sample_index]
+        sample_shape = tile_enc.get_sample_shape(global_sample_index)
+        tile_shape = tile_enc.get_tile_shape(global_sample_index)
+        ordered_tile_ids = np.array(chunk_ids).reshape(
+            tile_enc.get_tile_layout_shape(global_sample_index)
+        )
+        tiles_index, sample_index = translate_slices(
+            [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
+        )
+        required_tile_ids = ordered_tile_ids[tiles_index]
+        tiles = np.vectorize(
+            lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(0),
+            otypes=[object],
+        )(required_tile_ids)
+        sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
+        sample = sample[sample_index]
+        return sample
+
+    def get_single_sample(self, global_sample_index, index):
+        if not self._is_tiled_sample(global_sample_index):
+            sample = self.get_non_tiled_sample(global_sample_index, index)
+        elif len(index.values) == 1:
+            sample = self.get_full_tiled_sample(global_sample_index)
+        else:
+            sample = self.get_partial_tiled_sample(global_sample_index, index)
+
+        return sample
+
     def _numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
@@ -980,59 +1043,12 @@ class ChunkEngine:
         """
         length = self.num_samples
         last_shape = None
-        enc = self.chunk_id_encoder
-
         if use_data_cache and self.is_data_cachable:
             samples = self.numpy_from_data_cache(index, length, aslist)
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
-                chunk_ids = enc[global_sample_index]
-                if not self._is_tiled_sample(global_sample_index):
-                    local_sample_index = enc.translate_index_relative_to_chunks(
-                        global_sample_index
-                    )
-                    if self.compression in VIDEO_COMPRESSIONS:
-                        chunk, stream = self.get_video_chunk(chunk_ids[0])
-                        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-                        sample = chunk.read_sample(
-                            local_sample_index,
-                            sub_index=sub_index,
-                            stream=stream,
-                        )[tuple(entry.value for entry in index.values[2:])]
-                    else:
-                        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
-                        sample = chunk.read_sample(local_sample_index)[
-                            tuple(entry.value for entry in index.values[1:])
-                        ]
-                elif len(index.values) == 1:
-                    # Tiled sample, all chunks required
-                    chunks = self.get_chunks_for_sample(global_sample_index)
-                    sample = combine_chunks(
-                        chunks, global_sample_index, self.tile_encoder
-                    )
-                else:
-                    # Tiled sample, only some chunks required
-                    tile_enc = self.tile_encoder
-                    sample_shape = tile_enc.get_sample_shape(global_sample_index)
-                    tile_shape = tile_enc.get_tile_shape(global_sample_index)
-                    ordered_tile_ids = np.array(chunk_ids).reshape(
-                        tile_enc.get_tile_layout_shape(global_sample_index)
-                    )
-                    tiles_index, sample_index = translate_slices(
-                        [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
-                    )
-                    required_tile_ids = ordered_tile_ids[tiles_index]
-                    tiles = np.vectorize(
-                        lambda chunk_id: self.get_chunk_from_chunk_id(
-                            chunk_id
-                        ).read_sample(0),
-                        otypes=[object],
-                    )(required_tile_ids)
-                    sample = coalesce_tiles(
-                        tiles, tile_shape, None, self.tensor_meta.dtype
-                    )
-                    sample = sample[sample_index]
+                sample = self.get_single_sample(global_sample_index, index)
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape

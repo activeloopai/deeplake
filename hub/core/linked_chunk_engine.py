@@ -1,16 +1,10 @@
-from typing import List, Optional, Union, Dict, Any
-
-import numpy as np
-from hub.compression import VIDEO_COMPRESSIONS
+from typing import Optional, Dict, Any
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.index.index import Index
 from hub.core.link_creds import LinkCreds
 from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage import LRUCache
-from hub.util.casting import get_dtype, get_htype
-from hub.util.chunk_engine import check_sample_shape, check_samples_type
 import hub
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
@@ -64,52 +58,28 @@ class LinkedChunkEngine(ChunkEngine):
         except KeyError:
             return False
 
-    def numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
-    ) -> Union[np.ndarray, List[np.ndarray]]:
-        length = self.num_samples
-        last_shape = None
+    @property
+    def is_data_cachable(self):
+        return False
 
-        samples = []
+    def get_video_sample(self, global_sample_index, index):
+        raise NotImplementedError
+
+    def get_basic_sample(self, global_sample_index, index):
         creds_encoder = self.creds_encoder
-
-        if self.compression in VIDEO_COMPRESSIONS:
-            raise NotImplementedError
-
-        for global_sample_index in index.values[0].indices(length):
-            sample_path = super().numpy(
-                Index(global_sample_index), use_data_cache=False
-            )[0]
-            sample_creds_encoded = creds_encoder.get_encoded_creds_key(
-                global_sample_index
+        sample_path: str = super().get_basic_sample(global_sample_index, index)[0]
+        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        if sample_path.startswith(("gcs://", "gcp://", "s3://")):
+            provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
+            storage = self.link_creds.get_storage_provider(
+                sample_creds_key, provider_type
             )
-            sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
-            if (
-                sample_path.startswith("gcs://")
-                or sample_path.startswith("gcp://")
-                or sample_path.startswith("s3://")
-            ):
-                provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
-                storage = self.link_creds.get_storage_provider(
-                    sample_creds_key, provider_type
-                )
-                sample = hub.read(sample_path, storage=storage)
-            else:
-                sample = hub.read(sample_path)
-            sample = sample.array[tuple(entry.value for entry in index.values[1:])]
-            samples.append(sample)
-            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-            last_shape = sample.shape
-
-        if aslist and all(map(np.isscalar, samples)):
-            samples = [arr.item() for arr in samples]
-
-        if not index.values[0].subscriptable():
-            samples = samples[0]
-
-        if aslist:
-            return samples
-        return np.array(samples)
+            sample = hub.read(sample_path, storage=storage)
+        else:
+            sample = hub.read(sample_path)
+        sample = sample.array[tuple(entry.value for entry in index.values[1:])]
+        return sample
 
     # TODO, override def extend for callbacks
 
