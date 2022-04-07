@@ -854,6 +854,14 @@ class Dataset:
             self._unlock()
             checkout(self, address, create, hash)
             self._lock()
+        except Exception as e:
+            if self._locked_out:
+                self.storage.enable_readonly()
+                self._read_only = True
+                base_storage.enable_readonly()
+            else:
+                self._lock()
+            raise e
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
