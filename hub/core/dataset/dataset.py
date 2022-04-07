@@ -1040,6 +1040,7 @@ class Dataset:
         self,
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         num_workers: int = 1,
         batch_size: int = 1,
         drop_last: bool = False,
@@ -1059,6 +1060,7 @@ class Dataset:
         Args:
             transform (Callable, Optional): Transformation function to be applied to each sample.
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            tobytes (bool): If True, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int): Number of samples per batch to load. Default value is 1.
             drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
@@ -1082,6 +1084,7 @@ class Dataset:
             self,
             transform=transform,
             tensors=tensors,
+            tobytes=tobytes,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
@@ -1191,16 +1194,24 @@ class Dataset:
         return self._ds_diff
 
     @hub_reporter.record_call
-    def tensorflow(self):
+    def tensorflow(
+        self,
+        tensors: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
+    ):
         """Converts the dataset into a tensorflow compatible format.
 
         See:
             https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
+        Args:
+            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            tobytes (bool): If True, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
+
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
-        return dataset_to_tensorflow(self)
+        return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
 
     def flush(self):
         """Necessary operation after writes if caches are being used.
