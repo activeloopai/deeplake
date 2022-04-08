@@ -27,13 +27,10 @@ from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
-compressions = SUPPORTED_COMPRESSIONS[:]
-compressions.remove(None)  # type: ignore
-compressions.remove("wmf")  # driver has to be provided by user for wmf write support
-
 image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
+image_compressions.remove("dcm")
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)

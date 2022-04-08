@@ -22,7 +22,9 @@ from hub.util.exceptions import (
     InvalidTensorNameError,
     PathNotEmptyException,
     BadRequestException,
+    ReadOnlyModeError,
 )
+from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import MB
 
 from click.testing import CliRunner
@@ -167,22 +169,52 @@ def test_stringify(memory_ds):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
+
     assert (
         str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
     )
-    assert str(ds.image) == "Tensor(key='image')"
-    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, None)]))"
+    assert (
+        str(ds.image)
+        == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+    )
+    assert (
+        str(ds[1:2].image)
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+    )
+
+
+def test_summary(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("abc")
+    ds.abc.extend(np.ones((4, 4)))
+    ds.create_tensor("images", htype="image", dtype="int32", sample_compression="jpeg")
+
+    assert (
+        summary_dataset(ds)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   \n images    image    (0,)     int32    jpeg   "
+    )
+    assert (
+        summary_tensor(ds.abc)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   "
+    )
+    assert (
+        summary_tensor(ds.images)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n images    image    (0,)     int32    jpeg   "
+    )
 
 
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
+    assert (
+        str(ds)
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- "
+    )
 
 
 def test_fixed_tensor(local_ds):
@@ -862,6 +894,7 @@ def test_compressions_list():
         "apng",
         "avi",
         "bmp",
+        "dcm",
         "dib",
         "flac",
         "gif",
@@ -892,6 +925,7 @@ def test_htypes_list():
         "bbox",
         "binary_mask",
         "class_label",
+        "dicom",
         "generic",
         "image",
         "json",
@@ -1385,3 +1419,22 @@ def test_hub_exists(ds_generator, path, hub_token):
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
+
+
+def test_pyav_not_installed(local_ds, video_paths):
+    pyav_installed = hub.core.compression._PYAV_INSTALLED
+    hub.core.compression._PYAV_INSTALLED = False
+    local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    with pytest.raises(hub.util.exceptions.CorruptedSampleError):
+        local_ds.videos.append(hub.read(video_paths["mp4"][0]))
+    hub.core.compression._PYAV_INSTALLED = pyav_installed
+
+
+def test_create_branch_when_locked_out(local_ds):
+    local_ds.read_only = True
+    local_ds._locked_out = True
+    with pytest.raises(ReadOnlyModeError):
+        local_ds.create_tensor("x")
+    local_ds.checkout("branch", create=True)
+    assert local_ds.branch == "branch"
+    local_ds.create_tensor("x")
