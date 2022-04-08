@@ -1460,7 +1460,7 @@ class ChunkEngine:
                 shape = shape[1:]
                 skip_dims += 1
         else:
-            if None in shape:
+            if None in shape or self.tensor_meta.is_link:
                 if not idxs[0].subscriptable():
                     if self.tensor_meta.htype in ("text", "json"):
                         shape = (1,)
