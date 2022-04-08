@@ -498,7 +498,7 @@ class S3Provider(StorageProvider):
     def get_presigned_url(self, key, full=False):
         self._check_update_creds()
         if full:
-            root = url.replace("s3://", "")
+            root = key.replace("s3://", "")
             split_root = root.split("/", 1)
             bucket = split_root[0]
             path = split_root[1] if len(split_root) > 1 else ""
