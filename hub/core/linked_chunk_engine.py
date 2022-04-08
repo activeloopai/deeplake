@@ -1,11 +1,10 @@
 from typing import Optional, Dict, Any
-from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.link_creds import LinkCreds
 from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage import LRUCache
-import hub
+from hub.core.tensor_link import read_linked_sample
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
 
@@ -70,14 +69,7 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path: str = super().get_basic_sample(global_sample_index, index)[0]
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
-        if sample_path.startswith(("gcs://", "gcp://", "s3://")):
-            provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
-            storage = self.link_creds.get_storage_provider(
-                sample_creds_key, provider_type
-            )
-            sample = hub.read(sample_path, storage=storage)
-        else:
-            sample = hub.read(sample_path)
+        sample = read_linked_sample(sample_path, sample_creds_key, self.link_creds)
         sample = sample.array[tuple(entry.value for entry in index.values[1:])]
         return sample
 
