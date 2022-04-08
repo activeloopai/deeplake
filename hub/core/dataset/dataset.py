@@ -379,6 +379,14 @@ class Dataset:
         is_sequence, is_link, htype = parse_complex_htype(htype)
         kwargs["is_sequence"] = is_sequence
         kwargs["is_link"] = is_link
+        if is_link and (
+            sample_compression != UNSPECIFIED or chunk_compression != UNSPECIFIED
+        ):
+            warnings.warn(
+                "Chunk_compression and sample_compression aren't valid for tensors with linked data. Ignoring these arguments."
+            )
+            sample_compression = UNSPECIFIED
+            chunk_compression = UNSPECIFIED
 
         if not self._is_root():
             return self.root.create_tensor(
