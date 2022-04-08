@@ -433,13 +433,12 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if not is_link:
-            if create_sample_info_tensor and htype in ("image", "audio", "video"):
-                self._create_sample_info_tensor(name)
-            if create_shape_tensor and htype not in ("text", "json"):
-                self._create_sample_shape_tensor(name, htype=htype)
-            if create_id_tensor:
-                self._create_sample_id_tensor(name)
+        if create_sample_info_tensor and htype in ("image", "audio", "video"):
+            self._create_sample_info_tensor(name)
+        if create_shape_tensor and htype not in ("text", "json"):
+            self._create_sample_shape_tensor(name, htype=htype)
+        if create_id_tensor:
+            self._create_sample_id_tensor(name)
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
@@ -691,7 +690,6 @@ class Dataset:
             link_creds = LinkCreds()
         else:
             link_creds = LinkCreds.frombuffer(data_bytes)
-
         self.link_creds = link_creds
 
     def _lock(self, err=False):
