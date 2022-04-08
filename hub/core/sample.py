@@ -291,7 +291,7 @@ class Sample:
         if self.path and get_path_type(self.path) == "local":
             compressed = self.path
         else:
-            compressed = self._buffer
+            compressed = self.buffer
         self._array = decompress_array(
             compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
         )
