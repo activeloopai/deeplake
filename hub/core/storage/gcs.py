@@ -251,7 +251,13 @@ class GCSProvider(StorageProvider):
         self.scoped_credentials = GCloudCredentials(self.token, project=self.project)
         self.retry = retry.Retry(deadline=60)
         self.client = storage.Client(credentials=self.scoped_credentials.credentials)
-        self.client_bucket = self.client.get_bucket(self.bucket)
+        self._client_bucket = None
+
+    @property
+    def client_bucket(self):
+        if self._client_bucket is None:
+            self._client_bucket = self.client.get_bucket(self.bucket)
+        return self._client_bucket
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
