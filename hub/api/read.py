@@ -1,12 +1,15 @@
 from hub.core.sample import Sample  # type: ignore
 from typing import Optional, Dict
 
+from hub.core.storage.provider import StorageProvider
+
 
 def read(
     path: str,
     verify: bool = False,
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
+    storage: Optional[StorageProvider] = None,
 ) -> Sample:
     """Utility that reads raw data from supported files into hub format. Recompresses data into format required by the tensor
     if permitted by the tensor htype. Simply copies the data in the file if file format matches sample_compression of the tensor,
@@ -56,4 +59,6 @@ def read(
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
-    return Sample(path, verify=verify, compression=compression, creds=creds)
+    return Sample(
+        path, verify=verify, compression=compression, creds=creds, storage=storage
+    )
