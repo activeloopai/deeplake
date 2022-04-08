@@ -30,6 +30,10 @@ class LinkCreds(HubMemoryObject):
             return self.get_default_provider(provider_type)
         if key not in self.creds_keys:
             raise ValueError(f"Creds key {key} does not exist")
+        if key not in self.creds_dict:
+            raise ValueError(
+                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
+            )
 
         if key in self.storage_providers:
             return self.storage_providers[key]
