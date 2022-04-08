@@ -140,7 +140,7 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
     return hubtokens
 
 
-def _parse_no_fail(s: str, ds: hub.dataset):
+def _parse_no_fail(s: str, ds: hub.Dataset):
     """Python tokenizer can fail for some partial queries such as those with trailing "(".
     This method supresses such errors.
     """

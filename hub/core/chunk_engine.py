@@ -945,10 +945,13 @@ class ChunkEngine:
         chunk: BaseChunk,
         cast: bool = True,
         copy: bool = False,
+        decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
+        return chunk.read_sample(
+            local_sample_index, cast=cast, copy=copy, decompress=decompress
+        )
 
     def numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
@@ -988,17 +991,14 @@ class ChunkEngine:
         chunk_ids = enc[global_sample_index]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
-        sample = chunk.read_sample(local_sample_index)[
-            tuple(entry.value for entry in index.values[1:])
-        ]
-        return sample
+        return chunk.read_sample(
+            local_sample_index, cast=self.tensor_meta.htype != "dicom"
+        )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index):
         if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
-            sample = self.get_video_sample(global_sample_index, index)
-        else:
-            sample = self.get_basic_sample(global_sample_index, index)
-        return sample
+            return self.get_video_sample(global_sample_index, index)
+        return self.get_basic_sample(global_sample_index, index)
 
     def get_full_tiled_sample(self, global_sample_index):
         chunks = self.get_chunks_for_sample(global_sample_index)

@@ -33,7 +33,15 @@ Supported htypes and their respective defaults are:
 | list           |  List     |  none         |
 """
 
+from email.quoprimime import body_length
 from typing import Dict
+from hub.compression import (
+    IMAGE_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
+)
 
 DEFAULT_HTYPE = "generic"
 
@@ -67,11 +75,26 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },
     "list": {"dtype": "List"},
     "text": {"dtype": "str"},
+    "dicom": {"sample_compression": "dcm"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
     "bbox": {"coords": {"type": dict, "keys": ["type", "mode"]}}
 }
+
+_image_compressions = IMAGE_COMPRESSIONS[:]
+_image_compressions.remove("dcm")
+
+HTYPE_SUPPORTED_COMPRESSIONS = {
+    "image": _image_compressions + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES),
+    "video": VIDEO_COMPRESSIONS[:],
+    "audio": AUDIO_COMPRESSIONS[:],
+    "text": BYTE_COMPRESSIONS[:],
+    "list": BYTE_COMPRESSIONS[:],
+    "json": BYTE_COMPRESSIONS[:],
+    "dicom": ["dcm"],
+}
+
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
