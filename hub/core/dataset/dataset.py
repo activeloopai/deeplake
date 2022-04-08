@@ -840,6 +840,7 @@ class Dataset:
         target_id: str,
         conflict_resolution: Optional[str] = None,
         delete_removed_tensors: bool = False,
+        force: bool = False,
     ):
         """Merges the target_id into the current dataset.
 
@@ -872,7 +873,7 @@ class Dataset:
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
 
-        merge(self, target_id, conflict_resolution, delete_removed_tensors)
+        merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
 
         self.storage.autoflush = self._initial_autoflush.pop()
 
@@ -1032,11 +1033,18 @@ class Dataset:
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
+            dataset_changes_1 = res[0]
+            dataset_changes_2 = res[1]
             tensor_changes_1 = res[2]
             tensor_changes_2 = res[3]
+            changes = {}
             if id_1 is None and id_2 is None:
-                return tensor_changes_1
-            return tensor_changes_1, tensor_changes_2
+                changes["dataset"] = dataset_changes_1
+                changes["tensor"] = tensor_changes_1
+                return changes
+            changes["dataset"] = dataset_changes_1, dataset_changes_2
+            changes["tensor"] = tensor_changes_1, tensor_changes_2
+            return changes
         all_changes = get_all_changes_string(*res)
         print(all_changes)
         return None

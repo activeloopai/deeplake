@@ -21,6 +21,7 @@ def merge(
     target_id: str,
     conflict_resolution: Optional[str] = None,
     delete_removed_tensors: bool = False,
+    force: bool = False,
 ):
     """Merge works by comparing the states of the dataset at the target commit and the current commit.
     The new tensors in the target are added. The deleted tensors in the target are removed if delete_removed_tensors is True.
@@ -49,7 +50,7 @@ def merge(
         common_tensors,
         deleted_tensors,
         cleared_tensors,
-    ) = get_new_common_deleted_and_cleared_tensors(dataset, target_ds, lca_id)
+    ) = get_new_common_deleted_and_cleared_tensors(dataset, target_ds, lca_id, force)
 
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
@@ -59,7 +60,7 @@ def merge(
 
 
 def get_new_common_deleted_and_cleared_tensors(
-    dataset, target_ds, lca_id: str
+    dataset, target_ds, lca_id: str, force: bool
 ) -> Tuple[Set[str], Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
@@ -80,18 +81,51 @@ def get_new_common_deleted_and_cleared_tensors(
     # present in dataset at lca, but deleted or renamed in original
     original_deleted_tensors = lca_tensors - original_tensors
 
-    target_cleared_tensors: Set[str] = set()
+    target_changes = target_ds.diff(lca_id, as_dict=True)
+    target_tensor_diff, _ = target_changes["tensor"]
+    target_dataset_diff, _ = target_changes["dataset"]
 
-    target_diff, _ = target_ds.diff(lca_id, as_dict=True)
+    original_dataset_diff, _ = dataset.diff(lca_id, as_dict=True)["dataset"]
+
+    target_renamed_tensors = target_dataset_diff.get("renamed") or {}
+    original_renamed_tensors = original_dataset_diff.get("renamed") or {}
+    for old_tensor, new_tensor in target_renamed_tensors.items():
+        if new_tensor in new_tensors:
+            if not force:
+                if old_tensor in original_renamed_tensors:
+                    raise MergeConflictError(
+                        message=f"{old_tensor} was renamed in both branches. Rename tensors to the same name to resolve the conflict or use `force=True` to register {new_tensor} as a new tensor on current branch."
+                    )
+                elif old_tensor in original_deleted_tensors:
+                    raise MergeConflictError(
+                        message=f"{old_tensor} was renamed to {new_tensor} in target but is missing from current branch. Use `force=True` to register {new_tensor} as a new tensor on current branch."
+                    )
+                new_tensors.discard(new_tensor)
+                target_deleted_tensors.discard(old_tensor)
+                dataset.rename_tensor(old_tensor, new_tensor)
+                common_tensors.add(new_tensor)
+
+        elif new_tensor in common_tensors:
+            # no merge conflict if same tensor was renamed to same name on both branches
+            if not original_renamed_tensors.get(old_tensor) == new_tensor and not force:
+                raise MergeConflictError(
+                    message=f"{old_tensor} was renamed to {new_tensor} in target but another {new_tensor} exists on the current branch. Rename tensors to resolve the conflict or use `force=True` to merge {new_tensor} of target with {new_tensor} of current branch."
+                )
+
+        target_deleted_tensors.discard(old_tensor)
+        original_deleted_tensors.discard(old_tensor)
+
     for tensor in original_deleted_tensors:
-        diff = target_diff.get(tensor, None)
+        diff = target_tensor_diff.get(tensor, None)
 
         # target has tensor but with no changes since lca, no point in creating again
         if not diff or not (diff["data_added"] or diff["data_updated"]):
             new_tensors.discard(tensor)
 
+    target_cleared_tensors: Set[str] = set()
+
     for tensor in common_tensors:
-        diff = target_diff.get(tensor, None)
+        diff = target_tensor_diff.get(tensor, None)
 
         if diff and diff["cleared"]:
             target_cleared_tensors.add(tensor)

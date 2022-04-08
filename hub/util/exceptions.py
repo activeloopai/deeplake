@@ -623,10 +623,13 @@ class MergeMismatchError(MergeError):
 
 
 class MergeConflictError(MergeError):
-    def __init__(self, conflict_dict):
-        tensor_names = [k for k, v in conflict_dict.items() if v]
-        message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
-        super().__init__(message)
+    def __init__(self, conflict_dict=None, message=""):
+        if conflict_dict:
+            tensor_names = [k for k, v in conflict_dict.items() if v]
+            message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
+            super().__init__(message)
+        else:
+            super().__init__(message)
 
 
 class CheckoutError(VersionControlError):

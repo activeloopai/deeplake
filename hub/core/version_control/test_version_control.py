@@ -647,7 +647,7 @@ def test_dataset_diff(local_ds, capsys):
     target = get_diff_helper(dataset_changes, {}, {}, None)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == {}, {}
 
     b = local_ds.commit()
@@ -660,7 +660,7 @@ def test_dataset_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == ({}, {})
 
     # cover DatasetDiff.frombuffer
@@ -668,7 +668,7 @@ def test_dataset_diff(local_ds, capsys):
     ds.diff(a)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = ds.diff(a, as_dict=True)
+    diff = ds.diff(a, as_dict=True)["tensor"]
     assert diff == ({}, {})
 
 
@@ -685,7 +685,7 @@ def test_clear_diff(local_ds, capsys):
     target = get_diff_helper({}, {}, tensor_changes, None)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == tensor_changes
 
     a = local_ds.commit()
@@ -707,7 +707,7 @@ def test_clear_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_a, {})
 
     b = local_ds.commit()
@@ -729,7 +729,7 @@ def test_clear_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_a, {})
 
 
@@ -747,7 +747,7 @@ def test_delete_diff(local_ds, capsys):
     target = get_diff_helper({}, {}, {}, {}, local_ds.version_state, a)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == {}, {}
 
     d = local_ds.commit()
@@ -764,7 +764,7 @@ def test_delete_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == tensor_changes_f_from_c, {}
 
     local_ds.diff(a)
@@ -774,7 +774,7 @@ def test_delete_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == tensor_changes_f_from_c, {}
 
 
@@ -795,7 +795,7 @@ def test_rename_diff_single(local_ds, capsys):
     target = get_diff_helper({}, {}, tensor_changes, None)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == tensor_changes
 
     a = local_ds.commit()
@@ -819,7 +819,7 @@ def test_rename_diff_single(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes, {})
 
 
@@ -857,7 +857,7 @@ def test_rename_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_a, {})
 
     c = local_ds.commit()
@@ -877,7 +877,7 @@ def test_rename_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_a, {})
 
     d = local_ds.commit()
@@ -899,7 +899,7 @@ def test_rename_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, as_dict=True)
+    diff = local_ds.diff(b, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_b, {})
 
     e = local_ds.commit()
@@ -914,7 +914,7 @@ def test_rename_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert diff == (tensor_changes_from_a, {})
 
 
@@ -971,7 +971,7 @@ def test_rename_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, e, as_dict=True)
+    diff = local_ds.diff(b, e, as_dict=True)["tensor"]
     assert diff == (tensor_changes_b_from_a, tensor_changes_e_from_a)
 
 
@@ -1025,7 +1025,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == changes_b_from_a
 
     b = local_ds.commit()
@@ -1037,7 +1037,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == changes_empty
 
     local_ds.diff(a)
@@ -1053,7 +1053,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_b_from_a
     assert diff[1] == changes_empty
@@ -1070,7 +1070,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, as_dict=True)
+    diff = local_ds.diff(b, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_empty
     assert diff[1] == changes_empty
@@ -1088,7 +1088,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, b, as_dict=True)
+    diff = local_ds.diff(a, b, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_empty
     assert diff[1] == changes_b_from_a
@@ -1106,7 +1106,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, a, as_dict=True)
+    diff = local_ds.diff(b, a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_b_from_a
     assert diff[1] == changes_empty
@@ -1121,7 +1121,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == changes_b_from_a
 
     local_ds.diff(a)
@@ -1137,7 +1137,7 @@ def test_diff_linear(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
 
 
@@ -1203,7 +1203,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == changes_main_from_branch_off
 
     c = local_ds.commit()
@@ -1216,7 +1216,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)
+    diff = local_ds.diff(as_dict=True)["tensor"]
     assert diff == empty_changes
 
     local_ds.diff(a)
@@ -1238,7 +1238,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)
+    diff = local_ds.diff(a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_main_from_branch_off
     assert diff[1] == empty_changes
@@ -1261,7 +1261,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, as_dict=True)
+    diff = local_ds.diff(b, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_main_from_branch_off
     assert diff[1] == changes_b_from_branch_off
@@ -1278,7 +1278,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(c, as_dict=True)
+    diff = local_ds.diff(c, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == empty_changes
     assert diff[1] == empty_changes
@@ -1302,7 +1302,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, b, as_dict=True)
+    diff = local_ds.diff(a, b, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == empty_changes
     assert diff[1] == changes_b_from_branch_off
@@ -1326,7 +1326,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, a, as_dict=True)
+    diff = local_ds.diff(b, a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_b_from_branch_off
     assert diff[1] == empty_changes
@@ -1370,7 +1370,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(c, b, as_dict=True)
+    diff = local_ds.diff(c, b, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_main_from_branch_off
     assert diff[1] == changes_b_from_branch_off
@@ -1394,7 +1394,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(c, a, as_dict=True)
+    diff = local_ds.diff(c, a, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_main_from_branch_off
     assert diff[1] == empty_changes
@@ -1418,7 +1418,7 @@ def test_diff_branch(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, c, as_dict=True)
+    diff = local_ds.diff(a, c, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == empty_changes
     assert diff[1] == changes_main_from_branch_off
@@ -1504,7 +1504,7 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(c, g, as_dict=True)
+    diff = local_ds.diff(c, g, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_c_from_x
     assert diff[1] == changes_g_from_x
@@ -1522,7 +1522,7 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(e, d, as_dict=True)
+    diff = local_ds.diff(e, d, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == empty_changes
     assert diff[1] == empty_changes
@@ -1540,7 +1540,7 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(e, e, as_dict=True)
+    diff = local_ds.diff(e, e, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == empty_changes
     assert diff[1] == empty_changes
@@ -1577,7 +1577,7 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(c, "main", as_dict=True)
+    diff = local_ds.diff(c, "main", as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_c_from_x
     assert diff[1] == changes_main_from_x
@@ -1595,7 +1595,7 @@ def test_complex_diff(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff("main", c, as_dict=True)
+    diff = local_ds.diff("main", c, as_dict=True)["tensor"]
     assert isinstance(diff, tuple)
     assert diff[0] == changes_main_from_x
     assert diff[1] == changes_c_from_x

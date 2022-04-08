@@ -252,65 +252,86 @@ def test_conflicts(local_ds):
         np.testing.assert_array_equal(ds.image[4].numpy(), 25 * np.ones((200, 200, 3)))
 
 
-def test_merge_rename(local_ds):
+def test_rename_merge(local_ds):
     with local_ds as ds:
-        ds.create_tensor("image")
-        for i in range(10):
-            ds.image.append(i * np.ones((200, 200, 3)))
-        ds.create_tensor("base")
-        ds.base.append([1, 2, 3])
-        ds.create_tensor("red")
-        ds.red.append([0, 0, 0])
-        a = ds.commit("added 10 images")
-
-        ds.checkout("alt", create=True)
-        ds.rename_tensor("image", "image_copy")
-        for i in range(10, 15):
-            ds.image_copy.append(i * np.ones((200, 200, 3)))
-        b = ds.commit("image -> image_copy, added 5 more images")
-
-        ds.base.append([2, 3, 4])
-        ds.rename_tensor("base", "base1")
-        ds.base1[0] = [4, 5, 6]
-        a1 = ds.commit("base -> base1, added [1], updated [0]")
-
-        ds.rename_tensor("base1", "base2")
-        ds.base2.append([0, 1, 0])
-        a2 = ds.commit("base1 -> base2, added [2]")
-
-        ds.checkout("main")
-        ds.base[0] = [0, 0, 0]
-        ds.rename_tensor("base", "base2")
-        c = ds.commit("base -> base2, updated [0]")
-
-        with pytest.raises(MergeConflictError):
-            ds.merge("alt")
-
-        ds.merge("alt", conflict_resolution="theirs")
-        np.testing.assert_array_equal(ds.image[9].numpy(), 9 * np.ones((200, 200, 3)))
-        np.testing.assert_array_equal(
-            ds.image_copy[14].numpy(), 14 * np.ones((200, 200, 3))
-        )
-        np.testing.assert_array_equal(
-            ds.base2.numpy(), np.array([[4, 5, 6], [2, 3, 4], [0, 1, 0]])
-        )
+        # no conflicts
         ds.create_tensor("abc")
         ds.abc.append([1, 2, 3])
-        d = ds.commit("created abc and added 1 sample")
-
-        ds.checkout("alt")
-        ds.create_tensor("xyz")
-        ds.xyz.append([2, 3, 4])
-        ds.rename_tensor("red", "blue")
-        e = ds.commit("created xyz and added 1 sample")
-
-        ds.rename_tensor("xyz", "abc")
-        f = ds.commit("renamed xyz to abc")
-
+        ds.commit()
+        ds.checkout("alt", create=True)
+        ds.rename_tensor("abc", "xyz")
+        ds.xyz.append([3, 4, 5])
+        ds.commit()
         ds.checkout("main")
-        ds.merge("alt", delete_removed_tensors=True)
-        assert "red" not in ds.tensors  # red was removed in comparison to lca
-        np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3], [2, 3, 4]]))
+        ds.merge("alt")
+        assert "abc" not in ds.tensors
+        np.testing.assert_array_equal(ds.xyz.numpy(), np.array([[1, 2, 3], [3, 4, 5]]))
+
+        # tensor with same name on main
+        ds.create_tensor("red")
+        ds.red.append([2, 3, 4])
+        ds.commit()
+        ds.checkout("alt2", create=True)
+        ds.rename_tensor("red", "blue")
+        ds.blue.append([1, 0, 0])
+        ds.commit()
+        ds.checkout("main")
+        ds.create_tensor("blue")
+        ds.blue.append([0, 0, 1])
+        ds.commit()
+        with pytest.raises(MergeConflictError):
+            ds.merge("alt2")
+        # resolve
+        ds.merge("alt2", force=True)
+        np.testing.assert_array_equal(ds.red.numpy(), np.array([[2, 3, 4]]))
+        np.testing.assert_array_equal(
+            ds.blue.numpy(), np.array([[0, 0, 1], [2, 3, 4], [1, 0, 0]])
+        )
+        ds.delete_tensor("blue")
+        ds.commit()
+
+        # rename to same name (no conflict)
+        ds.rename_tensor("red", "blue")
+        ds.merge("alt2")
+        np.testing.assert_array_equal(ds.blue.numpy(), np.array([[2, 3, 4], [1, 0, 0]]))
+
+        # renamed on both branches
+        ds.create_tensor("image")
+        ds.create_tensor("video")
+        ds.image.append([1, 2, 3])
+        ds.video.append([1, 0, 0])
+        ds.commit()
+        ds.checkout("alt3", create=True)
+        ds.rename_tensor("image", "images")
+        ds.rename_tensor("video", "videos")
+        ds.images.append([3, 4, 5])
+        ds.videos.append([0, 1, 0])
+        ds.commit()
+        ds.checkout("main")
+        ds.rename_tensor("image", "cat_images")
+        ds.rename_tensor("video", "sample_videos")
+        ds.cat_images.append([5, 6, 7])
+        ds.sample_videos.append([7, 8, 9])
+        ds.commit()
+        with pytest.raises(MergeConflictError):
+            ds.merge("alt3")
+        # resolve (through rename and force)
+        ds.checkout("alt3")
+        ds.rename_tensor("images", "cat_images")
+        ds.commit()
+        ds.checkout("main")
+        ds.merge("alt3", force=True)
+        assert "image" not in ds.tensors
+        assert "images" not in ds.tensors
+        np.testing.assert_array_equal(
+            ds.cat_images.numpy(), np.array([[1, 2, 3], [5, 6, 7], [3, 4, 5]])
+        )
+        np.testing.assert_array_equal(
+            ds.videos.numpy(), np.array([[1, 0, 0], [0, 1, 0]])
+        )
+        np.testing.assert_array_equal(
+            ds.sample_videos.numpy(), np.array([[1, 0, 0], [7, 8, 9]])
+        )
 
 
 def test_clear_merge(local_ds):
