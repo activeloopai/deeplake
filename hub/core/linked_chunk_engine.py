@@ -5,8 +5,10 @@ from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage import LRUCache
 from hub.core.tensor_link import read_linked_sample
+from hub.core.compression import _read_video_shape, _decompress_video
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
+from hub.util.video import normalize_index
 
 
 class LinkedChunkEngine(ChunkEngine):
@@ -62,7 +64,33 @@ class LinkedChunkEngine(ChunkEngine):
         return False
 
     def get_video_sample(self, global_sample_index, index):
-        raise NotImplementedError
+        creds_encoder = self.creds_encoder
+        sample_path: str = super().get_basic_sample(global_sample_index, index)[0]
+        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        storage = None
+        if sample_path.startswith(("gcs://", "gcp://", "s3://")):
+            provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
+            storage = self.link_creds.get_storage_provider(
+                sample_creds_key, provider_type
+            )
+            url = storage.get_presigned_url(sample_path, full=True)
+        else:
+            url = sample_path
+        squeeze = isinstance(index, int)
+        shape = _read_video_shape(url)
+        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+        start, stop, step, reverse = normalize_index(sub_index, shape[0])
+        video_sample = _decompress_video(
+            url,
+            start,
+            stop,
+            step,
+            reverse,
+        )
+        if squeeze:
+            video_sample.squeeze(0)
+        return video_sample
 
     def get_basic_sample(self, global_sample_index, index):
         creds_encoder = self.creds_encoder

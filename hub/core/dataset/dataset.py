@@ -111,6 +111,7 @@ from hub.util.pretty_print import (
     summary_dataset,
 )
 from hub.client.utils import get_user_name
+import warnings
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 

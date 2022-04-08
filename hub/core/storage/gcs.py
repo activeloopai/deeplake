@@ -403,7 +403,17 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self._initialize_provider()
 
-    def get_presigned_url(self, key):
+    def get_presigned_url(self, key, full=False):
+        if full:
+            root = key.replace("gcp://", "").replace("gcs://", "")
+            split_root = root.split("/", 1)
+            bucket = split_root[0]
+            key = split_root[1] if len(split_root) > 1 else ""
+
+            client_bucket = self.client.get_bucket(bucket)
+        else:
+            client_bucket = self.client_bucket
+
         url = None
         cached = self._presigned_urls.get(key)
         if cached:
@@ -419,7 +429,9 @@ class GCSProvider(StorageProvider):
                 org_id, ds_name = self.tag.split("/")
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
-                blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+                blob = client_bucket.get_blob(
+                    self._get_path_from_key(key) if not full else key
+                )
                 url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
             self._presigned_urls[key] = (url, time.time())
         return url
