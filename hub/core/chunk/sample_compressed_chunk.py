@@ -8,6 +8,7 @@ from hub.core.serialize import (
     bytes_to_text,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
 
@@ -81,42 +82,9 @@ class SampleCompressedChunk(BaseChunk):
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
 
-        squeeze = False
-        reverse = False
-        if sub_index is None:
-            start = 0
-            stop = nframes
-            step = 1
-        elif isinstance(sub_index, int):
-            if sub_index >= 0:
-                start = sub_index
-            else:
-                start = nframes + sub_index
-            stop = start + 1
-            step = 1
-            squeeze = True
-        elif isinstance(sub_index, slice):
-            step = sub_index.step
-            if step is None:
-                step = 1
-            elif step < 0:
-                step = abs(step)
-                reverse = True
+        squeeze = isinstance(sub_index, int)
 
-            start = sub_index.start
-            if start is None:
-                start = 0 if not reverse else nframes
-            elif start < 0:
-                start = nframes + start
-
-            stop = sub_index.stop
-            if stop is None:
-                stop = nframes if not reverse else -1
-            elif stop < 0:
-                stop = nframes + stop
-
-            if reverse:
-                start, stop = stop + 1, start + 1
+        start, stop, step, reverse = normalize_index(sub_index, nframes)
 
         if start > nframes:
             raise IndexError("Start index out of bounds.")
