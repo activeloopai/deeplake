@@ -934,10 +934,13 @@ class ChunkEngine:
         chunk: BaseChunk,
         cast: bool = True,
         copy: bool = False,
+        decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        return chunk.read_sample(local_sample_index, cast=cast, copy=copy)
+        return chunk.read_sample(
+            local_sample_index, cast=cast, copy=copy, decompress=decompress
+        )
 
     def numpy(
         self, index: Index, aslist: bool = False, use_data_cache: bool = True
@@ -978,7 +981,7 @@ class ChunkEngine:
         length = self.num_samples
         last_shape = None
         enc = self.chunk_id_encoder
-
+        htype = self.tensor_meta.htype
         if use_data_cache and self.is_data_cachable:
             samples = self.numpy_from_data_cache(index, length, aslist)
         else:
@@ -999,9 +1002,9 @@ class ChunkEngine:
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
                         chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
-                        sample = chunk.read_sample(local_sample_index)[
-                            tuple(entry.value for entry in index.values[1:])
-                        ]
+                        sample = chunk.read_sample(
+                            local_sample_index, cast=htype != "dicom"
+                        )[tuple(entry.value for entry in index.values[1:])]
                 elif len(index.values) == 1:
                     # Tiled sample, all chunks required
                     chunks = self.get_chunks_for_sample(global_sample_index)

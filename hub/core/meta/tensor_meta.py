@@ -27,6 +27,7 @@ from hub.compression import (
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
     DEFAULT_HTYPE,
+    HTYPE_SUPPORTED_COMPRESSIONS,
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
@@ -268,51 +269,28 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
-    if (
-        htype == "image"
-        and htype_overwrite["chunk_compression"] == UNSPECIFIED
-        and htype_overwrite["sample_compression"] == UNSPECIFIED
-    ):
+    sc = htype_overwrite["sample_compression"]
+    cc = htype_overwrite["chunk_compression"]
+    compr = sc if cc in (None, UNSPECIFIED) else cc
+    if htype == "image" and sc == UNSPECIFIED and cc == UNSPECIFIED:
         raise TensorMetaMissingRequiredValue(
             htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
-
-    if htype in ("json", "list", "text"):
-        compr = htype_overwrite["chunk_compression"]
-        if compr in (None, UNSPECIFIED):
-            compr = htype_overwrite["sample_compression"]
-        if compr not in (None, UNSPECIFIED):
-            if get_compression_type(compr) != BYTE_COMPRESSION:
-                raise UnsupportedCompressionError(compr, htype)
-    elif htype == "audio":
-        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
+    if htype in ("audio", "video"):
+        if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
-        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
+        elif sc == UNSPECIFIED:
             raise TensorMetaMissingRequiredValue(
                 htype, "sample_compression"  # type: ignore
             )
-        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
-            None,
-            AUDIO_COMPRESSION,
-        ):
-            raise UnsupportedCompressionError(
-                htype_overwrite["sample_compression"], htype="audio"
-            )
-
-    if htype == "video":
-        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
-            raise UnsupportedCompressionError("Chunk compression", htype=htype)
-        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
-            raise TensorMetaMissingRequiredValue(
-                htype, "sample compression"  # type: ignore
-            )
-        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
-            None,
-            VIDEO_COMPRESSION,
-        ):
-            raise UnsupportedCompressionError(
-                htype_overwrite["sample_compression"], htype="video"
-            )
+    supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+    if (
+        compr
+        and compr != UNSPECIFIED
+        and supported_compressions
+        and compr not in supported_compressions
+    ):
+        raise UnsupportedCompressionError(compr, htype=htype)
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
