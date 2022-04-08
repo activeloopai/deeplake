@@ -204,6 +204,7 @@ class Tensor:
         self.storage: LRUCache = dataset.storage
         self.index = index or Index()
         self.version_state = dataset.version_state
+        self.link_creds = dataset.link_creds
         self.is_iteration = is_iteration
         commit_id = self.version_state["commit_id"]
 
@@ -688,7 +689,9 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                self.dataset[k].append(get_link_transform(v["append"])(sample))
+                self.dataset[k].append(
+                    get_link_transform(v["append"])(sample, self.link_creds)
+                )
 
     def _update_links(
         self,
@@ -707,6 +710,7 @@ class Tensor:
                         self.dataset[k][global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
+                        link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
                         self.dataset[k][global_sample_index] = val
