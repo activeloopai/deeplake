@@ -33,7 +33,6 @@ Supported htypes and their respective defaults are:
 | list           |  List     |  none         |
 """
 
-from email.quoprimime import body_length
 from typing import Dict
 from hub.compression import (
     IMAGE_COMPRESSIONS,
