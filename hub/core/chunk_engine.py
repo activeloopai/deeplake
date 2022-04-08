@@ -611,6 +611,9 @@ class ChunkEngine:
     def register_new_creds(self, num_samples_added, samples):
         return
 
+    def update_creds(self, sample_index, sample):
+        return
+
     def _extend(self, samples, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
             for sample in samples:
@@ -848,6 +851,7 @@ class ChunkEngine:
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
+            self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size

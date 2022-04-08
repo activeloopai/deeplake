@@ -98,3 +98,9 @@ class LinkedChunkEngine(ChunkEngine):
             creds_key = samples[i].creds_key
             encoded_creds_key = link_creds.get_encoding(creds_key)
             creds_encoder.register_samples(encoded_creds_key, 1)
+
+    def update_creds(self, sample_index: int, sample: LinkedSample):
+        link_creds = self.link_creds
+        creds_key = sample.creds_key
+        encoded_creds_key = link_creds.get_encoding(creds_key)
+        self.creds_encoder[sample_index] = encoded_creds_key
