@@ -80,7 +80,8 @@ class LinkedChunkEngine(ChunkEngine):
             url = sample_path
         squeeze = isinstance(index, int)
         shape = _read_video_shape(url)
-        start, stop, step, reverse = normalize_index(index, shape[0])
+        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+        start, stop, step, reverse = normalize_index(sub_index, shape[0])
         video_sample = _decompress_video(
             url,
             start,
