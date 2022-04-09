@@ -8,4 +8,6 @@ pheonix_cpp = load(name="pheonix_cpp",
                    sources=[os.path.join(module_path, "libpheonix.cpp")], verbose=True)
 
 import pheonix_cpp
-print(pheonix_cpp.simple_request(1))
+
+output = pheonix_cpp.simple_request(1)
+print(output)
