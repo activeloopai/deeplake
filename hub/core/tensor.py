@@ -594,8 +594,7 @@ class Tensor:
 
         print(self)
         print(pretty_print)
-        
-    
+
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
