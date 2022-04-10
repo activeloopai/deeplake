@@ -218,25 +218,17 @@ class Pipeline:
 
         if progressbar:
             desc = get_pbar_description(self.functions)
-            metas_and_encoders = compute.map_with_progressbar(
+            result = compute.map_with_progressbar(
                 store_data_slice_with_pbar,
                 map_inp,
                 total_length=len(data_in),
                 desc=desc,
             )
         else:
-            metas_and_encoders = compute.map(store_data_slice, map_inp)
-
-        (
-            all_tensor_metas,
-            all_chunk_id_encoders,
-            all_tile_encoders,
-            all_chunk_commit_sets,
-            all_commit_diffs,
-        ) = zip(*metas_and_encoders)
+            result = compute.map(store_data_slice, map_inp)
 
         all_num_samples, all_tensors_generated_length = get_lengths_generated(
-            all_tensor_metas, tensors
+            result["tensor_metas"], tensors
         )
 
         check_lengths(all_tensors_generated_length, skip_ok)
@@ -247,16 +239,7 @@ class Pipeline:
 
         old_chunk_paths = get_old_chunk_paths(target_ds, generated_tensors, overwrite)
         merge_all_meta_info(
-            target_ds,
-            storage,
-            generated_tensors,
-            overwrite,
-            all_commit_diffs,
-            all_tile_encoders,
-            all_num_samples,
-            all_tensor_metas,
-            all_chunk_id_encoders,
-            all_chunk_commit_sets,
+            target_ds, storage, generated_tensors, overwrite, all_num_samples, result
         )
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
 

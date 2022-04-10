@@ -26,14 +26,6 @@ from hub.util.exceptions import (
 import posixpath
 import time
 
-TransformOut = Tuple[
-    Dict[str, TensorMeta],
-    Dict[str, ChunkIdEncoder],
-    Dict[str, TileEncoder],
-    Dict[str, Optional[CommitChunkSet]],
-    Dict[str, CommitDiff],
-]
-
 
 def transform_sample(
     sample: Any,
@@ -101,14 +93,14 @@ def is_empty_transform_dataset(dataset: TransformDataset):
     return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
-def store_data_slice(transform_input: Tuple) -> TransformOut:
+def store_data_slice(transform_input: Tuple) -> Dict:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
     return store_data_slice_with_pbar(None, transform_input)
 
 
-def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     data_slice, output_storage, inp = transform_input
     (
         group_index,
@@ -150,13 +142,14 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
         all_commit_diffs[tensor] = chunk_engine.commit_diff
-    return (
-        all_tensor_metas,
-        all_chunk_id_encoders,
-        all_tile_encoders,
-        all_chunk_sets,
-        all_commit_diffs,
-    )
+
+    return {
+        "tensor_metas": all_tensor_metas,
+        "chunk_id_encoders": all_chunk_id_encoders,
+        "tile_encoders": all_tile_encoders,
+        "commit_chunk_sets": all_chunk_sets,
+        "commit_diffs": all_commit_diffs,
+    }
 
 
 def _transform_sample_and_update_chunk_engines(
