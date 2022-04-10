@@ -434,10 +434,17 @@ class Tensor:
         return self.meta.is_sequence
 
     @property
+    def is_link(self):
+        return self.meta.is_link
+
+    @property
     def htype(self):
+        htype = self.meta.htype
         if self.is_sequence:
-            return f"sequence[{self.meta.htype}]"
-        return self.meta.htype
+            htype = f"sequence[{htype}]"
+        if self.is_sequence:
+            htype = f"link[{htype}]"
+        return htype
 
     @property
     def hidden(self) -> bool:
@@ -799,3 +806,10 @@ class Tensor:
     @property
     def sample_info(self):
         return self._sample_info(self.index)
+
+    def _linked_sample(self):
+        if not self.is_link:
+            raise ValueError("Not supported as the tensor is not a link.")
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
+        return self.chunk_engine.linked_sample(self.index.values[0].value)
