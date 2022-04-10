@@ -264,6 +264,7 @@ class Dataset:
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
+        state["link_creds"] = None
         self.__dict__.update(state)
 
         # clear cache while restoring
