@@ -400,8 +400,8 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         is_sequence, is_link, htype = parse_complex_htype(htype)
-        kwargs["is_sequence"] = is_sequence
-        kwargs["is_link"] = is_link
+        kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
+        kwargs["is_link"] = kwargs.get("is_link") or is_link
         if is_link and (
             sample_compression != UNSPECIFIED or chunk_compression != UNSPECIFIED
         ):
