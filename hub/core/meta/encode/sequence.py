@@ -12,7 +12,7 @@ class SequenceEncoder(BytePositionsEncoder, HubMemoryObject):
         instance = cls()
         if not buffer:
             return instance
-        version, ids = deserialize_sequence_or_creds_encoder(buffer)
+        version, ids = deserialize_sequence_or_creds_encoder(buffer, "seq")
         if ids.nbytes:
             instance._encoded = ids
         instance.version = version

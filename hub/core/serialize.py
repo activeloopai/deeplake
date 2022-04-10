@@ -287,17 +287,18 @@ def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
 
 
 def deserialize_sequence_or_creds_encoder(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, memoryview], enc_type: str
 ) -> Tuple[str, np.ndarray]:
+    dim = 2 if enc_type == "creds" else 3
     byts = memoryview(byts)
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
-    enc = (
+    enc_type = (
         np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
-        .reshape(-1, 3)
+        .reshape(-1, dim)
         .copy()
     )
-    return version, enc
+    return version, enc_type
 
 
 def check_sample_shape(shape, num_dims):
