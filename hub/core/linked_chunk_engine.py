@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any, Tuple
+import hub
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.index.index import Index
 from hub.core.link_creds import LinkCreds
@@ -64,11 +65,16 @@ class LinkedChunkEngine(ChunkEngine):
     def is_data_cachable(self):
         return False
 
+    def linked_sample(self, global_sample_index: int) -> LinkedSample:
+        creds_encoder = self.creds_encoder
+        sample_path = self.get_path(global_sample_index)
+        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        return LinkedSample(sample_path, sample_creds_key)
+
     def get_video_sample(self, global_sample_index, index):
         creds_encoder = self.creds_encoder
-        sample_path: str = super().get_basic_sample(
-            global_sample_index, Index(global_sample_index)
-        )[0]
+        sample_path = self.get_path(global_sample_index)
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         storage = None
@@ -99,18 +105,24 @@ class LinkedChunkEngine(ChunkEngine):
         sample = self.get_hub_read_sample(global_sample_index)
         return sample.array[tuple(entry.value for entry in index.values[1:])]
 
-    def get_hub_read_sample(self, global_sample_index):
-        creds_encoder = self.creds_encoder
-        sample_path: str = super().get_basic_sample(
+    def get_path(self, global_sample_index) -> str:
+        return super().get_basic_sample(
             global_sample_index, Index(global_sample_index)
         )[0]
+
+    def get_hub_read_sample(self, global_sample_index):
+        creds_encoder = self.creds_encoder
+        sample_path = self.get_path(global_sample_index)
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds)
 
     def check_each_sample(self, samples):
-        for sample in samples:
-            if not isinstance(sample, LinkedSample):
+        for i, sample in enumerate(samples):
+            if isinstance(sample, hub.core.tensor.Tensor) and sample.is_link:
+                sample = sample._linked_sample()
+                samples[i] = sample
+            elif not isinstance(sample, LinkedSample):
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
@@ -122,13 +134,13 @@ class LinkedChunkEngine(ChunkEngine):
         for i in range(num_samples_added):
             creds_key = samples[i].creds_key
             encoded_creds_key = link_creds.get_encoding(creds_key)
-            creds_encoder.register_samples(encoded_creds_key, 1)
+            creds_encoder.register_samples((encoded_creds_key,), 1)
 
     def update_creds(self, sample_index: int, sample: LinkedSample):
         link_creds = self.link_creds
         creds_key = sample.creds_key
         encoded_creds_key = link_creds.get_encoding(creds_key)
-        self.creds_encoder[sample_index] = encoded_creds_key
+        self.creds_encoder[sample_index] = (encoded_creds_key,)
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_hub_read_sample(global_sample_index)
