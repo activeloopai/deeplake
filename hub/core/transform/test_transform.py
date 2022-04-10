@@ -338,7 +338,7 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
-    diff = ds_out.diff(as_dict=True)["tensor"]["tensor"]
+    diff = ds_out.diff(as_dict=True)["tensor"]
     change = {
         "image": {
             "data_updated": set(),
