@@ -17,6 +17,7 @@ from hub.util.transform import (
     get_lengths_generated,
     get_old_chunk_paths,
     get_pbar_description,
+    process_transform_result,
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
@@ -226,6 +227,7 @@ class Pipeline:
             )
         else:
             result = compute.map(store_data_slice, map_inp)
+        result = process_transform_result(result)
 
         all_num_samples, all_tensors_generated_length = get_lengths_generated(
             result["tensor_metas"], tensors

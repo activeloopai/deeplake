@@ -1,19 +1,16 @@
+from collections import defaultdict
 import math
 import warnings
 import hub
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
 from json.decoder import JSONDecodeError
 from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -231,21 +228,9 @@ def create_worker_chunk_engines(
                 storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
-                meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
-                existing_meta = storage_cache.get_hub_object(meta_key, TensorMeta)
-
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
-                if existing_meta.is_link:
-                    storage_chunk_engine = LinkedChunkEngine(
-                        tensor,
-                        storage_cache,
-                        version_state,
-                        link_creds=link_creds,
-                    )
-                else:
-                    storage_chunk_engine = ChunkEngine(
-                        tensor, storage_cache, version_state
-                    )
+                storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
+                existing_meta = storage_chunk_engine.tensor_meta
 
                 chunk_size = storage_chunk_engine.max_chunk_size
                 new_tensor_meta = TensorMeta(
@@ -255,13 +240,25 @@ def create_worker_chunk_engines(
                     chunk_compression=existing_meta.chunk_compression,
                     max_chunk_size=chunk_size,
                     links=existing_meta.links,
+                    is_sequence=existing_meta.is_sequence,
+                    is_link=existing_meta.is_link,
+                    hidden=existing_meta.hidden,
                 )
                 meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
                 memory_cache[meta_key] = new_tensor_meta  # type: ignore
                 storage_cache.clear_cache()
-                storage_chunk_engine = ChunkEngine(
-                    tensor, storage_cache, version_state, memory_cache
-                )
+                if existing_meta.is_link:
+                    storage_chunk_engine = LinkedChunkEngine(
+                        tensor,
+                        storage_cache,
+                        version_state,
+                        memory_cache,
+                        link_creds=link_creds,
+                    )
+                else:
+                    storage_chunk_engine = ChunkEngine(
+                        tensor, storage_cache, version_state, memory_cache
+                    )
                 storage_chunk_engine._all_chunk_engines = all_chunk_engines
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
@@ -407,3 +404,14 @@ def sanitize_workers_scheduler(num_workers, scheduler):
         scheduler = "serial"
     num_workers = max(num_workers, 1)
     return num_workers, scheduler
+
+
+def process_transform_result(result: List[Dict]):
+    if not result:
+        return result
+    final = defaultdict(list)
+    keys = list(result[0].keys())
+    for item in result:
+        for key in keys:
+            final[key].append(item[key])
+    return final
