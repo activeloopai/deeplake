@@ -65,7 +65,7 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-        if htype and htype != UNSPECIFIED:
+        if htype and htype not in [UNSPECIFIED, DEFAULT_HTYPE]:
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
