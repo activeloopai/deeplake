@@ -853,6 +853,7 @@ class Dataset:
                 - "ours" - during conflicts, values from the current dataset will be used.
                 - "theirs" - during conflicts, values from target id will be used.
             delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
+            force (bool): Forces merge.
 
         Raises:
             Exception: if dataset is a filtered view.
@@ -977,7 +978,7 @@ class Dataset:
 
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
-    ) -> Optional[Union[Dict, Tuple[Dict, Dict]]]:
+    ) -> Optional[Dict]:
         """Returns/displays the differences between commits/branches.
 
         For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created.
@@ -985,7 +986,9 @@ class Dataset:
         Args:
             id_1 (str, Optional): The first commit_id or branch name.
             id_2 (str, Optional): The second commit_id or branch name.
-            as_dict (bool, Optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
+            as_dict (bool, Optional): If True, returns a dictionary of the differences instead of printing them.
+                This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
+                Defaults to False.
 
         Note:
             - If both `id_1` and `id_2` are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
@@ -994,12 +997,12 @@ class Dataset:
             - If both `id_1` and `id_2` are provided, the differences between `id_1` and `id_2` will be calculated.
 
         Returns:
-            Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
+            Dict: The differences between the commits/branches if as_dict is True.
 
-                - If `id_1` and `id_2` are None, a single dictionary containing the differences between the current state and the previous commit will be returned.
-                - If only `id_1` is provided, two dictionaries containing the differences in the current state and `id_1` respectively will be returned.
+                - If `id_1` and `id_2` are None, a dictionary containing the differences between the current state and the previous commit will be returned.
+                - If only `id_1` is provided, a dictionary containing the differences in the current state and `id_1` respectively will be returned.
                 - If only `id_2` is provided, a ValueError will be raised.
-                - If both `id_1` and `id_2` are provided, two dictionaries containing the differences in `id_1` and `id_2` respectively will be returned.
+                - If both `id_1` and `id_2` are provided, a dictionary containing the differences in `id_1` and `id_2` respectively will be returned.
             None: If as_dict is False.
 
             Example of a dict returned:
