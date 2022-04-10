@@ -380,6 +380,10 @@ class ChunkEngine:
             return False
 
     @property
+    def creds_encoder(self):
+        return None
+
+    @property
     def num_chunks(self) -> int:
         if not self.chunk_id_encoder_exists:
             return 0

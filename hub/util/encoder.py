@@ -1,7 +1,7 @@
 import hub
 import numpy as np
 from typing import Dict, List
-
+from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
@@ -9,6 +9,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.keys import (
+    get_creds_encoder_key,
     get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
@@ -17,6 +18,39 @@ from hub.util.keys import (
     get_tensor_tile_encoder_key,
 )
 import posixpath
+
+
+def merge_all_meta_info(
+    target_ds, storage, generated_tensors, overwrite, all_num_samples, result
+):
+    merge_all_commit_diffs(
+        result["commit_diffs"], target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_tile_encoders(
+        result["tile_encoders"],
+        all_num_samples,
+        target_ds,
+        storage,
+        overwrite,
+        generated_tensors,
+    )
+    merge_all_tensor_metas(
+        result["tensor_metas"], target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_chunk_id_encoders(
+        result["chunk_id_encoders"], target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_creds_encoders(
+        result["creds_encoders"], target_ds, storage, overwrite, generated_tensors
+    )
+    if target_ds.commit_id is not None:
+        merge_all_commit_chunk_sets(
+            result["commit_chunk_sets"],
+            target_ds,
+            storage,
+            overwrite,
+            generated_tensors,
+        )
 
 
 def merge_all_tensor_metas(
@@ -131,36 +165,6 @@ def merge_all_tile_encoders(
     target_ds.flush()
 
 
-def merge_all_meta_info(
-    target_ds, storage, generated_tensors, overwrite, all_num_samples, result
-):
-    merge_all_commit_diffs(
-        result["commit_diffs"], target_ds, storage, overwrite, generated_tensors
-    )
-    merge_all_tile_encoders(
-        result["tile_encoders"],
-        all_num_samples,
-        target_ds,
-        storage,
-        overwrite,
-        generated_tensors,
-    )
-    merge_all_tensor_metas(
-        result["tensor_metas"], target_ds, storage, overwrite, generated_tensors
-    )
-    merge_all_chunk_id_encoders(
-        result["chunk_id_encoders"], target_ds, storage, overwrite, generated_tensors
-    )
-    if target_ds.commit_id is not None:
-        merge_all_commit_chunk_sets(
-            result["commit_chunk_sets"],
-            target_ds,
-            storage,
-            overwrite,
-            generated_tensors,
-        )
-
-
 def combine_tile_encoders(
     ds_tile_encoder: TileEncoder, worker_tile_encoder: TileEncoder, offset: int
 ) -> None:
@@ -242,3 +246,42 @@ def combine_commit_diffs(
 ) -> None:
     """Combines the dataset's commit_diff with a single worker's commit_diff."""
     ds_commit_diff.add_data(worker_commit_diff.num_samples_added)
+
+
+def merge_all_creds_encoders(
+    all_workers_creds_encoders: List[Dict[str, CredsEncoder]],
+    target_ds: hub.Dataset,
+    storage: StorageProvider,
+    overwrite: bool,
+    tensors: List[str],
+) -> None:
+    commit_id = target_ds.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        actual_tensor = target_ds[rel_path]
+        if not actual_tensor.is_link:
+            continue
+
+        creds_encoder = None if overwrite else actual_tensor.chunk_engine.creds_encoder
+        for current_worker_creds_encoder in all_workers_creds_encoders:
+            current_creds_encoder = current_worker_creds_encoder[tensor]
+            if creds_encoder is None:
+                creds_encoder = current_creds_encoder
+            else:
+                combine_creds_encoders(creds_encoder, current_creds_encoder)
+
+        creds_key = get_creds_encoder_key(tensor, commit_id)
+        storage[creds_key] = creds_encoder.tobytes()  # type: ignore
+
+
+def combine_creds_encoders(
+    ds_creds_encoder: CredsEncoder, worker_creds_encoder: CredsEncoder
+) -> None:
+    """Combines the dataset's creds_encoder with a single worker's creds_encoder."""
+    arr = worker_creds_encoder.array
+    num_entries = len(arr)
+    last_index = -1
+    for i in range(num_entries):
+        num_samples = arr[i][1] - last_index
+        ds_creds_encoder.register_samples((arr[i][0],), num_samples)
+        last_index = arr[i][1]
