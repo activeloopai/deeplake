@@ -132,16 +132,17 @@ class LocalProvider(StorageProvider):
             set: set of all the objects found at the root of the Provider.
         """
         if self.files is None or refresh:
-            p = r.pipeline()
-            for key in keys:
+            p = self.r.pipeline()
+            for key in self.r.keys():
                 p.hgetall(key)
             key_set = set()
             for h in p.execute():
                 key_set.add(h)
             return key_set
 
-    def clear(self):
+    def clear(self, ns: str):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
+        """:param ns: str, namespace i.e your:prefix"""
         cache = StrictRedis()
         CHUNK_SIZE = 5000
         self.check_readonly()
@@ -154,5 +155,4 @@ class LocalProvider(StorageProvider):
         return True
 
     def __contains__(self, key) -> bool:
-        full_path = self._check_is_file(key)
-        return os.path.exists(full_path)
+        return self.r.exists(key)
