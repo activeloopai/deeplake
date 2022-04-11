@@ -1425,9 +1425,9 @@ class ChunkEngine:
         verified_samples: Optional[List] = None
         if flat_verified_samples:
             verified_samples = []
-            for sample in samples:
+            for sample in samples:  # type: ignore
                 verified_sample = []
-                for _ in sample:
+                for _ in sample:  # type: ignore
                     verified_sample.append(flat_verified_samples[i])
                     i += 1
                 verified_samples.append(verified_sample)
