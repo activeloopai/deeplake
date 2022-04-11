@@ -19,10 +19,7 @@ class LocalProvider(StorageProvider):
         """Initializes the RedisProvider.
 
         Args:
-            redis_url: The url of the provider."
-
-        Raises:
-            FileAtPathException: If the root is a file instead of a directory.
+            redis_url: The url of the provider.    
         """
         
         self.r = redis.StrictRedis(url = redis_url, charset = "utf-8", decode_responses = True)
