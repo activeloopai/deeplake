@@ -253,6 +253,7 @@ class Dataset:
             "_view_info",
         ]
         state = {k: getattr(self, k) for k in keys}
+        state["link_creds"] = self.link_creds.__getstate__()
         return state
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -264,7 +265,9 @@ class Dataset:
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
-        state["link_creds"] = None
+        link_creds = LinkCreds()
+        link_creds.__setstate__(state.pop("link_creds"))
+        state["link_creds"] = link_creds
         self.__dict__.update(state)
 
         # clear cache while restoring

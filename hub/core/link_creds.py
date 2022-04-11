@@ -78,11 +78,27 @@ class LinkCreds(HubMemoryObject):
 
     @staticmethod
     def frombuffer(cls, buffer: bytes):
-        instance = cls()
+        obj = cls()
         if buffer:
-            instance.creds_keys = list(buffer.decode("utf-8").split(","))
-        instance.is_dirty = False
-        return instance
+            obj.creds_keys = list(buffer.decode("utf-8").split(","))
+            obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
+        obj.is_dirty = False
+        return obj
 
     def nbytes(self):
         return 8 + ((len(self.creds_keys) - 1) * 9) if self.creds_keys else 0
+
+    def __getstate__(self):
+        return {
+            "creds_keys": self.creds_keys,
+            "creds_dict": self.creds_dict,
+        }
+
+    def __setstate__(self, state):
+        self.creds_keys = state["creds_keys"]
+        self.creds_dict = state["creds_dict"]
+        self.creds_mapping = {key: i + 1 for i, key in enumerate(self.creds_keys)}
+        self.is_dirty = False
+        self.storage_providers = None
+        self.default_s3_provider = None
+        self.default_gcs_provider = None
