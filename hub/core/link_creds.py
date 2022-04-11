@@ -110,5 +110,5 @@ class LinkCreds(HubMemoryObject):
         return len(self.creds_keys)
 
     @property
-    def missing_creds(self) -> list:
+    def missing_keys(self) -> list:
         return [key for key in self.creds_keys if key not in self.creds_dict]
