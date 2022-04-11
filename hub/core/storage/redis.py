@@ -9,7 +9,7 @@ from config import redis_url
 import redis
 from common.redis_client import get_redis_client
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
+from hub.util.exceptions import DirectoryAtPathException, FileAtPathException, S3SetError
 
 
 class LocalProvider(StorageProvider):
@@ -87,7 +87,7 @@ class LocalProvider(StorageProvider):
         """
         self.check_readonly()
         try:
-            r.delete(path)
+            self.rr.delete(path)
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
