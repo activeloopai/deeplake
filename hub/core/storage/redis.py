@@ -19,7 +19,7 @@ class LocalProvider(StorageProvider):
         """Initializes the RedisProvider.
 
         Args:
-            root (str): The root of the provider. All read/write request keys will be appended to root."
+            redis_url: The url of the provider."
 
         Raises:
             FileAtPathException: If the root is a file instead of a directory.
