@@ -548,7 +548,7 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
-        self.check_each_sample(samples)
+        verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
         if tensor_meta.htype is None:
             tensor_meta.set_htype(get_htype(samples))
@@ -556,7 +556,7 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        return samples
+        return samples, verified_samples
 
     def _samples_to_chunks(
         self,
@@ -627,13 +627,14 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples = self._sanitize_samples(samples)
+        samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
             update_commit_diff=update_commit_diff,
         )
+        return verified_samples
 
     def extend(self, samples, link_callback: Optional[Callable] = None):
         self._write_initialization()
@@ -642,17 +643,20 @@ class ChunkEngine:
 
         if self.is_sequence:
             for sample in samples:
-                self._extend(sample, update_commit_diff=False)
+                verified_sample = self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
+
+                ls = verified_sample or sample
                 if link_callback:
-                    link_callback(sample, flat=False)
-                    for s in sample:
+                    link_callback(ls, flat=False)
+                    for s in ls:
                         link_callback(s, flat=True)
         else:
-            self._extend(samples)
+            verified_samples = self._extend(samples)
+            ls = verified_samples or samples
             if link_callback:
-                for sample in samples:
+                for sample in ls:
                     link_callback(sample, flat=None)
 
         self.cache.autoflush = initial_autoflush

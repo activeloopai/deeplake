@@ -438,6 +438,10 @@ class Tensor:
         return self.meta.is_link
 
     @property
+    def verify(self):
+        return self.is_link and self.meta.verify
+
+    @property
     def htype(self):
         htype = self.meta.htype
         if self.is_sequence:

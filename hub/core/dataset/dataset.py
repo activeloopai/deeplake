@@ -335,6 +335,7 @@ class Dataset:
         create_sample_info_tensor: bool = True,
         create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
+        verify: bool = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -372,6 +373,7 @@ class Dataset:
             create_shape_tensor (bool): If True, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
                 This is useful for merge operations.
+            verify (bool): Valid only for link htypes. If True, all links will be verified before they are added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -405,6 +407,7 @@ class Dataset:
         is_sequence, is_link, htype = parse_complex_htype(htype)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
+        kwargs["verify"] = verify
         if is_link and (
             sample_compression != UNSPECIFIED or chunk_compression != UNSPECIFIED
         ):

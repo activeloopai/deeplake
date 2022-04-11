@@ -105,6 +105,7 @@ COMMON_CONFIGS = {
     "is_link": False,
     "hidden": False,
     "links": None,
+    "verify": False,
 }
 
 
