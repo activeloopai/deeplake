@@ -1,10 +1,11 @@
 import os
 import pathlib
+import pickle
 import posixpath
 import shutil
 from typing import Optional, Set
 from redis import StrictRedis
-from config import redis_uri
+from config import redis_url
 import redis
 from common.redis_client import get_redis_client
 from hub.core.storage.provider import StorageProvider
@@ -14,11 +15,8 @@ from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
 class LocalProvider(StorageProvider):
     """Provider class for using the local filesystem."""
 
-    def __init__(self, redis_uri):
+    def __init__(self, redis_url):
         """Initializes the RedisProvider.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root."
@@ -27,14 +25,10 @@ class LocalProvider(StorageProvider):
             FileAtPathException: If the root is a file instead of a directory.
         """
         
-        self.r = redis.StrictRedis(url = redis_uri, charset = "utf-8", decode_responses = True)
+        self.r = redis.StrictRedis(url = redis_url, charset = "utf-8", decode_responses = True)
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider["abc.txt"]
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -60,10 +54,6 @@ class LocalProvider(StorageProvider):
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider["abc.txt"] = b"abcd"
-
         Args:
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
@@ -86,10 +76,6 @@ class LocalProvider(StorageProvider):
     def __delitem__(self, path: str):
         """Delete the object present at the path.
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            del local_provider["abc.txt"]
-
         Args:
             path (str): the path to the object relative to the root of the provider.
 
@@ -110,11 +96,6 @@ class LocalProvider(StorageProvider):
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            for my_data in local_provider:
-                pass
-
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
@@ -122,10 +103,6 @@ class LocalProvider(StorageProvider):
 
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            len(local_provider)
 
         Returns:
             int: the number of files present inside the root.
