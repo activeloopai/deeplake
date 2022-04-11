@@ -836,7 +836,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
-        self.check_each_sample(samples)
+        verified_samples = self.check_each_sample(samples)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
@@ -866,15 +866,17 @@ class ChunkEngine:
             chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
             check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
             if link_callback:
+                new_sample = verified_samples[i] if verified_samples else sample
                 link_callback(
                     global_sample_index,
                     sub_index=Index(index.values[1:]),
-                    new_sample=sample,
+                    new_sample=new_sample,
                     flat=True if is_sequence else None,
                 )
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
+        return verified_samples
 
     def _update_with_operator(
         self,
@@ -1412,13 +1414,24 @@ class ChunkEngine:
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
         flat_samples = self._get_flat_samples_for_sequence_update(samples, index)
-        self._update(
+        flat_verified_samples: List = self._update(
             flat_idx,
             flat_samples,
             operator,
             update_commit_diff=False,
             link_callback=link_callback,
         )
+        i = 0
+        verified_samples: Optional[List] = None
+        if flat_verified_samples:
+            verified_samples = []
+            for sample in samples:
+                verified_sample = []
+                for _ in sample:
+                    verified_sample.append(flat_verified_samples[i])
+                    i += 1
+                verified_samples.append(verified_sample)
+
         list(
             map(
                 self.commit_diff.update_data,
@@ -1426,18 +1439,20 @@ class ChunkEngine:
             )
         )
         if link_callback:
-            if isinstance(samples, np.ndarray):
-                broadcast = samples.ndim < self.ndim(index)
-            elif isinstance(samples, (bytes, str)):  # sacalars:
+            ls = verified_samples or samples
+
+            if isinstance(ls, np.ndarray):
+                broadcast = ls.ndim < self.ndim(index)
+            elif isinstance(ls, (bytes, str)):  # sacalars:
                 broadcast = True
-            elif isinstance(samples, Iterable):
+            elif isinstance(ls, Iterable):
                 broadcast = False
             else:
                 broadcast = True
             seq_len = self._sequence_length
             if broadcast:
-                samples = repeat(samples)  # type: ignore
-            for i, sample in zip(index.values[0].indices(seq_len), samples):  # type: ignore
+                ls = repeat(ls)  # type: ignore
+            for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
                 link_callback(
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
