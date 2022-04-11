@@ -252,8 +252,8 @@ def create_worker_chunk_engines(
                         tensor,
                         storage_cache,
                         version_state,
+                        link_creds,
                         memory_cache,
-                        link_creds=link_creds,
                     )
                 else:
                     storage_chunk_engine = ChunkEngine(

@@ -293,12 +293,12 @@ def deserialize_sequence_or_creds_encoder(
     byts = memoryview(byts)
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
-    enc_type = (
+    enc = (
         np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
         .reshape(-1, dim)
         .copy()
     )
-    return version, enc_type
+    return version, enc
 
 
 def check_sample_shape(shape, num_dims):

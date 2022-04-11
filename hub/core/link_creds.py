@@ -1,4 +1,5 @@
 from hub.core.storage.hub_memory_object import HubMemoryObject
+from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
 
 
@@ -37,6 +38,8 @@ class LinkCreds(HubMemoryObject):
 
         if key in self.storage_providers:
             return self.storage_providers[key]
+
+        provider: StorageProvider
         if provider_type == "s3":
             creds = self.creds_dict[key]
             provider = S3Provider("s3://bucket/path", **creds)
@@ -64,7 +67,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_dict[creds_key] = creds
 
     def tobytes(self) -> bytes:
-        return bytes(",".join(self.chunks), "utf-8")
+        return bytes(",".join(self.creds_keys), "utf-8")
 
     def get_encoding(self, key):
         if key in {None, "ENV"}:
@@ -76,7 +79,7 @@ class LinkCreds(HubMemoryObject):
     def get_creds_key(self, encoding):
         return None if encoding == 0 else self.creds_keys[encoding]
 
-    @staticmethod
+    @classmethod
     def frombuffer(cls, buffer: bytes):
         obj = cls()
         if buffer:

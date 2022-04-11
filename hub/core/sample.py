@@ -306,11 +306,13 @@ class Sample:
     def uncompressed_bytes(self) -> bytes:
         """Returns uncompressed bytes."""
         self._decompress()
+        assert self._uncompressed_bytes is not None
         return self._uncompressed_bytes
 
     @property
     def array(self) -> np.ndarray:
         self._decompress()
+        assert self._array is not None
         return self._array
 
     def __str__(self):
@@ -357,6 +359,7 @@ class Sample:
         return root, key
 
     def _read_from_s3(self) -> bytes:
+        assert self.path is not None
         if self.storage is not None:
             assert isinstance(self.storage, S3Provider)
             return self.storage.get_object_from_full_url(self.path)
@@ -366,6 +369,7 @@ class Sample:
         return s3[key]
 
     def _read_from_gcs(self) -> bytes:
+        assert self.path is not None
         if GCSProvider is None:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"

@@ -928,7 +928,7 @@ class ChunkEngine:
         global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        if self.compression in VIDEO_COMPRESSIONS or self.tensor.htype == "video":
+        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
             chunks = [
                 self.get_video_chunk(idx)[0]
                 for idx in self.chunk_id_encoder[global_sample_index]

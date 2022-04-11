@@ -19,8 +19,8 @@ class LinkedChunkEngine(ChunkEngine):
         key: str,
         cache: LRUCache,
         version_state: Dict[str, Any],
+        link_creds: LinkCreds,
         meta_cache: LRUCache = None,
-        link_creds: Optional[LinkCreds] = None,
     ):
         super().__init__(key, cache, version_state, meta_cache)
         self.link_creds = link_creds
