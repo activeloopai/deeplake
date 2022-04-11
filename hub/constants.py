@@ -62,9 +62,6 @@ UNSHARDED_ENCODER_FILENAME = "unsharded"
 AGREEMENT_FILENAME = "agreement.txt"
 
 ENCODING_DTYPE = np.uint32
-# caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
-UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
-
 
 # environment variables
 ENV_HUB_DEV_USERNAME = "ACTIVELOOP_HUB_USERNAME"
@@ -127,3 +124,11 @@ _ENABLE_RANDOM_ASSIGNMENT = False
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
 
 PYTORCH_DATALOADER_TIMEOUT = 30  # seconds
+
+_NO_LINK_UPDATE = "___!@#_no_link_update_###"
+
+SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE = 4 * MB
+
+DEFAULT_READONLY = (
+    os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
+)

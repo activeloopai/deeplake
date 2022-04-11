@@ -212,6 +212,12 @@ class HubBackendClient:
         suffix = f"{DATASET_SUFFIX}/{tag}"
         self.request("DELETE", suffix, endpoint=self.endpoint(),).json()
 
+    def rename_dataset_entry(self, username, old_name, new_name):
+        suffix = UPDATE_SUFFIX.format(username, old_name)
+        self.request(
+            "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
+        )
+
     def get_user_organizations(self):
         """Get list of user organizations from the backend. If user is not logged in, returns ['public'].
 

@@ -249,7 +249,11 @@ class Streaming(ABC):
 
 class SampleStreaming(Streaming):
     def __init__(
-        self, dataset, tensors: Sequence[str], use_local_cache: bool = False,
+        self,
+        dataset,
+        tensors: Sequence[str],
+        tobytes: Union[bool, Sequence[str]] = False,
+        use_local_cache: bool = False,
     ) -> None:
         super().__init__()
 
@@ -266,6 +270,16 @@ class SampleStreaming(Streaming):
             )
 
         self.tensors = tensors
+        if isinstance(tobytes, bool):
+            self.tobytes = {k: tobytes for k in self.tensors}
+        else:
+            for k in tobytes:
+                if k not in tensors:
+                    raise Exception(
+                        f"Tensor {k} is not present in the list of provided tensors: {tensors}."
+                    )
+            self.tobytes = {k: k in tobytes for k in tensors}
+
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
         self.local_caches: Optional[CachesMap] = (
@@ -285,6 +299,7 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
+                decompress = not self.tobytes[key]
                 chunk_class = engine.chunk_class
                 try:
 
@@ -309,8 +324,14 @@ class SampleStreaming(Streaming):
                             chunk = engine.get_chunk(c_key)
                         chunks.append(chunk)
                     if len(chunks) == 1:
-                        data = engine.read_sample_from_chunk(idx, chunk)
+                        data = engine.read_sample_from_chunk(
+                            idx, chunk, decompress=decompress
+                        )
                     else:
+                        if not decompress:
+                            raise NotImplementedError(
+                                "`tobytes=True` is not supported by tiled samples as it can cause recompression."
+                            )
                         data = combine_chunks(chunks, idx, engine.tile_encoder)
 
                     if data is not None:

@@ -1,11 +1,11 @@
 from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
+from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
-from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
+from hub.util.generate_id import generate_id
 
 
 CHUNK_ID_COLUMN = 0
@@ -55,7 +55,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             ENCODING_DTYPE: The random chunk ID.
         """
 
-        id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
+        id = generate_id(ENCODING_DTYPE)
         if register:
             if self.num_samples == 0:
                 self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)

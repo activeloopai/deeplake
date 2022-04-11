@@ -12,6 +12,10 @@ from hub.constants import KB
 
 from hub.tests.dataset_fixtures import enabled_datasets
 
+try:
+    from torch.utils.data._utils.collate import default_collate
+except ImportError:
+    pass
 
 # ensure tests have multiple chunks without a ton of data
 PYTORCH_TESTS_MAX_CHUNK_SIZE = 5 * KB
@@ -23,6 +27,11 @@ def double(sample):
 
 def to_tuple(sample):
     return sample["image"], sample["image2"]
+
+
+def my_collate(batch):
+    x = [((x["a"], x["b"]), x["c"]) for x in batch]
+    return default_collate(x)
 
 
 def pytorch_small_shuffle_helper(start, end, dataloader):
@@ -447,6 +456,26 @@ def test_pytorch_large(local_ds):
         np.testing.assert_array_equal(batch["label"][0], idx)
 
 
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_collate(local_ds, shuffle):
+    local_ds.create_tensor("a")
+    local_ds.create_tensor("b")
+    local_ds.create_tensor("c")
+    for _ in range(100):
+        local_ds.a.append(0)
+        local_ds.b.append(1)
+        local_ds.c.append(2)
+
+    ptds = local_ds.pytorch(batch_size=4, shuffle=shuffle, collate_fn=my_collate)
+    for batch in ptds:
+        assert len(batch) == 2
+        assert len(batch[0]) == 2
+        np.testing.assert_array_equal(batch[0][0], np.array([0, 0, 0, 0]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[0][1], np.array([1, 1, 1, 1]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[1], np.array([2, 2, 2, 2]).reshape(4, 1))
+
+
 def run_ddp(rank, size, ds, q, backend="gloo"):
     import torch.distributed as dist
     import os
@@ -495,3 +524,31 @@ def test_pytorch_ddp(ds):
     q.close()
 
     assert s == sum(list(range(254)))
+
+
+@requires_torch
+@enabled_datasets
+@pytest.mark.parametrize("compression", [None, "jpeg"])
+def test_pytorch_tobytes(ds, compressed_image_paths, compression):
+    with ds:
+        ds.create_tensor("image", sample_compression=compression)
+        ds.image.extend(
+            np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
+        )
+        ds.image.extend([hub.read(compressed_image_paths["jpeg"][0])] * 5)
+    if isinstance(get_base_storage(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ds.pytorch()
+        return
+
+    for i, batch in enumerate(ds.pytorch(tobytes=["image"])):
+        image = batch["image"][0]
+        assert isinstance(image, bytes)
+        if i < 5 and not compression:
+            np.testing.assert_array_equal(
+                np.frombuffer(image, dtype=np.uint8).reshape(10, 10, 3),
+                i * np.ones((10, 10, 3), dtype=np.uint8),
+            )
+        elif i >= 5 and compression:
+            with open(compressed_image_paths["jpeg"][0], "rb") as f:
+                assert f.read() == image

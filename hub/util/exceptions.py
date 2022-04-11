@@ -203,10 +203,15 @@ class InvalidHubPathException(Exception):
 
 
 class PathNotEmptyException(Exception):
-    def __init__(self):
-        super().__init__(
-            f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
-        )
+    def __init__(self, use_hub=True):
+        if use_hub:
+            super().__init__(
+                f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
+            )
+        else:
+            super().__init__(
+                f"Specified path is not empty. If you wish to delete the folder and its contents, you may run hub.delete(path, force=True)."
+            )
 
 
 # Exceptions encountered while interection with the Hub backend
@@ -457,6 +462,11 @@ class TensorDtypeMismatchError(MetaError):
         super().__init__(msg)
 
 
+class InvalidTensorLinkError(MetaError):
+    def __init__(self, msg="Invalid tensor link."):
+        super().__init__(msg)
+
+
 class TensorMetaMutuallyExclusiveKeysError(MetaError):
     def __init__(
         self, keys: Optional[List[str]] = None, custom_message: Optional[str] = None
@@ -592,11 +602,39 @@ class VersionControlError(Exception):
     pass
 
 
+class MergeError(Exception):
+    pass
+
+
+class MergeNotSupportedError(MergeError):
+    def __init__(self):
+        super().__init__(
+            "This dataset was either created before merge functionality was added or id tensor wasn't created for one or more tensors. Create a new dataset to use merge."
+        )
+
+
+class MergeMismatchError(MergeError):
+    def __init__(self, tensor_name, mismatch_type, original_value, target_value):
+        message = f"Unable to merge, tensor {tensor_name} has different {mismatch_type}. Current:{original_value}, Target: {target_value}"
+        super().__init__(message)
+
+
+class MergeConflictError(MergeError):
+    def __init__(self, conflict_dict):
+        tensor_names = [k for k, v in conflict_dict.items() if v]
+        message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
+        super().__init__(message)
+
+
 class CheckoutError(VersionControlError):
     pass
 
 
 class CommitError(VersionControlError):
+    pass
+
+
+class EmptyCommitError(CommitError):
     pass
 
 
@@ -613,6 +651,14 @@ class GCSDefaultCredsNotFoundError(Exception):
             "Unable to find default google application credentials at ~/.config/gcloud/application_default_credentials.json. "
             "Please make sure you initialized gcloud service earlier."
         )
+
+
+class InvalidOperationError(Exception):
+    def __init__(self, method: str, type: str):
+        if method == "read_only":
+            super().__init__("read_only property cannot be toggled for a dataset view.")
+        else:
+            super().__init__(f"{method} method cannot be called on a {type} view.")
 
 
 class AgreementError(Exception):
@@ -639,6 +685,11 @@ class NotLoggedInError(AgreementError):
 
 class BufferError(Exception):
     pass
+
+
+class RenameError(Exception):
+    def __init__(self):
+        super().__init__("Only name of the dataset can be different in new path.")
 
 
 class InfoError(Exception):

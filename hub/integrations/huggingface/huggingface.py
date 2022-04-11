@@ -66,17 +66,9 @@ def _create_tensor_from_feature(key, feature, src, ds):
 def ingest_huggingface(src, dest, use_progressbar=True,) -> Dataset:
     """Converts hugging face datasets to hub format.
 
-    Args:
-        src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
-            DatasetDict will be stored under respective tensor groups.
-        dest (Dataset, str): Destination dataset or path to it.
-        use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
-
-    Returns:
-        Dataset: The destination Hub dataset.
-
-    Example:
-        if DatasetDict looks like:
+    Note:
+        - if DatasetDict looks like:
+        ```
             {
                 train: Dataset({
                     features: ['data']
@@ -88,11 +80,20 @@ def ingest_huggingface(src, dest, use_progressbar=True,) -> Dataset:
                     features: ['data']
                 }),
             }
+        ```
+        it will be converted to a Hub `Dataset` with tensors `['train/data', 'validation/data', 'test/data']`.
 
-        it will be converted to a Hub dataset with tensors ['train/data', 'validation/data', 'test/data'].
+        Features of the type `Sequence(feature=Value(dtype='string'))` are not supported. Columns of such type are skipped.
 
-    Note:
-        Features of the type Sequence(feature=Value(dtype='string')) are not supported. Columns of such type are skipped.
+    Args:
+        src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
+            DatasetDict will be stored under respective tensor groups.
+        dest (Dataset, str): Destination dataset or path to it.
+        use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
+
+    Returns:
+        Dataset: The destination Hub dataset.
+
     """
     from datasets import DatasetDict
 

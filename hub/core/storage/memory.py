@@ -98,10 +98,13 @@ class MemoryProvider(StorageProvider):
         """
         return set(self.dict.keys())
 
-    def clear(self):
+    def clear(self, prefix=""):
         """Clears the provider."""
         self.check_readonly()
-        self.dict = {}
+        if prefix:
+            self.dict = {k: v for k, v in self.dict.items() if not k.startswith(prefix)}
+        else:
+            self.dict = {}
 
     def __getstate__(self) -> str:
         """Does NOT save the in memory data in state."""

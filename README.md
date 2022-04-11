@@ -21,23 +21,46 @@
   <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
  
- 
 
+*Read this in other languages: [简体中文](README.zh-cn.md)*
 
 ## About Hub
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena.
+Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. The hub data layout enables rapid transformations and streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
 
+<details>
+  <summary><b>Storage Agnostic API</b></summary>
+Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
+</details>
+<details>
+  <summary><b>Compressed Storage</b></summary>
+Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
+</details>
+<details>
+  <summary><b>Lazy NumPy-like Indexing</b></summary>
+Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+</details>
+<details>
+  <summary><b>Dataset Version Control</b></summary>
+Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
+</details>
+<details>
+  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
+Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+</details>
+<details>
+  <summary><b>Distributed Transformations</b></summary>
+Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
+<details>
+  <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
+Hub community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
+</details>
+</details>
+<details>
+  <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
+Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+</details>
 
-Hub includes the following features:
-
-* **Storage agnostic API**: Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-* **Compressed storage**: Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
-* **Lazy NumPy-like slicing**: Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
-* **Dataset version control**: Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well.
-* **Third-party integrations**: Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
-* **Distributed transforms**: Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in [Ray](https://www.ray.io/) integration.
-* **Instant visualization support**: Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in [Activeloop Platform](https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme) (see below).
 
 <div align="center">
 <a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
@@ -56,15 +79,16 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[audio]  -> Audio support via miniaudio
-pip3 install hub[video]  -> Video support via pyav
-pip3 install hub[gcp]    -> GCS support via google-* dependencies
-pip3 install hub[all]    -> Installs everything - audio, video and GCS support
+pip3 install hub[audio]       -> Audio support via miniaudio
+pip3 install hub[video]       -> Video support via pyav
+pip3 install hub[gcp]         -> GCS support via google-* dependencies
+pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
+pip3 install hub[all]         -> Installs everything - audio, video and GCS support
 ```
 
 ### 🧠 Training a PyTorch model on a Hub dataset
 
-#### Load CIFAR-10, one of the readily available datasets in Hub:
+#### Load CIFAR 10, one of the readily available datasets in Hub:
 
 ```python
 import hub
@@ -81,7 +105,7 @@ ds.tensors.keys()    # dict_keys(['images', 'labels'])
 ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
-#### Train a PyTorch model on the Cifar-10 dataset without the need to download it
+#### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
 
 First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
 
@@ -205,7 +229,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-You can also access other publicly available hub datasets, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Hub format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub
@@ -249,7 +273,7 @@ Hub and DVC offer dataset version control similar to git for data, but their met
 <details>
   <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
-Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/7jWZXOEJwDoNJS25uiforF/tensorflow-tf.data-&-hub:-how-to-implement-your-tensorflow-data-pipelines-with-hub-/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 
