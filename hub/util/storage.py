@@ -119,7 +119,10 @@ def get_storage_and_cache_chain(
         A tuple of the storage provider and the storage chain.
     """
     storage = storage_provider_from_path(
-        path=path, creds=creds, read_only=read_only, token=token,
+        path=path,
+        creds=creds,
+        read_only=read_only,
+        token=token,
     )
     memory_cache_size_bytes = memory_cache_size * MB
     local_cache_size_bytes = local_cache_size * MB

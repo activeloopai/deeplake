@@ -91,7 +91,11 @@ def filter_dataset(
             )
         else:
             index_map = filter_inplace(
-                dataset, filter_function, progressbar, query_text, vds,
+                dataset,
+                filter_function,
+                progressbar,
+                query_text,
+                vds,
             )
     except Exception as e:
         if vds:
@@ -468,7 +472,11 @@ def query_inplace(
             compute.close()
         _del_counter(query_id)
     dataset._send_query_progress(
-        query_text=query, query_id=query_id, end=True, progress=100, status="success",
+        query_text=query,
+        query_id=query_id,
+        end=True,
+        progress=100,
+        status="success",
     )
     if vds:
         vds.autoflush = True

@@ -109,5 +109,6 @@ def feature_report_path(
         parameters["Path"] = str(path)
 
     hub_reporter.feature_report(
-        feature_name=feature_name, parameters=parameters,
+        feature_name=feature_name,
+        parameters=parameters,
     )

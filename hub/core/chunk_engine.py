@@ -996,7 +996,9 @@ class ChunkEngine:
                         chunk, stream = self.get_video_chunk(chunk_ids[0])
                         sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
                         sample = chunk.read_sample(
-                            local_sample_index, sub_index=sub_index, stream=stream,
+                            local_sample_index,
+                            sub_index=sub_index,
+                            stream=stream,
                         )[tuple(entry.value for entry in index.values[2:])]
                     else:
                         chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
@@ -1078,7 +1080,9 @@ class ChunkEngine:
         return samples
 
     def get_chunks_for_sample(
-        self, global_sample_index: int, copy: bool = False,
+        self,
+        global_sample_index: int,
+        copy: bool = False,
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:

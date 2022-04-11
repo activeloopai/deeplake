@@ -876,7 +876,9 @@ def _read_metadata_from_vstream(container, vstream):
     return shape, duration, fps, time_base
 
 
-def _read_video_shape(file: Union[str, bytes, memoryview],):
+def _read_video_shape(
+    file: Union[str, bytes, memoryview],
+):
     container, vstream = _open_video(file)
     shape = _read_metadata_from_vstream(container, vstream)[0]
     return shape

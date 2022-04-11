@@ -15,7 +15,9 @@ class DatasetDiff(HubMemoryObject):
         1. The first byte is a boolean value indicating whether the Dataset info was modified or not.
         """
         return b"".join(
-            [self.info_updated.to_bytes(1, "big"),]  # TODO: add other fields
+            [
+                self.info_updated.to_bytes(1, "big"),
+            ]  # TODO: add other fields
         )
 
     @classmethod

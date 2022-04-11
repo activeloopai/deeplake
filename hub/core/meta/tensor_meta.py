@@ -48,7 +48,9 @@ class TensorMeta(Meta):
     is_sequence: bool
 
     def __init__(
-        self, htype: str = UNSPECIFIED, **kwargs,
+        self,
+        htype: str = UNSPECIFIED,
+        **kwargs,
     ):
         """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
 

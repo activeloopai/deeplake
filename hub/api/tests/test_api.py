@@ -38,7 +38,11 @@ MAX_FLOAT_DTYPE = np.float_.__name__
 # not using the predefined parametrizes because `hub_cloud_ds_generator` is not enabled by default
 @pytest.mark.parametrize(
     "ds_generator",
-    ["local_ds_generator", "s3_ds_generator", "hub_cloud_ds_generator",],
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
     indirect=True,
 )
 def test_persist(ds_generator):
@@ -1124,7 +1128,7 @@ def test_no_view(memory_ds):
 @pytest.mark.parametrize("htype", ["generic", "sequence"])
 def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds = memory_ds
-    ds.create_tensor("x", **x_args, max_chunk_size=2 ** 20, htype=htype)
+    ds.create_tensor("x", **x_args, max_chunk_size=2**20, htype=htype)
     ds.create_tensor("y", dtype="uint8", htype=htype, **y_args)
     with pytest.raises(TensorDtypeMismatchError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
@@ -1298,7 +1302,9 @@ def test_hub_remote_read_videos(storage, memory_ds):
     assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     if isinstance(storage, GCSProvider):
-        video = hub.read("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",)
+        video = hub.read(
+            "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        )
         memory_ds.videos.append(video)
         assert memory_ds.videos[1].shape == (361, 720, 1280, 3)
 

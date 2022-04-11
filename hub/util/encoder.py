@@ -86,7 +86,8 @@ def merge_all_chunk_id_encoders(
 
 
 def combine_chunk_id_encoders(
-    ds_chunk_id_encoder: ChunkIdEncoder, worker_chunk_id_encoder: ChunkIdEncoder,
+    ds_chunk_id_encoder: ChunkIdEncoder,
+    worker_chunk_id_encoder: ChunkIdEncoder,
 ) -> None:
     """Combines the dataset's chunk_id_encoder with a single worker's chunk_id_encoder."""
     encoded_ids = worker_chunk_id_encoder._encoded
@@ -210,7 +211,8 @@ def merge_all_commit_chunk_sets(
 
 
 def combine_commit_chunk_sets(
-    ds_commit_chunk_set: CommitChunkSet, worker_commit_chunk_set: CommitChunkSet,
+    ds_commit_chunk_set: CommitChunkSet,
+    worker_commit_chunk_set: CommitChunkSet,
 ) -> None:
     """Combines the dataset's commit_chunk_set with a single worker's commit_chunk_set."""
     ds_commit_chunk_set.chunks.update(worker_commit_chunk_set.chunks)

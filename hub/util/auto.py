@@ -80,10 +80,20 @@ def ingestion_summary(local_path: str, skipped_files: list):
         level = root.replace(local_path, "").count(os.sep)
         indent = " " * 6 * (level)
         if at_root == True:
-            print("{}{}/    ".format(indent, os.path.basename(root),))
+            print(
+                "{}{}/    ".format(
+                    indent,
+                    os.path.basename(root),
+                )
+            )
             at_root = False
         else:
-            print("{}{}/    ".format(indent, os.path.basename(root),))
+            print(
+                "{}{}/    ".format(
+                    indent,
+                    os.path.basename(root),
+                )
+            )
 
         subindent = " " * 6 * (level + 1)
         for f in files:

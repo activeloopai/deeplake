@@ -5,7 +5,9 @@ import pickle
 
 
 @pytest.mark.parametrize(
-    "ds", ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "hub_cloud_ds"], indirect=True,
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "hub_cloud_ds"],
+    indirect=True,
 )
 def test_dataset(ds):
     if ds.path.startswith("mem://"):

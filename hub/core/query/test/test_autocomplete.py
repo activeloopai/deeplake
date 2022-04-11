@@ -73,11 +73,21 @@ def test_group():
     q = "g"
     resp = autocomplete(q, ds)
     suggestions = resp["suggestions"]
-    assert suggestions == [{"string": ".h", "type": "GROUP",}]
+    assert suggestions == [
+        {
+            "string": ".h",
+            "type": "GROUP",
+        }
+    ]
     q = "g.h"
     resp = autocomplete(q, ds)
     suggestions = resp["suggestions"]
-    assert suggestions == [{"string": ".i", "type": "TENSOR",}]
+    assert suggestions == [
+        {
+            "string": ".i",
+            "type": "TENSOR",
+        }
+    ]
 
     q = "g.h.i"
     resp = autocomplete(q, ds)

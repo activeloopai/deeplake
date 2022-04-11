@@ -15,14 +15,39 @@ def _token_obj_to_dict(token):
     }
 
 
-_TENSOR_PROPERTIES = set(("min", "max", "mean", "shape", "size",))
+_TENSOR_PROPERTIES = set(
+    (
+        "min",
+        "max",
+        "mean",
+        "shape",
+        "size",
+    )
+)
 
 _TENSOR_METHODS = set(("contains",))
 
 
-_PYTHON_KEYWORDS = set(("in", "is", "and", "or", "not", "if", "else", "for",))
+_PYTHON_KEYWORDS = set(
+    (
+        "in",
+        "is",
+        "and",
+        "or",
+        "not",
+        "if",
+        "else",
+        "for",
+    )
+)
 
-_PYTHON_CONSTANTS = set(("True", "False", "None",))
+_PYTHON_CONSTANTS = set(
+    (
+        "True",
+        "False",
+        "None",
+    )
+)
 
 
 def _tokenize(s: str):

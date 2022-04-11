@@ -191,7 +191,7 @@ class EvalObject:
         return self.val * o
 
     def __pow__(self, o: object):
-        return self.val ** o
+        return self.val**o
 
     def __contains__(self, o: object):
         return self.contains(o)

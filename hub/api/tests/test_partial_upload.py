@@ -11,10 +11,18 @@ import numpy as np
     ],
 )
 @pytest.mark.parametrize(
-    "compression_type", ["sample_compression", "chunk_compression",],
+    "compression_type",
+    [
+        "sample_compression",
+        "chunk_compression",
+    ],
 )
 @pytest.mark.parametrize(
-    "compression", ["png", "lz4",],
+    "compression",
+    [
+        "png",
+        "lz4",
+    ],
 )
 def test_partial_upload(memory_ds, kwargs, compression_type, compression):
     ds = memory_ds

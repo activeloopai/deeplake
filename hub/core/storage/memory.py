@@ -10,7 +10,8 @@ class MemoryProvider(StorageProvider):
         self.root = root
 
     def __getitem__(
-        self, path: str,
+        self,
+        path: str,
     ):
         """Gets the object present at the path within the given byte range.
 
@@ -30,7 +31,9 @@ class MemoryProvider(StorageProvider):
         return self.dict[path]
 
     def __setitem__(
-        self, path: str, value: bytes,
+        self,
+        path: str,
+        value: bytes,
     ):
         """Sets the object present at the path with the value
 

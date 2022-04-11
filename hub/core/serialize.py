@@ -346,7 +346,9 @@ def bytes_to_text(buffer, htype):
         arr[:] = lst
         return arr
     else:  # htype == "text":
-        arr = np.array(bytes.decode(buffer)).reshape(1,)
+        arr = np.array(bytes.decode(buffer)).reshape(
+            1,
+        )
     return arr
 
 

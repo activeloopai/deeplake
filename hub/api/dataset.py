@@ -358,7 +358,10 @@ class dataset:
         except Exception as e:
             if force:
                 base_storage = storage_provider_from_path(
-                    path=path, creds=creds, read_only=False, token=token,
+                    path=path,
+                    creds=creds,
+                    read_only=False,
+                    token=token,
                 )
                 base_storage.clear()
                 remove_path_from_backend(path, token)
@@ -400,7 +403,10 @@ class dataset:
         feature_report_path(path, "like", {"Overwrite": overwrite})
 
         destination_ds = dataset.empty(
-            path, creds=creds, overwrite=overwrite, token=token,
+            path,
+            creds=creds,
+            overwrite=overwrite,
+            token=token,
         )
         source_ds = source
         if isinstance(source, str):
@@ -795,7 +801,10 @@ class dataset:
 
     @staticmethod
     @hub_reporter.record_call
-    def list(workspace: str = "", token: Optional[str] = None,) -> None:
+    def list(
+        workspace: str = "",
+        token: Optional[str] = None,
+    ) -> None:
         """List all available hub cloud datasets.
 
         Args:

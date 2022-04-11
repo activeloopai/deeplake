@@ -91,7 +91,11 @@ def _download_pil_test_images(ext=[".jpg", ".png"]):
     path = _git_clone(_PILLOW_URL)
     dirs = [
         path + x
-        for x in ["/Tests/images", "/Tests/images/apng", "/Tests/images/imagedraw",]
+        for x in [
+            "/Tests/images",
+            "/Tests/images/apng",
+            "/Tests/images/imagedraw",
+        ]
     ]
     for d in dirs:
         for f in os.listdir(d):

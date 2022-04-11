@@ -121,7 +121,6 @@ def _worker_loop(
             use_local_cache=use_local_cache,
         )
 
-
         schedule.shuffle()
 
         it = iter(streaming.read(schedule))  # data samples iterator for current worker

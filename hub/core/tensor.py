@@ -361,7 +361,11 @@ class Tensor:
         """
         current_commit_id = self.version_state["commit_id"]
         indexes = get_modified_indexes(
-            self.key, current_commit_id, target_id, self.version_state, self.storage,
+            self.key,
+            current_commit_id,
+            target_id,
+            self.version_state,
+            self.storage,
         )
         tensor = self[indexes]
         if return_indexes:

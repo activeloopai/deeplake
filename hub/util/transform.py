@@ -34,7 +34,10 @@ TransformOut = Tuple[
 ]
 
 
-def transform_sample(sample: Any, pipeline,) -> TransformDataset:
+def transform_sample(
+    sample: Any,
+    pipeline,
+) -> TransformDataset:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
 
@@ -251,7 +254,8 @@ def create_worker_chunk_engines(
 
 
 def add_cache_to_dataset_slice(
-    dataset_slice: hub.Dataset, tensors: List[str],
+    dataset_slice: hub.Dataset,
+    tensors: List[str],
 ) -> hub.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor

@@ -63,7 +63,10 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             else:
                 last_index = self.num_samples - 1
 
-                new_entry = np.array([[id, last_index]], dtype=ENCODING_DTYPE,)
+                new_entry = np.array(
+                    [[id, last_index]],
+                    dtype=ENCODING_DTYPE,
+                )
                 self._encoded = np.concatenate([self._encoded, new_entry])
         return id
 

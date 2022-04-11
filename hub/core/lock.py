@@ -185,7 +185,8 @@ def _get_lock_file_path(version: Optional[str] = None) -> str:
 
 
 def lock_dataset(
-    dataset, lock_lost_callback: Optional[Callable] = None,
+    dataset,
+    lock_lost_callback: Optional[Callable] = None,
 ):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
 
