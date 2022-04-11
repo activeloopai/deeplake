@@ -48,6 +48,7 @@ from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
 from hub.util.htype import parse_complex_htype
+from hub.util.link import save_link_creds
 from hub.util.merge import merge
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
@@ -2138,6 +2139,7 @@ class Dataset:
 
     def add_link_creds(self, creds_key: str):
         self.link_creds.add_creds(creds_key)
+        save_link_creds(self.link_creds, self.storage)
 
     def populate_creds(self, creds_key: str, creds: dict):
         self.link_creds.populate_creds(creds_key, creds)

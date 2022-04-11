@@ -56,6 +56,10 @@ def get_dataset_linked_creds_key() -> str:
     return LINKED_CREDS_FILENAME
 
 
+def get_dataset_linked_creds_lock_key() -> str:
+    return VERSION_CONTROL_INFO_LOCK_FILENAME
+
+
 def get_version_control_info_key() -> str:
     return VERSION_CONTROL_INFO_FILENAME
 

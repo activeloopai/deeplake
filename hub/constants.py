@@ -104,7 +104,9 @@ VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
-LINKED_CREDS_FILENAME = "linked_creds.json"
+LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
+
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8
