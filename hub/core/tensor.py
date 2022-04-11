@@ -592,6 +592,15 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
+    def check_ready_for_numpy(self):
+        if not self.is_link:
+            return
+        missing_keys = self.link_creds.missing_keys
+        if missing_keys:
+            raise ValueError(
+                f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
+            )
+
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
@@ -602,11 +611,12 @@ class Tensor:
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ValueError: If the tensor is a link and the credentials are not populated.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-
+        self.check_ready_for_numpy()
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):
