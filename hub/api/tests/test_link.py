@@ -2,7 +2,7 @@ import hub
 import pytest
 from hub.util.exceptions import TensorMetaInvalidHtype
 
-from hub.util.htype import parse_complex_htype
+from hub.util.htype import parse_complex_htype  # type: ignore
 
 
 def test_complex_htype_parsing():
