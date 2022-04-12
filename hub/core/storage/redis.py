@@ -1,288 +1,249 @@
-from ctypes import Union
-from sqlite3 import DataError
-from typing import Any, Awaitable, Iterable
-from redis.typing import (
-    BitfieldOffsetT,
-    KeyT
-)
-ResponseT = Union[Awaitable, Any]
-from .helpers import list_or_args
-from yaml import KeyToken
-from config import redis_url
-import redis
+import warnings
+import datetime
+from redis.connection import (ConnectionPool, UnixDomainSocketConnection,
+                              SSLConnection)
+from redis._compat import (basestring, iteritems)
 
-class ReadisProvider(redis_url):
-    """Provider class for using the local filesystem."""
+EMPTY_RESPONSE = 'EMPTY_RESPONSE'
 
-    def __init__(self, redis_url):
-        """Initializes the RedisProvider.
-
-        Args:
-            redis_url: The url of the provider.    
-        """
-        
-        self.r = redis.StrictRedis(url = redis_url, charset = "utf-8", decode_responses = True)
-
-    def set(self, fmt: str, offset: BitfieldOffsetT, value: int):
-        """
-        Set the value of a given bitfield.
-        :param fmt: format-string for the bitfield being read, e.g. 'u8' for
-            an unsigned 8-bit integer.
-        :param offset: offset (in number of bits). If prefixed with a
-            '#', this is an offset multiplier, e.g. given the arguments
-            fmt='u8', offset='#2', the offset will be 16.
-        :param int value: value to set at the given position.
-        :returns: a :py:class:`BitFieldOperation` instance.
-        """
-        self.operations.append(("SET", fmt, offset, value))
-        return self
-    
-    def get(self, fmt: str, offset: BitfieldOffsetT):
-        """
-        Get the value of a given bitfield.
-        :param fmt: format-string for the bitfield being read, e.g. 'u8' for
-            an unsigned 8-bit integer.
-        :param offset: offset (in number of bits). If prefixed with a
-            '#', this is an offset multiplier, e.g. given the arguments
-            fmt='u8', offset='#2', the offset will be 16.
-        :returns: a :py:class:`BitFieldOperation` instance.
-        """
-        self.operations.append(("GET", fmt, offset))
-        return self
-
-    def deluser(self, *username: str, **kwargs) -> ResponseT:
-        """
-        Delete the ACL for the specified ``username``s
-
-        For more information check https://redis.io/commands/acl-deluser
-        """
-        return self.execute_command("ACL DELUSER", *username, **kwargs)
-
-    def getuser(self, username: str, **kwargs) -> ResponseT:
-        """
-        Get the ACL details for the specified ``username``.
-
-        If ``username`` does not exist, return None
-        """
-        return self.execute_command("ACL GETUSER", username, **kwargs)
-
-    def setuser(
-        self,
-        username: str,
-        enabled: bool = False,
-        nopass: bool = False,
-        passwords: Union[str, Iterable[str], None] = None,
-        hashed_passwords: Union[str, Iterable[str], None] = None,
-        categories: Union[Iterable[str], None] = None,
-        commands: Union[Iterable[str], None] = None,
-        keys: Union[Iterable[KeyT], None] = None,
-        reset: bool = False,
-        reset_keys: bool = False,
-        reset_passwords: bool = False,
-        **kwargs,
-    ) -> ResponseT:
-        """
-        Create or update an ACL user.
-
-        Create or update the ACL for ``username``. If the user already exists,
-        the existing ACL is completely overwritten and replaced with the
-        specified values.
-
-        ``enabled`` is a boolean indicating whether the user should be allowed
-        to authenticate or not. Defaults to ``False``.
-
-        ``nopass`` is a boolean indicating whether the can authenticate without
-        a password. This cannot be True if ``passwords`` are also specified.
-
-        ``passwords`` if specified is a list of plain text passwords
-        to add to or remove from the user. Each password must be prefixed with
-        a '+' to add or a '-' to remove. For convenience, the value of
-        ``passwords`` can be a simple prefixed string when adding or
-        removing a single password.
-
-        ``hashed_passwords`` if specified is a list of SHA-256 hashed passwords
-        to add to or remove from the user. Each hashed password must be
-        prefixed with a '+' to add or a '-' to remove. For convenience,
-        the value of ``hashed_passwords`` can be a simple prefixed string when
-        adding or removing a single password.
-
-        ``categories`` if specified is a list of strings representing category
-        permissions. Each string must be prefixed with either a '+' to add the
-        category permission or a '-' to remove the category permission.
-
-        ``commands`` if specified is a list of strings representing command
-        permissions. Each string must be prefixed with either a '+' to add the
-        command permission or a '-' to remove the command permission.
-
-        ``keys`` if specified is a list of key patterns to grant the user
-        access to. Keys patterns allow '*' to support wildcard matching. For
-        example, '*' grants access to all keys while 'cache:*' grants access
-        to all keys that are prefixed with 'cache:'. ``keys`` should not be
-        prefixed with a '~'.
-
-        ``reset`` is a boolean indicating whether the user should be fully
-        reset prior to applying the new ACL. Setting this to True will
-        remove all existing passwords, flags and privileges from the user and
-        then apply the specified rules. If this is False, the user's existing
-        passwords, flags and privileges will be kept and any new specified
-        rules will be applied on top.
-
-        ``reset_keys`` is a boolean indicating whether the user's key
-        permissions should be reset prior to applying any new key permissions
-        specified in ``keys``. If this is False, the user's existing
-        key permissions will be kept and any new specified key permissions
-        will be applied on top.
-
-        ``reset_passwords`` is a boolean indicating whether to remove all
-        existing passwords and the 'nopass' flag from the user prior to
-        applying any new passwords specified in 'passwords' or
-        'hashed_passwords'. If this is False, the user's existing passwords
-        and 'nopass' status will be kept and any new specified passwords
-        or hashed_passwords will be applied on top.
-
-        For more information check https://redis.io/commands/acl-setuser
-        """
-        encoder = self.get_encoder()
-        pieces: list[str or bytes] = [username]
-
-        if reset:
-            pieces.append(b"reset")
-
-        if reset_keys:
-            pieces.append(b"resetkeys")
-
-        if reset_passwords:
-            pieces.append(b"resetpass")
-
-        if enabled:
-            pieces.append(b"on")
+def list_or_args(keys, args):
+    # returns a single new list combining keys and args
+    try:
+        iter(keys)
+        # a string or bytes instance can be iterated, but indicates
+        # keys wasn't passed as a list
+        if isinstance(keys, (basestring, bytes)):
+            keys = [keys]
         else:
-            pieces.append(b"off")
+            keys = list(keys)
+    except TypeError:
+        keys = [keys]
+    if args:
+        keys.extend(args)
+    return keys
+class ReadisProvider(object):
 
-        if (passwords or hashed_passwords) and nopass:
-            raise DataError(
-                "Cannot set 'nopass' and supply " "'passwords' or 'hashed_passwords'"
-            )
+    def __init__(self, host='localhost', port=6379,
+                 db=0, password=None, socket_timeout=None,
+                 socket_connect_timeout=None,
+                 socket_keepalive=None, socket_keepalive_options=None,
+                 connection_pool=None, unix_socket_path=None,
+                 encoding='utf-8', encoding_errors='strict',
+                 charset=None, errors=None,
+                 decode_responses=False, retry_on_timeout=False,
+                 ssl=False, ssl_keyfile=None, ssl_certfile=None,
+                 ssl_cert_reqs='required', ssl_ca_certs=None,
+                 max_connections=None):
+        if not connection_pool:
+            if charset is not None:
+                warnings.warn(DeprecationWarning(
+                    '"charset" is deprecated. Use "encoding" instead'))
+                encoding = charset
+            if errors is not None:
+                warnings.warn(DeprecationWarning(
+                    '"errors" is deprecated. Use "encoding_errors" instead'))
+                encoding_errors = errors
 
-        if passwords:
-            # as most users will have only one password, allow remove_passwords
-            # to be specified as a simple string or a list
-            passwords = list_or_args(passwords, [])
-            for i, password in enumerate(passwords):
-                password = encoder.encode(password)
-                if password.startswith(b"+"):
-                    pieces.append(b">%s" % password[1:])
-                elif password.startswith(b"-"):
-                    pieces.append(b"<%s" % password[1:])
-                else:
-                    raise DataError(
-                        f"Password {i} must be prefixed with a "
-                        f'"+" to add or a "-" to remove'
-                    )
+            kwargs = {
+                'db': db,
+                'password': password,
+                'socket_timeout': socket_timeout,
+                'encoding': encoding,
+                'encoding_errors': encoding_errors,
+                'decode_responses': decode_responses,
+                'retry_on_timeout': retry_on_timeout,
+                'max_connections': max_connections
+            }
+            # based on input, setup appropriate connection args
+            if unix_socket_path is not None:
+                kwargs.update({
+                    'path': unix_socket_path,
+                    'connection_class': UnixDomainSocketConnection
+                })
+            else:
+                # TCP specific options
+                kwargs.update({
+                    'host': host,
+                    'port': port,
+                    'socket_connect_timeout': socket_connect_timeout,
+                    'socket_keepalive': socket_keepalive,
+                    'socket_keepalive_options': socket_keepalive_options,
+                })
 
-        if hashed_passwords:
-            # as most users will have only one password, allow remove_passwords
-            # to be specified as a simple string or a list
-            hashed_passwords = list_or_args(hashed_passwords, [])
-            for i, hashed_password in enumerate(hashed_passwords):
-                hashed_password = encoder.encode(hashed_password)
-                if hashed_password.startswith(b"+"):
-                    pieces.append(b"#%s" % hashed_password[1:])
-                elif hashed_password.startswith(b"-"):
-                    pieces.append(b"!%s" % hashed_password[1:])
-                else:
-                    raise DataError(
-                        f"Hashed password {i} must be prefixed with a "
-                        f'"+" to add or a "-" to remove'
-                    )
+                if ssl:
+                    kwargs.update({
+                        'connection_class': SSLConnection,
+                        'ssl_keyfile': ssl_keyfile,
+                        'ssl_certfile': ssl_certfile,
+                        'ssl_cert_reqs': ssl_cert_reqs,
+                        'ssl_ca_certs': ssl_ca_certs,
+                    })
+            connection_pool = ConnectionPool(**kwargs)
+        self.connection_pool = connection_pool
 
-        if nopass:
-            pieces.append(b"nopass")
 
-        if categories:
-            for category in categories:
-                category = encoder.encode(category)
-                # categories can be prefixed with one of (+@, +, -@, -)
-                if category.startswith(b"+@"):
-                    pieces.append(category)
-                elif category.startswith(b"+"):
-                    pieces.append(b"+@%s" % category[1:])
-                elif category.startswith(b"-@"):
-                    pieces.append(category)
-                elif category.startswith(b"-"):
-                    pieces.append(b"-@%s" % category[1:])
-                else:
-                    raise DataError(
-                        f'Category "{encoder.decode(category, force=True)}" '
-                        'must be prefixed with "+" or "-"'
-                    )
-        if commands:
-            for cmd in commands:
-                cmd = encoder.encode(cmd)
-                if not cmd.startswith(b"+") and not cmd.startswith(b"-"):
-                    raise DataError(
-                        f'Command "{encoder.decode(cmd, force=True)}" '
-                        'must be prefixed with "+" or "-"'
-                    )
-                pieces.append(cmd)
-
-        if keys:
-            for key in keys:
-                key = encoder.encode(key)
-                pieces.append(b"~%s" % key)
-
-        return self.execute_command("ACL SETUSER", *pieces, **kwargs)
-
-    def acl_genpass(self, bits: Union[int, None] = None, **kwargs) -> ResponseT:
-        """Generate a random password value.
-        If ``bits`` is supplied then use this number of bits, rounded to
-        the next multiple of 4.
+    def get(self, name):
         """
-        pieces = []
-        if bits is not None:
-            try:
-                b = int(bits)
-                if b < 0 or b > 4096:
-                    raise ValueError
-            except ValueError:
-                raise DataError(
-                    "genpass optionally accepts a bits argument, " "between 0 and 4096."
-                )
-        return self.execute_command("ACL GENPASS", *pieces, **kwargs)
-
-    def copy(
-        self,
-        source: str,
-        destination: str,
-        destination_db: Union[str, None] = None,
-        replace: bool = False,
-    ) -> ResponseT:
+        Return the value at key ``name``, or None if the key doesn't exist
         """
-        Copy the value stored in the ``source`` key to the ``destination`` key.
+        return self.execute('GET', name)
 
-        ``destination_db`` an alternative destination database. By default,
-        the ``destination`` key is created in the source Redis database.
-
-        ``replace`` whether the ``destination`` key should be removed before
-        copying the value to it. By default, the value is not copied if
-        the ``destination`` key already exists.
+    def __getitem__(self, name):
         """
-        params = [source, destination]
-        if destination_db is not None:
-            params.extend(["DB", destination_db])
+        Return the value at key ``name``, raises a KeyError if the key
+        doesn't exist.
+        """
+        value = self.get(name)
+        if value is not None:
+            return value
+        raise KeyError(name)
+
+    def getbit(self, name, offset):
+        "Returns a boolean indicating the value of ``offset`` in ``name``"
+        return self.execute('GETBIT', name, offset)
+
+    def getrange(self, key, start, end):
+        """
+        Returns the substring of the string value stored at ``key``,
+        determined by the offsets ``start`` and ``end`` (both are inclusive)
+        """
+        return self.execute('GETRANGE', key, start, end)
+
+    def getset(self, name, value):
+        """
+        Sets the value at key ``name`` to ``value``
+        and returns the old value at key ``name`` atomically.
+        """
+        return self.execute('GETSET', name, value)
+
+    def incr(self, name, amount=1):
+        """
+        Increments the value of ``key`` by ``amount``.  If no key exists,
+        the value will be initialized as ``amount``
+        """
+        return self.incrby(name, amount)
+
+    def incrby(self, name, amount=1):
+        """
+        Increments the value of ``key`` by ``amount``.  If no key exists,
+        the value will be initialized as ``amount``
+        """
+        return self.execute('INCRBY', name, amount)
+
+    def incrbyfloat(self, name, amount=1.0):
+        """
+        Increments the value at key ``name`` by floating ``amount``.
+        If no key exists, the value will be initialized as ``amount``
+        """
+        return self.execute('INCRBYFLOAT', name, amount)
+
+    def keys(self, pattern='*'):
+        "Returns a list of keys matching ``pattern``"
+        return self.execute('KEYS', pattern)
+
+    def mget(self, keys, *args):
+        """
+        Returns a list of values ordered identically to ``keys``
+        """
+        args = list_or_args(keys, args)
+        options = {}
+        if not args:
+            options[EMPTY_RESPONSE] = []
+        return self.execute('MGET', *args, **options)
+
+    def mset(self, mapping):
+        """
+        Sets key/values based on a mapping. Mapping is a dictionary of
+        key/value pairs. Both keys and values should be strings or types that
+        can be cast to a string via str().
+        """
+        items = []
+        for pair in iteritems(mapping):
+            items.extend(pair)
+        return self.execute('MSET', *items)
+
+    def msetnx(self, mapping):
+        """
+        Sets key/values based on a mapping if none of the keys are already set.
+        Mapping is a dictionary of key/value pairs. Both keys and values
+        should be strings or types that can be cast to a string via str().
+        Returns a boolean indicating if the operation was successful.
+        """
+        items = []
+        for pair in iteritems(mapping):
+            items.extend(pair)
+        return self.execute('MSETNX', *items)
+
+    def move(self, name, db):
+        "Moves the key ``name`` to a different Redis database ``db``"
+        return self.execute('MOVE', name, db)
+
+    def restore(self, name, ttl, value, replace=False):
+        """
+        Create a key using the provided serialized value, previously obtained
+        using DUMP.
+        """
+        params = [name, ttl, value]
         if replace:
-            params.append("REPLACE")
-        return self.execute_command("COPY", *params)
-    
-    def flushall(self, asynchronous: bool = False, **kwargs) -> ResponseT:
-        """
-        Delete all keys in all databases on the current host.
+            params.append('REPLACE')
+        return self.execute('RESTORE', *params)
 
-        ``asynchronous`` indicates whether the operation is
-        executed asynchronously by the server.
-
+    def set(self, name, value, ex=None, px=None, nx=False, xx=False):
         """
-        args = []
-        if asynchronous:
-            args.append(b"ASYNC")
-        return self.execute_command("FLUSHALL", *args, **kwargs)
+        Set the value at key ``name`` to ``value``
+        ``ex`` sets an expire flag on key ``name`` for ``ex`` seconds.
+        ``px`` sets an expire flag on key ``name`` for ``px`` milliseconds.
+        ``nx`` if set to True, set the value at key ``name`` to ``value`` only
+            if it does not exist.
+        ``xx`` if set to True, set the value at key ``name`` to ``value`` only
+            if it already exists.
+        """
+        pieces = [name, value]
+        if ex is not None:
+            pieces.append('EX')
+            if isinstance(ex, datetime.timedelta):
+                ex = int(ex.total_seconds())
+            pieces.append(ex)
+        if px is not None:
+            pieces.append('PX')
+            if isinstance(px, datetime.timedelta):
+                px = int(px.total_seconds() * 1000)
+            pieces.append(px)
+
+        if nx:
+            pieces.append('NX')
+        if xx:
+            pieces.append('XX')
+        return self.execute('SET', *pieces)
+
+    def __setitem__(self, name, value):
+        self.set(name, value)
+
+    def execute(self, *args, **options):
+        "Execute a command and return a parsed response"
+        pool = self.connection_pool
+        command_name = args[0]
+        connection = pool.get_connection(command_name, **options)
+        try:
+            connection.send_command(*args)
+            return self.parse(connection, command_name, **options)
+        except (ConnectionError, TimeoutError) as e:
+            connection.disconnect()
+            if not (connection.retry_on_timeout and
+                    isinstance(e, TimeoutError)):
+                raise
+            connection.send_command(*args)
+            return self.parse(connection, command_name, **options)
+        finally:
+            pool.release(connection)
+
+    UNWATCH_COMMANDS = {'DISCARD', 'EXEC', 'UNWATCH'}
+
+    def parse(self, connection, command_name, **options):
+        result = Redis.parse(
+            self, connection, command_name, **options)
+        if command_name in self.UNWATCH_COMMANDS:
+            self.watching = False
+        elif command_name == 'WATCH':
+            self.watching = True
+        return result
