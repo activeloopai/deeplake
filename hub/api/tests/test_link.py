@@ -101,13 +101,6 @@ def test_link_creds(request):
     link_creds.add_creds("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
-    if is_opt_true(request, GCS_OPT):
-        assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
-        assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
-    if is_opt_true(request, S3_OPT):
-        assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
-        assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
-
     with pytest.raises(KeyError):
         link_creds.get_storage_provider("xyz", "s3")
 
@@ -117,6 +110,13 @@ def test_link_creds(request):
         link_creds.get_storage_provider(None, "random_provider")
     with pytest.raises(ValueError):
         link_creds.get_storage_provider("ghi", "s3")
+
+    if is_opt_true(request, GCS_OPT):
+        assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
+        assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
+    if is_opt_true(request, S3_OPT):
+        assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
+        assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
 
     pickled = pickle.dumps(link_creds)
     unpickled_link_creds = pickle.loads(pickled)
