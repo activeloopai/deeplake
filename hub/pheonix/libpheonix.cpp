@@ -6,12 +6,12 @@
 #include <coroutine>
 #include <curl/curl.h>
 
-
 #include <concepts>
 #include <coroutine>
 #include <exception>
 #include <iostream>
 
+#include <scheduler.h>
 
 struct ReturnObject {
   struct promise_type {
@@ -50,6 +50,7 @@ auto simple_request(int a) {
   CURLcode res;
   std::string readBuffer;
 
+  // couroutin
   std::coroutine_handle<> h;
   counter(&h);
   for (int i = 0; i < 3; ++i) {
@@ -58,6 +59,8 @@ auto simple_request(int a) {
   }
   h.destroy();
 
+  //print out the httpGet result
+  std::cout << "Response: " << PARAMETER << std::endl;
 
   curl = curl_easy_init();
   if (curl){
