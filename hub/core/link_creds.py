@@ -1,3 +1,4 @@
+from typing import Optional
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
@@ -8,8 +9,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_keys = []
         self.creds_dict = {}  # keys to actual creds dictionary
         self.creds_mapping = {}  # keys to numbers, for encoding
-        self.storage_providers = None
-        self.is_dirty = False
+        self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
 
@@ -26,11 +26,11 @@ class LinkCreds(HubMemoryObject):
             return self.default_gcs_provider
         raise ValueError(f"Provider type {provider_type} not supported")
 
-    def get_storage_provider(self, key: str, provider_type):
+    def get_storage_provider(self, key: Optional[str], provider_type):
         if key in {"ENV", None}:
             return self.get_default_provider(provider_type)
         if key not in self.creds_keys:
-            raise ValueError(f"Creds key {key} does not exist")
+            raise KeyError(f"Creds key {key} does not exist")
         if key not in self.creds_dict:
             raise ValueError(
                 f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
@@ -59,11 +59,10 @@ class LinkCreds(HubMemoryObject):
             raise ValueError(f"Creds key {creds_key} already exists")
         self.creds_keys.append(creds_key)
         self.creds_mapping[creds_key] = len(self.creds_keys)
-        self.is_dirty = True
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
-            raise ValueError(f"Creds key {creds_key} does not exist")
+            raise KeyError(f"Creds key {creds_key} does not exist")
         self.creds_dict[creds_key] = creds
 
     def tobytes(self) -> bytes:
@@ -77,7 +76,9 @@ class LinkCreds(HubMemoryObject):
         return self.creds_mapping[key]
 
     def get_creds_key(self, encoding):
-        return None if encoding == 0 else self.creds_keys[encoding]
+        if encoding > len(self.creds_keys):
+            raise KeyError(f"Encoding {encoding} not found.")
+        return None if encoding == 0 else self.creds_keys[encoding - 1]
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
@@ -89,7 +90,7 @@ class LinkCreds(HubMemoryObject):
         return obj
 
     def nbytes(self):
-        return 8 + ((len(self.creds_keys) - 1) * 9) if self.creds_keys else 0
+        return len(self.tobytes())
 
     def __getstate__(self):
         return {
@@ -101,8 +102,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_keys = state["creds_keys"]
         self.creds_dict = state["creds_dict"]
         self.creds_mapping = {key: i + 1 for i, key in enumerate(self.creds_keys)}
-        self.is_dirty = False
-        self.storage_providers = None
+        self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
 

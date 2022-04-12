@@ -9,6 +9,18 @@ from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
 class CredsEncoder(ShapeEncoder, HubMemoryObject):
+    def __init__(self):
+        self.is_dirty = False
+        super().__init__()
+
+    def register_samples(self, item: Any, num_samples: int):
+        self.is_dirty = True
+        return super().register_samples(item, num_samples)
+
+    def __setitem__(self, local_sample_index: int, item: Any):
+        self.is_dirty = True
+        return super().__setitem__(local_sample_index, item)
+
     def get_encoded_creds_key(self, local_sample_index: int):
         return self[local_sample_index][0]
 
