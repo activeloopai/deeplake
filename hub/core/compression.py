@@ -304,6 +304,8 @@ def decompress_array(
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
+    if compression == "dcm":
+        return _decompress_dicom(buffer)  # type: ignore
     try:
         if shape is not None and 0 in shape:
             return np.zeros(shape, dtype=dtype)
@@ -420,6 +422,8 @@ def verify_compressed_file(
         elif compression in ("mp4", "mkv", "avi"):
             if isinstance(file, (bytes, memoryview, str)):
                 return _read_video_shape(file), "|u1"  # type: ignore
+        elif compression == "dcm":
+            return _read_dicom_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -434,10 +438,11 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = ["mp3", "flac", "wav", "mp4", "mkv", "avi"]
+        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm"]
+        path = str(path).lower()
         for fmt in file_formats:
-            if str(path).lower().endswith("." + fmt):
-                return fmt
+            if path.endswith(fmt):
+                return fmt[1:]
     if header:
         if not Image.OPEN:
             Image.init()
@@ -606,6 +611,8 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
+        elif compression == "dcm":
+            shape, typestr = _read_dicom_shape_and_dtype(f)
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
                 shape, typestr = _read_audio_shape(file, compression), "<f4"
@@ -696,6 +703,41 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     return shape
 
 
+def _read_dicom_shape_and_dtype(
+    f: Union[bytes, BinaryIO]
+) -> Tuple[Tuple[int, ...], str]:
+    try:
+        from pydicom import dcmread
+        from pydicom.pixel_data_handlers.util import pixel_dtype
+    except ImportError:
+        raise ModuleNotFoundError(
+            "Pydicom not found. Install using `pip install pydicom`"
+        )
+    if not hasattr(f, "read"):
+        f = BytesIO(f)  # type: ignore
+    dcm = dcmread(f)
+    nchannels = dcm[0x0028, 0x0002].value
+    shape = (dcm.Rows, dcm.Columns, nchannels)
+    isfloat = "FloatPixelData" in dcm or "DoubleFloatPixelData" in dcm
+    dtype = pixel_dtype(dcm, isfloat).str
+    return shape, dtype
+
+
+def _decompress_dicom(f: Union[str, bytes, BinaryIO]):
+    if isinstance(f, (bytes, memoryview, bytearray)):
+        f = BytesIO(f)
+    try:
+        from pydicom import dcmread
+    except ImportError:
+        raise ModuleNotFoundError(
+            "Pydicom not found. Install using `pip install pydicom`"
+        )
+    arr = dcmread(f).pixel_array
+    if arr.ndim == 2:
+        return np.expand_dims(arr, -1)
+    return arr
+
+
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
     """Reads shape and dtype of a png file from a file like object or file contents.
     If a file like object is provided, all of its contents are NOT loaded into memory."""
@@ -756,6 +798,18 @@ def _decompress_audio(
     )
 
 
+def _read_audio_meta(file: Union[bytes, memoryview, str], compression: str) -> dict:
+    if not _MINIAUDIO_INSTALLED:
+        raise ModuleNotFoundError(
+            "Miniaudio is not installed. Run `pip install hub[audio]`."
+        )
+    f_info = globals()[
+        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
+    ]
+    info = f_info(file)
+    return info.__dict__
+
+
 def _read_audio_shape(
     file: Union[bytes, memoryview, str], compression: str
 ) -> Tuple[int, ...]:
@@ -781,6 +835,10 @@ def _frame_to_stamp(nframe, stream):
 
 
 def _open_video(file: Union[str, bytes, memoryview]):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "PyAV is not installed. Run `pip install hub[video]`."
+        )
     if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
@@ -798,31 +856,32 @@ def _open_video(file: Union[str, bytes, memoryview]):
     return container, vstream
 
 
-def _read_shape_from_vstream(container, vstream):
-    nframes = vstream.frames
+def _read_metadata_from_vstream(container, vstream):
+    duration = vstream.duration
+    if duration is None:
+        duration = container.duration
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
 
+    nframes = vstream.frames
     if nframes == 0:
-        duration = vstream.duration
-        if duration is None:
-            duration = container.duration
-            time_base = 1 / av.time_base
-        else:
-            time_base = vstream.time_base.numerator / vstream.time_base.denominator
-        fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
         nframes = math.floor(fps * duration * time_base)
 
     height = vstream.codec_context.height
     width = vstream.codec_context.width
+    shape = (nframes, height, width, 3)
 
-    return (nframes, height, width)
+    return shape, duration, fps, time_base
 
 
 def _read_video_shape(
     file: Union[str, bytes, memoryview],
 ):
     container, vstream = _open_video(file)
-    shape = _read_shape_from_vstream(container, vstream)
-    return (*shape, 3)
+    shape = _read_metadata_from_vstream(container, vstream)[0]
+    return shape
 
 
 def _decompress_video(
@@ -832,12 +891,8 @@ def _decompress_video(
     step: Optional[int],
     reverse: bool,
 ):
-    if not _PYAV_INSTALLED:
-        raise ModuleNotFoundError(
-            "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
-        )
     container, vstream = _open_video(file)
-    nframes, height, width = _read_shape_from_vstream(container, vstream)
+    nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
     if start is None:
         start = 0

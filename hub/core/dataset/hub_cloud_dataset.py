@@ -7,7 +7,11 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
-from hub.util.exceptions import RenameError
+from hub.util.exceptions import (
+    RenameError,
+    PathNotEmptyException,
+    AuthorizationException,
+)
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
@@ -26,7 +30,7 @@ class HubCloudDataset(Dataset):
                 )
                 if self.verbose:
                     logger.info(
-                        f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                        f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
                     )
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
@@ -225,6 +229,7 @@ class HubCloudDataset(Dataset):
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     def rename(self, path):
+        self.storage.check_readonly()
         path = path.rstrip("/")
         root, new_name = posixpath.split(path)
         if root != posixpath.split(self.path)[0]:

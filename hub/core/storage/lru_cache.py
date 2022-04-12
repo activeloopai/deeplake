@@ -171,6 +171,38 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+        """
+        if path in self.hub_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.hub_objects[path].tobytes()[start_byte:end_byte]
+        elif path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path][start_byte:end_byte]
+        else:
+            if self.next_storage is not None:
+                return self.next_storage.get_bytes(path, start_byte, end_byte)
+            raise KeyError(path)
+
     def __setitem__(self, path: str, value: Union[bytes, HubMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
@@ -246,18 +278,30 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
-    def clear(self):
+    def clear(self, prefix=""):
         """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.check_readonly()
-        self.cache_used = 0
-        self.lru_sizes.clear()
-        self.dirty_keys.clear()
-        self.cache_storage.clear()
-        self.hub_objects.clear()
+        if prefix:
+            rm = [path for path in self.hub_objects if path.startswith(prefix)]
+            for path in rm:
+                self.remove_hub_object(path)
+
+            rm = [path for path in self.lru_sizes if path.startswith(prefix)]
+            for path in rm:
+                size = self.lru_sizes.pop(path)
+                self.cache_used -= size
+                self.dirty_keys.discard(path)
+        else:
+            self.cache_used = 0
+            self.lru_sizes.clear()
+            self.dirty_keys.clear()
+            self.hub_objects.clear()
+
+        self.cache_storage.clear(prefix=prefix)
         if self.next_storage is not None:
-            self.next_storage.clear()
+            self.next_storage.clear(prefix=prefix)
 
     def __len__(self):
         """Returns the number of files present in the cache and the underlying storage.

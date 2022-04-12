@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 try:
     from google.cloud import storage  # type: ignore
@@ -24,7 +24,11 @@ except ImportError:
 
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import GCSDefaultCredsNotFoundError, RenameError
+from hub.util.exceptions import (
+    GCSDefaultCredsNotFoundError,
+    RenameError,
+    PathNotEmptyException,
+)
 from hub.client.client import HubBackendClient
 
 
@@ -267,10 +271,11 @@ class GCSProvider(StorageProvider):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
-    def clear(self):
-        """Remove all keys below root - empties out mapping"""
+    def clear(self, prefix=""):
+        """Remove all keys with given prefix below root - empties out mapping"""
         self.check_readonly()
-        blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        path = posixpath.join(self.path, prefix) if prefix else self.path
+        blob_objects = self.client_bucket.list_blobs(prefix=path)
         for blob in blob_objects:
             try:
                 blob.delete()
@@ -285,6 +290,9 @@ class GCSProvider(StorageProvider):
         if new_bucket != self.client_bucket.name:
             raise RenameError
         blob_objects = self.client_bucket.list_blobs(prefix=self.path)
+        dest_objects = self.client_bucket.list_blobs(prefix=new_path)
+        for blob in dest_objects:
+            raise PathNotEmptyException(use_hub=False)
         for blob in blob_objects:
             new_key = "/".join([new_path, posixpath.relpath(blob.name, self.path)])
             self.client_bucket.rename_blob(blob, new_key)
@@ -301,6 +309,37 @@ class GCSProvider(StorageProvider):
             return blob.download_as_bytes(retry=self.retry)
         except self.missing_exceptions:
             raise KeyError(key)
+
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+        """
+        try:
+            blob = self.client_bucket.get_blob(self._get_path_from_key(path))
+            if end_byte != None:
+                assert end_byte is not None
+                end_byte -= 1
+            return blob.download_as_bytes(
+                retry=self.retry, start=start_byte, end=end_byte
+            )
+        except self.missing_exceptions:
+            raise KeyError(path)
 
     def __setitem__(self, key, value):
         """Store value in key"""
@@ -329,7 +368,10 @@ class GCSProvider(StorageProvider):
         """Remove key"""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
-        blob.delete()
+        try:
+            blob.delete()
+        except self.missing_exceptions:
+            raise KeyError(key)
 
     def __contains__(self, key):
         """Does key exist in mapping?"""

@@ -62,20 +62,6 @@ UNSHARDED_ENCODER_FILENAME = "unsharded"
 AGREEMENT_FILENAME = "agreement.txt"
 
 ENCODING_DTYPE = np.uint32
-# caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
-UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
-
-HUB_CLOUD_DEV_USERNAME = "testingacc"
-
-PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
-PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
-PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
-PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
-PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
-    "gdrive://hubtest"  # TODO: personal folder, replace with hub's
-)
-PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = f"hub://{HUB_CLOUD_DEV_USERNAME}/"
-
 
 # environment variables
 ENV_HUB_DEV_USERNAME = "ACTIVELOOP_HUB_USERNAME"
@@ -92,6 +78,9 @@ PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
+PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
+    "gdrive://hubtest"  # TODO: personal folder, replace with hub's
+)
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
     None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"
 )
@@ -139,3 +128,11 @@ _ENABLE_RANDOM_ASSIGNMENT = False
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
 
 PYTORCH_DATALOADER_TIMEOUT = 30  # seconds
+
+_NO_LINK_UPDATE = "___!@#_no_link_update_###"
+
+SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE = 4 * MB
+
+DEFAULT_READONLY = (
+    os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
+)
