@@ -7,37 +7,10 @@
 #include <curl/curl.h>
 
 #include <concepts>
-#include <coroutine>
 #include <exception>
 #include <iostream>
 
 #include <scheduler.h>
-
-struct ReturnObject {
-  struct promise_type {
-    ReturnObject get_return_object() { return {}; }
-    std::suspend_never initial_suspend() { return {}; }
-    std::suspend_never final_suspend() noexcept { return {}; }
-    void unhandled_exception() {}
-  };
-};
-
-struct Awaiter {
-  std::coroutine_handle<> *hp_;
-  constexpr bool await_ready() const noexcept { return false; }
-  void await_suspend(std::coroutine_handle<> h) { *hp_ = h; }
-  constexpr void await_resume() const noexcept {}
-};
-
-ReturnObject
-counter(std::coroutine_handle<> *continuation_out)
-{
-  Awaiter a{continuation_out};
-  for (unsigned i = 0;; ++i) {
-    co_await a;
-    std::cout << "counter: " << i << std::endl;
-  }
-}
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -49,18 +22,6 @@ auto simple_request(int a) {
   CURL *curl;
   CURLcode res;
   std::string readBuffer;
-
-  // couroutin
-  std::coroutine_handle<> h;
-  counter(&h);
-  for (int i = 0; i < 3; ++i) {
-    std::cout << "In main1 function\n";
-    h();
-  }
-  h.destroy();
-
-  //print out the httpGet result
-  std::cout << "Response: " << PARAMETER << std::endl;
 
   curl = curl_easy_init();
   if (curl){
@@ -74,10 +35,31 @@ auto simple_request(int a) {
   return py::bytes(readBuffer);
 }
 
+class Iterator{
+private: 
+  int a;
+  std::vector<int> v;
+  py::object ref; // keep a reference
+  size_t index = 0;
 
+public:
+  Iterator(){
+    //myCoroutineResult = myCoroutineFunction();
+    v = {1, 2, 3};
+  }
 
+  int next(){
+    if (index == v.size())
+      throw py::stop_iteration(); // Great
+    return v[index++]; //(myCoroutineResult.next());
+  }
 
-// try hunter gate or use cmake list
+};
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("simple_request", &simple_request, "simple request");
+  pybind11::class_<Iterator>(m, "Iterator")
+            .def(pybind11::init())
+            .def("__next__", &Iterator::next)
+            .def("__iter__", [](Iterator &it) -> Iterator& { return it; }, py::keep_alive<0, 1>());
 }

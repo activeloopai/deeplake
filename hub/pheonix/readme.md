@@ -13,3 +13,6 @@ then point c++ to gcc-10
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 1000 --slave /usr/bin/g++ g++ /usr/bin/g++-10
 ```
 
+
+### Package manager
+- [] try hunter gate
