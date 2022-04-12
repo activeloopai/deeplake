@@ -35,7 +35,7 @@ auto simple_request(int a) {
   return py::bytes(readBuffer);
 }
 
-class Iterator{
+class PrefetchIterator{
 private: 
   int a;
   std::vector<int> v;
@@ -43,7 +43,7 @@ private:
   size_t index = 0;
 
 public:
-  Iterator(){
+  PrefetchIterator(){
     //myCoroutineResult = myCoroutineFunction();
     v = {1, 2, 3};
   }
@@ -58,8 +58,8 @@ public:
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("simple_request", &simple_request, "simple request");
-  pybind11::class_<Iterator>(m, "Iterator")
+  pybind11::class_<PrefetchIterator>(m, "prefetch")
             .def(pybind11::init())
-            .def("__next__", &Iterator::next)
-            .def("__iter__", [](Iterator &it) -> Iterator& { return it; }, py::keep_alive<0, 1>());
+            .def("__next__", &PrefetchIterator::next)
+            .def("__iter__", [](PrefetchIterator &it) -> PrefetchIterator& { return it; }, py::keep_alive<0, 1>());
 }

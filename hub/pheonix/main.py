@@ -15,14 +15,8 @@ import pheonix_cpp
 
 # output = pheonix_cpp.simple_request(1)
 
-# iterator = pheonix_cpp.Iterator()
-
-# print(iterator.next())
-# print(pheonix_cpp.Iterator.__next__())
-print([el for el in pheonix_cpp.Iterator()])
-# for i in generator:
-#    print(i)
-
+for el in pheonix_cpp.prefetch():
+    print(el)
 
 
 
