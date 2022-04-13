@@ -2141,7 +2141,7 @@ class Dataset:
             except KeyError:
                 pass
 
-    def add_link_creds(self, creds_key: str):
+    def add_creds(self, creds_key: str):
         self.link_creds.add_creds(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
