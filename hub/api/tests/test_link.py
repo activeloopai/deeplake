@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import sys
 import pickle
@@ -193,6 +194,9 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             verify=verify,
             sample_compression="jpeg",
         )
+        with pytest.raises(TypeError):
+            ds.linked_images.append(np.ones((100, 100, 3)))
+
         for i in range(10):
             sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
             ds.linked_images.append(sample)
@@ -296,6 +300,16 @@ def test_complex_creds(local_ds_generator):
             ds.link.append(sample)
             ds.xyz.append(i)
 
+        with pytest.raises(ValueError):
+            ds.link._linked_sample()
+
+        with pytest.raises(ValueError):
+            ds.xyz[0]._linked_sample()
+
+        linked_sample = ds.link[0]._linked_sample()
+        assert linked_sample.path == "https://picsum.photos/200/300"
+        assert linked_sample.creds_key == "my_first_key"
+
         for i in range(10, 15):
             sample = hub.link("https://picsum.photos/200/300")
             ds.link.append(sample)
@@ -304,7 +318,6 @@ def test_complex_creds(local_ds_generator):
         for i in range(10):
             enc_creds = 1 if i % 2 == 0 else 2
             assert ds.link.chunk_engine.creds_encoder[i][0] == enc_creds
-
 
         for i in range(10, 15):
             assert ds.link.chunk_engine.creds_encoder[i][0] == 0
@@ -317,7 +330,6 @@ def test_complex_creds(local_ds_generator):
     for i in range(10):
         enc_creds = 1 if i % 2 == 0 else 2
         assert ds.link.chunk_engine.creds_encoder[i][0] == enc_creds
-
 
     for i in range(10, 15):
         assert ds.link.chunk_engine.creds_encoder[i][0] == 0
