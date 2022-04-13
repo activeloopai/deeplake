@@ -97,24 +97,60 @@ class RedisProvider:
         if value is not None:
             return value
         raise KeyError(name)
+    
+    def set(self, name, value, ex=None, px=None, nx=False, xx=False):
+        """
+        Set the value at key ``name`` to ``value``
+        ``ex`` sets an expire flag on key ``name`` for ``ex`` seconds.
+        ``px`` sets an expire flag on key ``name`` for ``px`` milliseconds.
+        ``nx`` if set to True, set the value at key ``name`` to ``value`` only
+            if it does not exist.
+        ``xx`` if set to True, set the value at key ``name`` to ``value`` only
+            if it already exists.
+        """
+        pieces = [name, value]
+        if ex is not None:
+            pieces.append('EX')
+            if isinstance(ex, datetime.timedelta):
+                ex = int(ex.total_seconds())
+            pieces.append(ex)
+        if px is not None:
+            pieces.append('PX')
+            if isinstance(px, datetime.timedelta):
+                px = int(px.total_seconds() * 1000)
+            pieces.append(px)
 
-    def getbit(self, name, offset):
-        "Returns a boolean indicating the value of ``offset`` in ``name``"
-        return self.execute('GETBIT', name, offset)
+        if nx:
+            pieces.append('NX')
+        if xx:
+            pieces.append('XX')
+        return self.execute('SET', *pieces)
 
-    def getrange(self, key, start, end):
-        """
-        Returns the substring of the string value stored at ``key``,
-        determined by the offsets ``start`` and ``end`` (both are inclusive)
-        """
-        return self.execute('GETRANGE', key, start, end)
+    def __setitem__(self, name, value):
+        self.set(name, value)
 
-    def getset(self, name, value):
+    def delete(self, *names):
+        "Delete one or more keys specified by ``names``"
+        return self.execute_command('DEL', *names)
+
+    def __delitem__(self, name):
+        self.delete(name)
+    
+    def get(self, name):
         """
-        Sets the value at key ``name`` to ``value``
-        and returns the old value at key ``name`` atomically.
+        Return the value at key ``name``, or None if the key doesn't exist
         """
-        return self.execute('GETSET', name, value)
+        return self.execute_command('GET', name)
+
+    def __getitem__(self, name):
+        """
+        Return the value at key ``name``, raises a KeyError if the key
+        doesn't exist.
+        """
+        value = self.get(name)
+        if value is not None:
+            return value
+        raise KeyError(name)
 
     def incr(self, name, amount=1):
         """
@@ -187,37 +223,6 @@ class RedisProvider:
         if replace:
             params.append('REPLACE')
         return self.execute('RESTORE', *params)
-
-    def set(self, name, value, ex=None, px=None, nx=False, xx=False):
-        """
-        Set the value at key ``name`` to ``value``
-        ``ex`` sets an expire flag on key ``name`` for ``ex`` seconds.
-        ``px`` sets an expire flag on key ``name`` for ``px`` milliseconds.
-        ``nx`` if set to True, set the value at key ``name`` to ``value`` only
-            if it does not exist.
-        ``xx`` if set to True, set the value at key ``name`` to ``value`` only
-            if it already exists.
-        """
-        pieces = [name, value]
-        if ex is not None:
-            pieces.append('EX')
-            if isinstance(ex, datetime.timedelta):
-                ex = int(ex.total_seconds())
-            pieces.append(ex)
-        if px is not None:
-            pieces.append('PX')
-            if isinstance(px, datetime.timedelta):
-                px = int(px.total_seconds() * 1000)
-            pieces.append(px)
-
-        if nx:
-            pieces.append('NX')
-        if xx:
-            pieces.append('XX')
-        return self.execute('SET', *pieces)
-
-    def __setitem__(self, name, value):
-        self.set(name, value)
 
     def execute(self, *args, **options):
         "Execute a command and return a parsed response"
