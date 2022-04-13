@@ -163,7 +163,43 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         assert ds.linked_images[i].numpy().shape == shape_target
 
 
-def test_basic_add_populate_creds(local_ds_generator):
+@pytest.mark.parametrize("create_shape_tensor", [True, False])
+@pytest.mark.parametrize("verify", [True, False])
+def test_basic_video(request, local_ds_generator, create_shape_tensor, verify):
+    local_ds = local_ds_generator()
+    with local_ds as ds:
+        ds.create_tensor(
+            "linked_videos",
+            htype="link[video]",
+            create_shape_tensor=create_shape_tensor,
+            verify=verify,
+        )
+        for _ in range(3):
+            sample = hub.link(
+                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+            )
+            ds.linked_videos.append(sample)
+
+        assert len(ds.linked_videos) == 3
+        for i in range(3):
+            assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
+
+        if is_opt_true(request, GCS_OPT):
+            sample = hub.link("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4")
+            ds.linked_videos.append(sample)
+            assert len(ds.linked_videos) == 4
+            assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
+    # checking persistence
+    ds = local_ds_generator()
+    for i in range(3):
+        assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
+
+    if is_opt_true(request, GCS_OPT):
+        assert len(ds.linked_videos) == 4
+        assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
+
+
+def test_add_populate_creds(local_ds_generator):
     local_ds = local_ds_generator()
     with local_ds as ds:
         ds.add_creds("my_s3_key")
