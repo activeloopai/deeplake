@@ -14,10 +14,24 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 1000 --slave
 ```
 
 ### Install Scheduler
+
+Install boost asio
 ```
-git clone https://github.com/lewissbaker/cppcoro
-cd cppcoro && ./build-clang.sh
+wget https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
+tar -zxvf boost_1_78_0.tar.gz
 ```
+
+
+update bashrc
+```
+export PATH=$PATH:/Users/levongh/Downloads/boost_1_78_0
+export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/Users/levongh/Downloads/boost_1_78_0/stage/lib
+```
+
+example https://github.com/jgaa/asio-composed-blog/blob/main/echo-server.cpp
 
 ### Package manager
 - [] try hunter gate
+
+
+

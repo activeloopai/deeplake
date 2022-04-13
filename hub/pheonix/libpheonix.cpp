@@ -1,5 +1,6 @@
 #include <torch/extension.h>
 
+#include <boost/asio.hpp>
 #include <iostream>
 #include <vector>
 
