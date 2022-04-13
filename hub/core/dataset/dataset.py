@@ -2142,10 +2142,40 @@ class Dataset:
                 pass
 
     def add_creds(self, creds_key: str):
+        """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds("my_s3_key")
+            ```
+
+        Args:
+            creds_key (str): The key to be added.
+        """
         self.link_creds.add_creds(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
     def populate_creds(self, creds_key: str, creds: dict):
+        """Populates the creds key added in add_creds with the given creds. These creds are used to fetch the external data.
+        This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds("my_s3_key")
+
+            # populate the creds
+            ds.populate_creds("my_s3_key", {"aws_access_key_id": "my_access_key", "aws_secret_access_key": "my_secret_key"})
+            ```
+
+        """
         self.link_creds.populate_creds(creds_key, creds)
 
     def visualize(
