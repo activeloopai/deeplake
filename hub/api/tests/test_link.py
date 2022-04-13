@@ -1,3 +1,5 @@
+import os
+import sys
 import pickle
 import hub
 import pytest
@@ -234,6 +236,9 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_video(request, local_ds_generator, create_shape_tensor, verify):
     local_ds = local_ds_generator()
     with local_ds as ds:
