@@ -8,7 +8,7 @@ load(name="pheonix_cpp",
     extra_include_paths=[module_path],
     extra_cflags=["-fcoroutines", "-std=c++2a"],
     extra_ldflags=["-lcurl"], 
-    build_directory=os.path.join(module_path, f"build"),
+    build_directory=os.path.join(module_path, "build"),
     verbose=True)
 
 import pheonix_cpp
@@ -17,6 +17,3 @@ import pheonix_cpp
 
 for el in pheonix_cpp.prefetch():
     print(el)
-
-
-

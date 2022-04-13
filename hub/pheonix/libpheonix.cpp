@@ -28,10 +28,11 @@ auto simple_request(int a) {
     curl_easy_setopt(curl, CURLOPT_URL, "http://www.google.com");
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curl); //we really want to make this awaitable
     curl_easy_cleanup(curl);
   }
 
+  //co_return py::bytes(readBuffer);
   return py::bytes(readBuffer);
 }
 
