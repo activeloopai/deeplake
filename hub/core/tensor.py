@@ -284,6 +284,7 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
+        self.check_link_ready()
         self._write_initialization()
         self.chunk_engine.extend(
             samples, link_callback=self._append_to_links if self.meta.links else None
@@ -569,6 +570,7 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        self.check_link_ready()
         self._write_initialization()
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
@@ -596,7 +598,7 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
-    def check_ready_for_numpy(self):
+    def check_link_ready(self):
         if not self.is_link:
             return
         missing_keys = self.link_creds.missing_keys
@@ -620,7 +622,7 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        self.check_ready_for_numpy()
+        self.check_link_ready()
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):
@@ -717,6 +719,9 @@ class Tensor:
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
+        self.check_link_ready()
+        if self.is_link:
+            return self.chunk_engine.get_hub_read_sample(self.index.values[0].value).compressed_bytes
         return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
 
     def _pop(self):
