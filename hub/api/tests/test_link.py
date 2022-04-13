@@ -138,7 +138,8 @@ def test_link_creds(request):
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
-def test_basic(local_ds, cat_path, flower_path, create_shape_tensor, verify):
+def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, verify):
+    local_ds = local_ds_generator()
     with local_ds as ds:
         ds.create_tensor(
             "linked_images",
@@ -156,12 +157,33 @@ def test_basic(local_ds, cat_path, flower_path, create_shape_tensor, verify):
             assert ds.linked_images[i].shape == shape_target
             assert ds.linked_images[i].numpy().shape == shape_target
 
+    # checking persistence
+    ds = local_ds_generator()
+    for i in range(10):
+        shape_target = (900, 900, 3) if i % 2 == 0 else (513, 464, 4)
+        assert ds.linked_images[i].shape == shape_target
+        assert ds.linked_images[i].numpy().shape == shape_target
+
+
+def test_basic_add_populate_creds(local_ds_generator):
+    local_ds = local_ds_generator()
+    with local_ds as ds:
+        ds.add_creds("my_s3_key")
+        ds.add_creds("my_gcs_key")
+        ds.populate_creds("my_s3_key", {})
+        ds.populate_creds("my_gcs_key", {})
+
+        assert ds.link_creds.creds_keys == ["my_s3_key", "my_gcs_key"]
+        assert ds.link_creds.creds_mapping == {"my_s3_key": 1, "my_gcs_key": 2}
+        assert ds.link_creds.creds_dict == {"my_s3_key": {}, "my_gcs_key": {}}
+
+    ds = local_ds_generator()
+    assert ds.link_creds.creds_keys == ["my_s3_key", "my_gcs_key"]
+    assert ds.link_creds.creds_mapping == {"my_s3_key": 1, "my_gcs_key": 2}
+    assert ds.link_creds.creds_dict == {}
+
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic_sequence(local_ds, cat_path, flower_path, create_shape_tensor, verify):
-    pass
-
-
-def test_basic_add_populate_creds():
     pass
