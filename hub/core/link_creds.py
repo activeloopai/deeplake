@@ -18,13 +18,12 @@ class LinkCreds(HubMemoryObject):
             if self.default_s3_provider is None:
                 self.default_s3_provider = S3Provider("s3://bucket/path")
             return self.default_s3_provider
-        if provider_type == "gcs":
+        else:
             if self.default_gcs_provider is None:
                 from hub.core.storage.gcs import GCSProvider
 
                 self.default_gcs_provider = GCSProvider("gcs://bucket/path")
             return self.default_gcs_provider
-        raise ValueError(f"Provider type {provider_type} not supported")
 
     def get_storage_provider(self, key: Optional[str], provider_type):
         assert provider_type in {"s3", "gcs"}

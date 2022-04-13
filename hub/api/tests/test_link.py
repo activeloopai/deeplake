@@ -257,6 +257,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
         assert len(ds.linked_videos) == 3
         for i in range(3):
             assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
+            assert ds.linked_videos[i][:5].numpy().shape == (5, 720, 1280, 3)
 
         if is_opt_true(request, GCS_OPT):
             sample = hub.link("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4")
@@ -300,26 +301,26 @@ def test_complex_creds(local_ds_generator):
             ds.link.append(sample)
             ds.xyz.append(i)
 
-        enc = ds.link.chunk_engine.creds_encoder
         for i in range(10):
             enc_creds = 1 if i % 2 == 0 else 2
-            assert enc[i][0] == enc_creds
+            assert ds.link.chunk_engine.creds_encoder[i][0] == enc_creds
+
 
         for i in range(10, 15):
-            assert enc[i][0] == 0
+            assert ds.link.chunk_engine.creds_encoder[i][0] == 0
 
         for i in range(15):
             assert ds.xyz[i].numpy() == i
             assert ds.link[i].numpy().shape == (300, 200, 3)
 
     ds = local_ds_generator()
-    enc = ds.link.chunk_engine.creds_encoder
     for i in range(10):
         enc_creds = 1 if i % 2 == 0 else 2
-        assert enc[i][0] == enc_creds
+        assert ds.link.chunk_engine.creds_encoder[i][0] == enc_creds
+
 
     for i in range(10, 15):
-        assert enc[i][0] == 0
+        assert ds.link.chunk_engine.creds_encoder[i][0] == 0
 
     for i in range(15):
         assert ds.xyz[i].numpy() == i
