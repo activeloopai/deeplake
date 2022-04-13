@@ -239,26 +239,29 @@ class Dataset:
         is_iteration: bool = False,
     ):
         if isinstance(item, str):
-            fullpath = posixpath.join(self.group_index, item)
-            tensor = self._get_tensor_from_root(fullpath)
-            if tensor is not None:
-                return tensor[self.index]
-            elif self._has_group_in_root(fullpath):
-                return self.__class__(
-                    storage=self.storage,
-                    index=self.index,
-                    group_index=posixpath.join(self.group_index, item),
-                    read_only=self.read_only,
-                    token=self._token,
-                    verbose=False,
-                    version_state=self.version_state,
-                    path=self.path,
-                )
-            elif "/" in item:
-                splt = posixpath.split(item)
-                return self[splt[0]][splt[1]]
+            if(Index > self.__len__):
+                raise IndexError("Index out of range")
             else:
-                raise TensorDoesNotExistError(item)
+                fullpath = posixpath.join(self.group_index, item)
+                tensor = self._get_tensor_from_root(fullpath)
+                if tensor is not None:
+                    return tensor[self.index]
+                elif self._has_group_in_root(fullpath):
+                    return self.__class__(
+                        storage=self.storage,
+                        index=self.index,
+                        group_index=posixpath.join(self.group_index, item),
+                        read_only=self.read_only,
+                        token=self._token,
+                        verbose=False,
+                        version_state=self.version_state,
+                        path=self.path,
+                    )
+                elif "/" in item:
+                    splt = posixpath.split(item)
+                    return self[splt[0]][splt[1]]
+                else:
+                    raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return self.__class__(
                 storage=self.storage,
