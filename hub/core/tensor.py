@@ -414,6 +414,8 @@ class Tensor:
             if sample_shape_tensor
             else None
         )
+        if sample_shape_provider is None:
+            self.check_link_ready()
         return self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
