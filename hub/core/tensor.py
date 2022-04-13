@@ -12,7 +12,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.tensor_link import get_link_transform
-from hub.api.info import Info, load_info
+from hub.api.info import load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -49,6 +49,11 @@ from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
 
 
 from hub.util.version_control import auto_checkout
+
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
+from hub.util.notebook import is_jupyter, video_html
+import warnings
+import webbrowser
 
 
 def create_tensor(
@@ -786,3 +791,25 @@ class Tensor:
     @property
     def sample_info(self):
         return self._sample_info(self.index)
+
+    def _get_video_stream_url(self):
+        from hub.visualizer.video_streaming import get_video_stream_url
+
+        return get_video_stream_url(self, self.index.values[0].value)
+
+    def play(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Video streaming requires exactly 1 sample.")
+        if len(self.index.values) > 1:
+            warnings.warn(
+                "Sub indexes to video sample will be ignored while streaming."
+            )
+        if is_jupyter():
+            return video_html(
+                src=self._get_video_stream_url(),
+                alt=f"{self.key}[{self.index.values[0].value}]",
+            )
+        else:
+            webbrowser.open(self._get_video_stream_url())

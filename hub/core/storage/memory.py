@@ -115,3 +115,6 @@ class MemoryProvider(StorageProvider):
 
     def __setstate__(self, state: str):
         self.__init__(root=state)  # type: ignore
+
+    def get_object_size(self, key: str) -> int:
+        return len(self[key])
