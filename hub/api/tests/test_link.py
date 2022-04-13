@@ -194,6 +194,16 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         for i in range(10):
             sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
             ds.linked_images.append(sample)
+
+        # Uncomment after text is fixed
+        # for _ in range(10):
+        #     sample = hub.link(flower_path)
+        #     ds.linked_images.append(sample)
+
+        # for i in range(0, 10, 2):
+        #     sample = hub.link(cat_path)
+        #     ds.linked_images[i] = sample
+
         assert len(ds.linked_images) == 10
 
         ds.create_tensor(
@@ -256,6 +266,95 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
     if is_opt_true(request, GCS_OPT):
         assert len(ds.linked_videos) == 4
         assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
+
+
+def test_complex_creds(local_ds_generator):
+    local_ds = local_ds_generator()
+    with local_ds as ds:
+        ds.create_tensor("link", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.create_tensor("xyz")
+        ds.add_creds("my_first_key")
+        ds.add_creds("my_second_key")
+
+        ds.populate_creds("my_first_key", {})
+        ds.populate_creds("my_second_key", {})
+        for i in range(10):
+            creds_key = "my_first_key" if i % 2 == 0 else "my_second_key"
+            sample = hub.link("https://picsum.photos/200/300", creds_key=creds_key)
+            ds.link.append(sample)
+            ds.xyz.append(i)
+
+        for i in range(10, 15):
+            sample = hub.link("https://picsum.photos/200/300")
+            ds.link.append(sample)
+            ds.xyz.append(i)
+
+        enc = ds.link.chunk_engine.creds_encoder
+        for i in range(10):
+            enc_creds = 1 if i % 2 == 0 else 2
+            assert enc[i][0] == enc_creds
+
+        for i in range(10, 15):
+            assert enc[i][0] == 0
+
+        for i in range(15):
+            assert ds.xyz[i].numpy() == i
+            assert ds.link[i].numpy().shape == (300, 200, 3)
+
+    ds = local_ds_generator()
+    enc = ds.link.chunk_engine.creds_encoder
+    for i in range(10):
+        enc_creds = 1 if i % 2 == 0 else 2
+        assert enc[i][0] == enc_creds
+
+    for i in range(10, 15):
+        assert enc[i][0] == 0
+
+    for i in range(15):
+        assert ds.xyz[i].numpy() == i
+
+    with pytest.raises(ValueError):
+        ds.link[0].numpy().shape
+
+
+
+@hub.compute
+def identity(sample_in, samples_out):
+    samples_out.linked_images.append(sample_in.linked_images)
+
+
+def test_transform(local_ds, cat_path, flower_path):
+    data_in = hub.dataset("./test/link_transform", overwrite=True)
+    with data_in as ds:
+        ds.create_tensor(
+            "linked_images",
+            htype="link[image]",
+            create_shape_tensor=True,
+            verify=True,
+            sample_compression="jpeg",
+        )
+        for i in range(10):
+            sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
+            ds.linked_images.append(sample)
+
+    data_out = local_ds
+    with data_out as ds:
+        ds.create_tensor(
+            "linked_images",
+            htype="link[image]",
+            create_shape_tensor=True,
+            verify=True,
+            sample_compression="jpeg",
+        )
+
+    identity().eval(data_in, data_out, num_workers=2)
+    assert len(data_out.linked_images) == 10
+    for i in range(10):
+        shape_target = (900, 900, 3) if i % 2 == 0 else (513, 464, 4)
+        assert ds.linked_images[i].shape == shape_target
+        assert ds.linked_images[i].numpy().shape == shape_target
+
+    data_in.delete()
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
