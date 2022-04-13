@@ -27,6 +27,7 @@ class LinkCreds(HubMemoryObject):
         raise ValueError(f"Provider type {provider_type} not supported")
 
     def get_storage_provider(self, key: Optional[str], provider_type):
+        assert provider_type in {"s3", "gcs"}
         if key in {"ENV", None}:
             return self.get_default_provider(provider_type)
         if key not in self.creds_keys:
@@ -36,23 +37,27 @@ class LinkCreds(HubMemoryObject):
                 f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
             )
 
-        if key in self.storage_providers:
-            return self.storage_providers[key]
-
         provider: StorageProvider
+        creds = self.creds_dict[key]
+
         if provider_type == "s3":
-            creds = self.creds_dict[key]
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, S3Provider):
+                    return provider
+
             provider = S3Provider("s3://bucket/path", **creds)
-            self.storage_providers[key] = provider
-            return provider
-        if provider_type == "gcs":
+        else:
             from hub.core.storage.gcs import GCSProvider
 
-            creds = self.creds_dict[key]
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, GCSProvider):
+                    return provider
+
             provider = GCSProvider("gcs://bucket/path", **creds)
-            self.storage_providers[key] = provider
-            return provider
-        raise ValueError("Unexpected provider type")
+        self.storage_providers[key] = provider
+        return provider
 
     def add_creds(self, creds_key: str):
         if creds_key in self.creds_keys:

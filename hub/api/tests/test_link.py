@@ -105,16 +105,14 @@ def test_link_creds(request):
         link_creds.get_storage_provider("xyz", "s3")
 
     with pytest.raises(ValueError):
-        link_creds.get_storage_provider("abc", "random_provider")
-    with pytest.raises(ValueError):
-        link_creds.get_storage_provider(None, "random_provider")
-    with pytest.raises(ValueError):
         link_creds.get_storage_provider("ghi", "s3")
 
     if is_opt_true(request, GCS_OPT):
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
+        assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
         assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
     if is_opt_true(request, S3_OPT):
+        assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
 
