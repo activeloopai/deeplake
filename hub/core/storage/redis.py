@@ -21,8 +21,9 @@ def list_or_args(keys, args):
     if args:
         keys.extend(args)
     return keys
-class RedisProvider:
 
+class RedisProvider:
+    
     def __init__(self, host='localhost', port=6379,
                  db=0, password=None, socket_timeout=None,
                  socket_connect_timeout=None,
