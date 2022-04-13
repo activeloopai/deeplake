@@ -271,7 +271,13 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
 def test_complex_creds(local_ds_generator):
     local_ds = local_ds_generator()
     with local_ds as ds:
-        ds.create_tensor("link", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.create_tensor(
+            "link",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+        )
         ds.create_tensor("xyz")
         ds.add_creds("my_first_key")
         ds.add_creds("my_second_key")
@@ -315,7 +321,6 @@ def test_complex_creds(local_ds_generator):
 
     with pytest.raises(ValueError):
         ds.link[0].numpy().shape
-
 
 
 @hub.compute
