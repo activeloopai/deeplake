@@ -152,31 +152,6 @@ class RedisProvider:
             return value
         raise KeyError(name)
 
-    def incr(self, name, amount=1):
-        """
-        Increments the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as ``amount``
-        """
-        return self.incrby(name, amount)
-
-    def incrby(self, name, amount=1):
-        """
-        Increments the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as ``amount``
-        """
-        return self.execute('INCRBY', name, amount)
-
-    def incrbyfloat(self, name, amount=1.0):
-        """
-        Increments the value at key ``name`` by floating ``amount``.
-        If no key exists, the value will be initialized as ``amount``
-        """
-        return self.execute('INCRBYFLOAT', name, amount)
-
-    def keys(self, pattern='*'):
-        "Returns a list of keys matching ``pattern``"
-        return self.execute('KEYS', pattern)
-
     def mget(self, keys, *args):
         """
         Returns a list of values ordered identically to ``keys``
