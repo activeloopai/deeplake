@@ -94,6 +94,7 @@ class LinkCreds(HubMemoryObject):
         obj.is_dirty = False
         return obj
 
+    @property
     def nbytes(self):
         return len(self.tobytes())
 

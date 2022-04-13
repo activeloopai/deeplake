@@ -3,6 +3,7 @@ import hub
 import pytest
 from hub.constants import GCS_OPT, S3_OPT
 from hub.core.link_creds import LinkCreds
+from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.s3 import S3Provider
 from hub.tests.common import is_opt_true
@@ -126,12 +127,38 @@ def test_link_creds(request):
     assert unpickled_link_creds.missing_keys == ["ghi"]
 
     bts = link_creds.tobytes()
-    assert len(bts) == link_creds.nbytes()
+    assert len(bts) == link_creds.nbytes
     assert bts == b"abc,def,ghi"
 
     from_buffer_link_creds = LinkCreds.frombuffer(bts)
     assert len(from_buffer_link_creds) == 3
     assert from_buffer_link_creds.missing_keys == ["abc", "def", "ghi"]
+
+
+def test_creds_encoder():
+    enc = CredsEncoder()
+
+    enc.register_samples((3,), 5)
+    enc.register_samples((0,), 2)
+    enc.register_samples((1,), 3)
+
+    for i in range(5):
+        assert enc[i] == (3,)
+    for i in range(5, 7):
+        assert enc[i] == (0,)
+    for i in range(7, 10):
+        assert enc[i] == (1,)
+
+    data = enc.tobytes()
+    assert len(data) == enc.nbytes
+
+    dec = CredsEncoder.frombuffer(data)
+    for i in range(5):
+        assert dec[i] == (3,)
+    for i in range(5, 7):
+        assert dec[i] == (0,)
+    for i in range(7, 10):
+        assert dec[i] == (1,)
 
 
 def test_add_populate_creds(local_ds_generator):
@@ -197,7 +224,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
-def test_basic_video(request, local_ds_generator, create_shape_tensor, verify):
+def test_video(request, local_ds_generator, create_shape_tensor, verify):
     local_ds = local_ds_generator()
     with local_ds as ds:
         ds.create_tensor(
