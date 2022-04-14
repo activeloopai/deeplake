@@ -277,7 +277,6 @@ class Encoder(ABC):
         """
 
         row_index = self.translate_index(local_sample_index)
-
         # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
         actions = (
             self._try_not_changing,
@@ -322,19 +321,23 @@ class Encoder(ABC):
         self._decomposable_item = None
         self._num_samples_at_row = None
 
-    def _setup_update(self, item: Any, row_index: int, *_):
+    def _setup_update(self, item: Any, row_index: int, local_sample_index: int):
         """Setup the state variables for preceeding actions. Used for updating."""
 
         self._has_above = row_index > 0
         self._has_below = row_index + 1 < len(self._encoded)
 
-        self._can_combine_above = False
-        if self._has_above:
-            self._can_combine_above = self._combine_condition(item, row_index - 1)
+        self._can_combine_above = (
+            self._has_above
+            and self._encoded[row_index - 1][-1] == local_sample_index - 1
+            and self._combine_condition(item, row_index - 1)
+        )
 
-        self._can_combine_below = False
-        if self._has_below:
-            self._can_combine_below = self._combine_condition(item, row_index + 1)
+        self._can_combine_below = (
+            self._has_below
+            and self._encoded[row_index][-1] == local_sample_index
+            and self._combine_condition(item, row_index + 1)
+        )
 
         self._decomposable_item = self._make_decomposable(item, row_index)
         self._num_samples_at_row = self.num_samples_at(row_index)
