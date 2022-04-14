@@ -1,41 +1,32 @@
 #include <torch/extension.h>
-
-#include <boost/asio.hpp>
-#include <iostream>
 #include <vector>
 
 #include <coroutine>
-#include <curl/curl.h>
+
 
 #include <concepts>
 #include <exception>
 #include <iostream>
 
 #include <scheduler.h>
+#include <requests.h>
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
+#include <iostream>
+// #include <boost/asio.hpp>
+// #include <boost/thread/thread.hpp>
+// #include <boost/bind/bind.hpp>
+
+
+
+
+template <typename Found>
+root_task Corofetch(Found on_found) {
+  int a = 5;
+  auto x = co_await prefetch(a);
+  co_return on_found(x); // add to the stack
 }
 
-auto simple_request(int a) {
-  CURL *curl;
-  CURLcode res;
-  std::string readBuffer;
 
-  curl = curl_easy_init();
-  if (curl){
-    curl_easy_setopt(curl, CURLOPT_URL, "http://www.google.com");
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-    res = curl_easy_perform(curl); //we really want to make this awaitable
-    curl_easy_cleanup(curl);
-  }
-
-  //co_return py::bytes(readBuffer);
-  return py::bytes(readBuffer);
-}
 
 class PrefetchIterator{
 private: 
@@ -48,6 +39,24 @@ public:
   PrefetchIterator(){
     //myCoroutineResult = myCoroutineFunction();
     v = {1, 2, 3};
+    // boost::asio::io_context io;
+    // boost::asio::steady_timer t(io, boost::asio::chrono::seconds(5));
+    
+    //boost::thread t(boost::bind(&boost::asio::io_context::run, &io));
+    // io.run();
+    int streams = 1000;
+    int calls = 10000;
+    size_t found_count = 0;
+
+    throttler t(streams);
+    
+    std::cout << found_count << std::endl;
+    for (int i = 1; i < calls; i++)
+      t.spawn(Corofetch([&](auto) { ++found_count; }));
+    t.run();
+
+    std::cout << "Prefetch iterator started!" << std::endl;
+    std::cout << found_count << std::endl;
   }
 
   int next(){
