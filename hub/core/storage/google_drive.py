@@ -5,7 +5,7 @@ from googleapiclient.http import (  # type: ignore
     MediaIoBaseDownload,
     MediaIoBaseUpload,
 )
-from googleapiclient.errors import HttpError
+from googleapiclient.errors import HttpError  # type: ignore
 from httplib2 import Http  # type: ignore
 from google.auth.transport.requests import Request  # type: ignore
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
