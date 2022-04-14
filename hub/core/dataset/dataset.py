@@ -240,7 +240,7 @@ class Dataset:
     ):
         if isinstance(item, str):
             if(self.index > self.__len__):
-                raise IndexError("Index out of range")
+                raise IndexError("Index {ind} is out of range").format(ind=self.index)
             else:
                 fullpath = posixpath.join(self.group_index, item)
                 tensor = self._get_tensor_from_root(fullpath)
