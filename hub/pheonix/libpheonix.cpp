@@ -13,6 +13,8 @@
 
 #include <iostream>
 
+#include <chrono>
+#include <thread>
 
 template <typename Found>
 root_task Corofetch(int a, Found on_found) {
@@ -28,34 +30,30 @@ private:
   py::object ref; // keep a reference
   size_t index = 0;
   std::list<std::string> answer;
+  throttler t = throttler(10);
+  size_t found_count = 0;
 
 public:
-  PrefetchIterator(int requests_on_the_fly = 10){
+  PrefetchIterator(int requests_on_the_fly = 10, int calls = 10){
     //myCoroutineResult = myCoroutineFunction();
 
-    int calls = 100;
-    size_t found_count = 0;
     answer = std::list<std::string>();
 
-    throttler t(requests_on_the_fly);
-    std::cout << found_count << std::endl;
-
     for (int i = 1; i < calls; i++)
-      t.spawn(Corofetch(i, [&](auto x) {answer.push_back(x); found_count++; }));
-    t.run();
-
+      t.reg(Corofetch(i, [&](auto x) {answer.push_back(x); found_count++; }));
+    
     std::cout << "Prefetch iterator started!" << std::endl;
     std::cout << found_count << std::endl;
   }
 
   auto next(){
+    t.next();    
     if (index == answer.size())
       throw py::stop_iteration();
     auto var = answer.front();
     answer.pop_front();
     return py::bytes(var); //(myCoroutineResult.next());
   }
-
 };
 
 

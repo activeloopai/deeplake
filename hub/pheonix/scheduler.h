@@ -128,10 +128,10 @@ private:
 
 struct throttler {
   unsigned limit;
-
+  unsigned n_tasks = 0;
   explicit throttler(unsigned limit) : limit(limit) {}
 
-  void on_task_done() { ++limit; }
+  void on_task_done() { ++limit; --n_tasks;}
 
   void spawn(root_task t) {
     if (limit == 0)
@@ -144,6 +144,19 @@ struct throttler {
 
   void run() {
     scheduler.run();
+  }
+
+  void reg(root_task t) {
+    auto h = t.set_owner(this);
+    scheduler.push_back(h);
+    n_tasks++;
+  }
+
+  void next() {
+    if (n_tasks == 0){
+      return;
+    }
+    scheduler.pop_front().resume();
   }
 
   ~throttler() { run(); }
