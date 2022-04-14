@@ -267,6 +267,7 @@ class Dataset:
                 return self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
+            
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return self.__class__(
                 storage=self.storage,
