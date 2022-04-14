@@ -136,22 +136,6 @@ class RedisProvider:
 
     def __delitem__(self, name):
         self.delete(name)
-    
-    def get(self, name):
-        """
-        Return the value at key ``name``, or None if the key doesn't exist
-        """
-        return self.execute_command('GET', name)
-
-    def __getitem__(self, name):
-        """
-        Return the value at key ``name``, raises a KeyError if the key
-        doesn't exist.
-        """
-        value = self.get(name)
-        if value is not None:
-            return value
-        raise KeyError(name)
 
     def mget(self, keys, *args):
         """
