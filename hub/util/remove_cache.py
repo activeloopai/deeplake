@@ -1,8 +1,8 @@
 import hub
-from hub.util.dataset import try_flushing
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage import MemoryProvider
+from hub.constants import MB
 
 
 def remove_memory_cache(storage: StorageProvider):
@@ -39,5 +39,37 @@ def get_dataset_with_zero_size_cache(ds):
         verbose=False,
     )
     if ds.pending_commit_id != commit_id:
+        ds.checkout(commit_id)
+    return ds
+
+
+def create_read_copy_dataset(dataset, commit_id=None):
+    """Creates a read-only copy of the given dataset object, without copying underlying data.
+
+    Args:
+        dataset: The Dataset object to copy.
+        commit_id: The commit id to checkout the new read-only copy to.
+
+    Returns:
+        A new Dataset object in read-only mode.
+    """
+    base_storage = get_base_storage(dataset.storage)
+    if isinstance(base_storage, MemoryProvider):
+        new_storage = base_storage.copy()
+        new_storage.dict = base_storage.dict
+    else:
+        new_storage = base_storage.copy()
+    storage = LRUCache(MemoryProvider(), new_storage, 256 * MB)
+    ds = dataset.__class__(
+        storage,
+        index=dataset.index,
+        group_index=dataset.group_index,
+        read_only=True,
+        public=dataset.public,
+        token=dataset._token,
+        verbose=False,
+        path=dataset.path,
+    )
+    if commit_id is not None:
         ds.checkout(commit_id)
     return ds

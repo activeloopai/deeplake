@@ -11,6 +11,7 @@ from .common import (
 def create_dataloader_nesteddataloader(
     dataset,
     tensors,
+    tobytes,
     use_local_cache,
     transform,
     num_workers,
@@ -30,12 +31,11 @@ def create_dataloader_nesteddataloader(
         SubIterableDataset(
             dataset,
             tensors=tensors,
+            tobytes=tobytes,
             use_local_cache=use_local_cache,
             transform=transform,
             num_workers=num_workers,
             buffer_size=buffer_size,
-            batch_size=batch_size,
-            collate_fn=collate_fn,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
@@ -47,6 +47,7 @@ def create_dataloader_nesteddataloader(
 def create_dataloader_shufflingdataloader(
     dataset,
     tensors,
+    tobytes,
     use_local_cache,
     transform,
     num_workers,
@@ -66,6 +67,7 @@ def create_dataloader_shufflingdataloader(
         ShufflingIterableDataset(
             dataset,
             tensors=tensors,
+            tobytes=tobytes,
             use_local_cache=use_local_cache,
             transform=transform,
             num_workers=num_workers,
@@ -93,6 +95,7 @@ def dataset_to_pytorch(
     use_local_cache: bool,
     transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
+    tobytes: Union[bool, Sequence[str]] = False,
 ):
 
     import torch
@@ -116,6 +119,7 @@ def dataset_to_pytorch(
         return create_dataloader(
             dataset,
             tensors,
+            tobytes,
             use_local_cache,
             transform,
             num_workers,
@@ -130,6 +134,7 @@ def dataset_to_pytorch(
             TorchDataset(
                 dataset,
                 tensors=tensors,
+                tobytes=tobytes,
                 use_local_cache=use_local_cache,
                 transform=transform,
                 num_workers=num_workers,

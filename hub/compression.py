@@ -1,3 +1,6 @@
+import itertools
+
+
 """
 Supported compressions (formats):
 
@@ -39,6 +42,40 @@ IMAGE_COMPRESSIONS = [
     "xbm",
 ]
 
+IMAGE_COMPRESSION_EXT_DICT = {
+    "apng": [".png"],
+    "bmp": [".bmp"],
+    "dib": [".dib"],
+    "gif": [".gif"],
+    "ico": [".ico"],
+    "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
+    "jpeg2000": [
+        ".jp2",
+        ".j2k",
+        ".jpf",
+        ".jpm",
+        ".jpg2",
+        ".j2c",
+        ".jpc",
+        ".jpx",
+        ".mj2",
+    ],
+    "pcx": [".pcx"],
+    "png": [".png"],
+    "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
+    "sgi": [".sgi"],
+    "tga": [".tga"],
+    "tiff": [".tiff", ".tif"],
+    "webp": [".webp"],
+    "wmf": [".wmf"],
+    "xbm": [".xbm"],
+}
+
+
+IMAGE_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*IMAGE_COMPRESSION_EXT_DICT.values()))
+)
+
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
@@ -67,7 +104,9 @@ IMAGE_COMPRESSIONS = [
     c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
 
+
 IMAGE_COMPRESSIONS.insert(0, "apng")
+IMAGE_COMPRESSIONS.insert(2, "dcm")
 
 SUPPORTED_COMPRESSIONS = [
     *BYTE_COMPRESSIONS,

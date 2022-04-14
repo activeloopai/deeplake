@@ -30,6 +30,11 @@ def _extend_tensors(images, labels):
     labels.extend(np.ones(100, dtype=np.uint32))
 
 
+def _clear_tensors(images, labels):
+    images.clear()
+    labels.clear()
+
+
 def test_append(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
@@ -99,3 +104,13 @@ def test_extend_and_append(memory_ds):
     _assert_num_chunks(images, 20)
 
     assert len(ds) == 400
+
+
+def test_clear(memory_ds):
+    ds = memory_ds
+    images, labels = _create_tensors(ds)
+
+    _clear_tensors(images, labels)
+
+    _assert_num_chunks(labels, 0)
+    _assert_num_chunks(images, 0)

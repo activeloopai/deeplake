@@ -248,6 +248,10 @@ class IndexEntry:
         if isinstance(self.value, int):
             if self.value >= parent_length or self.value < -parent_length:
                 print(f"Index {self.value} out of range for tensor with length {parent_length}")
+            if self.value >= parent_length or self.value < -parent_length:
+                raise IndexError(
+                    f"Index {self.value} is out of range for tensors with length {parent_length}"
+                )
 
 
 class Index:
@@ -261,6 +265,8 @@ class Index:
         """
         if isinstance(item, Index):
             item = item.values
+        elif item in ((), [], None):
+            item = slice(None)
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
