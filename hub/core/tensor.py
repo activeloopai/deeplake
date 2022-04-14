@@ -439,6 +439,10 @@ class Tensor:
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
         is_iteration: bool = False,
     ):
+        index = hub.core.index.Index
+        length = len(self)
+        if(index > length):
+            raise IndexError("Index {ind} is out of range").format(ind=self.index)
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
         return Tensor(
