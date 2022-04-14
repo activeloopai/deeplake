@@ -15,6 +15,7 @@ load(name="pheonix_cpp",
 import pheonix_cpp
 
 # output = pheonix_cpp.simple_request(1)
-
+answers = []
 for el in pheonix_cpp.prefetch():
-    print(el)
+    answers.append(el)
+print("final number", len(answers))
