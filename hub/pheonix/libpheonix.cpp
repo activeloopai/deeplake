@@ -39,6 +39,7 @@ public:
 
     throttler t(requests_on_the_fly);
     std::cout << found_count << std::endl;
+
     for (int i = 1; i < calls; i++)
       t.spawn(Corofetch(i, [&](auto x) {answer.push_back(x); found_count++; }));
     t.run();
@@ -58,14 +59,22 @@ public:
 };
 
 /* 
-TODO
-1. [DONE] coroutine returns reference to pybytes
-2. [DONE] pybytes returned to iterator
-3. [todo] coroutines run async while iterator is running
-4. [todo] AWS requests are sent
-5. [todo] optimize reference passing
-6. [todo] add multithreading
-6. [tests] if requests are really async 
+TODO list
+1. [x] coroutine returns reference to pybytes
+2. [x] pybytes returned to iterator
+3. [ ] coroutines run async while iterator is running
+4. [ ] AWS requests are sent
+
+--- optimization land ---
+5. [ ] optimize end-to-end reference passing
+6. [ ] add multithreading
+
+--- phase II ---
+7. [ ] decompression
+8. [ ] cache layer
+9. [ ] parsing into tensor
+
+10. [tests] if requests are really async 
 */ 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {

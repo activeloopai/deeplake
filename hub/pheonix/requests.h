@@ -28,7 +28,7 @@ auto simple_request(int a) {
   // std::cout << readBuffer << std::endl;
 
   //co_return py::bytes(readBuffer);
-  return readBuffer; //py::bytes()
+  return std::move(readBuffer); //py::bytes()
 }
 
 // prefetch Awaitable
