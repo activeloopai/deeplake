@@ -35,3 +35,29 @@ example https://github.com/jgaa/asio-composed-blog/blob/main/echo-server.cpp
 
 
 
+### Roadmap
+
+TODO list
+--- Phase I ---
+1. [x] coroutine returns reference to pybytes
+2. [x] pybytes returned to iterator
+3. [ ] coroutines run async while iterator is running  - Davit
+4. [ ] AWS requests are sent - Davit
+5. [ ] Setup baseline benchmarks - Davit
+
+--- optimization land ---
+1. [ ] optimize end-to-end reference passing - Levon 
+2. [ ] add multithreading or switching to boost asio - Levon
+3. [ ] benchmark if presigned generated URLs are faster - Levon (talk to Sasun)
+4. [ ] range requests to AWS - Levon (talk to Sasun)
+
+--- phase II ---
+1. [ ] decompression - Levon
+2. [ ] cache layer - Abhinav
+3. [ ] parsing into tensor -
+4. [ ] custom shuffling order 
+
+--- phase III ---
+1. [ ] add transformations - Abhinav
+2. [ ] distributed training - Abhinav
+

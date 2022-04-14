@@ -58,24 +58,6 @@ public:
 
 };
 
-/* 
-TODO list
-1. [x] coroutine returns reference to pybytes
-2. [x] pybytes returned to iterator
-3. [ ] coroutines run async while iterator is running
-4. [ ] AWS requests are sent
-
---- optimization land ---
-5. [ ] optimize end-to-end reference passing
-6. [ ] add multithreading
-
---- phase II ---
-7. [ ] decompression
-8. [ ] cache layer
-9. [ ] parsing into tensor
-
-10. [tests] if requests are really async 
-*/ 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("simple_request", &simple_request, "simple request");
