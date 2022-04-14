@@ -246,10 +246,11 @@ class IndexEntry:
 
         # Check ints that are too large (positive or negative)
         if isinstance(self.value, int):
-            if self.value >= parent_length or self.value < -parent_length:
-                raise ValueError(
-                    f"Index {self.value} is out of range for tensors with length {parent_length}"
-                )
+            try:
+                if self.value >= parent_length or self.value < -parent_length:
+                    raise ValueError
+            except ValueError:
+                print(f"Index {self.value} out of range for tensor with length {parent_length}")
 
 
 class Index:
