@@ -329,13 +329,14 @@ class Encoder(ABC):
 
         self._can_combine_above = (
             self._has_above
-            and self._encoded[row_index - 1][-1] == local_sample_index - 1
+            and self._encoded[row_index - 1][LAST_SEEN_INDEX_COLUMN] + 1
+            == local_sample_index
             and self._combine_condition(item, row_index - 1)
         )
 
         self._can_combine_below = (
             self._has_below
-            and self._encoded[row_index][-1] == local_sample_index
+            and self._encoded[row_index][LAST_SEEN_INDEX_COLUMN] == local_sample_index
             and self._combine_condition(item, row_index + 1)
         )
 
