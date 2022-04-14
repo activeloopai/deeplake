@@ -35,15 +35,12 @@ private:
 
 public:
   PrefetchIterator(int requests_on_the_fly = 10, int calls = 10){
-    //myCoroutineResult = myCoroutineFunction();
 
     answer = std::list<std::string>();
-
     for (int i = 1; i < calls; i++)
       t.reg(Corofetch(i, [&](auto x) {answer.push_back(x); found_count++; }));
-    
+
     std::cout << "Prefetch iterator started!" << std::endl;
-    std::cout << found_count << std::endl;
   }
 
   auto next(){
@@ -52,7 +49,7 @@ public:
       throw py::stop_iteration();
     auto var = answer.front();
     answer.pop_front();
-    return py::bytes(var); //(myCoroutineResult.next());
+    return py::bytes(var);
   }
 };
 
