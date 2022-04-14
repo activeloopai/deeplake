@@ -240,7 +240,7 @@ class Dataset:
     ):
         if isinstance(item, str):
             index=self.index
-            length=len(item)
+            length=len(self)
             if(index > length):
                 raise IndexError("Index {ind} is out of range").format(ind=self.index)
             else:
