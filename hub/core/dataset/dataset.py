@@ -239,7 +239,9 @@ class Dataset:
         is_iteration: bool = False,
     ):
         if isinstance(item, str):
-            if(self.index > self.__len__):
+            index=self.index
+            length=len(item)
+            if(index > length):
                 raise IndexError("Index {ind} is out of range").format(ind=self.index)
             else:
                 fullpath = posixpath.join(self.group_index, item)
