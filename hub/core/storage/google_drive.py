@@ -110,8 +110,9 @@ class GDriveProvider(StorageProvider):
 
         creds = None
 
-        if os.path.exists("gdrive_token.json"):
-            creds = Credentials.from_authorized_user_file("gdrive_token.json", SCOPES)
+        GDRIVE_TOKEN = os.getenv("GDRIVE_TOKEN", "gdrive_token.json")
+        if os.path.exists(GDRIVE_TOKEN):
+            creds = Credentials.from_authorized_user_file(GDRIVE_TOKEN, SCOPES)
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
