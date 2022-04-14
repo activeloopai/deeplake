@@ -14,9 +14,9 @@ load(name="pheonix_cpp",
 
 import pheonix_cpp
 
-# output = pheonix_cpp.simple_request(1)
 answers = []
 for i, el in enumerate(pheonix_cpp.prefetch()):
     print(f'received it {i}')
     answers.append(el)
+    
 print("final number", len(answers))

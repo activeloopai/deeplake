@@ -41,7 +41,7 @@ TODO list
 --- Phase I ---
 1. [x] coroutine returns reference to pybytes
 2. [x] pybytes returned to iterator
-3. [ ] coroutines run async while iterator is running  - Davit
+3. [x] coroutines run async while iterator is running  - Davit
 4. [ ] AWS requests are sent - Davit
 5. [ ] Setup baseline benchmarks - Davit
 

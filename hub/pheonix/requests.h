@@ -16,7 +16,6 @@ auto simple_request(int a) {
 
   curl = curl_easy_init();
   auto URL = "http://localhost:8000";
-  //auto URL = "http://google.com";
   if (curl){
     curl_easy_setopt(curl, CURLOPT_URL, URL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -25,10 +24,7 @@ auto simple_request(int a) {
     curl_easy_cleanup(curl);
   }
 
-  // std::cout << readBuffer << std::endl;
-
-  //co_return py::bytes(readBuffer);
-  return std::move(readBuffer); //py::bytes()
+  return std::move(readBuffer);
 }
 
 // prefetch Awaitable
@@ -42,7 +38,6 @@ template <typename T> struct prefetch_Awaitable {
   std::string &await_resume() { return readBuffer; }
 
   template <typename Handle> auto await_suspend(Handle h) {
-    // std::cout << value << std::endl;
     readBuffer = simple_request(value);
     auto &q = scheduler;
     q.push_back(h);
