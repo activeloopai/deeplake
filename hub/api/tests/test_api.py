@@ -166,26 +166,30 @@ def test_larger_data_memory(memory_ds):
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
-def test_stringify(memory_ds):
+def test_stringify(memory_ds, capsys):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
 
+    ds.summary()
     assert (
-        str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
+    ds[1:2].summary()
     assert (
-        str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
     )
+    ds.image.summary()
     assert (
-        str(ds.image)
-        == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+        capsys.readouterr().out
+        == "Tensor(key='image')\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   \n"
     )
+    ds[1:2].image.summary()
     assert (
-        str(ds[1:2].image)
-        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+        capsys.readouterr().out
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (1, 4)    None     None   \n"
     )
 
 
@@ -201,20 +205,21 @@ def test_summary(memory_ds):
     )
     assert (
         summary_tensor(ds.abc)
-        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   "
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   "
     )
     assert (
         summary_tensor(ds.images)
-        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n images    image    (0,)     int32    jpeg   "
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n  image    (0,)     int32    jpeg   "
     )
 
 
-def test_stringify_with_path(local_ds):
+def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
+    ds.summary()
     assert (
-        str(ds)
-        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- "
+        capsys.readouterr().out
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n"
     )
 
 

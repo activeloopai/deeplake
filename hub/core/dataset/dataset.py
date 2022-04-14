@@ -1393,10 +1393,13 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-    def __str__(self):
-
+    def summary(self):
         pretty_print = summary_dataset(self)
 
+        print(self)
+        print(pretty_print)
+
+    def __str__(self):
         path_str = ""
         if self.path:
             path_str = f"path='{self.path}', "
@@ -1413,11 +1416,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return (
-            f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
-            + "\n"
-            + pretty_print
-        )
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
 
     __repr__ = __str__
 
