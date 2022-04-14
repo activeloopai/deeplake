@@ -12,20 +12,14 @@
 #include <requests.h>
 
 #include <iostream>
-// #include <boost/asio.hpp>
-// #include <boost/thread/thread.hpp>
-// #include <boost/bind/bind.hpp>
-
-
 
 
 template <typename Found>
-root_task Corofetch(Found on_found) {
-  int a = 5;
+root_task Corofetch(int a, Found on_found) {
   auto x = co_await prefetch(a);
+  //std::cout << x << std::endl;
   co_return on_found(x); // add to the stack
 }
-
 
 
 class PrefetchIterator{
@@ -34,38 +28,45 @@ private:
   std::vector<int> v;
   py::object ref; // keep a reference
   size_t index = 0;
+  std::list<std::string> answer;
 
 public:
   PrefetchIterator(){
     //myCoroutineResult = myCoroutineFunction();
-    v = {1, 2, 3};
-    // boost::asio::io_context io;
-    // boost::asio::steady_timer t(io, boost::asio::chrono::seconds(5));
-    
-    //boost::thread t(boost::bind(&boost::asio::io_context::run, &io));
-    // io.run();
-    int streams = 1000;
-    int calls = 10000;
-    size_t found_count = 0;
 
-    throttler t(streams);
-    
+    int requests_on_the_fly = 10;
+    int calls = 100;
+    size_t found_count = 0;
+    answer = std::list<std::string>();
+
+    throttler t(requests_on_the_fly);
     std::cout << found_count << std::endl;
     for (int i = 1; i < calls; i++)
-      t.spawn(Corofetch([&](auto) { ++found_count; }));
+      t.spawn(Corofetch(i, [&](auto x) {answer.push_back(x); found_count++; }));
     t.run();
 
     std::cout << "Prefetch iterator started!" << std::endl;
     std::cout << found_count << std::endl;
   }
 
-  int next(){
-    if (index == v.size())
-      throw py::stop_iteration(); // Great
-    return v[index++]; //(myCoroutineResult.next());
+  auto next(){
+    if (index == answer.size())
+      throw py::stop_iteration();
+    auto var = answer.front();
+    answer.pop_front();
+    return py::bytes(var); //(myCoroutineResult.next());
   }
 
 };
+
+/* 
+TODO
+1. [todo] coroutine returns reference to pybytes
+2. [todo] coroutines run async while iterator is running
+3. [todo] pybytes returned to iterator
+4. [todo] AWS requests are sent
+5. [tests] if requests are really async 
+*/ 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("simple_request", &simple_request, "simple request");
