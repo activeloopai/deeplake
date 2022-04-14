@@ -239,11 +239,9 @@ class Dataset:
         is_iteration: bool = False,
     ):
         if isinstance(item, str):
-<<<<<<< HEAD
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
             if tensor is not None:
-=======
             index=self.index
             length=len(self)
             if(index > length):
@@ -252,7 +250,6 @@ class Dataset:
                 fullpath = posixpath.join(self.group_index, item)
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
->>>>>>> 85aacb8324f88c14efd0938b566f5c0e8f1819f5
                     return tensor[self.index]
             elif self._has_group_in_root(fullpath):
                 return self.__class__(
