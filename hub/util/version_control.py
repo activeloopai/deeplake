@@ -162,7 +162,7 @@ def checkout(
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
-        auto_commit(dataset, address)
+        auto_commit(dataset, f"auto commit before checkout to {address}")
         if hash:
             if hash in version_state["commit_node_map"]:
                 raise CommitError(f"Commit {hash} already exists")
@@ -406,7 +406,7 @@ def auto_checkout(dataset) -> bool:
     return False
 
 
-def auto_commit(dataset, address: str) -> None:
+def auto_commit(dataset, message: str) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has changes."""
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
@@ -424,7 +424,7 @@ def auto_commit(dataset, address: str) -> None:
     logger.info(
         f"Auto commiting to branch '{branch}' before checkout as currently at head node."
     )
-    commit(dataset, f"auto commit before checkout to {address}")
+    commit(dataset, message)
     checkout(dataset, original_commit_id, False)
 
 

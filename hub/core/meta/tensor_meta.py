@@ -1,6 +1,6 @@
 import hub
 from hub.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Union, Optional
 import numpy as np
 from hub.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -10,6 +10,7 @@ from hub.util.exceptions import (
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
+    InvalidTensorLinkError,
 )
 from hub.util.json import validate_json_schema
 from hub.constants import (
@@ -26,9 +27,11 @@ from hub.compression import (
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
     DEFAULT_HTYPE,
+    HTYPE_SUPPORTED_COMPRESSIONS,
 )
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
+from hub.core.tensor_link import get_link_transform
 
 
 class TensorMeta(Meta):
@@ -41,6 +44,7 @@ class TensorMeta(Meta):
     chunk_compression: str
     max_chunk_size: int
     hidden: bool
+    links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
 
     def __init__(
@@ -65,6 +69,19 @@ class TensorMeta(Meta):
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
             self.htype = None  # type: ignore
+
+    def add_link(
+        self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool
+    ):
+        link = {
+            "append": append_f,
+            "flatten_sequence": flatten_sequence,
+        }
+        if update_f is not None:
+            link["update"] = update_f
+        _validate_links({"name": link})
+        self.links[name] = link  # type: ignore
+        self.is_dirty = True
 
     def set_hidden(self, val: bool):
         ffw_tensor_meta(self)
@@ -122,6 +139,9 @@ class TensorMeta(Meta):
 
         self.__dict__.update(required_meta)
         self.is_dirty = True
+        if self.links is None:
+            self.links = {}
+        _validate_links(self.links)
 
     def update_shape_interval(self, shape: Sequence[int]):
         ffw_tensor_meta(self)
@@ -183,6 +203,39 @@ class TensorMeta(Meta):
         return str(self.__getstate__())
 
 
+def _validate_links(links: dict):
+    if not isinstance(links, dict):
+        raise InvalidTensorLinkError()
+    allowed_keys = ("append", "update", "flatten_sequence")
+    for out_tensor, args in links.items():
+        if not isinstance(out_tensor, str):
+            raise InvalidTensorLinkError()
+        if not isinstance(args, dict):
+            raise InvalidTensorLinkError()
+        if "append" not in args:
+            raise InvalidTensorLinkError(
+                f"append transform not specified for link {out_tensor}"
+            )
+        if "flatten_sequence" not in args:
+            raise InvalidTensorLinkError(
+                f"flatten_sequence arg not specified for link {out_tensor}"
+            )
+        try:
+            get_link_transform(args["append"])
+        except KeyError:
+            raise InvalidTensorLinkError(f"Invalid append transform: {args['append']}")
+        if "update" in args:
+            try:
+                get_link_transform(args["update"])
+            except KeyError:
+                raise InvalidTensorLinkError(
+                    f"Invalid update transform: {args['append']}"
+                )
+        for k in args:
+            if k not in allowed_keys:
+                raise InvalidTensorLinkError(f"Invalid key in link meta: {k}")
+
+
 def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
 
@@ -194,6 +247,7 @@ def _required_meta_from_htype(htype: str) -> dict:
         "min_shape": [],
         "max_shape": [],
         "length": 0,
+        "hidden": False,
         **defaults,
     }
 
@@ -213,51 +267,28 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
-    if (
-        htype == "image"
-        and htype_overwrite["chunk_compression"] == UNSPECIFIED
-        and htype_overwrite["sample_compression"] == UNSPECIFIED
-    ):
+    sc = htype_overwrite["sample_compression"]
+    cc = htype_overwrite["chunk_compression"]
+    compr = sc if cc in (None, UNSPECIFIED) else cc
+    if htype == "image" and sc == UNSPECIFIED and cc == UNSPECIFIED:
         raise TensorMetaMissingRequiredValue(
             htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
-
-    if htype in ("json", "list", "text"):
-        compr = htype_overwrite["chunk_compression"]
-        if compr in (None, UNSPECIFIED):
-            compr = htype_overwrite["sample_compression"]
-        if compr not in (None, UNSPECIFIED):
-            if get_compression_type(compr) != BYTE_COMPRESSION:
-                raise UnsupportedCompressionError(compr, htype)
-    elif htype == "audio":
-        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
+    if htype in ("audio", "video"):
+        if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
-        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
+        elif sc == UNSPECIFIED:
             raise TensorMetaMissingRequiredValue(
                 htype, "sample_compression"  # type: ignore
             )
-        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
-            None,
-            AUDIO_COMPRESSION,
-        ):
-            raise UnsupportedCompressionError(
-                htype_overwrite["sample_compression"], htype="audio"
-            )
-
-    if htype == "video":
-        if htype_overwrite["chunk_compression"] not in [UNSPECIFIED, None]:
-            raise UnsupportedCompressionError("Chunk compression", htype=htype)
-        elif htype_overwrite["sample_compression"] == UNSPECIFIED:
-            raise TensorMetaMissingRequiredValue(
-                htype, "sample compression"  # type: ignore
-            )
-        elif get_compression_type(htype_overwrite["sample_compression"]) not in (
-            None,
-            VIDEO_COMPRESSION,
-        ):
-            raise UnsupportedCompressionError(
-                htype_overwrite["sample_compression"], htype="video"
-            )
+    supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+    if (
+        compr
+        and compr != UNSPECIFIED
+        and supported_compressions
+        and compr not in supported_compressions
+    ):
+        raise UnsupportedCompressionError(compr, htype=htype)
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):

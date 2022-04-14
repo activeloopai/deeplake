@@ -4,6 +4,9 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _open_video,
+    _read_metadata_from_vstream,
+    _read_audio_meta,
 )
 from hub.compression import (
     get_compression_type,
@@ -22,6 +25,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
+from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from urllib.request import urlopen
@@ -110,10 +114,10 @@ class Sample:
 
     @property
     def dtype(self):
-        if self._dtype:
-            return self._dtype
-        self._read_meta()
-        return np.dtype(self._typestr).name
+        if self._dtype is None:
+            self._read_meta()
+            self._dtype = np.dtype(self._typestr).name
+        return self._dtype
 
     @property
     def shape(self):
@@ -125,6 +129,23 @@ class Sample:
         if self._compression is None and self.path:
             self._read_meta()
         return self._compression
+
+    def _load_dicom(self):
+        if self._array is not None:
+            return
+        try:
+            from pydicom import dcmread
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+        self._array = dcm.pixel_array
+        self._shape = self._array.shape
+        self._typestr = self._array.__array_interface__["typestr"]
 
     def _read_meta(self, f=None):
         if self._shape is not None:
@@ -147,6 +168,55 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def _get_dicom_meta(self) -> dict:
+        try:
+            from pydicom import dcmread
+            from pydicom.dataelem import RawDataElement
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+
+        meta = {
+            x.keyword: {
+                "name": x.name,
+                "tag": str(x.tag),
+                "value": x.value
+                if isinstance(x.value, (str, int, float))
+                else x.to_json_dict(None, None).get("Value", ""),  # type: ignore
+                "vr": x.VR,
+            }
+            for x in dcm
+            if not isinstance(x.value, bytes)
+        }
+        return meta
+
+    def _get_video_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            container, vstream = _open_video(self.path)
+        else:
+            container, vstream = _open_video(self.buffer)
+        _, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"duration": duration, "fps": fps, "timebase": timebase}
+
+    def _get_audio_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_audio_meta(self.path, self.compression)
+        else:
+            info = _read_audio_meta(self.buffer, self.compression)
+        return {
+            "nchannels": info["nchannels"],
+            "sample_rate": info["sample_rate"],
+            "sample_format": info["sample_format_name"],
+            "sample_width": info["sample_width"],
+            "num_frames": info["num_frames"],
+            "duration": info["duration"],
+        }
 
     @property
     def is_lazy(self) -> bool:
@@ -218,13 +288,20 @@ class Sample:
         """Returns uncompressed bytes."""
 
         if self._uncompressed_bytes is None:
+            if self._array is not None:
+                self._uncompressed_bytes = self._array.tobytes()
+                return self._uncompressed_bytes
             if self.path is not None:
                 compr = self._compression
                 if compr is None:
                     compr = get_compression(path=self.path)
-                if get_compression_type(compr) in (
-                    AUDIO_COMPRESSION,
-                    VIDEO_COMPRESSION,
+                if (
+                    get_compression_type(compr)
+                    in (
+                        AUDIO_COMPRESSION,
+                        VIDEO_COMPRESSION,
+                    )
+                    or compr == "dcm"
                 ):
                     self._compression = compr
                     if self._array is None:
@@ -353,6 +430,35 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
+
+    def _getexif(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            img = Image.open(self.path)
+        else:
+            img = Image.open(BytesIO(self.buffer))
+        return {
+            TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
+            for k, v in img.getexif().items()
+        }
+
+    @property
+    def meta(self) -> dict:
+        meta: Dict[str, Union[Dict, str]] = {}
+        compression = self.compression
+        compression_type = get_compression_type(compression)
+        if compression == "dcm":
+            meta.update(self._get_dicom_meta())
+        elif compression_type == IMAGE_COMPRESSION:
+            meta["exif"] = self._getexif()
+        elif compression_type == VIDEO_COMPRESSION:
+            meta.update(self._get_video_meta())
+        elif compression_type == AUDIO_COMPRESSION:
+            meta.update(self._get_audio_meta())
+        meta["shape"] = self.shape
+        meta["format"] = self.compression
+        if self.path:
+            meta["filename"] = str(self.path)
+        return meta
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
