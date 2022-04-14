@@ -263,8 +263,7 @@ class Index:
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
-        elif item in ((), [], None):
-            item = slice(None)
+            
         self.values: List[IndexEntry] = item
 
     def find_axis(self, offset: int = 0):
