@@ -1,6 +1,7 @@
 from random import sample
 import hub
 import numpy as np
+from tqdm import tqdm  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
 from hub.core.tensor_link import get_link_transform
@@ -557,6 +558,7 @@ class ChunkEngine:
         start_chunk: Optional[BaseChunk] = None,
         register: bool = True,
         update_commit_diff: bool = False,
+        progressbar: bool = False,
     ):
         current_chunk = start_chunk
         updated_chunks = []
@@ -568,6 +570,8 @@ class ChunkEngine:
         nsamples = len(samples)
         if register and update_commit_diff:
             commit_diff = self.commit_diff
+        if progressbar:
+            pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
             if num_samples_added == 0:
@@ -600,17 +604,34 @@ class ChunkEngine:
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
+            if progressbar:
+                pbar.update(num_samples_added)
+        if progressbar:
+            pbar.close()
         if register:
             return updated_chunks
         return updated_chunks, tiles
 
-    def _extend(self, samples, update_commit_diff=True):
+    def _extend(self, samples, progressbar, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
-            for sample in samples:
-                self._extend(
-                    [sample], update_commit_diff=update_commit_diff
-                )  # TODO optimize this
-            return
+            if progressbar:
+                with tqdm(total=len(samples)) as pbar:
+                    for sample in samples:
+                        self._extend(
+                            [sample],
+                            update_commit_diff=update_commit_diff,
+                            progressbar=False,
+                        )  # TODO optimize this
+                        pbar.update(1)
+                    return
+            else:
+                for sample in samples:
+                    self._extend(
+                        [sample],
+                        update_commit_diff=update_commit_diff,
+                        progressbar=False,
+                    )  # TODO optimize this
+                return
         if len(samples) == 0:
             return
         samples = self._sanitize_samples(samples)
@@ -618,25 +639,42 @@ class ChunkEngine:
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
+            progressbar=progressbar,
             update_commit_diff=update_commit_diff,
         )
 
-    def extend(self, samples, link_callback: Optional[Callable] = None):
+    def extend(
+        self, samples, progressbar=False, link_callback: Optional[Callable] = None
+    ):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
         if self.is_sequence:
-            for sample in samples:
-                self._extend(sample, update_commit_diff=False)
-                self.sequence_encoder.register_samples(len(sample), 1)
-                self.commit_diff.add_data(1)
-                if link_callback:
-                    link_callback(sample, flat=False)
-                    for s in sample:
-                        link_callback(s, flat=True)
+            if progressbar:
+                with tqdm(total=len(samples)) as pbar:
+                    for sample in samples:
+                        self._extend(
+                            sample, progressbar=False, update_commit_diff=False
+                        )
+                        self.sequence_encoder.register_samples(len(sample), 1)
+                        self.commit_diff.add_data(1)
+                        if link_callback:
+                            link_callback(sample, flat=False)
+                            for s in sample:
+                                link_callback(s, flat=True)
+                        pbar.update(1)
+            else:
+                for sample in samples:
+                    self._extend(sample, progressbar=False, update_commit_diff=False)
+                    self.sequence_encoder.register_samples(len(sample), 1)
+                    self.commit_diff.add_data(1)
+                    if link_callback:
+                        link_callback(sample, flat=False)
+                        for s in sample:
+                            link_callback(s, flat=True)
         else:
-            self._extend(samples)
+            self._extend(samples, progressbar=progressbar)
             if link_callback:
                 for sample in samples:
                     link_callback(sample, flat=None)
