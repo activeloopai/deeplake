@@ -27,10 +27,13 @@ BYTE_COMPRESSIONS = [
 IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
+    "eps",
     "gif",
     "ico",
+    "im",
     "jpeg",
     "jpeg2000",
+    "msp",
     "pcx",
     "png",
     "ppm",
@@ -45,9 +48,11 @@ IMAGE_COMPRESSIONS = [
 IMAGE_COMPRESSION_EXT_DICT = {
     "apng": [".png"],
     "bmp": [".bmp"],
+    "eps": [".eps"],
     "dib": [".dib"],
     "gif": [".gif"],
     "ico": [".ico"],
+    "im": [".im"],
     "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
     "jpeg2000": [
         ".jp2",
@@ -60,6 +65,7 @@ IMAGE_COMPRESSION_EXT_DICT = {
         ".jpx",
         ".mj2",
     ],
+    "msp": [".msp"],
     "pcx": [".pcx"],
     "png": [".png"],
     "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
@@ -80,12 +86,14 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
+READ_COMPRESSIONS = ["palm", "pdf"]
 
 # Just constants
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
 VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
+READ_COMPRESSION = "read"
 
 
 COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION, AUDIO_COMPRESSION]
@@ -96,6 +104,7 @@ COMPRESSION_TYPES = [
     IMAGE_COMPRESSION,
     AUDIO_COMPRESSION,
     VIDEO_COMPRESSION,
+    READ_COMPRESSION
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -113,6 +122,7 @@ SUPPORTED_COMPRESSIONS = [
     *IMAGE_COMPRESSIONS,
     *AUDIO_COMPRESSIONS,
     *VIDEO_COMPRESSIONS,
+    *READ_COMPRESSIONS
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -133,6 +143,8 @@ for c in VIDEO_COMPRESSIONS:
     _compression_types[c] = VIDEO_COMPRESSION
 for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
+for c in READ_COMPRESSIONS:
+    _compression_types[c] = READ_COMPRESSION
 
 
 def get_compression_type(c):
