@@ -3,7 +3,7 @@ import sys
 
 def is_notebook():
     try:
-        from IPython import get_ipython
+        from IPython import get_ipython  # type: ignore
 
         if get_ipython() is None:
             return False
@@ -27,7 +27,7 @@ def is_colab():
 
 
 def video_html(src, alt):
-    import IPython
+    import IPython  # type: ignore
 
     html = f"""<video alt="{alt}" width=500 controls autoplay seek loop>
                     <source src="{src}" type="video/mp4">

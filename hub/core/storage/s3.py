@@ -5,7 +5,7 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
@@ -124,7 +124,7 @@ class S3Provider(StorageProvider):
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         sd = self.__class__(
@@ -545,7 +545,7 @@ class S3Provider(StorageProvider):
         if url is None:
             if self._is_hub_path:
                 client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 url = self.client.generate_presigned_url(

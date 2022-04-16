@@ -61,7 +61,7 @@ class _Visualizer:
             return s.server_address[1]
 
     def is_server_running(self) -> bool:
-        return _SERVER_THREAD and _SERVER_THREAD.is_alive()
+        return (_SERVER_THREAD is not None) and _SERVER_THREAD.is_alive()
 
     def start_server(self):
         global _SERVER_THREAD

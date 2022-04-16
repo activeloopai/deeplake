@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 try:
     from google.cloud import storage  # type: ignore
@@ -226,6 +226,7 @@ class GCSProvider(StorageProvider):
             )
         self.root = root
         self.token: Union[str, Dict, None] = token
+        self.tag: Optional[str] = None
         self.project = project
         self.missing_exceptions = (
             FileNotFoundError,
@@ -235,7 +236,7 @@ class GCSProvider(StorageProvider):
             NotFound,
         )
         self._initialize_provider()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         return self.__class__(
@@ -404,8 +405,8 @@ class GCSProvider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                client = HubBackendClient(self.token)  # type: ignore
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 blob = self.client_bucket.get_blob(self._get_path_from_key(key))

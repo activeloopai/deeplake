@@ -1,6 +1,6 @@
 # Streams video from a chunk
 
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple
 from flask import Flask, request, Response
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.storage import StorageProvider
@@ -93,7 +93,7 @@ class _VideoStream:
 
         def _read(n: int) -> bytes:
             o = offset["value"]
-            ret = self.storage.read_partial(self.chunk_key, o, o + n)
+            ret = self.storage.get_bytes(self.chunk_key, o, o + n)
             offset["value"] += n
             return ret
 
@@ -113,7 +113,9 @@ class _VideoStream:
         self.header_size = 13 + n_ver + sh_enc_size + bp_enc_size
         self.chunk_size = self.storage.get_object_size(self.chunk_key)
 
-    def read(self, index: int, start_byte, end_byte) -> bytes:
+    def read(
+        self, index: int, start_byte: int, end_byte: int
+    ) -> Tuple[bytes, int, int, int]:
         ret_start = start_byte
         sample_start_index, sample_end_index = self.byte_positions_encoder[index]
         offset = self.header_size + sample_start_index
@@ -132,7 +134,7 @@ class _VideoStream:
         chunk_size = min(chunk_size, _VIDEO_STREAM_CHUNK_SIZE)
         end_byte = start_byte + chunk_size
 
-        byts = bytes(self.storage.read_partial(self.chunk_key, start_byte, end_byte))
+        byts = bytes(self.storage.get_bytes(self.chunk_key, start_byte, end_byte))
         return byts, ret_start, len(byts), sample_end_index - sample_start_index
 
 
@@ -142,7 +144,7 @@ def _get_free_port():
 
 
 def _is_server_running() -> bool:
-    return _SERVER_THREAD and _SERVER_THREAD.is_alive()
+    return (_SERVER_THREAD is not None) and _SERVER_THREAD.is_alive()
 
 
 def _run_app():

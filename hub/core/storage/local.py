@@ -217,7 +217,7 @@ class LocalProvider(StorageProvider):
         return os.path.join(self.root, key)
 
     def get_object_size(self, key: str) -> int:
-        return os.stat(os.path.join(self.path, key)).st_size
+        return os.stat(os.path.join(self.root, key)).st_size
 
     def get_bytes(
         self,
