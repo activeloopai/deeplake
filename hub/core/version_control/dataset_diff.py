@@ -16,8 +16,8 @@ class DatasetDiff(HubMemoryObject):
         """
         return b"".join(
             [
-                self.info_updated.to_bytes(1, "big"),  # TODO: add other fields
-            ]
+                self.info_updated.to_bytes(1, "big"),
+            ]  # TODO: add other fields
         )
 
     @classmethod
