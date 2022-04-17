@@ -1,4 +1,6 @@
-from hub.core.index import merge_slices, slice_at_int
+import unittest
+from wsgiref import validate
+from hub.core.index import merge_slices, slice_at_int, IndexEntry
 from pytest_cases import parametrize_with_cases  # type: ignore
 import pytest
 
@@ -52,3 +54,14 @@ def test_slice_at_int():
 
     with pytest.raises(NotImplementedError):
         slice_at_int(slice(2, 6, 2), -3)
+
+class TestIndexEntry(unittest.TestCase):
+    def test_validate(self):
+        c = IndexEntry()
+        c.value = 8
+        with self.assertRaises(IndexError) as exception_context:
+            c.validate(7)
+        self.assertEqual(
+            str(exception_context.exception),
+            "Index 8 out of range for tensor with length 7"
+        )
