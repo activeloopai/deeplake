@@ -260,10 +260,12 @@ class Index:
         """
         if isinstance(item, Index):
             item = item.values
+        elif item in ((), [], None):
+            item = slice(None)
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
-            
+
         self.values: List[IndexEntry] = item
 
     def find_axis(self, offset: int = 0):
