@@ -103,7 +103,8 @@ def _get_visualizer_backend_url():
 
 
 def visualize(
-    storage: StorageProvider,
+    ds: Union[StorageProvider, str],
+    token: Union[str, None] = None,
     width: Union[int, str, None] = None,
     height: Union[int, str, None] = None,
 ):
@@ -111,14 +112,20 @@ def visualize(
     Visualizes the given dataset in the Jupyter notebook.
 
     Args:
-        storage: StorageProvider The storage of the dataset.
+        ds: StorageProvider The storage of the dataset.
+        token: Union[str, None] Optional token to use in the backend call.
         width: Union[int, str, None] Optional width of the visualizer canvas.
         height: Union[int, str, None] Optional height of the visualizer canvas.
     """
-    id = visualizer.add(storage)
-    url = f"http://localhost:{visualizer.port}/{id}/"
+    if isinstance(ds, StorageProvider):
+        id = visualizer.add(ds)
+        params = f"url=http://localhost:{visualizer.port}/{id}/"
+    elif token is None:
+        params = f"url={ds}"
+    else:
+        params = f"url={ds}&token={token}"
     iframe = IFrame(
-        f"{_get_visualizer_backend_url()}/visualizer/hub?url={url}",
+        f"{_get_visualizer_backend_url()}/visualizer/hub?{params}",
         width=width or "100%",
         height=height or 900,
     )

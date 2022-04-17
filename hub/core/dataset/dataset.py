@@ -2109,10 +2109,23 @@ class Dataset:
         Args:
             width: Union[int, str, None] Optional width of the visualizer canvas.
             height: Union[int, str, None] Optional height of the visualizer canvas.
+
+        Raises:
+            Exception: If a dataset is not hub cloud dataset and the visualization happens in colab.
         """
         from hub.visualizer import visualize
 
-        visualize(self.storage, width=width, height=height)
+        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        try:
+            import google.colab
+
+            colab = True
+        except:
+            colab = False
+        if colab:
+            raise Exception("Cannot visualize local dataset in Colab.")
+        else:
+            visualize(self.storage, width=width, height=height)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
