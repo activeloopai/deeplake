@@ -66,7 +66,7 @@ def storage_provider_from_path(
     elif path.startswith("gcp://") or path.startswith("gcs://"):
         storage = GCSProvider(path, creds)
     elif path.startswith("gdrive://"):
-        storage = GDriveProvider(path)
+        storage = GDriveProvider(path, creds)
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):

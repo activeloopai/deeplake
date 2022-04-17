@@ -21,6 +21,9 @@ from hub.constants import (
     S3_PATH_OPT,
     GDRIVE_PATH_OPT,
     ENV_GOOGLE_APPLICATION_CREDENTIALS,
+    ENV_GDRIVE_CLIENT_ID,
+    ENV_GDRIVE_CLIENT_SECRET,
+    ENV_GDRIVE_REFRESH_TOKEN,
 )
 import posixpath
 from hub.tests.common import (
@@ -241,6 +244,19 @@ def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
 
 
+@pytest.fixture(scope="session")
+def gdrive_creds():
+    client_id = os.environ.get(ENV_GDRIVE_CLIENT_ID)
+    client_secret = os.environ.get(ENV_GDRIVE_CLIENT_SECRET)
+    refresh_token = os.environ.get(ENV_GDRIVE_REFRESH_TOKEN)
+    creds = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+    }
+    return creds
+
+
 @pytest.fixture
 def gcs_path(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
@@ -268,18 +284,18 @@ def gcs_vstream_path(request):
 
 
 @pytest.fixture
-def gdrive_path(request):
+def gdrive_path(request, gdrive_creds):
     if not is_opt_true(request, GDRIVE_OPT):
         pytest.skip()
         return
 
     path = _get_storage_path(request, GDRIVE, with_current_test_name=False)
-    GDriveProvider(path).clear()
+    GDriveProvider(path, token=gdrive_creds).clear()
 
     yield path
 
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        GDriveProvider(path).clear()
+        GDriveProvider(path, token=gdrive_creds).clear()
 
 
 @pytest.fixture

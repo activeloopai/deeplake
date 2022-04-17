@@ -93,7 +93,7 @@ class GoogleDriveIDManager:
 class GDriveProvider(StorageProvider):
     """Provider class for using Google Drive storage."""
 
-    def __init__(self, root):
+    def __init__(self, root, token=None):
         """Initializes the GDriveProvider
 
         Example:
@@ -103,16 +103,21 @@ class GDriveProvider(StorageProvider):
             root(str): The root of the provider. All read/write request keys will be appended to root.
 
         Note:
-            - Requires `client_secrets.json` in working directory.
+            - Requires `client_secrets.json` in working directory if `token` is not provided.
             - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
             - Users can request to increse their quotas on their google cloud platform.
         """
 
         creds = None
 
-        GDRIVE_TOKEN = os.getenv("GDRIVE_TOKEN", "gdrive_token.json")
-        if os.path.exists(GDRIVE_TOKEN):
-            creds = Credentials.from_authorized_user_file(GDRIVE_TOKEN, SCOPES)
+        if token is None:
+            token = "gdrive_token.json"
+
+        if isinstance(token, str):
+            if os.path.exists(token):
+                creds = Credentials.from_authorized_user_file(token, SCOPES)
+        elif isinstance(token, dict):
+            creds = Credentials.from_authorized_user_info(token, SCOPES)
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -262,10 +267,12 @@ class GDriveProvider(StorageProvider):
     def __len__(self):
         return len(self._all_keys())
 
-    def clear(self):
+    def clear(self, prefix=""):
         for key in self._all_keys():
-            try:
-                del self[key]
-            except:
-                pass
-        self._delete_file(self.gid.find_id(self.root_path))
+            if key.startswith(prefix):
+                try:
+                    del self[key]
+                except:
+                    pass
+        if not prefix:
+            self._delete_file(self.gid.find_id(self.root_path))

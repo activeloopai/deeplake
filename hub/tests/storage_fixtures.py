@@ -56,8 +56,8 @@ def s3_storage(s3_path):
 
 
 @pytest.fixture
-def gdrive_storage(gdrive_path):
-    return GDriveProvider(gdrive_path)
+def gdrive_storage(gdrive_path, gdrive_creds):
+    return GDriveProvider(gdrive_path, token=gdrive_creds)
 
 
 @pytest.fixture

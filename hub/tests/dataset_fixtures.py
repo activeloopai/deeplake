@@ -73,9 +73,9 @@ def gdrive_ds(gdrive_ds_generator):
 
 
 @pytest.fixture
-def gdrive_ds_generator(gdrive_path):
+def gdrive_ds_generator(gdrive_path, gdrive_creds):
     def generate_gdrive_ds():
-        return hub.dataset(gdrive_path)
+        return hub.dataset(gdrive_path, creds=gdrive_creds)
 
     return generate_gdrive_ds
 
