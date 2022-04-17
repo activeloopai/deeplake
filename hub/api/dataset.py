@@ -1,6 +1,6 @@
 import os
 import hub
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
@@ -41,7 +41,7 @@ class dataset:
         public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
-        creds: Optional[Union[dict, str]] = None,
+        creds: Optional[Union[Dict, str]] = None,
         token: Optional[str] = None,
         verbose: bool = True,
     ):

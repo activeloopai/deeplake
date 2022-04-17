@@ -13,7 +13,7 @@ from google.oauth2.credentials import Credentials  # type: ignore
 from io import BytesIO
 import posixpath
 import pickle
-from typing import Dict
+from typing import Dict, Optional, Union
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -93,7 +93,7 @@ class GoogleDriveIDManager:
 class GDriveProvider(StorageProvider):
     """Provider class for using Google Drive storage."""
 
-    def __init__(self, root, token=None):
+    def __init__(self, root: str, token: Optional[Union[str, Dict]] = None):
         """Initializes the GDriveProvider
 
         Example:
@@ -101,6 +101,7 @@ class GDriveProvider(StorageProvider):
 
         Args:
             root(str): The root of the provider. All read/write request keys will be appended to root.
+            token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
 
         Note:
             - Requires `client_secrets.json` in working directory if `token` is not provided.
@@ -148,8 +149,8 @@ class GDriveProvider(StorageProvider):
                     )
                 creds = flow.run_local_server(port=0)
 
-            with open("gdrive_token.json", "w") as token:
-                token.write(creds.to_json())
+            with open("gdrive_token.json", "w") as token_file:
+                token_file.write(creds.to_json())
 
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root = root
