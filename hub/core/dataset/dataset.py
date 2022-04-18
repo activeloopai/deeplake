@@ -2118,9 +2118,8 @@ class Dataset:
         hub_reporter.feature_report(feature_name="visualize", parameters={})
         try:
             import google.colab
-
             colab = True
-        except:
+        except Exception:
             colab = False
         if colab:
             raise Exception("Cannot visualize local dataset in Colab.")
