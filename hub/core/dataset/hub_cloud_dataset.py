@@ -269,4 +269,4 @@ class HubCloudDataset(Dataset):
         from hub.visualizer import visualize
 
         hub_reporter.feature_report(feature_name="visualize", parameters={})
-        visualize(self.path, self.token)
+        visualize(self.path, self.token, width=width, height=height)

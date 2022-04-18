@@ -2118,6 +2118,7 @@ class Dataset:
         hub_reporter.feature_report(feature_name="visualize", parameters={})
         try:
             import google.colab
+
             colab = True
         except Exception:
             colab = False
