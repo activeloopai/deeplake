@@ -806,12 +806,12 @@ class Tensor:
             warnings.warn(
                 "Sub indexes to video sample will be ignored while streaming."
             )
-        if is_jupyter():
+        if is_colab():
+            raise NotImplementedError("Video streaming is not supported on colab yet.")
+        elif is_jupyter():
             return video_html(
                 src=self._get_video_stream_url(),
                 alt=f"{self.key}[{self.index.values[0].value}]",
             )
-        elif is_colab():
-            raise NotImplementedError("Video streaming is not supported on colab yet.")
         else:
             webbrowser.open(self._get_video_stream_url())
