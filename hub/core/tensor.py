@@ -51,7 +51,7 @@ from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
 from hub.util.version_control import auto_checkout
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
-from hub.util.notebook import is_jupyter, video_html
+from hub.util.notebook import is_jupyter, video_html, is_colab
 import warnings
 import webbrowser
 
@@ -811,5 +811,7 @@ class Tensor:
                 src=self._get_video_stream_url(),
                 alt=f"{self.key}[{self.index.values[0].value}]",
             )
+        elif is_colab():
+            raise NotImplementedError("Video streaming is not supported on colab yet.")
         else:
             webbrowser.open(self._get_video_stream_url())
