@@ -12,6 +12,7 @@ services:
     build:
       context: ../.
       dockerfile: ./bin/Dockerfile.dev
+    shm_size: 2gb
     volumes:
       - ../:/app
     command: >
