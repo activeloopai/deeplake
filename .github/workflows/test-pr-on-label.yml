@@ -16,13 +16,13 @@ jobs:
       aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
       gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
-      oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
-      oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-      oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
       kaggle_key: ${{ secrets.KAGGLE_KEY }}
+      oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
+      oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+      oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
   manage-pr:
     name: Automated PR management tasks
     if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
