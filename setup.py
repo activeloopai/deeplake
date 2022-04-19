@@ -237,7 +237,7 @@ class CMakeBuild(build_ext):
 
 
 
-libpheonix = CMakeExtension('pheonix') #, sourcedir=os.path.join(this_directory, 'pheonix')),
+libpheonix = CMakeExtension('pheonix', sourcedir="./pheonix") #, sourcedir=os.path.join(this_directory, 'pheonix')),
                         #**extension_kwargs)
 
 
