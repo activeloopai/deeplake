@@ -847,13 +847,19 @@ class Dataset:
         Args:
             target_id (str): The commit_id or branch to merge.
             conflict_resolution (str, Optional): The strategy to use to resolve merge conflicts.
-                Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
-                Must be one of the following:
-                - None - this is the default value, will raise an exception if there are conflicts.
-                - "ours" - during conflicts, values from the current dataset will be used.
-                - "theirs" - during conflicts, values from target id will be used.
+                -
+                - Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
+                - Must be one of the following
+                    - None - this is the default value, will raise an exception if there are conflicts.
+                    - "ours" - during conflicts, values from the current dataset will be used.
+                    - "theirs" - during conflicts, values from target id will be used.
             delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
             force (bool): Forces merge.
+                -
+                - `force` = True will have these effects in the following cases of merge conflicts:
+                    - If tensor is renamed on target but is missing from HEAD, renamed tensor will be registered as a new tensor on current branch.
+                    - If tensor is renamed on both target and current branch, tensor on target will be registered as a new tensor on current branch.
+                    - If tensor is renamed on target and a new tensor of the new name was created on the current branch, they will be merged.
 
         Raises:
             Exception: if dataset is a filtered view.

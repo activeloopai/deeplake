@@ -333,6 +333,20 @@ def test_rename_merge(local_ds):
             ds.sample_videos.numpy(), np.array([[1, 0, 0], [7, 8, 9]])
         )
 
+        # tensor missing from head
+        ds.create_tensor("t1")
+        ds.t1.append([1, 2, 3])
+        ds.commit()
+        ds.checkout("alt4", create=True)
+        ds.rename_tensor("t1", "t2")
+        ds.t2.append([4, 5, 6])
+        ds.commit()
+        ds.checkout("main")
+        ds.delete_tensor("t1")
+        ds.commit()
+        with pytest.raises(MergeConflictError):
+            ds.merge("alt4")
+
 
 def test_clear_merge(local_ds):
     with local_ds as ds:
