@@ -32,3 +32,4 @@ jobs:
       kaggle_key: ${{ secrets.KAGGLE_KEY }}
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+      oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
