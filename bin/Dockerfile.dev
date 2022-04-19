@@ -1,15 +1,42 @@
-FROM python:3.8-slim
+
+FROM activeloop/aws-sdk-cpp:s3-1.9.185 as build
+FROM python:3.8
+COPY --from=build /usr/local/lib/ /usr/local/lib/
 
 RUN apt-get -y update && \
     apt-get -y install git wget build-essential python-setuptools python3-dev libjpeg-dev libpng-dev zlib1g-dev && \
-    apt install build-essential
+    apt install -y build-essential software-properties-common
 
 RUN mkdir /app
 
 ADD ./ /app
 WORKDIR /app
 
+# Install CPP dependances
+### TODO Install scheduler if required
+
+### Install AWS SDK
+RUN apt-get update && apt-get -y install cmake ninja-build
+RUN apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev libpulse-dev
+RUN apt-get update -y && apt-get install -y --no-install-recommends libcurl4-openssl-dev libssl-dev uuid-dev libpulse-dev libssl1.1
+RUN apt-get update -y && apt-get install -y --no-install-recommends g++ make cmake pkg-config build-essential zlib1g-dev
+
+# RUN git clone -b 1.9.85 --recurse https://github.com/aws/aws-sdk-cpp
+# ARG AWS_SDK_CPP_VERSION=1.9.85
+# RUN curl -sSL https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_CPP_VERSION}.zip > aws-sdk-cpp-${AWS_SDK_CPP_VERSION}.zip && unzip aws-sdk-cpp-${AWS_SDK_CPP_VERSION}.zip && rm -f aws-sdk-cpp-${AWS_SDK_CPP_VERSION}.zip
+# RUN cd aws-sdk-cpp-${AWS_SDK_CPP_VERSION} && mkdir build && cd build && cmake .. -DBUILD_ONLY="s3" -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DAUTORUN_UNIT_TESTS=OFF -DBUILD_SHARED_LIBS=ON -DCPP_STANDARD=20 && make && make install
+
+
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib 
+
+### Install compiler
+RUN apt-get update && apt install gcc-10 g++-10
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 0 --slave /usr/bin/g++ g++ /usr/bin/g++-10
+
+
+# Install Python dependances
 RUN pip install -r hub/requirements/plugins.txt && \
     pip install -r hub/requirements/tests.txt
 
-RUN pip install -e .
+RUN pip install -e .[all]

@@ -10,7 +10,7 @@
 ///// --- INFRASTRUCTURE CODE BEGIN ---- ////
 
 struct scheduler_queue {
-  static constexpr const int N = 256;
+  static constexpr const int N = 2560;
   using coro_handle = std::coroutine_handle<>;
 
   uint32_t head = 0;
@@ -153,10 +153,9 @@ struct throttler {
   }
 
   void next() {
-    if (n_tasks == 0){
-      return;
+    if (auto h = scheduler.try_pop_front()){
+      h.resume();
     }
-    scheduler.pop_front().resume();
   }
 
   ~throttler() { run(); }

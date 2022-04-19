@@ -30,9 +30,18 @@ export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/Users/levongh/Downloads/boost_1_78_
 
 example https://github.com/jgaa/asio-composed-blog/blob/main/echo-server.cpp
 
+### Install AWS SDK
+Follow guidelines here https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/setup-linux.html
+
+```
+git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp
+cmake ../aws-sdk-cpp/ -DCMAKE_BUILD_TYPE=Release -DBUILD_ONLY="s3" -DCUSTOM_MEMORY_MANAGEMENT=OFF -DENABLE_TESTING=OFF -DENABLE_UNITY_BUILD=ON
+make
+make install
+```
+
 ### Package manager
 - [] try hunter gate
-
 
 
 ### Roadmap
@@ -41,7 +50,7 @@ TODO list
 --- Phase I ---
 1. [x] coroutine returns reference to pybytes
 2. [x] pybytes returned to iterator
-3. [x] coroutines run async while iterator is running  - Davit
+3. [~] coroutines run async while iterator is running  - Davit
 4. [ ] AWS requests are sent - Davit
 5. [ ] Setup baseline benchmarks - Davit
 
@@ -53,11 +62,14 @@ TODO list
 
 --- phase II ---
 1. [ ] decompression - Levon
-2. [ ] cache layer - Abhinav
+2. [ ] cache layer - Abhinav (Sasun has some LRU cache)
 3. [ ] parsing into tensor -
-4. [ ] custom shuffling order 
+4. [ ] custom shuffling order - 
 
 --- phase III ---
 1. [ ] add transformations - Abhinav
 2. [ ] distributed training - Abhinav
 
+--- phase IV ---
+1. build docker for development
+2. build 

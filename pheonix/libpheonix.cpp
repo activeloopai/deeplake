@@ -1,14 +1,14 @@
-#include <torch/extension.h>
 #include <vector>
-
+#include <pybind11/pybind11.h>
 #include <scheduler.h>
 #include <requests.h>
 
+namespace py = pybind11;
 
 template <typename Found>
-root_task Corofetch(int a, Found on_found) {
-  auto x = co_await prefetch(a);
-  co_return on_found(x);
+root_task Corofetch(std::string url, Found on_found) {
+  auto resp = co_await prefetch(url);
+  co_return on_found(resp);
 }
 
 
@@ -17,17 +17,24 @@ private:
   py::object ref; // keep a reference
   std::list<std::string> answer;
   throttler t = throttler(10);
-
+  int counter;
 public:
-  PrefetchIterator(int requests_on_the_fly = 10, int calls = 10){
-
+  PrefetchIterator(py::list inlist){
+    // TOOD
+    // 1. resolve the asyncronous request 
+    // 2. fix number of requests on the fly
+    // 3. implement aws requests
+    
     answer = std::list<std::string>();
-    for (int i = 1; i < calls; i++)
-      t.reg(Corofetch(i, [&](auto x) {answer.push_back(x);}));
-      
+
+    for (auto item : inlist) {
+      fetch_s3(item.cast<std::string>());
+      // t.reg(Corofetch(item.cast<std::string>(), [&](auto x) {answer.push_back(x); counter++;}));
+    }
   }
 
   auto next(){
+    std::cout << counter << std::endl;
     t.next();    
     if (answer.size() == 0)
       throw py::stop_iteration();
@@ -39,9 +46,8 @@ public:
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("simple_request", &simple_request, "simple request");
   pybind11::class_<PrefetchIterator>(m, "prefetch")
-            .def(pybind11::init())
+            .def(pybind11::init<py::list &>())
             .def("__next__", &PrefetchIterator::next)
             .def("__iter__", [](PrefetchIterator &it) -> PrefetchIterator& { return it; }, py::keep_alive<0, 1>());
 }

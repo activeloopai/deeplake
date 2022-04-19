@@ -27,3 +27,17 @@ services:
       - ../:/app
     command: >
       bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ignore-glob=buH/*"
+  
+  dev:
+    build:
+      context: ../.
+      dockerfile: ./bin/Dockerfile.dev
+    <<: *global-vars
+    volumes:
+      - ~/.config/gcloud/gcs.json:/root/.config/gcloud/gcs.json
+      - ../:/app
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    volumes:
+      - ../:/app
+    command: bash -c "python3 /app/hub/pheonix/main.py"
