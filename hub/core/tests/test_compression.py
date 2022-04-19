@@ -11,7 +11,7 @@ from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
     verify_compressed_file,
-    decompress_bytes,
+    decompress_bytes
 )
 from hub.compression import (
     get_compression_type,
@@ -21,7 +21,7 @@ from hub.compression import (
     BYTE_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
-    SUPPORTED_COMPRESSIONS,
+    is_readonly_compression
 )
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
@@ -31,6 +31,9 @@ image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
 image_compressions.remove("dcm")
+for c in image_compressions:
+    if is_readonly_compression(c) == c:
+        image_compressions.remove(c)
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)

@@ -28,12 +28,14 @@ IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
     "eps",
+    "fli",
     "gif",
     "ico",
     "im",
     "jpeg",
     "jpeg2000",
     "msp",
+    "mpo",
     "pcx",
     "png",
     "ppm",
@@ -49,6 +51,7 @@ IMAGE_COMPRESSION_EXT_DICT = {
     "apng": [".png"],
     "bmp": [".bmp"],
     "eps": [".eps"],
+    "fli": [".fli"],
     "dib": [".dib"],
     "gif": [".gif"],
     "ico": [".ico"],
@@ -66,6 +69,7 @@ IMAGE_COMPRESSION_EXT_DICT = {
         ".mj2",
     ],
     "msp": [".msp"],
+    "mpo": [".mpo"],
     "pcx": [".pcx"],
     "png": [".png"],
     "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
@@ -86,14 +90,13 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
-READONLY_COMPRESSIONS = ["mpo", "fli"]
+READONLY_COMPRESSIONS = ["mpo", "fli", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]
 
 # Just constants
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
 VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
-READONLY_COMPRESSION = "read"
 
 
 COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION, AUDIO_COMPRESSION]
@@ -103,8 +106,7 @@ COMPRESSION_TYPES = [
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,
     AUDIO_COMPRESSION,
-    VIDEO_COMPRESSION,
-    READONLY_COMPRESSION
+    VIDEO_COMPRESSION
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -120,8 +122,6 @@ IMAGE_COMPRESSIONS.insert(2, "dcm")
 SUPPORTED_COMPRESSIONS = [
     *BYTE_COMPRESSIONS,
     *IMAGE_COMPRESSIONS,
-    *AUDIO_COMPRESSIONS,
-    *VIDEO_COMPRESSIONS,
     *READONLY_COMPRESSIONS
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
@@ -143,8 +143,6 @@ for c in VIDEO_COMPRESSIONS:
     _compression_types[c] = VIDEO_COMPRESSION
 for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
-for c in READONLY_COMPRESSIONS:
-    _compression_types[c] = READONLY_COMPRESSION
 
 
 def get_compression_type(c):
@@ -157,3 +155,9 @@ def get_compression_type(c):
     if ret is None:
         raise KeyError(c)
     return ret
+
+def is_readonly_compression(c):
+    if c is None:
+        return None
+    if c in READONLY_COMPRESSIONS:
+        return c
