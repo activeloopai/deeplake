@@ -54,8 +54,8 @@ std::string _fetch_s3(std::string uri) {
   std::cout << "54" << std::endl;
   //FIXME this should be initialized only once
   Aws::Client::ClientConfiguration config;
-  // if (!region.empty())
-  //    config.region = region;
+  if (!region.empty())
+    config.region = region;
   Aws::S3::S3Client s3_client(config);
   
   //split uri into bucket_name and key
@@ -70,7 +70,7 @@ std::string _fetch_s3(std::string uri) {
   object_request.SetBucket(bucket_name);
   std::cout << bucket_name << std::endl;
   std::cout << key << std::endl;
-  //object_request.SetKey(key);
+  object_request.SetKey(key);
   std::cout << __LINE__ << std::endl;
   Aws::S3::Model::GetObjectOutcome get_object_outcome = s3_client.GetObject(object_request);
   

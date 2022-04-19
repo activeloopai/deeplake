@@ -1,23 +1,24 @@
 from torch.utils.cpp_extension import load
 import os
 import time
-module_path = os.path.dirname(__file__)
-boost_path = "/home/davit/Git/tmp/boost_1_78_0"
-aws_sdk_path = "/home/davit/Git/prefetching-experiments/aws_sdk_build/lib"
-ldaws_sdk_path = "-L:/home/davit/Git/prefetching-experiments/aws_sdk_build/lib/lib"
+if False: 
+    module_path = os.path.dirname(__file__)
+    boost_path = "/home/davit/Git/tmp/boost_1_78_0"
+    aws_sdk_path = "/home/davit/Git/prefetching-experiments/aws_sdk_build/lib"
+    ldaws_sdk_path = "-L:/home/davit/Git/prefetching-experiments/aws_sdk_build/lib/lib"
 
-load(name="pheonix_cpp",
-    sources=[os.path.join(module_path, f"{el}") for el in ["libpheonix.cpp"]], #, "scheduler.cpp"]],
-    extra_include_paths=[module_path], # boost_path
-    extra_cflags=["-fcoroutines", "-std=c++17"],
-    extra_ldflags=["-lcurl", 
-                   "-laws-cpp-sdk-core", 
-                   "-laws-cpp-sdk-s3"
-    ],# , "-L:/home/davit/Git/tmp/boost_1_78_0/stage/lib"], 
-    build_directory=os.path.join(module_path, "build"),
-    verbose=True)
+    load(name="pheonix_cpp",
+        sources=[os.path.join(module_path, f"{el}") for el in ["libpheonix.cpp"]], #, "scheduler.cpp"]],
+        extra_include_paths=[module_path], # boost_path
+        extra_cflags=["-fcoroutines", "-std=c++17"],
+        extra_ldflags=["-lcurl", 
+                    "-laws-cpp-sdk-core", 
+                    "-laws-cpp-sdk-s3"
+        ],# , "-L:/home/davit/Git/tmp/boost_1_78_0/stage/lib"], 
+        build_directory=os.path.join(module_path, "build"),
+        verbose=True)
 
-import pheonix_cpp
+import pheonix
 
 answers = []
 print("fetching starts")

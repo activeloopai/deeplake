@@ -1,7 +1,7 @@
 
-FROM activeloop/aws-sdk-cpp:s3-1.9.185 as build
+# FROM activeloop/aws-sdk-cpp:s3-1.9.185 as build
 FROM python:3.8
-COPY --from=build /usr/local/lib/ /usr/local/lib/
+# COPY --from=build /usr/local/lib/ /usr/local/lib/
 
 RUN apt-get -y update && \
     apt-get -y install git wget build-essential python-setuptools python3-dev libjpeg-dev libpng-dev zlib1g-dev && \

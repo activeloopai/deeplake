@@ -45,7 +45,7 @@ public:
 };
 
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+PYBIND11_MODULE(pheonix, m) {
   pybind11::class_<PrefetchIterator>(m, "prefetch")
             .def(pybind11::init<py::list &>())
             .def("__next__", &PrefetchIterator::next)
