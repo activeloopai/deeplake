@@ -51,7 +51,6 @@ std::string fetch_http(std::string url)
 std::string _fetch_s3(std::string uri) {
   //get credentials
   const Aws::String region = "us-east-1";
-  std::cout << "54" << std::endl;
   //FIXME this should be initialized only once
   Aws::Client::ClientConfiguration config;
   if (!region.empty())
@@ -59,22 +58,16 @@ std::string _fetch_s3(std::string uri) {
   Aws::S3::S3Client s3_client(config);
   
   //split uri into bucket_name and key
-  std::cout << "62" << std::endl;
   auto uri_shortened = uri.substr(5);
   Aws::String bucket_name = uri_shortened.substr(0, uri_shortened.find("/"));
   Aws::String key = uri_shortened.substr(uri_shortened.find("/")+1);
-  std::cout << bucket_name + "72" + key << std::endl;
 
   // get the object from s3
   Aws::S3::Model::GetObjectRequest object_request;
   object_request.SetBucket(bucket_name);
-  std::cout << bucket_name << std::endl;
-  std::cout << key << std::endl;
   object_request.SetKey(key);
-  std::cout << __LINE__ << std::endl;
   Aws::S3::Model::GetObjectOutcome get_object_outcome = s3_client.GetObject(object_request);
   
-  std::cout << "72" << std::endl;
   // if the object was fetched successfully
   if (get_object_outcome.IsSuccess())
   {
@@ -95,13 +88,10 @@ std::string fetch_s3(std::string path){
   std::string response;
   Aws::SDKOptions options;
   options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Trace;
-  std::cout << "93" << std::endl;
   Aws::InitAPI(options);
   {
-    std::cout << "96" << std::endl;
     response = _fetch_s3(path); 
   }
-  std::cout << "99" << std::endl;
   Aws::ShutdownAPI(options);
   return std::move(response);
 }

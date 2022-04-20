@@ -231,14 +231,13 @@ class CMakeBuild(build_ext):
         build_temp = os.path.join(self.build_temp, ext.name)
         if not os.path.exists(build_temp):
             os.makedirs(build_temp)
-
+        print(["cmake", ext.sourcedir] + cmake_args, build_temp)
+        print(["cmake", "--build", "."] + build_args, build_temp)
         subprocess.check_call(["cmake", ext.sourcedir] + cmake_args, cwd=build_temp)
         subprocess.check_call(["cmake", "--build", "."] + build_args, cwd=build_temp)
 
 
-
-libpheonix = CMakeExtension('pheonix', sourcedir="./pheonix") #, sourcedir=os.path.join(this_directory, 'pheonix')),
-                        #**extension_kwargs)
+libpheonix = CMakeExtension('pheonix', sourcedir=os.path.join(this_directory, 'pheonix'))
 
 
 

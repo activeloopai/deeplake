@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 #include "scheduler.h"
 #include "requests.h"
+// #include "eventuals/callback.h"
 
 namespace py = pybind11;
 
@@ -28,8 +29,7 @@ public:
     answer = std::list<std::string>();
 
     for (auto item : inlist) {
-      fetch_s3(item.cast<std::string>());
-      // t.reg(Corofetch(item.cast<std::string>(), [&](auto x) {answer.push_back(x); counter++;}));
+      t.reg(Corofetch(item.cast<std::string>(), [&](auto x) {answer.push_back(x); counter++;}));
     }
   }
 
