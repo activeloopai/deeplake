@@ -1,4 +1,5 @@
 # type: ignore
+import uuid
 import sys
 import numpy as np
 from time import time
@@ -58,7 +59,6 @@ from hub.util.exceptions import (
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
-    RenameError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorGroupDoesNotExistError,
@@ -68,6 +68,7 @@ from hub.util.exceptions import (
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
     NotLoggedInError,
+    RenameError,
     EmptyCommitError,
 )
 from hub.util.keys import (
@@ -80,6 +81,7 @@ from hub.util.keys import (
     get_sample_id_tensor_key,
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
+    filter_name,
     get_tensor_meta_key,
     get_tensor_commit_diff_key,
     get_tensor_tile_encoder_key,
@@ -376,28 +378,30 @@ class Dataset:
         """
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        full_path = posixpath.join(self.group_index, name)
-
-        if tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+        name = filter_name(name, self.group_index)
+        key = self.version_state["tensor_names"].get(name)
+        if key:
             raise TensorAlreadyExistsError(name)
+        else:
+            if name in self.version_state["full_tensors"]:
+                key = f"{name}_{uuid.uuid4().hex[:4]}"
+            else:
+                key = name
 
-        if full_path in self._groups:
+        if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
 
-        if not name or name in dir(self):
-            raise InvalidTensorNameError(name)
+        tensor_name = posixpath.split(name)[1]
+        if not tensor_name or tensor_name in dir(self):
+            raise InvalidTensorNameError(tensor_name)
 
         is_sequence, htype = parse_sequence_htype(htype)
         kwargs["is_sequence"] = is_sequence
 
         if not self._is_root():
             return self.root.create_tensor(
-                full_path, htype, dtype, sample_compression, chunk_compression, **kwargs
+                key, htype, dtype, sample_compression, chunk_compression, **kwargs
             )
 
         if "/" in name:
@@ -422,7 +426,7 @@ class Dataset:
                 info_kwargs[k] = htype_config[k]
 
         create_tensor(
-            name,
+            key,
             self.storage,
             htype=htype,
             dtype=dtype,
@@ -434,9 +438,11 @@ class Dataset:
         )
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
-        meta.add_tensor(name, hidden=hidden)
-        tensor = Tensor(name, self)  # type: ignore
-        self.version_state["full_tensors"][name] = tensor
+        meta.add_tensor(name, key, hidden=hidden)
+        tensor = Tensor(key, self)  # type: ignore
+        tensor.meta.name = name
+        self.version_state["full_tensors"][key] = tensor
+        self.version_state["tensor_names"][name] = key
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
@@ -522,27 +528,23 @@ class Dataset:
 
         Raises:
             TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
-            InvalidTensorNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
+        name = filter_name(name, self.group_index)
+        key = self.version_state["tensor_names"].get(name)
 
-        full_path = posixpath.join(self.group_index, name)
-
-        if not tensor_exists(full_path, self.storage, self.version_state["commit_id"]):
+        if not key:
             raise TensorDoesNotExistError(name)
 
-        if not name or name in dir(self):
-            raise InvalidTensorNameError(name)
+        if not tensor_exists(key, self.storage, self.version_state["commit_id"]):
+            raise TensorDoesNotExistError(name)
 
         if not self._is_root():
-            return self.root.delete_tensor(full_path, large_ok)
+            return self.root.delete_tensor(name, large_ok)
 
         if not large_ok:
-            chunk_engine = self.version_state["full_tensors"][name].chunk_engine
+            chunk_engine = self.version_state["full_tensors"][key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
             if size_approx > hub.constants.DELETE_SAFETY_SIZE:
                 logger.info(
@@ -551,21 +553,33 @@ class Dataset:
                 return
 
         with self:
-            delete_tensor(name, self)
-            meta_key = get_dataset_meta_key(self.version_state["commit_id"])
-            meta: DatasetMeta = self.storage.get_hub_object(meta_key, DatasetMeta)
+            meta = self.meta
+            key = self.version_state["tensor_names"].pop(name)
+            if key not in meta.hidden_tensors:
+                tensor_diff = Tensor(key, self).chunk_engine.commit_diff
+                # if tensor was created in this commit, there's no diff for deleting it.
+                if not tensor_diff.created:
+                    self._dataset_diff.tensor_deleted(name)
+            delete_tensor(key, self)
+            self.version_state["full_tensors"].pop(key)
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
             self.version_state["meta"] = meta
-            self.version_state["full_tensors"].pop(name)
 
-        for t in (
-            get_sample_id_tensor_key(name),
-            get_sample_info_tensor_key(name),
-            get_sample_shape_tensor_key(name),
-        ):
-            if tensor_exists(t, self.storage, self.version_state["commit_id"]):
-                self.delete_tensor(t)
+        for t_name in [
+            func(name)
+            for func in (
+                get_sample_id_tensor_key,
+                get_sample_info_tensor_key,
+                get_sample_shape_tensor_key,
+            )
+        ]:
+            t_key = self.meta.tensor_names.get(t_name)
+            if t_key and tensor_exists(
+                t_key, self.storage, self.version_state["commit_id"]
+            ):
+                self.delete_tensor(t_name)
+
         self.storage.maybe_flush()
 
     @invalid_view_op
@@ -587,21 +601,13 @@ class Dataset:
 
         Raises:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
-            InvalidTensorGroupNameError: If `name` is in dataset attributes.
         """
         auto_checkout(self)
-        name = name.strip("/")
 
-        while "//" in name:
-            name = name.replace("//", "/")
-
-        full_path = posixpath.join(self.group_index, name)
+        full_path = filter_name(name, self.group_index)
 
         if full_path not in self._groups:
             raise TensorGroupDoesNotExistError(name)
-
-        if not name or name in dir(self):
-            raise InvalidTensorGroupNameError(name)
 
         if not self._is_root():
             return self.root.delete_group(full_path, large_ok)
@@ -623,8 +629,10 @@ class Dataset:
             ]
             meta.delete_group(name)
             for tensor in tensors:
-                delete_tensor(tensor, self)
-                self.version_state["full_tensors"].pop(tensor)
+                key = self.version_state["tensor_names"][tensor]
+                delete_tensor(key, self)
+                self.version_state["tensor_names"].pop(tensor)
+                self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
 
@@ -652,10 +660,78 @@ class Dataset:
         del meta["max_shape"]
         del meta["length"]
         del meta["version"]
+        del meta["name"]
+        del meta["links"]
 
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
         return destination_tensor
+
+    @hub_reporter.record_call
+    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
+        """Renames tensor with name `name` to `new_name`
+
+        Args:
+            name (str): Name of tensor to be renamed.
+            new_name (str): New name of tensor.
+
+        Returns:
+            Tensor: Renamed tensor.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorNameError: If `new_name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
+        """
+        auto_checkout(self)
+
+        name = filter_name(name, self.group_index)
+        new_name = filter_name(new_name, self.group_index)
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("New name of tensor cannot point to a different group")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        if new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
+            raise InvalidTensorNameError(new_name)
+
+        if not self._is_root():
+            return self.root.rename_tensor(name, new_name)
+
+        tensor = self[name]
+        tensor.meta.name = new_name
+        key = self.version_state["tensor_names"].pop(name)
+        meta = self.meta
+        if key not in meta.hidden_tensors:
+            tensor_diff = tensor.chunk_engine.commit_diff
+            # if tensor was created in this commit, tensor name has to be updated without adding it to diff.
+            if not tensor_diff.created:
+                self._dataset_diff.tensor_renamed(name, new_name)
+        self.version_state["tensor_names"][new_name] = key
+        ffw_dataset_meta(meta)
+        meta.rename_tensor(name, new_name)
+
+        for func in (
+            get_sample_id_tensor_key,
+            get_sample_info_tensor_key,
+            get_sample_shape_tensor_key,
+        ):
+            t_old, t_new = map(func, (name, new_name))
+            t_key = self.meta.tensor_names.get(t_old)
+            if t_key and tensor_exists(
+                t_key, self.storage, self.version_state["commit_id"]
+            ):
+                self.rename_tensor(t_old, t_new)
+
+        self.storage.maybe_flush()
+        return tensor
 
     __getattr__ = __getitem__
 
@@ -698,6 +774,7 @@ class Dataset:
             version_state["commit_node_map"][commit_id] = commit_node
         # keeps track of the full unindexed tensors
         version_state["full_tensors"] = {}
+        version_state["tensor_names"] = {}
         self.__dict__["version_state"] = version_state
 
     def _lock(self, err=False):
@@ -763,18 +840,26 @@ class Dataset:
         target_id: str,
         conflict_resolution: Optional[str] = None,
         delete_removed_tensors: bool = False,
+        force: bool = False,
     ):
         """Merges the target_id into the current dataset.
 
         Args:
             target_id (str): The commit_id or branch to merge.
             conflict_resolution (str, Optional): The strategy to use to resolve merge conflicts.
-                Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
-                Must be one of the following:
-                - None - this is the default value, will raise an exception if there are conflicts.
-                - "ours" - during conflicts, values from the current dataset will be used.
-                - "theirs" - during conflicts, values from target id will be used.
+                -
+                - Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
+                - Must be one of the following
+                    - None - this is the default value, will raise an exception if there are conflicts.
+                    - "ours" - during conflicts, values from the current dataset will be used.
+                    - "theirs" - during conflicts, values from target id will be used.
             delete_removed_tensors (bool): If true, deleted tensors will be deleted from the dataset.
+            force (bool): Forces merge.
+                -
+                - `force` = True will have these effects in the following cases of merge conflicts:
+                    - If tensor is renamed on target but is missing from HEAD, renamed tensor will be registered as a new tensor on current branch.
+                    - If tensor is renamed on both target and current branch, tensor on target will be registered as a new tensor on current branch.
+                    - If tensor is renamed on target and a new tensor of the new name was created on the current branch, they will be merged.
 
         Raises:
             Exception: if dataset is a filtered view.
@@ -795,7 +880,7 @@ class Dataset:
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
 
-        merge(self, target_id, conflict_resolution, delete_removed_tensors)
+        merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
 
         self.storage.autoflush = self._initial_autoflush.pop()
 
@@ -899,7 +984,7 @@ class Dataset:
 
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
-    ) -> Optional[Union[Dict, Tuple[Dict, Dict]]]:
+    ) -> Optional[Dict]:
         """Returns/displays the differences between commits/branches.
 
         For each tensor this contains information about the sample indexes that were added/modified as well as whether the tensor was created.
@@ -907,7 +992,9 @@ class Dataset:
         Args:
             id_1 (str, Optional): The first commit_id or branch name.
             id_2 (str, Optional): The second commit_id or branch name.
-            as_dict (bool, Optional): If True, returns dictionares of the differences instead of printing them. Defaults to False.
+            as_dict (bool, Optional): If True, returns a dictionary of the differences instead of printing them.
+                This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
+                Defaults to False.
 
         Note:
             - If both `id_1` and `id_2` are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
@@ -916,12 +1003,12 @@ class Dataset:
             - If both `id_1` and `id_2` are provided, the differences between `id_1` and `id_2` will be calculated.
 
         Returns:
-            Union[Dict, Tuple[Dict, Dict]]: The differences between the commits/branches if as_dict is True.
+            Dict: The differences between the commits/branches if as_dict is True.
 
-                - If `id_1` and `id_2` are None, a single dictionary containing the differences between the current state and the previous commit will be returned.
-                - If only `id_1` is provided, two dictionaries containing the differences in the current state and `id_1` respectively will be returned.
+                - If `id_1` and `id_2` are None, a dictionary containing the differences between the current state and the previous commit will be returned.
+                - If only `id_1` is provided, a dictionary containing the differences in the current state and `id_1` respectively will be returned.
                 - If only `id_2` is provided, a ValueError will be raised.
-                - If both `id_1` and `id_2` are provided, two dictionaries containing the differences in `id_1` and `id_2` respectively will be returned.
+                - If both `id_1` and `id_2` are provided, a dictionary containing the differences in `id_1` and `id_2` respectively will be returned.
             None: If as_dict is False.
 
             Example of a dict returned:
@@ -955,11 +1042,18 @@ class Dataset:
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
+            dataset_changes_1 = res[0]
+            dataset_changes_2 = res[1]
             tensor_changes_1 = res[2]
             tensor_changes_2 = res[3]
+            changes = {}
             if id_1 is None and id_2 is None:
-                return tensor_changes_1
-            return tensor_changes_1, tensor_changes_2
+                changes["dataset"] = dataset_changes_1
+                changes["tensor"] = tensor_changes_1
+                return changes
+            changes["dataset"] = dataset_changes_1, dataset_changes_2
+            changes["tensor"] = tensor_changes_1, tensor_changes_2
+            return changes
         all_changes = get_all_changes_string(*res)
         print(all_changes)
         return None
@@ -1336,7 +1430,8 @@ class Dataset:
         """Gets a tensor from the root dataset.
         Acesses storage only for the first call.
         """
-        ret = self.version_state["full_tensors"].get(name)
+        key = self.version_state["tensor_names"].get(name)
+        ret = self.version_state["full_tensors"].get(key)
         return ret
 
     def _has_group_in_root(self, name: str) -> bool:
@@ -1354,27 +1449,28 @@ class Dataset:
     def _ungrouped_tensors(self) -> Dict[str, Tensor]:
         """Top level tensors in this group that do not belong to any sub groups"""
         return {
-            posixpath.basename(k): v
-            for k, v in self.version_state["full_tensors"].items()
+            posixpath.basename(k): self.version_state["full_tensors"][v]
+            for k, v in self.version_state["tensor_names"].items()
             if posixpath.dirname(k) == self.group_index
         }
 
     def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
         hidden_tensors = self.meta.hidden_tensors
+        tensor_names = self.version_state["tensor_names"]
         return [
             posixpath.relpath(t, self.group_index)
-            for t in self.version_state["full_tensors"]
+            for t in tensor_names
             if (not self.group_index or t.startswith(self.group_index + "/"))
-            and (include_hidden or t not in hidden_tensors)
+            and (include_hidden or tensor_names[t] not in hidden_tensors)
         ]
 
     def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         return {
-            t: self.version_state["full_tensors"][posixpath.join(self.group_index, t)][
-                self.index
-            ]
+            t: self.version_state["full_tensors"][
+                self.version_state["tensor_names"][posixpath.join(self.group_index, t)]
+            ][self.index]
             for t in self._all_tensors_filtered(include_hidden)
         }
 
@@ -1540,9 +1636,7 @@ class Dataset:
         """
         if not self._is_root():
             return self.root.create_group(posixpath.join(self.group_index, name))
-        name = name.strip("/")
-        while "//" in name:
-            name = name.replace("//", "/")
+        name = filter_name(name)
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
         return self._create_group(name)
@@ -1988,13 +2082,14 @@ class Dataset:
         if dest not in tensors:
             raise TensorDoesNotExistError(dest)
         src_tensor = self[src]
+        dest_key = self.version_state["tensor_names"][dest]
         if flatten_sequence is None:
             if src_tensor.is_sequence:
                 raise ValueError(
                     "`flatten_sequence` arg must be specified when linking a sequence tensor."
                 )
             flatten_sequence = False
-        src_tensor.meta.add_link(dest, append_f, update_f, flatten_sequence)
+        src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
     def copy(

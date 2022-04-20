@@ -11,15 +11,16 @@ from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
-    RenameError,
     InvalidOperationError,
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    RenameError,
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
@@ -889,7 +890,7 @@ def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
 
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("version_state")
+        memory_ds.create_tensor("group/version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -1021,6 +1022,49 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+
+
+def test_tensor_rename(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([1, 2, 3])
+    ds.rename_tensor("x/y/z", "x/y/y")
+
+    np.testing.assert_array_equal(ds["x/y/y"][0].numpy(), np.array([1, 2, 3]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        ds["x/y/z"].numpy()
+
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([4, 5, 6])
+    np.testing.assert_array_equal(ds["x/y/z"][0].numpy(), np.array([4, 5, 6]))
+
+    with pytest.raises(RenameError):
+        ds.rename_tensor("x/y/y", "x/a")
+
+    with pytest.raises(RenameError):
+        ds["x"].rename_tensor("y/y", "y")
+
+    ds.create_tensor("x/y/a/b")
+    with pytest.raises(TensorGroupAlreadyExistsError):
+        ds["x/y"].rename_tensor("y", "a")
+
+    ds.create_tensor("abc/xyz")
+    with pytest.raises(InvalidTensorNameError):
+        ds.rename_tensor("abc/xyz", "abc/append")
+
+    ds.create_tensor("abc/efg")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.rename_tensor("abc/xyz", "abc/efg")
+
+    ds["x"].rename_tensor("y/y", "y/b")
+
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds.delete_tensor("x/y/b")
 
 
 def test_vc_bug(local_ds_generator):

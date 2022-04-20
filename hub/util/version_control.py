@@ -439,6 +439,14 @@ def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
+    try:
+        dataset_diff_key = get_dataset_diff_key(commit_id)
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        if dataset_diff.deleted or dataset_diff.renamed:
+            return True
+    except KeyError:
+        pass
+
     for tensor in version_state["full_tensors"].keys():
         if commit_id == FIRST_COMMIT_ID:
             # if the first commit has even a single tensor i.e. it entered the for loop, it has data
@@ -495,15 +503,21 @@ def load_meta(dataset):
     storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_hub_object(meta_key, DatasetMeta)
+    if not meta.tensor_names:  # backward compatibility
+        meta.tensor_names = {key: key for key in meta.tensors}
+
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
     storage.register_hub_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
+    _tensor_names = version_state["tensor_names"]
+    _tensor_names.clear()
+    _tensor_names.update(meta.tensor_names)
 
-    for tensor_name in meta.tensors:
-        _tensors[tensor_name] = Tensor(tensor_name, dataset)
+    for tensor_key in _tensor_names.values():
+        _tensors[tensor_key] = Tensor(tensor_key, dataset)
 
 
 def warn_node_checkout(commit_node: CommitNode, create: bool):
