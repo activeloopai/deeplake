@@ -39,7 +39,15 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE
+
+from hub.util.pretty_print import (
+    max_array_length,
+    get_string,
+    summary_tensor,
+)
+from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+
+
 from hub.util.version_control import auto_checkout
 
 
@@ -103,11 +111,7 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-
-    if not tensor_exists(key, storage, version_state["commit_id"]):
-        raise TensorDoesNotExistError(key)
-
-    tensor = dataset[key]
+    tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
@@ -235,22 +239,25 @@ class Tensor:
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
         Example:
-            numpy input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend(np.zeros((100, 28, 28, 1)))
-                >>> len(tensor)
-                100
+            Numpy input:
 
-            file input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend([
-                        hub.read("path/to/image1"),
-                        hub.read("path/to/image2"),
-                    ])
-                >>> len(tensor)
-                2
+            >>> len(tensor)
+            0
+            >>> tensor.extend(np.zeros((100, 28, 28, 1)))
+            >>> len(tensor)
+            100
+
+
+            File input:
+
+            >>> len(tensor)
+            0
+            >>> tensor.extend([
+                    hub.read("path/to/image1"),
+                    hub.read("path/to/image2"),
+                ])
+            >>> len(tensor)
+            2
 
 
         Args:
@@ -298,7 +305,7 @@ class Tensor:
         which can be used to load files. See examples down below.
 
         Examples:
-            numpy input:
+            Numpy input:
 
             >>> len(tensor)
             0
@@ -306,7 +313,7 @@ class Tensor:
             >>> len(tensor)
             1
 
-            file input:
+            File input:
 
             >>> len(tensor)
             0
@@ -335,7 +342,7 @@ class Tensor:
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
         """Returns a slice of the tensor with only those elements that were modified/added.
-        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a target id.
+        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a `target id`.
 
         Args:
             target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to None.
@@ -578,11 +585,17 @@ class Tensor:
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
+    def summary(self):
+        pretty_print = summary_tensor(self)
+
+        print(self)
+        print(pretty_print)
+
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        return f"Tensor(key={repr(self.meta.name or self.key)}{index_str})"
 
     __repr__ = __str__
 
@@ -654,10 +667,12 @@ class Tensor:
             return self.numpy()
 
     def tobytes(self) -> bytes:
-        """Returns the bytes of the tensor. Only works for a single sample of tensor.
-        If the tensor is uncompressed, this returns the bytes of the numpy array.
-        If the tensor is sample compressed, this returns the compressed bytes of the sample.
-        If the tensor is chunk compressed, this raises an error.
+        """Returns the bytes of the tensor.
+
+        - Only works for a single sample of tensor.
+        - If the tensor is uncompressed, this returns the bytes of the numpy array.
+        - If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        - If the tensor is chunk compressed, this raises an error.
 
         Returns:
             bytes: The bytes of the tensor.
@@ -676,7 +691,7 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                self.dataset[k].append(get_link_transform(v["append"])(sample))
+                Tensor(k, self.dataset).append(get_link_transform(v["append"])(sample))
 
     def _update_links(
         self,
@@ -692,12 +707,12 @@ class Tensor:
                     func = get_link_transform(fname)
                     val = func(
                         new_sample,
-                        self.dataset[k][global_sample_index],
+                        Tensor(k, self.dataset)[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                     )
                     if val is not _NO_LINK_UPDATE:
-                        self.dataset[k][global_sample_index] = val
+                        Tensor(k, self.dataset)[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):

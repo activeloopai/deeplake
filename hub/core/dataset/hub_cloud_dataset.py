@@ -30,7 +30,7 @@ class HubCloudDataset(Dataset):
                 )
                 if self.verbose:
                     logger.info(
-                        f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                        f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
                     )
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`

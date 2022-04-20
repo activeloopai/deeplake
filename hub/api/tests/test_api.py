@@ -11,18 +11,21 @@ from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
-    RenameError,
     InvalidOperationError,
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    RenameError,
     PathNotEmptyException,
     BadRequestException,
+    ReadOnlyModeError,
 )
+from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import MB
 
 from click.testing import CliRunner
@@ -163,26 +166,61 @@ def test_larger_data_memory(memory_ds):
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
-def test_stringify(memory_ds):
+def test_stringify(memory_ds, capsys):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
+
+    ds.summary()
     assert (
-        str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])"
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
+    ds[1:2].summary()
     assert (
-        str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
     )
-    assert str(ds.image) == "Tensor(key='image')"
-    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, None)]))"
+    ds.image.summary()
+    assert (
+        capsys.readouterr().out
+        == "Tensor(key='image')\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   \n"
+    )
+    ds[1:2].image.summary()
+    assert (
+        capsys.readouterr().out
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (1, 4)    None     None   \n"
+    )
 
 
-def test_stringify_with_path(local_ds):
+def test_summary(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("abc")
+    ds.abc.extend(np.ones((4, 4)))
+    ds.create_tensor("images", htype="image", dtype="int32", sample_compression="jpeg")
+
+    assert (
+        summary_dataset(ds)
+        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   \n images    image    (0,)     int32    jpeg   "
+    )
+    assert (
+        summary_tensor(ds.abc)
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   "
+    )
+    assert (
+        summary_tensor(ds.images)
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n  image    (0,)     int32    jpeg   "
+    )
+
+
+def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
+    ds.summary()
+    assert (
+        capsys.readouterr().out
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n"
+    )
 
 
 def test_fixed_tensor(local_ds):
@@ -852,7 +890,7 @@ def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
 
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("version_state")
+        memory_ds.create_tensor("group/version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -862,6 +900,7 @@ def test_compressions_list():
         "apng",
         "avi",
         "bmp",
+        "dcm",
         "dib",
         "flac",
         "gif",
@@ -892,6 +931,7 @@ def test_htypes_list():
         "bbox",
         "binary_mask",
         "class_label",
+        "dicom",
         "generic",
         "image",
         "json",
@@ -982,6 +1022,49 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+
+
+def test_tensor_rename(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([1, 2, 3])
+    ds.rename_tensor("x/y/z", "x/y/y")
+
+    np.testing.assert_array_equal(ds["x/y/y"][0].numpy(), np.array([1, 2, 3]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        ds["x/y/z"].numpy()
+
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([4, 5, 6])
+    np.testing.assert_array_equal(ds["x/y/z"][0].numpy(), np.array([4, 5, 6]))
+
+    with pytest.raises(RenameError):
+        ds.rename_tensor("x/y/y", "x/a")
+
+    with pytest.raises(RenameError):
+        ds["x"].rename_tensor("y/y", "y")
+
+    ds.create_tensor("x/y/a/b")
+    with pytest.raises(TensorGroupAlreadyExistsError):
+        ds["x/y"].rename_tensor("y", "a")
+
+    ds.create_tensor("abc/xyz")
+    with pytest.raises(InvalidTensorNameError):
+        ds.rename_tensor("abc/xyz", "abc/append")
+
+    ds.create_tensor("abc/efg")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.rename_tensor("abc/xyz", "abc/efg")
+
+    ds["x"].rename_tensor("y/y", "y/b")
+
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds.delete_tensor("x/y/b")
 
 
 def test_vc_bug(local_ds_generator):
@@ -1388,3 +1471,22 @@ def test_hub_exists(ds_generator, path, hub_token):
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
+
+
+def test_pyav_not_installed(local_ds, video_paths):
+    pyav_installed = hub.core.compression._PYAV_INSTALLED
+    hub.core.compression._PYAV_INSTALLED = False
+    local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
+    with pytest.raises(hub.util.exceptions.CorruptedSampleError):
+        local_ds.videos.append(hub.read(video_paths["mp4"][0]))
+    hub.core.compression._PYAV_INSTALLED = pyav_installed
+
+
+def test_create_branch_when_locked_out(local_ds):
+    local_ds.read_only = True
+    local_ds._locked_out = True
+    with pytest.raises(ReadOnlyModeError):
+        local_ds.create_tensor("x")
+    local_ds.checkout("branch", create=True)
+    assert local_ds.branch == "branch"
+    local_ds.create_tensor("x")

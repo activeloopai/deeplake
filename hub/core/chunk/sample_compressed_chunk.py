@@ -47,14 +47,17 @@ class SampleCompressedChunk(BaseChunk):
                     break
         return num_samples
 
-    def read_sample(
+    def read_sample(  # type: ignore
         self,
         local_index: int,
         cast: bool = True,
         copy: bool = False,
         sub_index: Optional[Union[int, slice]] = None,
         stream: bool = False,
+        decompress: bool = True,
     ):
+        if not decompress and stream:
+            raise Exception("`decompress=False` is not valid when `stream=True`")
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -74,6 +77,8 @@ class SampleCompressedChunk(BaseChunk):
                 )
             else:
                 buffer = buffer[sb:eb]
+        if not decompress:
+            return bytes(buffer) if copy else buffer
         shape = self.shapes_encoder[local_index]
         nframes = shape[0]
         if self.is_text_like:

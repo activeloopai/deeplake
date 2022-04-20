@@ -82,12 +82,3 @@ def test_persistence_bug(local_ds_generator):
 
         ds = local_ds_generator()
         np.testing.assert_array_equal(ds[tensor_name].numpy(), np.array([[1], [2]]))
-
-
-def test_dataset_exists():
-    with CliRunner().isolated_filesystem():
-        test_path = "test_folder/test_dataset"
-        assert hub.dataset.exists(test_path) is False
-        assert hub.dataset.exists("hub://activeloop/mnist-test") is True
-        ds_test = hub.empty(test_path)
-        assert hub.dataset.exists(test_path) is True

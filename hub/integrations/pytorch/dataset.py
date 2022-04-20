@@ -59,7 +59,13 @@ def cast_type(tensor: np.ndarray):
 
 
 def _process(tensor, transform: PytorchTransformFunction):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
+    def copy(x):
+        try:
+            return cast_type(x.copy())
+        except AttributeError:
+            return bytes(x)
+
+    tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
     return tensor
 
@@ -93,6 +99,7 @@ def _worker_loop(
     wid: int,
     dataset,
     tensors,
+    tobytes,
     use_local_cache: bool,
     schedule: Schedule,
     transform: PytorchTransformFunction,
@@ -110,6 +117,7 @@ def _worker_loop(
         streaming = SampleStreaming(
             dataset,
             tensors=tensors,
+            tobytes=tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -220,6 +228,7 @@ class PrefetchConcurrentIterator(Iterable):
                     i,
                     dataset.dataset,
                     dataset.tensors,
+                    dataset.tobytes,
                     dataset.use_local_cache,
                     dataset.schedules[i],
                     dataset.transform,
@@ -331,6 +340,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 0,
@@ -344,6 +354,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.transform = transform
         self.tensors = tensors
+        self.tobytes = tobytes
         self.use_local_cache = use_local_cache
 
         if dist.is_initialized():
@@ -359,6 +370,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
+            tobytes=self.tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -382,6 +394,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
@@ -392,6 +405,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.dataset = dataset
         self.transform = transform
         self.tensors = tensors
+        self.tobytes = tobytes
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
@@ -405,6 +419,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
+            tobytes=self.tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -425,6 +440,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             self.dataset,
             tensors=self.tensors,
+            tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
         )
 
@@ -446,6 +462,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
@@ -456,6 +473,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             dataset,
             use_local_cache,
             tensors,
+            tobytes,
             transform,
             num_workers=num_workers,
             shuffle=True,
