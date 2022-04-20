@@ -172,6 +172,9 @@ class GDriveProvider(StorageProvider):
     def _get_id(self, path):
         return self.gid.path_id_map.get(path)
 
+    def _pop_id(self, path):
+        return self.gid.path_id_map.pop(path)
+
     def _set_id(self, path, id):
         self.gid.path_id_map[path] = id
 
@@ -253,7 +256,7 @@ class GDriveProvider(StorageProvider):
         return
 
     def __delitem__(self, path):
-        id = self._get_id(path)
+        id = self._pop_id(path)
         if not id:
             raise KeyError(path)
         self._delete_file(id)

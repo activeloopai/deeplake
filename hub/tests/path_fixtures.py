@@ -143,8 +143,8 @@ def _get_path_composition_configs(request):
         },
         GDRIVE: {
             "base_root": request.config.getoption(GDRIVE_PATH_OPT),
-            "use_id": False,
-            "is_id_prefix": False,
+            "use_id": True,
+            "is_id_prefix": True,
             "use_underscores": False,
         },
         GCS: {
