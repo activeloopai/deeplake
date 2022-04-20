@@ -1,0 +1,28 @@
+{
+    "chunk_compression": null,
+    "dtype": "int64",
+    "hidden": false,
+    "htype": "generic",
+    "is_sequence": false,
+    "length": 10,
+    "links": {
+        "_xyz_id": {
+            "append": "append_id",
+            "flatten_sequence": false
+        },
+        "_xyz_shape": {
+            "append": "append_shape",
+            "flatten_sequence": true,
+            "update": "append_shape"
+        }
+    },
+    "max_chunk_size": null,
+    "max_shape": [
+        1
+    ],
+    "min_shape": [
+        1
+    ],
+    "sample_compression": null,
+    "version": "2.3.4"
+}

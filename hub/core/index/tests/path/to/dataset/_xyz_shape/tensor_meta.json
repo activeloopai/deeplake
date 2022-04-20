@@ -1,0 +1,18 @@
+{
+    "chunk_compression": null,
+    "dtype": "float64",
+    "hidden": true,
+    "htype": "generic",
+    "is_sequence": false,
+    "length": 10,
+    "links": {},
+    "max_chunk_size": 4000000,
+    "max_shape": [
+        0
+    ],
+    "min_shape": [
+        0
+    ],
+    "sample_compression": null,
+    "version": "2.3.4"
+}

@@ -1,0 +1,13 @@
+{
+    "groups": [],
+    "hidden_tensors": [
+        "_xyz_shape",
+        "_xyz_id"
+    ],
+    "tensors": [
+        "xyz",
+        "_xyz_shape",
+        "_xyz_id"
+    ],
+    "version": "2.3.4"
+}
