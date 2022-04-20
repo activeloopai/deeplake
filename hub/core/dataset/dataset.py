@@ -269,7 +269,10 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._ds_diff = None
+        _verbose = self.verbose
+        self.verbose = False
         self._set_derived_attributes()
+        self.verbose = _verbose
 
     def __getitem__(
         self,
