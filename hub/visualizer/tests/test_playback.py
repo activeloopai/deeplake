@@ -1,8 +1,14 @@
 import hub
 from hub.util.keys import get_chunk_key
 from hub.visualizer.video_streaming import _VideoStream
+import pytest
+import os
+import sys
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_video_playback(local_ds_generator, video_paths):
     mp4_path = video_paths["mp4"][0]
     ds = local_ds_generator()
