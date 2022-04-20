@@ -51,14 +51,19 @@ TODO list
 1. [x] coroutine returns reference to pybytes
 2. [x] pybytes returned to iterator
 3. [~] coroutines run async while iterator is running  - Davit
-4. [ ] AWS requests are sent - Davit
+4. [x] AWS requests are sent - Davit
 5. [ ] Setup baseline benchmarks - Davit
 
 --- optimization land ---
-1. [ ] optimize end-to-end reference passing - Levon 
-2. [ ] add multithreading or switching to boost asio - Levon
-3. [ ] benchmark if presigned generated URLs are faster - Levon (talk to Sasun)
-4. [ ] range requests to AWS - Levon (talk to Sasun)
+0. [ ] truly resolve the asyncronous request 
+1. [ ] (throttler) fix number of requests on the fly
+2. [ ] optimize end-to-end reference passing - Levon 
+3. [ ] optimize aws requests creation
+4. [ ] add multithreading, switching to boost asio or eventuals - Levon
+
+--- optimization land 2 ---
+5. [ ] benchmark if presigned generated URLs are faster - Levon (talk to Sasun)
+6. [ ] range requests to AWS - Levon (talk to Sasun)
 
 --- phase II ---
 1. [ ] decompression - Levon
@@ -73,3 +78,6 @@ TODO list
 --- phase IV ---
 1. build docker for development
 2. build 
+
+--- phase V (enterprise only) ---
+1. zero copy | libfabric + gpu direct

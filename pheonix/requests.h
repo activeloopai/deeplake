@@ -10,7 +10,6 @@
 #include <curl/curl.h>
 
 /* TODO
-* 0) fix aws segfault
 * 1) turn into storage provider abstractions
 * 2) optimize data buffer transfer
 */
