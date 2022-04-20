@@ -58,7 +58,6 @@ def test_slice_at_int():
 
 def test_tensor():
     ds = hub.dataset("path/to/dataset")
-    ds.create_tensor("xyz")
 
     for i in range(10):
         ds.xyz.append(i)
