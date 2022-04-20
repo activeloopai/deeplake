@@ -126,6 +126,7 @@ class Dataset:
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[str] = None,
         is_iteration: bool = False,
+        skip_agreement: bool = False,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -143,6 +144,7 @@ class Dataset:
             is_iteration (bool): If this Dataset is being used as an iterator.
             **kwargs: Passing subclass variables through without errors.
             path: The path to the dataset.
+            skip_agreement (bool): If True, the dataset will be loaded without showing the agreement. Defaults to False.
 
 
         Raises:
@@ -170,6 +172,7 @@ class Dataset:
         d["version_state"] = version_state or {}
         d["_info"] = None
         d["_ds_diff"] = None
+        d["skip_agreement"] = skip_agreement
         self.__dict__.update(d)
         self._set_derived_attributes()
         self._first_load_init()
@@ -246,6 +249,7 @@ class Dataset:
             "ds_name",
             "_is_filtered_view",
             "_view_info",
+            "skip_agreement",
         ]
         state = {k: getattr(self, k) for k in keys}
         return state
