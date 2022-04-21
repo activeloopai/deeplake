@@ -149,6 +149,8 @@ class ChunkCompressedChunk(BaseChunk):
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
+        if self.is_empty_sample(local_index):
+            self.return_empty_sample()
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -175,7 +177,7 @@ class ChunkCompressedChunk(BaseChunk):
         serialized_sample, shape = self.serialize_sample(
             new_sample, chunk_compression=self.compression, break_into_tiles=False
         )
-        self.check_shape_for_update(local_index, shape)
+        self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             self.decompressed_bytes = partial_sample_tile
@@ -192,10 +194,16 @@ class ChunkCompressedChunk(BaseChunk):
         self.update_in_meta_and_headers(local_index, new_nb, shape)
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):
+        is_none = new_sample is None
+        if is_none:
+            if self.tensor_meta.max_shape:
+                new_sample = self.return_empty_sample()
+            else:
+                new_sample = np.ones((0,))
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
-        shape = new_sample.shape
+        shape = None if is_none else new_sample.shape
         shape = self.normalize_shape(shape)
-        self.check_shape_for_update(local_index, shape)
+        self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             self.decompressed_samples = [partial_sample_tile]
@@ -211,6 +219,8 @@ class ChunkCompressedChunk(BaseChunk):
         self.update_in_meta_and_headers(local_index, None, shape)
 
     def process_sample_img_compr(self, sample):
+        if sample is None:
+            return np.ones((0,) * self.num_dims, dtype=self.dtype), None
         if isinstance(sample, SampleTiles):
             return sample, sample.tile_shape
         elif isinstance(sample, PartialSample):

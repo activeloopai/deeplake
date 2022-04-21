@@ -173,6 +173,7 @@ class ChunkEngine:
         return (
             self.chunk_class == UncompressedChunk
             and tensor_meta.htype not in ["text", "json", "list"]
+            and tensor_meta.max_shape
             and (tensor_meta.max_shape == tensor_meta.min_shape)
             and (np.prod(tensor_meta.max_shape) < 20)
         )
@@ -203,7 +204,7 @@ class ChunkEngine:
         return self.max_chunk_size // 2
 
     @property
-    def tensor_meta(self):
+    def tensor_meta(self) -> TensorMeta:
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
             key = get_tensor_meta_key(self.key, commit_id)
@@ -550,9 +551,10 @@ class ChunkEngine:
         check_samples_type(samples)
         verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
-        if tensor_meta.htype is None:
+        all_empty = all(sample is None for sample in samples)
+        if tensor_meta.htype is None and not all_empty:
             tensor_meta.set_htype(get_htype(samples))
-        if tensor_meta.dtype is None:
+        if tensor_meta.dtype is None and not all_empty:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
