@@ -192,6 +192,17 @@ def get_queries_lock_key() -> str:
     return QUERIES_LOCK_FILENAME
 
 
+def filter_name(name: str, group_index: str = "") -> str:
+    """Filters tensor name and returns full name of the tensor"""
+    name = name.strip("/")
+
+    while "//" in name:
+        name = name.replace("//", "/")
+
+    name = posixpath.join(group_index, name)
+    return name
+
+
 def get_sample_info_tensor_key(key: str):
     group, key = posixpath.split(key)
     return posixpath.join(group, f"_{key}_info")

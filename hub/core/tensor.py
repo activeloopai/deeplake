@@ -112,11 +112,7 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-
-    if not tensor_exists(key, storage, version_state["commit_id"]):
-        raise TensorDoesNotExistError(key)
-
-    tensor = dataset[key]
+    tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
@@ -637,7 +633,7 @@ class Tensor:
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        return f"Tensor(key={repr(self.meta.name or self.key)}{index_str})"
 
     __repr__ = __str__
 
@@ -737,7 +733,7 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                self.dataset[k].append(
+                Tensor(k, self.dataset).append(
                     get_link_transform(v["append"])(sample, self.link_creds)
                 )
 
@@ -755,13 +751,13 @@ class Tensor:
                     func = get_link_transform(fname)
                     val = func(
                         new_sample,
-                        self.dataset[k][global_sample_index],
+                        Tensor(k, self.dataset)[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                         link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
-                        self.dataset[k][global_sample_index] = val
+                        Tensor(k, self.dataset)[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):
