@@ -19,7 +19,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-from hub.util.exceptions import CorruptedSampleError
+from hub.util.exif import getexif
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
@@ -36,6 +36,8 @@ try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
     GCSProvider = None  # type: ignore
+
+import warnings
 
 
 class Sample:
@@ -436,10 +438,11 @@ class Sample:
             img = Image.open(self.path)
         else:
             img = Image.open(BytesIO(self.buffer))
-        return {
-            TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
-            for k, v in img.getexif().items()
-        }
+        try:
+            return getexif(img)
+        except Exception as e:
+            warnings.warn(f"Error while reading exif data, possibly due to corrupt exif: {e}")
+            return {}
 
     @property
     def meta(self) -> dict:
