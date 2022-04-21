@@ -1,7 +1,7 @@
 from fractions import Fraction
 
 from PIL import Image  # type: ignore
-import PIL.ExifTags
+import PIL.ExifTags  # type: ignore
 
 
 _LOOKUPS = {
