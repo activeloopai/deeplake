@@ -5,7 +5,7 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
@@ -124,7 +124,7 @@ class S3Provider(StorageProvider):
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         sd = self.__class__(
@@ -202,39 +202,17 @@ class S3Provider(StorageProvider):
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
         """
-        self._check_update_creds()
-        path = "".join((self.path, path))
-        try:
-            return self._get(path)
-        except botocore.exceptions.ClientError as err:
-            if err.response["Error"]["Code"] == "NoSuchKey":
-                raise KeyError(err) from err
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3GetError):
-                return self._get(path)
-        except CONNECTION_ERRORS as err:
-            tries = self.num_tries
-            for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
-                try:
-                    return self._get(path)
-                except Exception:
-                    pass
-            raise S3GetError(err) from err
-        except Exception as err:
-            raise S3GetError(err) from err
+        return self.get_bytes(path)
 
     def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
-        range = None
-        if start_byte != None and end_byte != None:
-            assert end_byte is not None
+        if start_byte is not None and end_byte is not None:
             range = f"bytes={start_byte}-{end_byte - 1}"
-        elif start_byte != None:
+        elif start_byte is not None:
             range = f"bytes={start_byte}-"
-        elif end_byte != None:
-            assert end_byte is not None
+        elif end_byte is not None:
             range = f"bytes=0-{end_byte - 1}"
+        else:
+            range = ""
         resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
         return resp["Body"].read()
 
@@ -551,7 +529,7 @@ class S3Provider(StorageProvider):
             and self.loaded_creds_from_environment
         )
 
-    def get_presigned_url(self, key):
+    def get_url(self, key) -> str:
         self._check_update_creds()
         path = "".join((self.path, key))
 
@@ -567,7 +545,7 @@ class S3Provider(StorageProvider):
         if url is None:
             if self._is_hub_path:
                 client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 url = self.client.generate_presigned_url(
@@ -578,7 +556,7 @@ class S3Provider(StorageProvider):
             self._presigned_urls[path] = (url, time.time())
         return url
 
-    def get_object_size(self, path):
+    def get_object_size(self, path: str) -> int:
         path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
