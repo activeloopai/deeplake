@@ -441,7 +441,9 @@ class Sample:
         try:
             return getexif(img)
         except Exception as e:
-            warnings.warn(f"Error while reading exif data, possibly due to corrupt exif: {e}")
+            warnings.warn(
+                f"Error while reading exif data, possibly due to corrupt exif: {e}"
+            )
             return {}
 
     @property

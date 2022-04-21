@@ -76,4 +76,3 @@ def _process_exif_value(k: str, v):
     elif isinstance(v, dict):
         return {k: _process_exif_value("_", x) for k, x in v.items()}
     return str(v)
-

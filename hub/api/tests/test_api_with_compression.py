@@ -253,4 +253,7 @@ def test_exif(memory_ds, compressed_image_paths):
         for path in compressed_image_paths["jpeg"]:
             ds.images.append(hub.read(path))
     for image in ds.images:
-        assert isinstance(image.sample_info["exif"], dict), (type(image.sample_info["exif"]), path)
+        assert isinstance(image.sample_info["exif"], dict), (
+            type(image.sample_info["exif"]),
+            path,
+        )
