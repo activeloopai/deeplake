@@ -1,3 +1,4 @@
+import time
 import os
 from hub.core.storage.provider import StorageProvider
 from googleapiclient import discovery  # type: ignore
@@ -14,6 +15,7 @@ from io import BytesIO
 import posixpath
 import pickle
 from typing import Dict, Optional, Union
+from threading import Lock
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -93,6 +95,11 @@ class GoogleDriveIDManager:
 class GDriveProvider(StorageProvider):
     """Provider class for using Google Drive storage."""
 
+    client_id = None
+    client_secret = None
+    refresh_token = None
+    __thread_lock = Lock()
+
     def __init__(self, root: str, token: Optional[Union[str, Dict]] = None):
         """Initializes the GDriveProvider
 
@@ -154,9 +161,17 @@ class GDriveProvider(StorageProvider):
 
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root = root
-        if root.startswith("gdrive://"):
-            root = root.replace("gdrive://", "")
-            self.root_path = root
+        if creds:
+            self.client_id = creds.client_id
+            self.client_secret = creds.client_secret
+            self.refresh_token = creds.refresh_token
+
+        self._init_provider(creds)
+
+    def _init_provider(self, creds: Credentials):
+        self.drive = discovery.build("drive", "v3", credentials=creds)
+        if self.root.startswith("gdrive://"):
+            self.root_path = self.root.replace("gdrive://", "")
             self.gid = GoogleDriveIDManager(self.drive, self.root_path)
         self.root_id = self.gid.root_id
         if not self.root_id:
@@ -168,6 +183,15 @@ class GDriveProvider(StorageProvider):
                     self.root_path.split("/", i)[0]
                 )  # Remove root dir components from map
         self.gid.makemap(self.root_id, self.root_path)
+
+    def _init_from_state(self):
+        token = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
+        }
+        creds = Credentials.from_authorized_user_info(token, SCOPES)
+        self._init_provider(creds)
 
     def _get_id(self, path):
         return self.gid.path_id_map.get(path)
@@ -238,28 +262,40 @@ class GDriveProvider(StorageProvider):
 
     def __setitem__(self, path, content):
         self.check_readonly()
-        id = self._get_id(path)
-        if not id:
-            dirname, basename = posixpath.split(path)
-            if dirname:
-                parent_id = self._get_id(dirname)
-                if not parent_id:
-                    self.make_dir(dirname)
+        with self.__thread_lock:
+            id = self._get_id(path)
+            if not id:
+                dirname, basename = posixpath.split(path)
+                if dirname:
                     parent_id = self._get_id(dirname)
-            else:
-                parent_id = self.root_id
-            file = self._create_file(basename, FILE, parent_id, content)
-            self._set_id(path, file.get("id"))
+                    if not parent_id:
+                        self.make_dir(dirname)
+                        parent_id = self._get_id(dirname)
+                else:
+                    parent_id = self.root_id
+                file = self._create_file(basename, FILE, parent_id, content)
+                self._set_id(path, file.get("id"))
+                return
+
+            self._write_to_file(id, content)
             return
 
-        self._write_to_file(id, content)
-        return
-
     def __delitem__(self, path):
+        self.check_readonly()
         id = self._pop_id(path)
         if not id:
             raise KeyError(path)
         self._delete_file(id)
+
+    def __getstate__(self):
+        return (self.root, self.client_id, self.client_secret, self.refresh_token)
+
+    def __setstate__(self, state):
+        self.root = state[0]
+        self.client_id = state[1]
+        self.client_secret = state[2]
+        self.refresh_token = state[3]
+        self._init_from_state()
 
     def _all_keys(self):
         keys = set(self.gid.path_id_map.keys())
@@ -272,6 +308,7 @@ class GDriveProvider(StorageProvider):
         return len(self._all_keys())
 
     def clear(self, prefix=""):
+        self.check_readonly()
         for key in self._all_keys():
             if key.startswith(prefix):
                 try:
