@@ -49,6 +49,7 @@ from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
 from hub.util.htype import parse_sequence_htype
 from hub.util.merge import merge
+from hub.util.notebook import is_colab
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -2211,13 +2212,7 @@ class Dataset:
         from hub.visualizer import visualize
 
         hub_reporter.feature_report(feature_name="visualize", parameters={})
-        try:
-            import google.colab
-
-            colab = True
-        except Exception:
-            colab = False
-        if colab:
+        if is_colab:
             raise Exception("Cannot visualize local dataset in Colab.")
         else:
             visualize(self.storage, width=width, height=height)
