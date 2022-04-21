@@ -1,6 +1,6 @@
 from fractions import Fraction
 
-from PIL import Image
+from PIL import Image  # type: ignore
 import PIL.ExifTags
 
 
