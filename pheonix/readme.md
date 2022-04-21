@@ -1,6 +1,31 @@
 
 
+
+
+
 # Get Started with development
+
+## Generic install
+
+Install third party modules 
+```
+pip3 install pybind11
+git submodule sync
+git submodule update --init --recursive --jobs 0
+```
+
+then run
+```
+python3 setup.py install
+```
+and test
+
+```
+python3 pheonix/tests/prefetch_simple.py
+```
+
+Notes: remove pillow git from our tests
+
 ### Setup Compiler
 
 Need gcc to be 10 to support coroutines and c++20. Why not clang? because pytorch is compiled using gcc so for now we will use gcc-10
@@ -20,7 +45,6 @@ Install boost asio
 wget https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
 tar -zxvf boost_1_78_0.tar.gz
 ```
-
 
 update bashrc
 ```
