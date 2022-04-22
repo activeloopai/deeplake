@@ -269,10 +269,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._ds_diff = None
-        _verbose = self.verbose
-        self.verbose = False
-        self._set_derived_attributes()
-        self.verbose = _verbose
+        self._set_derived_attributes(verbose=False)
 
     def __getitem__(
         self,
@@ -1061,10 +1058,10 @@ class Dataset:
         print(all_changes)
         return None
 
-    def _populate_meta(self):
+    def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            if self.verbose:
+            if verbose and self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
             load_meta(self)
 
@@ -1272,7 +1269,7 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self):
+    def _set_derived_attributes(self, verbose: bool = True):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
@@ -1280,7 +1277,7 @@ class Dataset:
             self._set_read_only(
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
-            self._populate_meta()  # TODO: use the same scheme as `load_info`
+            self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
         elif not self._read_only:
             self._lock()  # for ref counting
         if not self.is_iteration:
