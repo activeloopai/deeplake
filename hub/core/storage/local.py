@@ -212,3 +212,10 @@ class LocalProvider(StorageProvider):
 
     def __setstate__(self, state):
         self.__init__(state)
+
+    def get_object_size(self, key: str):
+        full_path = self._check_is_file(key)
+        if os.path.exists(full_path):
+            os.path.getsize(full_path)
+        else:
+            return 0

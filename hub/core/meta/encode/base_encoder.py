@@ -144,13 +144,14 @@ class Encoder(ABC):
 
         return row_index  # type: ignore
 
-    def register_samples(self, item: Any, num_samples: int):
+    def register_samples(self, item: Any, num_samples: int, end: bool = True):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.
         This method adds data to `self._encoded` without decoding.
 
         Args:
             item (Any): General input, will be passed along to subclass methods.
             num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
+            end (bool): parameter that shows whether we need to add elements to the end of encoder or in the front
         """
 
         # TODO: optimize this
@@ -170,11 +171,19 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                shape_entry = np.array(
-                    [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
-                )
-
-                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
+                # TODO check with Abhinav if we need to change nex elements ids
+                if end is False:
+                    shape_entry = np.array(
+                         [*decomposable, 1], dtype=ENCODING_DTYPE
+                    )
+                    self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
+                    for i, item in enumerate(self._encoded, start=1):
+                        item[1] += self._encoded[i-1]
+                else:
+                    shape_entry = np.array(
+                        [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
+                    )
+                    self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
 
         else:
             decomposable = self._make_decomposable(item)
@@ -721,6 +730,17 @@ class Encoder(ABC):
             self._encoded = self._encoded[:-1]
         elif num_samples_in_last_row > 1:
             self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+        else:
+            raise IndexError("pop from empty encoder")
+        self.is_dirty = True
+
+    # TODO think about appending with nones
+    def _pop_front(self, row):
+        num_samples_in_row = self._encoded[row][1] - self._encoded[row-1]
+        if num_samples_in_row == 1:
+            self._encoded = self._encoded[:-1]
+        if num_samples_in_row > 1:
+            self._encoded[row] -= 1
         else:
             raise IndexError("pop from empty encoder")
         self.is_dirty = True

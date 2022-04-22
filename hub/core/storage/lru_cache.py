@@ -425,3 +425,6 @@ class LRUCache(StorageProvider):
         self.dirty_keys = set()
         self.cache_used = 0
         self.hub_objects = {}
+
+    def get_object_size(self, key: str):
+        return self.cache_storage.get_object_size(key)

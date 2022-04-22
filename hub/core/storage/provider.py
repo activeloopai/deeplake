@@ -65,6 +65,17 @@ class StorageProvider(ABC, MutableMapping):
             value (bytes): the value to be assigned at the path.
         """
 
+    @abstractmethod
+    def get_object_size(self, key: str):
+        """calculates the object size with provided path
+
+        Args:
+            key(str): the key of storage object
+
+        Returns:
+            number of bytes for object with specified key
+        """
+
     def set_bytes(
         self,
         path: str,

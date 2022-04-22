@@ -585,9 +585,9 @@ class S3Provider(StorageProvider):
             self._presigned_urls[path] = (url, time.time())
         return url
 
-    def get_object_size(self, path):
-        path = "".join((self.path, path))
-        obj = self.resource.Object(self.bucket, path)
+    def get_object_size(self, key: str):
+        key = "".join((self.path, key))
+        obj = self.resource.Object(self.bucket, key)
         return obj.content_length
 
     def get_object_from_full_url(self, url: str):

@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Dict
 from hub.core.storage.provider import StorageProvider
 
@@ -115,3 +116,6 @@ class MemoryProvider(StorageProvider):
 
     def __setstate__(self, state: str):
         self.__init__(root=state)  # type: ignore
+
+    def get_object_size(self, key: str):
+        return sys.getsizeof(self.dict[key])

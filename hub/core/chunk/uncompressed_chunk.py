@@ -8,17 +8,21 @@ from .base_chunk import BaseChunk, InputSample
 
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
-        self, incoming_samples: Union[List[InputSample], np.ndarray]
+        self, incoming_samples: Union[List[InputSample], np.ndarray],
+            extend: bool = True,
+            end: bool = True
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
-            return self._extend_if_has_space_numpy(incoming_samples)
-        return self._extend_if_has_space_list(incoming_samples)
+            return self._extend_if_has_space_numpy(incoming_samples, extend, end)
+        return self._extend_if_has_space_list(incoming_samples, extend, end)
 
-    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
+    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray, extend: bool = True, end: bool = True) -> float:
         num_samples: int = 0
         buffer_size = 0
 
+        if end is False:
+            incoming_samples = np.flip(incoming_samples, axis=0)
         for sample in incoming_samples:
             shape = self.normalize_shape(sample.shape)
             self.num_dims = self.num_dims or len(shape)
@@ -32,24 +36,31 @@ class UncompressedChunk(BaseChunk):
 
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
-        self.data_bytes += samples.tobytes()
+        if end is False:
+            self.data_bytes = samples.tobytes() + self.data_bytes
+        else:
+            self.data_bytes += samples.tobytes()
 
         if num_samples > 0:
             shape = self.normalize_shape(samples[0].shape)
             sample_nbytes = samples[0].nbytes
             for _ in range(num_samples):
-                self.register_in_meta_and_headers(sample_nbytes, shape)
+                self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
 
         return float(num_samples)
 
-    def _extend_if_has_space_list(self, incoming_samples: List[InputSample]) -> float:
+    def _extend_if_has_space_list(self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True) -> float:
         num_samples: float = 0
+
+        if end is False:
+            incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
 
+            # NOTE re-chunking logic should not reach to this point, for Tiled ones we do not have this logic
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
@@ -59,8 +70,11 @@ class UncompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape)
+                    if end is False:
+                        self.data_bytes = serialized_sample + self.data_bytes # type: ignore
+                    else:
+                        self.data_bytes += serialized_sample  # type: ignore
+                    self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
                     num_samples += 1
                 else:
                     break

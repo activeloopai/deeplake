@@ -436,7 +436,7 @@ class GCSProvider(StorageProvider):
             self._presigned_urls[key] = (url, time.time())
         return url
 
-    def get_object_size(self, key):
+    def get_object_size(self, key: str):
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
         return blob.size
 
