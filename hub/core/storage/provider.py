@@ -188,7 +188,7 @@ class StorageProvider(ABC, MutableMapping):
         new_provider.__setstate__(self.__getstate__())
         return new_provider
 
-    def get_url(self, key: str) -> str:
+    def get_presigned_url(self, key: str) -> str:
         return posixpath.join(self.root, key)
 
     def get_object_size(self, key: str) -> int:

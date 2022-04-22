@@ -529,9 +529,16 @@ class S3Provider(StorageProvider):
             and self.loaded_creds_from_environment
         )
 
-    def get_url(self, key) -> str:
+    def get_presigned_url(self, key, full=False):
         self._check_update_creds()
-        path = "".join((self.path, key))
+        if full:
+            root = key.replace("s3://", "")
+            split_root = root.split("/", 1)
+            bucket = split_root[0]
+            path = split_root[1] if len(split_root) > 1 else ""
+        else:
+            bucket = self.bucket
+            path = "".join((self.path, key))
 
         url = None
         cached = self._presigned_urls.get(path)
@@ -550,7 +557,7 @@ class S3Provider(StorageProvider):
             else:
                 url = self.client.generate_presigned_url(
                     "get_object",
-                    Params={"Bucket": self.bucket, "Key": path},
+                    Params={"Bucket": bucket, "Key": path},
                     ExpiresIn=3600,
                 )
             self._presigned_urls[path] = (url, time.time())
@@ -560,3 +567,11 @@ class S3Provider(StorageProvider):
         path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
+
+    def get_object_from_full_url(self, url: str):
+        root = url.replace("s3://", "")
+        split_root = root.split("/", 1)
+        bucket = split_root[0]
+        path = split_root[1] if len(split_root) > 1 else ""
+        resp = self.client.get_object(Bucket=bucket, Key=path)
+        return resp["Body"].read()
