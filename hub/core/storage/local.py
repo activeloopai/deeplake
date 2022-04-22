@@ -213,7 +213,7 @@ class LocalProvider(StorageProvider):
     def __setstate__(self, state):
         self.__init__(state)
 
-    def get_url(self, key: str) -> str:
+    def get_presigned_url(self, key: str) -> str:
         return os.path.join(self.root, key)
 
     def get_object_size(self, key: str) -> int:
