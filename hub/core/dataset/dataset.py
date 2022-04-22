@@ -51,6 +51,7 @@ from hub.util.hash import hash_inputs
 from hub.util.htype import parse_complex_htype
 from hub.util.link import save_link_creds
 from hub.util.merge import merge
+from hub.util.notebook import is_colab
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -2281,10 +2282,17 @@ class Dataset:
         Args:
             width: Union[int, str, None] Optional width of the visualizer canvas.
             height: Union[int, str, None] Optional height of the visualizer canvas.
+
+        Raises:
+            Exception: If a dataset is not hub cloud dataset and the visualization happens in colab.
         """
         from hub.visualizer import visualize
 
-        visualize(self.storage, width=width, height=height)
+        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        if is_colab:
+            raise Exception("Cannot visualize local dataset in Colab.")
+        else:
+            visualize(self.storage, width=width, height=height)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
