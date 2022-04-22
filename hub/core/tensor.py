@@ -625,6 +625,7 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
+
         self.check_link_ready()
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 

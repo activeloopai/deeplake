@@ -131,6 +131,7 @@ class LinkedChunkEngine(ChunkEngine):
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
+
             if self.verify:
                 verified_samples.append(
                     read_linked_sample(

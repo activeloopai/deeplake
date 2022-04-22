@@ -14,11 +14,14 @@ import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None
         compr = self.compression
+
+        if end is False:
+            incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample, compr)
@@ -35,8 +38,11 @@ class SampleCompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape)
+                    if end is False:
+                        self.data_bytes = serialized_sample + self.data_bytes
+                    else:
+                        self.data_bytes += serialized_sample  # type: ignore
+                    self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
                     num_samples += 1
                 else:
                     if serialized_sample:

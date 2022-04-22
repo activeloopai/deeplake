@@ -7,8 +7,15 @@ import numpy as np
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 from hub.util.generate_id import generate_id
 
-
 CHUNK_ID_COLUMN = 0
+
+
+class OutOfChunkCount(Exception):
+    pass
+
+
+class OutOfSampleCount(Exception):
+    pass
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
@@ -44,12 +51,75 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             return 0
         return len(self._encoded)
 
-    def generate_chunk_id(self, register: Optional[bool] = True) -> ENCODING_DTYPE:
+    def get_num_samples(self, row: Optional[int] = None):
+        """Calculates the number of samples for the specified chunk
+        Args:
+            row: (Optional, int): Iterator position of the chunk id
+
+        Returns:
+            Number of samples
+        """
+
+        if self.num_samples == 0:
+            return 0
+        if row is not None:
+            if row > self.num_chunks:
+                raise OutOfChunkCount
+            if row == 0:
+                return self._encoded[row][1]
+            else:
+                return self._encoded[row][1] - self._encoded[row - 1][1]
+        return 0
+
+    def get_next_chunk_id(self, row) -> Optional[str]:
+        if self.num_chunks is None or self._encoded is None:
+            return None
+        if row == self.num_chunks - 1:
+            return None
+
+        return self._encoded[row + 1][0]
+
+    def get_prev_chunk_id(self, row) -> Optional[str]:
+        if self.num_chunks is None or self._encoded is None:
+            return None
+        if row == self.num_chunks - 1 or row == 0:
+            return None
+
+        return self._encoded[row + 1][0]
+
+    def decrease_samples(self, row: int = 0, num_samples: int = 0):
+        """Decrease sample count from encoder
+
+        Args:
+            row (int): shows the row of the chunk
+            num_samples (int): show sample count that needs to be updated
+        """
+        if self.num_samples < num_samples:
+            raise OutOfSampleCount
+
+        if self.num_chunks < row + 1:
+            raise OutOfChunkCount
+
+        self._encoded[row][1] -= num_samples
+
+    def delete_chunk_id(self, row):
+        """Decrease sample count from encoder
+
+        Args:
+            row (int): the row of chunk that needs to be deleted
+        """
+        if row > self.num_chunks:
+            raise OutOfChunkCount
+
+        self._encoded = np.delete(self._encoded, row, axis=0)
+
+    def generate_chunk_id(self, register: Optional[bool] = True, row: Optional[int] = None) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
 
         Args:
             register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True.
+            row (Optional, int): Iterator position where the new generated id should be inserted
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
@@ -61,6 +131,15 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
 
             else:
+                if row is not None:
+                    if row > self.num_chunks:
+                        raise OutOfChunkCount
+                    new_entry = np.array(
+                        [id, self._encoded[row][1]]
+                    )
+                    self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
+                    return id
+
                 last_index = self.num_samples - 1
 
                 new_entry = np.array(
@@ -167,7 +246,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         )
 
     def __getitem__(
-        self, local_sample_index: int, return_row_index: bool = False
+            self, local_sample_index: int, return_row_index: bool = False
     ) -> Any:
         """Derives the value at `local_sample_index`.
 
@@ -238,7 +317,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         return chunk_ids_for_last_sample, to_delete
 
     def _replace_chunks_for_tiled_sample(
-        self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
+            self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
     ):
         current_chunk_ids_and_rows = self.__getitem__(  # type: ignore
             global_sample_index, return_row_index=True
@@ -247,10 +326,10 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         end_row = current_chunk_ids_and_rows[-1][1]
         if len(current_chunk_ids_and_rows) == len(chunk_ids):
             # inplace update
-            self._encoded[start_row : end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
+            self._encoded[start_row: end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
         else:
             top = self._encoded[:start_row]
-            bottom = self._encoded[end_row + 1 :]
+            bottom = self._encoded[end_row + 1:]
             mid = np.empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index
