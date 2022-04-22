@@ -48,6 +48,7 @@ def read(
         verify (bool):  If True, contents of the file are verified.
         creds (optional, Dict): Credentials for s3 and gcp for urls.
         compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
+        storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.

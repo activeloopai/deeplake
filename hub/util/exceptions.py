@@ -623,10 +623,13 @@ class MergeMismatchError(MergeError):
 
 
 class MergeConflictError(MergeError):
-    def __init__(self, conflict_dict):
-        tensor_names = [k for k, v in conflict_dict.items() if v]
-        message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
-        super().__init__(message)
+    def __init__(self, conflict_dict=None, message=""):
+        if conflict_dict:
+            tensor_names = [k for k, v in conflict_dict.items() if v]
+            message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
+            super().__init__(message)
+        else:
+            super().__init__(message)
 
 
 class CheckoutError(VersionControlError):
@@ -686,13 +689,13 @@ class NotLoggedInError(AgreementError):
         super().__init__(msg)
 
 
+class RenameError(Exception):
+    def __init__(self, msg="Only name of the dataset can be different in new path."):
+        super().__init__(msg)
+
+
 class BufferError(Exception):
     pass
-
-
-class RenameError(Exception):
-    def __init__(self):
-        super().__init__("Only name of the dataset can be different in new path.")
 
 
 class InfoError(Exception):

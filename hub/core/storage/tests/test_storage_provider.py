@@ -163,3 +163,14 @@ def test_gcs_tokens(request):
     assert not gcreds.credentials
     with pytest.raises(GCSDefaultCredsNotFoundError) as e:
         gcreds = GCloudCredentials(token="browser")
+
+
+@pytest.mark.parametrize("storage", ["s3_storage", "gcs_storage"], indirect=True)
+def test_read_from_full_url(storage, color_image_paths):
+    image_path = color_image_paths["jpeg"]
+    with open(image_path, "rb") as f:
+        byts = f.read()
+
+    storage["sample/samplejpg.jpg"] = byts
+    data = storage.get_object_from_full_url(f"{storage.root}/sample/samplejpg.jpg")
+    assert byts == data

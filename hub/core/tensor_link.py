@@ -50,7 +50,9 @@ def update_test(
 def append_info(sample, link_creds=None):
     meta = {}
     if isinstance(sample, hub.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(sample.path, sample.creds_key, link_creds)
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
     if isinstance(sample, hub.core.sample.Sample):
         meta = sample.meta
         meta["modified"] = False
@@ -74,7 +76,9 @@ def update_info(
 @link
 def append_shape(sample, link_creds=None):
     if isinstance(sample, hub.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(sample.path, sample.creds_key, link_creds)
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
     return np.array(getattr(sample, "shape", None) or np.array(sample).shape)
 
 
@@ -98,9 +102,11 @@ def get_link_transform(fname: str):
     return _funcs[fname]
 
 
-def read_linked_sample(sample_path: str, sample_creds_key: str, link_creds):
+def read_linked_sample(
+    sample_path: str, sample_creds_key: str, link_creds, verify: bool
+):
     if sample_path.startswith(("gcs://", "gcp://", "s3://")):
         provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
         storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
-        return hub.read(sample_path, storage=storage)
-    return hub.read(sample_path)
+        return hub.read(sample_path, storage=storage, verify=verify)
+    return hub.read(sample_path, verify=verify)

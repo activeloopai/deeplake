@@ -26,14 +26,13 @@ def get_string(
 
 def summary_tensor(tensor):
     head = [
-        "tensor",
         "htype",
         "shape",
         "dtype",
         "compression",
     ]
-    divider = ["-------"] * 5
-    max_column_length = [7, 7, 7, 7, 7]
+    divider = ["-------"] * 4
+    max_column_length = [7, 7, 7, 7]
 
     tensor_htype = tensor.htype
     if tensor_htype == None:
@@ -54,7 +53,6 @@ def summary_tensor(tensor):
         head,
         divider,
         [
-            str(tensor.key),
             tensor_htype,
             tensor_shape,
             tensor_dtype,
@@ -64,7 +62,7 @@ def summary_tensor(tensor):
     # adding information about tensors
     max_column_length = max_array_length(
         max_column_length, self_array[2]
-    )  # 3rd element of slefarray corresponds to tensor att
+    )  # 3rd element of self_array corresponds to tensor att
     max_column_length = [elem + 2 for elem in max_column_length]
     return get_string(self_array, max_column_length)
 
