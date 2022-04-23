@@ -1,0 +1,3 @@
+"""Grants access to targets or any of its direct or indirect subpackages."""
+
+package(default_visibility = ["//:__subpackages__"])

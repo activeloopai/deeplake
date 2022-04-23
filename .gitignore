@@ -12,6 +12,11 @@ htmlcov
 *.swp
 *.swo
 
+user.bazelrc
+.dazel_run
+bazel-*
+*~
+
 # Sphinix
 # sphinx build folder
 docs/_build

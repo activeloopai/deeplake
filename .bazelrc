@@ -1,0 +1,19 @@
+
+   
+try-import submodules/dev-tools/.bazelrc
+
+# Specific Bazel build/test options.
+build --enable_platform_specific_config
+
+build:macos --cxxopt='-std=c++17'
+
+build:linux --cxxopt='-std=c++17'
+
+build:windows --cxxopt="/std:c++17"
+
+build:windows --compiler="clang-cl"
+
+build:clang --action_env=CC=clang
+
+# Allow users to add local preferences.
+try-import %workspace%/user.bazelrc

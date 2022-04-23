@@ -105,3 +105,11 @@ TODO list
 
 --- phase V (enterprise only) ---
 1. zero copy | libfabric + gpu direct
+
+
+## Profiler
+Follow guide here https://www.tensorflow.org/guide/profiler
+
+```
+py-spy record -o profile.svg --native --non-blocking -- python tests/prefetch_simple.py
+```
