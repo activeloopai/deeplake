@@ -2,6 +2,7 @@
 
 #include "eventuals/closure.h"
 #include "eventuals/collect.h"
+#include "eventuals/concurrent.h"
 #include "eventuals/conditional.h"
 #include "eventuals/eventual.h"
 #include "eventuals/foreach.h"
@@ -35,8 +36,10 @@ int main() {
 
   auto e = [&]() {
     return eventuals::Range(2)
-        | eventuals::Map([&](int i) {
-             return request(i);
+        | eventuals::Concurrent([&]() {
+             return eventuals::Map([&](int i) {
+               return request(i);
+             });
            })
         | eventuals::Collect<std::vector<int>>();
   };
