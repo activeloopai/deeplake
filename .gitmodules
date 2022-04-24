@@ -7,3 +7,6 @@
 [submodule "pheonix/third_party/palanteer"]
 	path = pheonix/third_party/palanteer
 	url = https://github.com/dfeneyrou/palanteer
+[submodule "submodules/eventuals"]
+	path = submodules/eventuals
+	url = https://github.com/3rdparty/eventuals.git
