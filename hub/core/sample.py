@@ -432,7 +432,7 @@ class Sample:
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
-        path = self.path.replace("gdrive://", "")
+        path = self.path.replace("gdrive://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
         return gdrive[key]

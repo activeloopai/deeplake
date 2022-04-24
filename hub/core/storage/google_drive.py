@@ -172,7 +172,7 @@ class GDriveProvider(StorageProvider):
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root_path = self.root.replace("gdrive://", "")
         if hasattr(self, "root_id"):
-            self.gid = GoogleDriveIDManager(self.drive, self.root_path, self.root_id)
+            self.gid = GoogleDriveIDManager(self.drive, self.root_path, self.root_id)  # type: ignore
         else:
             self.gid = GoogleDriveIDManager(self.drive, self.root_path)
             self.root_id = self.gid.root_id
