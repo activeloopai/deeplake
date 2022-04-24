@@ -13,6 +13,7 @@ from hub.compression import (
 )
 from hub.constants import CONVERT_GRAYSCALE
 from hub.core.fast_forwarding import ffw_chunk
+from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
@@ -68,7 +69,9 @@ class BaseChunk(HubMemoryObject):
 
         self.tensor_meta = tensor_meta
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
-        self.is_text_like = self.htype in {"json", "list", "text"}
+        self.is_text_like = (
+            self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
+        )
 
         self.compression = compression
         compression_type = get_compression_type(compression)
@@ -217,6 +220,8 @@ class BaseChunk(HubMemoryObject):
         """Converts the sample into bytes"""
         dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
         if self.is_text_like:
+            if isinstance(incoming_sample, LinkedSample):
+                incoming_sample = incoming_sample.path
             incoming_sample, shape = serialize_text(
                 incoming_sample, sample_compression, dt, ht  # type: ignore
             )

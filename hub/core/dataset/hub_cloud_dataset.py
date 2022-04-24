@@ -1,3 +1,4 @@
+from typing import Union
 import logging
 import posixpath
 from typing import Any, Dict, Optional
@@ -7,6 +8,7 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
+from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
     RenameError,
     PathNotEmptyException,
@@ -260,3 +262,11 @@ class HubCloudDataset(Dataset):
         super().__setstate__(state)
         self._client = None
         self._first_load_init()
+
+    def visualize(
+        self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
+    ):
+        from hub.visualizer import visualize
+
+        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        visualize(self.path, self.token, width=width, height=height)

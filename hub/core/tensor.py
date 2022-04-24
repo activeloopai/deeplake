@@ -1,4 +1,5 @@
 import hub
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
@@ -12,7 +13,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.tensor_link import get_link_transform
-from hub.api.info import Info, load_info
+from hub.api.info import load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -49,6 +50,11 @@ from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
 
 
 from hub.util.version_control import auto_checkout
+
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
+from hub.util.notebook import is_jupyter, video_html, is_colab
+import warnings
+import webbrowser
 
 
 def create_tensor(
@@ -207,16 +213,28 @@ class Tensor:
         self.storage: LRUCache = dataset.storage
         self.index = index or Index()
         self.version_state = dataset.version_state
+        self.link_creds = dataset.link_creds
         self.is_iteration = is_iteration
+        commit_id = self.version_state["commit_id"]
 
         if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, self.version_state["commit_id"]
+            self.key, self.storage, commit_id
         ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = chunk_engine or ChunkEngine(
-            self.key, self.storage, self.version_state
-        )
+        meta_key = get_tensor_meta_key(self.key, commit_id)
+        meta = self.storage.get_hub_object(meta_key, TensorMeta)
+        if chunk_engine is not None:
+            self.chunk_engine = chunk_engine
+        elif meta.is_link:
+            self.chunk_engine = LinkedChunkEngine(
+                self.key,
+                self.storage,
+                self.version_state,
+                link_creds=dataset.link_creds,
+            )
+        else:
+            self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
@@ -267,6 +285,7 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
+        self.check_link_ready()
         self._write_initialization()
         self.chunk_engine.extend(
             samples, link_callback=self._append_to_links if self.meta.links else None
@@ -396,6 +415,8 @@ class Tensor:
             if sample_shape_tensor
             else None
         )
+        if sample_shape_provider is None:
+            self.check_link_ready()
         return self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
@@ -417,10 +438,21 @@ class Tensor:
         return self.meta.is_sequence
 
     @property
+    def is_link(self):
+        return self.meta.is_link
+
+    @property
+    def verify(self):
+        return self.is_link and self.meta.verify
+
+    @property
     def htype(self):
+        htype = self.meta.htype
         if self.is_sequence:
-            return f"sequence[{self.meta.htype}]"
-        return self.meta.htype
+            htype = f"sequence[{htype}]"
+        if self.is_sequence:
+            htype = f"link[{htype}]"
+        return htype
 
     @property
     def hidden(self) -> bool:
@@ -541,6 +573,7 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        self.check_link_ready()
         self._write_initialization()
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
@@ -568,6 +601,15 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
+    def check_link_ready(self):
+        if not self.is_link:
+            return
+        missing_keys = self.link_creds.missing_keys
+        if missing_keys:
+            raise ValueError(
+                f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
+            )
+
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
@@ -578,11 +620,12 @@ class Tensor:
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ValueError: If the tensor is a link and the credentials are not populated.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-
+        self.check_link_ready()
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def summary(self):
@@ -682,7 +725,11 @@ class Tensor:
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
-        return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
+        self.check_link_ready()
+        idx = self.index.values[0].value
+        if self.is_link:
+            return self.chunk_engine.get_hub_read_sample(idx).compressed_bytes  # type: ignore
+        return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _pop(self):
         self.chunk_engine._pop()
@@ -691,7 +738,9 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                Tensor(k, self.dataset).append(get_link_transform(v["append"])(sample))
+                Tensor(k, self.dataset).append(
+                    get_link_transform(v["append"])(sample, self.link_creds)
+                )
 
     def _update_links(
         self,
@@ -710,6 +759,7 @@ class Tensor:
                         Tensor(k, self.dataset)[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
+                        link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
                         Tensor(k, self.dataset)[global_sample_index] = val
@@ -782,3 +832,34 @@ class Tensor:
     @property
     def sample_info(self):
         return self._sample_info(self.index)
+
+    def _linked_sample(self):
+        if not self.is_link:
+            raise ValueError("Not supported as the tensor is not a link.")
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
+        return self.chunk_engine.linked_sample(self.index.values[0].value)
+
+    def _get_video_stream_url(self):
+        from hub.visualizer.video_streaming import get_video_stream_url
+
+        return get_video_stream_url(self, self.index.values[0].value)
+
+    def play(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Video streaming requires exactly 1 sample.")
+        if len(self.index.values) > 1:
+            warnings.warn(
+                "Sub indexes to video sample will be ignored while streaming."
+            )
+        if is_colab():
+            raise NotImplementedError("Video streaming is not supported on colab yet.")
+        elif is_jupyter():
+            return video_html(
+                src=self._get_video_stream_url(),
+                alt=f"{self.key}[{self.index.values[0].value}]",
+            )
+        else:
+            webbrowser.open(self._get_video_stream_url())

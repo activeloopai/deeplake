@@ -64,7 +64,7 @@ def s3_root_storage(request):
 
 @pytest.fixture
 def gcs_root_storage(request, gcs_creds):
-    if not is_opt_true(request, S3_OPT):
+    if not is_opt_true(request, GCS_OPT):
         pytest.skip()
         return
 

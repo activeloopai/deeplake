@@ -54,6 +54,7 @@ META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
+ENCODED_CREDS_FOLDER = "creds_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
@@ -102,6 +103,10 @@ FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
 VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
+
+LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
+
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8

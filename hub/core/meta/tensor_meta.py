@@ -47,6 +47,8 @@ class TensorMeta(Meta):
     hidden: bool
     links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
+    is_link: bool
+    verify: bool
 
     def __init__(
         self,
@@ -65,7 +67,7 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-        if htype and htype != UNSPECIFIED:
+        if htype and htype not in [UNSPECIFIED, DEFAULT_HTYPE]:
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(DEFAULT_HTYPE, **kwargs)
@@ -273,16 +275,18 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     cc = htype_overwrite["chunk_compression"]
     compr = sc if cc in (None, UNSPECIFIED) else cc
     if htype == "image" and sc == UNSPECIFIED and cc == UNSPECIFIED:
-        raise TensorMetaMissingRequiredValue(
-            htype, ["chunk_compression", "sample_compression"]  # type: ignore
-        )
+        if not htype_overwrite["is_link"]:
+            raise TensorMetaMissingRequiredValue(
+                htype, ["chunk_compression", "sample_compression"]  # type: ignore
+            )
     if htype in ("audio", "video"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
-            raise TensorMetaMissingRequiredValue(
-                htype, "sample_compression"  # type: ignore
-            )
+            if not htype_overwrite["is_link"]:
+                raise TensorMetaMissingRequiredValue(
+                    htype, "sample_compression"  # type: ignore
+                )
     supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
     if (
         compr
