@@ -16,16 +16,20 @@
 #include "eventuals/stream.h"
 #include "eventuals/terminal.h"
 #include "eventuals/then.h"
+#include "eventuals/timer.h"
 #include "eventuals/type-traits.h"
 
 int main() {
-  eventuals::EventLoop::ConstructDefault();
+  eventuals::EventLoop::ConstructDefaultAndRunForeverDetached();
 
   auto request = [](auto i) {
     std::cout << i << std::endl;
-    return eventuals::http::Get("http://www.google.com")
-        | eventuals::Then([&](auto response) {
-             return response.code();
+    return eventuals::Timer(std::chrono::seconds(1))
+        | eventuals::Then([]() {
+             return eventuals::http::Get("http://www.google.com")
+                 | eventuals::Then([&](auto response) {
+                      return response.code();
+                    });
            });
   };
 
@@ -65,8 +69,6 @@ int main() {
   k.Start();
   std::cout << __LINE__ << std::endl;
 
-  eventuals::EventLoop::Default().RunUntil(future);
-
   std::vector<int> codes = future.get();
 
   for (int code : codes) {
@@ -74,5 +76,4 @@ int main() {
   }
 
   std::cout << "done" << std::endl;
-  eventuals::EventLoop::DestructDefault();
 }
