@@ -362,7 +362,8 @@ class BaseChunk(HubMemoryObject):
 
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
-        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[(-num_samples - 1)][0]]
+
+        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[self.shapes_encoder.num_samples - num_samples][0]]
 
         for _ in range(num_samples):
             self.shapes_encoder._pop()

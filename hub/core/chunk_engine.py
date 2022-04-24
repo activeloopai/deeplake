@@ -868,9 +868,10 @@ class ChunkEngine:
             decompress = True
         samples_to_move = []
         sum_bytes = 0
-        num_samples = len(chunk.byte_positions_encoder.array)
 
-        rng = range(0, int(num_samples/2)) if forward is True else range(num_samples, int(num_samples / 2), -1)
+        # TODO return to tile rechunking  later
+        num_samples = len(chunk.byte_positions_encoder.array)
+        rng = range(0, int(num_samples/2)) if forward is True else range(num_samples - 1, int(num_samples / 2), -1)
         for idx in rng:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sum_bytes += len(sample_bytes)
@@ -893,7 +894,7 @@ class ChunkEngine:
 
         samples_to_move = []
         num_samples = len(chunk.byte_positions_encoder.array)
-        rng = range(0, num_samples) if forward is True else range(num_samples, 0, -1)
+        rng = range(0, num_samples) if forward is True else range(num_samples - 1, 0, -1)
         for idx in rng:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
@@ -907,11 +908,14 @@ class ChunkEngine:
         return samples_to_move
 
     def __rechunk(self, chunk, chunk_row):
-        new_chunk = self._create_new_chunk(chunk, row=chunk_row)
         samples_to_move = self.__get_samples_to_move(chunk=chunk, forward=False)
+        num_samples = len(samples_to_move)
+        if num_samples == 0:
+            return
+        new_chunk = self._create_new_chunk(chunk, row=chunk_row)
 
-        self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=len(samples_to_move))
-        self.chunk_id_encoder.decrease_samples(row=chunk_row+1, num_samples=len(samples_to_move))
+        self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=num_samples)
+        self.chunk_id_encoder.decrease_samples(row=chunk_row+1, num_samples=num_samples)
         chunk.pop_multiple(num_samples=len(samples_to_move))
 
         samples = self._sanitize_samples(samples_to_move)
@@ -939,9 +943,12 @@ class ChunkEngine:
             return False
         if next_chunk_size + chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE:
             samples_to_move = self.__get_samples_to_move(next_chunk, forward=True)
-            self.chunk_id_encoder.decrease_samples(row=next_chunk_row, num_samples=len(samples_to_move))
+            num_samples = len(samples_to_move)
+            if num_samples == 0:
+                return True
+            self.chunk_id_encoder.decrease_samples(row=next_chunk_row, num_samples=num_samples)
             # for chunk encoded chunks we need to take into acount that pop is not needed for byte_position_encoder (image_compression related)
-            next_chunk.pop_front_multiple(num_samples=len(samples_to_move))
+            next_chunk.pop_front_multiple(num_samples=num_samples)
             samples = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
@@ -989,10 +996,13 @@ class ChunkEngine:
         if prev_chunk_size + chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE:
             # move elements from prev chunk to the top of current one
             samples_to_move = self.__get_samples_to_move(prev_chunk, forward=False)
+            num_samples = len(samples_to_move)
+            if num_samples == 0:
+                return True
             # reverse in place to keep correct ordering while prepending on chunk
             samples_to_move.reverse()
-            self.chunk_id_encoder.decrease_samples(row=prev_chunk_row, num_samples=len(samples_to_move))
-            prev_chunk.pop_multiple(num_samples=len(samples_to_move))
+            self.chunk_id_encoder.decrease_samples(row=prev_chunk_row, num_samples=num_samples)
+            prev_chunk.pop_multiple(num_samples=num_samples)
             samples = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
