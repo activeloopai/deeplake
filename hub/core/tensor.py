@@ -401,6 +401,13 @@ class Tensor:
         )
 
     @property
+    def size(self) -> int:
+        s = 1
+        for x in self.shape:
+            s *= x  # not using np.prod to avoid overflow
+        return s
+
+    @property
     def ndim(self) -> int:
         return self.chunk_engine.ndim(self.index)
 

@@ -19,10 +19,9 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-from hub.util.exceptions import CorruptedSampleError
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
