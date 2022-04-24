@@ -1,9 +1,11 @@
-
-
-
-
-
 # Get Started with development
+
+## Bazel getting started
+
+```
+bazel build //pheonix:pheonix --sandbox_writable_path=$HOME/.ccache
+```
+
 
 ## Generic install
 
