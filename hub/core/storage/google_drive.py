@@ -16,6 +16,9 @@ import posixpath
 import pickle
 from typing import Dict, Optional, Union
 from hub.util.hash import hash_inputs
+import logging
+
+logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -119,7 +122,7 @@ class GDriveProvider(StorageProvider):
 
         creds = None
 
-        if token is None:
+        if not token:
             token = "gdrive_token.json"
 
         if isinstance(token, str):
@@ -178,11 +181,11 @@ class GDriveProvider(StorageProvider):
             self.root_id = self.gid.root_id
         if self.root_id is None:
             self.root_id = "root"
-            root_dir = self.make_dir(self.root_path)
+            root_dir = self.make_dir(self.root_path, find=True)
             self.root_id = self.gid.root_id = root_dir.get("id")
             for i in range(len(self.root_path.split("/"))):
                 self.gid.path_id_map.pop(
-                    self.root_path.split("/", i)[0]
+                    self.root_path.split("/", i)[0], None
                 )  # Remove root dir components from map
         self.gid.makemap(self.root_id, self.root_path)
 
@@ -204,10 +207,13 @@ class GDriveProvider(StorageProvider):
     def _set_id(self, path, id):
         self.gid.path_id_map[path] = id
 
-    def make_dir(self, path):
+    def make_dir(self, path, find=False):
         dirname, basename = posixpath.split(path)
         if dirname:
-            parent_id = self._get_id(dirname)
+            if find:
+                parent_id = self.gid.find_id(dirname)
+            else:
+                parent_id = self._get_id(dirname)
             if not parent_id:
                 locked = self._lock_creation(dirname)
                 if locked:
