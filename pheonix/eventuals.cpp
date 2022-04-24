@@ -1,58 +1,53 @@
 #include "iostream"
 
-#include "eventuals/eventual.h"
-#include "eventuals/http.h"
-#include "eventuals/foreach.h"
 #include "eventuals/closure.h"
+#include "eventuals/eventual.h"
+#include "eventuals/foreach.h"
+#include "eventuals/http.h"
 #include "eventuals/range.h"
+#include "eventuals/reduce.h"
 #include "eventuals/terminal.h"
 #include "eventuals/then.h"
-#include "eventuals/http.h"
-#include "eventuals/reduce.h"
 
+#include "eventuals/conditional.h"
 #include "eventuals/interrupt.h"
 #include "eventuals/let.h"
+#include "eventuals/map.h"
 #include "eventuals/scheduler.h"
-#include "eventuals/type-traits.h"
-#include "eventuals/conditional.h"
-#include "eventuals/map.h"   
 #include "eventuals/stream.h"
+#include "eventuals/type-traits.h"
 
-#include "eventuals/if.h"
+// #include "eventuals/if.h" // No such file or directory
 
 int main() {
   eventuals::EventLoop::ConstructDefault();
 
-  auto request = [](auto i){ 
+  auto request = [](auto i) {
     std::cout << i << std::endl;
-    return eventuals::http::Get("http://localhost:8000/") | eventuals::Then([&](auto response){
-      return response.code;
-    }); 
+    return eventuals::http::Get("http://localhost:8000/") |
+           eventuals::Then([&](auto response) { return response.code; });
   };
 
   auto e = [&]() {
     return eventuals::Stream<int>()
                .context(2)
-               .next([](auto& count, auto& k) {
+               .next([](auto &count, auto &k) {
                  if (count > 0) {
                    k.Emit(count--);
                  } else {
                    k.Ended();
                  }
                })
-               .done([](auto&, auto& k) {
-                 k.Ended();
-               })
-        | eventuals::Map([&](int i) {
-            std::cout << i << std::endl;
-            std::cout << "request" << std::endl;
-            return request(i); // fails on second request
-          })
-        | eventuals::Reduce(
-               /* sum = */ 0,
-               [](auto& sum) {
-                 return eventuals::Then([&](auto&& value) {
-                   //auto resp = value();
+               .done([](auto &, auto &k) { k.Ended(); }) |
+           eventuals::Map([&](int i) {
+             std::cout << i << std::endl;
+             std::cout << "request" << std::endl;
+             return request(i); // fails on second request
+           }) |
+           eventuals::Reduce(
+               /* sum = */ 0, [](auto &sum) {
+                 return eventuals::Then([&](auto &&value) {
+                   // auto resp = value();
                    std::cout << "get first value" << std::endl;
                    sum += value;
                    std::cout << sum << std::endl;
@@ -82,7 +77,7 @@ int main() {
              });
     });
   };
-  */ 
+  */
 
   std::cout << __LINE__ << std::endl;
   auto [future, k] = eventuals::Terminate(std::move(e()));
