@@ -15,7 +15,7 @@ from io import BytesIO
 import posixpath
 import pickle
 from typing import Dict, Optional, Union
-from threading import Lock
+from hub.util.hash import hash_inputs
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -28,11 +28,13 @@ FILE = "application/octet-stream"
 class GoogleDriveIDManager:
     """Class used to make google drive path to id maps"""
 
-    def __init__(self, drive: discovery.Resource, root: str):
+    def __init__(
+        self, drive: discovery.Resource, root: str, root_id: Optional[str] = None
+    ):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
         self.root_path = root
-        self.root_id = self.find_id(root)
+        self.root_id = root_id if root_id else self.find_id(root)
 
     def find_id(self, path):
         """Find google drive id given path of folder"""
@@ -98,7 +100,6 @@ class GDriveProvider(StorageProvider):
     client_id = None
     client_secret = None
     refresh_token = None
-    __thread_lock = Lock()
 
     def __init__(self, root: str, token: Optional[Union[str, Dict]] = None):
         """Initializes the GDriveProvider
@@ -159,7 +160,6 @@ class GDriveProvider(StorageProvider):
             with open("gdrive_token.json", "w") as token_file:
                 token_file.write(creds.to_json())
 
-        self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root = root
         if creds:
             self.client_id = creds.client_id
@@ -170,11 +170,13 @@ class GDriveProvider(StorageProvider):
 
     def _init_provider(self, creds: Credentials):
         self.drive = discovery.build("drive", "v3", credentials=creds)
-        if self.root.startswith("gdrive://"):
-            self.root_path = self.root.replace("gdrive://", "")
+        self.root_path = self.root.replace("gdrive://", "")
+        if hasattr(self, "root_id"):
+            self.gid = GoogleDriveIDManager(self.drive, self.root_path, self.root_id)
+        else:
             self.gid = GoogleDriveIDManager(self.drive, self.root_path)
-        self.root_id = self.gid.root_id
-        if not self.root_id:
+            self.root_id = self.gid.root_id
+        if self.root_id is None:
             self.root_id = "root"
             root_dir = self.make_dir(self.root_path)
             self.root_id = self.gid.root_id = root_dir.get("id")
@@ -207,13 +209,15 @@ class GDriveProvider(StorageProvider):
         if dirname:
             parent_id = self._get_id(dirname)
             if not parent_id:
-                self.make_dir(dirname)
+                locked = self._lock_creation(dirname)
+                if locked:
+                    self.make_dir(dirname)
+                    self._unlock_creation(dirname)
                 parent_id = self._get_id(dirname)
             folder = self._create_file(basename, FOLDER, parent_id)
-            self._set_id(path, folder.get("id"))
-            return folder
+        else:
+            folder = self._create_file(basename, FOLDER, self.root_id)
 
-        folder = self._create_file(basename, FOLDER, self.root_id)
         self._set_id(path, folder.get("id"))
         return folder
 
@@ -245,6 +249,10 @@ class GDriveProvider(StorageProvider):
         file = self.drive.files().delete(fileId=id).execute()
         return file
 
+    def sync(self):
+        """Sync provider keys with actual storage"""
+        self.gid.makemap(self.root_id, self.root_path)
+
     def __getitem__(self, path):
         id = self._get_id(path)
         if not id:
@@ -260,25 +268,44 @@ class GDriveProvider(StorageProvider):
         file.seek(0)
         return file.read()
 
+    def _lock_creation(self, path):
+        # lock creation of folder, otherwise multiple workers can create folders of the same name.
+        lock_hash = "." + hash_inputs(self.root_id, path)
+        try:
+            lock_file = open(lock_hash, "x")
+            lock_file.close()
+            return True
+        except FileExistsError:
+            while os.path.exists(lock_hash):
+                time.sleep(0.1)
+            return False
+
+    def _unlock_creation(self, path):
+        lock_hash = "." + hash_inputs(self.root_id, path)
+        os.remove(lock_hash)
+
     def __setitem__(self, path, content):
         self.check_readonly()
-        with self.__thread_lock:
-            id = self._get_id(path)
-            if not id:
-                dirname, basename = posixpath.split(path)
-                if dirname:
-                    parent_id = self._get_id(dirname)
-                    if not parent_id:
+        id = self._get_id(path)
+        if not id:
+            dirname, basename = posixpath.split(path)
+            if dirname:
+                parent_id = self._get_id(dirname)
+                if not parent_id:
+                    locked = self._lock_creation(dirname)
+                    if locked:
                         self.make_dir(dirname)
-                        parent_id = self._get_id(dirname)
-                else:
-                    parent_id = self.root_id
-                file = self._create_file(basename, FILE, parent_id, content)
-                self._set_id(path, file.get("id"))
-                return
-
-            self._write_to_file(id, content)
+                        self._unlock_creation(dirname)
+                    self.sync()
+                    parent_id = self._get_id(dirname)
+            else:
+                parent_id = self.root_id
+            file = self._create_file(basename, FILE, parent_id, content)
+            self._set_id(path, file.get("id"))
             return
+
+        self._write_to_file(id, content)
+        return
 
     def __delitem__(self, path):
         self.check_readonly()
@@ -288,13 +315,20 @@ class GDriveProvider(StorageProvider):
         self._delete_file(id)
 
     def __getstate__(self):
-        return (self.root, self.client_id, self.client_secret, self.refresh_token)
+        return (
+            self.root,
+            self.root_id,
+            self.client_id,
+            self.client_secret,
+            self.refresh_token,
+        )
 
     def __setstate__(self, state):
         self.root = state[0]
-        self.client_id = state[1]
-        self.client_secret = state[2]
-        self.refresh_token = state[3]
+        self.root_id = state[1]
+        self.client_id = state[2]
+        self.client_secret = state[3]
+        self.refresh_token = state[4]
         self._init_from_state()
 
     def _all_keys(self):
@@ -316,4 +350,4 @@ class GDriveProvider(StorageProvider):
                 except:
                     pass
         if not prefix:
-            self._delete_file(self.gid.find_id(self.root_path))
+            self._delete_file(self.root_id)

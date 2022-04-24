@@ -1267,7 +1267,7 @@ def test_sample_shape(memory_ds):
 
 
 @enabled_remote_storages
-def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_creds):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
@@ -1279,12 +1279,18 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
     assert memory_ds.images[0].shape == (300, 200, 3)
 
     storage["sample/samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/sample/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[1].shape == (323, 480, 3)
 
     storage["samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
 

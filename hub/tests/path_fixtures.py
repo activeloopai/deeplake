@@ -296,9 +296,10 @@ def gdrive_path(request, gdrive_creds):
 
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         GDriveProvider(path, token=gdrive_creds).clear()
-        split_path = posixpath.split(path)
-        if split_path[1]:
-            GDriveProvider(split_path[0], token=gdrive_creds).clear()
+        split_path = posixpath.split(path.replace("gdrive://", ""))
+        while split_path[0]:
+            GDriveProvider("gdrive://" + split_path[0], token=gdrive_creds).clear()
+            split_path = posixpath.split(split_path[0])
 
 
 @pytest.fixture
