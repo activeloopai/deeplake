@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "eventuals/closure.h"
+#include "eventuals/collect.h"
 #include "eventuals/conditional.h"
 #include "eventuals/eventual.h"
 #include "eventuals/foreach.h"
@@ -22,37 +23,18 @@ int main() {
 
   auto request = [](auto i) {
     std::cout << i << std::endl;
-    return eventuals::http::Get("http://localhost:8000/")
-        | eventuals::Then([&](auto response) { return response.code(); });
+    return eventuals::http::Get("http://www.google.com")
+        | eventuals::Then([&](auto response) {
+             return response.code();
+           });
   };
 
   auto e = [&]() {
-    return eventuals::Stream<int>()
-               .context(2)
-               .next([](auto& count, auto& k) {
-                 if (count > 0) {
-                   k.Emit(count--);
-                 } else {
-                   k.Ended();
-                 }
-               })
-               .done([](auto&, auto& k) { k.Ended(); })
+    return eventuals::Range(2)
         | eventuals::Map([&](int i) {
-             std::cout << i << std::endl;
-             std::cout << "request" << std::endl;
-             return request(i); // fails on second request
+             return request(i);
            })
-        | eventuals::Reduce(
-               /* sum = */ 0,
-               [](auto& sum) {
-                 return eventuals::Then([&](auto&& value) {
-                   // auto resp = value();
-                   std::cout << "get first value" << std::endl;
-                   sum += value;
-                   std::cout << sum << std::endl;
-                   return true;
-                 });
-               });
+        | eventuals::Collect<std::vector<int>>();
   };
 
   /*
@@ -85,7 +67,12 @@ int main() {
 
   eventuals::EventLoop::Default().RunUntil(future);
 
-  future.get();
+  std::vector<int> codes = future.get();
+
+  for (int code : codes) {
+    std::cout << "Received HTTP " << code << std::endl;
+  }
+
   std::cout << "done" << std::endl;
   eventuals::EventLoop::DestructDefault();
 }
