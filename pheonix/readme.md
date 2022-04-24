@@ -6,6 +6,10 @@
 bazel build //pheonix:pheonix --sandbox_writable_path=$HOME/.ccache
 ```
 
+```
+bazel build //pheonix:pheonix --sandbox_writable_path=$HOME/.ccache && ./bazel-bin/pheonix/pheonix
+```
+
 
 ## Generic install
 
