@@ -171,7 +171,6 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                # TODO check with Abhinav if we need to change nex elements ids
                 if end is False:
                     shape_entry = np.array(
                          [*decomposable, 1], dtype=ENCODING_DTYPE

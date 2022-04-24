@@ -306,7 +306,7 @@ def decompress_array(
         return _decompress_apng(buffer)  # type: ignore
     if compression == "dcm":
         return _decompress_dicom(buffer)  # type: ignore
-    if compression is None:
+    if compression is None and isinstance(buffer, memoryview) and shape is not None:
         assert buffer is not None
         assert shape is not None
         return np.frombuffer(buffer=buffer).reshape(shape)

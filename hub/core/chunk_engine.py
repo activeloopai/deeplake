@@ -574,7 +574,8 @@ class ChunkEngine:
         for _, sample in enumerate(samples):
             sample_bytes += len(sample.buffer)
 
-        if chunk_size + sample_bytes < RANDOM_CHUNK_SIZE:
+        sum_size = chunk_size + sample_bytes
+        if sum_size < RANDOM_CHUNK_SIZE or sum_size < self.max_chunk_size:
             return True
         return False
 
@@ -862,13 +863,16 @@ class ChunkEngine:
         )
 
     def __get_samples_to_move(self, chunk, forward: bool = True):
+        decompress = False
+        if isinstance(chunk, ChunkCompressedChunk):
+            decompress = True
         samples_to_move = []
         sum_bytes = 0
         num_samples = len(chunk.byte_positions_encoder.array)
 
         rng = range(0, int(num_samples/2)) if forward is True else range(num_samples, int(num_samples / 2), -1)
         for idx in rng:
-            sample_bytes = chunk.read_sample(idx, decompress=False)
+            sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sum_bytes += len(sample_bytes)
             if sum_bytes > int(RANDOM_MAX_ALLOWED_CHUNK_SIZE / 2):
                 break
@@ -883,11 +887,15 @@ class ChunkEngine:
         return samples_to_move
 
     def __get_chunk_samples(self, chunk, forward: bool = True):
+        decompress = False
+        if isinstance(chunk, ChunkCompressedChunk):
+            decompress = True
+
         samples_to_move = []
         num_samples = len(chunk.byte_positions_encoder.array)
         rng = range(0, num_samples) if forward is True else range(num_samples, 0, -1)
         for idx in rng:
-            sample_bytes = chunk.read_sample(idx, decompress=False)
+            sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
 
             new_shape = []
@@ -927,9 +935,11 @@ class ChunkEngine:
         next_chunk_size = self.base_storage.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
 
+        if next_chunk_size is None:
+            return False
         if next_chunk_size + chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE:
             samples_to_move = self.__get_samples_to_move(next_chunk, forward=True)
-            self.chunk_id_encoder.update_encoder(row=row + 1, num_samples=len(samples_to_move))
+            self.chunk_id_encoder.decrease_samples(row=next_chunk_row, num_samples=len(samples_to_move))
             # for chunk encoded chunks we need to take into acount that pop is not needed for byte_position_encoder (image_compression related)
             next_chunk.pop_front_multiple(num_samples=len(samples_to_move))
             samples = self._sanitize_samples(samples_to_move)
@@ -945,7 +955,7 @@ class ChunkEngine:
             return True
         else:
             # merge with next chunk
-            samples_to_move = self.__get_chunk_samples(self, chunk, forward=False)
+            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
             self.chunk_id_encoder.delete_chunk_id(row=row)
             chunk.pop_multiple(num_samples=len(samples_to_move))
             samples = self._sanitize_samples(samples_to_move)
@@ -967,18 +977,21 @@ class ChunkEngine:
         prev_chunk_id = self.chunk_id_encoder.get_prev_chunk_id(row)
         if prev_chunk_id is None:
             return False
+
         prev_chunk_row = row - 1
         prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)
         prev_chunk_commit_id = self.get_chunk_commit(prev_chunk_name)
         prev_chunk_key = get_chunk_key(self.key, prev_chunk_name, prev_chunk_commit_id)
         prev_chunk_size = self.base_storage.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
+        if prev_chunk_size is None:
+            return False
         if prev_chunk_size + chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE:
             # move elements from prev chunk to the top of current one
             samples_to_move = self.__get_samples_to_move(prev_chunk, forward=False)
             # reverse in place to keep correct ordering while prepending on chunk
             samples_to_move.reverse()
-            self.chunk_id_encoder.update_encoder(row=prev_chunk_row, num_samples=len(samples_to_move))
+            self.chunk_id_encoder.decrease_samples(row=prev_chunk_row, num_samples=len(samples_to_move))
             prev_chunk.pop_multiple(num_samples=len(samples_to_move))
             samples = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
@@ -993,7 +1006,7 @@ class ChunkEngine:
             return True
         else:
             # merge with previous chunk
-            samples_to_move = self.__get_chunk_samples(self, chunk, forward=True)
+            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=True)
             self.chunk_id_encoder.delete_chunk_id(row=row)
             chunk.pop_multiple(num_samples=len(samples_to_move))
             samples = self._sanitize_samples(samples_to_move)
@@ -1017,15 +1030,12 @@ class ChunkEngine:
     def _check_rechunk(self,
                        chunk,
                        chunk_row):
-        if isinstance(chunk, ChunkCompressedChunk):
-            print("compressed HANDLE SEPARATELY")
-            return
         """ function to check if there is a need to re-chunk the current one"""
-        if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE:
+        if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
             self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
             return
 
-        if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE:
+        if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE:
             self.__rechunk(chunk, chunk_row)
             return
 

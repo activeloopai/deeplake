@@ -82,7 +82,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def get_prev_chunk_id(self, row) -> Optional[str]:
         if self.num_chunks is None or self._encoded is None:
             return None
-        if row == self.num_chunks - 1 or row == 0:
+        if row == 0:
             return None
 
         return self._encoded[row + 1][0]
@@ -111,7 +111,11 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         if row > self.num_chunks:
             raise OutOfChunkCount
 
+        for idx in range(row + 1, self.num_chunks):
+            self._encoded[idx][1] -= self._encoded[row][1]
+
         self._encoded = np.delete(self._encoded, row, axis=0)
+
 
     def generate_chunk_id(self, register: Optional[bool] = True, row: Optional[int] = None) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
