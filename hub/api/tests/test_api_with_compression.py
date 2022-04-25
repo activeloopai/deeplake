@@ -255,7 +255,8 @@ def test_audio(local_ds, compression, audio_paths):
         for _ in range(10):
             local_ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
-        np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore
+        decompressed = local_ds.audio[i].numpy()
+        np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
 
 
 def test_exif(memory_ds, compressed_image_paths):
@@ -269,6 +270,3 @@ def test_exif(memory_ds, compressed_image_paths):
             type(image.sample_info["exif"]),
             path,
         )
-
-        decompressed = local_ds.audio[i].numpy()
-        np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
