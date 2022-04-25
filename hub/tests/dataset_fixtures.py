@@ -36,7 +36,6 @@ enabled_cloud_dataset_generators = pytest.mark.parametrize(
     [
         "s3_ds_generator",
         "gcs_ds_generator",
-        "gdrive_ds_generator",
     ],
     indirect=True,
 )

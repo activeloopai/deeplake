@@ -42,7 +42,6 @@ MAX_FLOAT_DTYPE = np.float_.__name__
         "local_ds_generator",
         "s3_ds_generator",
         "hub_cloud_ds_generator",
-        "gdrive_ds_generator",
     ],
     indirect=True,
 )
@@ -1051,9 +1050,8 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-@enabled_persistent_dataset_generators
-def test_tensor_clear(ds_generator):
-    ds = ds_generator()
+def test_tensor_clear(local_ds_generator):
+    ds = local_ds_generator()
     a = ds.create_tensor("a")
     a.extend([1, 2, 3, 4])
     a.clear()
@@ -1071,7 +1069,7 @@ def test_tensor_clear(ds_generator):
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
     a.append([1, 2, 3])
 
-    ds = ds_generator()
+    ds = local_ds_generator()
     assert len(ds) == 1
     assert len(image) == 4
     assert image.htype == "image"
