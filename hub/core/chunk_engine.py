@@ -669,7 +669,7 @@ class ChunkEngine:
             if progressbar:
                 with tqdm(total=len(samples)) as pbar:
                     for sample in samples:
-                        self._extend(
+                        verified_sample = self._extend(
                             sample, progressbar=False, update_commit_diff=False
                         )
                         self.sequence_encoder.register_samples(len(sample), 1)
@@ -682,17 +682,17 @@ class ChunkEngine:
                         pbar.update(1)
             else:
                 for sample in samples:
-                        self._extend(
-                            sample, progressbar=False, update_commit_diff=False
-                        )
-                        self.sequence_encoder.register_samples(len(sample), 1)
-                        self.commit_diff.add_data(1)
-                        ls = verified_sample or sample
-                        if link_callback:
-                            link_callback(ls, flat=False)
-                            for s in ls:
-                                link_callback(s, flat=True)
-               
+                    verified_sample = self._extend(
+                        sample, progressbar=False, update_commit_diff=False
+                    )
+                    self.sequence_encoder.register_samples(len(sample), 1)
+                    self.commit_diff.add_data(1)
+                    ls = verified_sample or sample
+                    if link_callback:
+                        link_callback(ls, flat=False)
+                        for s in ls:
+                            link_callback(s, flat=True)
+
         else:
             verified_samples = self._extend(samples, progressbar=progressbar)
             ls = verified_samples or samples
