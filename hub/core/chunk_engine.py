@@ -960,7 +960,7 @@ class ChunkEngine:
                 fit_row=row
             )
             return True
-        else:
+        elif next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
             samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
             num_samples = len(samples_to_move)
@@ -1018,7 +1018,7 @@ class ChunkEngine:
                 fit_row=row
             )
             return True
-        else:
+        elif prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
             samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=True)
             self.chunk_id_encoder.delete_chunk_id(row=row)
