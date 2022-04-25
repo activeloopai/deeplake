@@ -394,10 +394,7 @@ class BaseChunk(HubMemoryObject):
             self.tensor_meta.update_shape_interval(empty_shape)
 
     def is_empty_sample(self, local_index):
-        return (
-            self.shapes_encoder.is_empty()
-            and len(self.byte_positions_encoder.array) > local_index
-        )
+        return self.shapes_encoder.is_empty()
 
     def return_empty_sample(self):
         max_shape = self.tensor_meta.max_shape

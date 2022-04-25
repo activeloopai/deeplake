@@ -47,8 +47,9 @@ class ChunkCompressedChunk(BaseChunk):
                 store_uncompressed_tiles=True,
             )
 
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
+            if shape is not None:
+                self.num_dims = self.num_dims or len(shape)
+                check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
@@ -220,7 +221,11 @@ class ChunkCompressedChunk(BaseChunk):
 
     def process_sample_img_compr(self, sample):
         if sample is None:
-            return np.ones((0,) * self.num_dims, dtype=self.dtype), None
+            if self.tensor_meta.max_shape:
+                shape = (0,) * len(self.tensor_meta.max_shape)
+            else:
+                shape = (0, 0, 0)
+            return np.ones(shape, dtype=self.dtype), None
         if isinstance(sample, SampleTiles):
             return sample, sample.tile_shape
         elif isinstance(sample, PartialSample):
@@ -307,3 +312,19 @@ class ChunkCompressedChunk(BaseChunk):
     def prepare_for_write(self):
         ffw_chunk(self)
         self.is_dirty = True
+
+    def is_empty_sample(self, local_index):
+        if self.is_byte_compression:
+            return super().is_empty_sample(local_index)
+        return self.shapes_encoder[local_index] == (0, 0, 0)
+
+    def return_empty_sample(self):
+        if self.is_byte_compression:
+            return super().return_empty_sample()
+        max_shape = self.tensor_meta.max_shape
+        if max_shape == [0, 0, 0]:
+            raise ValueError(
+                "This tensor has only been populated with empty samples. Need to add atleast one sample to determine dimensionality."
+            )
+        shape = (0,) * len(max_shape)
+        return np.zeros(shape, dtype=self.dtype)

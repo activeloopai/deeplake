@@ -422,6 +422,10 @@ class Tensor:
         )
         if not shape and self.meta.max_shape:
             shape = (0,) * len(self.meta.max_shape)
+        if shape == ():
+            shape = None
+        if self.meta.max_shape == [0, 0, 0]:
+            shape = None
         return shape
 
     @property
