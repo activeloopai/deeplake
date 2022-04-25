@@ -256,7 +256,6 @@ def copy_metas(
         except KeyError:
             pass
 
-
         try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
