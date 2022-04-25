@@ -730,6 +730,7 @@ class Dataset:
             Tensor: Renamed tensor.
 
         Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `new_name` is in dataset attributes.
@@ -769,6 +770,12 @@ class Dataset:
             name (str): Name of group to be renamed.
             new_name (str): New name of group.
 
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorNameError: If `name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
         """
         auto_checkout(self)
 
