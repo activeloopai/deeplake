@@ -654,7 +654,7 @@ class ChunkEngine:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num)
+                    enc.register_samples(num, end=append_to_end)
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
@@ -870,7 +870,7 @@ class ChunkEngine:
         sum_bytes = 0
 
         # TODO return to tile rechunking  later
-        num_samples = len(chunk.byte_positions_encoder.array)
+        num_samples = chunk.byte_positions_encoder.num_samples
         rng = range(0, int(num_samples/2)) if forward is True else range(num_samples - 1, int(num_samples / 2), -1)
         for idx in rng:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
@@ -893,7 +893,7 @@ class ChunkEngine:
             decompress = True
 
         samples_to_move = []
-        num_samples = len(chunk.byte_positions_encoder.array)
+        num_samples = chunk.byte_positions_encoder.num_samples
         rng = range(0, num_samples) if forward is True else range(num_samples - 1, 0, -1)
         for idx in rng:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
@@ -963,8 +963,12 @@ class ChunkEngine:
         else:
             # merge with next chunk
             samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
+            num_samples = len(samples_to_move)
+            if num_samples == 0:
+                return True
+
             self.chunk_id_encoder.delete_chunk_id(row=row)
-            chunk.pop_multiple(num_samples=len(samples_to_move))
+            chunk.pop_multiple(num_samples=num_samples)
             samples = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
@@ -973,7 +977,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=False,
                 extend=False,
-                fit_row=next_chunk_row
+                fit_row=row
             )
             del self.cache[chunk.key]
             return True
@@ -1027,7 +1031,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=prev_chunk_row
+                fit_row=row
             )
             del self.cache[chunk.key]
             return True
@@ -1040,12 +1044,14 @@ class ChunkEngine:
     def _check_rechunk(self,
                        chunk,
                        chunk_row):
-        """ function to check if there is a need to re-chunk the current one"""
-        if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
-            self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
-            return
+        # """ function to check if there is a need to re-chunk the current one"""
+        # if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE \
+        #    and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
+        #     self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+        #     return
 
-        if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE:
+        if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE \
+           or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE:
             self.__rechunk(chunk, chunk_row)
             return
 

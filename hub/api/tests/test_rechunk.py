@@ -9,12 +9,13 @@ def test_rechunk(local_ds):
         for i in range(5, 10):
             ds.abc[i] = np.ones((1000, 1000))
 
+
         for i in range(10):
             target = np.ones((10, 10)) if i < 5 else np.ones((1000, 1000))
             np.testing.assert_array_equal(ds.abc[i].numpy(), target)
 
         original_num_chunks = ds.abc.chunk_engine.num_chunks
-        assert original_num_chunks == 1
+        assert original_num_chunks == 3
         ds.rechunk()
         new_num_chunks = ds.abc.chunk_engine.num_chunks
         assert new_num_chunks == 3

@@ -163,8 +163,10 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 new_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
-
+                if end is False:
+                    self._encoded[0][1] += num_samples
+                else:
+                    self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
             else:
                 decomposable = self._make_decomposable(item)
 
@@ -172,12 +174,12 @@ class Encoder(ABC):
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
                 if end is False:
+                    self._encoded[:, 2] += num_samples
                     shape_entry = np.array(
-                         [*decomposable, 1], dtype=ENCODING_DTYPE
+                         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
                     )
                     self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
-                    for i, item in enumerate(self._encoded, start=1):
-                        item[1] += self._encoded[i-1]
+
                 else:
                     shape_entry = np.array(
                         [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
