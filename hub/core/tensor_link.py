@@ -30,48 +30,60 @@ link = _TensorLinkTransform
 
 
 @link
-def append_id(sample):
+def append_id(sample, link_creds=None):
     return generate_id(np.uint64)
 
 
 @link
-def append_test(sample):
+def append_test(sample, link_creds=None):
     return sample
 
 
 @link
-def update_test(new_sample, old_value, sub_index: Index, partial: bool):
+def update_test(
+    new_sample, old_value, sub_index: Index, partial: bool, link_creds=None
+):
     return old_value
 
 
 @link
-def append_info(sample):
+def append_info(sample, link_creds=None):
+    meta = {}
+    if isinstance(sample, hub.core.linked_sample.LinkedSample):
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
     if isinstance(sample, hub.core.sample.Sample):
         meta = sample.meta
         meta["modified"] = False
-        return meta
-    return {}
+    return meta
 
 
 @link
-def update_info(new_sample, old_value, sub_index: Index, partial: bool):
+def update_info(
+    new_sample, old_value, sub_index: Index, partial: bool, link_creds=None
+):
     if partial:
         meta = old_value.data()
         if "modified" in meta:
             meta["modified"] = True
             return meta
     else:
-        return append_info.f(new_sample)
+        return append_info.f(new_sample, link_creds)
     return _NO_LINK_UPDATE
 
 
 @link
-def append_shape(sample):
+def append_shape(sample, link_creds=None):
+    if isinstance(sample, hub.core.linked_sample.LinkedSample):
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
     return np.array(getattr(sample, "shape", None) or np.array(sample).shape)
 
 
 @link
-def append_len(sample):
+def append_len(sample, link_creds=None):
     return len(sample)
 
 
@@ -88,3 +100,13 @@ def _unregister_link_transform(fname: str):
 
 def get_link_transform(fname: str):
     return _funcs[fname]
+
+
+def read_linked_sample(
+    sample_path: str, sample_creds_key: str, link_creds, verify: bool
+):
+    if sample_path.startswith(("gcs://", "gcp://", "s3://")):
+        provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
+        storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
+        return hub.read(sample_path, storage=storage, verify=verify)
+    return hub.read(sample_path, verify=verify)
