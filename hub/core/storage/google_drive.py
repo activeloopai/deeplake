@@ -85,17 +85,6 @@ class GoogleDriveIDManager:
             self.makemap(file["id"], path)
         return self.path_id_map
 
-    def save(self):
-        with open(f".{self.root_id}_gdrive_ids", "wb") as f:
-            pickle.dump(self.path_id_map, f)
-
-    def load(self):
-        try:
-            with open(f".{self.root_id}_gdrive_ids", "rb") as f:
-                self.path_id_map = pickle.load(f)
-        except FileNotFoundError:
-            pass
-
 
 class GDriveProvider(StorageProvider):
     """Provider class for using Google Drive storage."""
