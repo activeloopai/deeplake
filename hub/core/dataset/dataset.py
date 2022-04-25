@@ -774,7 +774,7 @@ class Dataset:
             TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
-            InvalidTensorNameError: If `name` is in dataset attributes.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
             RenameError: If `new_name` points to a group different from `name`.
         """
         auto_checkout(self)
@@ -796,7 +796,7 @@ class Dataset:
 
         new_tensor_name = posixpath.split(new_name)[1]
         if not new_tensor_name or new_tensor_name in dir(self):
-            raise InvalidTensorNameError(new_name)
+            raise InvalidTensorGroupNameError(new_name)
 
         meta = self.meta
         meta.rename_group(name, new_name)
