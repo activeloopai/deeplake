@@ -575,7 +575,7 @@ class ChunkEngine:
             sample_bytes += len(sample.buffer)
 
         sum_size = chunk_size + sample_bytes
-        if sum_size < RANDOM_CHUNK_SIZE or sum_size < self.max_chunk_size:
+        if sum_size < self.min_chunk_size:
             return True
         return False
 
@@ -1044,11 +1044,11 @@ class ChunkEngine:
     def _check_rechunk(self,
                        chunk,
                        chunk_row):
-        # """ function to check if there is a need to re-chunk the current one"""
-        # if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE \
-        #    and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
-        #     self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
-        #     return
+        """ function to check if there is a need to re-chunk the current one"""
+        if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE \
+           and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
+            self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+            return
 
         if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE \
            or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE:
