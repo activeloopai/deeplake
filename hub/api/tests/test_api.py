@@ -1067,6 +1067,27 @@ def test_tensor_rename(local_ds_generator):
     ds.delete_tensor("x/y/b")
 
 
+def test_group_rename(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("g1/g2/g3/g4/t1")
+        ds["g1/g2/g3/g4/t1"].append([1, 2, 3])
+        ds["g1/g2"].rename_group("g3/g4", "g3/g5")
+        np.testing.assert_array_equal(
+            ds["g1/g2/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+        with pytest.raises(RenameError):
+            ds["g1"].rename_group("g2/g3", "g/g4")
+        ds["g1"].rename_group("g2", "g6")
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+
+    with local_ds_generator() as ds:
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")
