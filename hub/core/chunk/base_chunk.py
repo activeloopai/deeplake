@@ -281,7 +281,7 @@ class BaseChunk(HubMemoryObject):
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
-    
+
     def register_sample_to_headers(
         self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
     ):
@@ -394,11 +394,16 @@ class BaseChunk(HubMemoryObject):
             self.tensor_meta.update_shape_interval(empty_shape)
 
     def is_empty_sample(self, local_index):
-        return self.shapes_encoder.is_empty() and len(self.byte_positions_encoder.array) > local_index
+        return (
+            self.shapes_encoder.is_empty()
+            and len(self.byte_positions_encoder.array) > local_index
+        )
 
     def return_empty_sample(self):
         max_shape = self.tensor_meta.max_shape
         if not max_shape:
-            raise ValueError("This tensor has only been populated with empty samples. Need to add atleast one sample to determine dimensionality.")
+            raise ValueError(
+                "This tensor has only been populated with empty samples. Need to add atleast one sample to determine dimensionality."
+            )
         shape = (0,) * len(max_shape)
         return np.zeros(shape, dtype=self.dtype)
