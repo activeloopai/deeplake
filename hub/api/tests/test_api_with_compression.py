@@ -257,3 +257,16 @@ def test_audio(local_ds, compression, audio_paths):
     for i in range(10):
         decompressed = local_ds.audio[i].numpy()
         np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
+
+
+def test_exif(memory_ds, compressed_image_paths):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        for path in compressed_image_paths["jpeg"]:
+            ds.images.append(hub.read(path))
+    for image in ds.images:
+        assert isinstance(image.sample_info["exif"], dict), (
+            type(image.sample_info["exif"]),
+            path,
+        )

@@ -1,19 +1,18 @@
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
 from miniaudio import mp3_get_file_info  # type: ignore
+from hub.util.exif import getexif
 import numpy as np
 import pytest
 import os
 import sys
 import hub
+import json
 
 
 def get_exif_helper(path):
     img = Image.open(path)
-    return {
-        TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
-        for k, v in img.getexif().items()
-    }
+    return json.loads(json.dumps(getexif(img)))
 
 
 def test_image_samples(local_ds_generator, compressed_image_paths):
