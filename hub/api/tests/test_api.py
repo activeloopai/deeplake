@@ -1370,6 +1370,19 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
     )
     assert ds.x.shape == (10, 5, 2, 7, 3)
+    ds.checkout("branch", create=True)
+    with ds:
+        for _ in range(5):
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((15, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (15, 5, 2, 7, 3)
+    ds.checkout("main")
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (10, 5, 2, 7, 3)
 
 
 @pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
