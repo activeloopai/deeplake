@@ -219,7 +219,7 @@ def test_pytorch_transform_dict(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
@@ -499,7 +499,7 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_ddp(ds):
     import multiprocessing as mp
 
@@ -534,7 +534,7 @@ def test_pytorch_ddp(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
 def test_pytorch_tobytes(ds, compressed_image_paths, compression):
     with ds:
