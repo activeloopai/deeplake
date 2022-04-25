@@ -134,6 +134,9 @@ def test_lz4_empty():
     assert decompress_bytes(b"", "lz4") == b""
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
 def test_audio(compression, audio_paths):
     path = audio_paths[compression]
