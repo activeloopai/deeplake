@@ -7,6 +7,7 @@ bazel build //pheonix:pheonix --sandbox_writable_path=$HOME/.ccache
 ```
 
 ```
+git submodule update --init --recursive submodules/eventuals
 bazel build //pheonix:pheonix --sandbox_writable_path=$HOME/.ccache && ./bazel-bin/pheonix/pheonix
 ```
 

@@ -35,7 +35,7 @@ int main() {
   };
 
   auto e = [&]() {
-    return eventuals::Range(2)
+    return eventuals::Range(10)
         | eventuals::Concurrent([&]() {
              return eventuals::Map([&](int i) {
                return request(i);
@@ -43,29 +43,6 @@ int main() {
            })
         | eventuals::Collect<std::vector<int>>();
   };
-
-  /*
-  std::cout << __LINE__ << std::endl;
-  auto e = []() {
-    return eventuals::Closure([v = std::vector<int>()]() mutable {
-      std::string url = "activeloop.ai";
-      return eventuals::Foreach(
-                 eventuals::Range(5),
-                 [&](int i) {
-                   v.push_back(i);
-                 })
-          | eventuals::http::Get(url)
-          | eventuals::Then([&](auto x) {
-            std::cout << x.code << std::endl; // v.push_back(x.code);
-            return x.code;
-           })
-          | eventuals::Then([&](auto x) {
-               std::cout << __LINE__ << std::endl;
-               return "activeloop.ai"; //std::move(v);
-             });
-    });
-  };
-  */
 
   std::cout << __LINE__ << std::endl;
   auto [future, k] = eventuals::Terminate(e());
