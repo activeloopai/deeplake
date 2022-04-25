@@ -25,23 +25,18 @@ int main() {
 
   auto request = [](auto i) {
     std::cout << i << std::endl;
-    return eventuals::Timer(std::chrono::seconds(1))
-        | eventuals::Then([]() {
-             return eventuals::http::Get("http://www.google.com")
-                 | eventuals::Then([&](auto response) {
-                      return response.code();
-                    });
+    return eventuals::Timer(std::chrono::seconds(1)) | eventuals::Then([]() {
+             return eventuals::http::Get("http://www.google.com") |
+                    eventuals::Then(
+                        [&](auto response) { return response.code(); });
            });
   };
 
   auto e = [&]() {
-    return eventuals::Range(10)
-        | eventuals::Concurrent([&]() {
-             return eventuals::Map([&](int i) {
-               return request(i);
-             });
-           })
-        | eventuals::Collect<std::vector<int>>();
+    return eventuals::Range(10) | eventuals::Concurrent([&]() {
+             return eventuals::Map([&](int i) { return request(i); });
+           }) |
+           eventuals::Collect<std::vector<int>>();
   };
 
   std::cout << __LINE__ << std::endl;

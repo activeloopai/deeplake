@@ -1,8 +1,8 @@
 #pragma once
 
+#include <stdint.h>
 #include <xmmintrin.h>
 #include <coroutine>
-#include <stdint.h>
 #include <cstdio>
 
 /* Almost Gor Nishanov's code */
@@ -30,8 +30,7 @@ struct scheduler_queue {
   auto try_pop_front() { return head != tail ? pop_front() : coro_handle{}; }
 
   void run() {
-    while (auto h = try_pop_front())
-      h.resume();
+    while (auto h = try_pop_front()) h.resume();
   }
 };
 
@@ -71,7 +70,8 @@ struct tcalloc {
   }
 
   void stats() {
-    printf("allocs %zu total %zu sz %zu\n", alloc_count, total, last_size_allocated);
+    printf("allocs %zu total %zu sz %zu\n", alloc_count, total,
+           last_size_allocated);
   }
 
   void free(void *p, size_t sz) {
@@ -83,7 +83,6 @@ struct tcalloc {
 };
 
 inline tcalloc allocator;
-
 
 struct throttler;
 
@@ -113,14 +112,13 @@ struct root_task {
   }
 
   ~root_task() {
-    if (h)
-      h.destroy();
+    if (h) h.destroy();
   }
 
-  root_task(root_task&& rhs) : h(rhs.h) { rhs.h = nullptr; }
-  root_task(root_task const&) = delete;
+  root_task(root_task &&rhs) : h(rhs.h) { rhs.h = nullptr; }
+  root_task(root_task const &) = delete;
 
-private:
+ private:
   root_task(promise_type &p) : h(HDL::from_promise(p)) {}
 
   HDL h;
@@ -131,20 +129,20 @@ struct throttler {
   unsigned n_tasks = 0;
   explicit throttler(unsigned limit) : limit(limit) {}
 
-  void on_task_done() { ++limit; --n_tasks;}
+  void on_task_done() {
+    ++limit;
+    --n_tasks;
+  }
 
   void spawn(root_task t) {
-    if (limit == 0)
-      scheduler.pop_front().resume();
+    if (limit == 0) scheduler.pop_front().resume();
 
     auto h = t.set_owner(this);
     scheduler.push_back(h);
     --limit;
   }
 
-  void run() {
-    scheduler.run();
-  }
+  void run() { scheduler.run(); }
 
   void reg(root_task t) {
     auto h = t.set_owner(this);
@@ -153,7 +151,7 @@ struct throttler {
   }
 
   void next() {
-    if (auto h = scheduler.try_pop_front()){
+    if (auto h = scheduler.try_pop_front()) {
       h.resume();
     }
   }
