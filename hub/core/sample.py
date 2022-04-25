@@ -209,17 +209,10 @@ class Sample:
 
     def _get_audio_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
-            info = _read_audio_meta(self.path, self.compression)
+            info = _read_audio_meta(self.path)
         else:
-            info = _read_audio_meta(self.buffer, self.compression)
-        return {
-            "nchannels": info["nchannels"],
-            "sample_rate": info["sample_rate"],
-            "sample_format": info["sample_format_name"],
-            "sample_width": info["sample_width"],
-            "num_frames": info["num_frames"],
-            "duration": info["duration"],
-        }
+            info = _read_audio_meta(self.buffer)
+        return info
 
     @property
     def is_lazy(self) -> bool:

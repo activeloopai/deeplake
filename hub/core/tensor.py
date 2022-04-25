@@ -13,7 +13,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.tensor_link import get_link_transform
-from hub.api.info import Info, load_info
+from hub.api.info import load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -50,6 +50,11 @@ from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
 
 
 from hub.util.version_control import auto_checkout
+
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
+from hub.util.notebook import is_jupyter, video_html, is_colab
+import warnings
+import webbrowser
 
 
 def create_tensor(
@@ -112,11 +117,7 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-
-    if not tensor_exists(key, storage, version_state["commit_id"]):
-        raise TensorDoesNotExistError(key)
-
-    tensor = dataset[key]
+    tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
@@ -640,7 +641,7 @@ class Tensor:
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        return f"Tensor(key={repr(self.meta.name or self.key)}{index_str})"
 
     __repr__ = __str__
 
@@ -740,7 +741,7 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                self.dataset[k].append(
+                Tensor(k, self.dataset).append(
                     get_link_transform(v["append"])(sample, self.link_creds)
                 )
 
@@ -758,13 +759,13 @@ class Tensor:
                     func = get_link_transform(fname)
                     val = func(
                         new_sample,
-                        self.dataset[k][global_sample_index],
+                        Tensor(k, self.dataset)[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                         link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
-                        self.dataset[k][global_sample_index] = val
+                        Tensor(k, self.dataset)[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):
@@ -841,3 +842,27 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
         return self.chunk_engine.linked_sample(self.index.values[0].value)
+
+    def _get_video_stream_url(self):
+        from hub.visualizer.video_streaming import get_video_stream_url
+
+        return get_video_stream_url(self, self.index.values[0].value)
+
+    def play(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Video streaming requires exactly 1 sample.")
+        if len(self.index.values) > 1:
+            warnings.warn(
+                "Sub indexes to video sample will be ignored while streaming."
+            )
+        if is_colab():
+            raise NotImplementedError("Video streaming is not supported on colab yet.")
+        elif is_jupyter():
+            return video_html(
+                src=self._get_video_stream_url(),
+                alt=f"{self.key}[{self.index.values[0].value}]",
+            )
+        else:
+            webbrowser.open(self._get_video_stream_url())

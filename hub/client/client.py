@@ -21,6 +21,9 @@ from hub.client.config import (
 )
 from hub.client.log import logger
 
+# for these codes, we will retry requests upto 3 times
+retry_status_codes = {502}
+
 
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
@@ -91,22 +94,27 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-        response = requests.request(
-            method,
-            request_url,
-            params=params,
-            data=data,
-            json=json,
-            headers=headers,
-            files=files,
-            timeout=timeout,
-        )
 
         # clearer error than `ServerUnderMaintenence`
         if json is not None and "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
+        status_code = None
+        tries = 0
+        while status_code is None or (status_code in retry_status_codes and tries < 3):
+            response = requests.request(
+                method,
+                request_url,
+                params=params,
+                data=data,
+                json=json,
+                headers=headers,
+                files=files,
+                timeout=timeout,
+            )
+            status_code = response.status_code
+            tries += 1
         check_response_status(response)
         return response
 
