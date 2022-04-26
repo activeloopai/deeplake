@@ -874,3 +874,17 @@ def test_chunk_compression_bug(local_ds):
 
     for index in range(length):
         np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)
+
+
+@hub.compute
+def sequence_transform(inp, out):
+    out.x.append([np.ones(inp)] * inp)
+
+
+def test_sequence_htype_with_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence")
+        sequence_transform().eval(list(range(1, 11)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    for i in range(10):
+        np.testing.assert_array_equal(ds.x[i].numpy(), np.ones((i + 1, i + 1)))
