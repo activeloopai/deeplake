@@ -5,11 +5,13 @@ from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.meta.encode.tile import TileEncoder
+from hub.core.meta.encode.sequence import SequenceEncoder
 from hub.core.storage.provider import StorageProvider
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.keys import (
     get_creds_encoder_key,
+    get_sequence_encoder_key,
     get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
@@ -42,6 +44,9 @@ def merge_all_meta_info(
     )
     merge_all_creds_encoders(
         result["creds_encoders"], target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_sequence_encoders(
+        result["sequence_encoders"], target_ds, storage, overwrite, generated_tensors
     )
     if target_ds.commit_id is not None:
         merge_all_commit_chunk_sets(
@@ -282,6 +287,46 @@ def combine_creds_encoders(
     num_entries = len(arr)
     last_index = -1
     for i in range(num_entries):
-        num_samples = arr[i][1] - last_index
+        next_last_index = arr[i][1]
+        num_samples = next_last_index - last_index
         ds_creds_encoder.register_samples((arr[i][0],), num_samples)
-        last_index = arr[i][1]
+        last_index = next_last_index
+
+
+def merge_all_sequence_encoders(
+    all_workers_sequence_encoders: List[Dict[str, SequenceEncoder]],
+    target_ds: hub.Dataset,
+    storage: StorageProvider,
+    overwrite: bool,
+    tensors: List[str],
+) -> None:
+    commit_id = target_ds.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        actual_tensor = target_ds[rel_path]
+        if not actual_tensor.is_sequence:
+            continue
+        sequence_encoder = (
+            None if overwrite else actual_tensor.chunk_engine.sequence_encoder
+        )
+        for current_worker_sequence_encoder in all_workers_sequence_encoders:
+            current_sequence_encoder = current_worker_sequence_encoder[tensor]
+            if sequence_encoder is None:
+                sequence_encoder = current_sequence_encoder
+            else:
+                combine_sequence_encoders(sequence_encoder, current_sequence_encoder)
+
+        sequence_key = get_sequence_encoder_key(tensor, commit_id)
+        storage[sequence_key] = sequence_encoder.tobytes()  # type: ignore
+
+
+def combine_sequence_encoders(
+    ds_sequence_encoder: SequenceEncoder, worker_sequence_encoder: SequenceEncoder
+) -> None:
+    """Combines the dataset's sequence_encoder with a single worker's sequence_encoder."""
+    arr = worker_sequence_encoder.array
+    last_index = -1
+    for i in range(len(arr)):
+        next_last_index = arr[i][2]
+        ds_sequence_encoder.register_samples(arr[i][0], next_last_index - last_index)
+        last_index = next_last_index
