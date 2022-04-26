@@ -391,6 +391,8 @@ def check_lengths(all_tensors_generated_length, skip_ok):
 
     first_length = None
     for length in all_tensors_generated_length.values():
+        if length == 0:
+            continue
         if first_length is None:
             first_length = length
         elif length not in [0, first_length]:
