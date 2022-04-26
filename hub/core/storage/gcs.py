@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 try:
     from google.cloud import storage  # type: ignore
@@ -226,6 +226,7 @@ class GCSProvider(StorageProvider):
             )
         self.root = root
         self.token: Union[str, Dict, None] = token
+        self.tag: Optional[str] = None
         self.project = project
         self.missing_exceptions = (
             FileNotFoundError,
@@ -235,7 +236,7 @@ class GCSProvider(StorageProvider):
             NotFound,
         )
         self._initialize_provider()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         return self.__class__(
@@ -250,8 +251,14 @@ class GCSProvider(StorageProvider):
             self.token = None
         self.scoped_credentials = GCloudCredentials(self.token, project=self.project)
         self.retry = retry.Retry(deadline=60)
-        client = storage.Client(credentials=self.scoped_credentials.credentials)
-        self.client_bucket = client.get_bucket(self.bucket)
+        self.client = storage.Client(credentials=self.scoped_credentials.credentials)
+        self._client_bucket = None
+
+    @property
+    def client_bucket(self):
+        if self._client_bucket is None:
+            self._client_bucket = self.client.get_bucket(self.bucket)
+        return self._client_bucket
 
     def _set_bucket_and_path(self):
         root = self.root.replace("gcp://", "").replace("gcs://", "")
@@ -304,11 +311,7 @@ class GCSProvider(StorageProvider):
 
     def __getitem__(self, key):
         """Retrieve data"""
-        try:
-            blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-            return blob.download_as_bytes(retry=self.retry)
-        except self.missing_exceptions:
-            raise KeyError(key)
+        return self.get_bytes(key)
 
     def get_bytes(
         self,
@@ -332,8 +335,7 @@ class GCSProvider(StorageProvider):
         """
         try:
             blob = self.client_bucket.get_blob(self._get_path_from_key(path))
-            if end_byte != None:
-                assert end_byte is not None
+            if end_byte is not None:
                 end_byte -= 1
             return blob.download_as_bytes(
                 retry=self.retry, start=start_byte, end=end_byte
@@ -397,7 +399,17 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self._initialize_provider()
 
-    def get_presigned_url(self, key):
+    def get_presigned_url(self, key, full=False):
+        if full:
+            root = key.replace("gcp://", "").replace("gcs://", "")
+            split_root = root.split("/", 1)
+            bucket = split_root[0]
+            key = split_root[1] if len(split_root) > 1 else ""
+
+            client_bucket = self.client.get_bucket(bucket)
+        else:
+            client_bucket = self.client_bucket
+
         url = None
         cached = self._presigned_urls.get(key)
         if cached:
@@ -409,15 +421,31 @@ class GCSProvider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                client = HubBackendClient(self.token)  # type: ignore
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
-                blob = self.client_bucket.get_blob(self._get_path_from_key(key))
+                blob = client_bucket.get_blob(
+                    self._get_path_from_key(key) if not full else key
+                )
                 url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
             self._presigned_urls[key] = (url, time.time())
         return url
 
-    def get_object_size(self, key):
+    def get_object_size(self, key: str) -> int:
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
         return blob.size
+
+    def get_object_from_full_url(self, url: str):
+        root = url.replace("gcp://", "").replace("gcs://", "")
+        split_root = root.split("/", 1)
+        bucket = split_root[0]
+        path = split_root[1] if len(split_root) > 1 else ""
+
+        client_bucket = self.client.get_bucket(bucket)
+
+        try:
+            blob = client_bucket.get_blob(path)
+            return blob.download_as_bytes(retry=self.retry)
+        except self.missing_exceptions:
+            raise KeyError(path)

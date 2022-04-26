@@ -3,6 +3,7 @@ import uuid
 from flask import Flask, request, Response  # type: ignore
 from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
+from hub.client.config import USE_DEV_ENVIRONMENT, USE_LOCAL_HOST
 import logging
 import re
 import socketserver
@@ -61,9 +62,7 @@ class _Visualizer:
             return s.server_address[1]
 
     def is_server_running(self) -> bool:
-        if _SERVER_THREAD:
-            return _SERVER_THREAD.is_alive()
-        return False
+        return (_SERVER_THREAD is not None) and _SERVER_THREAD.is_alive()
 
     def start_server(self):
         global _SERVER_THREAD
@@ -92,8 +91,18 @@ class _Visualizer:
 visualizer = _Visualizer()
 
 
+def _get_visualizer_backend_url():
+    if USE_LOCAL_HOST:
+        return "http://localhost:3000"
+    elif USE_DEV_ENVIRONMENT:
+        return "https://app.dev.activeloop.ai"
+    else:
+        return "https://app.activeloop.ai"
+
+
 def visualize(
-    storage: StorageProvider,
+    source: Union[StorageProvider, str],
+    token: Union[str, None] = None,
     width: Union[int, str, None] = None,
     height: Union[int, str, None] = None,
 ):
@@ -101,14 +110,20 @@ def visualize(
     Visualizes the given dataset in the Jupyter notebook.
 
     Args:
-        storage: StorageProvider The storage of the dataset.
+        source: Union[StorageProvider, str] The storage or the path of the dataset.
+        token: Union[str, None] Optional token to use in the backend call.
         width: Union[int, str, None] Optional width of the visualizer canvas.
         height: Union[int, str, None] Optional height of the visualizer canvas.
     """
-    id = visualizer.add(storage)
-    url = f"http://localhost:{visualizer.port}/{id}/"
+    if isinstance(source, StorageProvider):
+        id = visualizer.add(source)
+        params = f"url=http://localhost:{visualizer.port}/{id}/"
+    elif token is None:
+        params = f"url={source}"
+    else:
+        params = f"url={source}&token={token}"
     iframe = IFrame(
-        f"https://app.activeloop.ai/visualizer/hub?url={url}",
+        f"{_get_visualizer_backend_url()}/visualizer/hub?{params}",
         width=width or "100%",
         height=height or 900,
     )

@@ -1,6 +1,7 @@
 from typing import Union, Sequence, Any
 from functools import reduce
 import numpy as np
+from hub.core.linked_sample import LinkedSample
 from hub.util.exceptions import TensorDtypeMismatchError
 from hub.core.sample import Sample  # type: ignore
 import hub
@@ -28,7 +29,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         return np.array(0).dtype
     elif isinstance(val, float):
         return np.array(0.0).dtype
-    elif isinstance(val, str):
+    elif isinstance(val, (str, LinkedSample)):
         return np.array("").dtype
     elif isinstance(val, bool):
         return np.dtype(bool)

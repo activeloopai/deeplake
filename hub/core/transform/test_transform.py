@@ -341,7 +341,7 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
-    diff = ds_out.diff(as_dict=True)
+    diff = ds_out.diff(as_dict=True)["tensor"]
     change = {
         "image": {
             "data_updated": set(),
@@ -620,7 +620,7 @@ def test_inplace_transform(local_ds_generator):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        diff = ds.diff(as_dict=True)
+        diff = ds.diff(as_dict=True)["tensor"]
         change = {
             "img": {
                 "created": False,
