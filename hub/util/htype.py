@@ -33,6 +33,8 @@ def parse_sequence_start(htype):
     if not htype:
         return True, False, DEFAULT_HTYPE
     if htype.startswith("link"):
+        if htype == "link":
+            return True, True, DEFAULT_HTYPE
         if htype[len("link")] != "[" or htype[-1] != "]":
             raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS))
         htype = htype.split("[", 1)[1][:-1]
@@ -53,6 +55,8 @@ def parse_link_start(htype):
     if not htype:
         return False, True, DEFAULT_HTYPE
     if htype.startswith("sequence"):
+        if htype == "sequence":
+            return True, True, DEFAULT_HTYPE
         if htype[len("sequence")] != "[" or htype[-1] != "]":
             raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS))
         htype = htype.split("[", 1)[1][:-1]

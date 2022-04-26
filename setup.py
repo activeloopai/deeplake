@@ -28,9 +28,10 @@ req_map = {
 
 # Add optional dependencies to this dict without version. Version should be specified in requirements.txt
 extras = {
-    "audio": ["miniaudio"],
-    "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+    "audio": ["av"],
     "video": ["av"],
+    "av": ["av"],
+    "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
     "dicom": ["pydicom"],
     "visualizer": ["IPython", "flask"],
 }

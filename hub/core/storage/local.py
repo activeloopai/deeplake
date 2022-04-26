@@ -213,5 +213,28 @@ class LocalProvider(StorageProvider):
     def __setstate__(self, state):
         self.__init__(state)
 
+    def get_presigned_url(self, key: str) -> str:
+        return os.path.join(self.root, key)
+
     def get_object_size(self, key: str) -> int:
         return os.stat(os.path.join(self.root, key)).st_size
+
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        try:
+            full_path = self._check_is_file(path)
+            with open(full_path, "rb") as file:
+                if start_byte is not None:
+                    file.seek(start_byte)
+                if end_byte is None:
+                    return file.read()
+                else:
+                    return file.read(end_byte - (start_byte or 0))
+        except DirectoryAtPathException:
+            raise
+        except FileNotFoundError:
+            raise KeyError(path)

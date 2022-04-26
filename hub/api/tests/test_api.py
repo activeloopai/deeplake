@@ -11,15 +11,16 @@ from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
-    RenameError,
     InvalidOperationError,
     TensorDtypeMismatchError,
+    TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    RenameError,
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
@@ -165,26 +166,30 @@ def test_larger_data_memory(memory_ds):
         np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
-def test_stringify(memory_ds):
+def test_stringify(memory_ds, capsys):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
 
+    ds.summary()
     assert (
-        str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
+    ds[1:2].summary()
     assert (
-        str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
     )
+    ds.image.summary()
     assert (
-        str(ds.image)
-        == "Tensor(key='image')\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   "
+        capsys.readouterr().out
+        == "Tensor(key='image')\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   \n"
     )
+    ds[1:2].image.summary()
     assert (
-        str(ds[1:2].image)
-        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   "
+        capsys.readouterr().out
+        == "Tensor(key='image', index=Index([slice(1, 2, None)]))\n\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (1, 4)    None     None   \n"
     )
 
 
@@ -200,20 +205,21 @@ def test_summary(memory_ds):
     )
     assert (
         summary_tensor(ds.abc)
-        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n   abc    generic  (4, 4)    None     None   "
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n generic  (4, 4)    None     None   "
     )
     assert (
         summary_tensor(ds.images)
-        == "\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n images    image    (0,)     int32    jpeg   "
+        == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n  image    (0,)     int32    jpeg   "
     )
 
 
-def test_stringify_with_path(local_ds):
+def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
+    ds.summary()
     assert (
-        str(ds)
-        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- "
+        capsys.readouterr().out
+        == f"Dataset(path='{local_ds.path}', tensors=[])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n"
     )
 
 
@@ -884,7 +890,7 @@ def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
 
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
-        memory_ds.create_tensor("version_state")
+        memory_ds.create_tensor("group/version_state")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
@@ -1018,6 +1024,49 @@ def test_tensor_delete(local_ds_generator):
     assert ds.tensors == {}
 
 
+def test_tensor_rename(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([1, 2, 3])
+    ds.rename_tensor("x/y/z", "x/y/y")
+
+    np.testing.assert_array_equal(ds["x/y/y"][0].numpy(), np.array([1, 2, 3]))
+
+    with pytest.raises(TensorDoesNotExistError):
+        ds["x/y/z"].numpy()
+
+    ds.create_tensor("x/y/z")
+    ds["x/y/z"].append([4, 5, 6])
+    np.testing.assert_array_equal(ds["x/y/z"][0].numpy(), np.array([4, 5, 6]))
+
+    with pytest.raises(RenameError):
+        ds.rename_tensor("x/y/y", "x/a")
+
+    with pytest.raises(RenameError):
+        ds["x"].rename_tensor("y/y", "y")
+
+    ds.create_tensor("x/y/a/b")
+    with pytest.raises(TensorGroupAlreadyExistsError):
+        ds["x/y"].rename_tensor("y", "a")
+
+    ds.create_tensor("abc/xyz")
+    with pytest.raises(InvalidTensorNameError):
+        ds.rename_tensor("abc/xyz", "abc/append")
+
+    ds.create_tensor("abc/efg")
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.rename_tensor("abc/xyz", "abc/efg")
+
+    ds["x"].rename_tensor("y/y", "y/b")
+
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+
+    ds.delete_tensor("x/y/b")
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")
@@ -1028,6 +1077,9 @@ def test_vc_bug(local_ds_generator):
     assert list(ds.tensors) == ["abc", "a/b/c/d"]
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     ds = memory_ds
     ds.create_tensor("image", sample_compression="jpeg")
@@ -1045,9 +1097,8 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-@enabled_persistent_dataset_generators
-def test_tensor_clear(ds_generator):
-    ds = ds_generator()
+def test_tensor_clear(local_ds_generator):
+    ds = local_ds_generator()
     a = ds.create_tensor("a")
     a.extend([1, 2, 3, 4])
     a.clear()
@@ -1065,7 +1116,7 @@ def test_tensor_clear(ds_generator):
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
     a.append([1, 2, 3])
 
-    ds = ds_generator()
+    ds = local_ds_generator()
     assert len(ds) == 1
     assert len(image) == 4
     assert image.htype == "image"
@@ -1261,7 +1312,7 @@ def test_sample_shape(memory_ds):
 
 
 @enabled_remote_storages
-def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_creds):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
@@ -1273,12 +1324,18 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
     assert memory_ds.images[0].shape == (300, 200, 3)
 
     storage["sample/samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/sample/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[1].shape == (323, 480, 3)
 
     storage["samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
 
@@ -1317,6 +1374,19 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
         ds.create_tensor("x", htype="sequence", **args)
         for _ in range(10):
             ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (10, 5, 2, 7, 3)
+    ds.checkout("branch", create=True)
+    with ds:
+        for _ in range(5):
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((15, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (15, 5, 2, 7, 3)
+    ds.checkout("main")
     np.testing.assert_array_equal(
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
     )

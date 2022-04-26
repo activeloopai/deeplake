@@ -35,6 +35,7 @@ from hub.core.tensor_link import get_link_transform
 
 
 class TensorMeta(Meta):
+    name: Optional[str] = None
     htype: str
     dtype: str
     min_shape: List[int]
@@ -47,6 +48,7 @@ class TensorMeta(Meta):
     links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
     is_link: bool
+    verify: bool
 
     def __init__(
         self,
@@ -184,6 +186,7 @@ class TensorMeta(Meta):
 
         for key in self._required_meta_keys:
             d[key] = getattr(self, key)
+        d["name"] = self.name
 
         return d
 

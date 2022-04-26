@@ -120,3 +120,4 @@ class MemoryProvider(StorageProvider):
 
     def get_object_size(self, key: str) -> int:
         return _get_nbytes(self[key])
+

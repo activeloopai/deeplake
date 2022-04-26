@@ -115,9 +115,14 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index)
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
-        return read_linked_sample(sample_path, sample_creds_key, self.link_creds)
+        return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
+
+    @property
+    def verify(self):
+        return self.tensor_meta.is_link and self.tensor_meta.verify
 
     def check_each_sample(self, samples):
+        verified_samples = []
         for i, sample in enumerate(samples):
             if isinstance(sample, hub.core.tensor.Tensor) and sample.is_link:
                 sample = sample._linked_sample()
@@ -126,6 +131,14 @@ class LinkedChunkEngine(ChunkEngine):
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
+
+            if self.verify:
+                verified_samples.append(
+                    read_linked_sample(
+                        sample.path, sample.creds_key, self.link_creds, verify=True
+                    )
+                )
+        return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):
         assert isinstance(num_samples_added, int)

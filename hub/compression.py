@@ -1,3 +1,6 @@
+import itertools
+
+
 """
 Supported compressions (formats):
 
@@ -38,6 +41,40 @@ IMAGE_COMPRESSIONS = [
     "wmf",
     "xbm",
 ]
+
+IMAGE_COMPRESSION_EXT_DICT = {
+    "apng": [".png"],
+    "bmp": [".bmp"],
+    "dib": [".dib"],
+    "gif": [".gif"],
+    "ico": [".ico"],
+    "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
+    "jpeg2000": [
+        ".jp2",
+        ".j2k",
+        ".jpf",
+        ".jpm",
+        ".jpg2",
+        ".j2c",
+        ".jpc",
+        ".jpx",
+        ".mj2",
+    ],
+    "pcx": [".pcx"],
+    "png": [".png"],
+    "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
+    "sgi": [".sgi"],
+    "tga": [".tga"],
+    "tiff": [".tiff", ".tif"],
+    "webp": [".webp"],
+    "wmf": [".wmf"],
+    "xbm": [".xbm"],
+}
+
+
+IMAGE_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*IMAGE_COMPRESSION_EXT_DICT.values()))
+)
 
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 

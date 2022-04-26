@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 try:
     from google.cloud import storage  # type: ignore
@@ -226,6 +226,7 @@ class GCSProvider(StorageProvider):
             )
         self.root = root
         self.token: Union[str, Dict, None] = token
+        self.tag: Optional[str] = None
         self.project = project
         self.missing_exceptions = (
             FileNotFoundError,
@@ -235,7 +236,7 @@ class GCSProvider(StorageProvider):
             NotFound,
         )
         self._initialize_provider()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         return self.__class__(
@@ -310,11 +311,7 @@ class GCSProvider(StorageProvider):
 
     def __getitem__(self, key):
         """Retrieve data"""
-        try:
-            blob = self.client_bucket.get_blob(self._get_path_from_key(key))
-            return blob.download_as_bytes(retry=self.retry)
-        except self.missing_exceptions:
-            raise KeyError(key)
+        return self.get_bytes(key)
 
     def get_bytes(
         self,
@@ -338,8 +335,7 @@ class GCSProvider(StorageProvider):
         """
         try:
             blob = self.client_bucket.get_blob(self._get_path_from_key(path))
-            if end_byte != None:
-                assert end_byte is not None
+            if end_byte is not None:
                 end_byte -= 1
             return blob.download_as_bytes(
                 retry=self.retry, start=start_byte, end=end_byte
@@ -425,8 +421,8 @@ class GCSProvider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                client = HubBackendClient(self.token)  # type: ignore
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 blob = client_bucket.get_blob(
@@ -436,7 +432,7 @@ class GCSProvider(StorageProvider):
             self._presigned_urls[key] = (url, time.time())
         return url
 
-    def get_object_size(self, key: str):
+    def get_object_size(self, key: str) -> int:
         blob = self.client_bucket.get_blob(self._get_path_from_key(key))
         return blob.size
 
