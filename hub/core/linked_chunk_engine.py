@@ -127,7 +127,7 @@ class LinkedChunkEngine(ChunkEngine):
             if isinstance(sample, hub.core.tensor.Tensor) and sample.is_link:
                 sample = sample._linked_sample()
                 samples[i] = sample
-            elif not isinstance(sample, LinkedSample) or sample is not None:
+            elif not isinstance(sample, LinkedSample) and sample is not None:
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
