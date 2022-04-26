@@ -1,6 +1,5 @@
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
-from miniaudio import mp3_get_file_info  # type: ignore
 from hub.util.exif import getexif
 import numpy as np
 import pytest
