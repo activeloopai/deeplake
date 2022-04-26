@@ -79,8 +79,7 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[audio]       -> Audio support via miniaudio
-pip3 install hub[video]       -> Video support via pyav
+pip3 install hub[av]          -> Audio and video support via PyAV
 pip3 install hub[gcp]         -> GCS support via google-* dependencies
 pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
 pip3 install hub[all]         -> Installs everything - audio, video and GCS support
@@ -345,6 +344,16 @@ By default, we collect usage data using Bugout (here's the [code](https://github
 activeloop reporting --off
 ```
 </details>
+
+## Citation
+If you use Hub in your research, please cite Activeloop using:
+
+@article{2022ActiveloopHub,
+  title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
+  author={Activeloop Developer Team},
+  journal={GitHub. Note: https://github.com/activeloopai/Hub},
+  year={2022}
+}
 
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.

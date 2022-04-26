@@ -1,3 +1,5 @@
+import os
+import sys
 from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,
@@ -226,21 +228,45 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
         np.testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
 
 
+def _decompress_audio_helper(path):
+    import av  # type: ignore
+
+    container = av.open(path)
+    for frame in container.decode(audio=0):
+        if not frame.is_corrupt:
+            audio = frame.to_ndarray().astype("<f4")
+            break
+
+    for frame in container.decode(audio=0):
+        audio = np.concatenate((audio, frame.to_ndarray().astype("<f4")), axis=1)
+
+    return np.transpose(audio)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
 def test_audio(local_ds, compression, audio_paths):
     path = audio_paths[compression]
-    if path.endswith(".mp3"):
-        audio = mp3_read_file_f32(path)
-    elif path.endswith(".flac"):
-        audio = flac_read_file_f32(path)
-    elif path.endswith(".wav"):
-        audio = wav_read_file_f32(path)
-    arr = np.frombuffer(audio.samples, dtype=np.float32).reshape(
-        audio.num_frames, audio.nchannels
-    )
+    arr = _decompress_audio_helper(path)
     local_ds.create_tensor("audio", htype="audio", sample_compression=compression)
     with local_ds:
         for _ in range(10):
             local_ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
-        np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore
+        decompressed = local_ds.audio[i].numpy()
+        np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
+
+
+def test_exif(memory_ds, compressed_image_paths):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        for path in compressed_image_paths["jpeg"]:
+            ds.images.append(hub.read(path))
+    for image in ds.images:
+        assert isinstance(image.sample_info["exif"], dict), (
+            type(image.sample_info["exif"]),
+            path,
+        )

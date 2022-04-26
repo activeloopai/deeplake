@@ -4,6 +4,8 @@ from hub.constants import (
     DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
     DATASET_LOCK_FILENAME,
+    ENCODED_CREDS_FOLDER,
+    LINKED_CREDS_FILENAME,
     UNSHARDED_ENCODER_FILENAME,
     ENCODED_CHUNK_NAMES_FOLDER,
     ENCODED_SEQUENCE_NAMES_FOLDER,
@@ -50,6 +52,14 @@ def get_dataset_diff_key(commit_id: str) -> str:
     return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
 
 
+def get_dataset_linked_creds_key() -> str:
+    return LINKED_CREDS_FILENAME
+
+
+def get_dataset_linked_creds_lock_key() -> str:
+    return VERSION_CONTROL_INFO_LOCK_FILENAME
+
+
 def get_version_control_info_key() -> str:
     return VERSION_CONTROL_INFO_FILENAME
 
@@ -81,6 +91,20 @@ def get_tensor_tile_encoder_key(key: str, commit_id: str) -> str:
             commit_id,
             key,
             ENCODED_TILE_NAMES_FOLDER,
+            UNSHARDED_ENCODER_FILENAME,
+        )
+    )
+
+
+def get_creds_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join((key, ENCODED_CREDS_FOLDER, UNSHARDED_ENCODER_FILENAME))
+    return "/".join(
+        (
+            "versions",
+            commit_id,
+            key,
+            ENCODED_CREDS_FOLDER,
             UNSHARDED_ENCODER_FILENAME,
         )
     )
@@ -166,6 +190,17 @@ def get_queries_key() -> str:
 
 def get_queries_lock_key() -> str:
     return QUERIES_LOCK_FILENAME
+
+
+def filter_name(name: str, group_index: str = "") -> str:
+    """Filters tensor name and returns full name of the tensor"""
+    name = name.strip("/")
+
+    while "//" in name:
+        name = name.replace("//", "/")
+
+    name = posixpath.join(group_index, name)
+    return name
 
 
 def get_sample_info_tensor_key(key: str):
