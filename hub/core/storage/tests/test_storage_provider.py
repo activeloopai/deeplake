@@ -6,7 +6,7 @@ from hub.tests.cache_fixtures import enabled_cache_chains
 from hub.core.storage.gcs import GCloudCredentials
 from hub.core.storage.google_drive import GDriveProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
-from google.oauth2.credentials import Credentials
+from google.oauth2.credentials import Credentials  # type: ignore
 import os
 import pytest
 from hub.constants import MB, GCS_OPT, GDRIVE_OPT
