@@ -11,11 +11,11 @@ class UncompressedChunk(BaseChunk):
         self, incoming_samples: Union[List[InputSample], np.ndarray]
     ) -> float:
         self.prepare_for_write()
-        if (
-            isinstance(incoming_samples, np.ndarray)
-            and incoming_samples.dtype != "object"
-        ):
-            return self._extend_if_has_space_numpy(incoming_samples)
+        if isinstance(incoming_samples, np.ndarray):
+            if incoming_samples.dtype == object:
+                incoming_samples = list(incoming_samples)
+            else:
+                return self._extend_if_has_space_numpy(incoming_samples)
         return self._extend_if_has_space_list(incoming_samples)
 
     def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:

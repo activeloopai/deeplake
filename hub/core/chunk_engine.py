@@ -204,7 +204,7 @@ class ChunkEngine:
         return self.max_chunk_size // 2
 
     @property
-    def tensor_meta(self) -> TensorMeta:
+    def tensor_meta(self):
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
             key = get_tensor_meta_key(self.key, commit_id)

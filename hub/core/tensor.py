@@ -392,7 +392,7 @@ class Tensor:
         return self.chunk_engine.tensor_meta
 
     @property
-    def shape(self) -> Tuple[Optional[int], ...]:
+    def shape(self) -> Optional[Tuple[Optional[int], ...]]:
         """Get the shape of this tensor. Length is included.
 
         Note:
@@ -417,14 +417,13 @@ class Tensor:
         )
         if sample_shape_provider is None:
             self.check_link_ready()
+        shape: Optional[Tuple[Optional[int], ...]]
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
         if not shape and self.meta.max_shape:
             shape = (0,) * len(self.meta.max_shape)
-        if shape == ():
-            shape = None
-        if self.meta.max_shape == [0, 0, 0]:
+        if shape == () or self.meta.max_shape == [0, 0, 0]:
             shape = None
         return shape
 
