@@ -12,6 +12,7 @@ from hub.compression import (
     get_compression_type,
 )
 from hub.constants import CONVERT_GRAYSCALE
+from hub.constants import RANDOM_MINIMAL_CHUNK_SIZE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -233,7 +234,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -245,7 +246,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
             )
         elif isinstance(incoming_sample, hub.core.tensor.Tensor):
             incoming_sample, shape = serialize_tensor(
@@ -254,7 +255,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -268,7 +269,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -291,7 +292,7 @@ class BaseChunk(HubMemoryObject):
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
         return (
-            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
         )
 
     def copy(self, chunk_args=None):
@@ -299,7 +300,7 @@ class BaseChunk(HubMemoryObject):
 
     def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape, extend: bool = True, end: bool = True):
         """Registers a new sample in meta and headers"""
-        self.register_sample_to_headers(sample_nbytes, shape, end=end) # LEVON need refactor there
+        self.register_sample_to_headers(sample_nbytes, shape, end=end)
         if extend is True:
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1) # check this one
