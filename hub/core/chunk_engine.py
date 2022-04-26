@@ -473,10 +473,9 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
 
-        base_storage = self.base_storage
         stream = False
-        if isinstance(base_storage, (S3Provider, GCSProvider)):
-            chunk_size = base_storage.get_object_size(chunk_key)
+        if isinstance(self.base_storage, (S3Provider, GCSProvider)):
+            chunk_size = self.cache.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
                 chunk = self.cache.get_hub_object(
@@ -568,7 +567,7 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk_size = self.base_storage.get_object_size(chunk_key)
+        chunk_size = self.cache.get_object_size(chunk_key)
 
         sample_bytes = 0
         for _, sample in enumerate(samples):
@@ -911,7 +910,7 @@ class ChunkEngine:
         num_samples = len(samples_to_move)
         if num_samples == 0:
             return
-        new_chunk = self._create_new_chunk(chunk, row=chunk_row)
+        new_chunk = self._create_new_chunk(register=True, row=chunk_row)
 
         self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=num_samples)
         self.chunk_id_encoder.decrease_samples(row=chunk_row+1, num_samples=num_samples)
@@ -935,7 +934,7 @@ class ChunkEngine:
         next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)
         next_chunk_commit_id = self.get_chunk_commit(next_chunk_name)
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
-        next_chunk_size = self.base_storage.get_object_size(chunk_key)
+        next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
 
         if next_chunk_size is None:
@@ -945,7 +944,6 @@ class ChunkEngine:
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
-            self.chunk_id_encoder.decrease_samples(row=next_chunk_row, num_samples=num_samples)
             # for chunk encoded chunks we need to take into acount that pop is not needed for byte_position_encoder (image_compression related)
             next_chunk.pop_front_multiple(num_samples=num_samples)
             samples = self._sanitize_samples(samples_to_move)
@@ -965,8 +963,6 @@ class ChunkEngine:
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
-            #self.chunk_id_encoder.decrease_samples(row=next_chunk_row, num_samples=num_samples)
-
 
             chunk.pop_multiple(num_samples=num_samples)
             samples = self._sanitize_samples(samples_to_move)
@@ -994,7 +990,7 @@ class ChunkEngine:
         prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)
         prev_chunk_commit_id = self.get_chunk_commit(prev_chunk_name)
         prev_chunk_key = get_chunk_key(self.key, prev_chunk_name, prev_chunk_commit_id)
-        prev_chunk_size = self.base_storage.get_object_size(prev_chunk_key)
+        prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
         if prev_chunk_size is None:
             return False
@@ -1021,25 +1017,25 @@ class ChunkEngine:
             return True
         elif prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
-            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=True)
+            samples_to_move = self.__get_chunk_samples(chunk=prev_chunk, forward=False)
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
 
-            chunk.pop_multiple(num_samples=len(samples_to_move))
+            prev_chunk.pop_multiple(num_samples=len(samples_to_move))
             samples = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
-                start_chunk=prev_chunk,
+                start_chunk=chunk,
                 register=True,
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=prev_chunk_row
+                fit_row=row
             )
-            self.chunk_id_encoder.decrease_samples(row=row, num_samples=num_samples)
-            self.chunk_id_encoder.delete_chunk_id(row=row)
-            del self.cache[chunk.key]
+
+            self.chunk_id_encoder.delete_chunk_id(row=prev_chunk_row)
+            del self.cache[prev_chunk.key]
             return True
         return False
 

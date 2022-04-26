@@ -85,7 +85,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         if row == 0:
             return None
 
-        return self._encoded[row + 1][0]
+        return self._encoded[row - 1][0]
 
     def decrease_samples(self, row: int = 0, num_samples: int = 0):
         """Decrease sample count from encoder

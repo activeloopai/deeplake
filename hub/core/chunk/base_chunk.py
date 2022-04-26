@@ -12,7 +12,6 @@ from hub.compression import (
     get_compression_type,
 )
 from hub.constants import CONVERT_GRAYSCALE
-from hub.constants import RANDOM_MINIMAL_CHUNK_SIZE
 from hub.core.fast_forwarding import ffw_chunk
 from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -234,7 +233,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -246,7 +245,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
+                min_chunk_size,
             )
         elif isinstance(incoming_sample, hub.core.tensor.Tensor):
             incoming_sample, shape = serialize_tensor(
@@ -255,7 +254,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -269,7 +268,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -292,7 +291,7 @@ class BaseChunk(HubMemoryObject):
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
         return (
-            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
         )
 
     def copy(self, chunk_args=None):
