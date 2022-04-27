@@ -2166,44 +2166,6 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-        return self.__copy(
-            dest,
-            overwrite,
-            dest_creds,
-            dest_token,
-            num_workers,
-            scheduler,
-            progressbar,
-        )
-
-    def __copy(  # No reporting
-        self,
-        dest: str,
-        overwrite: bool = False,
-        dest_creds=None,
-        dest_token=None,
-        num_workers: int = 0,
-        scheduler="threaded",
-        progressbar=True,
-    ):
-        """Copies this dataset or dataset view to `dest`. Version control history is not included.
-
-        Args:
-            dest (str): Destination path to copy to.
-            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            dest_creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
-            dest_token (str, Optional): token used to for fetching credentials to `dest`.
-            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Defaults to 'threaded'.
-            progressbar (bool): Displays a progress bar if True (default).
-
-        Returns:
-            Dataset: New dataset object.
-
-        Raises:
-            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
-        """
         dest_ds = hub.like(
             dest,
             self,
