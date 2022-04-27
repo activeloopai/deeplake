@@ -7,7 +7,6 @@ from hub.util.remove_cache import remove_memory_cache
 from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.transform import get_pbar_description
 import hub
 
@@ -109,7 +108,11 @@ def check_target_array(ds, index, target):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
+@pytest.mark.parametrize(
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
 def test_single_transform_hub_dataset(ds, scheduler):
     data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
