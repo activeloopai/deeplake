@@ -85,7 +85,8 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
     # if tensor meta is empty, copy attributes from current_meta
     if len(ds_tensor_meta.max_shape) == 0 or ds_tensor_meta.dtype is None:
         ds_tensor_meta.set_dtype_str(worker_tensor_meta.dtype)
-        ds_tensor_meta.set_htype(worker_tensor_meta.htype)
+        if not ds_tensor_meta.htype and worker_tensor_meta.htype:
+            ds_tensor_meta.set_htype(worker_tensor_meta.htype)
         ds_tensor_meta.update_length(worker_tensor_meta.length)
         ds_tensor_meta.update_shape_interval(worker_tensor_meta.max_shape)
         ds_tensor_meta.update_shape_interval(worker_tensor_meta.min_shape)

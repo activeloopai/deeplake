@@ -904,6 +904,6 @@ def test_htype_dtype_after_transform(local_ds):
         assert ds.image.htype is None
         assert ds.image.dtype is None
         ds.create_tensor("label")
-        fn3().eval(list(range(10)), ds, 1)
+        fn3().eval(list(range(10)), ds, TRANSFORM_TEST_NUM_WORKERS)
     assert ds.image.htype == "generic"
     assert ds.image.dtype == np.ones(1).dtype
