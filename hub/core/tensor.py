@@ -575,6 +575,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        update_link_callback = self._update_links if self.meta.links else None
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False
@@ -588,13 +589,20 @@ class Tensor:
             and item >= self.num_samples
         ):
             num_samples_to_pad = item - self.num_samples
-            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            append_link_callback = self._append_to_links if self.meta.links else None
+
+            self.chunk_engine.pad_and_append(
+                num_samples_to_pad,
+                value,
+                append_link_callback=append_link_callback,
+                update_link_callback=update_link_callback,
+            )
             return
 
         self.chunk_engine.update(
             self.index[item_index],
             value,
-            link_callback=self._update_links if self.meta.links else None,
+            link_callback=update_link_callback,
         )
 
     def __iter__(self):
