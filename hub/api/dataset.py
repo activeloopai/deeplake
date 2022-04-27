@@ -420,6 +420,7 @@ class dataset:
         return destination_ds
 
     @staticmethod
+    @hub_reporter.record_call
     def copy(
         src: Union[str, Dataset],
         dest: str,
@@ -460,7 +461,7 @@ class dataset:
             src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         else:
             src_ds = src
-        return src_ds.copy(
+        return src_ds.__copy(
             dest,
             overwrite=overwrite,
             dest_creds=dest_creds,
@@ -471,6 +472,7 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def deepcopy(
         src: str,
         dest: str,

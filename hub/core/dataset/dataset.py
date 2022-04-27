@@ -873,6 +873,7 @@ class Dataset:
 
         return self._commit(message)
 
+    @hub_reporter.record_call
     def merge(
         self,
         target_id: str,
@@ -1007,6 +1008,7 @@ class Dataset:
 
         return self.commit_id
 
+    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
@@ -1020,6 +1022,7 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
+    @hub_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1661,6 +1664,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
+    @hub_reporter.record_call
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -2133,7 +2137,46 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
+    @hub_reporter.record_call
     def copy(
+        self,
+        dest: str,
+        overwrite: bool = False,
+        dest_creds=None,
+        dest_token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+    ):
+        """Copies this dataset or dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str): Destination path to copy to.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            dest_creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            dest_token (str, Optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        return self.__copy(
+            dest,
+            overwrite,
+            dest_creds,
+            dest_token,
+            num_workers,
+            scheduler,
+            progressbar,
+        )
+
+    def __copy(  # No reporting
         self,
         dest: str,
         overwrite: bool = False,
