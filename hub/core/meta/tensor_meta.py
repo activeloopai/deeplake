@@ -44,6 +44,7 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
     max_chunk_size: int
+    tiling_threshold: int
     hidden: bool
     links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
