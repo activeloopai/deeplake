@@ -1,4 +1,5 @@
 import pheonix
+print(dir(pheonix))
 import time
 
 answers = []

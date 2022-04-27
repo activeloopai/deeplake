@@ -7,6 +7,7 @@ PYTEST_TMPDIR
 .coverage
 .coverage.*
 htmlcov
+.test_resources
 
 # vim
 *.swp

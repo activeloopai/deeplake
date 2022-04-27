@@ -3,11 +3,11 @@ try-import submodules/eventuals/dev-tools/.bazelrc
 # Specific Bazel build/test options.
 build --enable_platform_specific_config
 
-build:macos --cxxopt='-std=c++17'
+build:macos --cxxopt='-std=c++20'
 
-build:linux --cxxopt='-std=c++17'
+build:linux --cxxopt='-std=c++20'
 
-build:windows --cxxopt="/std:c++17"
+build:windows --cxxopt="/std:c++20"
 
 build:windows --compiler="clang-cl"
 
