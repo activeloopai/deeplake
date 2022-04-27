@@ -19,6 +19,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
+from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
@@ -31,11 +32,14 @@ from io import BytesIO
 from urllib.request import urlopen
 
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.google_drive import GDriveProvider
 
 try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
     GCSProvider = None  # type: ignore
+
+import warnings
 
 
 class Sample:
@@ -336,6 +340,8 @@ class Sample:
             return self._read_from_gcs()
         elif path_type == "s3":
             return self._read_from_s3()
+        elif path_type == "gdrive":
+            return self._read_from_gdrive()
         elif path_type == "http":
             return self._read_from_http()
 
@@ -375,6 +381,12 @@ class Sample:
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 
+    def _read_from_gdrive(self) -> bytes:
+        path = self.path.replace("gdrive://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
+        return gdrive[key]
+
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
 
@@ -383,10 +395,13 @@ class Sample:
             img = Image.open(self.path)
         else:
             img = Image.open(BytesIO(self.buffer))
-        return {
-            TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
-            for k, v in img.getexif().items()
-        }
+        try:
+            return getexif(img)
+        except Exception as e:
+            warnings.warn(
+                f"Error while reading exif data, possibly due to corrupt exif: {e}"
+            )
+            return {}
 
     @property
     def meta(self) -> dict:
