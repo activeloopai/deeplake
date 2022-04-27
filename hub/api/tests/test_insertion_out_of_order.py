@@ -145,4 +145,4 @@ def test_updation_bug(memory_ds):
         labels[0] = [0, 1]
         np.testing.assert_array_equal(labels[0].numpy(), [0, 1])
         labels[0] = [1, 2]
-        np.testing.assert_array_equal(labels[0].numpy(), [1,2])
+        np.testing.assert_array_equal(labels[0].numpy(), [1, 2])
