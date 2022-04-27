@@ -1,7 +1,6 @@
 import time
 import os
 from hub.core.storage.provider import StorageProvider
-from httplib2 import Http  # type: ignore
 from io import BytesIO
 import posixpath
 import pickle
@@ -10,6 +9,7 @@ from hub.util.hash import hash_inputs
 import logging
 
 try:
+    from httplib2 import Http  # type: ignore
     from googleapiclient import discovery  # type: ignore
     from googleapiclient.http import (  # type: ignore
         MediaIoBaseDownload,
