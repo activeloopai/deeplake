@@ -746,7 +746,7 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 v = get_link_transform(v["append"])(sample, self.link_creds)
                 tensor = Tensor(k, self.dataset)
-                if isinstance(v, np.ndarray) and v.dtype != tensor.dtype:
+                if isinstance(v, np.ndarray) and tensor.dtype and v.dtype != tensor.dtype:
                     v = v.astype(tensor.dtype)  # bc
                 tensor.append(v)
 
@@ -771,7 +771,7 @@ class Tensor:
                         link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
-                        if isinstance(val, np.ndarray) and val.dtype != tensor.dtype:
+                        if isinstance(val, np.ndarray) and tensor.dtype and val.dtype != tensor.dtype:
                             val = val.astype(tensor.dtype)  # bc
                         tensor = val
 
