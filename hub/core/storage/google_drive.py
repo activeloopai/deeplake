@@ -38,9 +38,7 @@ FILE = "application/octet-stream"
 class GoogleDriveIDManager:
     """Class used to make google drive path to id maps"""
 
-    def __init__(
-        self, drive: discovery.Resource, root: str, root_id: Optional[str] = None
-    ):
+    def __init__(self, drive, root: str, root_id: Optional[str] = None):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
         self.root_path = root
@@ -167,7 +165,7 @@ class GDriveProvider(StorageProvider):
 
         self._init_provider(creds)
 
-    def _init_provider(self, creds: Credentials):
+    def _init_provider(self, creds):
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root_path = self.root.replace("gdrive://", "")
         if hasattr(self, "root_id"):
