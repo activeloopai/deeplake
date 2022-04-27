@@ -34,6 +34,12 @@ extras = {
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
     "dicom": ["pydicom"],
     "visualizer": ["IPython", "flask"],
+    "gdrive": [
+        "google-api-python-client",
+        "oauth2client",
+        "google-auth",
+        "google-auth-oauthlib",
+    ],
 }
 
 all_extras = {r for v in extras.values() for r in v}
