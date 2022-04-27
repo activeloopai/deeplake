@@ -164,7 +164,7 @@ class BaseChunk(HubMemoryObject):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples, update_meta: bool = True) -> float:
+    def extend_if_has_space(self, incoming_samples, update_meta: bool = True, end: bool = True) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
@@ -193,21 +193,22 @@ class BaseChunk(HubMemoryObject):
         self.is_dirty = True
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int], end: bool = True
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
         Args:
             incoming_num_bytes (int): The length of the buffer that was used to
             sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+            end (bool): parameter that shows whether we need to add elements to the end of encoder or in the front
 
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
-        self.shapes_encoder.register_samples(sample_shape, 1)
+        self.shapes_encoder.register_samples(sample_shape, 1, end=end)
         # incoming_num_bytes is not applicable for image compressions
         if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1, end=end)
 
     def serialize_sample(
         self,
@@ -296,12 +297,13 @@ class BaseChunk(HubMemoryObject):
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
 
-    def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
+    def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape, extend: bool = True, end: bool = True):
         """Registers a new sample in meta and headers"""
-        self.register_sample_to_headers(sample_nbytes, shape)
-        if self._update_tensor_meta_length:
-            self.tensor_meta.update_length(1)
-        self.tensor_meta.update_shape_interval(shape)
+        self.register_sample_to_headers(sample_nbytes, shape, end=end)
+        if extend is True:
+            if self._update_tensor_meta_length:
+                self.tensor_meta.update_length(1) # check this one
+            self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -314,6 +316,7 @@ class BaseChunk(HubMemoryObject):
 
     def check_shape_for_update(self, local_index: int, shape):
         """Checks if the shape being assigned at the new index is valid."""
+        expected_dimensionality = self.num_dims;
         expected_dimensionality = len(self.shapes_encoder[local_index])
         if expected_dimensionality != len(shape):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
@@ -356,6 +359,23 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
         self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
+
+    def pop_multiple(self, num_samples):
+        self.prepare_for_write()
+
+        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[self.shapes_encoder.num_samples - num_samples][0]]
+
+        for _ in range(num_samples):
+            self.shapes_encoder._pop()
+            self.byte_positions_encoder._pop()
+
+    def pop_front_multiple(self, row, num_samples):
+        self.prepare_for_write()
+        self.data_bytes = self.data_bytes[self.byte_positions_encoder[num_samples][0]:]
+
+        for _ in range(num_samples):
+            self.shapes_encoder._pop_front(row=row)
+            self.byte_positions_encoder._pop_front(row=row)
 
     def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
