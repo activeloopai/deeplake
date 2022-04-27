@@ -920,7 +920,7 @@ class ChunkEngine:
         self.chunk_id_encoder.decrease_samples(row=chunk_row+1, num_samples=num_samples)
         chunk.pop_multiple(num_samples=len(samples_to_move))
 
-        samples = self._sanitize_samples(samples_to_move)
+        samples, _ = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -950,7 +950,7 @@ class ChunkEngine:
                 return True
             # for chunk encoded chunks we need to take into acount that pop is not needed for byte_position_encoder (image_compression related)
             next_chunk.pop_front_multiple(num_samples=num_samples)
-            samples = self._sanitize_samples(samples_to_move)
+            samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
                 start_chunk=chunk,
@@ -969,7 +969,7 @@ class ChunkEngine:
                 return True
 
             chunk.pop_multiple(num_samples=num_samples)
-            samples = self._sanitize_samples(samples_to_move)
+            samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
                 start_chunk=next_chunk,
@@ -1008,7 +1008,7 @@ class ChunkEngine:
             samples_to_move.reverse()
             self.chunk_id_encoder.decrease_samples(row=prev_chunk_row, num_samples=num_samples)
             prev_chunk.pop_multiple(num_samples=num_samples)
-            samples = self._sanitize_samples(samples_to_move)
+            samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
                 start_chunk=chunk,
@@ -1027,7 +1027,7 @@ class ChunkEngine:
                 return True
 
             prev_chunk.pop_multiple(num_samples=len(samples_to_move))
-            samples = self._sanitize_samples(samples_to_move)
+            samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
                 start_chunk=chunk,
