@@ -55,6 +55,7 @@ class BaseChunk(HubMemoryObject):
         self,
         min_chunk_size: int,
         max_chunk_size: int,
+        tiling_threshold: int,
         tensor_meta: TensorMeta,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
@@ -66,6 +67,7 @@ class BaseChunk(HubMemoryObject):
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
+        self.tiling_threshold = tiling_threshold
 
         self.tensor_meta = tensor_meta
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
@@ -218,7 +220,12 @@ class BaseChunk(HubMemoryObject):
         store_uncompressed_tiles: bool = False,
     ) -> SerializedOutput:
         """Converts the sample into bytes"""
-        dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
+        dt, ht, min_chunk_size, tiling_threshold = (
+            self.dtype,
+            self.htype,
+            self.min_chunk_size,
+            self.tiling_threshold,
+        )
         if self.is_text_like:
             if isinstance(incoming_sample, LinkedSample):
                 incoming_sample = incoming_sample.path
@@ -232,7 +239,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                tiling_threshold,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -253,7 +260,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                tiling_threshold,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -267,7 +274,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                min_chunk_size,
+                tiling_threshold,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -289,9 +296,16 @@ class BaseChunk(HubMemoryObject):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        return (
-            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
-        )
+        if self.num_data_bytes == 0:
+            if self.tiling_threshold < 0:  # tiling disabled
+                return True
+            else:
+                return buffer_nbytes + sample_nbytes <= self.tiling_threshold
+        else:
+            return (
+                self.num_data_bytes + buffer_nbytes + sample_nbytes
+                <= self.min_chunk_size
+            )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
