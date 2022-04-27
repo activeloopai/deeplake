@@ -888,6 +888,22 @@ def test_sequence_htype_with_transform(local_ds):
     ds = local_ds
     with ds:
         ds.create_tensor("x", htype="sequence")
+        assert ds.x.dtype is None
+        assert ds.x.htype == "sequence[None]"
         sequence_transform().eval(list(range(1, 11)), ds, TRANSFORM_TEST_NUM_WORKERS)
     for i in range(10):
         np.testing.assert_array_equal(ds.x[i].numpy(), np.ones((i + 1, i + 1)))
+    assert ds.x.dtype == np.ones(1).dtype
+    assert ds.x.htype == "sequence[generic]"
+
+
+def test_htype_dtype_after_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image")
+        assert ds.image.htype is None
+        assert ds.image.dtype is None
+        ds.create_tensor("label")
+        fn3().eval(list(range(10)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    assert ds.image.htype == "generic"
+    assert ds.image.dtype == np.ones(1).dtype
