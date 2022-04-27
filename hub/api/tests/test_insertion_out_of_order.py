@@ -136,3 +136,13 @@ def test_insertion_list(memory_ds, compression, insert_first):
             np.testing.assert_array_equal(ds.abc[i].numpy(), empty_sample)
 
         np.testing.assert_array_equal(ds.abc[10].numpy(), np.array(tenth))
+
+
+@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+def test_updation_bug(memory_ds):
+    with memory_ds as ds:
+        labels = ds.create_tensor("labels", "class_label")
+        labels[0] = [0, 1]
+        np.testing.assert_array_equal(labels[0].numpy(), [0, 1])
+        labels[0] = [1, 2]
+        np.testing.assert_array_equal(labels[0].numpy(), [1,2])
