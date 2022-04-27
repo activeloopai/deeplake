@@ -252,7 +252,10 @@ class ChunkCompressedChunk(BaseChunk):
         ratio = get_compression_ratio(self.compression)
         approx_compressed_size = sample.nbytes * ratio
 
-        if self.tiling_threshold >= 0 and approx_compressed_size > self.tiling_threshold:
+        if (
+            self.tiling_threshold >= 0
+            and approx_compressed_size > self.tiling_threshold
+        ):
             sample = SampleTiles(
                 sample,
                 self.compression,
