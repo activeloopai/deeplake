@@ -1,5 +1,8 @@
 try-import submodules/eventuals/dev-tools/.bazelrc
 
+
+build --copt -fPIC
+
 # Specific Bazel build/test options.
 build --enable_platform_specific_config
 

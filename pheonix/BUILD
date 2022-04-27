@@ -17,10 +17,11 @@ cc_binary(
 pybind_extension(
     name = "pheonix",
     srcs = ["libpheonix.cpp", "requests.h", "scheduler.h"],
-    # deps = [
-    #     "@com_github_3rdparty_eventuals//eventuals",
-    #],
-    copts = ["-std=c++2a", "-fcoroutines", "-fPIC", "-lcurl", "-lstdc++", "-laws-cpp-sdk-core", "-laws-cpp-sdk-s3"],
+    deps = [
+        "@com_github_3rdparty_eventuals//eventuals",
+    ],
+    linkopts = ["-lcurl"],
+    copts = ["-std=c++2a", "-fcoroutines", "-fPIC", "-lstdc++", "-laws-cpp-sdk-core", "-laws-cpp-sdk-s3"],
 )
 
 
