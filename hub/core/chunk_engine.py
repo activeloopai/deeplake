@@ -473,9 +473,10 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
 
+        base_storage = self.base_storage
         stream = False
-        if isinstance(self.base_storage, (S3Provider, GCSProvider)):
-            chunk_size = self.cache.get_object_size(chunk_key)
+        if isinstance(base_storage, (S3Provider, GCSProvider)):
+            chunk_size = base_storage.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
                 chunk = self.cache.get_hub_object(
