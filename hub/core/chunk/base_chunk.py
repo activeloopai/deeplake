@@ -164,7 +164,9 @@ class BaseChunk(HubMemoryObject):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples, update_meta: bool = True, end: bool = True) -> float:
+    def extend_if_has_space(
+        self, incoming_samples, update_meta: bool = True, end: bool = True
+    ) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
@@ -193,7 +195,10 @@ class BaseChunk(HubMemoryObject):
         self.is_dirty = True
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int], end: bool = True
+        self,
+        incoming_num_bytes: Optional[int],
+        sample_shape: Tuple[int],
+        end: bool = True,
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
@@ -297,12 +302,14 @@ class BaseChunk(HubMemoryObject):
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
 
-    def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape, extend: bool = True, end: bool = True):
+    def register_in_meta_and_headers(
+        self, sample_nbytes: Optional[int], shape, extend: bool = True, end: bool = True
+    ):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape, end=end)
         if extend is True:
             if self._update_tensor_meta_length:
-                self.tensor_meta.update_length(1) # check this one
+                self.tensor_meta.update_length(1)  # check this one
             self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -316,7 +323,7 @@ class BaseChunk(HubMemoryObject):
 
     def check_shape_for_update(self, local_index: int, shape):
         """Checks if the shape being assigned at the new index is valid."""
-        expected_dimensionality = self.num_dims;
+        expected_dimensionality = self.num_dims
         expected_dimensionality = len(self.shapes_encoder[local_index])
         if expected_dimensionality != len(shape):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
@@ -363,7 +370,11 @@ class BaseChunk(HubMemoryObject):
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
 
-        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[self.shapes_encoder.num_samples - num_samples][0]]
+        self.data_bytes = self.data_bytes[
+            : self.byte_positions_encoder[
+                self.shapes_encoder.num_samples - num_samples
+            ][0]
+        ]
 
         for _ in range(num_samples):
             self.shapes_encoder._pop()
@@ -371,7 +382,7 @@ class BaseChunk(HubMemoryObject):
 
     def pop_front_multiple(self, row, num_samples):
         self.prepare_for_write()
-        self.data_bytes = self.data_bytes[self.byte_positions_encoder[num_samples][0]:]
+        self.data_bytes = self.data_bytes[self.byte_positions_encoder[num_samples][0] :]
 
         for _ in range(num_samples):
             self.shapes_encoder._pop_front(row=row)

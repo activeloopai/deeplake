@@ -113,8 +113,9 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         self._encoded = np.delete(self._encoded, row, axis=0)
 
-
-    def generate_chunk_id(self, register: Optional[bool] = True, row: Optional[int] = None) -> ENCODING_DTYPE:
+    def generate_chunk_id(
+        self, register: Optional[bool] = True, row: Optional[int] = None
+    ) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
 
@@ -135,9 +136,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 if row is not None:
                     if row > self.num_chunks:
                         raise OutOfChunkCount
-                    new_entry = np.array(
-                        [id, self._encoded[row][1]]
-                    )
+                    new_entry = np.array([id, self._encoded[row][1]])
                     self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
                     return id
 
@@ -247,7 +246,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         )
 
     def __getitem__(
-            self, local_sample_index: int, return_row_index: bool = False
+        self, local_sample_index: int, return_row_index: bool = False
     ) -> Any:
         """Derives the value at `local_sample_index`.
 
@@ -318,7 +317,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         return chunk_ids_for_last_sample, to_delete
 
     def _replace_chunks_for_tiled_sample(
-            self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
+        self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]
     ):
         current_chunk_ids_and_rows = self.__getitem__(  # type: ignore
             global_sample_index, return_row_index=True
@@ -327,10 +326,10 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         end_row = current_chunk_ids_and_rows[-1][1]
         if len(current_chunk_ids_and_rows) == len(chunk_ids):
             # inplace update
-            self._encoded[start_row: end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
+            self._encoded[start_row : end_row + 1, CHUNK_ID_COLUMN] = chunk_ids
         else:
             top = self._encoded[:start_row]
-            bottom = self._encoded[end_row + 1:]
+            bottom = self._encoded[end_row + 1 :]
             mid = np.empty((len(chunk_ids), 2), dtype=ENCODING_DTYPE)
             mid[:, CHUNK_ID_COLUMN] = chunk_ids
             mid[:, LAST_SEEN_INDEX_COLUMN] = global_sample_index

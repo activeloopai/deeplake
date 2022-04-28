@@ -42,7 +42,9 @@ class SampleCompressedChunk(BaseChunk):
                         self.data_bytes = serialized_sample + self.data_bytes
                     else:
                         self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
+                    self.register_in_meta_and_headers(
+                        sample_nbytes, shape, extend=extend, end=end
+                    )
                     num_samples += 1
                 else:
                     if serialized_sample:

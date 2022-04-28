@@ -8,16 +8,19 @@ from .base_chunk import BaseChunk, InputSample
 
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
-        self, incoming_samples: Union[List[InputSample], np.ndarray],
-            extend: bool = True,
-            end: bool = True
+        self,
+        incoming_samples: Union[List[InputSample], np.ndarray],
+        extend: bool = True,
+        end: bool = True,
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
             return self._extend_if_has_space_numpy(incoming_samples, extend, end)
         return self._extend_if_has_space_list(incoming_samples, extend, end)
 
-    def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray, extend: bool = True, end: bool = True) -> float:
+    def _extend_if_has_space_numpy(
+        self, incoming_samples: np.ndarray, extend: bool = True, end: bool = True
+    ) -> float:
         num_samples: int = 0
         buffer_size = 0
 
@@ -45,11 +48,15 @@ class UncompressedChunk(BaseChunk):
             shape = self.normalize_shape(samples[0].shape)
             sample_nbytes = samples[0].nbytes
             for _ in range(num_samples):
-                self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
+                self.register_in_meta_and_headers(
+                    sample_nbytes, shape, extend=extend, end=end
+                )
 
         return float(num_samples)
 
-    def _extend_if_has_space_list(self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True) -> float:
+    def _extend_if_has_space_list(
+        self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True
+    ) -> float:
         num_samples: float = 0
 
         if end is False:
@@ -71,10 +78,12 @@ class UncompressedChunk(BaseChunk):
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
                     if end is False:
-                        self.data_bytes = serialized_sample + self.data_bytes # type: ignore
+                        self.data_bytes = serialized_sample + self.data_bytes  # type: ignore
                     else:
                         self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
+                    self.register_in_meta_and_headers(
+                        sample_nbytes, shape, extend=extend, end=end
+                    )
                     num_samples += 1
                 else:
                     break

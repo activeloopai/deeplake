@@ -176,7 +176,7 @@ class Encoder(ABC):
                 if end is False:
                     self._encoded[:, 2] += num_samples
                     shape_entry = np.array(
-                         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
+                        [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
                     )
                     self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
 
@@ -741,7 +741,7 @@ class Encoder(ABC):
 
     # TODO think about appending with nones
     def _pop_front(self, row):
-        num_samples_in_row = self._encoded[row][1] - self._encoded[row-1]
+        num_samples_in_row = self._encoded[row][1] - self._encoded[row - 1]
         if num_samples_in_row == 1:
             self._encoded = self._encoded[:-1]
         if num_samples_in_row > 1:
