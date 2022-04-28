@@ -333,8 +333,14 @@ class ChunkCompressedChunk(BaseChunk):
     def change_dimensionality(self, shape):
         self.tensor_meta.max_shape = list(shape)
         self.tensor_meta.min_shape = list(shape)
+        self.num_dims = len(shape)
+        empty_shape = (0,) * self.num_dims
+        self.tensor_meta.update_shape_interval(empty_shape)
         self.tensor_meta.is_dirty = True
         num_samples = self.shapes_encoder.num_samples
         self.shapes_encoder = ShapeEncoder()
         self.shapes_encoder.register_samples((0,) * len(shape), num_samples)
-        self.num_dims = len(shape)
+        if self.decompressed_samples:
+            for i, arr in enumerate(self.decompressed_samples):
+                self.decompressed_samples[i] = arr.reshape((0,) * self.num_dims)
+
