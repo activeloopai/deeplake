@@ -7,11 +7,13 @@ from hub.core.compression import (
     decompress_multiple,
 )
 from hub.core.fast_forwarding import ffw_chunk
+from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import bytes_to_text, check_sample_shape
 from hub.core.partial_sample import PartialSample
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
+from hub.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 from hub.core.serialize import infer_chunk_num_bytes
 import hub
@@ -95,6 +97,9 @@ class ChunkCompressedChunk(BaseChunk):
         for i, incoming_sample in enumerate(incoming_samples):
             incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
 
+            if shape is not None and self.is_empty_tensor() and len(shape) != 3:
+                self.change_dimensionality(shape)
+
             if isinstance(incoming_sample, SampleTiles):
                 incoming_samples[i] = incoming_sample  # type: ignore
                 if self.is_empty:
@@ -150,8 +155,8 @@ class ChunkCompressedChunk(BaseChunk):
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
-        if self.is_empty_sample(local_index):
-            self.return_empty_sample()
+        if self.is_empty_tensor():
+            raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -207,6 +212,8 @@ class ChunkCompressedChunk(BaseChunk):
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
+        if self.is_empty_tensor() and len(shape) != 3:
+            self.change_dimensionality(shape)
         self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
@@ -227,6 +234,7 @@ class ChunkCompressedChunk(BaseChunk):
             if self.tensor_meta.max_shape:
                 shape = (0,) * len(self.tensor_meta.max_shape)
             else:
+                # we assume 3d, later we reset dimensions if the assumption was wrong
                 shape = (0, 0, 0)
             return np.ones(shape, dtype=self.dtype), None
         if isinstance(sample, SampleTiles):
@@ -248,8 +256,9 @@ class ChunkCompressedChunk(BaseChunk):
         sample = intelligent_cast(sample, self.dtype, self.htype)
         shape = sample.shape
         shape = self.normalize_shape(shape)
-        self.num_dims = self.num_dims or len(shape)
-        check_sample_shape(shape, self.num_dims)
+        if not self.is_empty_tensor:
+            self.num_dims = self.num_dims or len(shape)
+            check_sample_shape(shape, self.num_dims)
 
         ratio = get_compression_ratio(self.compression)
         approx_compressed_size = sample.nbytes * ratio
@@ -316,18 +325,16 @@ class ChunkCompressedChunk(BaseChunk):
         ffw_chunk(self)
         self.is_dirty = True
 
-    def is_empty_sample(self, local_index):
+    def is_empty_tensor(self):
         if self.is_byte_compression:
-            return super().is_empty_sample(local_index)
-        return self.shapes_encoder[local_index] == (0, 0, 0)
+            return super().is_empty_tensor()
+        return self.tensor_meta.max_shape == [0, 0, 0]
 
-    def return_empty_sample(self):
-        if self.is_byte_compression:
-            return super().return_empty_sample()
-        max_shape = self.tensor_meta.max_shape
-        if max_shape == [0, 0, 0]:
-            raise ValueError(
-                "This tensor has only been populated with empty samples. Need to add atleast one sample to determine dimensionality."
-            )
-        shape = (0,) * len(max_shape)
-        return np.zeros(shape, dtype=self.dtype)
+    def change_dimensionality(self, shape):
+        self.tensor_meta.max_shape = list(shape)
+        self.tensor_meta.min_shape = list(shape)
+        self.tensor_meta.is_dirty = True
+        num_samples = self.shapes_encoder.num_samples
+        self.shapes_encoder = ShapeEncoder()
+        self.shapes_encoder.register_samples((0,) * len(shape), num_samples)
+        self.num_dims = len(shape)

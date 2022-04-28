@@ -393,14 +393,5 @@ class BaseChunk(HubMemoryObject):
             self.shapes_encoder.register_samples(empty_shape, num_samples)
             self.tensor_meta.update_shape_interval(empty_shape)
 
-    def is_empty_sample(self, local_index):
-        return self.shapes_encoder.is_empty()
-
-    def return_empty_sample(self):
-        max_shape = self.tensor_meta.max_shape
-        if not max_shape:
-            raise ValueError(
-                "This tensor has only been populated with empty samples. Need to add atleast one sample to determine dimensionality."
-            )
-        shape = (0,) * len(max_shape)
-        return np.zeros(shape, dtype=self.dtype)
+    def is_empty_tensor(self):
+        return len(self.tensor_meta.max_shape) == 0

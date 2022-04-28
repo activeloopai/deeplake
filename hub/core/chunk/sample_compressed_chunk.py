@@ -8,6 +8,7 @@ from hub.core.serialize import (
     bytes_to_text,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.util.exceptions import EmptyTensorError
 from hub.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
@@ -60,8 +61,8 @@ class SampleCompressedChunk(BaseChunk):
     ):
         if not decompress and stream:
             raise Exception("`decompress=False` is not valid when `stream=True`")
-        if self.is_empty_sample(local_index):
-            self.return_empty_sample()
+        if self.is_empty_tensor():
+            raise EmptyTensorError
 
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:

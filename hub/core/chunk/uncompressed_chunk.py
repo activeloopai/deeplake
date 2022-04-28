@@ -3,6 +3,7 @@ from typing import List, Union
 from hub.core.serialize import check_sample_shape, bytes_to_text
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
+from hub.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -78,8 +79,8 @@ class UncompressedChunk(BaseChunk):
         copy: bool = False,
         decompress: bool = True,
     ):
-        if self.is_empty_sample(local_index):
-            self.return_empty_sample()
+        if self.is_empty_tensor():
+            raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
