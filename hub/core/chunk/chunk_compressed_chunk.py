@@ -195,14 +195,17 @@ class ChunkCompressedChunk(BaseChunk):
         self.update_in_meta_and_headers(local_index, new_nb, shape)
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):
-        is_none = new_sample is None
-        if is_none:
+        if new_sample is None:
             if self.tensor_meta.max_shape:
-                new_sample = self.return_empty_sample()
+                new_sample = np.ones(
+                    (0,) * len(self.tensor_meta.max_shape), dtype=self.dtype
+                )
             else:
-                new_sample = np.ones((0,))
+                # earlier sample was also None, do nothing
+                return
+
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
-        shape = None if is_none else new_sample.shape
+        shape = new_sample.shape
         shape = self.normalize_shape(shape)
         self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
