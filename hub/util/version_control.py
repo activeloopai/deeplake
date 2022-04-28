@@ -18,6 +18,7 @@ from hub.core.lock import Lock
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_sequence_encoder_key,
     get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
@@ -243,6 +244,15 @@ def copy_metas(
             src_tile_encoder = storage[src_tile_encoder_key]
             dest_tile_encoder = convert_to_bytes(src_tile_encoder)
             storage[dest_tile_encoder_key] = dest_tile_encoder
+        except KeyError:
+            pass
+
+        try:
+            src_sequence_encoder_key = get_sequence_encoder_key(tensor, src_commit_id)
+            dest_sequence_encoder_key = get_sequence_encoder_key(tensor, dest_commit_id)
+            src_sequence_encoder = storage[src_sequence_encoder_key]
+            dest_sequence_encoder = convert_to_bytes(src_sequence_encoder)
+            storage[dest_sequence_encoder_key] = dest_sequence_encoder
         except KeyError:
             pass
 

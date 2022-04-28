@@ -774,13 +774,19 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
 
-    def pad_and_append(self, num_samples_to_pad: int, value):
+    def pad_and_append(
+        self,
+        num_samples_to_pad: int,
+        value,
+        append_link_callback=None,
+        update_link_callback=None,
+    ):
         """Pads the tensor with empty samples and appends value at the end."""
         update_first_sample = False
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value])
+                self.extend([value], link_callback=append_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -796,12 +802,12 @@ class ChunkEngine:
                 empty_samples = np.zeros(shape, dtype=dtype)  # type: ignore
 
             if update_first_sample:
-                self.update(Index(0), empty_sample)
+                self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples)
+            self.extend(empty_samples, link_callback=append_link_callback)
 
-        self.extend([value])
+        self.extend([value], link_callback=append_link_callback)
 
     def update(
         self,
