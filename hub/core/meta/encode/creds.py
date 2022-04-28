@@ -13,9 +13,9 @@ class CredsEncoder(ShapeEncoder, HubMemoryObject):
         self.is_dirty = False
         super().__init__()
 
-    def register_samples(self, item: Any, num_samples: int):
+    def register_samples(self, item: Any, num_samples: int, end: bool = True):
         self.is_dirty = True
-        return super().register_samples(item, num_samples)
+        return super().register_samples(item, num_samples, end=end)
 
     def __setitem__(self, local_sample_index: int, item: Any):
         self.is_dirty = True
