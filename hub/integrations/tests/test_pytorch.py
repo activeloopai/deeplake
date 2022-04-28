@@ -10,7 +10,7 @@ from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_datasets
+from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -53,7 +53,7 @@ def pytorch_small_shuffle_helper(start, end, dataloader):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -132,7 +132,7 @@ def test_pytorch_small(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -179,7 +179,7 @@ def test_pytorch_transform(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_transform_dict(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -219,7 +219,7 @@ def test_pytorch_transform_dict(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
@@ -256,7 +256,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -357,7 +357,7 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_local_cache(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -499,7 +499,7 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 def test_pytorch_ddp(ds):
     import multiprocessing as mp
 
@@ -534,7 +534,7 @@ def test_pytorch_ddp(ds):
 
 
 @requires_torch
-@enabled_datasets
+@enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
 def test_pytorch_tobytes(ds, compressed_image_paths, compression):
     with ds:
