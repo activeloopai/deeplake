@@ -394,4 +394,4 @@ class BaseChunk(HubMemoryObject):
             self.tensor_meta.update_shape_interval(empty_shape)
 
     def is_empty_tensor(self):
-        return len(self.tensor_meta.max_shape) == 0
+        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0
