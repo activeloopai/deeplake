@@ -710,6 +710,13 @@ class ChunkEngine:
         except KeyError:
             pass
 
+        seq_encoder_key = get_sequence_encoder_key(self.key, commit_id)
+        try:
+            self._sequence_encoder = None
+            del self.cache[seq_encoder_key]
+        except KeyError:
+            pass
+
         self.tensor_meta.length = 0
         self.tensor_meta.min_shape = []
         self.tensor_meta.max_shape = []
