@@ -15,7 +15,11 @@ from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
-from hub.constants import RANDOM_MAX_ALLOWED_CHUNK_SIZE, RANDOM_MINIMAL_CHUNK_SIZE, RANDOM_CHUNK_SIZE
+from hub.constants import (
+    RANDOM_MAX_ALLOWED_CHUNK_SIZE,
+    RANDOM_MINIMAL_CHUNK_SIZE,
+    RANDOM_CHUNK_SIZE,
+)
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -58,11 +62,11 @@ from collections.abc import Iterable
 
 class ChunkEngine:
     def __init__(
-            self,
-            key: str,
-            cache: LRUCache,
-            version_state: Dict[str, Any],
-            meta_cache: LRUCache = None,
+        self,
+        key: str,
+        cache: LRUCache,
+        version_state: Dict[str, Any],
+        meta_cache: LRUCache = None,
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 
@@ -173,10 +177,10 @@ class ChunkEngine:
     def is_data_cachable(self):
         tensor_meta = self.tensor_meta
         return (
-                self.chunk_class == UncompressedChunk
-                and tensor_meta.htype not in ["text", "json", "list"]
-                and (tensor_meta.max_shape == tensor_meta.min_shape)
-                and (np.prod(tensor_meta.max_shape) < 20)
+            self.chunk_class == UncompressedChunk
+            and tensor_meta.htype not in ["text", "json", "list"]
+            and (tensor_meta.max_shape == tensor_meta.min_shape)
+            and (np.prod(tensor_meta.max_shape) < 20)
         )
 
     @property
@@ -187,7 +191,7 @@ class ChunkEngine:
     def max_chunk_size(self):
         # no chunks may exceed this
         return (
-                getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+            getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
         )
 
     @property
@@ -232,8 +236,8 @@ class ChunkEngine:
         """
         commit_id = self.commit_id
         if (
-                self._chunk_id_encoder is None
-                or self._chunk_id_encoder_commit_id != commit_id
+            self._chunk_id_encoder is None
+            or self._chunk_id_encoder_commit_id != commit_id
         ):
             commit_id = self.commit_id
             key = get_chunk_id_encoder_key(self.key, commit_id)
@@ -262,8 +266,8 @@ class ChunkEngine:
             # the first commit doesn't need a commit chunk set
             return None
         if (
-                self._commit_chunk_set is None
-                or self._commit_chunk_set_commit_id != commit_id
+            self._commit_chunk_set is None
+            or self._commit_chunk_set_commit_id != commit_id
         ):
             key = get_tensor_commit_chunk_set_key(self.key, commit_id)
             if not self.commit_chunk_set_exists:
@@ -284,8 +288,8 @@ class ChunkEngine:
         """Checks if the commit chunk set exists for the given tensor in the current commit."""
         commit_id = self.commit_id
         if (
-                self._commit_chunk_set is not None
-                and self._commit_chunk_set_commit_id == commit_id
+            self._commit_chunk_set is not None
+            and self._commit_chunk_set_commit_id == commit_id
         ):
             return True
 
@@ -335,8 +339,8 @@ class ChunkEngine:
     def chunk_id_encoder_exists(self) -> bool:
         commit_id = self.commit_id
         if (
-                self._chunk_id_encoder is not None
-                and self._chunk_id_encoder_commit_id == commit_id
+            self._chunk_id_encoder is not None
+            and self._chunk_id_encoder_commit_id == commit_id
         ):
             return True
         try:
@@ -580,14 +584,14 @@ class ChunkEngine:
         return False
 
     def _samples_to_chunks(
-            self,
-            samples,
-            start_chunk: Optional[BaseChunk] = None,
-            register: bool = True,
-            update_commit_diff: bool = False,
-            append_to_end: bool = True,
-            extend: bool = True,
-            fit_row: Optional[int] = None
+        self,
+        samples,
+        start_chunk: Optional[BaseChunk] = None,
+        register: bool = True,
+        update_commit_diff: bool = False,
+        append_to_end: bool = True,
+        extend: bool = True,
+        fit_row: Optional[int] = None,
     ):
         # TODO check if there is a suboptimal chunk that we can use
         # if not then create new next to current one and set data
@@ -603,8 +607,9 @@ class ChunkEngine:
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         while len(samples) > 0:
-            num_samples_added = current_chunk.extend_if_has_space(samples, extend=extend,
-                                                                  end=append_to_end)  # type: ignore
+            num_samples_added = current_chunk.extend_if_has_space(
+                samples, extend=extend, end=append_to_end
+            )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 if fit_row is not None and self.can_fit_to_next(samples, fit_row):
@@ -816,8 +821,8 @@ class ChunkEngine:
             assert curr_shape == tile.shape, (curr_shape, tile.shape)
             chunk.update_sample(0, tile)
             if (
-                    self.active_updated_chunk is not None
-                    and self.active_updated_chunk.key != chunk.key  # type: ignore
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk.key  # type: ignore
             ):
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
@@ -858,11 +863,11 @@ class ChunkEngine:
         self.extend([value], link_callback=append_link_callback)
 
     def update(
-            self,
-            index: Index,
-            samples: Union[np.ndarray, Sequence[InputSample], InputSample],
-            operator: Optional[str] = None,
-            link_callback: Optional[Callable] = None,
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+        link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
@@ -880,7 +885,11 @@ class ChunkEngine:
         sum_bytes = 0
 
         num_samples = chunk.byte_positions_encoder.num_samples
-        rng = range(0, int(num_samples/2)) if forward is True else range(num_samples - 1, int(num_samples / 2), -1)
+        rng = (
+            range(0, int(num_samples / 2))
+            if forward is True
+            else range(num_samples - 1, int(num_samples / 2), -1)
+        )
         for idx in rng:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sum_bytes += len(sample_bytes)
@@ -891,8 +900,14 @@ class ChunkEngine:
             new_shape = []
             for dim in sample_shape:
                 new_shape.append(int(dim))
-            compression = chunk.compression if not isinstance(chunk, ChunkCompressedChunk) else None
-            samples_to_move = [Sample(buffer=sample_bytes, shape=new_shape, compression=compression)] + samples_to_move
+            compression = (
+                chunk.compression
+                if not isinstance(chunk, ChunkCompressedChunk)
+                else None
+            )
+            samples_to_move = [
+                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)
+            ] + samples_to_move
 
         return samples_to_move
 
@@ -910,8 +925,14 @@ class ChunkEngine:
             new_shape = []
             for dim in sample_shape:
                 new_shape.append(int(dim))
-            compression = chunk.compression if not isinstance(chunk, ChunkCompressedChunk) else None
-            samples_to_move = [Sample(buffer=sample_bytes, shape=new_shape, compression=compression)] + samples_to_move
+            compression = (
+                chunk.compression
+                if not isinstance(chunk, ChunkCompressedChunk)
+                else None
+            )
+            samples_to_move = [
+                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)
+            ] + samples_to_move
         if forward is False:
             samples_to_move.reverse()
         return samples_to_move
@@ -924,7 +945,9 @@ class ChunkEngine:
         new_chunk = self._create_new_chunk(register=True, row=chunk_row)
 
         self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=num_samples)
-        self.chunk_id_encoder.decrease_samples(row=chunk_row+1, num_samples=num_samples)
+        self.chunk_id_encoder.decrease_samples(
+            row=chunk_row + 1, num_samples=num_samples
+        )
         chunk.pop_multiple(num_samples=len(samples_to_move))
 
         samples, _ = self._sanitize_samples(samples_to_move)
@@ -934,7 +957,7 @@ class ChunkEngine:
             register=True,
             update_commit_diff=True,
             extend=False,
-            fit_row=chunk_row + 1
+            fit_row=chunk_row + 1,
         )
 
     def __try_merge_with_next_chunk(self, chunk, row) -> bool:
@@ -965,7 +988,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=row
+                fit_row=row,
             )
             return True
         elif next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
@@ -984,7 +1007,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=False,
                 extend=False,
-                fit_row=next_chunk_row
+                fit_row=next_chunk_row,
             )
             self.chunk_id_encoder.delete_chunk_id(row=row)
             del self.cache[chunk.key]
@@ -1013,7 +1036,9 @@ class ChunkEngine:
                 return True
             # reverse in place to keep correct ordering while prepending on chunk
             samples_to_move.reverse()
-            self.chunk_id_encoder.decrease_samples(row=prev_chunk_row, num_samples=num_samples)
+            self.chunk_id_encoder.decrease_samples(
+                row=prev_chunk_row, num_samples=num_samples
+            )
             prev_chunk.pop_multiple(num_samples=num_samples)
             samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
@@ -1023,7 +1048,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=row
+                fit_row=row,
             )
             return True
         elif prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
@@ -1042,7 +1067,7 @@ class ChunkEngine:
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=row
+                fit_row=row,
             )
 
             self.chunk_id_encoder.delete_chunk_id(row=prev_chunk_row)
@@ -1054,27 +1079,29 @@ class ChunkEngine:
         if self.__try_merge_with_previous_chunk(chunk, row) is False:
             self.__try_merge_with_next_chunk(chunk, row)
 
-    def _check_rechunk(self,
-                       chunk,
-                       chunk_row):
-        """ function to check if there is a need to re-chunk the current one"""
-        if chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE \
-           and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE:
+    def _check_rechunk(self, chunk, chunk_row):
+        """function to check if there is a need to re-chunk the current one"""
+        if (
+            chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
+            and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
+        ):
             self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
             return
 
-        if chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE \
-           or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE:
+        if (
+            chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE
+            or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
+        ):
             self.__rechunk(chunk, chunk_row)
             return
 
     def _update(
-            self,
-            index: Index,
-            samples: Union[np.ndarray, Sequence[InputSample], InputSample],
-            operator: Optional[str] = None,
-            update_commit_diff: bool = True,
-            link_callback: Optional[Callable] = None,
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+        update_commit_diff: bool = True,
+        link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
         self._write_initialization()
@@ -1104,8 +1131,8 @@ class ChunkEngine:
 
                 chunk.update_sample(local_sample_index, sample)
                 if (
-                        self.active_updated_chunk is not None
-                        and self.active_updated_chunk.key != chunk.key  # type: ignore
+                    self.active_updated_chunk is not None
+                    and self.active_updated_chunk.key != chunk.key  # type: ignore
                 ):
                     self.write_chunk_to_storage(self.active_updated_chunk)
                 self.active_updated_chunk = chunk
@@ -1114,7 +1141,9 @@ class ChunkEngine:
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
 
-                self._check_rechunk(chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1])
+                self._check_rechunk(
+                    chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
+                )
 
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
@@ -1135,10 +1164,10 @@ class ChunkEngine:
         return verified_samples
 
     def _update_with_operator(
-            self,
-            index: Index,
-            samples: Union[np.ndarray, Sequence[InputSample], InputSample],
-            operator: str,
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: str,
     ):
         """Update data at `index` with the output of elem-wise operatorion with samples"""
         try:
@@ -1186,8 +1215,8 @@ class ChunkEngine:
         return buffer[sb:eb].tobytes()
 
     def read_shape_for_sample(
-            self,
-            global_sample_index: int,
+        self,
+        global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
         if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
@@ -1206,12 +1235,12 @@ class ChunkEngine:
             return self.tile_encoder.get_sample_shape(global_sample_index)
 
     def read_sample_from_chunk(
-            self,
-            global_sample_index: int,
-            chunk: BaseChunk,
-            cast: bool = True,
-            copy: bool = False,
-            decompress: bool = True,
+        self,
+        global_sample_index: int,
+        chunk: BaseChunk,
+        cast: bool = True,
+        copy: bool = False,
+        decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
@@ -1220,7 +1249,7 @@ class ChunkEngine:
         )
 
     def numpy(
-            self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1301,7 +1330,7 @@ class ChunkEngine:
         return sample
 
     def _numpy(
-            self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1371,9 +1400,9 @@ class ChunkEngine:
         return samples
 
     def get_chunks_for_sample(
-            self,
-            global_sample_index: int,
-            copy: bool = False,
+        self,
+        global_sample_index: int,
+        copy: bool = False,
     ) -> List[BaseChunk]:
         """Retrives the `Chunk` object corresponding to `global_sample_index`.
         Args:
@@ -1415,8 +1444,10 @@ class ChunkEngine:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
-            return [ChunkIdEncoder.name_from_id(chunk_id) for chunk_id in
-                    self.chunk_id_encoder.array[:, CHUNK_ID_COLUMN]]  # type: ignore
+            return [
+                ChunkIdEncoder.name_from_id(chunk_id)
+                for chunk_id in self.chunk_id_encoder.array[:, CHUNK_ID_COLUMN]
+            ]  # type: ignore
         else:
             return list(self.commit_chunk_set.chunks)  # type: ignore
 
@@ -1475,8 +1506,8 @@ class ChunkEngine:
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 if (
-                        self.active_appended_chunk is not None
-                        and self.active_appended_chunk.key == chunk_key
+                    self.active_appended_chunk is not None
+                    and self.active_appended_chunk.key == chunk_key
                 ):
                     self.active_appended_chunk = None
                     try:
@@ -1503,8 +1534,8 @@ class ChunkEngine:
     def sequence_encoder_exists(self) -> bool:
         commit_id = self.commit_id
         if (
-                self._sequence_encoder is not None
-                and self._sequence_encoder_commit_id == commit_id
+            self._sequence_encoder is not None
+            and self._sequence_encoder_commit_id == commit_id
         ):
             return True
         try:
@@ -1533,8 +1564,8 @@ class ChunkEngine:
             return  # type: ignore
         commit_id = self.commit_id
         if (
-                self._sequence_encoder is None
-                or self._sequence_encoder_commit_id != commit_id
+            self._sequence_encoder is None
+            or self._sequence_encoder_commit_id != commit_id
         ):
             commit_id = self.commit_id
             key = get_sequence_encoder_key(self.key, commit_id)
@@ -1552,7 +1583,7 @@ class ChunkEngine:
         return self._sequence_encoder
 
     def _sequence_numpy(
-            self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self, index: Index, aslist: bool = False, use_data_cache: bool = True
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),
@@ -1580,7 +1611,7 @@ class ChunkEngine:
         return arr
 
     def _translate_2d_index(
-            self, x: Optional[IndexEntry] = None, y: Optional[IndexEntry] = None
+        self, x: Optional[IndexEntry] = None, y: Optional[IndexEntry] = None
     ) -> IndexEntry:
         x = x or IndexEntry()
         y = y or IndexEntry()
@@ -1646,8 +1677,8 @@ class ChunkEngine:
                 elif diff == 1:
                     return (
                         samples.reshape(1, *samples.shape)
-                            .repeat(index.length_at(0, self._sequence_length), 0)
-                            .reshape(-1, *samples.shape[1:])
+                        .repeat(index.length_at(0, self._sequence_length), 0)
+                        .reshape(-1, *samples.shape[1:])
                     )
                 else:
                     return samples.reshape(-1, *samples.shape[2:])
@@ -1663,11 +1694,11 @@ class ChunkEngine:
             return samples  # scalars
 
     def _sequence_update(
-            self,
-            index: Index,
-            samples: Union[np.ndarray, Sequence[InputSample], InputSample],
-            operator: Optional[str] = None,
-            link_callback: Optional[Callable] = None,
+        self,
+        index: Index,
+        samples: Union[np.ndarray, Sequence[InputSample], InputSample],
+        operator: Optional[str] = None,
+        link_callback: Optional[Callable] = None,
     ):
         flat_idx = self._get_flat_index_from_sequence_index(index)
         flat_samples = self._get_flat_samples_for_sequence_update(samples, index)
@@ -1727,7 +1758,7 @@ class ChunkEngine:
             return None
 
     def shape(
-            self, index: Index, sample_shape_provider: Optional[Callable] = None
+        self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
         idxs = index.values

@@ -35,10 +35,16 @@ class ChunkCompressedChunk(BaseChunk):
     def extend_if_has_space(self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True) -> float:  # type: ignore
         self.prepare_for_write()
         if self.is_byte_compression:
-            return self.extend_if_has_space_byte_compression(incoming_samples, extend=extend, end=end)
-        return self.extend_if_has_space_image_compression(incoming_samples, extend=extend, end=end)
+            return self.extend_if_has_space_byte_compression(
+                incoming_samples, extend=extend, end=end
+            )
+        return self.extend_if_has_space_image_compression(
+            incoming_samples, extend=extend, end=end
+        )
 
-    def extend_if_has_space_byte_compression(self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True):
+    def extend_if_has_space_byte_compression(
+        self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True
+    ):
         num_samples = 0
 
         if end is False:
@@ -91,14 +97,14 @@ class ChunkCompressedChunk(BaseChunk):
                 else:
                     self.decompressed_bytes += serialized_sample  # type: ignore
             self._changed = True
-            self.register_in_meta_and_headers(sample_nbytes, shape, extend=extend, end=end)
+            self.register_in_meta_and_headers(
+                sample_nbytes, shape, extend=extend, end=end
+            )
             num_samples += 1
         return num_samples
 
     def extend_if_has_space_image_compression(
-        self, incoming_samples: List[InputSample],
-        extend: bool = True,
-        end: bool = True
+        self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True
     ):
         num_samples = 0
         num_decompressed_bytes = sum(
