@@ -163,6 +163,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         Args:
             num_samples (int): The number of samples the last chunk ID should have added to it's registration.
+            end (bool): The parameter shoing if samples are needed to register in front or in the end of encoder
 
         Raises:
             ValueError: `num_samples` should be non-negative.
