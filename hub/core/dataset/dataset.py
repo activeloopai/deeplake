@@ -684,8 +684,6 @@ class Dataset:
         del meta["length"]
         del meta["version"]
         del meta["name"]
-        if "links" in meta:
-            del meta["links"]
 
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
