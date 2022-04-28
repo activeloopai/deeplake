@@ -32,6 +32,7 @@ from io import BytesIO
 from urllib.request import urlopen
 
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.google_drive import GDriveProvider
 
 try:
     from hub.core.storage.gcs import GCSProvider
@@ -339,6 +340,8 @@ class Sample:
             return self._read_from_gcs()
         elif path_type == "s3":
             return self._read_from_s3()
+        elif path_type == "gdrive":
+            return self._read_from_gdrive()
         elif path_type == "http":
             return self._read_from_http()
 
@@ -377,6 +380,12 @@ class Sample:
         root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
+
+    def _read_from_gdrive(self) -> bytes:
+        path = self.path.replace("gdrive://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
+        return gdrive[key]
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore

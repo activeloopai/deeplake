@@ -404,7 +404,8 @@ class Index:
         self.values[0].validate(parent_length)
 
     def __str__(self):
-        values = [entry.value for entry in self.values]
+        eval_f = lambda v: list(v()) if callable(v) else v
+        values = [eval_f(entry.value) for entry in self.values]
         return f"Index({values})"
 
     def __repr__(self):
