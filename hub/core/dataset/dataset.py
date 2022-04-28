@@ -2142,8 +2142,8 @@ class Dataset:
         self,
         dest: str,
         overwrite: bool = False,
-        dest_creds=None,
-        dest_token=None,
+        creds=None,
+        token=None,
         num_workers: int = 0,
         scheduler="threaded",
         progressbar=True,
@@ -2153,8 +2153,8 @@ class Dataset:
         Args:
             dest (str): Destination path to copy to.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            dest_creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
-            dest_token (str, Optional): token used to for fetching credentials to `dest`.
+            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            token (str, Optional): token used to for fetching credentials to `dest`.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
@@ -2169,8 +2169,8 @@ class Dataset:
         dest_ds = hub.like(
             dest,
             self,
-            creds=dest_creds,
-            token=dest_token,
+            creds=creds,
+            token=token,
             overwrite=overwrite,
         )
         with dest_ds:
