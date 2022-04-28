@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from hub.util.exceptions import EmptyTensorError
 
 compressions_paremetrized = pytest.mark.parametrize(
     "compression",
@@ -38,7 +39,7 @@ def test_only_nones_append(local_ds, compression, create_shape_tensor):
         ds.xyz.append(None)
 
         for i in range(2):
-            with pytest.raises(ValueError):
+            with pytest.raises(EmptyTensorError):
                 ds.xyz[i].numpy()
             assert ds.xyz[i].shape is None
 
@@ -59,3 +60,21 @@ def test_none_updates(local_ds, compression, create_shape_tensor):
         assert ds.xyz[1].shape == (0, 0, 0)
         assert ds.xyz[2].numpy().shape == (300, 500, 3)
         assert ds.xyz[2].shape == (300, 500, 3)
+
+def test_none_image_chunk_compression_2d(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("xyz", chunk_compression="png")
+        ds.xyz.append(None)
+        ds.xyz.append(None)
+        assert ds.xyz.meta.max_shape == [0, 0, 0]
+        assert ds.xyz[0].shape is None
+        assert ds.xyz[1].shape is None
+        ds.xyz.append(np.ones((500, 500), "uint8"))
+        assert ds.xyz.meta.max_shape == [500, 500]
+        assert ds.xyz[0].numpy().shape == (0, 0)
+        assert ds.xyz[0].shape == (0, 0)
+        assert ds.xyz[1].numpy().shape == (0, 0)
+        assert ds.xyz[1].shape == (0, 0)
+        assert ds.xyz[2].numpy().shape == (500, 500)
+        assert ds.xyz[2].shape == (500, 500)
+
