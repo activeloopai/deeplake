@@ -1,21 +1,17 @@
 from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
-from hub.util.exceptions import ChunkIdEncoderError
+from hub.util.exceptions import (
+    ChunkIdEncoderError,
+    OutOfChunkCountError,
+    OutOfSampleCountError,
+)
 from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 from hub.util.generate_id import generate_id
 
 CHUNK_ID_COLUMN = 0
-
-
-class OutOfChunkCount(Exception):
-    pass
-
-
-class OutOfSampleCount(Exception):
-    pass
 
 
 class ChunkIdEncoder(Encoder, HubMemoryObject):
@@ -58,13 +54,16 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         Returns:
             Number of samples
+
+        Raises:
+            OutOfChunkCountError: When the row is out of chunk bounds
         """
 
         if self.num_samples == 0:
             return 0
         if row is not None:
             if row > self.num_chunks:
-                raise OutOfChunkCount
+                raise OutOfChunkCountError
             if row == 0:
                 return self._encoded[row][1]
             else:
@@ -93,23 +92,29 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         Args:
             row (int): shows the row of the chunk
             num_samples (int): show sample count that needs to be updated
+
+        Raises:
+            OutOfSampleCountError: when num_samples are exeeding sample count
+            OutOfChunkCountError: When the row is out of chunk bounds
         """
         if self.num_samples < num_samples:
-            raise OutOfSampleCount
+            raise OutOfSampleCountError
 
         if self.num_chunks < row + 1:
-            raise OutOfChunkCount
+            raise OutOfChunkCountError
 
         self._encoded[row][1] -= num_samples
 
     def delete_chunk_id(self, row):
-        """Decrease sample count from encoder
+        """Delete row from encoder
 
         Args:
             row (int): the row of chunk that needs to be deleted
+        Raises:
+            OutOfChunkCountError: When the row is out of chunk bounds
         """
         if row > self.num_chunks:
-            raise OutOfChunkCount
+            raise OutOfChunkCountError
 
         self._encoded = np.delete(self._encoded, row, axis=0)
 
@@ -125,6 +130,9 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
+
+        Raises:
+            OutOfChunkCountError: When the row is out of chunk bounds
         """
 
         id = generate_id(ENCODING_DTYPE)
@@ -135,7 +143,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             else:
                 if row is not None:
                     if row > self.num_chunks:
-                        raise OutOfChunkCount
+                        raise OutOfChunkCountError
                     new_entry = np.array([id, self._encoded[row][1]])
                     self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
                     return id

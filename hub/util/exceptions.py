@@ -700,3 +700,11 @@ class BufferError(Exception):
 
 class InfoError(Exception):
     pass
+
+
+class OutOfChunkCountError(Exception):
+    pass
+
+
+class OutOfSampleCountError(Exception):
+    pass
