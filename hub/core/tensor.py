@@ -456,7 +456,7 @@ class Tensor:
         htype = self.meta.htype
         if self.is_sequence:
             htype = f"sequence[{htype}]"
-        if self.is_sequence:
+        if self.is_link:
             htype = f"link[{htype}]"
         return htype
 

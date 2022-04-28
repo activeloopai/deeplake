@@ -471,6 +471,7 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def deepcopy(
         src: str,
         dest: str,
