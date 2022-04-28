@@ -33,7 +33,7 @@ from hub.core.serialize import (
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.exceptions import IncompleteHeaderBytes, TensorInvalidSampleShapeError
+from hub.util.exceptions import TensorInvalidSampleShapeError
 
 InputSample = Union[
     Sample,

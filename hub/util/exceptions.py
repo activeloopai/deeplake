@@ -702,6 +702,6 @@ class InfoError(Exception):
     pass
 
 
-class IncompleteHeaderBytes(Exception):
+class IncompleteHeaderBytesError(Exception):
     def __init__(self, out_of_range_byte):
         self.out_of_range_byte = out_of_range_byte

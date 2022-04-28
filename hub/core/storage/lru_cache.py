@@ -6,7 +6,7 @@ from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import IncompleteHeaderBytes
+from hub.util.exceptions import IncompleteHeaderBytesError
 
 
 def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
@@ -123,7 +123,7 @@ class LRUCache(StorageProvider):
                     obj = expected_class.frombuffer(item, meta, partial=True)
                     obj.data_bytes = PartialReader(self, path)
                     break
-                except IncompleteHeaderBytes as e:
+                except IncompleteHeaderBytesError as e:
                     out_of_range_byte = e.out_of_range_byte
                     more_bytes = self.get_bytes(path, last_end_byte, out_of_range_byte)
                     item += more_bytes

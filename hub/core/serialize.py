@@ -7,7 +7,7 @@ from hub.compression import (
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
-from hub.util.exceptions import IncompleteHeaderBytes, TensorInvalidSampleShapeError
+from hub.util.exceptions import IncompleteHeaderBytesError, TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
@@ -184,6 +184,9 @@ def deserialize_chunk(
         encoded shapes info as numpy array,
         encoded byte positions as numpy array,
         chunk data as memoryview.
+
+    Raises:
+        IncompleteHeaderBytesError: For partial chunks, if the byts aren't complete to get the header.
     """
     incoming_mview = isinstance(byts, memoryview)
     byts = memoryview(byts)
@@ -204,7 +207,7 @@ def deserialize_chunk(
         shape_info = np.array([], dtype=enc_dtype)
     else:
         if partial and offset + shape_info_nbytes > len(byts):
-            raise IncompleteHeaderBytes(offset + shape_info_nbytes + 100)
+            raise IncompleteHeaderBytesError(offset + shape_info_nbytes + 100)
         shape_info = (
             np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
@@ -220,7 +223,7 @@ def deserialize_chunk(
         byte_positions = np.array([], dtype=enc_dtype)
     else:
         if partial and offset + byte_positions_nbytes > len(byts):
-            raise IncompleteHeaderBytes(offset + byte_positions_nbytes)
+            raise IncompleteHeaderBytesError(offset + byte_positions_nbytes)
         byte_positions = (
             np.frombuffer(
                 byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
