@@ -1,9 +1,12 @@
 from collections import OrderedDict
+from hub.constants import KB
+from hub.core.partial_reader import PartialReader
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
+from hub.util.exceptions import IncompleteHeaderBytes
 
 
 def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
@@ -86,7 +89,12 @@ class LRUCache(StorageProvider):
         self.autoflush = initial_autoflush
 
     def get_hub_object(
-        self, path: str, expected_class, meta: Optional[Dict] = None, url=False
+        self,
+        path: str,
+        expected_class,
+        meta: Optional[Dict] = None,
+        url=False,
+        get_partial=False,
     ):
         """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
@@ -96,6 +104,7 @@ class LRUCache(StorageProvider):
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
             url (bool): Get presigned url instead of downloading chunk (only for videos)
+            get_partial (bool): Get partial bytes of the chunk, retrieve more bytes when required. Defaults to False.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -105,7 +114,19 @@ class LRUCache(StorageProvider):
         Returns:
             An instance of `expected_class` populated with the data.
         """
-
+        if get_partial:
+            assert issubclass(expected_class, BaseChunk)
+            last_end_byte = 10 * KB
+            item = self.get_bytes(path, 0, last_end_byte)
+            while 1:
+                try:
+                    obj = expected_class.frombuffer(item, meta, partial=True)
+                    obj.data_bytes = PartialReader(self, path)
+                    break
+                except IncompleteHeaderBytes as e:
+                    out_of_range_byte = e.out_of_range_byte
+                    more_bytes = self.get_bytes(path, last_end_byte, out_of_range_byte)
+                    item += more_bytes
         if url:
             from hub.util.remove_cache import get_base_storage
 

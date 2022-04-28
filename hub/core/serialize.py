@@ -7,7 +7,7 @@ from hub.compression import (
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.exceptions import IncompleteHeaderBytes, TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
@@ -45,6 +45,7 @@ def infer_chunk_num_bytes(
     # NOTE: Assumption: len(version) < 256
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
+    print(len(version) + shape_info.nbytes + byte_positions.nbytes)
     return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13  # type: ignore
 
 
@@ -168,13 +169,14 @@ def get_header_from_url(url: str):
 
 
 def deserialize_chunk(
-    byts: Union[bytes, memoryview], copy: bool = True
+    byts: Union[bytes, memoryview], copy: bool = True, partial: bool = False
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk.
         copy: (bool) If true, this function copies the byts while deserializing incase byts was a memoryview.
+        partial: (bool) If true, the byts are only a part of the chunk.
 
     Returns:
         Tuple of:
@@ -201,6 +203,8 @@ def deserialize_chunk(
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
+        if partial and offset + shape_info_nbytes > len(byts):
+            raise IncompleteHeaderBytes(offset + shape_info_nbytes + 100)
         shape_info = (
             np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
@@ -215,6 +219,8 @@ def deserialize_chunk(
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
+        if partial and offset + byte_positions_nbytes > len(byts):
+            raise IncompleteHeaderBytes(offset + byte_positions_nbytes)
         byte_positions = (
             np.frombuffer(
                 byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype

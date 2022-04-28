@@ -451,14 +451,18 @@ class ChunkEngine:
         self.active_appended_chunk = chunk
         return chunk
 
-    def get_chunk(self, chunk_key: str) -> BaseChunk:
-        return self.cache.get_hub_object(chunk_key, self.chunk_class, self.chunk_args)
+    def get_chunk(self, chunk_key: str, get_partial_chunk=False) -> BaseChunk:
+        return self.cache.get_hub_object(
+            chunk_key, self.chunk_class, self.chunk_args, get_partial=get_partial_chunk
+        )
 
-    def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
+    def get_chunk_from_chunk_id(
+        self, chunk_id, copy: bool = False, get_partial_chunk=False
+    ) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.get_chunk(chunk_key)
+        chunk = self.get_chunk(chunk_key, get_partial_chunk=get_partial_chunk)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
@@ -998,9 +1002,21 @@ class ChunkEngine:
 
     def get_basic_sample(self, global_sample_index, index):
         enc = self.chunk_id_encoder
-        chunk_ids = enc[global_sample_index]
+        out = enc.__getitem__(global_sample_index, return_row_index=True)
+        chunk_id, row = out[0][0], out[0][1]
+        get_partial_chunk = False
+        if isinstance(self.base_storage, (S3Provider, GCSProvider)) and not isinstance(
+            self.chunk_class, ChunkCompressedChunk
+        ):
+            prev = enc.array[row - 1][1] if row > 0 else 0
+            num_samples_in_chunk = enc.array[row][1] - prev
+
+            get_partial_chunk = num_samples_in_chunk < 20
+
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
+        chunk = self.get_chunk_from_chunk_id(
+            chunk_id, get_partial_chunk=get_partial_chunk
+        )
         return chunk.read_sample(
             local_sample_index, cast=self.tensor_meta.htype != "dicom"
         )[tuple(entry.value for entry in index.values[1:])]

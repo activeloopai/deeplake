@@ -17,6 +17,7 @@ from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.partial_reader import PartialReader
 from hub.core.sample import Sample  # type: ignore
 from hub.core.partial_sample import PartialSample
 from hub.core.serialize import (
@@ -32,7 +33,7 @@ from hub.core.serialize import (
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.exceptions import IncompleteHeaderBytes, TensorInvalidSampleShapeError
 
 InputSample = Union[
     Sample,
@@ -59,7 +60,7 @@ class BaseChunk(HubMemoryObject):
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
-        data: Optional[memoryview] = None,
+        data: Optional[Union[memoryview, PartialReader]] = None,
     ):
         super().__init__()
         self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
@@ -96,11 +97,11 @@ class BaseChunk(HubMemoryObject):
         )
 
     @property
-    def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
+    def data_bytes(self) -> Union[bytearray, bytes, memoryview, PartialReader]:
         return self._data_bytes
 
     @data_bytes.setter
-    def data_bytes(self, value: Union[bytearray, bytes, memoryview]):
+    def data_bytes(self, value: Union[bytearray, bytes, memoryview, PartialReader]):
         self._data_bytes = value
 
     @property
@@ -148,7 +149,7 @@ class BaseChunk(HubMemoryObject):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False):  # type: ignore
+    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False, partial=False):  # type: ignore
         if not buffer:
             return cls(*chunk_args)
         if url:
@@ -158,6 +159,8 @@ class BaseChunk(HubMemoryObject):
             data = memoryview(buffer + struct.pack("<i", header_size))
         else:
             version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
+            if partial:
+                data = None
         chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
         chunk.is_dirty = False
@@ -186,6 +189,8 @@ class BaseChunk(HubMemoryObject):
         # data_bytes will be a memoryview if frombuffer is called.
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
+        elif isinstance(self.data_bytes, PartialReader):
+            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
 
     def prepare_for_write(self):
         ffw_chunk(self)
