@@ -431,6 +431,6 @@ class LRUCache(StorageProvider):
             return self.hub_objects[key].nbytes
 
         try:
-            self.cache_storage.get_object_size(key)
+            return self.cache_storage.get_object_size(key)
         except KeyError:
-            self.next_storage.get_object_size(key)
+            return self.next_storage.get_object_size(key)

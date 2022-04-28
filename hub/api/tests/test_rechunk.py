@@ -30,7 +30,7 @@ def test_rechunk(local_ds):
             ds.xyz[i] = np.ones((100, 100))
 
         original_num_chunks = ds.xyz.chunk_engine.num_chunks
-        assert original_num_chunks == 5
+        assert original_num_chunks == 1
         ds.rechunk("xyz")
         new_num_chunks = ds.xyz.chunk_engine.num_chunks
         assert new_num_chunks == 1

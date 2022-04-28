@@ -110,6 +110,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         Args:
             row (int): the row of chunk that needs to be deleted
+
         Raises:
             OutOfChunkCountError: When the row is out of chunk bounds
         """

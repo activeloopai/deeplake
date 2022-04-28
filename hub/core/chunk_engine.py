@@ -569,7 +569,7 @@ class ChunkEngine:
         if chunk_id is None:
             return False
 
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)  # type: ignore
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk_size = self.cache.get_object_size(chunk_key)
@@ -721,7 +721,7 @@ class ChunkEngine:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register, row=row)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)  # type: ignore
         chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
@@ -906,7 +906,7 @@ class ChunkEngine:
                 else None
             )
             samples_to_move = [
-                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)
+                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
             ] + samples_to_move
 
         return samples_to_move
@@ -931,7 +931,7 @@ class ChunkEngine:
                 else None
             )
             samples_to_move = [
-                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)
+                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
             ] + samples_to_move
         if forward is False:
             samples_to_move.reverse()
@@ -965,7 +965,7 @@ class ChunkEngine:
         if next_chunk_id is None:
             return False
         next_chunk_row = row + 1
-        next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)
+        next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)  # type: ignore
         next_chunk_commit_id = self.get_chunk_commit(next_chunk_name)
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
@@ -1021,7 +1021,7 @@ class ChunkEngine:
             return False
 
         prev_chunk_row = row - 1
-        prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)
+        prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)  # type: ignore
         prev_chunk_commit_id = self.get_chunk_commit(prev_chunk_name)
         prev_chunk_key = get_chunk_key(self.key, prev_chunk_name, prev_chunk_commit_id)
         prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
