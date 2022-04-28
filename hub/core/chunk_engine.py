@@ -877,11 +877,11 @@ class ChunkEngine:
             link_callback=link_callback,
         )
 
-    def __get_samples_to_move(self, chunk, forward: bool = True):
+    def __get_samples_to_move(self, chunk, forward: bool = True) -> List[Sample]:
         decompress = False
         if isinstance(chunk, ChunkCompressedChunk):
             decompress = True
-        samples_to_move = []
+        samples_to_move: List[Sample] = []
         sum_bytes = 0
 
         num_samples = chunk.byte_positions_encoder.num_samples
@@ -911,12 +911,12 @@ class ChunkEngine:
 
         return samples_to_move
 
-    def __get_chunk_samples(self, chunk, forward: bool = True):
+    def __get_chunk_samples(self, chunk, forward: bool = True) -> List[Sample]:
         decompress = False
         if isinstance(chunk, ChunkCompressedChunk):
             decompress = True
 
-        samples_to_move = []
+        samples_to_move: List[Sample] = []
 
         for idx in range(0, chunk.byte_positions_encoder.num_samples):
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
@@ -979,7 +979,7 @@ class ChunkEngine:
             if num_samples == 0:
                 return True
             # for chunk encoded chunks we need to take into acount that pop is not needed for byte_position_encoder (image_compression related)
-            next_chunk.pop_front_multiple(num_samples=num_samples)
+            next_chunk.pop_front_multiple(row=next_chunk_row, num_samples=num_samples)
             samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
@@ -1010,7 +1010,7 @@ class ChunkEngine:
                 fit_row=next_chunk_row,
             )
             self.chunk_id_encoder.delete_chunk_id(row=row)
-            del self.cache[chunk.key]
+            del self.cache[chunk.key]  # type: ignore
             return True
 
         return False
@@ -1071,7 +1071,7 @@ class ChunkEngine:
             )
 
             self.chunk_id_encoder.delete_chunk_id(row=prev_chunk_row)
-            del self.cache[prev_chunk.key]
+            del self.cache[prev_chunk.key]  # type: ignore
             return True
         return False
 
