@@ -628,24 +628,14 @@ class ChunkEngine:
 
     def _extend(self, samples, progressbar, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
-            if progressbar:
-                with tqdm(total=len(samples)) as pbar:
-                    for sample in samples:
-                        self._extend(
-                            [sample],
-                            update_commit_diff=update_commit_diff,
-                            progressbar=False,
-                        )  # TODO optimize this
-                        pbar.update(1)
-                    return
-            else:
-                for sample in samples:
-                    self._extend(
-                        [sample],
-                        update_commit_diff=update_commit_diff,
-                        progressbar=False,
-                    )  # TODO optimize this
-                return
+            samples = tqdm(samples) if progressbar else samples
+            for sample in samples:
+                self._extend(
+                    [sample],
+                    update_commit_diff=update_commit_diff,
+                    progressbar=False,
+                )  # TODO optimize this
+            return
         if len(samples) == 0:
             return
         samples, verified_samples = self._sanitize_samples(samples)
@@ -659,42 +649,31 @@ class ChunkEngine:
         return verified_samples
 
     def extend(
-        self, samples, progressbar=False, link_callback: Optional[Callable] = None
+        self,
+        samples,
+        progressbar: bool = False,
+        link_callback: Optional[Callable] = None,
     ):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
         if self.is_sequence:
-            if progressbar:
-                with tqdm(total=len(samples)) as pbar:
-                    for sample in samples:
-                        verified_sample = self._extend(
-                            sample, progressbar=False, update_commit_diff=False
-                        )
-                        self.sequence_encoder.register_samples(len(sample), 1)
-                        self.commit_diff.add_data(1)
-                        ls = verified_sample or sample
-                        if link_callback:
-                            link_callback(ls, flat=False)
-                            for s in ls:
-                                link_callback(s, flat=True)
-                        pbar.update(1)
-            else:
-                for sample in samples:
-                    verified_sample = self._extend(
-                        sample, progressbar=False, update_commit_diff=False
-                    )
-                    self.sequence_encoder.register_samples(len(sample), 1)
-                    self.commit_diff.add_data(1)
-                    ls = verified_sample or sample
-                    if link_callback:
-                        link_callback(ls, flat=False)
-                        for s in ls:
-                            link_callback(s, flat=True)
+            samples = tqdm(samples) if progressbar else samples
+            for sample in samples:
+                verified_sample = self._extend(
+                    sample, progressbar=False, update_commit_diff=False
+                )
+                self.sequence_encoder.register_samples(len(sample), 1)
+                self.commit_diff.add_data(1)
+                ls = verified_sample or sample
+                if link_callback:
+                    link_callback(ls, flat=False)
+                    for s in ls:
+                        link_callback(s, flat=True)
 
         else:
-            verified_samples = self._extend(samples, progressbar=progressbar)
+            verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:
