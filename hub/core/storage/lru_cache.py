@@ -123,7 +123,9 @@ class LRUCache(StorageProvider):
             while 1:
                 try:
                     obj = expected_class.frombuffer(item, meta, partial=True)
-                    obj.data_bytes = PartialReader(self, path)
+                    obj.data_bytes = PartialReader(
+                        self, path, header_offset=obj.header_bytes
+                    )
                     if obj.nbytes <= self.cache_size:
                         self._insert_in_cache(path, obj)
                     return obj
@@ -220,7 +222,10 @@ class LRUCache(StorageProvider):
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.hub_objects[path].tobytes()[start_byte:end_byte]
-        elif path in self.lru_sizes:
+        elif path in self.lru_sizes and not (
+            isinstance(self.cache_storage[path], BaseChunk)
+            and self.cache_storage[path].is_partially_read_chunk
+        ):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path][start_byte:end_byte]
         else:

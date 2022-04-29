@@ -23,6 +23,7 @@ from hub.core.partial_sample import PartialSample
 from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
+    infer_header_num_bytes,
     serialize_chunk,
     serialize_numpy_and_base_types,
     serialize_sample_object,
@@ -63,7 +64,9 @@ class BaseChunk(HubMemoryObject):
         data: Optional[Union[memoryview, PartialReader]] = None,
     ):
         super().__init__()
-        self._data_bytes: Union[bytearray, bytes, memoryview, PartialReader] = data or bytearray()
+        self._data_bytes: Union[bytearray, bytes, memoryview, PartialReader] = (
+            data or bytearray()
+        )
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
@@ -97,6 +100,10 @@ class BaseChunk(HubMemoryObject):
         )
 
     @property
+    def is_partially_read_chunk(self):
+        return isinstance(self.data_bytes, PartialReader)
+
+    @property
     def data_bytes(self) -> Union[bytearray, bytes, memoryview, PartialReader]:
         return self._data_bytes
 
@@ -127,8 +134,14 @@ class BaseChunk(HubMemoryObject):
         )
 
     @property
+    def header_bytes(self):
+        return infer_header_num_bytes(
+            self.version, self.shapes_encoder.array, self.byte_positions_encoder.array
+        )
+
+    @property
     def memoryview_data(self):
-        if isinstance(self.data_bytes, memoryview):
+        if isinstance(self.data_bytes, (memoryview, PartialReader)):
             return self.data_bytes
         return memoryview(self.data_bytes)
 
@@ -366,7 +379,11 @@ class BaseChunk(HubMemoryObject):
         self.byte_positions_encoder._pop()
 
     def _get_partial_sample_tile(self, as_bytes=False):
-        if not isinstance(self.data_bytes, PartialReader) and not self.data_bytes and len(self.shapes_encoder._encoded) > 0:
+        if (
+            not isinstance(self.data_bytes, PartialReader)
+            and not self.data_bytes
+            and len(self.shapes_encoder._encoded) > 0
+        ):
             shape = self.shapes_encoder._encoded[0][:-1]
             if len(shape) and np.all(shape):
                 if as_bytes:

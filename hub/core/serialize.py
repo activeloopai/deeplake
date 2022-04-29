@@ -25,6 +25,20 @@ from urllib.request import Request, urlopen
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
 
+def infer_header_num_bytes(
+    version: str, shape_info: np.ndarray, byte_positions: np.ndarray
+):
+    """Calculates the number of header bytes in a chunk without serializing it.
+    Args:
+        version: (str) Version of hub library
+        shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
+        byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
+
+    Returns:
+        Length of the headers of chunk when serialized as int"""
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + 13
+
+
 def infer_chunk_num_bytes(
     version: str,
     shape_info: np.ndarray,
@@ -48,7 +62,9 @@ def infer_chunk_num_bytes(
     # NOTE: Assumption: len(version) < 256
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13  # type: ignore
+
+    header_size = infer_header_num_bytes(version, shape_info, byte_positions)
+    return header_size + len_data
 
 
 def serialize_chunk(
