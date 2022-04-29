@@ -1,22 +1,29 @@
 import time
 import os
 from hub.core.storage.provider import StorageProvider
-from googleapiclient import discovery  # type: ignore
-from googleapiclient.http import (  # type: ignore
-    MediaIoBaseDownload,
-    MediaIoBaseUpload,
-)
-from googleapiclient.errors import HttpError  # type: ignore
-from httplib2 import Http  # type: ignore
-from google.auth.transport.requests import Request  # type: ignore
-from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
-from google.oauth2.credentials import Credentials  # type: ignore
 from io import BytesIO
 import posixpath
 import pickle
 from typing import Dict, Optional, Union
 from hub.util.hash import hash_inputs
 import logging
+
+try:
+    from httplib2 import Http  # type: ignore
+    from googleapiclient import discovery  # type: ignore
+    from googleapiclient.http import (  # type: ignore
+        MediaIoBaseDownload,
+        MediaIoBaseUpload,
+    )
+    from googleapiclient.errors import HttpError  # type: ignore
+    from google.auth.transport.requests import Request  # type: ignore
+    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+    from google.oauth2.credentials import Credentials  # type: ignore
+
+    _GDRIVE_PACKAGES_INSTALLED = True
+except ImportError:
+    _GDRIVE_PACKAGES_INSTALLED = False
+
 
 logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 
@@ -31,9 +38,7 @@ FILE = "application/octet-stream"
 class GoogleDriveIDManager:
     """Class used to make google drive path to id maps"""
 
-    def __init__(
-        self, drive: discovery.Resource, root: str, root_id: Optional[str] = None
-    ):
+    def __init__(self, drive, root: str, root_id: Optional[str] = None):
         self.path_id_map: Dict[str, str] = {}
         self.drive = drive
         self.root_path = root
@@ -160,7 +165,7 @@ class GDriveProvider(StorageProvider):
 
         self._init_provider(creds)
 
-    def _init_provider(self, creds: Credentials):
+    def _init_provider(self, creds):
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root_path = self.root.replace("gdrive://", "")
         if hasattr(self, "root_id"):
