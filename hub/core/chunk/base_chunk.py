@@ -63,7 +63,7 @@ class BaseChunk(HubMemoryObject):
         data: Optional[Union[memoryview, PartialReader]] = None,
     ):
         super().__init__()
-        self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
+        self._data_bytes: Union[bytearray, bytes, memoryview, PartialReader] = data or bytearray()
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
@@ -141,6 +141,9 @@ class BaseChunk(HubMemoryObject):
         )
 
     def tobytes(self) -> memoryview:
+        if isinstance(self.data_bytes, PartialReader):
+            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
+
         return serialize_chunk(
             self.version,
             self.shapes_encoder.array,
