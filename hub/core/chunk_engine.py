@@ -1011,13 +1011,14 @@ class ChunkEngine:
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
         get_partial_chunk = False
+        num_samples_in_chunk = -1
         if isinstance(self.base_storage, (S3Provider, GCSProvider)) and not isinstance(
             self.chunk_class, ChunkCompressedChunk
         ):
-            prev = enc.array[row - 1][1] if row > 0 else 0
+            prev = enc.array[row - 1][1] if row > 0 else -1
             num_samples_in_chunk = enc.array[row][1] - prev
 
-            get_partial_chunk = num_samples_in_chunk < 20
+            get_partial_chunk = num_samples_in_chunk < 20 and num_samples_in_chunk > 1
 
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(

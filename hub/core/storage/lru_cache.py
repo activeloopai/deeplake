@@ -116,13 +116,17 @@ class LRUCache(StorageProvider):
         """
         if get_partial:
             assert issubclass(expected_class, BaseChunk)
+            if path in self.lru_sizes:
+                return self[path]
             last_end_byte = 10 * KB
             item = self.get_bytes(path, 0, last_end_byte)
             while 1:
                 try:
                     obj = expected_class.frombuffer(item, meta, partial=True)
                     obj.data_bytes = PartialReader(self, path)
-                    break
+                    if obj.nbytes <= self.cache_size:
+                        self._insert_in_cache(path, obj)
+                    return obj
                 except IncompleteHeaderBytesError as e:
                     out_of_range_byte = e.out_of_range_byte
                     more_bytes = self.get_bytes(path, last_end_byte, out_of_range_byte)
