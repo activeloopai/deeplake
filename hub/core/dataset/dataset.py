@@ -873,6 +873,7 @@ class Dataset:
 
         return self._commit(message)
 
+    @hub_reporter.record_call
     def merge(
         self,
         target_id: str,
@@ -1007,6 +1008,7 @@ class Dataset:
 
         return self.commit_id
 
+    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
@@ -1020,6 +1022,7 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
+    @hub_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1661,6 +1664,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
+    @hub_reporter.record_call
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -2133,6 +2137,7 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
+    @hub_reporter.record_call
     def copy(
         self,
         dest: str,
