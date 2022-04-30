@@ -26,11 +26,16 @@ def test_rechunk(local_ds):
         ds.create_tensor("xyz")
         for _ in range(10):
             ds.xyz.append(np.ones((1000, 1000)))
+
+        assert len(ds.xyz) == 10
         for i in range(10):
             ds.xyz[i] = np.ones((100, 100))
 
         original_num_chunks = ds.xyz.chunk_engine.num_chunks
         assert original_num_chunks == 1
+        assert len(ds.xyz) == 10
         ds.rechunk("xyz")
         new_num_chunks = ds.xyz.chunk_engine.num_chunks
         assert new_num_chunks == 1
+        assert len(ds.xyz) == 10
+

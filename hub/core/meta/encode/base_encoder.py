@@ -1,6 +1,6 @@
 import hub
 from abc import ABC
-from typing import Any, List, Sequence
+from typing import Any, List, Sequence, Optional
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -144,7 +144,7 @@ class Encoder(ABC):
 
         return row_index  # type: ignore
 
-    def register_samples(self, item: Any, num_samples: int, end: bool = True):
+    def register_samples(self, item: Any, num_samples: int, end: bool = True, row:  Optional[int] = None):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.
         This method adds data to `self._encoded` without decoding.
 
@@ -163,8 +163,8 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 new_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                if end is False:
-                    self._encoded[0][1] += num_samples
+                if row is not None:
+                    self._encoded[row][1] += num_samples
                 else:
                     self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
             else:
@@ -173,13 +173,18 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                if end is False:
+                # if end is False:
+                #     self._encoded[:, 2] += num_samples
+                #     shape_entry = np.array(
+                #         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
+                #     )
+                #     self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
+                if row is not None:
                     self._encoded[:, 2] += num_samples
                     shape_entry = np.array(
                         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
                     )
-                    self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
-
+                    self._encoded = np.insert(self._encoded, row, shape_entry, axis=0)
                 else:
                     shape_entry = np.array(
                         [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE

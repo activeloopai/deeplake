@@ -659,7 +659,7 @@ class ChunkEngine:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num, end=append_to_end)
+                    enc.register_samples(num, row=fit_row)
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
@@ -990,27 +990,28 @@ class ChunkEngine:
                 extend=False,
                 fit_row=row,
             )
+            self.chunk_id_encoder.decrease_samples(next_chunk_row, num_samples=num_samples)
             return True
         elif next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
-            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
+            samples_to_move = self.__get_chunk_samples(chunk=next_chunk, forward=False)
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
 
-            chunk.pop_multiple(num_samples=num_samples)
+            next_chunk.pop_multiple(num_samples=num_samples)
             samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
-                start_chunk=next_chunk,
+                start_chunk=chunk,
                 register=True,
                 update_commit_diff=True,
-                append_to_end=False,
+                append_to_end=True,
                 extend=False,
-                fit_row=next_chunk_row,
+                fit_row=row,
             )
-            self.chunk_id_encoder.delete_chunk_id(row=row)
-            del self.cache[chunk.key]  # type: ignore
+            self.chunk_id_encoder.delete_chunk_id(row=next_chunk_row)
+            del self.cache[next_chunk.key]  # type: ignore
             return True
 
         return False
@@ -1053,25 +1054,25 @@ class ChunkEngine:
             return True
         elif prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
-            samples_to_move = self.__get_chunk_samples(chunk=prev_chunk, forward=False)
+            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
 
-            prev_chunk.pop_multiple(num_samples=len(samples_to_move))
+            chunk.pop_multiple(num_samples=len(samples_to_move))
             samples, _ = self._sanitize_samples(samples_to_move)
             self._samples_to_chunks(
                 samples,
-                start_chunk=chunk,
+                start_chunk=prev_chunk,
                 register=True,
                 update_commit_diff=True,
                 append_to_end=True,
                 extend=False,
-                fit_row=row,
+                fit_row=prev_chunk_row,
             )
 
-            self.chunk_id_encoder.delete_chunk_id(row=prev_chunk_row)
-            del self.cache[prev_chunk.key]  # type: ignore
+            self.chunk_id_encoder.delete_chunk_id(row=row)
+            del self.cache[chunk.key]  # type: ignore
             return True
         return False
 
