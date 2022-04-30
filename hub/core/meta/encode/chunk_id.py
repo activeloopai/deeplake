@@ -47,29 +47,6 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             return 0
         return len(self._encoded)
 
-    def get_num_samples(self, row: Optional[int] = None):
-        """Calculates the number of samples for the specified chunk
-        Args:
-            row: (Optional, int): Iterator position of the chunk id
-
-        Returns:
-            Number of samples
-
-        Raises:
-            OutOfChunkCountError: When the row is out of chunk bounds
-        """
-
-        if self.num_samples == 0:
-            return 0
-        if row is not None:
-            if row > self.num_chunks:
-                raise OutOfChunkCountError
-            if row == 0:
-                return self._encoded[row][1]
-            else:
-                return self._encoded[row][1] - self._encoded[row - 1][1]
-        return 0
-
     def get_next_chunk_id(self, row) -> Optional[str]:
         if self.num_chunks is None or self._encoded is None:
             return None

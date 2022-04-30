@@ -614,7 +614,7 @@ class ChunkEngine:
             if num_samples_added == 0:
                 if fit_row is not None and self.can_fit_to_next(samples, fit_row):
                     chunk_id = self.chunk_id_encoder.get_next_chunk_id(fit_row)
-                    next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))
+                    next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
                     return self._samples_to_chunks(
                         samples,
                         start_chunk=next_chunk,
@@ -643,7 +643,7 @@ class ChunkEngine:
                 if len(samples) > 0:
                     if fit_row is not None and self.can_fit_to_next(samples, fit_row):
                         chunk_id = self.chunk_id_encoder.get_next_chunk_id(fit_row)
-                        next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))
+                        next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
                         return self._samples_to_chunks(
                             samples,
                             start_chunk=next_chunk,

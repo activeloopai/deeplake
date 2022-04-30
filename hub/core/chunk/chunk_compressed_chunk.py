@@ -137,7 +137,7 @@ class ChunkCompressedChunk(BaseChunk):
                     tmp_samples = self.decompressed_samples + [incoming_sample]  # type: ignore
 
                 compressed_bytes = compress_multiple(
-                    tmp_samples,
+                    tmp_samples,  # type: ignore
                     compression=self.compression,
                 )
                 if len(compressed_bytes) > self.min_chunk_size:

@@ -153,7 +153,8 @@ class Encoder(ABC):
         Args:
             item (Any): General input, will be passed along to subclass methods.
             num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
-            end (bool): parameter that shows whether we need to add elements to the end of encoder or in the front
+            end (bool): Parameter that shows whether we need to add elements to the end of encoder or in the front.
+            row (Optional[int]): Parameter that shows to which chunk the samples need to be added
         """
 
         # TODO: optimize this
@@ -175,12 +176,6 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                # if end is False:
-                #     self._encoded[:, 2] += num_samples
-                #     shape_entry = np.array(
-                #         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
-                #     )
-                #     self._encoded = np.insert(self._encoded, 0, shape_entry, axis=0)
                 if row is not None:
                     self._encoded[:, 2] += num_samples
                     shape_entry = np.array(

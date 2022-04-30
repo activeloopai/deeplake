@@ -39,7 +39,7 @@ class SampleCompressedChunk(BaseChunk):
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
                     if end is False:
-                        self.data_bytes = serialized_sample.tobytes() + self.data_bytes
+                        self.data_bytes = serialized_sample + self.data_bytes
                     else:
                         self.data_bytes += serialized_sample  # type: ignore
                     self.register_in_meta_and_headers(
