@@ -990,7 +990,9 @@ class ChunkEngine:
                 extend=False,
                 fit_row=row,
             )
-            self.chunk_id_encoder.decrease_samples(next_chunk_row, num_samples=num_samples)
+            self.chunk_id_encoder.decrease_samples(
+                next_chunk_row, num_samples=num_samples
+            )
             return True
         elif next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
