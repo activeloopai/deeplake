@@ -975,6 +975,26 @@ def test_rename_diff_branch(local_ds, capsys):
     assert diff == (tensor_changes_b_from_a, tensor_changes_e_from_a)
 
 
+def test_rename_group(local_ds, capsys):
+    with local_ds:
+        local_ds.create_tensor("g1/g2/g3/t1")
+        local_ds.create_tensor("g1/g2/t2")
+        local_ds.commit()
+        local_ds.rename_group("g1/g2", "g1/g4")
+
+    diff = local_ds.diff()
+    ds_changes = {
+        "deleted": [],
+        "info_updated": False,
+        "renamed": OrderedDict({"g1/g2/g3/t1": "g1/g4/g3/t1", "g1/g2/t2": "g1/g4/t2"}),
+    }
+    target = get_diff_helper(ds_changes, {}, {}, None)
+    captured = capsys.readouterr()
+    assert captured.out == target
+    diff = local_ds.diff(as_dict=True)["dataset"]
+    assert diff == ds_changes
+
+
 def test_diff_linear(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("xyz")

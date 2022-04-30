@@ -690,44 +690,7 @@ class Dataset:
         destination_tensor.info.update(info)
         return destination_tensor
 
-    @hub_reporter.record_call
-    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
-        """Renames tensor with name `name` to `new_name`
-
-        Args:
-            name (str): Name of tensor to be renamed.
-            new_name (str): New name of tensor.
-
-        Returns:
-            Tensor: Renamed tensor.
-
-        Raises:
-            TensorAlreadyExistsError: Duplicate tensors are not allowed.
-            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
-            InvalidTensorNameError: If `new_name` is in dataset attributes.
-            RenameError: If `new_name` points to a group different from `name`.
-        """
-        auto_checkout(self)
-
-        name = filter_name(name, self.group_index)
-        new_name = filter_name(new_name, self.group_index)
-
-        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
-            raise RenameError("New name of tensor cannot point to a different group")
-
-        if new_name in self.version_state["tensor_names"]:
-            raise TensorAlreadyExistsError(new_name)
-
-        if new_name in self._groups:
-            raise TensorGroupAlreadyExistsError(new_name)
-
-        new_tensor_name = posixpath.split(new_name)[1]
-        if not new_tensor_name or new_tensor_name in dir(self):
-            raise InvalidTensorNameError(new_name)
-
-        if not self._is_root():
-            return self.root.rename_tensor(name, new_name)
-
+    def _rename_tensor(self, name, new_name):
         tensor = self[name]
         tensor.meta.name = new_name
         key = self.version_state["tensor_names"].pop(name)
@@ -751,10 +714,104 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.rename_tensor(t_old, t_new)
+                self._rename_tensor(t_old, t_new)
+
+        return tensor
+
+    @hub_reporter.record_call
+    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
+        """Renames tensor with name `name` to `new_name`
+
+        Args:
+            name (str): Name of tensor to be renamed.
+            new_name (str): New name of tensor.
+
+        Returns:
+            Tensor: Renamed tensor.
+
+        Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorNameError: If `new_name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
+        """
+        auto_checkout(self)
+
+        if name not in self._tensors():
+            raise TensorDoesNotExistError(name)
+
+        name = filter_name(name, self.group_index)
+        new_name = filter_name(new_name, self.group_index)
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("New name of tensor cannot point to a different group")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        if new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
+            raise InvalidTensorNameError(new_name)
+
+        tensor = self.root._rename_tensor(name, new_name)
 
         self.storage.maybe_flush()
         return tensor
+
+    @hub_reporter.record_call
+    def rename_group(self, name: str, new_name: str) -> None:
+        """Renames group with name `name` to `new_name`
+
+        Args:
+            name (str): Name of group to be renamed.
+            new_name (str): New name of group.
+
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
+        """
+        auto_checkout(self)
+
+        name = filter_name(name, self.group_index)
+        new_name = filter_name(new_name, self.group_index)
+
+        if name not in self._groups:
+            raise TensorGroupDoesNotExistError(name)
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("Names does not match.")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        if new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
+            raise InvalidTensorGroupNameError(new_name)
+
+        meta = self.meta
+        meta.rename_group(name, new_name)
+
+        root = self.root
+        for tensor in filter(
+            lambda x: x.startswith(name),
+            map(lambda y: y.meta.name or y.key, self.tensors.values()),
+        ):
+            root._rename_tensor(
+                tensor,
+                posixpath.join(new_name, posixpath.relpath(tensor, name)),
+            )
+
+        self.storage.maybe_flush()
 
     __getattr__ = __getitem__
 
