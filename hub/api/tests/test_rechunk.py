@@ -53,3 +53,13 @@ def test_rechunk(local_ds):
         ds.efg[0] = np.ones((100, 100))
         assert len(ds.efg) == 10
         assert ds.efg.chunk_engine.num_chunks == 1
+
+        ds.create_tensor("compr", chunk_compression="lz4")
+        for _ in range(100):
+            ds.compr.append(np.random.randint(0, 255, size=(175, 350, 3)))
+
+        assert len(ds.compr) == 100
+        assert ds.compr.chunk_engine.num_chunks == 3
+        for _ in range(100):
+            ds.compr[i] = np.random.randint(0, 3, size=(10, 10, 10))
+        assert len(ds.compr) == 100

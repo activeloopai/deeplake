@@ -905,13 +905,18 @@ class ChunkEngine:
                 if not isinstance(chunk, ChunkCompressedChunk)
                 else None
             )
-            samples_to_move = [
-                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
-            ] + samples_to_move
+            if decompress is False:
+                samples_to_move = [
+                    Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                ] + samples_to_move
+            else:
+                samples_to_move = [
+                    Sample(array=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                ] + samples_to_move
 
         return samples_to_move
 
-    def __get_chunk_samples(self, chunk, forward: bool = True) -> List[Sample]:
+    def __get_chunk_samples(self, chunk) -> List[Sample]:
         decompress = False
         if isinstance(chunk, ChunkCompressedChunk):
             decompress = True
@@ -930,11 +935,17 @@ class ChunkEngine:
                 if not isinstance(chunk, ChunkCompressedChunk)
                 else None
             )
-            samples_to_move = [
-                Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
-            ] + samples_to_move
-        if forward is False:
-            samples_to_move.reverse()
+            if decompress is False:
+                samples_to_move = [
+                    Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                ] + samples_to_move
+            else:
+                samples_to_move = [
+                    Sample(array=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                ] + samples_to_move
+
+        samples_to_move.reverse()
+
         return samples_to_move
 
     def __rechunk(self, chunk, chunk_row):
@@ -996,7 +1007,7 @@ class ChunkEngine:
             return True
         elif next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
-            samples_to_move = self.__get_chunk_samples(chunk=next_chunk, forward=False)
+            samples_to_move = self.__get_chunk_samples(chunk=next_chunk)
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
@@ -1056,7 +1067,7 @@ class ChunkEngine:
             return True
         elif prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
-            samples_to_move = self.__get_chunk_samples(chunk=chunk, forward=False)
+            samples_to_move = self.__get_chunk_samples(chunk=chunk)
             num_samples = len(samples_to_move)
             if num_samples == 0:
                 return True
