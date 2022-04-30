@@ -323,7 +323,6 @@ class BaseChunk(HubMemoryObject):
 
     def check_shape_for_update(self, local_index: int, shape):
         """Checks if the shape being assigned at the new index is valid."""
-        expected_dimensionality = self.num_dims
         expected_dimensionality = len(self.shapes_encoder[local_index])
         if expected_dimensionality != len(shape):
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
