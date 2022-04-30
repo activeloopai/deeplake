@@ -1123,6 +1123,15 @@ def test_tensor_clear(local_ds_generator):
     assert image.meta.sample_compression == "png"
 
 
+def test_tensor_clear_seq(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3, 4]])
+        ds.abc.extend([[1, 2, 3, 4, 5]])
+        ds.abc.clear()
+        assert ds.abc.shape == (0, 0)
+
+
 def test_no_view(memory_ds):
     memory_ds.create_tensor("a")
     memory_ds.a.extend([0, 1, 2, 3])
