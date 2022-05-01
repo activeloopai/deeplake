@@ -622,7 +622,7 @@ class ChunkEngine:
                         update_commit_diff=True,
                         append_to_end=False,
                         extend=False,
-                        fit_row=fit_row+1
+                        fit_row=fit_row + 1,
                     )
                 current_chunk = self._create_new_chunk(register, row=fit_row)
                 updated_chunks.append(current_chunk)
@@ -652,7 +652,7 @@ class ChunkEngine:
                             update_commit_diff=True,
                             append_to_end=False,
                             extend=False,
-                            fit_row=fit_row + 1
+                            fit_row=fit_row + 1,
                         )
                     current_chunk = self._create_new_chunk(register, row=fit_row)
                     updated_chunks.append(current_chunk)
