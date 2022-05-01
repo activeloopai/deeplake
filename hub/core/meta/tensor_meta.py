@@ -197,6 +197,7 @@ class TensorMeta(Meta):
             state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
+        ffw_tensor_meta(self)
 
     @property
     def nbytes(self):
