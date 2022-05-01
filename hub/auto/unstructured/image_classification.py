@@ -23,7 +23,24 @@ IMAGES_TENSOR_NAME = "auto"
 LABELS_TENSOR_NAME = "labels"
 
 
-IMAGE_FORMAT_NAME = ["bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm","jpg"]
+IMAGE_FORMAT_NAME = [
+    "bmp",
+    "dib",
+    "gif",
+    "ico",
+    "jpeg",
+    "jpeg2000",
+    "pcx",
+    "png",
+    "ppm",
+    "sgi",
+    "tga",
+    "tiff",
+    "webp",
+    "wmf",
+    "xbm",
+    "jpg",
+]
 AUDIO_FORMAT_NAME = ["flac", "mp3", "wav"]
 VIDEO_FORMAT_NAME = ["mp4", "mkv", "avi"]
 
@@ -77,14 +94,12 @@ class ImageClassification(UnstructuredDataset):
                 f"No files found in {self.source}. Please ensure that the source path is correct."
             )
 
-
         if sample_compression in IMAGE_FORMAT_NAME:
             self.htype = "image"
         elif sample_compression in AUDIO_FORMAT_NAME:
             self.htype = "audio"
         elif sample_compression in VIDEO_FORMAT_NAME:
             self.htype = "video"
-
 
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()

@@ -693,7 +693,9 @@ class dataset:
             ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
-            unstructured = ImageClassification(source=src, sample_compression=images_compression)
+            unstructured = ImageClassification(
+                source=src, sample_compression=images_compression
+            )
 
             # TODO: auto detect compression
             unstructured.structure(
