@@ -72,9 +72,33 @@ IMAGE_COMPRESSION_EXT_DICT = {
 }
 
 
+VIDEO_COMPRESSION_EXT_DICT = {
+    "mp4": [".mp4"],
+    "mkv": [".mkv"],
+    "avi": [".avi"],
+}
+
+AUDIO_COMPRESSION_EXT_DICT = {
+    "mp3": [".mp3"],
+    "flac": [".flac"],
+    "wav": [".wav"],
+}
+
+
+
 IMAGE_COMPRESSION_EXTENSIONS = list(
     set(itertools.chain(*IMAGE_COMPRESSION_EXT_DICT.values()))
 )
+
+VIDEO_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*VIDEO_COMPRESSION_EXT_DICT.values()))
+)
+
+AUDIO_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*AUDIO_COMPRESSION_EXT_DICT.values()))
+)
+
+EXTENSIONS_ALLOWED = AUDIO_COMPRESSION_EXTENSIONS + VIDEO_COMPRESSION_EXTENSIONS + IMAGE_COMPRESSION_EXTENSIONS
 
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 

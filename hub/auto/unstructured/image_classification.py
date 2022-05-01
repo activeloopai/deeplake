@@ -19,8 +19,13 @@ from .base import UnstructuredDataset
 
 import hub
 
-IMAGES_TENSOR_NAME = "images"
+IMAGES_TENSOR_NAME = "auto"
 LABELS_TENSOR_NAME = "labels"
+
+
+IMAGE_FORMAT_NAME = ["bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm","jpg"]
+AUDIO_FORMAT_NAME = ["flac", "mp3", "wav"]
+VIDEO_FORMAT_NAME = ["mp4", "mkv", "avi"]
 
 
 def _get_file_paths(directory: Path, relative_to: Union[str, Path] = "") -> List[Path]:
@@ -46,7 +51,7 @@ def _set_name_from_path(path: Path) -> str:
 
 
 class ImageClassification(UnstructuredDataset):
-    def __init__(self, source: str):
+    def __init__(self, source: str, sample_compression: str):
         """Convert an unstructured dataset to a structured dataset.
 
         Note:
@@ -71,6 +76,15 @@ class ImageClassification(UnstructuredDataset):
             raise InvalidPathException(
                 f"No files found in {self.source}. Please ensure that the source path is correct."
             )
+
+
+        if sample_compression in IMAGE_FORMAT_NAME:
+            self.htype = "image"
+        elif sample_compression in AUDIO_FORMAT_NAME:
+            self.htype = "audio"
+        elif sample_compression in VIDEO_FORMAT_NAME:
+            self.htype = "video"
+
 
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
@@ -120,7 +134,7 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
+            images_tensor_name = os.path.join(set_name, self.htype)
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
             images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
@@ -128,7 +142,7 @@ class ImageClassification(UnstructuredDataset):
             # TODO: infer sample_compression
             ds.create_tensor(
                 images_tensor_name.replace("\\", "/"),
-                htype="image",
+                htype=self.htype,
                 **image_tensor_args,
             )
             ds.create_tensor(

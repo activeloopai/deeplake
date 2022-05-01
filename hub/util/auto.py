@@ -4,11 +4,11 @@ from collections import Counter
 from typing import Tuple
 import shutil
 from hub.util.exceptions import AutoCompressionError
-from hub.compression import IMAGE_COMPRESSION_EXTENSIONS
+from hub.compression import EXTENSIONS_ALLOWED
 
 
 def get_most_common_extension(
-    local_path: str, allowed_extensions: Tuple = tuple(IMAGE_COMPRESSION_EXTENSIONS)
+    local_path: str, allowed_extensions: Tuple = tuple(EXTENSIONS_ALLOWED)
 ):
     """Determines the most frequently used extension in a directory of files.
 
