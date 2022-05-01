@@ -379,14 +379,6 @@ class BaseChunk(HubMemoryObject):
             self.shapes_encoder._pop()
             self.byte_positions_encoder._pop()
 
-    def pop_front_multiple(self, row, num_samples):
-        self.prepare_for_write()
-        self.data_bytes = self.data_bytes[self.byte_positions_encoder[num_samples][0] :]
-
-        for _ in range(num_samples):
-            self.shapes_encoder._pop_front(row=row)
-            self.byte_positions_encoder._pop_front(row=row)
-
     def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
             shape = self.shapes_encoder._encoded[0][:-1]
