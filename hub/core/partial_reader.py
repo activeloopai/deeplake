@@ -1,12 +1,10 @@
-from typing import Dict, Optional
-from hub.core.storage.provider import StorageProvider
+from typing import Dict
+from hub.core.storage.lru_cache import LRUCache
 
 
 class PartialReader:
-    def __init__(
-        self, storage_provider: StorageProvider, path: str, header_offset: int
-    ):
-        self.storage_provider = storage_provider
+    def __init__(self, cache: LRUCache, path: str, header_offset: int):
+        self.cache = cache
         self.path = path
         self.data_fetched: Dict[tuple[int, int], memoryview] = {}
         self.header_offset = header_offset
@@ -20,7 +18,7 @@ class PartialReader:
         slice_tuple = (start, stop)
         if slice_tuple not in self.data_fetched:
             self.data_fetched[slice_tuple] = memoryview(
-                self.storage_provider.get_bytes(self.path, start, stop)
+                self.cache.get_bytes(self.path, start, stop)
             )
         return self.data_fetched[slice_tuple]
 
@@ -28,4 +26,4 @@ class PartialReader:
         return sum(stop - start for start, stop in self.data_fetched)
 
     def get_all_bytes(self) -> bytes:
-        return self.storage_provider[self.path]
+        return self.cache[self.path]

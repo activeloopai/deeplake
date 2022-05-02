@@ -113,6 +113,12 @@ class BaseChunk(HubMemoryObject):
 
     @property
     def num_data_bytes(self) -> int:
+        if isinstance(self.data_bytes, PartialReader):
+            enc = self.byte_positions_encoder
+            num_samples = enc.num_samples
+            if num_samples == 0:
+                return 0
+            return enc[num_samples - 1][1] - enc[0][0]
         return len(self.data_bytes)
 
     @property
