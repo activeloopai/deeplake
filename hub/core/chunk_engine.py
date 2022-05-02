@@ -919,7 +919,7 @@ class ChunkEngine:
 
         return samples_to_move
 
-    def __get_chunk_samples(self, chunk) -> List[Sample]:
+    def _get_chunk_samples(self, chunk) -> List[Sample]:
         decompress = False
         if isinstance(chunk, ChunkCompressedChunk):
             decompress = True
@@ -933,11 +933,7 @@ class ChunkEngine:
             new_shape = []
             for dim in sample_shape:
                 new_shape.append(int(dim))
-            compression = (
-                chunk.compression
-                if not isinstance(chunk, ChunkCompressedChunk)
-                else None
-            )
+            compression = chunk.compression if decompress else None
             if decompress is False:
                 samples_to_move = [
                     Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
@@ -982,7 +978,7 @@ class ChunkEngine:
         to_chunk: BaseChunk,
         to_chunk_row: int,
     ):
-        samples_to_move = self.__get_chunk_samples(chunk=from_chunk)
+        samples_to_move = self._get_chunk_samples(chunk=from_chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
             return True
