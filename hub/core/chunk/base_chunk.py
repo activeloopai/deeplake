@@ -375,9 +375,12 @@ class BaseChunk(HubMemoryObject):
         ][0]
         self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
 
-        for _ in range(num_samples):
-            self.shapes_encoder._pop()
-            self.byte_positions_encoder._pop()
+        try:
+            for _ in range(num_samples):
+                self.shapes_encoder._pop()
+                self.byte_positions_encoder._pop()
+        except IndexError:
+            pass
 
     def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
