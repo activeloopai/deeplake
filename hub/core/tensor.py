@@ -422,9 +422,11 @@ class Tensor:
         )
 
     @property
-    def size(self) -> int:
+    def size(self) -> Optional[int]:
         s = 1
         for x in self.shape:
+            if x is None:
+                return None
             s *= x  # not using np.prod to avoid overflow
         return s
 
