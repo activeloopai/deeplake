@@ -307,9 +307,9 @@ class BaseChunk(HubMemoryObject):
     ):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape, end=end)
-        if extend is True:
+        if extend:
             if self._update_tensor_meta_length:
-                self.tensor_meta.update_length(1)  # check this one
+                self.tensor_meta.update_length(1)
             self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -369,11 +369,11 @@ class BaseChunk(HubMemoryObject):
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
 
-        self.data_bytes = self.data_bytes[
-            : self.byte_positions_encoder[
-                self.shapes_encoder.num_samples - num_samples
-            ][0]
-        ]
+        total_samples = self.shapes_encoder.num_samples
+        starting_byte_first_popped_sample = self.byte_positions_encoder[
+            total_samples - num_samples
+        ][0]
+        self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
 
         for _ in range(num_samples):
             self.shapes_encoder._pop()

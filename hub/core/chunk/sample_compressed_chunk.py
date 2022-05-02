@@ -20,7 +20,7 @@ class SampleCompressedChunk(BaseChunk):
         dtype = self.dtype if self.is_byte_compression else None
         compr = self.compression
 
-        if end is False:
+        if not end:
             incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
@@ -38,7 +38,7 @@ class SampleCompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    if end is False:
+                    if not end:
                         self.data_bytes = serialized_sample + self.data_bytes
                     else:
                         self.data_bytes += serialized_sample  # type: ignore

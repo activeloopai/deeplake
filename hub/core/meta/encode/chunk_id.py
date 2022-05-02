@@ -48,17 +48,17 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         return len(self._encoded)
 
     def get_next_chunk_id(self, row) -> Optional[str]:
-        if self.num_chunks is None or self._encoded is None:
-            return None
-        if row == self.num_chunks - 1:
+        if (
+            self.num_chunks is None
+            or self._encoded is None
+            or row == self.num_chunks - 1
+        ):
             return None
 
         return self._encoded[row + 1][0]
 
     def get_prev_chunk_id(self, row) -> Optional[str]:
-        if self.num_chunks is None or self._encoded is None:
-            return None
-        if row == 0:
+        if self.num_chunks is None or self._encoded is None or row == 0:
             return None
 
         return self._encoded[row - 1][0]
@@ -81,6 +81,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             raise OutOfChunkCountError
 
         self._encoded[row][1] -= num_samples
+        self.is_dirty = True
 
     def delete_chunk_id(self, row):
         """Delete row from encoder
@@ -95,6 +96,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             raise OutOfChunkCountError
 
         self._encoded = np.delete(self._encoded, row, axis=0)
+        self.is_dirty = True
 
     def generate_chunk_id(
         self, register: Optional[bool] = True, row: Optional[int] = None

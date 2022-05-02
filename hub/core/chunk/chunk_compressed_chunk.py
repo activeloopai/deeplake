@@ -131,7 +131,7 @@ class ChunkCompressedChunk(BaseChunk):
                 num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
                 tmp_samples = None
-                if end is False:
+                if not end:
                     tmp_samples = [incoming_sample] + self.decompressed_samples  # type: ignore
                 else:
                     tmp_samples = self.decompressed_samples + [incoming_sample]  # type: ignore
@@ -151,7 +151,7 @@ class ChunkCompressedChunk(BaseChunk):
 
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
-            if end is False:
+            if not end:
                 self.decompressed_samples.insert(0, incoming_sample)  # type: ignore
             else:
                 self.decompressed_samples.append(incoming_sample)  # type: ignore

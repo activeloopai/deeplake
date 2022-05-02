@@ -24,7 +24,7 @@ class UncompressedChunk(BaseChunk):
         num_samples: int = 0
         buffer_size = 0
 
-        if end is False:
+        if not end:
             incoming_samples = np.flip(incoming_samples, axis=0)
         for sample in incoming_samples:
             shape = self.normalize_shape(sample.shape)
@@ -39,7 +39,7 @@ class UncompressedChunk(BaseChunk):
 
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
-        if end is False:
+        if not end:
             self.data_bytes = samples.tobytes() + self.data_bytes
         else:
             self.data_bytes += samples.tobytes()

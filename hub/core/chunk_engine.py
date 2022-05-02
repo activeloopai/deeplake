@@ -593,8 +593,18 @@ class ChunkEngine:
         extend: bool = True,
         fit_row: Optional[int] = None,
     ):
-        # TODO check if there is a suboptimal chunk that we can use
-        # if not then create new next to current one and set data
+        """Add samples to chunks, in case if there is a space on the start_chunk,
+        othewise creating new chunk and append samples to newly created chunk
+
+        Args:
+            samples: The input sampled which needs to be added to the chunk
+            start_chunk (Optional[BaseChunk]): Parameter tat points to the chunk on which the samples should be added
+            register (bool): Parameter that shows if we need to register the chunk
+            append_to_end (bool): Parameter that show if we need to add samples to the end of the chunk or the begining
+            extend (boo): Parameter that showes if it is needed to update tensor metas, this will be false in case of
+            rechunking at the meta will not be changed
+            fit_row Optional[int]: Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+        """
         current_chunk = start_chunk
 
         updated_chunks = []
@@ -880,23 +890,19 @@ class ChunkEngine:
         )
 
     def __get_samples_to_move(self, chunk) -> List[Sample]:
-        decompress = False
-        if isinstance(chunk, ChunkCompressedChunk):
-            decompress = True
+        decompress = isinstance(chunk, ChunkCompressedChunk)
         samples_to_move: List[Sample] = []
         sum_bytes = 0
 
         num_samples = chunk.byte_positions_encoder.num_samples
         for idx in range(num_samples - 1, int(num_samples / 2), -1):
-            sample_bytes = chunk.read_sample(idx, decompress=decompress)
-            sum_bytes += len(sample_bytes)
+            sample_data = chunk.read_sample(idx, decompress=decompress)
+            sum_bytes += len(sample_data)
             if sum_bytes > int(RANDOM_MAX_ALLOWED_CHUNK_SIZE / 2):
                 break
             sample_shape = chunk.shapes_encoder[idx]
 
-            new_shape = []
-            for dim in sample_shape:
-                new_shape.append(int(dim))
+            new_shape = tuple(sample_shape.tolist())
             compression = (
                 chunk.compression
                 if not isinstance(chunk, ChunkCompressedChunk)
@@ -904,11 +910,11 @@ class ChunkEngine:
             )
             if decompress is False:
                 samples_to_move = [
-                    Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(buffer=sample_data, shape=new_shape, compression=compression)  # type: ignore
                 ] + samples_to_move
             else:
                 samples_to_move = [
-                    Sample(array=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(array=sample_data, shape=new_shape, compression=compression)  # type: ignore
                 ] + samples_to_move
 
         return samples_to_move
@@ -945,16 +951,17 @@ class ChunkEngine:
 
         return samples_to_move
 
-    def __rechunk(self, chunk, chunk_row):
+    def __rechunk(self, chunk: BaseChunk, chunk_row: int):
         samples_to_move = self.__get_samples_to_move(chunk=chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
             return
         new_chunk = self._create_new_chunk(register=True, row=chunk_row)
+        new_chunk_row = chunk_row + 1
 
         self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=num_samples)
         self.chunk_id_encoder.decrease_samples(
-            row=chunk_row + 1, num_samples=num_samples
+            row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
 
@@ -965,10 +972,37 @@ class ChunkEngine:
             register=True,
             update_commit_diff=True,
             extend=False,
-            fit_row=chunk_row + 1,
+            fit_row=new_chunk_row,
         )
 
-    def __try_merge_with_next_chunk(self, chunk, row) -> bool:
+    def _merge_chunks(
+        self,
+        from_chunk: BaseChunk,
+        from_chunk_row: int,
+        to_chunk: BaseChunk,
+        to_chunk_row: int,
+    ):
+        samples_to_move = self.__get_chunk_samples(chunk=from_chunk)
+        num_samples = len(samples_to_move)
+        if num_samples == 0:
+            return True
+
+        from_chunk.pop_multiple(num_samples=num_samples)
+        samples, _ = self._sanitize_samples(samples_to_move)
+        self._samples_to_chunks(
+            samples,
+            start_chunk=to_chunk,
+            register=True,
+            update_commit_diff=True,
+            append_to_end=True,
+            extend=False,
+            fit_row=to_chunk_row,
+        )
+        self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
+        del self.cache[from_chunk.key]  # type: ignore
+        return True
+
+    def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
         next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
         if next_chunk_id is None:
             return False
@@ -981,29 +1015,15 @@ class ChunkEngine:
 
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
-            samples_to_move = self.__get_chunk_samples(chunk=next_chunk)
-            num_samples = len(samples_to_move)
-            if num_samples == 0:
-                return True
-
-            next_chunk.pop_multiple(num_samples=num_samples)
-            samples, _ = self._sanitize_samples(samples_to_move)
-            self._samples_to_chunks(
-                samples,
-                start_chunk=chunk,
-                register=True,
-                update_commit_diff=True,
-                append_to_end=True,
-                extend=False,
-                fit_row=row,
+            return self._merge_chunks(
+                from_chunk=next_chunk,
+                from_chunk_row=next_chunk_row,
+                to_chunk=chunk,
+                to_chunk_row=row,
             )
-            self.chunk_id_encoder.delete_chunk_id(row=next_chunk_row)
-            del self.cache[next_chunk.key]  # type: ignore
-            return True
-
         return False
 
-    def __try_merge_with_previous_chunk(self, chunk, row) -> bool:
+    def _try_merge_with_previous_chunk(self, chunk: BaseChunk, row: int) -> bool:
         prev_chunk_id = self.chunk_id_encoder.get_prev_chunk_id(row)
         if prev_chunk_id is None:
             return False
@@ -1016,39 +1036,25 @@ class ChunkEngine:
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
-            samples_to_move = self.__get_chunk_samples(chunk=chunk)
-            num_samples = len(samples_to_move)
-            if num_samples == 0:
-                return True
-
-            chunk.pop_multiple(num_samples=len(samples_to_move))
-            samples, _ = self._sanitize_samples(samples_to_move)
-            self._samples_to_chunks(
-                samples,
-                start_chunk=prev_chunk,
-                register=True,
-                update_commit_diff=True,
-                append_to_end=True,
-                extend=False,
-                fit_row=prev_chunk_row,
+            return self._merge_chunks(
+                from_chunk=chunk,
+                from_chunk_row=row,
+                to_chunk=prev_chunk,
+                to_chunk_row=prev_chunk_row,
             )
-
-            self.chunk_id_encoder.delete_chunk_id(row=row)
-            del self.cache[chunk.key]  # type: ignore
-            return True
         return False
 
-    def __try_merge_with_neighbor_and_split(self, chunk, row):
-        if self.__try_merge_with_previous_chunk(chunk, row) is False:
-            self.__try_merge_with_next_chunk(chunk, row)
+    def _try_merge_with_neighbor_and_split(self, chunk: BaseChunk, row: int):
+        if self._try_merge_with_previous_chunk(chunk, row) is False:
+            self._try_merge_with_next_chunk(chunk, row)
 
-    def _check_rechunk(self, chunk, chunk_row):
+    def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
-            self.__try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+            self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
             return
 
         if (
