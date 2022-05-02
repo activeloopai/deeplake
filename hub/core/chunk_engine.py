@@ -905,19 +905,14 @@ class ChunkEngine:
                 break
             sample_shape = chunk.shapes_encoder[idx]
 
-            new_shape = tuple(sample_shape.tolist())
-            compression = (
-                chunk.compression
-                if not isinstance(chunk, ChunkCompressedChunk)
-                else None
-            )
+            compression = chunk.compression if not decompress else None
             if decompress is False:
                 samples_to_move = [
-                    Sample(buffer=sample_data, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(buffer=sample_data, shape=sample_shape, compression=compression)  # type: ignore
                 ] + samples_to_move
             else:
                 samples_to_move = [
-                    Sample(array=sample_data, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(array=sample_data, shape=sample_shape, compression=chunk.compression)  # type: ignore
                 ] + samples_to_move
 
         return samples_to_move
@@ -933,17 +928,14 @@ class ChunkEngine:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
 
-            new_shape = []
-            for dim in sample_shape:
-                new_shape.append(int(dim))
-            compression = chunk.compression if decompress else None
+            compression = chunk.compression if not decompress else None
             if decompress is False:
                 samples_to_move = [
-                    Sample(buffer=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(buffer=sample_bytes, shape=sample_shape, compression=compression)  # type: ignore
                 ] + samples_to_move
             else:
                 samples_to_move = [
-                    Sample(array=sample_bytes, shape=new_shape, compression=compression)  # type: ignore
+                    Sample(array=sample_bytes, shape=sample_shape, compression=chunk.compression)  # type: ignore
                 ] + samples_to_move
 
         samples_to_move.reverse()
