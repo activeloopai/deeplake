@@ -59,6 +59,13 @@ class DatasetMeta(Meta):
     def delete_group(self, name):
         self.groups = list(filter(lambda g: not g.startswith(name), self.groups))
         self.tensors = list(filter(lambda t: not t.startswith(name), self.tensors))
+        self.hidden_tensors = list(
+            filter(lambda t: not t.startswith(name), self.hidden_tensors)
+        )
+        tensor_names_keys = list(self.tensor_names.keys())
+        for key in tensor_names_keys:
+            if key.startswith(name):
+                self.tensor_names.pop(key)
         self.is_dirty = True
 
     def rename_tensor(self, name, new_name):
