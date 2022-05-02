@@ -1024,6 +1024,16 @@ def test_tensor_delete(local_ds_generator):
     assert ds.tensors == {}
 
 
+def test_group_delete_bug(local_ds_generator):
+    with local_ds_generator as ds:
+        ds.create_tensor("abc/first")
+        ds.delete_group("abc")
+
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert ds.groups == {}
+
+
 def test_tensor_rename(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("x/y/z")
