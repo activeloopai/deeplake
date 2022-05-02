@@ -1,5 +1,5 @@
 from typing import Dict
-from hub.core.storage.lru_cache import LRUCache
+from hub.core.storage import LRUCache
 
 
 class PartialReader:
