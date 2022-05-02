@@ -974,7 +974,11 @@ class ChunkEngine:
         )
 
     def numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -982,6 +986,10 @@ class ChunkEngine:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
             aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 20 samples.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -990,7 +998,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache
+            index, aslist, use_data_cache, fetch_chunks
         )
 
     def get_video_sample(self, global_sample_index, index):
@@ -1006,14 +1014,16 @@ class ChunkEngine:
         )[tuple(entry.value for entry in index.values[2:])]
         return sample
 
-    def get_basic_sample(self, global_sample_index, index):
+    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
         get_partial_chunk = False
         num_samples_in_chunk = -1
-        if isinstance(self.base_storage, (S3Provider, GCSProvider)) and not isinstance(
-            self.chunk_class, ChunkCompressedChunk
+        if (
+            not fetch_chunks
+            and isinstance(self.base_storage, (S3Provider, GCSProvider))
+            and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
             prev = enc.array[row - 1][1] if row > 0 else -1
             num_samples_in_chunk = enc.array[row][1] - prev
@@ -1028,10 +1038,12 @@ class ChunkEngine:
             local_sample_index, cast=self.tensor_meta.htype != "dicom"
         )[tuple(entry.value for entry in index.values[1:])]
 
-    def get_non_tiled_sample(self, global_sample_index, index):
+    def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
         if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
             return self.get_video_sample(global_sample_index, index)
-        return self.get_basic_sample(global_sample_index, index)
+        return self.get_basic_sample(
+            global_sample_index, index, fetch_chunks=fetch_chunks
+        )
 
     def get_full_tiled_sample(self, global_sample_index):
         chunks = self.get_chunks_for_sample(global_sample_index)
@@ -1057,9 +1069,11 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
-    def get_single_sample(self, global_sample_index, index):
+    def get_single_sample(self, global_sample_index, index, fetch_chunks=False):
         if not self._is_tiled_sample(global_sample_index):
-            sample = self.get_non_tiled_sample(global_sample_index, index)
+            sample = self.get_non_tiled_sample(
+                global_sample_index, index, fetch_chunks=fetch_chunks
+            )
         elif len(index.values) == 1:
             sample = self.get_full_tiled_sample(global_sample_index)
         else:
@@ -1068,7 +1082,11 @@ class ChunkEngine:
         return sample
 
     def _numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1076,6 +1094,10 @@ class ChunkEngine:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
             aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 20 samples.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1090,7 +1112,9 @@ class ChunkEngine:
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
-                sample = self.get_single_sample(global_sample_index, index)
+                sample = self.get_single_sample(
+                    global_sample_index, index, fetch_chunks=fetch_chunks
+                )
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
@@ -1318,12 +1342,17 @@ class ChunkEngine:
         return self._sequence_encoder
 
     def _sequence_numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),
             aslist=aslist,
             use_data_cache=use_data_cache,
+            fetch_chunks=fetch_chunks,
         )
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             if aslist:
