@@ -80,6 +80,10 @@ def ffw_tensor_meta(tensor_meta, version):
         tensor_meta.min_shape = [1]
         tensor_meta.max_shape = [1]
         tensor_meta.is_dirty = True
+    if not hasattr(tensor_meta, "links"):
+        tensor_meta.links = {}
+    if not hasattr(tensor_meta, "is_links"):
+        tensor_meta.is_link = False
 
 
 @ffw
