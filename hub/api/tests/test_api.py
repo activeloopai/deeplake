@@ -1025,7 +1025,7 @@ def test_tensor_delete(local_ds_generator):
 
 
 def test_group_delete_bug(local_ds_generator):
-    with local_ds_generator as ds:
+    with local_ds_generator() as ds:
         ds.create_tensor("abc/first")
         ds.delete_group("abc")
 
