@@ -61,6 +61,7 @@ def test_none_updates(local_ds, compression, create_shape_tensor):
         assert ds.xyz[2].numpy().shape == (300, 500, 3)
         assert ds.xyz[2].shape == (300, 500, 3)
 
+
 def test_none_image_chunk_compression_2d(local_ds):
     with local_ds as ds:
         ds.create_tensor("xyz", chunk_compression="png")
@@ -77,4 +78,3 @@ def test_none_image_chunk_compression_2d(local_ds):
         assert ds.xyz[1].shape == (0, 0)
         assert ds.xyz[2].numpy().shape == (500, 500)
         assert ds.xyz[2].shape == (500, 500)
-

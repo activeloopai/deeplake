@@ -343,4 +343,3 @@ class ChunkCompressedChunk(BaseChunk):
         if self.decompressed_samples:
             for i, arr in enumerate(self.decompressed_samples):
                 self.decompressed_samples[i] = arr.reshape((0,) * self.num_dims)
-
