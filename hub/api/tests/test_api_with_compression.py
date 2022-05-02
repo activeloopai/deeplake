@@ -269,3 +269,32 @@ def test_exif(memory_ds, compressed_image_paths):
             type(image.sample_info["exif"]),
             path,
         )
+
+
+def test_forced_htypes(memory_ds, grayscale_image_paths, color_image_paths):
+    with memory_ds as ds:
+        gray = ds.create_tensor("gray", htype="image.gray", sample_compression="jpeg")
+        rgb = ds.create_tensor("rgb", htype="image.rgb", sample_compression="jpeg")
+
+        ds.gray.append(hub.read(grayscale_image_paths["jpeg"]))
+        ds.gray.append(hub.read(color_image_paths["jpeg"]))
+        ds.gray.extend(np.ones((4, 10, 10, 3), dtype=np.uint8))
+        ds.gray.extend(
+            [hub.read(color_image_paths["jpeg"]), np.ones((10, 10), dtype=np.uint8)]
+        )
+
+        ds.rgb.append(hub.read(grayscale_image_paths["jpeg"]))
+        ds.rgb.append(hub.read(color_image_paths["jpeg"]))
+        ds.rgb.extend(np.ones((4, 10, 10), dtype=np.uint8))
+        ds.rgb.extend(
+            [
+                hub.read(grayscale_image_paths["jpeg"]),
+                np.ones((10, 10, 3), dtype=np.uint8),
+            ]
+        )
+
+    for sample in gray:
+        assert len(sample.shape) == 2
+
+    for sample in rgb:
+        assert len(sample.shape) == 3

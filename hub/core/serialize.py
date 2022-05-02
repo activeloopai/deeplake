@@ -443,12 +443,6 @@ def serialize_sample_object(
             # Byte compressions don't store dtype, need to cast to expected dtype
             arr = intelligent_cast(out.array, dtype, htype)
             out = Sample(array=arr)
-        elif htype == "image.rgb":
-            out = convert_sample(out, "RGB", sample_compression)
-            shape = out.shape
-        elif htype == "image.gray":
-            out = convert_sample(out, "L", sample_compression)
-            shape = out.shape
 
         compressed_bytes = out.compressed_bytes(sample_compression)
 
