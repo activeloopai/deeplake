@@ -597,13 +597,16 @@ class ChunkEngine:
         othewise creating new chunk and append samples to newly created chunk
 
         Args:
-            samples: The input sampled which needs to be added to the chunk
+            samples (List[Any]): Paramter shat shows the list of samples to be added to the chunk
             start_chunk (Optional[BaseChunk]): Parameter tat points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
+            update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
             append_to_end (bool): Parameter that show if we need to add samples to the end of the chunk or the begining
-            extend (boo): Parameter that showes if it is needed to update tensor metas, this will be false in case of
-            rechunking at the meta will not be changed
-            fit_row Optional[int]: Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+            extend (bool): Parameter that showes if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
+            fit_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+
+        Returns:
+            Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
 
