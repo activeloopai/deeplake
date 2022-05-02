@@ -18,7 +18,6 @@ import numpy as np
 import struct
 import json
 from urllib.request import Request, urlopen
-from hub.util.image import convert_sample
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
 
