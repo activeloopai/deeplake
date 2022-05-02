@@ -42,8 +42,10 @@ def convert_img_arr(image_arr: np.ndarray, mode: str) -> np.ndarray:
         elif mode == "RGB":
             return image_arr[:, :, :3]
 
-    if (image_arr.shape[-1]) == 3:
+    elif (image_arr.shape[-1]) == 3:
         if mode == "L":
             return to_grayscale(image_arr)
         elif mode == "RGB":
             return image_arr
+
+    raise ValueError("Invalid image")
