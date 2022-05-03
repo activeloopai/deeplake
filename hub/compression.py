@@ -106,7 +106,7 @@ COMPRESSION_TYPES = [
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,
     AUDIO_COMPRESSION,
-    VIDEO_COMPRESSION
+    VIDEO_COMPRESSION,
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -122,7 +122,8 @@ IMAGE_COMPRESSIONS.insert(2, "dcm")
 SUPPORTED_COMPRESSIONS = [
     *BYTE_COMPRESSIONS,
     *IMAGE_COMPRESSIONS,
-    *READONLY_COMPRESSIONS
+    *AUDIO_COMPRESSIONS,
+    *VIDEO_COMPRESSIONS,
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -156,8 +157,9 @@ def get_compression_type(c):
         raise KeyError(c)
     return ret
 
+
 def is_readonly_compression(c):
+    """Returns if the file exists in READONLY_COMPRESSOINS or not."""
     if c is None:
         return None
-    if c in READONLY_COMPRESSIONS:
-        return c
+    return c in READONLY_COMPRESSIONS
