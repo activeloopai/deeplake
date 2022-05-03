@@ -754,7 +754,11 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 v = get_link_transform(v["append"])(sample, self.link_creds)
                 tensor = Tensor(k, self.dataset)
-                if isinstance(v, np.ndarray) and tensor.dtype and v.dtype != tensor.dtype:
+                if (
+                    isinstance(v, np.ndarray)
+                    and tensor.dtype
+                    and v.dtype != tensor.dtype
+                ):
                     v = v.astype(tensor.dtype)  # bc
                 tensor.append(v)
 
@@ -770,18 +774,22 @@ class Tensor:
                 fname = v.get("update")
                 if fname:
                     func = get_link_transform(fname)
-                    tensor = Tensor(k, self.dataset)[global_sample_index]
+                    tensor = Tensor(k, self.dataset)
                     val = func(
                         new_sample,
-                        tensor,
+                        tensor[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                         link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
-                        if isinstance(val, np.ndarray) and tensor.dtype and val.dtype != tensor.dtype:
+                        if (
+                            isinstance(val, np.ndarray)
+                            and tensor.dtype
+                            and val.dtype != tensor.dtype
+                        ):
                             val = val.astype(tensor.dtype)  # bc
-                        tensor = val
+                        tensor[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):
