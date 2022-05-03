@@ -151,7 +151,7 @@ class ImageClassification(UnstructuredDataset):
         with ds, iterator:
             for file_path in iterator:
                 image = hub.read(file_path)
-                
+
                 class_name = _class_name_from_path(file_path)
 
                 label = np.uint32(self.class_names.index(class_name))
