@@ -150,16 +150,8 @@ class ImageClassification(UnstructuredDataset):
 
         with ds, iterator:
             for file_path in iterator:
-                try:
-                    image = hub.read(file_path)
-                except PIL.Image.UnidentifiedImageError:
-                    skipped_files.append(file_path.name)
-                    iterator.set_description(
-                        'Ingesting "%s" (%i files skipped)'
-                        % (self.source.name, len(skipped_files))
-                    )
-                    continue
-
+                image = hub.read(file_path)
+                
                 class_name = _class_name_from_path(file_path)
 
                 label = np.uint32(self.class_names.index(class_name))
