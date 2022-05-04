@@ -564,8 +564,7 @@ class ChunkEngine:
             samples = list(samples)
         return samples, verified_samples
 
-    def can_fit_to_next(self, samples, fit_row):
-        chunk_id = self.chunk_id_encoder.get_next_chunk_id(fit_row)
+    def can_fit_to_chunk(self, samples, chunk_id: Optional[str] = None) -> bool:
         if chunk_id is None:
             return False
 
@@ -589,7 +588,7 @@ class ChunkEngine:
         update_commit_diff: bool = False,
         append_to_end: bool = True,
         update_tensor_meta: bool = True,
-        fit_row: Optional[int] = None,
+        start_chunk_row: Optional[int] = None,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -601,7 +600,7 @@ class ChunkEngine:
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
             append_to_end (bool): Parameter that shows if we need to add samples to the end of the chunk or the begining
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
-            fit_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+            start_chunk_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -610,7 +609,7 @@ class ChunkEngine:
 
         updated_chunks = []
         if current_chunk is None:
-            current_chunk = self._create_new_chunk(register, row=fit_row)
+            current_chunk = self._create_new_chunk(register, row=start_chunk_row)
             updated_chunks.append(current_chunk)
         enc = self.chunk_id_encoder
         tiles = {}
@@ -623,8 +622,10 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                if fit_row is not None and self.can_fit_to_next(samples, fit_row):
-                    chunk_id = self.chunk_id_encoder.get_next_chunk_id(fit_row)
+                chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
+                if start_chunk_row is not None and self.can_fit_to_chunk(
+                    samples, chunk_id
+                ):
                     next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
                     return self._samples_to_chunks(
                         samples,
@@ -633,9 +634,9 @@ class ChunkEngine:
                         update_commit_diff=True,
                         append_to_end=False,
                         update_tensor_meta=False,
-                        fit_row=fit_row + 1,
+                        start_chunk_row=start_chunk_row + 1,
                     )
-                current_chunk = self._create_new_chunk(register, row=fit_row)
+                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -653,8 +654,10 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    if fit_row is not None and self.can_fit_to_next(samples, fit_row):
-                        chunk_id = self.chunk_id_encoder.get_next_chunk_id(fit_row)
+                    chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
+                    if start_chunk_row is not None and self.can_fit_to_chunk(
+                        samples, chunk_id
+                    ):
                         next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
                         return self._samples_to_chunks(
                             samples,
@@ -663,16 +666,18 @@ class ChunkEngine:
                             update_commit_diff=True,
                             append_to_end=False,
                             update_tensor_meta=False,
-                            fit_row=fit_row + 1,
+                            start_chunk_row=start_chunk_row + 1,
                         )
-                    current_chunk = self._create_new_chunk(register, row=fit_row)
+                    current_chunk = self._create_new_chunk(
+                        register, row=start_chunk_row
+                    )
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num, row=fit_row)
+                    enc.register_samples(num, row=start_chunk_row)
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
@@ -905,11 +910,17 @@ class ChunkEngine:
             compression = chunk.compression if not decompress else None
             if decompress is False:
                 samples_to_move = [
-                    Sample(buffer=sample_data, shape=sample_shape, compression=compression)  # type: ignore
+                    Sample(
+                        buffer=sample_data, shape=sample_shape, compression=compression
+                    )
                 ] + samples_to_move
             else:
                 samples_to_move = [
-                    Sample(array=sample_data, shape=sample_shape, compression=chunk.compression)  # type: ignore
+                    Sample(
+                        array=sample_data,
+                        shape=sample_shape,
+                        compression=chunk.compression,
+                    )
                 ] + samples_to_move
 
         return samples_to_move
@@ -926,11 +937,17 @@ class ChunkEngine:
             compression = chunk.compression if not decompress else None
             if decompress is False:
                 samples_to_move = [
-                    Sample(buffer=sample_bytes, shape=sample_shape, compression=compression)  # type: ignore
+                    Sample(
+                        buffer=sample_bytes, shape=sample_shape, compression=compression
+                    )
                 ] + samples_to_move
             else:
                 samples_to_move = [
-                    Sample(array=sample_bytes, shape=sample_shape, compression=chunk.compression)  # type: ignore
+                    Sample(
+                        array=sample_bytes,
+                        shape=sample_shape,
+                        compression=chunk.compression,
+                    )
                 ] + samples_to_move
 
         samples_to_move.reverse()
@@ -958,7 +975,7 @@ class ChunkEngine:
             register=True,
             update_commit_diff=True,
             update_tensor_meta=False,
-            fit_row=new_chunk_row,
+            start_chunk_row=new_chunk_row,
         )
 
     def _merge_chunks(
@@ -982,7 +999,7 @@ class ChunkEngine:
             update_commit_diff=True,
             append_to_end=True,
             update_tensor_meta=False,
-            fit_row=to_chunk_row,
+            start_chunk_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         del self.cache[from_chunk.key]  # type: ignore

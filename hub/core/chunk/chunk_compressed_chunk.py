@@ -136,11 +136,10 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
-                tmp_samples = None
-                if not end:
-                    tmp_samples = [incoming_sample] + self.decompressed_samples  # type: ignore
-                else:
+                if end:
                     tmp_samples = self.decompressed_samples + [incoming_sample]  # type: ignore
+                else:
+                    tmp_samples = [incoming_sample] + self.decompressed_samples  # type: ignore
 
                 compressed_bytes = compress_multiple(
                     tmp_samples,  # type: ignore
@@ -157,10 +156,11 @@ class ChunkCompressedChunk(BaseChunk):
 
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
-            if not end:
-                self.decompressed_samples.insert(0, incoming_sample)  # type: ignore
-            else:
+            if end:
                 self.decompressed_samples.append(incoming_sample)  # type: ignore
+            else:
+                self.decompressed_samples.insert(0, incoming_sample)  # type: ignore
+
             self._changed = True
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
             self.register_in_meta_and_headers(
