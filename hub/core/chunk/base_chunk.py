@@ -303,11 +303,23 @@ class BaseChunk(HubMemoryObject):
         return self.frombuffer(self.tobytes(), chunk_args)
 
     def register_in_meta_and_headers(
-        self, sample_nbytes: Optional[int], shape, extend: bool = True, end: bool = True
+        self,
+        sample_nbytes: Optional[int],
+        shape,
+        update_tensor_meta: bool = True,
+        end: bool = True,
     ):
-        """Registers a new sample in meta and headers"""
+        """Registers a new sample in meta and headers
+
+        Args:
+           sample_nbytes (Optional[int]): Paramter shat shows the numbero of bytes
+           shape (Any): Parameter that shows the shape of the added elements
+           update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
+           update_tensor_meta (bool): Parameter that shows if it is need to update tensor metas, in case of rechunk we do not need to update meta as we do not add new elements
+           end (bool): Parameter that shows if we need to add the elements to the end or to the beggining of the encoder
+        """
         self.register_sample_to_headers(sample_nbytes, shape, end=end)
-        if extend:
+        if update_tensor_meta:
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
             self.tensor_meta.update_shape_interval(shape)

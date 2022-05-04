@@ -80,7 +80,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         if self.num_chunks < row + 1:
             raise OutOfChunkCountError
 
-        self._encoded[row][1] -= num_samples
+        self._encoded[row][LAST_SEEN_INDEX_COLUMN] -= num_samples
         self.is_dirty = True
 
     def delete_chunk_id(self, row):
@@ -124,7 +124,9 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 if row is not None:
                     if row > self.num_chunks:
                         raise OutOfChunkCountError
-                    new_entry = np.array([id, self._encoded[row][1]])
+                    new_entry = np.array(
+                        [id, self._encoded[row][LAST_SEEN_INDEX_COLUMN]]
+                    )
                     self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
                     return id
 

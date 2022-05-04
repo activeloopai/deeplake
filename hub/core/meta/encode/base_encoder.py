@@ -177,7 +177,7 @@ class Encoder(ABC):
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
                 if row is not None:
-                    self._encoded[:, 2] += num_samples
+                    self._encoded[:, LAST_SEEN_INDEX_COLUMN] += num_samples
                     shape_entry = np.array(
                         [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
                     )
@@ -737,17 +737,6 @@ class Encoder(ABC):
             self._encoded = self._encoded[:-1]
         elif num_samples_in_last_row > 1:
             self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-        else:
-            raise IndexError("pop from empty encoder")
-        self.is_dirty = True
-
-    # TODO think about appending with nones
-    def _pop_front(self, row):
-        num_samples_in_row = self._encoded[row][1] - self._encoded[row - 1]
-        if num_samples_in_row == 1:
-            self._encoded = self._encoded[:-1]
-        if num_samples_in_row > 1:
-            self._encoded[row] -= 1
         else:
             raise IndexError("pop from empty encoder")
         self.is_dirty = True

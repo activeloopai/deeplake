@@ -579,9 +579,7 @@ class ChunkEngine:
             sample_bytes += len(sample.buffer)
 
         sum_size = chunk_size + sample_bytes
-        if sum_size < self.min_chunk_size:
-            return True
-        return False
+        return sum_size < self.min_chunk_size
 
     def _samples_to_chunks(
         self,
@@ -590,19 +588,19 @@ class ChunkEngine:
         register: bool = True,
         update_commit_diff: bool = False,
         append_to_end: bool = True,
-        extend: bool = True,
+        update_tensor_meta: bool = True,
         fit_row: Optional[int] = None,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
 
         Args:
-            samples (List[Any]): Paramter shat shows the list of samples to be added to the chunk
-            start_chunk (Optional[BaseChunk]): Parameter tat points to the chunk on which the samples should be added
+            samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
+            start_chunk (Optional[BaseChunk]): Parameter that points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
-            append_to_end (bool): Parameter that show if we need to add samples to the end of the chunk or the begining
-            extend (bool): Parameter that showes if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
+            append_to_end (bool): Parameter that shows if we need to add samples to the end of the chunk or the begining
+            update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
             fit_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
 
         Returns:
@@ -621,7 +619,7 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
-                samples, extend=extend, end=append_to_end
+                samples, update_tensor_meta=update_tensor_meta, end=append_to_end
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
@@ -634,7 +632,7 @@ class ChunkEngine:
                         register=True,
                         update_commit_diff=True,
                         append_to_end=False,
-                        extend=False,
+                        update_tensor_meta=False,
                         fit_row=fit_row + 1,
                     )
                 current_chunk = self._create_new_chunk(register, row=fit_row)
@@ -664,7 +662,7 @@ class ChunkEngine:
                             register=True,
                             update_commit_diff=True,
                             append_to_end=False,
-                            extend=False,
+                            update_tensor_meta=False,
                             fit_row=fit_row + 1,
                         )
                     current_chunk = self._create_new_chunk(register, row=fit_row)
@@ -892,7 +890,7 @@ class ChunkEngine:
             link_callback=link_callback,
         )
 
-    def __get_samples_to_move(self, chunk) -> List[Sample]:
+    def _get_samples_to_move(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
         samples_to_move: List[Sample] = []
         sum_bytes = 0
@@ -918,9 +916,7 @@ class ChunkEngine:
         return samples_to_move
 
     def _get_chunk_samples(self, chunk) -> List[Sample]:
-        decompress = False
-        if isinstance(chunk, ChunkCompressedChunk):
-            decompress = True
+        decompress = isinstance(chunk, ChunkCompressedChunk)
 
         samples_to_move: List[Sample] = []
 
@@ -943,7 +939,7 @@ class ChunkEngine:
         return samples_to_move
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
-        samples_to_move = self.__get_samples_to_move(chunk=chunk)
+        samples_to_move = self._get_samples_to_move(chunk=chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
             return
@@ -962,7 +958,7 @@ class ChunkEngine:
             start_chunk=new_chunk,
             register=True,
             update_commit_diff=True,
-            extend=False,
+            update_tensor_meta=False,
             fit_row=new_chunk_row,
         )
 
@@ -986,7 +982,7 @@ class ChunkEngine:
             register=True,
             update_commit_diff=True,
             append_to_end=True,
-            extend=False,
+            update_tensor_meta=False,
             fit_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)

@@ -10,16 +10,21 @@ class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
         self,
         incoming_samples: Union[List[InputSample], np.ndarray],
-        extend: bool = True,
+        update_tensor_meta: bool = True,
         end: bool = True,
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
-            return self._extend_if_has_space_numpy(incoming_samples, extend, end)
-        return self._extend_if_has_space_list(incoming_samples, extend, end)
+            return self._extend_if_has_space_numpy(
+                incoming_samples, update_tensor_meta, end
+            )
+        return self._extend_if_has_space_list(incoming_samples, update_tensor_meta, end)
 
     def _extend_if_has_space_numpy(
-        self, incoming_samples: np.ndarray, extend: bool = True, end: bool = True
+        self,
+        incoming_samples: np.ndarray,
+        update_tensor_meta: bool = True,
+        end: bool = True,
     ) -> float:
         num_samples: int = 0
         buffer_size = 0
@@ -49,13 +54,16 @@ class UncompressedChunk(BaseChunk):
             sample_nbytes = samples[0].nbytes
             for _ in range(num_samples):
                 self.register_in_meta_and_headers(
-                    sample_nbytes, shape, extend=extend, end=end
+                    sample_nbytes, shape, update_tensor_meta=update_tensor_meta, end=end
                 )
 
         return float(num_samples)
 
     def _extend_if_has_space_list(
-        self, incoming_samples: List[InputSample], extend: bool = True, end: bool = True
+        self,
+        incoming_samples: List[InputSample],
+        update_tensor_meta: bool = True,
+        end: bool = True,
     ) -> float:
         num_samples: float = 0
 
@@ -82,7 +90,10 @@ class UncompressedChunk(BaseChunk):
                     else:
                         self.data_bytes += serialized_sample  # type: ignore
                     self.register_in_meta_and_headers(
-                        sample_nbytes, shape, extend=extend, end=end
+                        sample_nbytes,
+                        shape,
+                        update_tensor_meta=update_tensor_meta,
+                        end=end,
                     )
                     num_samples += 1
                 else:
