@@ -213,6 +213,34 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def _num_samples_in_last_chunk(self):
         return self._num_samples_in_last_row()
 
+    def pop(self, index) -> Tuple[List[ENCODING_DTYPE], bool]:
+        """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
+        Returns:
+            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
+        """
+        out = self.__getitem__(index, return_row_index=True)
+        chunk_ids = [out[i][0] for i in range(len(out))]
+        rows = [out[i][1] for i in range(len(out))]
+        if len(chunk_ids) > 1:  # tiled sample
+            np.delete(self._encoded, rows, axis=0)
+            to_delete = True
+        else:
+            row = rows[0]
+            prev = -1 if row == 0 else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+            num_samples_in_chunk = self.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+
+            if num_samples_in_chunk == 1:
+                np.delete(self._encoded, row, axis=0)
+                to_delete = True
+            elif num_samples_in_chunk > 1:
+                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
+                to_delete = False
+            else:
+                raise IndexError("pop from empty encoder")
+
+        self.is_dirty = True
+        return chunk_ids, to_delete
+
     def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:

@@ -747,6 +747,7 @@ class Tensor:
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _pop(self):
+        """Removes the last element of the tensor."""
         self.chunk_engine._pop()
         [self.dataset[link]._pop() for link in self.meta.links]
 
@@ -878,3 +879,9 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """Removes an element at the given index."""
+        self.chunk_engine.pop(index)
+        [self.dataset[link].pop() for link in self.meta.links]

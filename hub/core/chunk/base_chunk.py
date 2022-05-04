@@ -368,3 +368,11 @@ class BaseChunk(HubMemoryObject):
                     )
                 return np.zeros(shape, dtype=self.dtype)
         return None
+
+    def pop(self, index):
+        self.prepare_for_write()
+        sb, eb = self.byte_positions_encoder[index]
+        self.data_bytes = self.data_bytes[:sb] + self.data_bytes[eb:]
+        if not self.shapes_encoder.is_empty:
+            self.shapes_encoder.pop(index)
+        self.byte_positions_encoder.pop(index)

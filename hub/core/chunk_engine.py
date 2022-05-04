@@ -1208,6 +1208,47 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
+    def pop(self, index):
+        self._write_initialization()
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+
+        self.commit_diff.pop(index)
+        if self.is_sequence:
+            for idx in range(*self.sequence_encoder[index]):
+                self.pop_item(idx)
+        else:
+            self.pop_item(index)
+
+        self.cache.autoflush = initial_autoflush
+        self.cache.maybe_flush()
+
+    def pop_item(self, index):
+        chunk_ids, delete = self.chunk_id_encoder.pop(index)
+        if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
+            del self.tile_encoder[index]
+        elif not delete:  # There are other samples in the last chunk
+            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update.pop(index)
+        if delete:
+            active_chunks = [self.active_appended_chunk, self.active_updated_chunk]
+            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
+                for i, chunk in enumerate(active_chunks):
+                    if chunk is not None and chunk.key == chunk_key:
+                        active_chunks[i] = None
+                        if i == 0:
+                            self.active_appended_chunk = None
+                        else:
+                            self.active_updated_chunk = None
+                        try:
+                            del self.cache[chunk_key]
+                        except KeyError:
+                            pass
+                    else:
+                        del self.cache[chunk_key]
+
+        self.tensor_meta.pop(index)
+
     def _pop(self):
         if self.num_samples == 0:
             raise IndexError("pop from empty tensor")
