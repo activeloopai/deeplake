@@ -67,7 +67,7 @@ class UncompressedChunk(BaseChunk):
     ) -> float:
         num_samples: float = 0
 
-        if end is False:
+        if not end:
             incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
@@ -85,10 +85,11 @@ class UncompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    if end is False:
-                        self.data_bytes = serialized_sample + self.data_bytes  # type: ignore
-                    else:
+                    if end:
                         self.data_bytes += serialized_sample  # type: ignore
+                    else:
+                        self.data_bytes = serialized_sample + self.data_bytes  # type: ignore
+
                     self.register_in_meta_and_headers(
                         sample_nbytes,
                         shape,

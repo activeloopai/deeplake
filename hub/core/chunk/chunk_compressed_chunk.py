@@ -50,7 +50,7 @@ class ChunkCompressedChunk(BaseChunk):
     ):
         num_samples = 0
 
-        if end is False:
+        if not end:
             incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
@@ -80,10 +80,11 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
-                if end is False:
-                    new_decompressed = serialized_sample + self.decompressed_bytes  # type: ignore
-                else:
+                if end:
                     new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
+                else:
+                    new_decompressed = serialized_sample + self.decompressed_bytes  # type: ignore
+
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
                 )
@@ -95,10 +96,11 @@ class ChunkCompressedChunk(BaseChunk):
                 self._data_bytes = compressed_bytes
                 self._changed = False
             if not recompressed:
-                if end is False:
-                    self.decompressed_bytes = serialized_sample + self.decompressed_bytes  # type: ignore
-                else:
+                if end:
                     self.decompressed_bytes += serialized_sample  # type: ignore
+                else:
+                    self.decompressed_bytes = serialized_sample + self.decompressed_bytes  # type: ignore
+
             self._changed = True
             self.register_in_meta_and_headers(
                 sample_nbytes, shape, update_tensor_meta=update_tensor_meta, end=end
@@ -116,7 +118,7 @@ class ChunkCompressedChunk(BaseChunk):
         num_decompressed_bytes = sum(
             x.nbytes for x in self.decompressed_samples  # type: ignore
         )
-        if end is False:
+        if not end:
             incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
