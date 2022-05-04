@@ -1,5 +1,6 @@
 import os
 import hub
+import pathlib
 from typing import Dict, Optional, Union
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
@@ -421,8 +422,8 @@ class dataset:
 
     @staticmethod
     def copy(
-        src: Union[str, Dataset],
-        dest: str,
+        src: Union[str, Dataset, pathlib.Path],
+        dest: Union[str, pathlib.Path],
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
@@ -458,8 +459,15 @@ class dataset:
         """
         if isinstance(src, str):
             src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
+        elif isinstance(src, pathlib.Path):
+            src = str(src)
+            src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         else:
             src_ds = src
+
+        if isinstance(dest, pathlib.Path):
+            dest = str(dest)
+
         return src_ds.copy(
             dest,
             overwrite=overwrite,
