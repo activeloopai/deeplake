@@ -117,7 +117,7 @@ class BaseChunk(HubMemoryObject):
 
     @property
     def num_samples(self) -> int:
-        if self.shapes_encoder is not None:
+        if not self.shapes_encoder.is_empty():
             return self.shapes_encoder.num_samples
         else:
             return self.byte_positions_encoder.num_samples
@@ -388,7 +388,7 @@ class BaseChunk(HubMemoryObject):
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
 
-        if self.byte_positions_encoder.num_samples > 0:
+        if not self.byte_positions_encoder.is_empty():
             total_samples = self.shapes_encoder.num_samples
             starting_byte_first_popped_sample = self.byte_positions_encoder[
                 total_samples - num_samples
@@ -396,9 +396,9 @@ class BaseChunk(HubMemoryObject):
             self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
 
         for _ in range(num_samples):
-            if self.shapes_encoder.num_samples > 0:
+            if not self.shapes_encoder.is_empty():
                 self.shapes_encoder._pop()
-            if self.byte_positions_encoder.num_samples > 0:
+            if not self.byte_positions_encoder.is_empty():
                 self.byte_positions_encoder._pop()
 
     def _get_partial_sample_tile(self, as_bytes=False):

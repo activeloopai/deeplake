@@ -51,7 +51,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         if (
             self.num_chunks is None
             or self._encoded is None
-            or row == self.num_chunks - 1
+            or not row < self.num_chunks - 1
         ):
             return None
 

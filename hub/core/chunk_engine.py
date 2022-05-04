@@ -622,20 +622,19 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
-                if start_chunk_row is not None and self.can_fit_to_chunk(
-                    samples, chunk_id
-                ):
-                    next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
-                    return self._samples_to_chunks(
-                        samples,
-                        start_chunk=next_chunk,
-                        register=True,
-                        update_commit_diff=True,
-                        append_to_end=False,
-                        update_tensor_meta=False,
-                        start_chunk_row=start_chunk_row + 1,
-                    )
+                if start_chunk_row is not None:
+                    chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
+                    if self.can_fit_to_chunk(samples, chunk_id):
+                        next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
+                        return self._samples_to_chunks(
+                            samples,
+                            start_chunk=next_chunk,
+                            register=True,
+                            update_commit_diff=True,
+                            append_to_end=False,
+                            update_tensor_meta=False,
+                            start_chunk_row=start_chunk_row + 1,
+                        )
                 current_chunk = self._create_new_chunk(register, row=start_chunk_row)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
@@ -654,20 +653,21 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
-                    if start_chunk_row is not None and self.can_fit_to_chunk(
-                        samples, chunk_id
-                    ):
-                        next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
-                        return self._samples_to_chunks(
-                            samples,
-                            start_chunk=next_chunk,
-                            register=True,
-                            update_commit_diff=True,
-                            append_to_end=False,
-                            update_tensor_meta=False,
-                            start_chunk_row=start_chunk_row + 1,
+                    if start_chunk_row is not None:
+                        chunk_id = self.chunk_id_encoder.get_next_chunk_id(
+                            start_chunk_row
                         )
+                        if self.can_fit_to_chunk(samples, chunk_id):
+                            next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
+                            return self._samples_to_chunks(
+                                samples,
+                                start_chunk=next_chunk,
+                                register=True,
+                                update_commit_diff=True,
+                                append_to_end=False,
+                                update_tensor_meta=False,
+                                start_chunk_row=start_chunk_row + 1,
+                            )
                     current_chunk = self._create_new_chunk(
                         register, row=start_chunk_row
                     )
