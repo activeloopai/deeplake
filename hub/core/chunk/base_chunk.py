@@ -116,6 +116,13 @@ class BaseChunk(HubMemoryObject):
         return self.tensor_meta.htype
 
     @property
+    def num_samples(self) -> int:
+        if self.shapes_encoder is not None:
+            return self.shapes_encoder.num_samples
+        else:
+            return self.byte_positions_encoder.num_samples
+
+    @property
     def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
         return infer_chunk_num_bytes(
@@ -381,18 +388,18 @@ class BaseChunk(HubMemoryObject):
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
 
-        total_samples = self.shapes_encoder.num_samples
-        starting_byte_first_popped_sample = self.byte_positions_encoder[
-            total_samples - num_samples
-        ][0]
-        self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
+        if self.byte_positions_encoder.num_samples > 0:
+            total_samples = self.shapes_encoder.num_samples
+            starting_byte_first_popped_sample = self.byte_positions_encoder[
+                total_samples - num_samples
+            ][0]
+            self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
 
-        try:
-            for _ in range(num_samples):
+        for _ in range(num_samples):
+            if self.shapes_encoder.num_samples > 0:
                 self.shapes_encoder._pop()
+            if self.byte_positions_encoder.num_samples > 0:
                 self.byte_positions_encoder._pop()
-        except IndexError:
-            pass
 
     def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:

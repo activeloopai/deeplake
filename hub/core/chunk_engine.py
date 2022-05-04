@@ -895,8 +895,7 @@ class ChunkEngine:
         samples_to_move: List[Sample] = []
         sum_bytes = 0
 
-        num_samples = chunk.byte_positions_encoder.num_samples
-        for idx in range(num_samples - 1, int(num_samples / 2), -1):
+        for idx in range(chunk.num_samples - 1, 1, -1):
             sample_data = chunk.read_sample(idx, decompress=decompress)
             sum_bytes += len(sample_data)
             if sum_bytes > int(RANDOM_MAX_ALLOWED_CHUNK_SIZE / 2):
@@ -920,7 +919,7 @@ class ChunkEngine:
 
         samples_to_move: List[Sample] = []
 
-        for idx in range(0, chunk.byte_positions_encoder.num_samples):
+        for idx in range(0, chunk.num_samples):
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
 
