@@ -380,3 +380,26 @@ def test_byte_positions_encoder_update_bug(memory_ds):
     assert ds.abc[0].numpy().shape == (2, 2)
     for i in range(1, 10):
         assert ds.abc[i].numpy().shape == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {},
+        {"sample_compression": "lz4"},
+        {"chunk_compression": "lz4"},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
+def test_update_partial(memory_ds, args):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", **args)
+        ds.x.append(np.ones((10, 10, 3), dtype=np.uint8))
+        ds.x[0][0:2, 0:3, :1] = np.zeros((2, 3, 1), dtype=np.uint8)
+    assert ds.x[0].shape == (10, 10, 3)
+    arr = ds.x[0].numpy()
+    exp = np.ones((10, 10, 3), dtype=np.uint8)
+    exp[0:2, 0:3, 0] *= 0
+    np.testing.assert_array_equal(arr, exp)

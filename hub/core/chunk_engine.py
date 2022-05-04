@@ -862,7 +862,12 @@ class ChunkEngine:
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
-                chunk.update_sample(local_sample_index, sample)
+                if len(index.values) == 1:
+                    chunk.update_sample(local_sample_index, sample)
+                else:
+                    orig_sample = chunk.read_sample(local_sample_index, copy=True)
+                    orig_sample[tuple(e.value for e in index.values[1:])] = sample
+                    chunk.update_sample(local_sample_index, orig_sample)
                 if (
                     self.active_updated_chunk is not None
                     and self.active_updated_chunk.key != chunk.key  # type: ignore

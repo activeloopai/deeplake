@@ -162,7 +162,10 @@ class ChunkCompressedChunk(BaseChunk):
             decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
-        return np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
+        ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
+        if copy and not ret.flags["WRITEABLE"]:
+            ret = ret.copy()
+        return ret
 
     def update_sample(self, local_index: int, new_sample: InputSample):
         self.prepare_for_write()
