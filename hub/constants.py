@@ -23,6 +23,8 @@ SUPPORTED_MODES = ["r", "a"]
 # min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
 DEFAULT_MAX_CHUNK_SIZE = 32 * MB
 
+DEFAULT_TILING_THRESHOLD = None  # Note: set to -1 to disable tiling
+
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 

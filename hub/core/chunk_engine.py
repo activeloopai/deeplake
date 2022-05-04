@@ -14,7 +14,12 @@ from hub.core.tiling.deserialize import combine_chunks, translate_slices, coales
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
+from hub.constants import (
+    DEFAULT_MAX_CHUNK_SIZE,
+    FIRST_COMMIT_ID,
+    PARTIAL_NUM_SAMPLES,
+    DEFAULT_TILING_THRESHOLD,
+)
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -189,10 +194,19 @@ class ChunkEngine:
         )
 
     @property
+    def tiling_threshold(self):
+        return (
+            getattr(self.tensor_meta, "tiling_threshold", None)
+            or DEFAULT_TILING_THRESHOLD
+            or self.min_chunk_size
+        )
+
+    @property
     def chunk_args(self):
         return [
             self.min_chunk_size,
             self.max_chunk_size,
+            self.tiling_threshold,
             self.tensor_meta,
             self.compression,
         ]
