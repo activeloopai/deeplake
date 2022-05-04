@@ -21,6 +21,7 @@ from hub.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_sequence_encoder_key,
     tensor_exists,
     get_tensor_info_key,
     get_sample_id_tensor_key,
@@ -160,6 +161,12 @@ def delete_tensor(key: str, dataset):
     tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
     try:
         del storage[tile_encoder_key]
+    except KeyError:
+        pass
+
+    seq_encoder_key = get_sequence_encoder_key(key, commit_id)
+    try:
+        del storage[seq_encoder_key]
     except KeyError:
         pass
 
@@ -459,7 +466,7 @@ class Tensor:
         htype = self.meta.htype
         if self.is_sequence:
             htype = f"sequence[{htype}]"
-        if self.is_sequence:
+        if self.is_link:
             htype = f"link[{htype}]"
         return htype
 
@@ -584,6 +591,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        update_link_callback = self._update_links if self.meta.links else None
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False
@@ -597,13 +605,20 @@ class Tensor:
             and item >= self.num_samples
         ):
             num_samples_to_pad = item - self.num_samples
-            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            append_link_callback = self._append_to_links if self.meta.links else None
+
+            self.chunk_engine.pad_and_append(
+                num_samples_to_pad,
+                value,
+                append_link_callback=append_link_callback,
+                update_link_callback=update_link_callback,
+            )
             return
 
         self.chunk_engine.update(
             self.index[item_index],
             value,
-            link_callback=self._update_links if self.meta.links else None,
+            link_callback=update_link_callback,
         )
 
     def __iter__(self):

@@ -79,8 +79,7 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[audio]       -> Audio support via miniaudio
-pip3 install hub[video]       -> Video support via pyav
+pip3 install hub[av]          -> Audio and video support via PyAV
 pip3 install hub[gcp]         -> GCS support via google-* dependencies
 pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
 pip3 install hub[all]         -> Installs everything - audio, video and GCS support
@@ -164,6 +163,7 @@ A hub dataset can be created in various locations (Storage providers). This is h
 | Activeloop cloud        | hub://user_name/dataset_name   |
 | AWS S3 / S3 compatible  | s3://bucket_name/dataset_name  |
 | GCP                     | gcp://bucket_name/dataset_name |
+| Google Drive            | gdrive://path_to_dataset
 | Local storage           | path to local directory        |
 | In-memory               | mem://dataset_name             |
 

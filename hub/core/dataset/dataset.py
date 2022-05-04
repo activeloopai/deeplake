@@ -278,7 +278,7 @@ class Dataset:
         self.is_first_load = True
         self._info = None
         self._ds_diff = None
-        self._set_derived_attributes()
+        self._set_derived_attributes(verbose=False)
 
     def __getitem__(
         self,
@@ -684,50 +684,12 @@ class Dataset:
         del meta["length"]
         del meta["version"]
         del meta["name"]
-        del meta["links"]
 
         destination_tensor = self.create_tensor(name, **meta)
         destination_tensor.info.update(info)
         return destination_tensor
 
-    @hub_reporter.record_call
-    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
-        """Renames tensor with name `name` to `new_name`
-
-        Args:
-            name (str): Name of tensor to be renamed.
-            new_name (str): New name of tensor.
-
-        Returns:
-            Tensor: Renamed tensor.
-
-        Raises:
-            TensorAlreadyExistsError: Duplicate tensors are not allowed.
-            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
-            InvalidTensorNameError: If `new_name` is in dataset attributes.
-            RenameError: If `new_name` points to a group different from `name`.
-        """
-        auto_checkout(self)
-
-        name = filter_name(name, self.group_index)
-        new_name = filter_name(new_name, self.group_index)
-
-        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
-            raise RenameError("New name of tensor cannot point to a different group")
-
-        if new_name in self.version_state["tensor_names"]:
-            raise TensorAlreadyExistsError(new_name)
-
-        if new_name in self._groups:
-            raise TensorGroupAlreadyExistsError(new_name)
-
-        new_tensor_name = posixpath.split(new_name)[1]
-        if not new_tensor_name or new_tensor_name in dir(self):
-            raise InvalidTensorNameError(new_name)
-
-        if not self._is_root():
-            return self.root.rename_tensor(name, new_name)
-
+    def _rename_tensor(self, name, new_name):
         tensor = self[name]
         tensor.meta.name = new_name
         key = self.version_state["tensor_names"].pop(name)
@@ -751,10 +713,104 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.rename_tensor(t_old, t_new)
+                self._rename_tensor(t_old, t_new)
+
+        return tensor
+
+    @hub_reporter.record_call
+    def rename_tensor(self, name: str, new_name: str) -> "Tensor":
+        """Renames tensor with name `name` to `new_name`
+
+        Args:
+            name (str): Name of tensor to be renamed.
+            new_name (str): New name of tensor.
+
+        Returns:
+            Tensor: Renamed tensor.
+
+        Raises:
+            TensorDoesNotExistError: If tensor of name `name` does not exist in the dataset.
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorNameError: If `new_name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
+        """
+        auto_checkout(self)
+
+        if name not in self._tensors():
+            raise TensorDoesNotExistError(name)
+
+        name = filter_name(name, self.group_index)
+        new_name = filter_name(new_name, self.group_index)
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("New name of tensor cannot point to a different group")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        if new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
+            raise InvalidTensorNameError(new_name)
+
+        tensor = self.root._rename_tensor(name, new_name)
 
         self.storage.maybe_flush()
         return tensor
+
+    @hub_reporter.record_call
+    def rename_group(self, name: str, new_name: str) -> None:
+        """Renames group with name `name` to `new_name`
+
+        Args:
+            name (str): Name of group to be renamed.
+            new_name (str): New name of group.
+
+        Raises:
+            TensorGroupDoesNotExistError: If tensor group of name `name` does not exist in the dataset.
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
+            InvalidTensorGroupNameError: If `name` is in dataset attributes.
+            RenameError: If `new_name` points to a group different from `name`.
+        """
+        auto_checkout(self)
+
+        name = filter_name(name, self.group_index)
+        new_name = filter_name(new_name, self.group_index)
+
+        if name not in self._groups:
+            raise TensorGroupDoesNotExistError(name)
+
+        if posixpath.split(name)[0] != posixpath.split(new_name)[0]:
+            raise RenameError("Names does not match.")
+
+        if new_name in self.version_state["tensor_names"]:
+            raise TensorAlreadyExistsError(new_name)
+
+        if new_name in self._groups:
+            raise TensorGroupAlreadyExistsError(new_name)
+
+        new_tensor_name = posixpath.split(new_name)[1]
+        if not new_tensor_name or new_tensor_name in dir(self):
+            raise InvalidTensorGroupNameError(new_name)
+
+        meta = self.meta
+        meta.rename_group(name, new_name)
+
+        root = self.root
+        for tensor in filter(
+            lambda x: x.startswith(name),
+            map(lambda y: y.meta.name or y.key, self.tensors.values()),
+        ):
+            root._rename_tensor(
+                tensor,
+                posixpath.join(new_name, posixpath.relpath(tensor, name)),
+            )
+
+        self.storage.maybe_flush()
 
     __getattr__ = __getitem__
 
@@ -873,6 +929,7 @@ class Dataset:
 
         return self._commit(message)
 
+    @hub_reporter.record_call
     def merge(
         self,
         target_id: str,
@@ -1007,6 +1064,7 @@ class Dataset:
 
         return self.commit_id
 
+    @hub_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
@@ -1020,6 +1078,7 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
+    @hub_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1096,10 +1155,10 @@ class Dataset:
         print(all_changes)
         return None
 
-    def _populate_meta(self):
+    def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            if self.verbose:
+            if verbose and self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
             load_meta(self)
 
@@ -1307,7 +1366,7 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self):
+    def _set_derived_attributes(self, verbose: bool = True):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
@@ -1316,7 +1375,7 @@ class Dataset:
             self._set_read_only(
                 self._read_only, False
             )  # TODO: weird fix for dataset unpickling
-            self._populate_meta()  # TODO: use the same scheme as `load_info`
+            self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
         elif not self._read_only:
             self._lock()  # for ref counting
         if not self.is_iteration:
@@ -1661,6 +1720,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
+    @hub_reporter.record_call
     def create_group(self, name: str) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -2133,12 +2193,13 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
+    @hub_reporter.record_call
     def copy(
         self,
         dest: str,
         overwrite: bool = False,
-        dest_creds=None,
-        dest_token=None,
+        creds=None,
+        token=None,
         num_workers: int = 0,
         scheduler="threaded",
         progressbar=True,
@@ -2148,8 +2209,8 @@ class Dataset:
         Args:
             dest (str): Destination path to copy to.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            dest_creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
-            dest_token (str, Optional): token used to for fetching credentials to `dest`.
+            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            token (str, Optional): token used to for fetching credentials to `dest`.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
@@ -2164,8 +2225,8 @@ class Dataset:
         dest_ds = hub.like(
             dest,
             self,
-            creds=dest_creds,
-            token=dest_token,
+            creds=creds,
+            token=token,
             overwrite=overwrite,
         )
         with dest_ds:

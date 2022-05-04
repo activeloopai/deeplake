@@ -14,7 +14,12 @@ from hub.core.tiling.deserialize import combine_chunks, translate_slices, coales
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
+from hub.constants import (
+    DEFAULT_MAX_CHUNK_SIZE,
+    FIRST_COMMIT_ID,
+    PARTIAL_NUM_SAMPLES,
+    DEFAULT_TILING_THRESHOLD,
+)
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -189,10 +194,19 @@ class ChunkEngine:
         )
 
     @property
+    def tiling_threshold(self):
+        return (
+            getattr(self.tensor_meta, "tiling_threshold", None)
+            or DEFAULT_TILING_THRESHOLD
+            or self.min_chunk_size
+        )
+
+    @property
     def chunk_args(self):
         return [
             self.min_chunk_size,
             self.max_chunk_size,
+            self.tiling_threshold,
             self.tensor_meta,
             self.compression,
         ]
@@ -710,6 +724,13 @@ class ChunkEngine:
         except KeyError:
             pass
 
+        seq_encoder_key = get_sequence_encoder_key(self.key, commit_id)
+        try:
+            self._sequence_encoder = None
+            del self.cache[seq_encoder_key]
+        except KeyError:
+            pass
+
         self.tensor_meta.length = 0
         self.tensor_meta.min_shape = []
         self.tensor_meta.max_shape = []
@@ -772,13 +793,19 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
 
-    def pad_and_append(self, num_samples_to_pad: int, value):
+    def pad_and_append(
+        self,
+        num_samples_to_pad: int,
+        value,
+        append_link_callback=None,
+        update_link_callback=None,
+    ):
         """Pads the tensor with empty samples and appends value at the end."""
         update_first_sample = False
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value])
+                self.extend([value], link_callback=append_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -794,12 +821,12 @@ class ChunkEngine:
                 empty_samples = np.zeros(shape, dtype=dtype)  # type: ignore
 
             if update_first_sample:
-                self.update(Index(0), empty_sample)
+                self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples)
+            self.extend(empty_samples, link_callback=append_link_callback)
 
-        self.extend([value])
+        self.extend([value], link_callback=append_link_callback)
 
     def update(
         self,

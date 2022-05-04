@@ -15,11 +15,13 @@ from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
     TensorAlreadyExistsError,
+    TensorGroupDoesNotExistError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    InvalidTensorGroupNameError,
     RenameError,
     PathNotEmptyException,
     BadRequestException,
@@ -1024,6 +1026,16 @@ def test_tensor_delete(local_ds_generator):
     assert ds.tensors == {}
 
 
+def test_group_delete_bug(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc/first")
+        ds.delete_group("abc")
+
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert ds.groups == {}
+
+
 def test_tensor_rename(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("x/y/z")
@@ -1067,6 +1079,37 @@ def test_tensor_rename(local_ds_generator):
     ds.delete_tensor("x/y/b")
 
 
+def test_group_rename(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("g1/g2/g3/g4/t1")
+        ds.create_group("g1/g2/g6")
+        ds.create_tensor("g1/g2/t")
+        ds["g1/g2/g3/g4/t1"].append([1, 2, 3])
+        ds["g1/g2"].rename_group("g3/g4", "g3/g5")
+        np.testing.assert_array_equal(
+            ds["g1/g2/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+        with pytest.raises(TensorGroupDoesNotExistError):
+            ds["g1"].rename_group("g2/g4", "g2/g5")
+        with pytest.raises(TensorGroupAlreadyExistsError):
+            ds["g1"].rename_group("g2/g3", "g2/g6")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds["g1"].rename_group("g2/g3", "g2/t")
+        with pytest.raises(InvalidTensorGroupNameError):
+            ds["g1"].rename_group("g2/g3", "g2/append")
+        with pytest.raises(RenameError):
+            ds["g1"].rename_group("g2/g3", "g/g4")
+        ds["g1"].rename_group("g2", "g6")
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+
+    with local_ds_generator() as ds:
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+
+
 def test_vc_bug(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("abc")
@@ -1077,6 +1120,9 @@ def test_vc_bug(local_ds_generator):
     assert list(ds.tensors) == ["abc", "a/b/c/d"]
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     ds = memory_ds
     ds.create_tensor("image", sample_compression="jpeg")
@@ -1094,9 +1140,8 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
-@enabled_persistent_dataset_generators
-def test_tensor_clear(ds_generator):
-    ds = ds_generator()
+def test_tensor_clear(local_ds_generator):
+    ds = local_ds_generator()
     a = ds.create_tensor("a")
     a.extend([1, 2, 3, 4])
     a.clear()
@@ -1114,11 +1159,20 @@ def test_tensor_clear(ds_generator):
     image.extend(np.ones((4, 224, 224, 3), dtype="uint8"))
     a.append([1, 2, 3])
 
-    ds = ds_generator()
+    ds = local_ds_generator()
     assert len(ds) == 1
     assert len(image) == 4
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+
+def test_tensor_clear_seq(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3, 4]])
+        ds.abc.extend([[1, 2, 3, 4, 5]])
+        ds.abc.clear()
+        assert ds.abc.shape == (0, 0)
 
 
 def test_no_view(memory_ds):
@@ -1310,7 +1364,7 @@ def test_sample_shape(memory_ds):
 
 
 @enabled_remote_storages
-def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
+def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_creds):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
         byts = f.read()
@@ -1322,12 +1376,18 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths):
     assert memory_ds.images[0].shape == (300, 200, 3)
 
     storage["sample/samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/sample/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/sample/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[1].shape == (323, 480, 3)
 
     storage["samplejpg.jpg"] = byts
-    image = hub.read(f"{storage.root}/samplejpg.jpg")
+    image = hub.read(
+        f"{storage.root}/samplejpg.jpg",
+        creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
+    )
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
 
@@ -1366,6 +1426,19 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
         ds.create_tensor("x", htype="sequence", **args)
         for _ in range(10):
             ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (10, 5, 2, 7, 3)
+    ds.checkout("branch", create=True)
+    with ds:
+        for _ in range(5):
+            ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
+    np.testing.assert_array_equal(
+        np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((15, 5, 2, 7, 3))[idx]
+    )
+    assert ds.x.shape == (15, 5, 2, 7, 3)
+    ds.checkout("main")
     np.testing.assert_array_equal(
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
     )

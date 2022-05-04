@@ -47,7 +47,8 @@ class DatasetQuery:
                 }
                 p.update(self._groups)
                 if eval(self._cquery, p):
-                    idx_map.append(local_idx)
+                    global_index = blk.indices()[local_idx]
+                    idx_map.append(global_index)
                     self._pg_callback(local_idx, True)
                 else:
                     self._pg_callback(local_idx, False)

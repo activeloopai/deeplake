@@ -101,6 +101,7 @@ COMMON_CONFIGS = {
     "chunk_compression": None,
     "dtype": None,
     "max_chunk_size": None,
+    "tiling_threshold": None,
     "is_sequence": False,
     "is_link": False,
     "hidden": False,
