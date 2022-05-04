@@ -36,7 +36,7 @@ def link(
         >>> ds.img.append(hub.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
         >>> ds.img.append(hub.link("https://picsum.photos/200/300")) # doesn't need creds
         >>> ds.img.append(hub.link("s3://abc/def.jpeg"))  # will use creds from environment
-        >>> ds.img.append(hub.link("s3://abc/def.jpeg"), creds_key="ENV")  # this will also use creds from environment
+        >>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will also use creds from environment
 
         Accessing the data
         >>> for i in range(5):
