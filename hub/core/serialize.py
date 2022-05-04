@@ -29,6 +29,7 @@ def infer_header_num_bytes(
     version: str, shape_info: np.ndarray, byte_positions: np.ndarray
 ):
     """Calculates the number of header bytes in a chunk without serializing it.
+
     Args:
         version: (str) Version of hub library
         shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.

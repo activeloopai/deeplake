@@ -1,12 +1,11 @@
-from typing import Dict
-from hub.core.storage import LRUCache
+from typing import Dict, Tuple
 
 
 class PartialReader:
-    def __init__(self, cache: LRUCache, path: str, header_offset: int):
+    def __init__(self, cache, path: str, header_offset: int):
         self.cache = cache
         self.path = path
-        self.data_fetched: Dict[tuple[int, int], memoryview] = {}
+        self.data_fetched: Dict[Tuple[int, int], memoryview] = {}
         self.header_offset = header_offset
 
     def __getitem__(self, slice_: slice) -> memoryview:
