@@ -705,3 +705,6 @@ class InfoError(Exception):
 class IncompleteHeaderBytesError(Exception):
     def __init__(self, out_of_range_byte):
         self.out_of_range_byte = out_of_range_byte
+        super().__init__(
+            f"The bytes of header are incomplete. The byte {out_of_range_byte} is out of range."
+        )
