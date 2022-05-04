@@ -61,7 +61,7 @@ class SampleCompressedChunk(BaseChunk):
     ):
         if not decompress and stream:
             raise Exception("`decompress=False` is not valid when `stream=True`")
-        if self.is_empty_tensor():
+        if self.is_empty_tensor:
             raise EmptyTensorError
 
         partial_sample_tile = self._get_partial_sample_tile()

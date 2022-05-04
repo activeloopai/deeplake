@@ -79,7 +79,7 @@ class UncompressedChunk(BaseChunk):
         copy: bool = False,
         decompress: bool = True,
     ):
-        if self.is_empty_tensor():
+        if self.is_empty_tensor:
             raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:

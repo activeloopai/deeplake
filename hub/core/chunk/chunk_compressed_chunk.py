@@ -97,7 +97,7 @@ class ChunkCompressedChunk(BaseChunk):
         for i, incoming_sample in enumerate(incoming_samples):
             incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
 
-            if shape is not None and self.is_empty_tensor() and len(shape) != 3:
+            if shape is not None and self.is_empty_tensor and len(shape) != 3:
                 self.change_dimensionality(shape)
 
             if isinstance(incoming_sample, SampleTiles):
@@ -155,7 +155,7 @@ class ChunkCompressedChunk(BaseChunk):
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
-        if self.is_empty_tensor():
+        if self.is_empty_tensor:
             raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
@@ -212,7 +212,7 @@ class ChunkCompressedChunk(BaseChunk):
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
-        if self.is_empty_tensor() and len(shape) != 3:
+        if self.is_empty_tensor and len(shape) != 3:
             self.change_dimensionality(shape)
         self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
@@ -325,9 +325,10 @@ class ChunkCompressedChunk(BaseChunk):
         ffw_chunk(self)
         self.is_dirty = True
 
+    @property
     def is_empty_tensor(self):
         if self.is_byte_compression:
-            return super().is_empty_tensor()
+            return super().is_empty_tensor
         return self.tensor_meta.max_shape == [0, 0, 0]
 
     def change_dimensionality(self, shape):
