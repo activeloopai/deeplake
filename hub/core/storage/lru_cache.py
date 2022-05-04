@@ -435,5 +435,4 @@ class LRUCache(StorageProvider):
         except KeyError:
             if self.next_storage is not None:
                 return self.next_storage.get_object_size(key)
-            else:
-                raise
+            raise
