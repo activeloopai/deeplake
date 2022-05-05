@@ -20,8 +20,8 @@ pybind_extension(
     deps = [
         "@com_github_3rdparty_eventuals//eventuals",
     ],
-    linkopts = ["-lcurl"],
-    copts = ["-std=c++2a", "-fcoroutines", "-fPIC", "-lstdc++", "-laws-cpp-sdk-core", "-laws-cpp-sdk-s3"],
+    linkopts = ["-lcurl", "-lstdc++", "-laws-cpp-sdk-core", "-laws-cpp-sdk-s3"],
+    copts = ["-std=c++2a", "-fcoroutines"],
 )
 
 

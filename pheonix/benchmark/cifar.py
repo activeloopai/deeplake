@@ -1,14 +1,29 @@
 import hub
+import tqdm
 
-def main():
+
+def hub_dataset(
+    path: str,
+    batch_size: int = 128,
+    local: bool = True,
+    local_path: str = "./data/tmp_dataset",
+):
     # copy the dataset to local machine
-    if not hub.exists("./data/cifar100"):
-        hub.copy("hub://activeloop/cifar100-train", "./data/cifar100")
+    if not hub.exists(local_path) and local:
+        hub.copy(path, local_path)
+    else: 
+        local_path = path
 
-    ds = hub.load("./data/cifar100")
+    ds = hub.load(local_path)
 
-    for el in ds.pytorch(num_workers=0, use_progress_bar=True):
+    return ds.pytorch(batch_size=batch_size)
+
+def loop(dataloader):
+    for el in tqdm.tqdm(dataloader):
+        # TODO add model pass
         pass
 
+
 if __name__ == "__main__":
-    main()
+    dataloader = hub_dataset("hub://activeloop/cifar100-train", local=False)
+    loop(dataloader)
