@@ -463,14 +463,15 @@ class dataset:
         return src_ds.copy(
             dest,
             overwrite=overwrite,
-            dest_creds=dest_creds,
-            dest_token=dest_token,
+            creds=dest_creds,
+            token=dest_token,
             num_workers=num_workers,
             scheduler=scheduler,
             progressbar=progressbar,
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def deepcopy(
         src: str,
         dest: str,

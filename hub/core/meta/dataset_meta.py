@@ -1,5 +1,6 @@
 from typing import Any, Dict
 from hub.core.meta.meta import Meta
+import posixpath
 
 
 class DatasetMeta(Meta):
@@ -59,9 +60,29 @@ class DatasetMeta(Meta):
     def delete_group(self, name):
         self.groups = list(filter(lambda g: not g.startswith(name), self.groups))
         self.tensors = list(filter(lambda t: not t.startswith(name), self.tensors))
+        self.hidden_tensors = list(
+            filter(lambda t: not t.startswith(name), self.hidden_tensors)
+        )
+        tensor_names_keys = list(self.tensor_names.keys())
+        for key in tensor_names_keys:
+            if key.startswith(name):
+                self.tensor_names.pop(key)
         self.is_dirty = True
 
     def rename_tensor(self, name, new_name):
         key = self.tensor_names.pop(name)
         self.tensor_names[new_name] = key
+        self.is_dirty = True
+
+    def rename_group(self, name, new_name):
+        self.groups.remove(name)
+        self.groups = list(
+            map(
+                lambda g: posixpath.join(new_name, posixpath.relpath(g, name))
+                if g.startswith(name)
+                else g,
+                self.groups,
+            )
+        )
+        self.groups.append(new_name)
         self.is_dirty = True

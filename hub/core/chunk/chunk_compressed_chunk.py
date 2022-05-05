@@ -80,6 +80,8 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
+
+                decompressed_bytes = self.decompressed_bytes
                 if end:
                     new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
                 else:
@@ -88,7 +90,14 @@ class ChunkCompressedChunk(BaseChunk):
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
                 )
-                if len(compressed_bytes) > self.min_chunk_size:
+                num_compressed_bytes = len(compressed_bytes)
+                tiling_threshold = self.tiling_threshold
+                if num_compressed_bytes > self.min_chunk_size and not (
+                    not decompressed_bytes
+                    and (
+                        tiling_threshold < 0 or num_compressed_bytes > tiling_threshold
+                    )
+                ):
                     break
                 recompressed = True
                 self.decompressed_bytes = new_decompressed
@@ -147,7 +156,14 @@ class ChunkCompressedChunk(BaseChunk):
                     new_samples,  # type: ignore
                     compression=self.compression,
                 )
-                if len(compressed_bytes) > self.min_chunk_size:
+                num_compressed_bytes = len(compressed_bytes)
+                tiling_threshold = self.tiling_threshold
+                if num_compressed_bytes > self.min_chunk_size and not (
+                    not decompressed_samples
+                    and (
+                        tiling_threshold < 0 or num_compressed_bytes > tiling_threshold
+                    )
+                ):
                     break
                 self._compression_ratio /= 2
                 self._data_bytes = compressed_bytes
@@ -278,11 +294,14 @@ class ChunkCompressedChunk(BaseChunk):
         ratio = get_compression_ratio(self.compression)
         approx_compressed_size = sample.nbytes * ratio
 
-        if approx_compressed_size > self.min_chunk_size:
+        if (
+            self.tiling_threshold >= 0
+            and approx_compressed_size > self.tiling_threshold
+        ):
             sample = SampleTiles(
                 sample,
                 self.compression,
-                self.min_chunk_size,
+                self.tiling_threshold,
                 store_uncompressed_tiles=True,
             )
 

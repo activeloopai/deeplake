@@ -85,12 +85,15 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
     # if tensor meta is empty, copy attributes from current_meta
     if len(ds_tensor_meta.max_shape) == 0 or ds_tensor_meta.dtype is None:
         ds_tensor_meta.set_dtype_str(worker_tensor_meta.dtype)
+        if not ds_tensor_meta.htype and worker_tensor_meta.htype:
+            ds_tensor_meta.set_htype(worker_tensor_meta.htype)
         ds_tensor_meta.update_length(worker_tensor_meta.length)
         ds_tensor_meta.update_shape_interval(worker_tensor_meta.max_shape)
         ds_tensor_meta.update_shape_interval(worker_tensor_meta.min_shape)
     # len of min_shape will be 0 if 0 outputs from worker
     elif len(worker_tensor_meta.min_shape) != 0:
         assert ds_tensor_meta.dtype == worker_tensor_meta.dtype
+        assert ds_tensor_meta.htype == worker_tensor_meta.htype
         # TODO we can support this once we have ragged tensor support
         assert len(ds_tensor_meta.max_shape) == len(worker_tensor_meta.max_shape)
         assert len(ds_tensor_meta.min_shape) == len(worker_tensor_meta.min_shape)
