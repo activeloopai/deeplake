@@ -1,12 +1,15 @@
 from hub.core.sample import Sample  # type: ignore
 from typing import Optional, Dict
 
+from hub.core.storage.provider import StorageProvider
+
 
 def read(
     path: str,
     verify: bool = False,
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
+    storage: Optional[StorageProvider] = None,
 ) -> Sample:
     """Utility that reads raw data from supported files into hub format.
 
@@ -45,8 +48,11 @@ def read(
         verify (bool):  If True, contents of the file are verified.
         creds (optional, Dict): Credentials for s3 and gcp for urls.
         compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
+        storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
-    return Sample(path, verify=verify, compression=compression, creds=creds)
+    return Sample(
+        path, verify=verify, compression=compression, creds=creds, storage=storage
+    )

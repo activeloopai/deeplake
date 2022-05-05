@@ -1,6 +1,7 @@
 from hub.core.storage.gcs import GCSProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.google_drive import GDriveProvider
 from hub.core.storage.local import LocalProvider
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import (
@@ -15,20 +16,26 @@ import pytest
 
 enabled_storages = pytest.mark.parametrize(
     "storage",
-    ["memory_storage", "local_storage", "s3_storage", "gcs_storage"],
+    ["memory_storage", "local_storage", "s3_storage", "gcs_storage", "gdrive_storage"],
     indirect=True,
 )
 
 enabled_persistent_storages = pytest.mark.parametrize(
     "storage",
-    ["local_storage", "s3_storage", "gcs_storage"],
+    ["local_storage", "s3_storage", "gcs_storage", "gdrive_storage"],
     indirect=True,
 )
 
 
 enabled_remote_storages = pytest.mark.parametrize(
     "storage",
-    ["s3_storage", "gcs_storage", "gcs_root_storage", "s3_root_storage"],
+    [
+        "s3_storage",
+        "gcs_storage",
+        "gdrive_storage",
+        "gcs_root_storage",
+        "s3_root_storage",
+    ],
     indirect=True,
 )
 
@@ -49,6 +56,11 @@ def s3_storage(s3_path):
 
 
 @pytest.fixture
+def gdrive_storage(gdrive_path, gdrive_creds):
+    return GDriveProvider(gdrive_path, token=gdrive_creds)
+
+
+@pytest.fixture
 def gcs_storage(gcs_path):
     return GCSProvider(gcs_path)
 
@@ -64,7 +76,7 @@ def s3_root_storage(request):
 
 @pytest.fixture
 def gcs_root_storage(request, gcs_creds):
-    if not is_opt_true(request, S3_OPT):
+    if not is_opt_true(request, GCS_OPT):
         pytest.skip()
         return
 

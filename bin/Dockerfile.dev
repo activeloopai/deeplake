@@ -39,4 +39,8 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 0 --slave /us
 RUN pip install -r hub/requirements/plugins.txt && \
     pip install -r hub/requirements/tests.txt
 
+<<<<<<< HEAD
 RUN pip install -e .[all]
+=======
+RUN pip install -e .[all]
+>>>>>>> main

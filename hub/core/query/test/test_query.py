@@ -209,3 +209,27 @@ def test_multi_category_labels(local_ds):
     for v in (view1, view2, view3, view4):
         np.testing.assert_array_equal(v.image.numpy(), exp_images)
         np.testing.assert_array_equal(v.label.numpy(), exp_labels)
+
+
+@hub.compute
+def create_dataset(class_num, sample_out):
+    """Add new element with a specific class"""
+    sample_out.append({"classes": np.uint32(class_num)})
+    return sample_out
+
+
+def test_query_bug_transformed_dataset(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "classes",
+            htype="class_label",
+            class_names=["class_0", "class_1", "class_2"],
+        )
+
+    with local_ds as ds:
+        # Add 30 elements with randomly generated class
+        list_classes = list(np.random.randint(3, size=30, dtype=np.uint32))
+        create_dataset().eval(list_classes, ds, num_workers=2)
+
+    ds_view = local_ds.filter("classes == 'class_0'", scheduler="threaded")
+    np.testing.assert_array_equal(ds_view.classes.numpy()[:, 0], [0] * len(ds_view))

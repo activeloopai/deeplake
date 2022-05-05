@@ -45,6 +45,12 @@ def pytest_addoption(parser):
         default=PYTEST_S3_PROVIDER_BASE_ROOT,
     )
     parser.addoption(
+        GDRIVE_PATH_OPT,
+        type=str,
+        help="Google drive folder id. Example: gdrive://folder_name/folder_name",
+        default=PYTEST_GDRIVE_PROVIDER_BASE_ROOT,
+    )
+    parser.addoption(
         KEEP_STORAGE_OPT,
         action="store_true",
         help="All storage providers/datasets will have their pytest data wiped. \

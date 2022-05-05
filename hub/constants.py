@@ -23,6 +23,8 @@ SUPPORTED_MODES = ["r", "a"]
 # min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
 DEFAULT_MAX_CHUNK_SIZE = 32 * MB
 
+DEFAULT_TILING_THRESHOLD = None  # Note: set to -1 to disable tiling
+
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 
@@ -54,6 +56,7 @@ META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
 ENCODED_TILE_NAMES_FOLDER = "tiles_index"
+ENCODED_CREDS_FOLDER = "creds_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
@@ -69,8 +72,11 @@ ENV_HUB_DEV_PASSWORD = "ACTIVELOOP_HUB_PASSWORD"
 ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
 ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
+ENV_GDRIVE_CLIENT_ID = "GDRIVE_CLIENT_ID"
+ENV_GDRIVE_CLIENT_SECRET = "GDRIVE_CLIENT_SECRET"
+ENV_GDRIVE_REFRESH_TOKEN = "GDRIVE_REFRESH_TOKEN"
 
-HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)
+HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)  # type: ignore
 HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 
 # dataset base roots for pytests
@@ -78,6 +84,9 @@ PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
+PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
+    "gdrive://hubtest"  # TODO: personal folder, replace with hub's
+)
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
     None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"
 )
@@ -90,6 +99,7 @@ GCS_OPT = "--gcs"
 GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
+GDRIVE_PATH_OPT = "--gdrive-path"
 KEEP_STORAGE_OPT = "--keep-storage"
 KAGGLE_OPT = "--kaggle"
 
@@ -102,6 +112,10 @@ FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
 VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
+
+LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
+
 
 # when cache is full upto this threshold, it will start suggesting new indexes intelligently based on existing contents
 INTELLIGENT_SHUFFLING_THRESHOLD = 0.8

@@ -13,6 +13,7 @@ from hub.core.tiling.sample_tiles import SampleTiles
 common_args = {
     "min_chunk_size": 1 * MB,
     "max_chunk_size": 2 * MB,
+    "tiling_threshold": 1 * MB,
     "compression": None,
 }
 

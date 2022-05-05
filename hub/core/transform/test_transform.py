@@ -7,7 +7,6 @@ from hub.util.remove_cache import remove_memory_cache
 from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.transform import get_pbar_description
 import hub
 
@@ -109,7 +108,11 @@ def check_target_array(ds, index, target):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
+@pytest.mark.parametrize(
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
 def test_single_transform_hub_dataset(ds, scheduler):
     data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
@@ -338,7 +341,7 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
-    diff = ds_out.diff(as_dict=True)
+    diff = ds_out.diff(as_dict=True)["tensor"]
     change = {
         "image": {
             "data_updated": set(),
@@ -617,7 +620,7 @@ def test_inplace_transform(local_ds_generator):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        diff = ds.diff(as_dict=True)
+        diff = ds.diff(as_dict=True)["tensor"]
         change = {
             "img": {
                 "created": False,
@@ -874,3 +877,33 @@ def test_chunk_compression_bug(local_ds):
 
     for index in range(length):
         np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)
+
+
+@hub.compute
+def sequence_transform(inp, out):
+    out.x.append([np.ones(inp)] * inp)
+
+
+def test_sequence_htype_with_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence")
+        assert ds.x.dtype is None
+        assert ds.x.htype == "sequence[None]"
+        sequence_transform().eval(list(range(1, 11)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    for i in range(10):
+        np.testing.assert_array_equal(ds.x[i].numpy(), np.ones((i + 1, i + 1)))
+    assert ds.x.dtype == np.ones(1).dtype
+    assert ds.x.htype == "sequence[generic]"
+
+
+def test_htype_dtype_after_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image")
+        assert ds.image.htype is None
+        assert ds.image.dtype is None
+        ds.create_tensor("label")
+        fn3().eval(list(range(10)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    assert ds.image.htype == "generic"
+    assert ds.image.dtype == np.ones(1).dtype

@@ -1,19 +1,17 @@
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
-from miniaudio import mp3_get_file_info  # type: ignore
+from hub.util.exif import getexif
 import numpy as np
 import pytest
 import os
 import sys
 import hub
+import json
 
 
 def get_exif_helper(path):
     img = Image.open(path)
-    return {
-        TAGS.get(k, k): f"{v.decode() if isinstance(v, bytes) else v}"
-        for k, v in img.getexif().items()
-    }
+    return json.loads(json.dumps(getexif(img)))
 
 
 def test_image_samples(local_ds_generator, compressed_image_paths):
@@ -87,27 +85,36 @@ def test_video_samples(local_ds_generator, video_paths):
         assert sample_info["filename"] == mp4_path
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_audio_samples(local_ds_generator, audio_paths):
+    import av  # type: ignore
+
     ds = local_ds_generator()
     mp3 = ds.create_tensor("mp3_audios", htype="audio", sample_compression="mp3")
     mp3_paths = [audio_paths["mp3"]]
+    for mp3_path in mp3_paths:
+        ds.mp3_audios.append(hub.read(mp3_path))
 
     for i, (mp3_path, sample_info) in enumerate(zip(mp3_paths, mp3.sample_info)):
-        info = mp3_get_file_info(mp3_path)
+        container = av.open(mp3_path)
+        astream = container.streams.audio[0]
 
         sample_info2 = mp3[i].sample_info
         assert sample_info == sample_info2
-        assert sample_info["nchannels"] == info.nchannels
-        assert sample_info["sample_rate"] == info.sample_rate
-        assert sample_info["num_frames"] == info.num_frames
+        assert sample_info["nchannels"] == astream.channels
+        assert sample_info["sample_rate"] == astream.sample_rate
+        assert sample_info["duration"] == astream.duration or container.duration
 
     ds = local_ds_generator()
     mp3 = ds["mp3_audios"]
     for i, (mp3_path, sample_info) in enumerate(zip(mp3_paths, mp3.sample_info)):
-        info = mp3_get_file_info(mp3_path)
+        container = av.open(mp3_path)
+        astream = container.streams.audio[0]
 
         sample_info2 = mp3[i].sample_info
         assert sample_info == sample_info2
-        assert sample_info["nchannels"] == info.nchannels
-        assert sample_info["sample_rate"] == info.sample_rate
-        assert sample_info["num_frames"] == info.num_frames
+        assert sample_info["nchannels"] == astream.channels
+        assert sample_info["sample_rate"] == astream.sample_rate
+        assert sample_info["duration"] == astream.duration or container.duration

@@ -121,7 +121,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 
 def get_header_from_url(url: str):
-
+    # Note: to be only used for chunks contains a single sample
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
@@ -282,19 +282,20 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def serialize_sequence_encoder(version: str, enc: np.ndarray) -> bytes:
+def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
     return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
 
 
-def deserialize_sequence_encoder(
-    byts: Union[bytes, memoryview]
+def deserialize_sequence_or_creds_encoder(
+    byts: Union[bytes, memoryview], enc_type: str
 ) -> Tuple[str, np.ndarray]:
+    dim = 2 if enc_type == "creds" else 3
     byts = memoryview(byts)
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     enc = (
         np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
-        .reshape(-1, 3)
+        .reshape(-1, dim)
         .copy()
     )
     return version, enc

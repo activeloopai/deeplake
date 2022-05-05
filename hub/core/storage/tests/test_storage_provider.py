@@ -4,10 +4,12 @@ from hub.tests.common import is_opt_true
 from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
 from hub.core.storage.gcs import GCloudCredentials
+from hub.core.storage.google_drive import GDriveProvider
 from hub.util.exceptions import GCSDefaultCredsNotFoundError
+from google.oauth2.credentials import Credentials  # type: ignore
 import os
 import pytest
-from hub.constants import MB, GCS_OPT
+from hub.constants import MB, GCS_OPT, GDRIVE_OPT
 import pickle
 
 
@@ -163,3 +165,30 @@ def test_gcs_tokens(request):
     assert not gcreds.credentials
     with pytest.raises(GCSDefaultCredsNotFoundError) as e:
         gcreds = GCloudCredentials(token="browser")
+
+
+def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
+        return
+
+    creds = Credentials.from_authorized_user_info(gdrive_creds)
+
+    with open("gdrive_token.json", "w") as token_file:
+        token_file.write(creds.to_json())
+
+    storage = GDriveProvider(gdrive_path)
+    assert storage.client_id
+
+    os.remove("gdrive_token.json")
+
+
+@pytest.mark.parametrize("storage", ["s3_storage", "gcs_storage"], indirect=True)
+def test_read_from_full_url(storage, color_image_paths):
+    image_path = color_image_paths["jpeg"]
+    with open(image_path, "rb") as f:
+        byts = f.read()
+
+    storage["sample/samplejpg.jpg"] = byts
+    data = storage.get_object_from_full_url(f"{storage.root}/sample/samplejpg.jpg")
+    assert byts == data
