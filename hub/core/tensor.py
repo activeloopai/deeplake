@@ -21,6 +21,7 @@ from hub.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_sequence_encoder_key,
     tensor_exists,
     get_tensor_info_key,
     get_sample_id_tensor_key,
@@ -160,6 +161,12 @@ def delete_tensor(key: str, dataset):
     tile_encoder_key = get_tensor_tile_encoder_key(key, commit_id)
     try:
         del storage[tile_encoder_key]
+    except KeyError:
+        pass
+
+    seq_encoder_key = get_sequence_encoder_key(key, commit_id)
+    try:
+        del storage[seq_encoder_key]
     except KeyError:
         pass
 
@@ -424,6 +431,15 @@ class Tensor:
         return self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
+
+    @property
+    def size(self) -> Optional[int]:
+        s = 1
+        for x in self.shape:
+            if x is None:
+                return None
+            s *= x  # not using np.prod to avoid overflow
+        return s
 
     @property
     def ndim(self) -> int:
