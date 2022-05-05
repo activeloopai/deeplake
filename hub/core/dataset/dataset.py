@@ -2334,6 +2334,10 @@ class Dataset:
         """
         self.link_creds.populate_creds(creds_key, creds)
 
+    def get_creds(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
+        return self.link_creds.creds_keys
+
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
     ):
