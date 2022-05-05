@@ -1319,6 +1319,14 @@ def test_empty_extend(memory_ds):
     assert len(ds) == 0
 
 
+def test_extend_with_progressbar():
+    ds1 = hub.dataset("mem://ds1")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4], progressbar=True)
+    np.testing.assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
+
+
 def test_auto_htype(memory_ds):
     ds = memory_ds
     with ds:
