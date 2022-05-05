@@ -292,6 +292,8 @@ def test_complex_creds(local_ds_generator):
         ds.add_creds("my_first_key")
         ds.add_creds("my_second_key")
 
+        assert ds.get_creds() == ["my_first_key", "my_second_key"]
+
         ds.populate_creds("my_first_key", {})
         ds.populate_creds("my_second_key", {})
         for i in range(10):
