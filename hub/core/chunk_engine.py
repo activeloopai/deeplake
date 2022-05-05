@@ -862,7 +862,7 @@ class ChunkEngine:
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
-                if len(index.values) == 1:
+                if len(index.values) == 1 + int(self.is_sequence):
                     chunk.update_sample(local_sample_index, sample)
                 else:
                     orig_sample = chunk.read_sample(local_sample_index, copy=True)
@@ -926,7 +926,7 @@ class ChunkEngine:
         dt, ht = tensor_meta.dtype, tensor_meta.htype
         samples = intelligent_cast(samples, dt, ht)
         getattr(view, operator)(samples)
-        self._update(index, arr)
+        self._update(index1, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.tensor_meta.chunk_compression:
