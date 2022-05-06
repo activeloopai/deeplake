@@ -424,9 +424,15 @@ class Tensor:
         )
         if sample_shape_provider is None:
             self.check_link_ready()
-        return self.chunk_engine.shape(
+        shape: Tuple[Optional[int], ...]
+        shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
+        if not shape and self.meta.max_shape:
+            shape = (0,) * len(self.meta.max_shape)
+        if self.meta.max_shape == [0, 0, 0]:
+            shape = ()
+        return shape
 
     @property
     def size(self) -> Optional[int]:
@@ -762,9 +768,15 @@ class Tensor:
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                Tensor(k, self.dataset).append(
-                    get_link_transform(v["append"])(sample, self.link_creds)
-                )
+                v = get_link_transform(v["append"])(sample, self.link_creds)
+                tensor = Tensor(k, self.dataset)
+                if (
+                    isinstance(v, np.ndarray)
+                    and tensor.dtype
+                    and v.dtype != tensor.dtype
+                ):
+                    v = v.astype(tensor.dtype)  # bc
+                tensor.append(v)
 
     def _update_links(
         self,
@@ -778,15 +790,22 @@ class Tensor:
                 fname = v.get("update")
                 if fname:
                     func = get_link_transform(fname)
+                    tensor = Tensor(k, self.dataset)
                     val = func(
                         new_sample,
-                        Tensor(k, self.dataset)[global_sample_index],
+                        tensor[global_sample_index],
                         sub_index=sub_index,
                         partial=not sub_index.is_trivial(),
                         link_creds=self.link_creds,
                     )
                     if val is not _NO_LINK_UPDATE:
-                        Tensor(k, self.dataset)[global_sample_index] = val
+                        if (
+                            isinstance(val, np.ndarray)
+                            and tensor.dtype
+                            and val.dtype != tensor.dtype
+                        ):
+                            val = val.astype(tensor.dtype)  # bc
+                        tensor[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):
