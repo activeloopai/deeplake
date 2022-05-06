@@ -10,7 +10,11 @@ from hub.tests.common import is_opt_true
 import os
 import pytest
 from hub.client.client import HubBackendClient
-from hub.client.config import USE_LOCAL_HOST, USE_DEV_ENVIRONMENT, USE_STAGING_ENVIRONMENT
+from hub.client.config import (
+    USE_LOCAL_HOST,
+    USE_DEV_ENVIRONMENT,
+    USE_STAGING_ENVIRONMENT,
+)
 
 from warnings import warn
 
