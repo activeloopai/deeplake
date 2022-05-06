@@ -12,9 +12,9 @@ def link(
         No data is actually loaded until you try to read the sample from a dataset.
         There are a few exceptions to this:-
 
-        - If verify=True was specified during create_tensor of the tensor to which this is being added, some metadata is read to verify the integrity of the sample.
-        - If create_shape_tensor=True was specified during create_tensor of the tensor to which this is being added, the shape of the sample is read.
-        - If create_sample_info_tensor=True was specified during create_tensor of the tensor to which this is being added, the sample info is read.
+        - If verify=True was specified DURING create_tensor of the tensor to which this is being added, some metadata is read to verify the integrity of the sample.
+        - If create_shape_tensor=True was specified DURING create_tensor of the tensor to which this is being added, the shape of the sample is read.
+        - If create_sample_info_tensor=True was specified DURING create_tensor of the tensor to which this is being added, the sample info is read.
 
     Examples:
         >>> ds = hub.dataset("......")
@@ -29,7 +29,7 @@ def link(
         >>> ds.populate_creds("GCS_KEY", {})
 
         Create a tensor that can contain links
-        >>> ds.create_tensor("img", htype="link[image]", verify=True)
+        >>> ds.create_tensor("img", htype="link[image]", verify=True, create_shape_tensor=False, create_sample_info_tensor=False)
 
         Populate the tensor with links
         >>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
