@@ -332,6 +332,10 @@ class ChunkCompressedChunk(BaseChunk):
         return self.tensor_meta.max_shape == [0, 0, 0]
 
     def change_dimensionality(self, shape):
+        if len(shape) != 2:
+            raise ValueError(
+                f"Only amples with shape (H, W) and (H, W, C) are supported in chunks with image compression, got {shape} instead."
+            )
         self.tensor_meta.max_shape = list(shape)
         self.tensor_meta.min_shape = list(shape)
         self.num_dims = len(shape)
