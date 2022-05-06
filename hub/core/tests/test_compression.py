@@ -33,9 +33,7 @@ image_compressions.remove("apng")
 image_compressions.remove("dcm")
 
 # filtering out all the READONLY files from the image_compression
-for c in image_compressions:
-    if is_readonly_compression(c):
-        image_compressions.remove(c)
+image_compressions = list(filter(is_readonly_compression, image_compressions))
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
