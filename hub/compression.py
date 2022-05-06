@@ -160,6 +160,4 @@ def get_compression_type(c):
 
 def is_readonly_compression(c):
     """Returns if the file exists in READONLY_COMPRESSOINS or not."""
-    if c is None:
-        return None
     return c in READONLY_COMPRESSIONS
