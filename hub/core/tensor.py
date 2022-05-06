@@ -392,7 +392,7 @@ class Tensor:
         return self.chunk_engine.tensor_meta
 
     @property
-    def shape(self) -> Optional[Tuple[Optional[int], ...]]:
+    def shape(self) -> Tuple[Optional[int], ...]:
         """Get the shape of this tensor. Length is included.
 
         Note:
