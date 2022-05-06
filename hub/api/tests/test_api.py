@@ -940,6 +940,7 @@ def test_htypes_list():
         "image",
         "json",
         "keypoints_coco",
+        "point",
         "list",
         "segment_mask",
         "text",
