@@ -41,7 +41,7 @@ def test_only_nones_append(local_ds, compression, create_shape_tensor):
         for i in range(2):
             with pytest.raises(EmptyTensorError):
                 ds.xyz[i].numpy()
-            assert ds.xyz[i].shape is None
+            assert ds.xyz[i].shape == ()
 
 
 @compressions_paremetrized
@@ -68,8 +68,8 @@ def test_none_image_chunk_compression_2d(local_ds):
         ds.xyz.append(None)
         ds.xyz.append(None)
         assert ds.xyz.meta.max_shape == [0, 0, 0]
-        assert ds.xyz[0].shape is None
-        assert ds.xyz[1].shape is None
+        assert ds.xyz[0].shape == ()
+        assert ds.xyz[1].shape == ()
         ds.xyz.append(np.ones((500, 500), "uint8"))
         assert ds.xyz.meta.max_shape == [500, 500]
         assert ds.xyz[0].numpy().shape == (0, 0)
