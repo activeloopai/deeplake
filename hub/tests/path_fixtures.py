@@ -328,6 +328,8 @@ def grayscale_image_paths():
 def compressed_image_paths():
     paths = {
         "webp": "beach.webp",
+        "fli": "hopper.fli",
+        "mpo": "sugarshack.mpo",
         "gif": "boat.gif",
         "bmp": "car.bmp",
         "jpeg": ["cat.jpeg", "dog1.jpg", "dog2.jpg", "car.jpg"],

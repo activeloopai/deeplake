@@ -1,24 +1,21 @@
 import hub
 import numpy as np
+import pytest
 
-test_files = ["sugarshack.mpo"]
-static_test_file = ["hopper.fli"]
-
-# testing for .mpo file format
-def test_MPO():
-    for path in test_files:
-        sample = hub.read(path)
-        arr = np.array(sample)
-        assert arr.shape[-1] == 3
-        assert arr.shape[0] == 480
-        assert arr.dtype == "uint8"
+image_compressions = ["mpo", "fli"]
 
 
-# testing for .fli file format
-def test_FLI():
-    for path in static_test_file:
-        sample = hub.read(path)
-        arr = np.array(sample)
-        assert arr.shape[-1] == 128
-        assert arr.shape[0] == 128
-        assert arr.dtype == "uint8"
+@pytest.mark.parametrize("compression", image_compressions)
+def test_array(compression, compressed_image_paths):
+    # TODO: check dtypes and no information loss
+    array = np.array(hub.read(compressed_image_paths[compression][0]))
+    arr = np.array(array)
+    for c in arr:
+        if c == "fli":
+            assert arr.shape[-1] == 3
+            assert arr.shape[0] == 480
+            assert arr.dtype == "uint8"
+        elif c == "mpo":
+            assert arr.shape[-1] == 128
+            assert arr.shape[0] == 128
+            assert arr.dtype == "uint8"
