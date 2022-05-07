@@ -79,7 +79,9 @@ def append_shape(sample, link_creds=None):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False
         )
-    return np.array(getattr(sample, "shape", None) or np.array(sample).shape)
+    return np.array(
+        getattr(sample, "shape", None) or np.array(sample).shape, dtype=np.int64
+    )
 
 
 @link

@@ -708,3 +708,10 @@ class OutOfChunkCountError(Exception):
 
 class OutOfSampleCountError(Exception):
     pass
+
+
+class EmptyTensorError(Exception):
+    def __init__(self):
+        super().__init__(
+            "This tensor has only been populated with empty samples. Need to add atleast one non empty sample before retrieving data."
+        )

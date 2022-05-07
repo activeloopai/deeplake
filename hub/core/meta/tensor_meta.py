@@ -95,9 +95,6 @@ class TensorMeta(Meta):
                 f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}."
             )
 
-        if self.length > 0:
-            raise ValueError("Dtype was None, but length was > 0.")
-
         self.dtype = dtype.name
         self.is_dirty = True
 
@@ -112,9 +109,6 @@ class TensorMeta(Meta):
             raise ValueError(
                 f"Tensor meta already has a htype ({self.htype}). Incoming: {htype}."
             )
-
-        if getattr(self, "length", 0) > 0:
-            raise ValueError("Htype was None, but length was > 0.")
 
         if not kwargs:
             kwargs = HTYPE_CONFIGURATIONS[htype]

@@ -203,27 +203,6 @@ class BaseChunk(HubMemoryObject):
         self._make_data_bytearray()
         self.is_dirty = True
 
-    def register_sample_to_headers(
-        self,
-        incoming_num_bytes: Optional[int],
-        sample_shape: Tuple[int],
-        end: bool = True,
-    ):
-        """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
-
-        Args:
-            incoming_num_bytes (int): The length of the buffer that was used to
-            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
-            end (bool): parameter that shows whether we need to add elements to the end of encoder or in the front
-
-        Raises:
-            ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
-        """
-        self.shapes_encoder.register_samples(sample_shape, 1, end=end)
-        # incoming_num_bytes is not applicable for image compressions
-        if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1, end=end)
-
     def serialize_sample(
         self,
         incoming_sample: InputSample,
@@ -247,6 +226,9 @@ class BaseChunk(HubMemoryObject):
             incoming_sample, shape = serialize_text(
                 incoming_sample, sample_compression, dt, ht  # type: ignore
             )
+        elif incoming_sample is None:
+            shape = (0,) * self.num_dims if self.num_dims else None
+            incoming_sample = b""
         elif isinstance(incoming_sample, Sample):
             incoming_sample, shape = serialize_sample_object(  # type: ignore
                 incoming_sample,
@@ -325,6 +307,31 @@ class BaseChunk(HubMemoryObject):
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
 
+    def register_sample_to_headers(
+        self,
+        incoming_num_bytes: Optional[int],
+        sample_shape: Tuple[int],
+        end: bool = True,
+    ):
+        """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
+
+        Args:
+            incoming_num_bytes (int): The length of the buffer that was used to
+            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+            end (bool): parameter that shows whether we need to add elements to the end of encoder or in the front
+
+        Raises:
+            ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
+        """
+        # incoming_num_bytes is not applicable for image compressions
+        if incoming_num_bytes is not None:
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1, end=end)
+        if sample_shape is not None:
+            if self.shapes_encoder.is_empty():
+                num_samples = self.byte_positions_encoder.num_samples - 1
+                self._fill_empty_shapes(sample_shape, num_samples)
+            self.shapes_encoder.register_samples(sample_shape, 1, end=end)
+
     def register_in_meta_and_headers(
         self,
         sample_nbytes: Optional[int],
@@ -345,7 +352,8 @@ class BaseChunk(HubMemoryObject):
         if update_tensor_meta:
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
-            self.tensor_meta.update_shape_interval(shape)
+            if shape is not None:
+                self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -353,14 +361,22 @@ class BaseChunk(HubMemoryObject):
         """Updates an existing sample in meta and headers"""
         if sample_nbytes is not None:
             self.byte_positions_encoder[local_index] = sample_nbytes
-        self.shapes_encoder[local_index] = shape
-        self.tensor_meta.update_shape_interval(shape)
+        if shape is not None:
+            if self.shapes_encoder.is_empty():
+                num_samples = self.byte_positions_encoder.num_samples
+                self._fill_empty_shapes(shape, num_samples)
+            self.shapes_encoder[local_index] = shape
+            self.tensor_meta.update_shape_interval(shape)
 
-    def check_shape_for_update(self, local_index: int, shape):
+    def check_shape_for_update(self, shape):
         """Checks if the shape being assigned at the new index is valid."""
-        expected_dimensionality = len(self.shapes_encoder[local_index])
-        if expected_dimensionality != len(shape):
-            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+        if shape is None:
+            return
+        max_shape = self.tensor_meta.max_shape
+        if max_shape:
+            expected_dimensionality = len(max_shape)
+            if expected_dimensionality != len(shape):
+                raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
         if not old_data or self.byte_positions_encoder.is_empty():  # tiled sample
@@ -428,3 +444,15 @@ class BaseChunk(HubMemoryObject):
                     )
                 return np.zeros(shape, dtype=self.dtype)
         return None
+
+    def _fill_empty_shapes(self, shape, num_samples):
+        dims = len(shape)
+        self.num_dims = self.num_dims or dims
+        if num_samples > 0:
+            empty_shape = (0,) * dims
+            self.shapes_encoder.register_samples(empty_shape, num_samples)
+            self.tensor_meta.update_shape_interval(empty_shape)
+
+    @property
+    def is_empty_tensor(self):
+        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0

@@ -8,6 +8,7 @@ from hub.core.serialize import (
     bytes_to_text,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.util.exceptions import EmptyTensorError
 from hub.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
@@ -25,8 +26,9 @@ class SampleCompressedChunk(BaseChunk):
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample, compr)
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
+            if shape is not None:
+                self.num_dims = self.num_dims or len(shape)
+                check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
@@ -71,6 +73,9 @@ class SampleCompressedChunk(BaseChunk):
     ):
         if not decompress and stream:
             raise Exception("`decompress=False` is not valid when `stream=True`")
+        if self.is_empty_tensor:
+            raise EmptyTensorError
+
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -130,7 +135,7 @@ class SampleCompressedChunk(BaseChunk):
             sample, self.compression, break_into_tiles=False
         )
 
-        self.check_shape_for_update(local_index, shape)
+        self.check_shape_for_update(shape)
         old_data = self.data_bytes
         self.data_bytes = self.create_updated_data(
             local_index, old_data, serialized_sample
