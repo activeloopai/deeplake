@@ -64,5 +64,4 @@ def test_rechunk_2(local_ds):
         for i in range(100):
             ds.compr[i] = np.random.randint(0, 3, size=(10, 10, 10))
         assert len(ds.compr) == 100
-        print("zibil: ", ds.compr.chunk_engine.chunk_id_encoder.array)
         assert ds.compr.chunk_engine.num_chunks == 1
