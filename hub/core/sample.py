@@ -309,18 +309,18 @@ class Sample:
             self._typestr = self._array.__array_interface__["typestr"]
             self._dtype = np.dtype(self._typestr).name
 
-    def uncompressed_bytes(self) -> bytes:
+    def uncompressed_bytes(self) -> Optional[bytes]:
         """Returns uncompressed bytes."""
         self._decompress()
         return self._uncompressed_bytes
 
     @property
-    def array(self) -> np.ndarray:
+    def array(self) -> np.ndarray:  # type: ignore
         arr = self._array
         if arr is not None:
             return arr
         self._decompress()
-        return self._array
+        return self._array  # type: ignore
 
     def __str__(self):
         if self.is_lazy:
