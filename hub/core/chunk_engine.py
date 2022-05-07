@@ -926,11 +926,13 @@ class ChunkEngine:
                 break
             sample_shape = chunk.shapes_encoder[idx]
 
-            compression = chunk.compression if not decompress else None
-            if decompress is False:
+            if not decompress:
                 samples_to_move = [
                     Sample(
-                        buffer=sample_data, shape=sample_shape, compression=compression
+                        buffer=sample_data,
+                        shape=sample_shape,
+                        compression=chunk.compression,
+                        dtype=chunk.dtype,
                     )
                 ] + samples_to_move
             else:
@@ -953,11 +955,13 @@ class ChunkEngine:
             sample_bytes = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
 
-            compression = chunk.compression if not decompress else None
-            if decompress is False:
+            if not decompress:
                 samples_to_move = [
                     Sample(
-                        buffer=sample_bytes, shape=sample_shape, compression=compression
+                        buffer=sample_bytes,
+                        shape=sample_shape,
+                        compression=chunk.compression,
+                        dtype=chunk.dtype,
                     )
                 ] + samples_to_move
             else:

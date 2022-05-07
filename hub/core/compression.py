@@ -289,7 +289,7 @@ def decompress_array(
     if compression is None and isinstance(buffer, memoryview) and shape is not None:
         assert buffer is not None
         assert shape is not None
-        return np.frombuffer(buffer=buffer).reshape(shape)
+        return np.frombuffer(buffer=buffer, dtype=dtype).reshape(shape)
 
     try:
         if shape is not None and 0 in shape:

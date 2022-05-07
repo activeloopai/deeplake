@@ -104,6 +104,7 @@ class Sample:
             self._array = array
             self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
             self._compression = None
 
         if buffer is not None:
@@ -290,27 +291,35 @@ class Sample:
             if self._uncompressed_bytes is None:
                 self._uncompressed_bytes = self._array.tobytes()
             return
-        if self.path and get_path_type(self.path) == "local":
-            compressed = self.path
+        compression = self.compression
+        if compression is None and self._buffer is not None:
+            self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                self.shape
+            )
         else:
-            compressed = self.buffer
-        self._array = decompress_array(
-            compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
-        )
-        self._uncompressed_bytes = self._array.tobytes()
-        self._typestr = self._array.__array_interface__["typestr"]
-        self._dtype = np.dtype(self._typestr).name
+            if self.path and get_path_type(self.path) == "local":
+                compressed = self.path
+            else:
+                compressed = self.buffer
+
+            self._array = decompress_array(
+                compressed, compression=compression, shape=self.shape, dtype=self.dtype
+            )
+            self._uncompressed_bytes = self._array.tobytes()
+            self._typestr = self._array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
 
     def uncompressed_bytes(self) -> bytes:
         """Returns uncompressed bytes."""
         self._decompress()
-        assert self._uncompressed_bytes is not None
         return self._uncompressed_bytes
 
     @property
     def array(self) -> np.ndarray:
+        arr = self._array
+        if arr is not None:
+            return arr
         self._decompress()
-        assert self._array is not None
         return self._array
 
     def __str__(self):
