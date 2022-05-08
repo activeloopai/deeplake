@@ -1,5 +1,6 @@
 import hub
 import numpy as np
+from tqdm import tqdm  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
 from hub.core.tensor_link import get_link_transform
@@ -580,6 +581,7 @@ class ChunkEngine:
         start_chunk: Optional[BaseChunk] = None,
         register: bool = True,
         update_commit_diff: bool = False,
+        progressbar: bool = False,
     ):
         current_chunk = start_chunk
         updated_chunks = []
@@ -591,6 +593,8 @@ class ChunkEngine:
         nsamples = len(samples)
         if register and update_commit_diff:
             commit_diff = self.commit_diff
+        if progressbar:
+            pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
             self.register_new_creds(num_samples_added, samples)
@@ -624,6 +628,10 @@ class ChunkEngine:
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
+            if progressbar:
+                pbar.update(num_samples_added)
+        if progressbar:
+            pbar.close()
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -634,11 +642,14 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, update_commit_diff=True):
+    def _extend(self, samples, progressbar, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
+            samples = tqdm(samples) if progressbar else samples
             for sample in samples:
                 self._extend(
-                    [sample], update_commit_diff=update_commit_diff
+                    [sample],
+                    update_commit_diff=update_commit_diff,
+                    progressbar=False,
                 )  # TODO optimize this
             return
         if len(samples) == 0:
@@ -648,28 +659,37 @@ class ChunkEngine:
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
+            progressbar=progressbar,
             update_commit_diff=update_commit_diff,
         )
         return verified_samples
 
-    def extend(self, samples, link_callback: Optional[Callable] = None):
+    def extend(
+        self,
+        samples,
+        progressbar: bool = False,
+        link_callback: Optional[Callable] = None,
+    ):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
         if self.is_sequence:
+            samples = tqdm(samples) if progressbar else samples
             for sample in samples:
-                verified_sample = self._extend(sample, update_commit_diff=False)
+                verified_sample = self._extend(
+                    sample, progressbar=False, update_commit_diff=False
+                )
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
-
                 ls = verified_sample or sample
                 if link_callback:
                     link_callback(ls, flat=False)
                     for s in ls:
                         link_callback(s, flat=True)
+
         else:
-            verified_samples = self._extend(samples)
+            verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:
