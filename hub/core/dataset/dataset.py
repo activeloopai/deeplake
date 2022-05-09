@@ -2047,6 +2047,7 @@ class Dataset:
             id (Optional, str): Uniquie id for this view.
             message (Optional, message): Custom user message.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+            optimize (bool): Whether the view should be optimized by copying the required chunks. Default False.
 
         Returns:
             str: Path to the saved VDS.
@@ -2068,6 +2069,8 @@ class Dataset:
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            id (Optional, str): Uniquie id for this view.
+            message (Optional, message): Custom user message.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2415,6 +2418,7 @@ class Dataset:
 
     def __contains__(self, tensor: str):
         return tensor in self.tensors
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
