@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import pathlib
 import pytest
 import hub
 from hub.core.dataset import Dataset
@@ -1507,7 +1508,14 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize(
     "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
 )
-def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+@pytest.mark.parametrize(
+    "is_pathlib", [True, False]
+)
+def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index, is_pathlib):
+    if is_pathlib:
+        memory_ds.path = pathlib.Path(memory_ds.path)
+        local_ds.path = pathlib.Path(local_ds.path)
+
     ds = memory_ds
     with ds:
         ds.create_tensor("image")

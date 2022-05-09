@@ -213,7 +213,7 @@ class dataset:
 
     @staticmethod
     def load(
-        path: str,
+        path: Union[str, pathlib.Path],
         read_only: bool = DEFAULT_READONLY,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
@@ -250,6 +250,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
+
+        if isinstance(path, pathlib.Path):
+            path = str(path)
 
         feature_report_path(path, "load", {})
 
@@ -457,13 +460,12 @@ class dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-        if isinstance(src, str):
-            src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
-        elif isinstance(src, pathlib.Path):
+        if isinstance(src, (str, pathlib.Path)):
             src = str(src)
             src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         else:
             src_ds = src
+            src_ds.path = str(src_ds.path)
 
         if isinstance(dest, pathlib.Path):
             dest = str(dest)
