@@ -16,11 +16,12 @@ def tiled(
             ds.create_tensor("image", htype="image", sample_compression="png")
             ds.image.append(hub.tiled(sample_shape=(1003, 1103, 3), tile_shape=(10, 10, 3)))
             ds.image[0][-217:, :212, 1:] = np.random.randint(0, 256, (217, 212, 2), dtype=np.uint8)
+        ```
 
     Args:
-        sample_shape (Tuple[int]): full shape of the sample
-        tile_shape (Optional, Tuple[int]): The sample will be will stored as tiles where each tile will have this shape (except edge tiles).
-        If not specified, it will be computed such that each tile is close to half of the tensor's `max_chunk_size` (after compression).
+        sample_shape (Tuple[int, ...]): Full shape of the sample.
+        tile_shape (Optional, Tuple[int, ...]): The sample will be will stored as tiles where each tile will have this shape (except edge tiles).
+            If not specified, it will be computed such that each tile is close to half of the tensor's `max_chunk_size` (after compression).
         dtype (Union[str, np.dtype]): Dtype for the sample array. Default uint8.
 
     Returns:
