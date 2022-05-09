@@ -2413,6 +2413,8 @@ class Dataset:
         else:
             visualize(self.storage, width=width, height=height)
 
+    def __contains__(self, tensor: str):
+        return tensor in self.tensors
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])

@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
+from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
 import os
@@ -22,8 +23,9 @@ def hub_compute_filter(sample_in, mod):
 
 def _populate_data(ds, n=1):
     with ds:
-        ds.create_tensor("images")
-        ds.create_tensor("labels", htype="class_label", class_names=class_names)
+        if "images" not in ds:
+            ds.create_tensor("images")
+            ds.create_tensor("labels", htype="class_label", class_names=class_names)
         for _ in range(n):
             for row in rows:
                 ds.images.append(row["images"])
@@ -110,12 +112,22 @@ def test_query_scheduler(local_ds):
 def test_dataset_view_save():
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
-    ds.commit()
     view = ds.filter("labels == 'dog'")
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(".tests/ds_view", overwrite=True)
+    ds.commit()
     view.save_view(".tests/ds_view", overwrite=True)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    _populate_data(ds)
+    view = ds.filter("labels == 'dog'")
+    ds.commit()
+    _populate_data(ds)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(".tests/ds_view", overwrite=True)
+    ds.commit()
+    view.save_view(".tests/ds_view", overwrite=True)
 
 
 @pytest.mark.parametrize(
