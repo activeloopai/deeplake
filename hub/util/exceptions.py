@@ -707,3 +707,7 @@ class EmptyTensorError(Exception):
         super().__init__(
             "This tensor has only been populated with empty samples. Need to add atleast one non empty sample before retrieving data."
         )
+
+
+class DatasetViewSavingError(Exception):
+    pass

@@ -299,6 +299,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        [f() for f in self.dataset._update_hooks]
         self.chunk_engine.extend(
             samples,
             progressbar=progressbar,

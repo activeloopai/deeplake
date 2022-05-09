@@ -110,6 +110,7 @@ def test_query_scheduler(local_ds):
 def test_dataset_view_save():
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
+    ds.commit()
     view = ds.filter("labels == 'dog'")
     view.save_view(".tests/ds_view", overwrite=True)
     view2 = hub.dataset(".tests/ds_view")
@@ -139,6 +140,7 @@ def test_inplace_dataset_view_save(
     if read_only and not ds.path.startswith("hub://"):
         return
     _populate_data(ds, n=2)
+    ds.commit()
     ds.read_only = read_only
     f = (
         f"labels == 'dog'#{uuid4().hex}"

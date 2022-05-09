@@ -40,7 +40,6 @@ from hub.core.version_control.dataset_diff import load_dataset_diff
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
     UNSPECIFIED,
-    DEFAULT_HTYPE,
     verify_htype_key_value,
 )
 from hub.integrations import dataset_to_tensorflow
@@ -58,7 +57,6 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     InvalidTensorGroupNameError,
     InvalidTensorNameError,
-    TensorMetaInvalidHtype,
     LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
@@ -73,6 +71,7 @@ from hub.util.exceptions import (
     NotLoggedInError,
     RenameError,
     EmptyCommitError,
+    DatasetViewSavingError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -110,10 +109,9 @@ from hub.util.version_control import (
     create_commit_chunk_sets,
 )
 from hub.util.pretty_print import (
-    max_array_length,
-    get_string,
     summary_dataset,
 )
+from hub.core.dataset.view_entry import ViewEntry
 from hub.client.utils import get_user_name
 import warnings
 
@@ -188,6 +186,9 @@ class Dataset:
         ] = []  # This is a stack to support nested with contexts
         self._is_filtered_view = False
         self._view_info = None
+        self._view_invalid = False
+        self._view_base = None
+        self._update_hooks: List[Callable] = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -279,6 +280,9 @@ class Dataset:
         self._info = None
         self._ds_diff = None
         self._set_derived_attributes(verbose=False)
+        self._view_invalid = False
+        self._view_base = None
+        self._update_hooks = []
 
     def __getitem__(
         self,
@@ -293,7 +297,7 @@ class Dataset:
             if tensor is not None:
                 return tensor[self.index]
             elif self._has_group_in_root(fullpath):
-                return self.__class__(
+                ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
                     group_index=posixpath.join(self.group_index, item),
@@ -306,11 +310,11 @@ class Dataset:
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
-                return self[splt[0]][splt[1]]
+                ret = self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return self.__class__(
+            ret = self.__class__(
                 storage=self.storage,
                 index=self.index[item],
                 group_index=self.group_index,
@@ -324,6 +328,8 @@ class Dataset:
             )
         else:
             raise InvalidKeyTypeError(item)
+        ret._view_base = self._view_base or self
+        return ret
 
     @invalid_view_op
     @hub_reporter.record_call
@@ -1828,6 +1834,7 @@ class Dataset:
                 raise ValueError(
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
+        [f() for f in self._update_hooks]
         for i in range(n):
             self.append({k: v[i] for k, v in samples.items()})
 
@@ -1858,6 +1865,7 @@ class Dataset:
             raise ValueError(
                 "When appending using Dataset.append, all tensors are expected to have the same length."
             )
+        [f() for f in self._update_hooks]
         tensors_appended = []
         with self:
             for k, v in sample.items():
@@ -1896,19 +1904,37 @@ class Dataset:
             getattr(self, "_query", None),
         )
 
-    def _get_view_info(self):
+    def _add_update_hook(self, hook: Callable):
+        self._update_hooks.append(hook)
+
+    def _get_view_info(self, id: Optional[str] = None, message: Optional[str] = None):
         if self._view_info is None:
+            if self._view_invalid:
+                raise DatasetViewSavingError(
+                    "This view cannot be saved as new changes were made at HEAD node after creation of this query view."
+                )
+            view_base = self._view_base or self
+            if view_base.has_head_changes:
+
+                def f():
+                    self._view_invalid = True
+
+                view_base._add_update_hook(f)
+                raise DatasetViewSavingError(
+                    "HEAD node has uncommited changes. Commit them before saving views."
+                )
             tm = getattr(self, "_created_at", time())
-            hash = self._view_hash()
+            id = self._view_hash() if id is None else id
             info = {
-                "id": hash,
+                "id": id,
                 "description": "Virtual Datasource",
                 "virtual-datasource": True,
                 "source-dataset": self.path,
-                "source-dataset-version": self.version_state["commit_id"],
+                "source-dataset-version": self.commit_id,
                 "created_at": tm,
             }
-
+            if message is not None:
+                info["message"] = message
             query = getattr(self, "_query", None)
             if query:
                 info["query"] = query
@@ -1937,29 +1963,30 @@ class Dataset:
             lock.release()
             base_storage.read_only = storage_read_only
 
-    def _write_vds(self, vds):
+    def _write_vds(self, vds, id: Optional[str], message: Optional[str]):
         """Writes the indices of this view to a vds."""
-        info = self._get_view_info()
+        info = self._get_view_info(id, message)
         with vds:
             vds.info.update(info)
             vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                 list(self.index.values[0].indices(len(self)))
             )
 
-    def _save_view_in_subdir(self):
+    def _save_view_in_subdir(self, id: Optional[str], message: Optional[str]):
         """Stores this view under ".queries" sub directory of same storage."""
-
-        info = self._get_view_info()
+        info = self._get_view_info(id, message)
         hash = info["id"]
         path = f".queries/{hash}"
         self.flush()
         get_base_storage(self.storage).subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
-        self._write_vds(vds)
+        self._write_vds(vds, id, message)
         Dataset._write_queries_json(self, info)
         return vds
 
-    def _save_view_in_user_queries_dataset(self):
+    def _save_view_in_user_queries_dataset(
+        self, id: Optional[str], message: Optional[str]
+    ):
         """Stores this view under hub://username/queries
         Only applicable for views of hub datasets.
         """
@@ -1969,7 +1996,7 @@ class Dataset:
         if username == "public":
             raise NotLoggedInError("Unable to save query result. Not logged in.")
 
-        info = self._get_view_info()
+        info = self._get_view_info(id, message)
         hash = info["id"]
 
         queries_ds_path = f"hub://{username}/queries"
@@ -1994,13 +2021,22 @@ class Dataset:
 
         return vds
 
-    def _save_view_in_path(self, path, **ds_args):
+    def _save_view_in_path(
+        self, path: str, id: Optional[str], message: Optional[str], **ds_args
+    ):
         """Stores this view at a given dataset path"""
         vds = hub.dataset(path, **ds_args)
-        self._write_vds(vds)
+        self._write_vds(vds, id, message)
         return vds
 
-    def save_view(self, path: Optional[str] = None, **ds_args) -> str:
+    def save_view(
+        self,
+        path: Optional[str] = None,
+        id: Optional[str] = None,
+        message: Optional[str] = None,
+        optimize: bool = False,
+        **ds_args,
+    ) -> str:
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
@@ -2008,14 +2044,23 @@ class Dataset:
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            id (Optional, str): Uniquie id for this view.
+            message (Optional, message): Custom user message.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Returns:
             str: Path to the saved VDS.
         """
-        return self._save_view(path, False, **ds_args)
+        return self._save_view(path, id, message, False, **ds_args)
 
-    def _save_view(self, path: Optional[str] = None, _ret_ds: bool = False, **ds_args):
+    def _save_view(
+        self,
+        path: Optional[str] = None,
+        id: Optional[str] = None,
+        message: Optional[str] = None,
+        _ret_ds: bool = False,
+        **ds_args,
+    ):
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
@@ -2046,15 +2091,15 @@ class Dataset:
                 )
             if self.read_only:
                 if isinstance(self, hub.core.dataset.HubCloudDataset):
-                    vds = self._save_view_in_user_queries_dataset()
+                    vds = self._save_view_in_user_queries_dataset(id, message)
                 else:
                     raise ReadOnlyModeError(
                         "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
                     )
             else:
-                vds = self._save_view_in_subdir()
+                vds = self._save_view_in_subdir(id, message)
         else:
-            vds = self._save_view_in_path(path, **ds_args)
+            vds = self._save_view_in_path(path, id, message, **ds_args)
         if _ret_ds:
             return vds
         return vds.path
@@ -2104,6 +2149,19 @@ class Dataset:
             return queries
         except KeyError:
             return []
+
+    def get_views(self):
+        """Returns list of views stored in the last commit"""
+        commit_id = self.commit_id
+        return list(
+            map(
+                ViewEntry,
+                filter(
+                    lambda x: x["source-dataset-version"] == commit_id,
+                    self._get_query_history(),
+                ),
+            )
+        )
 
     def _sub_ds(
         self,
