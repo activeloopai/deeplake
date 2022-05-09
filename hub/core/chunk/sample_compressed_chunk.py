@@ -115,6 +115,8 @@ class SampleCompressedChunk(BaseChunk):
 
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
+        elif copy and not sample.flags["WRITEABLE"]:
+            sample = sample.copy()
         return sample
 
     def update_sample(self, local_index: int, sample: InputSample):
