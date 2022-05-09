@@ -402,7 +402,7 @@ class dataset:
             Dataset: New dataset object.
         """
 
-        feature_report_path(path, "like", {"Overwrite": overwrite})
+        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public})
 
         destination_ds = dataset.empty(
             path,
