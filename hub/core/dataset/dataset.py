@@ -2215,7 +2215,7 @@ class Dataset:
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
-            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
 
         Returns:
             Dataset: New dataset object.
