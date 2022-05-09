@@ -2,6 +2,7 @@ import hub
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
+from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -14,7 +15,12 @@ from hub.core.tiling.deserialize import combine_chunks, translate_slices, coales
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
+from hub.constants import (
+    DEFAULT_MAX_CHUNK_SIZE,
+    FIRST_COMMIT_ID,
+    PARTIAL_CHUNK_RANGE,
+    PARTIAL_NUM_SAMPLES,
+)
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -1025,10 +1031,10 @@ class ChunkEngine:
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
             and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
-            prev = enc.array[row - 1][1] if row > 0 else -1
-            num_samples_in_chunk = enc.array[row][1] - prev
+            prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
+            num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
 
-            get_partial_chunk = num_samples_in_chunk < 20 and num_samples_in_chunk > 1
+            get_partial_chunk = num_samples_in_chunk in PARTIAL_CHUNK_RANGE
 
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(

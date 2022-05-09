@@ -144,3 +144,6 @@ SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE = 4 * MB
 DEFAULT_READONLY = (
     os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
 )
+
+# for chunks with number of samples in this range, partial requests will be used to retrieve the data
+PARTIAL_CHUNK_RANGE = range(2, 128)
