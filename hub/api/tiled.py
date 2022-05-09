@@ -21,6 +21,7 @@ def tiled(
         sample_shape (Tuple[int]): full shape of the sample
         tile_shape (Optional, Tuple[int]): The sample will be will stored as tiles where each tile will have this shape (except edge tiles).
         If not specified, it will be computed such that each tile is close to half of the tensor's `max_chunk_size` (after compression).
+        dtype (Union[str, np.dtype]): Dtype for the sample array. Default uint8.
 
     Returns:
         PartialSample: A PartialSample instance which can be appended to a Tensor.
