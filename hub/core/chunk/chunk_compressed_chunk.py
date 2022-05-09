@@ -261,9 +261,9 @@ class ChunkCompressedChunk(BaseChunk):
                     compression=self.compression,
                     chunk_size=self.min_chunk_size,
                     htype=self.htype,
-                    dtype=self.dtype,
                     sample_shape=sample.sample_shape,
                     tile_shape=sample.tile_shape,
+                    dtype=sample.dtype,
                 ),
                 sample.sample_shape,
             )
