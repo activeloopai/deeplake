@@ -32,7 +32,6 @@ image_compressions.remove("wmf")
 image_compressions.remove("apng")
 image_compressions.remove("dcm")
 
-# filtering out all the READONLY files from the image_compression
 image_compressions = list(filter(is_readonly_compression, image_compressions))
 
 
