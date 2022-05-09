@@ -162,3 +162,18 @@ def test_empty_array(memory_ds, compression):
 
     for i in range(2):
         np.testing.assert_array_equal(ds.x[i].numpy(), arr_list[i])
+
+
+@compressions_paremetrized
+def test_no_tiling(memory_ds, compression):
+    ds = memory_ds
+    arr_list = [
+        np.random.randint(0, 255, (3894, 4279, 3), dtype=np.uint8),
+        np.random.randint(0, 255, (1089, 1027, 3), dtype=np.uint8),
+    ]
+    with ds:
+        ds.create_tensor("x", **compression, max_chunk_size=1 * MB, tiling_threshold=-1)
+        ds.x.extend(arr_list)
+    assert len(ds) == 2
+    assert len(ds.x) == 2
+    assert ds.x.chunk_engine.num_chunks == 2

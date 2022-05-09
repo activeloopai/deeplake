@@ -306,9 +306,15 @@ class SampleStreaming(Streaming):
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
 
+                    version_state = self.dataset.version_state
+
                     for c_name in c_names:
                         commit_id = engine.get_chunk_commit(c_name)
-                        c_key = get_chunk_key(key, c_name, commit_id)
+                        c_key = get_chunk_key(
+                            version_state["tensor_names"][key],
+                            c_name,
+                            commit_id,
+                        )
                         if self.local_caches is not None:
                             local_cache = self.local_caches[key]
 
@@ -405,16 +411,18 @@ class SampleStreaming(Streaming):
 
     def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {
-            key: self._create_chunk_engine(key, self.dataset.version_state)
-            for key in tensors
+            name: self._create_chunk_engine(name, self.dataset.version_state)
+            for name in tensors
         }
 
-    def _create_chunk_engine(self, tensor_key, version_state):
+    def _create_chunk_engine(self, tensor_name, version_state):
+        tensor_key = version_state["tensor_names"][tensor_name]
         return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
 
     def _get_dataset_indicies(self):
+        version_state = self.dataset.version_state
         tensor_lengths = [
-            len(self.dataset.version_state["full_tensors"][tensor])
+            len(version_state["full_tensors"][version_state["tensor_names"][tensor]])
             for tensor in self.tensors
         ]
         length = min(tensor_lengths, default=0)

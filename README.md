@@ -347,13 +347,13 @@ activeloop reporting --off
 
 ## Citation
 If you use Hub in your research, please cite Activeloop using:
-
+```
 @article{2022ActiveloopHub,
   title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
   author={Activeloop Developer Team},
   journal={GitHub. Note: https://github.com/activeloopai/Hub},
   year={2022}
 }
-
+```
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
