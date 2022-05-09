@@ -47,6 +47,7 @@ from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
     ReadOnlyModeError,
+    SampleHtypeMismatchError,
 )
 from hub.util.remove_cache import get_base_storage
 from hub.util.image import convert_sample, convert_img_arr
@@ -566,6 +567,8 @@ class ChunkEngine:
                     converted.append(convert_sample(sample, mode, self.compression))
                 elif isinstance(sample, np.ndarray):
                     converted.append(convert_img_arr(sample, mode))
+                else:
+                    raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
         return samples, verified_samples
 

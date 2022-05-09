@@ -6,6 +6,7 @@ from hub.util.exceptions import (
     TensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
+    SampleHtypeMismatchError,
 )
 import pytest
 from hub.core.tensor import Tensor
@@ -307,6 +308,9 @@ def test_forced_htypes(
 
         rgb_png.append(hub.read(flower_path))
         rgb_png.append(np.ones((10, 10, 4), dtype=np.uint8))
+
+        with pytest.raises(SampleHtypeMismatchError):
+            rgb_png.append(1)
 
     for sample in gray:
         assert len(sample.shape) == 2
