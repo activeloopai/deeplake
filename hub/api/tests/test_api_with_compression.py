@@ -312,6 +312,12 @@ def test_forced_htypes(
         with pytest.raises(SampleHtypeMismatchError):
             rgb_png.append(1)
 
+        with pytest.raises(TensorMetaMissingRequiredValue):
+            ds.create_tensor("abc", htype="image.rgb")
+
+        with pytest.raises(TensorMetaMissingRequiredValue):
+            ds.create_tensor("abc", htype="image.gray")
+
     for sample in gray:
         assert len(sample.shape) == 2
 
