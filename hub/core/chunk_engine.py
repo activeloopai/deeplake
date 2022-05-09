@@ -862,7 +862,7 @@ class ChunkEngine:
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
-                if len(index.values) == 1 + int(self.is_sequence):
+                if len(index.values) <= 1 + int(self.is_sequence):
                     chunk.update_sample(local_sample_index, sample)
                 else:
                     orig_sample = chunk.read_sample(local_sample_index, copy=True)
@@ -906,13 +906,14 @@ class ChunkEngine:
         try:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
+            n = 1 + int(self.is_sequence)
             if len(index) > 1:
-                index1 = Index(index.values[:1])
-                index2 = Index(index.values[1:])
+                index1 = Index(index.values[:n])
+                index2 = Index(index.values[n:])
             else:
                 index1 = index
                 index2 = None
-            arr = self._numpy(index1, use_data_cache=False)
+            arr = self._numpy(index1, as_list=True, use_data_cache=False)
             view = arr
             if index2:
                 for v in index2.values:
