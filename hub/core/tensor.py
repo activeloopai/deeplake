@@ -602,6 +602,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        [f() for f in self.dataset._update_hooks]
         update_link_callback = self._update_links if self.meta.links else None
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
