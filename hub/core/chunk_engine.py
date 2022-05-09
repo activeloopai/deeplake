@@ -906,8 +906,8 @@ class ChunkEngine:
         try:
             if isinstance(samples, hub.core.tensor.Tensor):
                 samples = samples.numpy()
-            n = 1 + int(self.is_sequence)
             if len(index) > 1:
+                n = 1 + int(self.is_sequence)
                 index1 = Index(index.values[:n])
                 index2 = Index(index.values[n:])
             else:
