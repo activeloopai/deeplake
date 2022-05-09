@@ -913,7 +913,7 @@ class ChunkEngine:
             else:
                 index1 = index
                 index2 = None
-            arr = self._numpy(index1, as_list=True, use_data_cache=False)
+            arr = self._numpy(index1, use_data_cache=False)
             view = arr
             if index2:
                 for v in index2.values:
