@@ -44,7 +44,7 @@ from hub.htype import (
     verify_htype_key_value,
 )
 from hub.integrations import dataset_to_tensorflow
-from hub.util.bugout_reporter import hub_reporter
+from hub.util.bugout_reporter import hub_reporter, feature_report_path
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
@@ -2232,7 +2232,7 @@ class Dataset:
         }
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params)
+        feature_report_path(self.path, "deepcopy", report_params)
         dest_ds = hub.like(
             dest,
             self,
