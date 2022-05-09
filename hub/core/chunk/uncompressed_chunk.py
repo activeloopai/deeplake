@@ -12,7 +12,6 @@ class UncompressedChunk(BaseChunk):
         self,
         incoming_samples: Union[List[InputSample], np.ndarray],
         update_tensor_meta: bool = True,
-        end: bool = True,
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
@@ -20,21 +19,18 @@ class UncompressedChunk(BaseChunk):
                 incoming_samples = list(incoming_samples)
             else:
                 return self._extend_if_has_space_numpy(
-                    incoming_samples, update_tensor_meta, end
+                    incoming_samples, update_tensor_meta
                 )
-        return self._extend_if_has_space_list(incoming_samples, update_tensor_meta, end)
+        return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
     def _extend_if_has_space_numpy(
         self,
         incoming_samples: np.ndarray,
         update_tensor_meta: bool = True,
-        end: bool = True,
     ) -> float:
         num_samples: int = 0
         buffer_size = 0
 
-        if not end:
-            incoming_samples = np.flip(incoming_samples, axis=0)
         for sample in incoming_samples:
             shape = self.normalize_shape(sample.shape)
             self.num_dims = self.num_dims or len(shape)
@@ -48,17 +44,14 @@ class UncompressedChunk(BaseChunk):
 
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
-        if end:
-            self.data_bytes += samples.tobytes()
-        else:
-            self.data_bytes = samples.tobytes() + self.data_bytes
+        self.data_bytes += samples.tobytes()
 
         if num_samples > 0:
             shape = self.normalize_shape(samples[0].shape)
             sample_nbytes = samples[0].nbytes
             for _ in range(num_samples):
                 self.register_in_meta_and_headers(
-                    sample_nbytes, shape, update_tensor_meta=update_tensor_meta, end=end
+                    sample_nbytes, shape, update_tensor_meta=update_tensor_meta
                 )
 
         return float(num_samples)
@@ -67,12 +60,8 @@ class UncompressedChunk(BaseChunk):
         self,
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
-        end: bool = True,
     ) -> float:
         num_samples: float = 0
-
-        if not end:
-            incoming_samples.reverse()
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
@@ -90,16 +79,12 @@ class UncompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    if end:
-                        self.data_bytes += serialized_sample  # type: ignore
-                    else:
-                        self.data_bytes = serialized_sample + self.data_bytes  # type: ignore
+                    self.data_bytes += serialized_sample  # type: ignore
 
                     self.register_in_meta_and_headers(
                         sample_nbytes,
                         shape,
                         update_tensor_meta=update_tensor_meta,
-                        end=end,
                     )
                     num_samples += 1
                 else:

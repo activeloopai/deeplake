@@ -139,13 +139,12 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 self._encoded = np.concatenate([self._encoded, new_entry])
         return id
 
-    def register_samples(self, num_samples: int, end: bool = True, row: Optional[int] = None):  # type: ignore
+    def register_samples(self, num_samples: int, row: Optional[int] = None):  # type: ignore
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
 
         Args:
             num_samples (int): The number of samples the last chunk ID should have added to it's registration.
-            end (bool): The parameter showing if samples are needed to register in front or in the end of encoder
             row (Optional[int]): The row of chunk in which need to register the samples
 
         Raises:
@@ -154,7 +153,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
-        super().register_samples(None, num_samples, end=end, row=row)
+        super().register_samples(None, num_samples, row=row)
 
     def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.

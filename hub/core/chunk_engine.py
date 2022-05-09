@@ -579,29 +579,12 @@ class ChunkEngine:
             samples = list(samples)
         return samples, verified_samples
 
-    def can_fit_to_chunk(self, samples, chunk_id: Optional[str] = None) -> bool:
-        if chunk_id is None:
-            return False
-
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)  # type: ignore
-        chunk_commit_id = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk_size = self.cache.get_object_size(chunk_key)
-
-        sample_bytes = 0
-        for _, sample in enumerate(samples):
-            sample_bytes += len(sample.buffer)
-
-        sum_size = chunk_size + sample_bytes
-        return sum_size < self.min_chunk_size
-
     def _samples_to_chunks(
         self,
         samples,
         start_chunk: Optional[BaseChunk] = None,
         register: bool = True,
         update_commit_diff: bool = False,
-        append_to_end: bool = True,
         update_tensor_meta: bool = True,
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
@@ -614,7 +597,6 @@ class ChunkEngine:
             start_chunk (Optional[BaseChunk]): Parameter that points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
-            append_to_end (bool): Parameter that shows if we need to add samples to the end of the chunk or the begining
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
             start_chunk_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
@@ -626,7 +608,7 @@ class ChunkEngine:
 
         updated_chunks = []
         if current_chunk is None:
-            current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+            current_chunk = self._create_new_chunk(register)
             updated_chunks.append(current_chunk)
         enc = self.chunk_id_encoder
         tiles = {}
@@ -637,24 +619,11 @@ class ChunkEngine:
             pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
-                samples, update_tensor_meta=update_tensor_meta, end=append_to_end
+                samples, update_tensor_meta=update_tensor_meta
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                if start_chunk_row is not None:
-                    chunk_id = self.chunk_id_encoder.get_next_chunk_id(start_chunk_row)
-                    if self.can_fit_to_chunk(samples, chunk_id):
-                        next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
-                        return self._samples_to_chunks(
-                            samples,
-                            start_chunk=next_chunk,
-                            register=True,
-                            update_commit_diff=True,
-                            append_to_end=False,
-                            update_tensor_meta=False,
-                            start_chunk_row=start_chunk_row + 1,
-                        )
-                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                current_chunk = self._create_new_chunk(register)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -672,24 +641,7 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    if start_chunk_row is not None:
-                        chunk_id = self.chunk_id_encoder.get_next_chunk_id(
-                            start_chunk_row
-                        )
-                        if self.can_fit_to_chunk(samples, chunk_id):
-                            next_chunk = self.get_chunk_from_chunk_id(int(chunk_id))  # type: ignore
-                            return self._samples_to_chunks(
-                                samples,
-                                start_chunk=next_chunk,
-                                register=True,
-                                update_commit_diff=True,
-                                append_to_end=False,
-                                update_tensor_meta=False,
-                                start_chunk_row=start_chunk_row + 1,
-                            )
-                    current_chunk = self._create_new_chunk(
-                        register, row=start_chunk_row
-                    )
+                    current_chunk = self._create_new_chunk(register)
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
@@ -1043,7 +995,7 @@ class ChunkEngine:
             start_chunk=to_chunk,
             register=True,
             update_commit_diff=True,
-            append_to_end=True,
+            # append_to_end=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
         )

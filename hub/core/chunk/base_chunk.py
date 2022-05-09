@@ -311,7 +311,6 @@ class BaseChunk(HubMemoryObject):
         self,
         incoming_num_bytes: Optional[int],
         sample_shape: Tuple[int],
-        end: bool = True,
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
@@ -325,19 +324,18 @@ class BaseChunk(HubMemoryObject):
         """
         # incoming_num_bytes is not applicable for image compressions
         if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1, end=end)
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
         if sample_shape is not None:
             if self.shapes_encoder.is_empty():
                 num_samples = self.byte_positions_encoder.num_samples - 1
                 self._fill_empty_shapes(sample_shape, num_samples)
-            self.shapes_encoder.register_samples(sample_shape, 1, end=end)
+            self.shapes_encoder.register_samples(sample_shape, 1)
 
     def register_in_meta_and_headers(
         self,
         sample_nbytes: Optional[int],
         shape,
         update_tensor_meta: bool = True,
-        end: bool = True,
     ):
         """Registers a new sample in meta and headers
 
@@ -346,9 +344,8 @@ class BaseChunk(HubMemoryObject):
            shape (Any): Parameter that shows the shape of the added elements
            update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
            update_tensor_meta (bool): Parameter that shows if it is need to update tensor metas, in case of rechunk we do not need to update meta as we do not add new elements
-           end (bool): Parameter that shows if we need to add the elements to the end or to the beggining of the encoder
         """
-        self.register_sample_to_headers(sample_nbytes, shape, end=end)
+        self.register_sample_to_headers(sample_nbytes, shape)
         if update_tensor_meta:
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)

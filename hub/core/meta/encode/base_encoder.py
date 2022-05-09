@@ -144,16 +144,13 @@ class Encoder(ABC):
 
         return row_index  # type: ignore
 
-    def register_samples(
-        self, item: Any, num_samples: int, end: bool = True, row: Optional[int] = None
-    ):
+    def register_samples(self, item: Any, num_samples: int, row: Optional[int] = None):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.
         This method adds data to `self._encoded` without decoding.
 
         Args:
             item (Any): General input, will be passed along to subclass methods.
             num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
-            end (bool): Parameter that shows whether we need to add elements to the end of encoder or in the front.
             row (Optional[int]): Parameter that shows to which chunk the samples need to be added
         """
 
