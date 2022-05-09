@@ -55,9 +55,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
 )
 from hub.util.remove_cache import get_base_storage
-from hub.util.image import convert_sample, convert_img_arr
 from hub.compression import VIDEO_COMPRESSIONS
-from hub.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
 
@@ -575,15 +573,6 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        if tensor_meta.htype in ("image.gray", "image.rgb"):
-            mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
-            converted = []
-            for sample in samples:
-                if isinstance(sample, Sample):
-                    converted.append(convert_sample(sample, mode, self.compression))
-                elif isinstance(sample, np.ndarray):
-                    converted.append(convert_img_arr(sample, mode))
-            samples = verified_samples = converted
         return samples, verified_samples
 
     def _samples_to_chunks(

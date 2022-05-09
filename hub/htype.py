@@ -57,12 +57,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "image": {
         "dtype": "uint8",
     },
-    "image.rgb": {
-        "dtype": "uint8",
-    },
-    "image.gray": {
-        "dtype": "uint8",
-    },
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
@@ -89,15 +83,11 @@ HTYPE_VERIFICATIONS: Dict[str, Dict] = {
     "bbox": {"coords": {"type": dict, "keys": ["type", "mode"]}}
 }
 
-_image_compressions = (
-    IMAGE_COMPRESSIONS[:] + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES)
-)
+_image_compressions = IMAGE_COMPRESSIONS[:]
 _image_compressions.remove("dcm")
 
 HTYPE_SUPPORTED_COMPRESSIONS = {
-    "image": _image_compressions,
-    "image.rgb": _image_compressions,
-    "image.gray": _image_compressions,
+    "image": _image_compressions + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES),
     "video": VIDEO_COMPRESSIONS[:],
     "audio": AUDIO_COMPRESSIONS[:],
     "text": BYTE_COMPRESSIONS[:],
