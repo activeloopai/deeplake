@@ -22,4 +22,4 @@ def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> Lis
         tensor_keys = list(tensor_keys)
 
     # Get full path in case of groups
-    return [dataset.tensors[k].key for k in tensor_keys]
+    return [dataset.tensors[k].meta.name or dataset.tensors[k].key for k in tensor_keys]

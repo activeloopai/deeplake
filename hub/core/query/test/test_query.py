@@ -5,6 +5,7 @@ import numpy as np
 from hub.core.query import DatasetQuery
 import hub
 from uuid import uuid4
+import os
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -209,3 +210,55 @@ def test_multi_category_labels(local_ds):
     for v in (view1, view2, view3, view4):
         np.testing.assert_array_equal(v.image.numpy(), exp_images)
         np.testing.assert_array_equal(v.label.numpy(), exp_labels)
+
+
+def test_query_shape(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="png")
+        shapes = [(16, 32, 3), (32, 16, 3), (32, 32, 3), (16, 16, 3)]
+        counts = [5, 4, 3, 2]
+        for shape, count in zip(shapes, counts):
+            ds.image.extend(np.random.randint(50, 100, (count, *shape), dtype=np.uint8))
+    for shape, count in zip(shapes, counts):
+        assert len(ds.filter(f"image.shape == {shape}")) == count
+
+
+def test_query_sample_info(local_ds, compressed_image_paths):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="jpg")
+        path_to_shape = {}
+        for path in compressed_image_paths["jpeg"]:
+            img = hub.read(path)
+            ds.image.append(img)
+            path_to_shape[path] = img.shape
+    for path in compressed_image_paths["jpeg"]:
+        view = ds.filter(f"r'{path}' in image.sample_info['filename']")
+        np.testing.assert_array_equal(
+            view[0].image.numpy().reshape(-1), np.array(hub.read(path)).reshape(-1)
+        )  # reshape to ignore grayscale normalization
+
+
+@hub.compute
+def create_dataset(class_num, sample_out):
+    """Add new element with a specific class"""
+    sample_out.append({"classes": np.uint32(class_num)})
+    return sample_out
+
+
+def test_query_bug_transformed_dataset(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "classes",
+            htype="class_label",
+            class_names=["class_0", "class_1", "class_2"],
+        )
+
+    with local_ds as ds:
+        # Add 30 elements with randomly generated class
+        list_classes = list(np.random.randint(3, size=30, dtype=np.uint32))
+        create_dataset().eval(list_classes, ds, num_workers=2)
+
+    ds_view = local_ds.filter("classes == 'class_0'", scheduler="threaded")
+    np.testing.assert_array_equal(ds_view.classes.numpy()[:, 0], [0] * len(ds_view))
