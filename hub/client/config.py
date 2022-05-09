@@ -6,10 +6,12 @@ REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.
 ALL_AGREEMENTS_PATH = os.path.expanduser("~/.activeloop/agreements")
 
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
+HUB_REST_ENDPOINT_STAGING = "https://app-staging.activeloop.ai"
 HUB_REST_ENDPOINT_DEV = "https://app.dev.activeloop.ai"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:7777"
 USE_LOCAL_HOST = False
 USE_DEV_ENVIRONMENT = False
+USE_STAGING_ENVIRONMENT = False
 
 GET_TOKEN_SUFFIX = "/api/user/token"
 REGISTER_USER_SUFFIX = "/api/user/register"
