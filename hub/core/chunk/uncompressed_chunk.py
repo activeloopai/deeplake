@@ -32,7 +32,9 @@ class UncompressedChunk(BaseChunk):
 
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
-        self.data_bytes += samples.tobytes()  # type: ignore
+
+        assert isinstance(self.data_bytes, bytearray)
+        self.data_bytes += samples.tobytes()
 
         if num_samples > 0:
             shape = self.normalize_shape(samples[0].shape)
