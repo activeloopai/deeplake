@@ -222,6 +222,7 @@ class LRUCache(StorageProvider):
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.hub_objects[path].tobytes()[start_byte:end_byte]
+        # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
         elif path in self.lru_sizes and not (
             isinstance(self.cache_storage[path], BaseChunk)
             and self.cache_storage[path].is_partially_read_chunk

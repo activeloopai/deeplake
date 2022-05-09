@@ -23,6 +23,7 @@ import json
 from urllib.request import Request, urlopen
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
+HEADER_SIZE_BYTES = 13
 
 
 def infer_header_num_bytes(
@@ -37,7 +38,7 @@ def infer_header_num_bytes(
 
     Returns:
         Length of the headers of chunk when serialized as int"""
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + 13
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + HEADER_SIZE_BYTES
 
 
 def infer_chunk_num_bytes(
