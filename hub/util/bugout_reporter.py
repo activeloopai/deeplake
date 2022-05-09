@@ -105,8 +105,10 @@ def feature_report_path(
     path: str, feature_name: str, parameters: dict, starts_with: str = "hub://"
 ):
     """Helper function for generating humbug feature reports depending on the path"""
+    if not isinstance(path, str):
+        path = str(path)
     if path.startswith(starts_with):
-        parameters["Path"] = str(path)
+        parameters["Path"] = path
 
     hub_reporter.feature_report(
         feature_name=feature_name,

@@ -710,6 +710,13 @@ class OutOfSampleCountError(Exception):
     pass
 
 
+class SampleHtypeMismatchError(Exception):
+    def __init__(self, htype, sample_type):
+        super().__init__(
+            f"htype '{htype}' does not support samples of type {sample_type}."
+        )
+
+
 class EmptyTensorError(Exception):
     def __init__(self):
         super().__init__(

@@ -8,6 +8,7 @@ from hub.client.config import (
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
+    HUB_REST_ENDPOINT_STAGING,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
@@ -123,6 +124,8 @@ class HubBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
+        if hub.client.config.USE_STAGING_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_STAGING
 
         return HUB_REST_ENDPOINT
 
