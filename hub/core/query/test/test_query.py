@@ -111,7 +111,7 @@ def test_dataset_view_save():
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
-    view.store(".tests/ds_view", overwrite=True)
+    view.save_view(".tests/ds_view", overwrite=True)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
@@ -146,10 +146,10 @@ def test_inplace_dataset_view_save(
         else lambda s: s.labels == "dog"
     )
     view = ds.filter(
-        f, store_result=stream, num_workers=num_workers, progressbar=progressbar
+        f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.store()
+    vds_path = view.save_view()
     assert read_only or len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
