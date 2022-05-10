@@ -101,7 +101,7 @@ class LinkedChunkEngine(ChunkEngine):
             video_sample.squeeze(0)
         return video_sample
 
-    def get_basic_sample(self, global_sample_index, index):
+    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_hub_read_sample(global_sample_index)
         return sample.array[tuple(entry.value for entry in index.values[1:])]
 
