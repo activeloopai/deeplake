@@ -1,5 +1,4 @@
 # type: ignore
-from unittest.util import strclass
 import uuid
 import sys
 import numpy as np
@@ -9,7 +8,7 @@ from tqdm import tqdm  # type: ignore
 import posixpath
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
+from functools import partial
 import hub
 from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
@@ -73,6 +72,7 @@ from hub.util.exceptions import (
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
+    DatasetHandlerError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -2015,6 +2015,7 @@ class Dataset:
         Dataset._write_queries_json(self, info)
         return vds
 
+
     def _save_view_in_user_queries_dataset(
         self, id: Optional[str], message: Optional[str], copy: bool
     ):
@@ -2192,18 +2193,39 @@ class Dataset:
         except KeyError:
             return []
 
-    def get_views(self):
-        """Returns list of views stored in the last commit"""
-        commit_id = self.commit_id
+    def _get_query_history_from_user_account(self):
+        username = get_user_name()
+        if username == "public":
+            return []
+        try:
+            queries_ds = hub.load(f"hub://{username}/queries")
+        except DatasetHandlerError:
+            return []
+        return list(filter(lambda x: x["source-dataset"] == self.path), queries_ds._get_query_history())
+
+    def get_views(self, commits: Optional[Union[str, List[str]]] = None):
+        """Returns list of views stored in this Dataset.
+
+        Args:
+            commits (Union[str, List[str]], optional): id(s) of commits from which views should be returned.
+            To get views from all commits, pass `commits="all"`.
+            If not specified, views from the currently checked out commit will be returned.
+        """
+        hist = self._get_query_history()
+        if self.path.startswith("hub://"):
+            hist += self._get_query_history_from_user_account()
+        if commit is None:
+            commit = self.commit_id
+        if isinstance(commit, str):
+            if commit != "all":
+                hist = filter(lambda x: x["source-dataset-version"] == commit, hist)
+        else:
+            hist = filter(lambda x: x["source-dataset-version"] in commit, hist)
         return list(
             map(
-                ViewEntry,
-                filter(
-                    lambda x: x["source-dataset-version"] == commit_id,
-                    self._get_query_history(),
-                ),
-            )
-        )
+                partial(ViewEntry, dataset=self),
+                hist
+        ))
 
     def _sub_ds(
         self,
@@ -2246,17 +2268,6 @@ class Dataset:
             path=path,
             token=self._token,
         )
-
-    def _get_saved_vds(self, hash: str):
-        """Returns a vds saved under the `.queries` subdirectory given its hash.
-
-        Args:
-            hash (str): Hash of the required vds.
-
-        Returns:
-            VDS with the specified hash.
-        """
-        return self._get_sub_ds(".queries/" + hash)
 
     def _link_tensors(
         self,
