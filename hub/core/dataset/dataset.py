@@ -115,6 +115,7 @@ from hub.util.pretty_print import (
 )
 from hub.core.dataset.view_entry import ViewEntry
 from hub.client.utils import get_user_name
+from itertools import chain
 import warnings
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -1960,7 +1961,6 @@ class Dataset:
             "source-dataset": self.path,
             "source-dataset-version": commit_id,
             "created_at": tm,
-            "path": id,
         }
         if message is not None:
             info["message"] = message
@@ -1991,7 +1991,9 @@ class Dataset:
 
     def _read_queries_json(self) -> list:
         try:
-            return json.loads(self.storage[get_queries_key()].decode("utf-8"))
+            return json.loads(
+                get_base_storage(self.storage)[get_queries_key()].decode("utf-8")
+            )
         except KeyError:
             return []
 
@@ -2001,11 +2003,11 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool):
+    def _write_vds(self, vds, info: dict, copy: bool, num_wrokers: int):
         """Writes the indices of this view to a vds."""
         with vds:
             if copy:
-                self.copy(vds)
+                self.copy(vds, num_workers=num_wrokers)
             else:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
@@ -2013,7 +2015,7 @@ class Dataset:
             vds.info.update(info)
 
     def _save_view_in_subdir(
-        self, id: Optional[str], message: Optional[str], copy: bool
+        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
     ):
         """Stores this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
@@ -2022,12 +2024,12 @@ class Dataset:
         self.flush()
         get_base_storage(self.storage).subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
-        self._write_vds(vds, info, copy)
+        self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
         return vds
 
     def _save_view_in_user_queries_dataset(
-        self, id: Optional[str], message: Optional[str], copy: bool
+        self, id: Optional[str], message: Optional[str], copy: bool, num_wrokers: int
     ):
         """Stores this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2038,7 +2040,7 @@ class Dataset:
         if username == "public":
             raise NotLoggedInError("Unable to save query result. Not logged in.")
 
-        info = self._get_view_info(id, message, copy)
+        info = self._get_view_info(id, message, copy, num_workers)
         hash = info["id"]
 
         queries_ds_path = f"hub://{username}/queries"
@@ -2068,12 +2070,13 @@ class Dataset:
         id: Optional[str],
         message: Optional[str],
         copy: bool,
+        num_workers: int,
         **ds_args,
     ):
         """Stores this view at a given dataset path"""
         vds = hub.dataset(path, **ds_args)
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy)
+        self._write_vds(vds, info, copy, num_workers)
         return vds
 
     def save_view(
@@ -2082,6 +2085,7 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         copy: bool = False,
+        num_workers: int = 0,
         **ds_args,
     ) -> str:
         """Stores a dataset view as a virtual dataset (VDS)
@@ -2095,11 +2099,11 @@ class Dataset:
             message (Optional, message): Custom user message.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
             copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
-
+            num_wrokers (int): Number of workers to be used if copy=True.
         Returns:
             str: Path to the saved VDS.
         """
-        return self._save_view(path, id, message, copy, False, **ds_args)
+        return self._save_view(path, id, message, copy, num_workers, False, **ds_args)
 
     def _save_view(
         self,
@@ -2107,6 +2111,7 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         copy: bool = False,
+        num_workers: int = 0,
         _ret_ds: bool = False,
         **ds_args,
     ):
@@ -2120,6 +2125,7 @@ class Dataset:
             id (Optional, str): Uniquie id for this view.
             message (Optional, message): Custom user message.
             copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
+            num_wrokers (int): Number of workers to be used if copy=True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2143,15 +2149,19 @@ class Dataset:
                 )
             if self.read_only:
                 if isinstance(self, hub.core.dataset.HubCloudDataset):
-                    vds = self._save_view_in_user_queries_dataset(id, message, copy)
+                    vds = self._save_view_in_user_queries_dataset(
+                        id, message, copy, num_workers
+                    )
                 else:
                     raise ReadOnlyModeError(
                         "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
                     )
             else:
-                vds = self._save_view_in_subdir(id, message, copy)
+                vds = self._save_view_in_subdir(id, message, copy, num_workers)
         else:
-            vds = self._save_view_in_path(path, id, message, copy, **ds_args)
+            vds = self._save_view_in_path(
+                path, id, message, copy, num_workers, **ds_args
+            )
         if _ret_ds:
             return vds
         return vds.path
@@ -2193,49 +2203,54 @@ class Dataset:
             view._query = query
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
-    def _get_query_history(self) -> List[str]:
-        """
-        Internal. Returns a list of hashes which can be passed to Dataset._get_saved_vds to get a dataset view.
-        """
-        try:
-            queries = json.loads(self.storage[get_queries_key()].decode("utf-8"))
-            return queries
-        except KeyError:
-            return []
-
-    def _get_query_history_from_user_account(self):
+    def _read_queries_json_from_user_account(self):
         username = get_user_name()
         if username == "public":
-            return []
+            return [], None
         try:
             queries_ds = hub.load(f"hub://{username}/queries")
         except DatasetHandlerError:
             return []
-        return list(
-            filter(
-                lambda x: x["source-dataset"] == self.path,
-                queries_ds._get_query_history(),
-            )
+        return (
+            list(
+                filter(
+                    lambda x: x["source-dataset"] == self.path,
+                    queries_ds._read_queries_json(),
+                )
+            ),
+            queries_ds,
         )
 
-    def get_views(self, commit_id: Optional[str] = None):
+    def get_views(self, commit_id: Optional[str] = None) -> List[ViewEntry]:
         """Returns list of views stored in this Dataset.
 
         Args:
             commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
             To get views from all commits, pass `commits="all"`.
             If not specified, views from the currently checked out commit will be returned.
+
+        Returns:
+            List of ViewEntry instances
         """
         commit_id = commit_id or self.commit_id
-        hist = self._get_query_history()
-        if self.path.startswith("hub://"):
-            hist += self._get_query_history_from_user_account()
-        return list(
-            map(
-                partial(ViewEntry, dataset=self),
-                filter(lambda x: x["source-dataset-version"] == commit, hist),
-            )
+        queries = self._read_queries_json()
+        f = lambda x: x["source-dataset-version"] == commit_id
+        ret = map(
+            partial(ViewEntry, dataset=self),
+            filter(f, queries),
         )
+
+        if self.path.startswith("hub://"):
+            queries, qds = self._read_queries_json_from_user_account()
+            if queries:
+                ret = chain(
+                    ret,
+                    map(
+                        partial(ViewEntry, dataset=qds),
+                        filter(f, queries),
+                    ),
+                )
+        return list(ret)
 
     def _sub_ds(
         self,
@@ -2506,7 +2521,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _materialize_stored_view(self, id: str):
+    def _materialize_saved_view(self, id: str):
         qjson = self._read_queries_json()
         idx = -1
         for i in range(len(qjson)):
@@ -2519,16 +2534,17 @@ class Dataset:
         if not info["virtual-datasource"]:
             # Already materialzed
             return
-        path = info.get("path", id)
-        view = self._ds._get_sub_ds(".queries/" + path)
+        path = info.get("path", info["id"])
+        vds = self._sub_ds(".queries/" + path)
+        view = vds._get_view()
         new_path = path + "_MATERIALIZED"
-        materialized = self._ds._get_sub_ds(".queries/" + new_path)
+        materialized = self._sub_ds(".queries/" + new_path)
         view.copy(materialized, overwrite=True)
         info["virtual-datasource"] = False
         info["description"] = "Dataset View Copy"
         info["path"] = new_path
         self._write_queries_json(qjson)
-        view.delete(large_ok=True)
+        vds.delete(large_ok=True)
         return info
 
 

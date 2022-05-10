@@ -146,7 +146,7 @@ def test_dataset_view_save(copy):
 @pytest.mark.parametrize(
     "stream,num_workers,read_only,progressbar,query_type,copy",
     [
-        (False, 2, False, True, "string", True),
+        (False, 2, False, True, "string", False),
         (True, 0, True, False, "function", False),
     ],
 )
@@ -167,9 +167,9 @@ def test_inplace_dataset_view_save(
     view = ds.filter(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
-    len(ds.get_views()) == int(stream)
+    assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(copy=copy)
-    len(ds.get_views()) == 1
+    assert len(ds.get_views()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
@@ -179,6 +179,17 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    entry = ds.get_views()[0]
+    assert entry.virtual
+    entry.materialize()
+    assert not entry.virtual
+    entries = ds.get_views()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert not entry.virtual
+    view3 = entry.load()
+    for t in view.tensors:
+        np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
 
 
 def test_group(local_ds):

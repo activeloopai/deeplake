@@ -26,12 +26,13 @@ class ViewEntry:
 
     @property
     def virtual(self) -> bool:
-        return self.ifo["virtual-datasource"]
+        return self.info["virtual-datasource"]
 
     def load(self):
-        return self._ds._get_sub_ds(
-            ".queries/" + self.info.get("path", self.info["id"])
-        )
+        ds = self._ds._sub_ds(".queries/" + self.info.get("path", self.info["id"]))
+        if self.virtual:
+            ds = ds._get_view()
+        return ds
 
     def materialize(self):
-        self.info = self._ds._materialize_saved_view(id)
+        self.info = self._ds._materialize_saved_view(self.info["id"])
