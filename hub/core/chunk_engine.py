@@ -1113,7 +1113,12 @@ class ChunkEngine:
                     global_sample_index
                 )
 
-                chunk.update_sample(local_sample_index, sample)
+                if len(index.values) <= 1 + int(self.is_sequence):
+                    chunk.update_sample(local_sample_index, sample)
+                else:
+                    orig_sample = chunk.read_sample(local_sample_index, copy=True)
+                    orig_sample[tuple(e.value for e in index.values[1:])] = sample
+                    chunk.update_sample(local_sample_index, orig_sample)
                 if (
                     self.active_updated_chunk is not None
                     and self.active_updated_chunk.key != chunk.key  # type: ignore
@@ -1177,7 +1182,7 @@ class ChunkEngine:
         dt, ht = tensor_meta.dtype, tensor_meta.htype
         samples = intelligent_cast(samples, dt, ht)
         getattr(view, operator)(samples)
-        self._update(index, arr)
+        self._update(index1, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.tensor_meta.chunk_compression:
