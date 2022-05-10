@@ -585,7 +585,7 @@ class ChunkEngine:
             converted = []
             for sample in samples:
                 if isinstance(sample, Sample):
-                    converted.append(convert_sample(sample, mode, self.compression))
+                    converted.append(convert_sample(sample, mode))
                 elif isinstance(sample, np.ndarray):
                     converted.append(convert_img_arr(sample, mode))
                 else:
