@@ -260,7 +260,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     sc = htype_overwrite["sample_compression"]
     cc = htype_overwrite["chunk_compression"]
     compr = sc if cc in (None, UNSPECIFIED) else cc
-    if htype == "image" and sc == UNSPECIFIED and cc == UNSPECIFIED:
+    if htype.startswith("image") and sc == UNSPECIFIED and cc == UNSPECIFIED:
         if not htype_overwrite["is_link"]:
             raise TensorMetaMissingRequiredValue(
                 htype, ["chunk_compression", "sample_compression"]  # type: ignore

@@ -43,7 +43,7 @@ from hub.htype import (
     verify_htype_key_value,
 )
 from hub.integrations import dataset_to_tensorflow
-from hub.util.bugout_reporter import hub_reporter
+from hub.util.bugout_reporter import hub_reporter, feature_report_path
 from hub.util.dataset import try_flushing
 from hub.util.cache_chain import generate_chain
 from hub.util.hash import hash_inputs
@@ -1993,7 +1993,6 @@ class Dataset:
         """Writes the indices of this view to a vds."""
         with vds:
             if copy:
-                hub.like(vds, self)
                 self.copy(vds)
             else:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
@@ -2307,7 +2306,6 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
-    @hub_reporter.record_call
     def copy(
         self,
         dest,
@@ -2317,6 +2315,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler="threaded",
         progressbar=True,
+        public: bool = False,
     ):
         """Copies this dataset or dataset view to `dest`. Version control history is not included.
 
@@ -2329,6 +2328,7 @@ class Dataset:
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
 
         Returns:
             Dataset: New dataset object.
@@ -2336,16 +2336,31 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
+
         if isinstance(dest, str):
-            dest_ds = hub.like(
-                dest,
-                self,
-                creds=creds,
-                token=token,
-                overwrite=overwrite,
-            )
+            path = dest
         else:
-            dest_ds = dest
+            path = dest.path
+
+        report_params = {
+            "Overwrite": overwrite,
+            "Num_Workers": num_workers,
+            "Scheduler": scheduler,
+            "Progressbar": progressbar,
+            "Public": public,
+        }
+        if path.startswith("hub://"):
+            report_params["Dest"] = path
+        feature_report_path(self.path, "copy", report_params)
+
+        dest_ds = hub.like(
+            dest,
+            self,
+            creds=creds,
+            token=token,
+            overwrite=overwrite,
+            public=public,
+        )
         with dest_ds:
             dest_ds.info.update(self.info)
         for tensor in self.tensors:
@@ -2450,6 +2465,10 @@ class Dataset:
 
         """
         self.link_creds.populate_creds(creds_key, creds)
+
+    def get_creds(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
+        return self.link_creds.creds_keys
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None

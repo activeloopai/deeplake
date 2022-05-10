@@ -10,7 +10,11 @@ from hub.tests.common import is_opt_true
 import os
 import pytest
 from hub.client.client import HubBackendClient
-from hub.client.config import USE_LOCAL_HOST, USE_DEV_ENVIRONMENT
+from hub.client.config import (
+    USE_LOCAL_HOST,
+    USE_DEV_ENVIRONMENT,
+    USE_STAGING_ENVIRONMENT,
+)
 
 from warnings import warn
 
@@ -20,9 +24,9 @@ def hub_cloud_dev_credentials(request):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
 
-    if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT):
+    if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT):
         warn(
-            "Running hub cloud tests without setting USE_LOCAL_HOST or USE_DEV_ENVIRONMENT is not recommended."
+            "Running hub cloud tests without setting USE_LOCAL_HOST, USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT is not recommended."
         )
 
     username = os.getenv(ENV_HUB_DEV_USERNAME)

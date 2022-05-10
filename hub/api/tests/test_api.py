@@ -938,6 +938,8 @@ def test_htypes_list():
         "dicom",
         "generic",
         "image",
+        "image.gray",
+        "image.rgb",
         "json",
         "keypoints_coco",
         "list",

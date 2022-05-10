@@ -15,7 +15,7 @@ import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None
@@ -38,7 +38,12 @@ class SampleCompressedChunk(BaseChunk):
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
                     self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape)
+
+                    self.register_in_meta_and_headers(
+                        sample_nbytes,
+                        shape,
+                        update_tensor_meta=update_tensor_meta,
+                    )
                     num_samples += 1
                 else:
                     if serialized_sample:
@@ -115,6 +120,8 @@ class SampleCompressedChunk(BaseChunk):
 
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
+        elif copy and not sample.flags["WRITEABLE"]:
+            sample = sample.copy()
         return sample
 
     def update_sample(self, local_index: int, sample: InputSample):
