@@ -167,9 +167,9 @@ def test_inplace_dataset_view_save(
     view = ds.filter(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
-    assert read_only or len(ds._get_query_history()) == int(stream)
+    len(ds.get_views()) == int(stream)
     vds_path = view.save_view(copy=copy)
-    assert read_only or len(ds._get_query_history()) == 1
+    len(ds.get_views()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")

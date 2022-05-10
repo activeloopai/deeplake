@@ -2169,6 +2169,7 @@ class Dataset:
             ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
+        ds.checkout(self.info["source-dataset-version"])
         ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
         ds._vds = self
         return ds
@@ -2211,29 +2212,30 @@ class Dataset:
         except DatasetHandlerError:
             return []
         return list(
-            filter(lambda x: x["source-dataset"] == self.path),
-            queries_ds._get_query_history(),
+            filter(
+                lambda x: x["source-dataset"] == self.path,
+                queries_ds._get_query_history(),
+            )
         )
 
-    def get_views(self, commits: Optional[Union[str, List[str]]] = None):
+    def get_views(self, commit_id: Optional[str] = None):
         """Returns list of views stored in this Dataset.
 
         Args:
-            commits (Union[str, List[str]], optional): id(s) of commits from which views should be returned.
+            commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
             To get views from all commits, pass `commits="all"`.
             If not specified, views from the currently checked out commit will be returned.
         """
+        commit_id = commit_id or self.commit_id
         hist = self._get_query_history()
         if self.path.startswith("hub://"):
             hist += self._get_query_history_from_user_account()
-        if commit is None:
-            commit = self.commit_id
-        if isinstance(commit, str):
-            if commit != "all":
-                hist = filter(lambda x: x["source-dataset-version"] == commit, hist)
-        else:
-            hist = filter(lambda x: x["source-dataset-version"] in commit, hist)
-        return list(map(partial(ViewEntry, dataset=self), hist))
+        return list(
+            map(
+                partial(ViewEntry, dataset=self),
+                filter(lambda x: x["source-dataset-version"] == commit, hist),
+            )
+        )
 
     def _sub_ds(
         self,
