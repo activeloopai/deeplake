@@ -118,6 +118,13 @@ class BaseChunk(HubMemoryObject):
         return self.tensor_meta.htype
 
     @property
+    def num_samples(self) -> int:
+        if not self.shapes_encoder.is_empty():
+            return self.shapes_encoder.num_samples
+        else:
+            return self.byte_positions_encoder.num_samples
+
+    @property
     def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
         return infer_chunk_num_bytes(
@@ -166,7 +173,9 @@ class BaseChunk(HubMemoryObject):
         return chunk
 
     @abstractmethod
-    def extend_if_has_space(self, incoming_samples, update_meta: bool = True) -> float:
+    def extend_if_has_space(
+        self, incoming_samples, update_meta: bool = True, end: bool = True
+    ) -> float:
         """Extends the chunk with the incoming samples."""
 
     @abstractmethod
@@ -299,7 +308,9 @@ class BaseChunk(HubMemoryObject):
         return self.frombuffer(self.tobytes(), chunk_args)
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
+        self,
+        incoming_num_bytes: Optional[int],
+        sample_shape: Tuple[int],
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
@@ -319,13 +330,26 @@ class BaseChunk(HubMemoryObject):
                 self._fill_empty_shapes(sample_shape, num_samples)
             self.shapes_encoder.register_samples(sample_shape, 1)
 
-    def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
-        """Registers a new sample in meta and headers"""
+    def register_in_meta_and_headers(
+        self,
+        sample_nbytes: Optional[int],
+        shape,
+        update_tensor_meta: bool = True,
+    ):
+        """Registers a new sample in meta and headers
+
+        Args:
+           sample_nbytes (Optional[int]): Paramter shat shows the numbero of bytes
+           shape (Any): Parameter that shows the shape of the added elements
+           update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
+           update_tensor_meta (bool): Parameter that shows if it is need to update tensor metas, in case of rechunk we do not need to update meta as we do not add new elements
+        """
         self.register_sample_to_headers(sample_nbytes, shape)
-        if self._update_tensor_meta_length:
-            self.tensor_meta.update_length(1)
-        if shape is not None:
-            self.tensor_meta.update_shape_interval(shape)
+        if update_tensor_meta:
+            if self._update_tensor_meta_length:
+                self.tensor_meta.update_length(1)
+            if shape is not None:
+                self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -388,6 +412,22 @@ class BaseChunk(HubMemoryObject):
         self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
         self.shapes_encoder._pop()
         self.byte_positions_encoder._pop()
+
+    def pop_multiple(self, num_samples):
+        self.prepare_for_write()
+
+        if not self.byte_positions_encoder.is_empty():
+            total_samples = self.shapes_encoder.num_samples
+            starting_byte_first_popped_sample = self.byte_positions_encoder[
+                total_samples - num_samples
+            ][0]
+            self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
+
+        for _ in range(num_samples):
+            if not self.shapes_encoder.is_empty():
+                self.shapes_encoder._pop()
+            if not self.byte_positions_encoder.is_empty():
+                self.byte_positions_encoder._pop()
 
     def _get_partial_sample_tile(self, as_bytes=False):
         if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:

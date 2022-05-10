@@ -702,6 +702,14 @@ class InfoError(Exception):
     pass
 
 
+class OutOfChunkCountError(Exception):
+    pass
+
+
+class OutOfSampleCountError(Exception):
+    pass
+
+
 class SampleHtypeMismatchError(Exception):
     def __init__(self, htype, sample_type):
         super().__init__(

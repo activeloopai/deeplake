@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Optional
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import (
     deserialize_sequence_or_creds_encoder,
@@ -13,7 +13,7 @@ class CredsEncoder(ShapeEncoder, HubMemoryObject):
         self.is_dirty = False
         super().__init__()
 
-    def register_samples(self, item: Any, num_samples: int):
+    def register_samples(self, item: Any, num_samples: int, row: Optional[int] = None):
         self.is_dirty = True
         return super().register_samples(item, num_samples)
 
