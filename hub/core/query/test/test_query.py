@@ -1,4 +1,6 @@
+from tkinter.ttk import Progressbar
 import pytest
+from hub.core import query
 
 import numpy as np
 
@@ -141,15 +143,16 @@ def test_dataset_view_save(copy):
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("read_only", [False, True])
-@pytest.mark.parametrize("progressbar", [False, True])
-@pytest.mark.parametrize("query_type", ["string", "function"])
-@pytest.mark.parametrize("copy", [True, False])
+
+@pytest.mark.parametrize("stream,num_workers,read_only,progressbar,query_type", 
+[
+    (False, 2, False, True, "string"),
+    (True, 0, True, False, "function"),
+],
+)
+
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
-):
+    ds_generator, stream, num_workers, read_only, progressbar, query_type):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
@@ -165,7 +168,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.save_view(copy=copy)
+    vds_path = view.save_view()
     assert read_only or len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
