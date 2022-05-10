@@ -2347,6 +2347,7 @@ class Dataset:
             "Progressbar": progressbar,
             "Public": public,
         }
+
         if path.startswith("hub://"):
             report_params["Dest"] = path
         feature_report_path(self.path, "copy", report_params)

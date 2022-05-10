@@ -729,7 +729,7 @@ class Tensor:
     def __ior__(self, other):
         pass
 
-    def data(self) -> Any:
+    def data(self, aslist: bool = False) -> Any:
         htype = self.base_htype
         if htype in ("json", "text"):
 
@@ -743,7 +743,7 @@ class Tensor:
             else:
                 return list(map(list, self.numpy(aslist=True)))
         else:
-            return self.numpy()
+            return self.numpy(aslist=aslist)
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.
