@@ -1,4 +1,5 @@
 # type: ignore
+from unittest.util import strclass
 import uuid
 import sys
 import numpy as np
@@ -186,9 +187,13 @@ class Dataset:
         ] = []  # This is a stack to support nested with contexts
         self._is_filtered_view = False
         self._view_info = None
+        self._view_id = str(uuid.uuid4())
         self._view_invalid = False
+        self._waiting_for_view_base_commit = False
+        self._new_view_base_commit: Optional[str] = None
         self._view_base = None
-        self._update_hooks: List[Callable] = []
+        self._update_hooks: Dict[str, Callable] = {}
+        self._commit_hooks: Dict[str, Callable] = {}
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -280,9 +285,15 @@ class Dataset:
         self._info = None
         self._ds_diff = None
         self._set_derived_attributes(verbose=False)
+        self._is_filtered_view = False
+        self._view_info = None
+        self._view_id = str(uuid.uuid4())
         self._view_invalid = False
+        self._waiting_for_view_base_commit = False
+        self._new_view_base_commit = None
         self._view_base = None
-        self._update_hooks = []
+        self._update_hooks = {}
+        self._commit_hooks = {}
 
     def __getitem__(
         self,
@@ -1003,7 +1014,7 @@ class Dataset:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
-
+        [f() for f in list(self._commit_hooks.values())]
         # do not store commit message
         hub_reporter.feature_report(feature_name="commit", parameters={})
 
@@ -1834,7 +1845,7 @@ class Dataset:
                 raise ValueError(
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
-        [f() for f in self._update_hooks]
+        [f() for f in list(self._update_hooks.values())]
         for i in range(n):
             self.append({k: v[i] for k, v in samples.items()})
 
@@ -1865,7 +1876,7 @@ class Dataset:
             raise ValueError(
                 "When appending using Dataset.append, all tensors are expected to have the same length."
             )
-        [f() for f in self._update_hooks]
+        [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
             for k, v in sample.items():
@@ -1904,25 +1915,39 @@ class Dataset:
             getattr(self, "_query", None),
         )
 
-    def _add_update_hook(self, hook: Callable):
-        self._update_hooks.append(hook)
-
     def _get_view_info(self, id: Optional[str] = None, message: Optional[str] = None):
         if self._view_info is None:
             if self._view_invalid:
                 raise DatasetViewSavingError(
                     "This view cannot be saved as new changes were made at HEAD node after creation of this query view."
                 )
-            view_base = self._view_base or self
-            if view_base.has_head_changes:
+            commit_id = self.commit_id
+            if self.has_head_changes:
+                if self._new_view_base_commit:
+                    commit_id = self._view_base_commit
+                else:
+                    self._waiting_for_view_base_commit = True
+                    uid = self._view_id
+                    if uid not in self._update_hooks:
 
-                def f():
-                    self._view_invalid = True
+                        def update_hook():
+                            self._view_invalid = True
+                            self._waiting_for_view_base_commit = False
+                            del self._view_base._update_hooks[uid]
+                            del self._view_base._commit_hooks[uid]
 
-                view_base._add_update_hook(f)
-                raise DatasetViewSavingError(
-                    "HEAD node has uncommited changes. Commit them before saving views."
-                )
+                        def commit_hook():
+                            self._waiting_for_view_base_commit = False
+                            self._new_view_base_commit = self._view_base.commit_id
+                            del self._view_base._update_hooks[uid]
+                            del self._view_base._commit_hooks[uid]
+
+                        self._view_base._update_hooks[uid] = update_hook
+                        self._view_base._commit_hooks[uid] = commit_hook
+
+                        raise DatasetViewSavingError(
+                            "HEAD node has uncommited changes. Commit them before saving views."
+                        )
             tm = getattr(self, "_created_at", time())
             id = self._view_hash() if id is None else id
             info = {
@@ -1930,7 +1955,7 @@ class Dataset:
                 "description": "Virtual Datasource",
                 "virtual-datasource": True,
                 "source-dataset": self.path,
-                "source-dataset-version": self.commit_id,
+                "source-dataset-version": commit_id,
                 "created_at": tm,
             }
             if message is not None:
