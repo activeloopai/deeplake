@@ -1,4 +1,5 @@
 # type: ignore
+from os import stat
 import uuid
 import sys
 import numpy as np
@@ -117,6 +118,7 @@ from hub.client.utils import get_user_name
 import warnings
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+
 
 
 class Dataset:
@@ -1959,6 +1961,7 @@ class Dataset:
             "source-dataset": self.path,
             "source-dataset-version": commit_id,
             "created_at": tm,
+            "path": id,
         }
         if message is not None:
             info["message"] = message
@@ -1968,26 +1971,36 @@ class Dataset:
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
-    @staticmethod
-    def _write_queries_json(ds, info):
-        base_storage = get_base_storage(ds.storage)
+    def _write_queries_json(self, data: dict):
+        base_storage = get_base_storage(self.storage)
         storage_read_only = base_storage.read_only
-        if ds._locked_out:
+        if self._locked_out:
             # Ignore storage level lock since we have file level lock
             base_storage.read_only = False
         lock = Lock(base_storage, get_queries_lock_key())
         lock.acquire(timeout=10, force=True)
-        queries_key = get_queries_key()
         try:
-            try:
-                queries = json.loads(base_storage[queries_key].decode("utf-8"))
-            except KeyError:
-                queries = []
-            queries.append(info)
-            base_storage[queries_key] = json.dumps(queries).encode("utf-8")
+            base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
         finally:
             lock.release()
             base_storage.read_only = storage_read_only
+
+    def _append_to_queries_json(self, info: dict):
+        queries = self._read_queries_json()
+        queries.append(info)
+        self._write_queries_json(queries)
+
+    def _read_queries_json(self) -> list:
+        try:
+            return json.loads(self.storage[get_queries_key()].decode("utf-8"))
+        except KeyError:
+            return []
+
+    def _read_view_info(self, id: str):
+        for info in self._read_queries_json():
+            if info["id"] == id:
+                return info
+        raise KeyError(f"View with id {id} not found.")
 
     def _write_vds(self, vds, info: dict, copy: bool):
         """Writes the indices of this view to a vds."""
@@ -2011,7 +2024,7 @@ class Dataset:
         get_base_storage(self.storage).subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy)
-        Dataset._write_queries_json(self, info)
+        self._append_to_queries_json(info)
         return vds
 
     def _save_view_in_user_queries_dataset(
@@ -2046,8 +2059,7 @@ class Dataset:
         vds = hub.empty(path, overwrite=True)
 
         self._write_vds(vds, info, copy)
-
-        Dataset._write_queries_json(queries_ds, info)
+        queries_ds._append_to_queries_json(info)
 
         return vds
 
@@ -2493,6 +2505,30 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
+    def _materialize_stored_view(self, id: str):
+        qjson = self._read_queries_json()
+        idx = -1
+        for i in range(len(qjson)):
+            if qjson[i]["id"] == id:
+                idx = i
+                break
+        if idx == -1:
+            raise KeyError(f"View with id {id} not found.")
+        info = qjson[i]
+        if not info["virtual-datasource"]:
+            # Already materialzed
+            return
+        path = info.get("path", id)
+        view = self._ds._get_sub_ds(".queries/" + path)
+        new_path = path + "_MATERIALIZED"
+        materialized = self._ds._get_sub_ds(".queries/" + new_path)
+        view.copy(materialized, overwrite=True)
+        info["virtual-datasource"] = False
+        info["description"] = "Dataset View Copy"
+        info["path"] = new_path
+        self._write_queries_json(qjson)
+        view.delete(large_ok=True)
+        return info
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])

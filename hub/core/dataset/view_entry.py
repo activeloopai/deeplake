@@ -1,4 +1,5 @@
 from typing import Dict, Optional, Any
+import warnings
 
 
 class ViewEntry:
@@ -10,7 +11,7 @@ class ViewEntry:
         return self.info[key]
 
     def get(self, key: str, default: Optional[Any] = None):
-        return self.info.get(key)
+        return self.info.get(key, default)
 
     @property
     def id(self) -> str:
@@ -28,4 +29,7 @@ class ViewEntry:
         return self.ifo["virtual-datasource"]
 
     def load(self):
-        return self._ds._get_sub_ds(".queries/" + self.info[id])
+        return self._ds._get_sub_ds(".queries/" + self.info.get("path", self.info["id"]))
+
+    def materialize(self):
+        self.info = self._ds._materialize_saved_view(id)
