@@ -120,7 +120,6 @@ import warnings
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
-
 class Dataset:
     def __init__(
         self,
@@ -2529,6 +2528,7 @@ class Dataset:
         self._write_queries_json(qjson)
         view.delete(large_ok=True)
         return info
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
