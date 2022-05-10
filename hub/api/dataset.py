@@ -378,8 +378,8 @@ class dataset:
 
     @staticmethod
     def like(
-        path: str,
-        source: Union[str, Dataset],
+        dest,
+        src: Union[str, Dataset],
         overwrite: bool = False,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
@@ -387,8 +387,8 @@ class dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
 
         Args:
-            path (str): Path where the new dataset will be created.
-            source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            dest: Empty Dataset or Path where the new dataset will be created.
+            src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 -
@@ -399,18 +399,20 @@ class dataset:
         Returns:
             Dataset: New dataset object.
         """
-
-        feature_report_path(path, "like", {"Overwrite": overwrite})
-
-        destination_ds = dataset.empty(
-            path,
-            creds=creds,
-            overwrite=overwrite,
-            token=token,
-        )
-        source_ds = source
-        if isinstance(source, str):
-            source_ds = dataset.load(source)
+        if isinstance(dest, Dataset):
+            feature_report_path(dest.path, "like", {"Overwrite": overwrite})
+            destination_ds = dest
+        else:
+            feature_report_path(dest, "like", {"Overwrite": overwrite})
+            destination_ds = dataset.empty(
+                dest,
+                creds=creds,
+                overwrite=overwrite,
+                token=token,
+            )
+        source_ds = src
+        if isinstance(src, str):
+            source_ds = dataset.load(src)
 
         for tensor_name in source_ds.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])

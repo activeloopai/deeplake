@@ -1993,6 +1993,7 @@ class Dataset:
         """Writes the indices of this view to a vds."""
         with vds:
             if copy:
+                hub.like(vds, self)
                 self.copy(vds)
             else:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(

@@ -109,14 +109,15 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-def test_dataset_view_save():
+@pytest.mark.parametrize("copy", [True, False])
+def test_dataset_view_save(copy):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True)
+        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True)
+    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
@@ -125,9 +126,9 @@ def test_dataset_view_save():
     ds.commit()
     _populate_data(ds)
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True)
+        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True)
+    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
 
 
 @pytest.mark.parametrize(
@@ -145,8 +146,9 @@ def test_dataset_view_save():
 @pytest.mark.parametrize("read_only", [False, True])
 @pytest.mark.parametrize("progressbar", [False, True])
 @pytest.mark.parametrize("query_type", ["string", "function"])
+@pytest.mark.parametrize("copy", [True, False])
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type
+    ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
@@ -163,7 +165,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.save_view()
+    vds_path = view.save_view(copy=copy)
     assert read_only or len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
