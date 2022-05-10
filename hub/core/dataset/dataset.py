@@ -2232,7 +2232,7 @@ class Dataset:
         }
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
-        feature_report_path(self.path, "deepcopy", report_params)
+        feature_report_path(self.path, "copy", report_params)
         dest_ds = hub.like(
             dest,
             self,
