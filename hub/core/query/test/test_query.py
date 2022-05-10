@@ -127,11 +127,13 @@ def test_dataset_view_save():
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("read_only", [False, True])
-@pytest.mark.parametrize("progressbar", [False, True])
-@pytest.mark.parametrize("query_type", ["string", "function"])
+@pytest.mark.parametrize(
+    "stream,num_workers,read_only,progressbar,query_type",
+    [
+        (False, 2, False, True, "string"),
+        (True, 0, True, False, "function"),
+    ],
+)
 def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type
 ):
