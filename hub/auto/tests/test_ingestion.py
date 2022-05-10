@@ -1,4 +1,5 @@
 from hub.api.dataset import Dataset
+from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
 from hub.tests.common import get_dummy_data_path
 from hub.util.exceptions import (
     InvalidPathException,
@@ -11,6 +12,7 @@ import hub
 import pandas as pd  # type: ignore
 
 
+# To Do: adolkhan. Write tests to check whether pathlib.Path is supported
 def test_ingestion_simple(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
 
@@ -157,12 +159,14 @@ def test_csv(memory_ds: Dataset):
     np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
 
 
-def test_dataframe(memory_ds: Dataset):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
     path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
     ds = hub.ingest_dataframe(df, memory_ds.path, progress_bar=False)
 
     with pytest.raises(Exception):
+        memory_ds.path = convert_string_to_pathlib_if_needed(memory_ds, convert_to_pathlib)
         hub.ingest_dataframe(123, memory_ds.path)
 
     assert list(ds.tensors) == ["Year", "Score", "Title"]

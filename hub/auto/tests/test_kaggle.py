@@ -1,4 +1,5 @@
 from hub.api.dataset import Dataset
+from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
 from hub.util.exceptions import (
     KaggleDatasetAlreadyDownloadedError,
     SamePathException,
@@ -12,9 +13,11 @@ import os
 import hub
 
 
-def test_ingestion_simple(local_ds: Dataset, hub_kaggle_credentials):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_ingestion_simple(local_ds: Dataset, hub_kaggle_credentials, convert_to_pathlib):
     with CliRunner().isolated_filesystem():
         kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_simple")
+        kaggle_path = convert_string_to_pathlib_if_needed(kaggle_path, convert_to_pathlib)
         username, key = hub_kaggle_credentials
 
         ds = hub.ingest_kaggle(
