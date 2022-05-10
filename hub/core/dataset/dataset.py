@@ -167,7 +167,9 @@ class Dataset:
         d: Dict[str, Any] = {}
         d["_client"] = d["org_id"] = d["ds_name"] = None
         # uniquely identifies dataset
-        d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(storage)
+        d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
+            storage
+        )
         d["storage"] = storage
         d["_read_only"] = read_only
         d["_locked_out"] = False  # User requested write access but was denied
@@ -2018,7 +2020,9 @@ class Dataset:
         """
         return self._store(path, False, **ds_args)
 
-    def _store(self, path: Optional[str, pathlib.Path] = None, _ret_ds: bool = False, **ds_args):
+    def _store(
+        self, path: Optional[str, pathlib.Path] = None, _ret_ds: bool = False, **ds_args
+    ):
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
@@ -2082,7 +2086,10 @@ class Dataset:
         return ds
 
     def _get_empty_vds(
-        self, vds_path: Optional[str, pathlib.Path] = None, query: Optional[str] = None, **vds_args
+        self,
+        vds_path: Optional[str, pathlib.Path] = None,
+        query: Optional[str] = None,
+        **vds_args,
     ):
         """Returns an empty VDS with this dataset as the source dataset. Internal.
 

@@ -166,7 +166,9 @@ def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
     ds = hub.ingest_dataframe(df, memory_ds.path, progress_bar=False)
 
     with pytest.raises(Exception):
-        memory_ds.path = convert_string_to_pathlib_if_needed(memory_ds, convert_to_pathlib)
+        memory_ds.path = convert_string_to_pathlib_if_needed(
+            memory_ds, convert_to_pathlib
+        )
         hub.ingest_dataframe(123, memory_ds.path)
 
     assert list(ds.tensors) == ["Year", "Score", "Title"]
