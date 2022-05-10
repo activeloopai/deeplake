@@ -401,12 +401,15 @@ class dataset:
         Returns:
             Dataset: New dataset object.
         """
-<<<<<<< HEAD
         if isinstance(dest, Dataset):
-            feature_report_path(dest.path, "like", {"Overwrite": overwrite})
+            feature_report_path(
+                dest.path, "like", {"Overwrite": overwrite, "Public": public}
+            )
             destination_ds = dest
         else:
-            feature_report_path(dest, "like", {"Overwrite": overwrite})
+            feature_report_path(
+                dest, "like", {"Overwrite": overwrite, "Public": public}
+            )
             destination_ds = dataset.empty(
                 dest,
                 creds=creds,
@@ -416,21 +419,6 @@ class dataset:
         source_ds = src
         if isinstance(src, str):
             source_ds = dataset.load(src)
-=======
-
-        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public})
-
-        destination_ds = dataset.empty(
-            path,
-            creds=creds,
-            overwrite=overwrite,
-            token=token,
-            public=public,
-        )
-        source_ds = source
-        if isinstance(source, str):
-            source_ds = dataset.load(source)
->>>>>>> 5efbeb262fea42ccba2d00713858af68cfdde516
 
         for tensor_name in source_ds.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])

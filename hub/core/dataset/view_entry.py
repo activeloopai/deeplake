@@ -1,5 +1,6 @@
 from typing import Dict, Optional, Any
 
+
 class ViewEntry:
     def __init__(self, info: Dict, dataset):
         self.info = info

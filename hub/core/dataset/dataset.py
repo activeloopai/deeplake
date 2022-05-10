@@ -2014,7 +2014,6 @@ class Dataset:
         Dataset._write_queries_json(self, info)
         return vds
 
-
     def _save_view_in_user_queries_dataset(
         self, id: Optional[str], message: Optional[str], copy: bool
     ):
@@ -2200,7 +2199,10 @@ class Dataset:
             queries_ds = hub.load(f"hub://{username}/queries")
         except DatasetHandlerError:
             return []
-        return list(filter(lambda x: x["source-dataset"] == self.path), queries_ds._get_query_history())
+        return list(
+            filter(lambda x: x["source-dataset"] == self.path),
+            queries_ds._get_query_history(),
+        )
 
     def get_views(self, commits: Optional[Union[str, List[str]]] = None):
         """Returns list of views stored in this Dataset.
@@ -2220,11 +2222,7 @@ class Dataset:
                 hist = filter(lambda x: x["source-dataset-version"] == commit, hist)
         else:
             hist = filter(lambda x: x["source-dataset-version"] in commit, hist)
-        return list(
-            map(
-                partial(ViewEntry, dataset=self),
-                hist
-        ))
+        return list(map(partial(ViewEntry, dataset=self), hist))
 
     def _sub_ds(
         self,
