@@ -2003,11 +2003,11 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_wrokers: int):
+    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int):
         """Writes the indices of this view to a vds."""
         with vds:
             if copy:
-                self.copy(vds, num_workers=num_wrokers)
+                self.copy(vds, num_workers=num_workers)
             else:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
@@ -2029,7 +2029,7 @@ class Dataset:
         return vds
 
     def _save_view_in_user_queries_dataset(
-        self, id: Optional[str], message: Optional[str], copy: bool, num_wrokers: int
+        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
     ):
         """Stores this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2099,7 +2099,7 @@ class Dataset:
             message (Optional, message): Custom user message.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
             copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
-            num_wrokers (int): Number of workers to be used if copy=True.
+            num_workers (int): Number of workers to be used if copy=True.
         Returns:
             str: Path to the saved VDS.
         """
@@ -2125,7 +2125,7 @@ class Dataset:
             id (Optional, str): Uniquie id for this view.
             message (Optional, message): Custom user message.
             copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
-            num_wrokers (int): Number of workers to be used if copy=True.
+            num_workers (int): Number of workers to be used if copy=True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
