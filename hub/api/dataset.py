@@ -544,6 +544,7 @@ class dataset:
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
             Dataset: New dataset object.
