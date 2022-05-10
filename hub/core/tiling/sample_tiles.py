@@ -33,7 +33,6 @@ class SampleTiles:
                 store_uncompressed_tiles,
                 htype,
                 tile_shape,
-                dtype,
             )
         else:
             self._init_from_sample_shape(
@@ -54,12 +53,11 @@ class SampleTiles:
         store_uncompressed_tiles: bool = False,
         htype: Optional[str] = None,
         tile_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Optional[Union[np.dtype, str]] = None,
     ):
         self.arr = arr
         self.sample_shape = arr.shape
         tile_shape = tile_shape or self._get_tile_shape(
-            dtype, htype, chunk_size, compression  # type: ignore
+            arr.dtype, htype, chunk_size, compression  # type: ignore
         )
         self.tile_shape = tile_shape
         tiles = break_into_tiles(arr, tile_shape)
@@ -109,7 +107,7 @@ class SampleTiles:
         )
         return get_tile_shape(
             self.sample_shape,
-            np.prod(np.array(self.sample_shape, dtype=np.int64))
+            np.prod(np.array(self.sample_shape, dtype=np.uint64))
             * np.dtype(dtype).itemsize
             * get_compression_ratio(compression),
             chunk_size,

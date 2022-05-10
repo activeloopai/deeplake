@@ -331,7 +331,7 @@ def deserialize_sequence_or_creds_encoder(
 
 
 def check_sample_shape(shape, num_dims):
-    if len(shape) != num_dims:
+    if shape is not None and len(shape) != num_dims:
         raise TensorInvalidSampleShapeError(shape, num_dims)
 
 

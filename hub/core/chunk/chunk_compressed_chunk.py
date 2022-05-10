@@ -7,11 +7,13 @@ from hub.core.compression import (
     decompress_multiple,
 )
 from hub.core.fast_forwarding import ffw_chunk
+from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import bytes_to_text, check_sample_shape
 from hub.core.partial_sample import PartialSample
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
+from hub.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 from hub.core.serialize import infer_chunk_num_bytes
 import hub
@@ -32,14 +34,23 @@ class ChunkCompressedChunk(BaseChunk):
         self._changed = False
         self._compression_ratio = 0.5
 
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True) -> float:  # type: ignore
         self.prepare_for_write()
         if self.is_byte_compression:
-            return self.extend_if_has_space_byte_compression(incoming_samples)
-        return self.extend_if_has_space_image_compression(incoming_samples)
+            return self.extend_if_has_space_byte_compression(
+                incoming_samples, update_tensor_meta=update_tensor_meta
+            )
+        return self.extend_if_has_space_image_compression(
+            incoming_samples, update_tensor_meta=update_tensor_meta
+        )
 
-    def extend_if_has_space_byte_compression(self, incoming_samples: List[InputSample]):
+    def extend_if_has_space_byte_compression(
+        self,
+        incoming_samples: List[InputSample],
+        update_tensor_meta: bool = True,
+    ):
         num_samples = 0
+
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(
                 incoming_sample,
@@ -47,9 +58,11 @@ class ChunkCompressedChunk(BaseChunk):
                 store_uncompressed_tiles=True,
             )
 
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
+            if shape is not None:
+                self.num_dims = self.num_dims or len(shape)
+                check_sample_shape(shape, self.num_dims)
 
+            # for tiles we do not need to check
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
@@ -66,11 +79,21 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
+
+                decompressed_bytes = self.decompressed_bytes
                 new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
+
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
                 )
-                if len(compressed_bytes) > self.min_chunk_size:
+                num_compressed_bytes = len(compressed_bytes)
+                tiling_threshold = self.tiling_threshold
+                if num_compressed_bytes > self.min_chunk_size and not (
+                    not decompressed_bytes
+                    and (
+                        tiling_threshold < 0 or num_compressed_bytes > tiling_threshold
+                    )
+                ):
                     break
                 recompressed = True
                 self.decompressed_bytes = new_decompressed
@@ -79,20 +102,29 @@ class ChunkCompressedChunk(BaseChunk):
                 self._changed = False
             if not recompressed:
                 self.decompressed_bytes += serialized_sample  # type: ignore
+
             self._changed = True
-            self.register_in_meta_and_headers(sample_nbytes, shape)
+            self.register_in_meta_and_headers(
+                sample_nbytes, shape, update_tensor_meta=update_tensor_meta
+            )
             num_samples += 1
         return num_samples
 
     def extend_if_has_space_image_compression(
-        self, incoming_samples: List[InputSample]
+        self,
+        incoming_samples: List[InputSample],
+        update_tensor_meta: bool = True,
     ):
         num_samples = 0
         num_decompressed_bytes = sum(
             x.nbytes for x in self.decompressed_samples  # type: ignore
         )
+
         for i, incoming_sample in enumerate(incoming_samples):
             incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
+
+            if shape is not None and self.is_empty_tensor and len(shape) != 3:
+                self.change_dimensionality(shape)
 
             if isinstance(incoming_sample, SampleTiles):
                 incoming_samples[i] = incoming_sample  # type: ignore
@@ -107,11 +139,21 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 num_decompressed_bytes + incoming_sample.nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
+                decompressed_samples = self.decompressed_samples
+                new_samples = decompressed_samples + [incoming_sample]  # type: ignore
+
                 compressed_bytes = compress_multiple(
-                    self.decompressed_samples + [incoming_sample],  # type: ignore
+                    new_samples,  # type: ignore
                     compression=self.compression,
                 )
-                if len(compressed_bytes) > self.min_chunk_size:
+                num_compressed_bytes = len(compressed_bytes)
+                tiling_threshold = self.tiling_threshold
+                if num_compressed_bytes > self.min_chunk_size and not (
+                    not decompressed_samples
+                    and (
+                        tiling_threshold < 0 or num_compressed_bytes > tiling_threshold
+                    )
+                ):
                     break
                 self._compression_ratio /= 2
                 self._data_bytes = compressed_bytes
@@ -123,9 +165,12 @@ class ChunkCompressedChunk(BaseChunk):
             self.num_dims = self.num_dims or len(shape)
             check_sample_shape(shape, self.num_dims)
             self.decompressed_samples.append(incoming_sample)  # type: ignore
+
             self._changed = True
             # Byte positions are not relevant for chunk wise image compressions, so incoming_num_bytes=None.
-            self.register_in_meta_and_headers(None, shape)
+            self.register_in_meta_and_headers(
+                None, shape, update_tensor_meta=update_tensor_meta
+            )
             num_samples += 1
         return num_samples
 
@@ -149,6 +194,8 @@ class ChunkCompressedChunk(BaseChunk):
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
+        if self.is_empty_tensor:
+            raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -162,7 +209,10 @@ class ChunkCompressedChunk(BaseChunk):
             decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
-        return np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
+        ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
+        if copy and not ret.flags["WRITEABLE"]:
+            ret = ret.copy()
+        return ret
 
     def update_sample(self, local_index: int, new_sample: InputSample):
         self.prepare_for_write()
@@ -175,7 +225,7 @@ class ChunkCompressedChunk(BaseChunk):
         serialized_sample, shape = self.serialize_sample(
             new_sample, chunk_compression=self.compression, break_into_tiles=False
         )
-        self.check_shape_for_update(local_index, shape)
+        self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             self.decompressed_bytes = partial_sample_tile
@@ -192,10 +242,21 @@ class ChunkCompressedChunk(BaseChunk):
         self.update_in_meta_and_headers(local_index, new_nb, shape)
 
     def update_sample_img_compression(self, local_index: int, new_sample: InputSample):
+        if new_sample is None:
+            if self.tensor_meta.max_shape:
+                new_sample = np.ones(
+                    (0,) * len(self.tensor_meta.max_shape), dtype=self.dtype
+                )
+            else:
+                # earlier sample was also None, do nothing
+                return
+
         new_sample = intelligent_cast(new_sample, self.dtype, self.htype)
         shape = new_sample.shape
         shape = self.normalize_shape(shape)
-        self.check_shape_for_update(local_index, shape)
+        if self.is_empty_tensor and len(shape) != 3:
+            self.change_dimensionality(shape)
+        self.check_shape_for_update(shape)
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             self.decompressed_samples = [partial_sample_tile]
@@ -211,6 +272,13 @@ class ChunkCompressedChunk(BaseChunk):
         self.update_in_meta_and_headers(local_index, None, shape)
 
     def process_sample_img_compr(self, sample):
+        if sample is None:
+            if self.tensor_meta.max_shape:
+                shape = (0,) * len(self.tensor_meta.max_shape)
+            else:
+                # we assume 3d, later we reset dimensions if the assumption was wrong
+                shape = (0, 0, 0)
+            return np.ones(shape, dtype=self.dtype), None
         if isinstance(sample, SampleTiles):
             return sample, sample.tile_shape
         elif isinstance(sample, PartialSample):
@@ -219,9 +287,9 @@ class ChunkCompressedChunk(BaseChunk):
                     compression=self.compression,
                     chunk_size=self.min_chunk_size,
                     htype=self.htype,
-                    dtype=self.dtype,
                     sample_shape=sample.sample_shape,
                     tile_shape=sample.tile_shape,
+                    dtype=sample.dtype,
                 ),
                 sample.sample_shape,
             )
@@ -230,17 +298,21 @@ class ChunkCompressedChunk(BaseChunk):
         sample = intelligent_cast(sample, self.dtype, self.htype)
         shape = sample.shape
         shape = self.normalize_shape(shape)
-        self.num_dims = self.num_dims or len(shape)
-        check_sample_shape(shape, self.num_dims)
+        if not self.is_empty_tensor:
+            self.num_dims = self.num_dims or len(shape)
+            check_sample_shape(shape, self.num_dims)
 
         ratio = get_compression_ratio(self.compression)
         approx_compressed_size = sample.nbytes * ratio
 
-        if approx_compressed_size > self.min_chunk_size:
+        if (
+            self.tiling_threshold >= 0
+            and approx_compressed_size > self.tiling_threshold
+        ):
             sample = SampleTiles(
                 sample,
                 self.compression,
-                self.min_chunk_size,
+                self.tiling_threshold,
                 store_uncompressed_tiles=True,
             )
 
@@ -257,6 +329,31 @@ class ChunkCompressedChunk(BaseChunk):
             self._data_bytes = compress_multiple(
                 self.decompressed_samples, self.compression
             )
+        if not self.shapes_encoder.is_empty():
+            self.shapes_encoder._pop()
+        if not self.byte_positions_encoder.is_empty():
+            self.byte_positions_encoder._pop()
+        self._changed = False
+
+    def pop_multiple(self, num_samples):
+        if self.is_byte_compression:
+            total_samples = self.num_samples
+            self.decompressed_bytes = self.decompressed_bytes[
+                : self.byte_positions_encoder[total_samples - num_samples][0]
+            ]
+            self._data_bytes = compress_bytes(self.decompressed_bytes, self.compression)
+        else:
+            for _ in range(num_samples):
+                self.decompressed_samples.pop()
+            self._data_bytes = compress_multiple(
+                self.decompressed_samples, self.compression
+            )
+
+        for _ in range(num_samples):
+            if not self.shapes_encoder.is_empty():
+                self.shapes_encoder._pop()
+            if not self.byte_positions_encoder.is_empty():
+                self.byte_positions_encoder._pop()
         self._changed = False
 
     def _compress(self):
@@ -297,3 +394,27 @@ class ChunkCompressedChunk(BaseChunk):
     def prepare_for_write(self):
         ffw_chunk(self)
         self.is_dirty = True
+
+    @property
+    def is_empty_tensor(self):
+        if self.is_byte_compression:
+            return super().is_empty_tensor
+        return self.tensor_meta.max_shape == [0, 0, 0]
+
+    def change_dimensionality(self, shape):
+        if len(shape) != 2:
+            raise ValueError(
+                f"Only amples with shape (H, W) and (H, W, C) are supported in chunks with image compression, got {shape} instead."
+            )
+        self.tensor_meta.max_shape = list(shape)
+        self.tensor_meta.min_shape = list(shape)
+        self.num_dims = len(shape)
+        empty_shape = (0,) * self.num_dims
+        self.tensor_meta.update_shape_interval(empty_shape)
+        self.tensor_meta.is_dirty = True
+        num_samples = self.shapes_encoder.num_samples
+        self.shapes_encoder = ShapeEncoder()
+        self.shapes_encoder.register_samples((0,) * len(shape), num_samples)
+        if self.decompressed_samples:
+            for i, arr in enumerate(self.decompressed_samples):
+                self.decompressed_samples[i] = arr.reshape((0,) * self.num_dims)

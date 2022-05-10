@@ -19,11 +19,12 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
+
 from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
@@ -103,6 +104,7 @@ class Sample:
             self._array = array
             self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
             self._compression = None
 
         if buffer is not None:
@@ -289,28 +291,36 @@ class Sample:
             if self._uncompressed_bytes is None:
                 self._uncompressed_bytes = self._array.tobytes()
             return
-        if self.path and get_path_type(self.path) == "local":
-            compressed = self.path
+        compression = self.compression
+        if compression is None and self._buffer is not None:
+            self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                self.shape
+            )
         else:
-            compressed = self.buffer
-        self._array = decompress_array(
-            compressed, compression=self.compression, shape=self.shape, dtype=self.dtype
-        )
-        self._uncompressed_bytes = self._array.tobytes()
-        self._typestr = self._array.__array_interface__["typestr"]
-        self._dtype = np.dtype(self._typestr).name
+            if self.path and get_path_type(self.path) == "local":
+                compressed = self.path
+            else:
+                compressed = self.buffer
 
-    def uncompressed_bytes(self) -> bytes:
+            self._array = decompress_array(
+                compressed, compression=compression, shape=self.shape, dtype=self.dtype
+            )
+            self._uncompressed_bytes = self._array.tobytes()
+            self._typestr = self._array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
+
+    def uncompressed_bytes(self) -> Optional[bytes]:
         """Returns uncompressed bytes."""
         self._decompress()
-        assert self._uncompressed_bytes is not None
         return self._uncompressed_bytes
 
     @property
-    def array(self) -> np.ndarray:
+    def array(self) -> np.ndarray:  # type: ignore
+        arr = self._array
+        if arr is not None:
+            return arr
         self._decompress()
-        assert self._array is not None
-        return self._array
+        return self._array  # type: ignore
 
     def __str__(self):
         if self.is_lazy:

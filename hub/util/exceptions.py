@@ -708,3 +708,25 @@ class IncompleteHeaderBytesError(Exception):
         super().__init__(
             f"The bytes of header are incomplete. The byte {out_of_range_byte} is out of range."
         )
+
+
+class OutOfChunkCountError(Exception):
+    pass
+
+
+class OutOfSampleCountError(Exception):
+    pass
+
+
+class SampleHtypeMismatchError(Exception):
+    def __init__(self, htype, sample_type):
+        super().__init__(
+            f"htype '{htype}' does not support samples of type {sample_type}."
+        )
+
+
+class EmptyTensorError(Exception):
+    def __init__(self):
+        super().__init__(
+            "This tensor has only been populated with empty samples. Need to add atleast one non empty sample before retrieving data."
+        )
