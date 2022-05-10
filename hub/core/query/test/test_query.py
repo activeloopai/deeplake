@@ -144,14 +144,14 @@ def test_dataset_view_save(copy):
     indirect=True,
 )
 @pytest.mark.parametrize(
-    "stream,num_workers,read_only,progressbar,query_type",
+    "stream,num_workers,read_only,progressbar,query_type,copy",
     [
-        (False, 2, False, True, "string"),
-        (True, 0, True, False, "function"),
+        (False, 2, False, True, "string", True),
+        (True, 0, True, False, "function", False),
     ],
 )
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type
+    ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
@@ -168,7 +168,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.save_view()
+    vds_path = view.save_view(copy=copy)
     assert read_only or len(ds._get_query_history()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
