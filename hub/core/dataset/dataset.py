@@ -1913,7 +1913,12 @@ class Dataset:
             getattr(self, "_query", None),
         )
 
-    def _get_view_info(self, id: Optional[str] = None, message: Optional[str] = None, copy: bool = False):
+    def _get_view_info(
+        self,
+        id: Optional[str] = None,
+        message: Optional[str] = None,
+        copy: bool = False,
+    ):
         if self._view_invalid:
             raise DatasetViewSavingError(
                 "This view cannot be saved as new changes were made at HEAD node after creation of this query view."
@@ -1995,7 +2000,9 @@ class Dataset:
                 )
             vds.info.update(info)
 
-    def _save_view_in_subdir(self, id: Optional[str], message: Optional[str], copy: bool):
+    def _save_view_in_subdir(
+        self, id: Optional[str], message: Optional[str], copy: bool
+    ):
         """Stores this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
@@ -2045,7 +2052,12 @@ class Dataset:
         return vds
 
     def _save_view_in_path(
-        self, path: str, id: Optional[str], message: Optional[str], copy: bool, **ds_args
+        self,
+        path: str,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        **ds_args,
     ):
         """Stores this view at a given dataset path"""
         vds = hub.dataset(path, **ds_args)
