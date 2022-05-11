@@ -8,6 +8,7 @@ from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
+from hub.core.dataset.dataset import convert_pathlib_to_string_if_needed
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -851,9 +852,3 @@ class dataset:
         client = HubBackendClient(token=token)
         datasets = client.get_datasets(workspace=workspace)
         return datasets
-
-
-def convert_pathlib_to_string_if_needed(path):
-    if isinstance(path, pathlib.Path):
-        path = str(path)
-    return path

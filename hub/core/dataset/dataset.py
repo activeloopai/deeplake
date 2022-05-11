@@ -11,7 +11,6 @@ import posixpath
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import hub
-from hub.api.dataset import convert_pathlib_to_string_if_needed
 from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
@@ -133,7 +132,7 @@ class Dataset:
         token: Optional[str] = None,
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
-        path: Optional[str, pathlib.Path] = None,
+        path: Optional[Union[str, pathlib.Path]] = None,
         is_iteration: bool = False,
         link_creds=None,
         **kwargs,
@@ -2005,7 +2004,7 @@ class Dataset:
         self._write_vds(vds)
         return vds
 
-    def store(self, path: Optional[str, pathlib.Path] = None, **ds_args) -> str:
+    def store(self, path: Optional[Union[str, pathlib.Path]] = None, **ds_args) -> str:
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
@@ -2021,7 +2020,10 @@ class Dataset:
         return self._store(path, False, **ds_args)
 
     def _store(
-        self, path: Optional[str, pathlib.Path] = None, _ret_ds: bool = False, **ds_args
+        self,
+        path: Optional[Union[str, pathlib.Path]] = None,
+        _ret_ds: bool = False,
+        **ds_args,
     ):
         """Stores a dataset view as a virtual dataset (VDS)
 
@@ -2087,7 +2089,7 @@ class Dataset:
 
     def _get_empty_vds(
         self,
-        vds_path: Optional[str, pathlib.Path] = None,
+        vds_path: Optional[Union[str, pathlib.Path]] = None,
         query: Optional[str] = None,
         **vds_args,
     ):
@@ -2372,3 +2374,9 @@ class Dataset:
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
+
+
+def convert_pathlib_to_string_if_needed(path):
+    if isinstance(path, pathlib.Path):
+        path = str(path)
+    return path

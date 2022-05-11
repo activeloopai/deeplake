@@ -12,13 +12,21 @@ import hub
 import pandas as pd  # type: ignore
 
 
-# To Do: adolkhan. Write tests to check whether pathlib.Path is supported
-def test_ingestion_simple(memory_ds: Dataset):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
     path = get_dummy_data_path("tests_auto/image_classification")
+    src = "tests_auto/invalid_path"
+
+    if convert_to_pathlib:
+        path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
+        src = convert_string_to_pathlib_if_needed(src, convert_to_pathlib)
+        memory_ds.path = convert_string_to_pathlib_if_needed(
+            memory_ds.path, convert_to_pathlib
+        )
 
     with pytest.raises(InvalidPathException):
         hub.ingest(
-            src="tests_auto/invalid_path",
+            src=src,
             dest=memory_ds.path,
             images_compression="auto",
             progress_bar=False,
