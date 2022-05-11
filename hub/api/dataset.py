@@ -1,6 +1,6 @@
 import os
 import hub
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
@@ -380,6 +380,7 @@ class dataset:
     def like(
         path: str,
         source: Union[str, Dataset],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
@@ -390,6 +391,7 @@ class dataset:
         Args:
             path (str): Path where the new dataset will be created.
             source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 -
@@ -402,7 +404,7 @@ class dataset:
             Dataset: New dataset object.
         """
 
-        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public})
+        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public, "Tensors": tensors})
 
         destination_ds = dataset.empty(
             path,
@@ -415,7 +417,12 @@ class dataset:
         if isinstance(source, str):
             source_ds = dataset.load(source)
 
-        for tensor_name in source_ds.tensors:  # type: ignore
+        if tensors:
+            tensors = source_ds._resolve_tensor_list(tensors)
+        else:
+            tensors = source_ds.tensors
+
+        for tensor_name in tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
@@ -426,6 +433,7 @@ class dataset:
     def copy(
         src: Union[str, Dataset],
         dest: str,
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
@@ -440,6 +448,7 @@ class dataset:
         Args:
             src (Union[str, Dataset]): The Dataset or the path to the dataset to be copied.
             dest (str): Destination path to copy to.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
                 -
@@ -465,6 +474,7 @@ class dataset:
             src_ds = src
         return src_ds.copy(
             dest,
+            tensors=tensors,
             overwrite=overwrite,
             creds=dest_creds,
             token=dest_token,

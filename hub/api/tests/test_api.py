@@ -1523,22 +1523,28 @@ def test_hidden_tensors(local_ds_generator):
 def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
     ds = memory_ds
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("images/image1")
+        ds.create_tensor("images/image2")
         ds.create_tensor("label")
+        ds.create_tensor("nocopy")
         for _ in range(10):
-            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
             ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.nocopy.append([0])
 
     hub.copy(
         ds[index],
         local_ds.path,
+        tensors=["images", "label"],
         overwrite=True,
         num_workers=num_workers,
         progressbar=progressbar,
     )
     local_ds = hub.load(local_ds.path)
-    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
-
+    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+    for t in local_ds.tensors:
+        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 @pytest.mark.parametrize(
     ("ds_generator", "path", "hub_token"),
