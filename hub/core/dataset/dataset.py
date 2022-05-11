@@ -168,10 +168,12 @@ class Dataset:
         # uniquely identifies dataset
         d["path"] = path or get_path_from_storage(storage)
         d["storage"] = storage
+        d["base_storage"] = get_base_storage(storage)
         d["_read_only"] = read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = version_state is None
+        d["_is_filtered_view"] = False
         d["index"] = index or Index()
         d["group_index"] = group_index
         d["_token"] = token
@@ -181,20 +183,20 @@ class Dataset:
         d["link_creds"] = link_creds
         d["_info"] = None
         d["_ds_diff"] = None
+        d["_view_id"] = str(uuid.uuid4)
+        d["_view_invalid"] = False
+        d["_waiting_for_view_base_commit"] = False
+        d["_new_view_base_commit"] = None
+        d["_view_base"] = None
+        d["_update_hooks"] = {}
+        d["_commit_hooks"] = {}
+
         self.__dict__.update(d)
         self._set_derived_attributes()
         self._first_load_init()
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
-        self._is_filtered_view = False
-        self._view_id = str(uuid.uuid4())
-        self._view_invalid = False
-        self._waiting_for_view_base_commit = False
-        self._new_view_base_commit: Optional[str] = None
-        self._view_base = None
-        self._update_hooks: Dict[str, Callable] = {}
-        self._commit_hooks: Dict[str, Callable] = {}
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -263,6 +265,9 @@ class Dataset:
             "ds_name",
             "_is_filtered_view",
             "_view_info",
+            "_view_id",
+            "_view_invalid",
+            "_new_view_base_commit",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -277,23 +282,17 @@ class Dataset:
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
+        state["_initial_autoflush"] = []
+        state["_ds_diff"] = None
+        state["_view_base"] = None
+        state["_update_hooks"] = {}
+        state["_commit_hooks"] = {}
+        state["_waiting_for_view_base_commit"] = False
         self.__dict__.update(state)
-
+        self["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
-        self._initial_autoflush = []
-        self.is_first_load = True
-        self._info = None
-        self._ds_diff = None
         self._set_derived_attributes(verbose=False)
-        self._is_filtered_view = False
-        self._view_id = str(uuid.uuid4())
-        self._view_invalid = False
-        self._waiting_for_view_base_commit = False
-        self._new_view_base_commit = None
-        self._view_base = None
-        self._update_hooks = {}
-        self._commit_hooks = {}
 
     def __getitem__(
         self,
@@ -1930,24 +1929,25 @@ class Dataset:
             if self._new_view_base_commit:
                 commit_id = self._view_base_commit
             else:
-                self._waiting_for_view_base_commit = True
-                uid = self._view_id
-                if uid not in self._update_hooks:
+                if self._view_base:
+                    self._waiting_for_view_base_commit = True
+                    uid = self._view_id
+                    if uid not in self._update_hooks:
 
-                    def update_hook():
-                        self._view_invalid = True
-                        self._waiting_for_view_base_commit = False
-                        del self._view_base._update_hooks[uid]
-                        del self._view_base._commit_hooks[uid]
+                        def update_hook():
+                            self._view_invalid = True
+                            self._waiting_for_view_base_commit = False
+                            del self._view_base._update_hooks[uid]
+                            del self._view_base._commit_hooks[uid]
 
-                    def commit_hook():
-                        self._waiting_for_view_base_commit = False
-                        self._new_view_base_commit = self._view_base.commit_id
-                        del self._view_base._update_hooks[uid]
-                        del self._view_base._commit_hooks[uid]
+                        def commit_hook():
+                            self._waiting_for_view_base_commit = False
+                            self._new_view_base_commit = self._view_base.commit_id
+                            del self._view_base._update_hooks[uid]
+                            del self._view_base._commit_hooks[uid]
 
-                    self._view_base._update_hooks[uid] = update_hook
-                    self._view_base._commit_hooks[uid] = commit_hook
+                        self._view_base._update_hooks[uid] = update_hook
+                        self._view_base._commit_hooks[uid] = commit_hook
 
                     raise DatasetViewSavingError(
                         "HEAD node has uncommited changes. Commit them before saving views."
@@ -1970,24 +1970,32 @@ class Dataset:
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
+    def _lock_queries_json(self):
+        class _LockQueriesJson:
+            def __enter__(self2):
+                storage = self.base_storage
+                self2.storage_read_only = storage.read_only
+                if self._locked_out:
+                    # Ignore storage level lock since we have file level lock
+                    storage.read_only = False
+                lock = Lock(storage, get_queries_lock_key())
+                lock.acquire(timeout=10, force=True)
+                self2.lock = lock
+
+            def __exit__(self2, *_, **__):
+                self2.lock.release()
+                self.base_storage.read_only = self2.storage_read_only
+
+        return _LockQueriesJson()
+
     def _write_queries_json(self, data: dict):
-        base_storage = get_base_storage(self.storage)
-        storage_read_only = base_storage.read_only
-        if self._locked_out:
-            # Ignore storage level lock since we have file level lock
-            base_storage.read_only = False
-        lock = Lock(base_storage, get_queries_lock_key())
-        lock.acquire(timeout=10, force=True)
-        try:
-            base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
-        finally:
-            lock.release()
-            base_storage.read_only = storage_read_only
+        self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
 
     def _append_to_queries_json(self, info: dict):
-        queries = self._read_queries_json()
-        queries.append(info)
-        self._write_queries_json(queries)
+        with self._lock_queries_json():
+            queries = self._read_queries_json()
+            queries.append(info)
+            self._write_queries_json(queries)
 
     def _read_queries_json(self) -> list:
         try:
@@ -2040,7 +2048,7 @@ class Dataset:
         if username == "public":
             raise NotLoggedInError("Unable to save query result. Not logged in.")
 
-        info = self._get_view_info(id, message, copy, num_workers)
+        info = self._get_view_info(id, message, copy)
         hash = info["id"]
 
         queries_ds_path = f"hub://{username}/queries"
@@ -2059,7 +2067,7 @@ class Dataset:
 
         vds = hub.empty(path, overwrite=True)
 
-        self._write_vds(vds, info, copy)
+        self._write_vds(vds, info, copy, num_workers)
         queries_ds._append_to_queries_json(info)
 
         return vds
@@ -2522,28 +2530,29 @@ class Dataset:
         return tensor in self.tensors
 
     def _materialize_saved_view(self, id: str):
-        qjson = self._read_queries_json()
-        idx = -1
-        for i in range(len(qjson)):
-            if qjson[i]["id"] == id:
-                idx = i
-                break
-        if idx == -1:
-            raise KeyError(f"View with id {id} not found.")
-        info = qjson[i]
-        if not info["virtual-datasource"]:
-            # Already materialzed
-            return
-        path = info.get("path", info["id"])
-        vds = self._sub_ds(".queries/" + path)
-        view = vds._get_view()
-        new_path = path + "_MATERIALIZED"
-        materialized = self._sub_ds(".queries/" + new_path)
-        view.copy(materialized, overwrite=True)
-        info["virtual-datasource"] = False
-        info["description"] = "Dataset View Copy"
-        info["path"] = new_path
-        self._write_queries_json(qjson)
+        with self._lock_queries_json():
+            qjson = self._read_queries_json()
+            idx = -1
+            for i in range(len(qjson)):
+                if qjson[i]["id"] == id:
+                    idx = i
+                    break
+            if idx == -1:
+                raise KeyError(f"View with id {id} not found.")
+            info = qjson[i]
+            if not info["virtual-datasource"]:
+                # Already materialzed
+                return
+            path = info.get("path", info["id"])
+            vds = self._sub_ds(".queries/" + path)
+            view = vds._get_view()
+            new_path = path + "_MATERIALIZED"
+            materialized = self._sub_ds(".queries/" + new_path)
+            view.copy(materialized, overwrite=True)
+            info["virtual-datasource"] = False
+            info["description"] = "Dataset View Copy"
+            info["path"] = new_path
+            self._write_queries_json(qjson)
         vds.delete(large_ok=True)
         return info
 
