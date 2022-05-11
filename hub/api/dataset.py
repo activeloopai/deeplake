@@ -12,7 +12,11 @@ from hub.constants import (
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
 )
-from hub.util.access_method import check_access_method, get_local_dataset
+from hub.util.access_method import (
+    check_access_method,
+    get_local_dataset,
+    parse_access_method,
+)
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.delete_entry import remove_path_from_backend
@@ -88,6 +92,7 @@ class dataset:
         Raises:
             AgreementError: When agreement is rejected
         """
+        access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
 
         if creds is None:
@@ -129,6 +134,8 @@ class dataset:
                 token=token,
                 verbose=verbose,
                 ds_exists=ds_exists,
+                num_workers=num_workers,
+                scheduler=scheduler,
             )
         except AgreementError as e:
             raise e from None
@@ -301,7 +308,6 @@ class dataset:
                     token=token,
                     verbose=verbose,
                 )
-            print("here")
             return get_local_dataset(
                 access_method=access_method,
                 path=path,
