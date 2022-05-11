@@ -1,8 +1,11 @@
+from tkinter.ttk import Progressbar
 import pytest
+from hub.core import query
 
 import numpy as np
 
 from hub.core.query import DatasetQuery
+from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
 import os
@@ -22,8 +25,9 @@ def hub_compute_filter(sample_in, mod):
 
 def _populate_data(ds, n=1):
     with ds:
-        ds.create_tensor("images")
-        ds.create_tensor("labels", htype="class_label", class_names=class_names)
+        if "images" not in ds:
+            ds.create_tensor("images")
+            ds.create_tensor("labels", htype="class_label", class_names=class_names)
         for _ in range(n):
             for row in rows:
                 ds.images.append(row["images"])
@@ -107,14 +111,40 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-def test_dataset_view_save():
+@pytest.mark.parametrize("copy", [True, False])
+def test_sub_sample_view_save(copy):
+    with hub.dataset(".tests/ds", overwrite=True) as ds:
+        ds.create_tensor("x")
+        ds.x.extend(np.random.random((100, 32, 32, 3)))
+    view = ds[10:77, 2:17, 19:31, :1]
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(copy=copy)
+    ds.commit()
+    view.save_view(copy=copy)
+    view2 = ds.get_views()[0].load()
+    np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
+
+
+@pytest.mark.parametrize("copy", [True, False])
+def test_dataset_view_save(copy):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
-    view.store(".tests/ds_view", overwrite=True)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+    ds.commit()
+    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    _populate_data(ds)
+    view = ds.filter("labels == 'dog'")
+    ds.commit()
+    _populate_data(ds)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+    ds.commit()
+    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
 
 
 @pytest.mark.parametrize(
@@ -127,18 +157,21 @@ def test_dataset_view_save():
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("read_only", [False, True])
-@pytest.mark.parametrize("progressbar", [False, True])
-@pytest.mark.parametrize("query_type", ["string", "function"])
+@pytest.mark.parametrize(
+    "stream,num_workers,read_only,progressbar,query_type,copy",
+    [
+        (False, 2, False, True, "string", False),
+        (True, 0, True, False, "function", False),
+    ],
+)
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type
+    ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
     _populate_data(ds, n=2)
+    ds.commit()
     ds.read_only = read_only
     f = (
         f"labels == 'dog'#{uuid4().hex}"
@@ -146,11 +179,11 @@ def test_inplace_dataset_view_save(
         else lambda s: s.labels == "dog"
     )
     view = ds.filter(
-        f, store_result=stream, num_workers=num_workers, progressbar=progressbar
+        f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
-    assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.store()
-    assert read_only or len(ds._get_query_history()) == 1
+    assert len(ds.get_views()) == int(stream)
+    vds_path = view.save_view(copy=copy)
+    assert len(ds.get_views()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
@@ -160,6 +193,17 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    entry = ds.get_views()[0]
+    assert entry.virtual
+    entry.materialize()
+    assert not entry.virtual
+    entries = ds.get_views()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert not entry.virtual
+    view3 = entry.load()
+    for t in view.tensors:
+        np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
 
 
 def test_group(local_ds):
