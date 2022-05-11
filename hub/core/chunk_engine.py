@@ -1261,7 +1261,7 @@ class ChunkEngine:
             fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
-                - The chunk which is being accessed has more than 20 samples.
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
