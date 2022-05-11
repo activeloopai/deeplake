@@ -1574,6 +1574,7 @@ def test_create_branch_when_locked_out(local_ds):
     assert local_ds.branch == "branch"
     local_ds.create_tensor("x")
 
+
 def test_partial_read_then_write(s3_ds_generator):
     ds = s3_ds_generator()
     with ds:
