@@ -162,6 +162,7 @@ def test_dataset_view_save(copy):
     [
         (False, 2, False, True, "string", False),
         (True, 0, True, False, "function", False),
+    ],
 )
 def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
