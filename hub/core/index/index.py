@@ -417,9 +417,22 @@ class Index:
             v = e.value
             if isinstance(v, slice):
                 ret.append({"start": v.start, "stop": v.stop, "step": v.step})
+            elif isinstance(v, Iterable):
+                ret.append(list(v))
+            elif callable(v):
+                ret.append(list(v()))
             else:
                 ret.append(v)
         return ret
+
+    @classmethod
+    def from_json(cls, idxs):
+        entries = []
+        for idx in idxs:
+            if isinstance(idx, dict):
+                idx = slice(idx["start"], idx["stop"], idx["step"])
+            entries.append(IndexEntry(idx))
+        return cls(entries)
 
     def __len__(self):
         return len(self.values)

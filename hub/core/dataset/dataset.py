@@ -1,7 +1,9 @@
 # type: ignore
+from operator import sub
 from os import stat
 import uuid
 import sys
+from hub.core.index.index import IndexEntry
 import numpy as np
 from time import time
 import json
@@ -2020,6 +2022,10 @@ class Dataset:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
                 )
+                if len(self.index) > 1:
+                    vds.info["sub-sample-index"] = Index(
+                        self.index.values[1:]
+                    ).to_json()
             vds.info.update(info)
 
     def _save_view_in_subdir(
@@ -2142,11 +2148,8 @@ class Dataset:
             If _ret_ds is True, the VDS is returned, else path to the VDS is returned.
 
         Raises:
-            NotImplementedError: When saving sub-sample slices and saving views inplace for in-memory datasets.
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
         """
-        if len(self.index.values) > 1:
-            raise NotImplementedError("Saving sub-sample slices is not supported yet.")
 
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
@@ -2188,7 +2191,12 @@ class Dataset:
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
         ds.checkout(self.info["source-dataset-version"])
-        ds = ds[self.VDS_INDEX.numpy().reshape(-1).tolist()]
+        index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        sub_sample_index = self.info.get("sub-sample-index")
+        if sub_sample_index:
+            index_entries += Index.from_json(sub_sample_index).values
+        index = Index(index_entries)
+        ds = ds[index]
         ds._vds = self
         return ds
 

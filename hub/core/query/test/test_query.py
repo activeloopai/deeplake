@@ -112,6 +112,20 @@ def test_query_scheduler(local_ds):
 
 
 @pytest.mark.parametrize("copy", [True, False])
+def test_sub_sample_view_save(copy):
+    with hub.dataset(".tests/ds", overwrite=True) as ds:
+        ds.create_tensor("x")
+        ds.x.extend(np.random.random((100, 32, 32, 3)))
+    view = ds[10:77, 2:17, 19:31, :1]
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(copy=copy)
+    ds.commit()
+    view.save_view(copy=copy)
+    view2 = ds.get_views()[0].load()
+    np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
+
+
+@pytest.mark.parametrize("copy", [True, False])
 def test_dataset_view_save(copy):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
