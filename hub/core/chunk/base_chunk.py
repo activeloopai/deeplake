@@ -169,9 +169,7 @@ class BaseChunk(HubMemoryObject):
         )
 
     def tobytes(self) -> memoryview:
-        if isinstance(self.data_bytes, PartialReader):
-            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
-
+        assert isinstance(self.data_bytes, (memoryview, bytearray, bytes))
         return serialize_chunk(
             self.version,
             self.shapes_encoder.array,

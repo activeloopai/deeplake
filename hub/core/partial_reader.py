@@ -21,8 +21,5 @@ class PartialReader:
             )
         return self.data_fetched[slice_tuple]
 
-    def __len__(self):
-        return sum(stop - start for start, stop in self.data_fetched)
-
     def get_all_bytes(self) -> bytes:
-        return self.cache[self.path]
+        return self.cache.next_storage[self.path]
