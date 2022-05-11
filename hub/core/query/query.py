@@ -123,7 +123,9 @@ class EvalObject:
     @property
     def numpy_value(self):
         if self._numpy is None:
-            self._numpy = self._val.numpy(aslist=self._val.is_dynamic, fetch_chunks=True)
+            self._numpy = self._val.numpy(
+                aslist=self._val.is_dynamic, fetch_chunks=True
+            )
         return self._numpy
 
     def contains(self, v: Any):
