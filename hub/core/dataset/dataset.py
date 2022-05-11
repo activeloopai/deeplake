@@ -2417,7 +2417,7 @@ class Dataset:
             report_params["Dest"] = path
         feature_report_path(self.path, "copy", report_params)
 
-        dest_ds = hub.like(
+        dest_ds = hub.api.dataset.dataset._like(
             dest,
             self,
             tensors=tensors,
