@@ -471,6 +471,11 @@ class ChunkEngine:
         chunk.id = self.last_appended_chunk_id  # type: ignore
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+        if (
+            self.active_appended_chunk is not None
+            and self.active_appended_chunk.key != chunk_key
+        ):
+            self.write_chunk_to_storage(self.active_appended_chunk)
         self.active_appended_chunk = chunk
         return chunk
 
