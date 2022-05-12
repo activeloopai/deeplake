@@ -1,8 +1,5 @@
 import sys
-if sys.version_info < (3, 7):
-    from collections import OrderedDict
-else:
-    OrderedDict = dict
+from collections import OrderedDict
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
@@ -44,11 +41,8 @@ class LRUCache(StorageProvider):
 
         # tracks keys in lru order, stores size of value, only keys present in this exist in cache
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
-        self.dirty_keys: OrderedDict[str, None] = OrderedDict()  # keys present in cache but not next_storage. Use a dict instead of set to preserve order
 
-        # Add methods for set like API
-        self.dirty_keys.add = lambda key: self.dirty_keys.__setitem__(key, None)
-        self.dirty_keys.discard = lambda key: self.dirty_keys.pop(key, None)
+        self.dirty_keys: Dict[str, None] = OrderedDict() if sys.version_info < (3, 7) else {}  # keys present in cache but not next_storage. Use a dict instead of set to preserve order
 
         self.cache_used = 0
         self.hub_objects: Dict[str, HubMemoryObject] = {}
@@ -232,7 +226,7 @@ class LRUCache(StorageProvider):
 
         if _get_nbytes(value) <= self.cache_size:
             self._insert_in_cache(path, value)
-            self.dirty_keys.add(path)
+            self.dirty_keys[path] = None
         else:  # larger than cache, directly send to next layer
             self._forward_value(path, value)
 
@@ -259,7 +253,7 @@ class LRUCache(StorageProvider):
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
             del self.cache_storage[path]
-            self.dirty_keys.discard(path)
+            self.dirty_keys.pop(path, None)
             deleted_from_cache = True
 
         try:
@@ -301,7 +295,7 @@ class LRUCache(StorageProvider):
             for path in rm:
                 size = self.lru_sizes.pop(path)
                 self.cache_used -= size
-                self.dirty_keys.discard(path)
+                self.dirty_keys.pop(path, None)
         else:
             self.cache_used = 0
             self.lru_sizes.clear()
@@ -341,7 +335,7 @@ class LRUCache(StorageProvider):
             value (bytes, HubMemoryObject): the value to send to the next storage.
         """
         if self.next_storage is not None:
-            self.dirty_keys.discard(path)
+            self.dirty_keys.pop(path, None)
 
             if isinstance(value, HubMemoryObject):
                 self.next_storage[path] = value.tobytes()
