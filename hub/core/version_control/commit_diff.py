@@ -10,6 +10,7 @@ class CommitDiff(HubMemoryObject):
         self.created = created
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
+        self.data_deleted: List[int] = []
         self.info_updated = False
         self.cleared = False
 
@@ -110,3 +111,21 @@ class CommitDiff(HubMemoryObject):
             )
         self.data_added[1] -= 1
         self.is_dirty = True
+
+    def pop(self, index) -> None:
+        index = self.translate_index(index)
+        self.data_deleted.append(index)
+        if index not in range(*self.data_added):
+            self.data_added[0] -= 1
+        self.data_added[1] -= 1
+
+        if index in self.data_updated:
+            self.data_updated.remove(index)
+
+        self.is_dirty = True
+
+    def translate_index(self, index):
+        if not self.data_deleted:
+            return index
+        offset = sum(i < index for i in self.data_deleted)
+        return index + offset
