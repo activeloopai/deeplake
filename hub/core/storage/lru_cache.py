@@ -42,7 +42,9 @@ class LRUCache(StorageProvider):
         # tracks keys in lru order, stores size of value, only keys present in this exist in cache
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
 
-        self.dirty_keys: Dict[str, None] = OrderedDict() if sys.version_info < (3, 7) else {}  # keys present in cache but not next_storage. Use a dict instead of set to preserve order
+        self.dirty_keys: Dict[str, None] = (
+            OrderedDict() if sys.version_info < (3, 7) else {}
+        )  # keys present in cache but not next_storage. Using a dict instead of set to preserve order.
 
         self.cache_used = 0
         self.hub_objects: Dict[str, HubMemoryObject] = {}
