@@ -456,12 +456,12 @@ class dataset:
             source_ds = dataset.load(src)
 
         if tensors:
-            tensors = source_ds._resolve_tensor_list(tensors)
+            tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
         else:
-            tensors = source_ds.tensors
+            tensors = source_ds.tensors  # type: ignore
 
         for tensor_name in tensors:  # type: ignore
-            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])  # type: ignore
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
