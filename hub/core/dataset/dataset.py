@@ -290,7 +290,7 @@ class Dataset:
         state["_commit_hooks"] = {}
         state["_waiting_for_view_base_commit"] = False
         self.__dict__.update(state)
-        self["base_storage"] = get_base_storage(self.storage)
+        self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
