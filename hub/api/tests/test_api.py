@@ -545,6 +545,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
+    point = memory_ds.create_tensor("point", htype="point")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -555,6 +556,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
+    point.append(np.ones((11, 2), dtype=np.int32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -936,9 +938,12 @@ def test_htypes_list():
         "dicom",
         "generic",
         "image",
+        "image.gray",
+        "image.rgb",
         "json",
         "keypoints_coco",
         "list",
+        "point",
         "segment_mask",
         "text",
         "video",
@@ -1024,6 +1029,16 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+
+
+def test_group_delete_bug(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc/first")
+        ds.delete_group("abc")
+
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert ds.groups == {}
 
 
 def test_tensor_rename(local_ds_generator):
@@ -1307,6 +1322,14 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_extend_with_progressbar():
+    ds1 = hub.dataset("mem://ds1")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4], progressbar=True)
+    np.testing.assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
 
 
 def test_auto_htype(memory_ds):

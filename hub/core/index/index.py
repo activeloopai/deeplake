@@ -200,7 +200,7 @@ class IndexEntry:
         return (
             isinstance(self.value, slice)
             and not self.value.start
-            and self.value.stop == None
+            and self.value.stop is None
             and ((self.value.step or 1) == 1)
         )
 
