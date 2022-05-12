@@ -52,7 +52,7 @@ def check_storage_provider(storage):
 
 
 def check_cache_state(cache, expected_state):
-    assert cache.dirty_keys == expected_state[0]
+    assert set(cache.dirty_keys) == expected_state[0]
     assert set(cache.lru_sizes.keys()) == expected_state[1]
     assert len(cache.cache_storage) == expected_state[2]
     assert len(cache.next_storage) == expected_state[3]
@@ -61,7 +61,6 @@ def check_cache_state(cache, expected_state):
 
 
 def check_cache(cache):
-    cache = set(cache)
     chunk = b"0123456789123456" * MB
     FILE_1, FILE_2, FILE_3 = f"{KEY}_1", f"{KEY}_2", f"{KEY}_3"
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
