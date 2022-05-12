@@ -266,7 +266,6 @@ class Dataset:
             "org_id",
             "ds_name",
             "_is_filtered_view",
-            "_view_info",
             "_view_id",
             "_view_invalid",
             "_new_view_base_commit",
