@@ -61,6 +61,7 @@ def check_cache_state(cache, expected_state):
 
 
 def check_cache(cache):
+    cache = set(cache)
     chunk = b"0123456789123456" * MB
     FILE_1, FILE_2, FILE_3 = f"{KEY}_1", f"{KEY}_2", f"{KEY}_3"
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])

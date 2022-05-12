@@ -43,7 +43,7 @@ class LRUCache(StorageProvider):
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
 
         self.dirty_keys: Dict[str, None] = (
-            OrderedDict() if sys.version_info < (3, 7) else {}
+            OrderedDict() if sys.version_info < (3, 7) else {}  # type: ignore
         )  # keys present in cache but not next_storage. Using a dict instead of set to preserve order.
 
         self.cache_used = 0
