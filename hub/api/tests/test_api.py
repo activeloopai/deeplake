@@ -15,11 +15,13 @@ from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
     TensorAlreadyExistsError,
+    TensorGroupDoesNotExistError,
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
+    InvalidTensorGroupNameError,
     RenameError,
     PathNotEmptyException,
     BadRequestException,
@@ -543,6 +545,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
+    point = memory_ds.create_tensor("point", htype="point")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -553,6 +556,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
+    point.append(np.ones((11, 2), dtype=np.int32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -934,9 +938,12 @@ def test_htypes_list():
         "dicom",
         "generic",
         "image",
+        "image.gray",
+        "image.rgb",
         "json",
         "keypoints_coco",
         "list",
+        "point",
         "segment_mask",
         "text",
         "video",
@@ -1024,6 +1031,16 @@ def test_tensor_delete(local_ds_generator):
     assert ds.tensors == {}
 
 
+def test_group_delete_bug(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc/first")
+        ds.delete_group("abc")
+
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert ds.groups == {}
+
+
 def test_tensor_rename(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("x/y/z")
@@ -1065,6 +1082,37 @@ def test_tensor_rename(local_ds_generator):
     np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
 
     ds.delete_tensor("x/y/b")
+
+
+def test_group_rename(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("g1/g2/g3/g4/t1")
+        ds.create_group("g1/g2/g6")
+        ds.create_tensor("g1/g2/t")
+        ds["g1/g2/g3/g4/t1"].append([1, 2, 3])
+        ds["g1/g2"].rename_group("g3/g4", "g3/g5")
+        np.testing.assert_array_equal(
+            ds["g1/g2/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+        with pytest.raises(TensorGroupDoesNotExistError):
+            ds["g1"].rename_group("g2/g4", "g2/g5")
+        with pytest.raises(TensorGroupAlreadyExistsError):
+            ds["g1"].rename_group("g2/g3", "g2/g6")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds["g1"].rename_group("g2/g3", "g2/t")
+        with pytest.raises(InvalidTensorGroupNameError):
+            ds["g1"].rename_group("g2/g3", "g2/append")
+        with pytest.raises(RenameError):
+            ds["g1"].rename_group("g2/g3", "g/g4")
+        ds["g1"].rename_group("g2", "g6")
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
+
+    with local_ds_generator() as ds:
+        np.testing.assert_array_equal(
+            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
+        )
 
 
 def test_vc_bug(local_ds_generator):
@@ -1121,6 +1169,15 @@ def test_tensor_clear(local_ds_generator):
     assert len(image) == 4
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+
+def test_tensor_clear_seq(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3, 4]])
+        ds.abc.extend([[1, 2, 3, 4, 5]])
+        ds.abc.clear()
+        assert ds.abc.shape == (0, 0)
 
 
 def test_no_view(memory_ds):
@@ -1265,6 +1322,14 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_extend_with_progressbar():
+    ds1 = hub.dataset("mem://ds1")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4], progressbar=True)
+    np.testing.assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
 
 
 def test_auto_htype(memory_ds):

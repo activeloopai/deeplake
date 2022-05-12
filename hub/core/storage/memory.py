@@ -1,4 +1,6 @@
+import sys
 from typing import Any, Dict
+from hub.core.storage.lru_cache import _get_nbytes
 from hub.core.storage.provider import StorageProvider
 
 
@@ -117,4 +119,4 @@ class MemoryProvider(StorageProvider):
         self.__init__(root=state)  # type: ignore
 
     def get_object_size(self, key: str) -> int:
-        return len(self[key])
+        return _get_nbytes(self[key])

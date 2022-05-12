@@ -1,12 +1,15 @@
 from typing import Any, List, Tuple, Optional
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
-from hub.util.exceptions import ChunkIdEncoderError
+from hub.util.exceptions import (
+    ChunkIdEncoderError,
+    OutOfChunkCountError,
+    OutOfSampleCountError,
+)
 from hub.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 from hub.util.generate_id import generate_id
-
 
 CHUNK_ID_COLUMN = 0
 
@@ -44,15 +47,72 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             return 0
         return len(self._encoded)
 
-    def generate_chunk_id(self, register: Optional[bool] = True) -> ENCODING_DTYPE:
+    def get_next_chunk_id(self, row) -> Optional[str]:
+        if (
+            self.num_chunks is None
+            or self._encoded is None
+            or not row < self.num_chunks - 1
+        ):
+            return None
+
+        return self._encoded[row + 1][0]
+
+    def get_prev_chunk_id(self, row) -> Optional[str]:
+        if self.num_chunks is None or self._encoded is None or row == 0:
+            return None
+
+        return self._encoded[row - 1][0]
+
+    def decrease_samples(self, row: int = 0, num_samples: int = 0):
+        """Decrease sample count from encoder
+
+        Args:
+            row (int): shows the row of the chunk
+            num_samples (int): show sample count that needs to be updated
+
+        Raises:
+            OutOfSampleCountError: when num_samples are exeeding sample count
+            OutOfChunkCountError: When the row is out of chunk bounds
+        """
+        if self.num_samples < num_samples:
+            raise OutOfSampleCountError
+
+        if self.num_chunks < row + 1:
+            raise OutOfChunkCountError
+
+        self._encoded[row][LAST_SEEN_INDEX_COLUMN] -= num_samples
+        self.is_dirty = True
+
+    def delete_chunk_id(self, row):
+        """Delete row from encoder
+
+        Args:
+            row (int): the row of chunk that needs to be deleted
+
+        Raises:
+            OutOfChunkCountError: When the row is out of chunk bounds
+        """
+        if row > self.num_chunks:
+            raise OutOfChunkCountError
+
+        self._encoded = np.delete(self._encoded, row, axis=0)
+        self.is_dirty = True
+
+    def generate_chunk_id(
+        self, register: Optional[bool] = True, row: Optional[int] = None
+    ) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
 
         Args:
             register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True.
+            row (Optional, int): Iterator position where the new generated id should be inserted
 
         Returns:
             ENCODING_DTYPE: The random chunk ID.
+
+        Raises:
+            OutOfChunkCountError: When the row is out of chunk bounds
         """
 
         id = generate_id(ENCODING_DTYPE)
@@ -61,6 +121,15 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
 
             else:
+                if row is not None:
+                    if row > self.num_chunks:
+                        raise OutOfChunkCountError
+                    new_entry = np.array(
+                        [id, self._encoded[row][LAST_SEEN_INDEX_COLUMN]]
+                    )
+                    self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
+                    return id
+
                 last_index = self.num_samples - 1
 
                 new_entry = np.array(
@@ -70,12 +139,13 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 self._encoded = np.concatenate([self._encoded, new_entry])
         return id
 
-    def register_samples(self, num_samples: int):  # type: ignore
+    def register_samples(self, num_samples: int, row: Optional[int] = None):  # type: ignore
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
 
         Args:
             num_samples (int): The number of samples the last chunk ID should have added to it's registration.
+            row (Optional[int]): The row of chunk in which need to register the samples
 
         Raises:
             ValueError: `num_samples` should be non-negative.
@@ -83,7 +153,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
-        super().register_samples(None, num_samples)
+        super().register_samples(None, num_samples, row=row)
 
     def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.

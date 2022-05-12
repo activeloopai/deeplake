@@ -559,3 +559,22 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
         elif i >= 5 and compression:
             with open(compressed_image_paths["jpeg"][0], "rb") as f:
                 assert f.read() == image
+
+
+def test_rename(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("blue/green")
+        ds.abc.append([1, 2, 3])
+        ds.rename_tensor("abc", "xyz")
+        ds.rename_group("blue", "red")
+        ds["red/green"].append([1, 2, 3, 4])
+        loader = ds.pytorch()
+        for sample in loader:
+            assert set(sample.keys()) == {"xyz", "red/green"}
+            np.testing.assert_array_equal(
+                np.array(sample["xyz"]), np.array([[1, 2, 3]])
+            )
+            np.testing.assert_array_equal(
+                np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
+            )

@@ -20,8 +20,17 @@ UNSPECIFIED = "unspecified"
 
 SUPPORTED_MODES = ["r", "a"]
 
+# used to show chunk size
+RANDOM_CHUNK_SIZE = 16 * MB
+# used to show variation between normal chunk size and maximum chunk size
+RANDOM_MINIMAL_CHUNK_SIZE = 3 * MB
+# used to show maximum chunk size allowed to have during random update operation
+RANDOM_MAX_ALLOWED_CHUNK_SIZE = RANDOM_CHUNK_SIZE + RANDOM_MINIMAL_CHUNK_SIZE
+
 # min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
 DEFAULT_MAX_CHUNK_SIZE = 32 * MB
+
+DEFAULT_TILING_THRESHOLD = None  # Note: set to -1 to disable tiling
 
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
