@@ -1,7 +1,11 @@
-from collections import OrderedDict
+import sys
+if sys.version_info < (3, 7):
+    from collections import OrderedDict
+else:
+    OrderedDict = dict
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.chunk.base_chunk import BaseChunk
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Optional, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -40,7 +44,12 @@ class LRUCache(StorageProvider):
 
         # tracks keys in lru order, stores size of value, only keys present in this exist in cache
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
-        self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
+        self.dirty_keys: OrderedDict[str, None] = OrderedDict()  # keys present in cache but not next_storage. Use a dict instead of set to preserve order
+
+        # Add methods for set like API
+        self.dirty_keys.add = lambda key: self.dirty_keys.__setitem__(key, None)
+        self.dirty_keys.discard = lambda key: self.dirty_keys.pop(key, None)
+
         self.cache_used = 0
         self.hub_objects: Dict[str, HubMemoryObject] = {}
 
@@ -422,7 +431,7 @@ class LRUCache(StorageProvider):
         self.cache_storage = state["cache_storage"]
         self.cache_size = state["cache_size"]
         self.lru_sizes = OrderedDict()
-        self.dirty_keys = set()
+        self.dirty_keys = OrderedDict()
         self.cache_used = 0
         self.hub_objects = {}
 
