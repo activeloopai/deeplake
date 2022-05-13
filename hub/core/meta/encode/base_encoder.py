@@ -284,7 +284,6 @@ class Encoder(ABC):
         Raises:
             ValueError: If no update actions were taken.
         """
-        before = self._encoded.copy()
         row_index = self.translate_index(local_sample_index)
         # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
         actions = (
@@ -617,12 +616,10 @@ class Encoder(ABC):
                 C       20
         """
 
-        above_last_index = 0
+        above_last_index = -1
         if self._has_above:
             above_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN]
-            if above_last_index != local_sample_index - 1:
-                return False
-        elif local_sample_index != 0:
+        if above_last_index != local_sample_index - 1:
             return False
 
         # a new row should be created above
