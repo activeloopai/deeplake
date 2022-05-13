@@ -6,7 +6,6 @@ from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import IncompleteHeaderBytesError
 
 
 def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
