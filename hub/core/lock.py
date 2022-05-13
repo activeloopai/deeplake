@@ -237,11 +237,12 @@ def lock_dataset(
     _REFS[key].add(id(dataset))
 
 
-def unlock_dataset(dataset):
+def unlock_dataset(dataset, unlock_all_views: bool = False):
     """Unlocks a storage provider that was locked by this machine.
 
     Args:
         dataset: The dataset to be unlocked
+        unlock_all_views (bool): Unlock all views of this dataset
     """
     storage = get_base_storage(dataset.storage)
     version = dataset.version_state["commit_id"]
@@ -250,7 +251,10 @@ def unlock_dataset(dataset):
         lock = _LOCKS[key]
         ref_set = _REFS[key]
         try:
-            ref_set.remove(id(dataset))
+            if unlock_all_views:
+                ref_set.clear()
+            else:
+                ref_set.remove(id(dataset))
         except KeyError:
             pass
         if not ref_set:
