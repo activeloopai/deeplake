@@ -7,10 +7,7 @@ from hub.compression import (
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
-from hub.util.exceptions import (
-    IncompleteHeaderBytesError,
-    TensorInvalidSampleShapeError,
-)
+from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
 from hub.core.sample import Sample, SampleValue  # type: ignore
