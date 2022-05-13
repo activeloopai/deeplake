@@ -1306,16 +1306,16 @@ class ChunkEngine:
             worst_case_header_size = HEADER_SIZE_BYTES + 10  # 10 for version
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
-                num_shape_entries = 1 * len(self.tensor_meta.min_shape)
+                num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
                 if self.tensor_meta.sample_compression is None:
-                    num_bytes_entries = 1 * 2
+                    num_bytes_entries = 1 * 3
                 else:
-                    num_bytes_entries = num_samples_in_chunk * 2
+                    num_bytes_entries = num_samples_in_chunk * 3
             else:
-                num_shape_entries = num_samples_in_chunk * len(
-                    self.tensor_meta.max_shape
+                num_shape_entries = num_samples_in_chunk * (
+                    1 + len(self.tensor_meta.max_shape)
                 )
-                num_bytes_entries = num_samples_in_chunk * 2
+                num_bytes_entries = num_samples_in_chunk * 3
             bytes_enc_size = num_bytes_entries * ENTRY_SIZE
             shape_enc_size = num_shape_entries * ENTRY_SIZE
             worst_case_header_size += shape_enc_size
