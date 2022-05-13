@@ -284,7 +284,7 @@ class Encoder(ABC):
         Raises:
             ValueError: If no update actions were taken.
         """
-
+        before = self._encoded.copy()
         row_index = self.translate_index(local_sample_index)
         # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
         actions = (
@@ -620,18 +620,18 @@ class Encoder(ABC):
         above_last_index = 0
         if self._has_above:
             above_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN]
-
-        if above_last_index != local_sample_index:
+            if above_last_index != local_sample_index - 1:
+                return False
+        elif local_sample_index != 0:
             return False
 
         # a new row should be created above
-        start = self._encoded[: max(0, row_index - 1)]
+        start = self._encoded[: max(0, row_index)]
         end = self._encoded[row_index:]
         new_row = np.array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
         )
         self._encoded = np.concatenate((start, [new_row], end))
-
         return True
 
     def _try_splitting_down(
@@ -730,6 +730,9 @@ class Encoder(ABC):
 
     def _pop(self):
         num_samples_in_last_row = self._num_samples_in_last_row()
+        if num_samples_in_last_row == 0:  # backwards compatibility
+            self._encoded = self._encoded[:-1]
+            return self._pop()
         if num_samples_in_last_row == 1:
             self._encoded = self._encoded[:-1]
         elif num_samples_in_last_row > 1:
