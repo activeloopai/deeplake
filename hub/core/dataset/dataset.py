@@ -895,8 +895,8 @@ class Dataset:
                 return False
         return True
 
-    def _unlock(self):
-        unlock_dataset(self)
+    def _unlock(self, unlock_all_views: bool = False):
+        unlock_dataset(self, unlock_all_views)
 
     def __del__(self):
         try:
