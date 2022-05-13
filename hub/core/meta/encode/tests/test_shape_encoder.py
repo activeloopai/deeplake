@@ -12,6 +12,20 @@ def test_trivial():
     assert len(enc._encoded) == 1
 
 
+def test_split_middle():
+    enc = ShapeEncoder()
+    enc.register_samples((10, 10, 15), 5)
+    enc.register_samples((10, 20, 30), 10)
+    enc[5] = (10, 11, 12)
+
+    assert len(enc._encoded) == 3
+    assert enc[5] == (10, 11, 12)
+    assert enc[4] == (10, 10, 15)
+    enc[13] = (20, 11, 14)
+    assert enc[14] == (10, 20, 30)
+    assert len(enc._encoded) == 5
+
+
 def test_fixed():
     enc = ShapeEncoder()
 
