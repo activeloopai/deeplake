@@ -1746,36 +1746,58 @@ class ChunkEngine:
         else:
             return None
 
+    @property
+    def _sequence_item_length_range(self):
+        enc = self.sequence_encoder
+        nrows = len(enc._encoded)
+        if nrows == 0:
+            return 0, 0
+        min_ = max_ = enc[0][1] - enc[0][0]
+        for i in range(1, nrows):
+            length = enc[i][1] - enc[i][0]
+            if length < min_:
+                min_ = length
+            elif length > max_:
+                max_ = length
+        return min_, max_
+
     def shape(
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
         idxs = index.values
         skip_dims = 0
-        if self.is_sequence:
+        if None in shape or self.tensor_meta.is_link:
             if not idxs[0].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-            if len(idxs) > 1 and not idxs[1].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-        else:
-            if None in shape or self.tensor_meta.is_link:
-                if not idxs[0].subscriptable():
-                    if self.tensor_meta.htype in ("text", "json"):
-                        shape = (1,)
-                    else:
-                        if sample_shape_provider:
-                            try:
-                                shape = sample_shape_provider(idxs[0].value)  # type: ignore
-                            except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
-                                shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                        else:
+                if self.tensor_meta.htype in ("text", "json"):
+                    shape = (1,)
+                else:
+                    if sample_shape_provider:
+                        try:
+                            shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            if self.is_sequence:
+                                if len(idxs) > 1 and not idxs[1].subscriptable():
+                                    shape = tuple(shape[idxs[1].value].tolist())
+                                    skip_dims += 1
+                                else:
+                                    shape = (len(shape),) + (
+                                        tuple(
+                                            int(shape[0, i])
+                                            if np.all(shape[:, i] == shape[0, i])
+                                            else None
+                                            for i in range(shape.shape[1])
+                                        )
+                                        or (1,)
+                                    )
+
+                        except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                    skip_dims += 1
-            elif not idxs[0].subscriptable():
-                shape = shape[1:]
+                    else:
+                        shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                 skip_dims += 1
+        elif not idxs[0].subscriptable():
+            shape = shape[1:]
+            skip_dims += 1
         shape = list(shape)  # type: ignore
         squeeze_dims = set()
         for i, idx in enumerate(idxs[skip_dims:]):
@@ -1815,14 +1837,14 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            length = [
-                self._sequence_length,
-                self._sequence_item_length,
-            ]
+            seq_length = self._sequence_length
+            min_item_length, max_item_length = self._sequence_item_length_range
+            min_length = [seq_length, min_item_length]
+            max_length = [seq_length, max_item_length]
         else:
-            length = [meta.length]
-        min_shape = length + list(meta.min_shape)
-        max_shape = length + list(meta.max_shape)
+            min_length = max_length = [meta.length]
+        min_shape = min_length + list(meta.min_shape)
+        max_shape = max_length + list(meta.max_shape)
 
         return ShapeInterval(min_shape, max_shape)
 

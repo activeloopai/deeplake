@@ -827,7 +827,7 @@ class Tensor:
         if self.is_sequence:
 
             def get_sample_shape(global_sample_index: int):
-                shapes = sample_shape_tensor.numpy(
+                shapes = sample_shape_tensor[
                     Index(
                         [
                             IndexEntry(
@@ -839,11 +839,8 @@ class Tensor:
                             )
                         ]
                     )
-                )
-                return (len(shapes),) + tuple(
-                    int(shapes[0, i]) if np.all(shapes[:, i] == shapes[0, i]) else None
-                    for i in range(shapes.shape[1])
-                )
+                ].numpy()
+                return shapes
 
         else:
 

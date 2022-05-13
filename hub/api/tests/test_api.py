@@ -1478,14 +1478,26 @@ def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
             for j in range(5):
                 np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
 
+
 def test_sequence_shapes(memory_ds):
     with memory_ds as ds:
-        ds.create_tensor('abc', htype='sequence')
+        ds.create_tensor("abc", htype="sequence")
         ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
-        
+
         assert ds.abc[0].shape == (3, 1)
+
         assert ds.abc.shape_interval.lower == (2, 3, 1)
         assert ds.abc.shape_interval.upper == (2, 4, 1)
+
+        ds.create_tensor("xyz", htype="sequence")
+        ds.xyz.append([[[1, 2], [3, 4]], [[1, 2, 3], [4, 5, 6]]])
+
+        assert ds.xyz.shape == (1, 2, 2, None)
+        assert ds.xyz[0][0].shape == (2, 2)
+        assert ds.xyz[0][1].shape == (2, 3)
+
+        assert ds.xyz.shape_interval.lower == (1, 2, 2, 2)
+        assert ds.xyz.shape_interval.upper == (1, 2, 2, 3)
 
 
 def test_shape_bug(memory_ds):
