@@ -86,6 +86,7 @@ class dataset:
                 - 'download' - Downloads the data to the local filesystem to the path specified in environment variable HUB_DOWNLOAD_PATH. Raises an exception if the environment variable is not set, or if the path is not empty. Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler. For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
                 - 'local' - Used when download was already done in a previous run. Doesn't download the data again. Raises an exception if HUB_DOWNLOAD_PATH environment variable is not set or the dataset is not found in HUB_DOWNLOAD_PATH.
                 Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.
+
         Returns:
             Dataset object created using the arguments provided.
 
@@ -271,6 +272,7 @@ class dataset:
                 - 'download' - Downloads the data to the local filesystem to the path specified in environment variable HUB_DOWNLOAD_PATH. Raises an exception if the environment variable is not set, or if the path is not empty. Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler. For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
                 - 'local' - Used when download was already done in a previous run. Doesn't download the data again. Raises an exception if the dataset is not found in HUB_DOWNLOAD_PATH.
                 Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.
+
         Returns:
             Dataset object created using the arguments provided.
 
