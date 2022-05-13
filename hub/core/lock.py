@@ -1,3 +1,4 @@
+from imp import acquire_lock
 import hub
 import time
 import uuid
@@ -13,7 +14,7 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
 from hub.core.storage import StorageProvider
-from hub.constants import FIRST_COMMIT_ID
+from hub.constants import FIRST_COMMIT_ID, _VERIFY_LOCK_INTERVAL
 from hub.client.utils import get_user_name
 
 
@@ -44,10 +45,11 @@ class Lock(object):
             self.username = username
 
     def acquire(self, timeout=10, force=False):
+        start_time = time.time()
         try:
             nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
         except KeyError:
-            self.storage[self.path] = _get_lock_bytes()
+            self.storage[self.path] = _get_lock_bytes(self.username)
             return
         if nodeid == uuid.getnode():
             self.storage[self.path] = _get_lock_bytes(self.username)
@@ -60,6 +62,24 @@ class Lock(object):
                 else:
                     raise LockedException()
             time.sleep(1)
+        if not force:
+            time.sleep(hub.constants._VERIFY_LOCK_INTERVAL)
+            try:
+                nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
+                if nodeid != uuid.getnode():
+                    return self.acquire(
+                        max(1, timeout - (time.time() - start_time)), False
+                    )
+            except KeyError:
+                raise Exception(
+                    "Lock was acquired but the lock file was deleted by someone else."
+                )
+            # try:
+            #     nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
+            #     if nodeid != uuid.getnode():
+
+            # except KeyError:
+            #     raise Exception("Lock was acquired but the lock file was deleted by someone else.")
 
     def release(self):
         try:
