@@ -12,7 +12,7 @@ def test_trivial():
     assert len(enc._encoded) == 1
 
 
-def test_split_middle():
+def test_split_up_down():
     enc = ShapeEncoder()
     enc.register_samples((10, 10, 15), 5)
     enc.register_samples((10, 20, 30), 10)
