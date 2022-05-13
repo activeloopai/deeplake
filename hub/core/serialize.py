@@ -226,8 +226,6 @@ def deserialize_chunk(
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
-        if partial and offset + shape_info_nbytes > len(byts):
-            raise IncompleteHeaderBytesError(offset + shape_info_nbytes + 100)
         shape_info = (
             np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
@@ -242,8 +240,6 @@ def deserialize_chunk(
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
-        if partial and offset + byte_positions_nbytes > len(byts):
-            raise IncompleteHeaderBytesError(offset + byte_positions_nbytes)
         byte_positions = (
             np.frombuffer(
                 byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype

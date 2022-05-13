@@ -4,6 +4,7 @@ from tqdm import tqdm  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
+from hub.core.serialize import HEADER_SIZE_BYTES
 from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -478,18 +479,21 @@ class ChunkEngine:
         self.active_appended_chunk = chunk
         return chunk
 
-    def get_chunk(self, chunk_key: str, get_partial_chunk=False) -> BaseChunk:
+    def get_chunk(self, chunk_key: str, partial_chunk_bytes=0) -> BaseChunk:
         return self.cache.get_hub_object(
-            chunk_key, self.chunk_class, self.chunk_args, get_partial=get_partial_chunk
+            chunk_key,
+            self.chunk_class,
+            self.chunk_args,
+            partial_bytes=partial_chunk_bytes,
         )
 
     def get_chunk_from_chunk_id(
-        self, chunk_id, copy: bool = False, get_partial_chunk=False
+        self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.get_chunk(chunk_key, get_partial_chunk=get_partial_chunk)
+        chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
@@ -1290,7 +1294,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
-        get_partial_chunk = False
+        partial_chunk_bytes = 0
         num_samples_in_chunk = -1
         if (
             not fetch_chunks
@@ -1299,12 +1303,28 @@ class ChunkEngine:
         ):
             prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
             num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
-
-            get_partial_chunk = num_samples_in_chunk in PARTIAL_CHUNK_RANGE
+            worst_case_header_size = HEADER_SIZE_BYTES + 10  # 10 for version
+            ENTRY_SIZE = 4
+            if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
+                num_shape_entries = 1 * len(self.tensor_meta.min_shape)
+                if self.tensor_meta.sample_compression is None:
+                    num_bytes_entries = 1 * 2
+                else:
+                    num_bytes_entries = num_samples_in_chunk * 2
+            else:
+                num_shape_entries = num_samples_in_chunk * len(
+                    self.tensor_meta.max_shape
+                )
+                num_bytes_entries = num_samples_in_chunk * 2
+            bytes_enc_size = num_bytes_entries * ENTRY_SIZE
+            shape_enc_size = num_shape_entries * ENTRY_SIZE
+            worst_case_header_size += shape_enc_size
+            worst_case_header_size += bytes_enc_size
+            partial_chunk_bytes = worst_case_header_size
 
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(
-            chunk_id, get_partial_chunk=get_partial_chunk
+            chunk_id, partial_chunk_bytes=partial_chunk_bytes
         )
         return chunk.read_sample(
             local_sample_index, cast=self.tensor_meta.htype != "dicom"
