@@ -1782,15 +1782,15 @@ class ChunkEngine:
                             shape = sample_shape_provider(idxs[0].value)  # type: ignore
                             if self.is_sequence:
                                 if len(idxs) > 1 and not idxs[1].subscriptable():
-                                    shape = tuple(shape[idxs[1].value].tolist())
+                                    shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
                                     skip_dims += 1
                                 else:
                                     shape = (len(shape),) + (
                                         tuple(
-                                            int(shape[0, i])
-                                            if np.all(shape[:, i] == shape[0, i])
+                                            int(shape[0, i])  # type: ignore
+                                            if np.all(shape[:, i] == shape[0, i])  # type: ignore
                                             else None
-                                            for i in range(shape.shape[1])
+                                            for i in range(shape.shape[1])  # type: ignore
                                         )
                                         or (1,)
                                     )
