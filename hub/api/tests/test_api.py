@@ -1499,6 +1499,14 @@ def test_sequence_shapes(memory_ds):
         assert ds.xyz.shape_interval.lower == (1, 2, 2, 2)
         assert ds.xyz.shape_interval.upper == (1, 2, 2, 3)
 
+        ds.create_tensor("red", htype="sequence")
+        ds.red.extend([[4, 5, 6, 7], [1, 2, 3]])
+
+        assert ds.red[0].shape == (4, 1)
+
+        assert ds.red.shape_interval.lower == (2, 3, 1)
+        assert ds.abc.shape_interval.upper == (2, 4, 1)
+
 
 def test_shape_bug(memory_ds):
     ds = memory_ds
