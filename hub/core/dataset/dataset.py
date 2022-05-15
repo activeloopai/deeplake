@@ -884,6 +884,7 @@ class Dataset:
                     self,
                     lock_lost_callback=self._lock_lost_handler,
                 )
+                self.__dict__["_locked_out"] = False
             except LockedException as e:
                 self.read_only = True
                 self.__dict__["_locked_out"] = True

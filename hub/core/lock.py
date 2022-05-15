@@ -55,7 +55,7 @@ class Lock(object):
                 locked = True
         except KeyError:
             self.storage[self.path] = _get_lock_bytes(self.username)
-    
+
         if locked:
             while self.path in self.storage:
                 if time.time() - timestamp >= timeout:
@@ -75,9 +75,7 @@ class Lock(object):
                 #     "Lock was acquired but the lock file was deleted by someone else."
                 # )
             if nodeid != uuid.getnode():
-                return self.acquire(
-                    max(1, timeout - (time.time() - start_time)), False
-                )
+                return self.acquire(max(1, timeout - (time.time() - start_time)), False)
             # try:
             #     nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
             #     if nodeid != uuid.getnode():
