@@ -1,4 +1,3 @@
-from imp import acquire_lock
 import hub
 import time
 import uuid
@@ -71,17 +70,9 @@ class Lock(object):
                 nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
             except KeyError:
                 nodeid = None
-                # raise Exception(
-                #     "Lock was acquired but the lock file was deleted by someone else."
-                # )
             if nodeid != uuid.getnode():
-                return self.acquire(max(1, timeout - (time.time() - start_time)), False)
-            # try:
-            #     nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
-            #     if nodeid != uuid.getnode():
+                return self.acquire(timeout - (time.time() - start_time), False)
 
-            # except KeyError:
-            #     raise Exception("Lock was acquired but the lock file was deleted by someone else.")
 
     def release(self):
         try:
