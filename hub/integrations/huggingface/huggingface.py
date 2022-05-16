@@ -1,3 +1,4 @@
+import pathlib
 from typing import Union, Set
 from hub.core.dataset import Dataset
 import posixpath
@@ -92,7 +93,7 @@ def ingest_huggingface(
     Args:
         src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
             DatasetDict will be stored under respective tensor groups.
-        dest (Dataset, str): Destination dataset or path to it.
+        dest (Dataset, str, pathlib.Path): Destination dataset or path to it.
         use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
 
     Returns:
@@ -101,7 +102,7 @@ def ingest_huggingface(
     """
     from datasets import DatasetDict
 
-    if isinstance(dest, str):
+    if isinstance(dest, (str, pathlib.Path)):
         ds = hub.dataset(dest)
     else:
         ds = dest  # type: ignore

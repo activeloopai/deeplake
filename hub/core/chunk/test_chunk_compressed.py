@@ -14,7 +14,6 @@ compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4", "png"
 common_args = {
     "min_chunk_size": 1 * MB,
     "max_chunk_size": 2 * MB,
-    "tiling_threshold": 1 * MB,
 }
 
 

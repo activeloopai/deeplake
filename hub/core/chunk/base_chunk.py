@@ -55,7 +55,6 @@ class BaseChunk(HubMemoryObject):
         self,
         min_chunk_size: int,
         max_chunk_size: int,
-        tiling_threshold: int,
         tensor_meta: TensorMeta,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
@@ -67,7 +66,6 @@ class BaseChunk(HubMemoryObject):
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
-        self.tiling_threshold = tiling_threshold
 
         self.tensor_meta = tensor_meta
         self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
@@ -194,6 +192,23 @@ class BaseChunk(HubMemoryObject):
         self._make_data_bytearray()
         self.is_dirty = True
 
+    def register_sample_to_headers(
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
+    ):
+        """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
+
+        Args:
+            incoming_num_bytes (int): The length of the buffer that was used to
+            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+
+        Raises:
+            ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
+        """
+        self.shapes_encoder.register_samples(sample_shape, 1)
+        # incoming_num_bytes is not applicable for image compressions
+        if incoming_num_bytes is not None:
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
+
     def serialize_sample(
         self,
         incoming_sample: InputSample,
@@ -203,23 +218,13 @@ class BaseChunk(HubMemoryObject):
         store_uncompressed_tiles: bool = False,
     ) -> SerializedOutput:
         """Converts the sample into bytes"""
-        dt, ht, min_chunk_size, tiling_threshold = (
-            self.dtype,
-            self.htype,
-            self.min_chunk_size,
-            self.tiling_threshold,
-        )
-        if tiling_threshold < 0:
-            break_into_tiles = False
+        dt, ht, min_chunk_size = self.dtype, self.htype, self.min_chunk_size
         if self.is_text_like:
             if isinstance(incoming_sample, LinkedSample):
                 incoming_sample = incoming_sample.path
             incoming_sample, shape = serialize_text(
                 incoming_sample, sample_compression, dt, ht  # type: ignore
             )
-        elif incoming_sample is None:
-            shape = (0,) * self.num_dims if self.num_dims else None
-            incoming_sample = b""
         elif isinstance(incoming_sample, Sample):
             incoming_sample, shape = serialize_sample_object(  # type: ignore
                 incoming_sample,
@@ -227,7 +232,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                tiling_threshold,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -248,7 +253,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                tiling_threshold,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -262,7 +267,7 @@ class BaseChunk(HubMemoryObject):
                 chunk_compression,
                 dt,
                 ht,
-                tiling_threshold,
+                min_chunk_size,
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
@@ -284,48 +289,19 @@ class BaseChunk(HubMemoryObject):
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
-        if self.num_data_bytes == 0:
-            if self.tiling_threshold < 0:  # tiling disabled
-                return True
-            else:
-                return buffer_nbytes + sample_nbytes <= self.tiling_threshold
-        else:
-            return (
-                self.num_data_bytes + buffer_nbytes + sample_nbytes
-                <= self.min_chunk_size
-            )
+        return (
+            self.num_data_bytes + buffer_nbytes + sample_nbytes <= self.min_chunk_size
+        )
 
     def copy(self, chunk_args=None):
         return self.frombuffer(self.tobytes(), chunk_args)
-
-    def register_sample_to_headers(
-        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
-    ):
-        """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
-
-        Args:
-            incoming_num_bytes (int): The length of the buffer that was used to
-            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
-
-        Raises:
-            ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
-        """
-        # incoming_num_bytes is not applicable for image compressions
-        if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
-        if sample_shape is not None:
-            if self.shapes_encoder.is_empty():
-                num_samples = self.byte_positions_encoder.num_samples - 1
-                self._fill_empty_shapes(sample_shape, num_samples)
-            self.shapes_encoder.register_samples(sample_shape, 1)
 
     def register_in_meta_and_headers(self, sample_nbytes: Optional[int], shape):
         """Registers a new sample in meta and headers"""
         self.register_sample_to_headers(sample_nbytes, shape)
         if self._update_tensor_meta_length:
             self.tensor_meta.update_length(1)
-        if shape is not None:
-            self.tensor_meta.update_shape_interval(shape)
+        self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape
@@ -333,22 +309,14 @@ class BaseChunk(HubMemoryObject):
         """Updates an existing sample in meta and headers"""
         if sample_nbytes is not None:
             self.byte_positions_encoder[local_index] = sample_nbytes
-        if shape is not None:
-            if self.shapes_encoder.is_empty():
-                num_samples = self.byte_positions_encoder.num_samples
-                self._fill_empty_shapes(shape, num_samples)
-            self.shapes_encoder[local_index] = shape
-            self.tensor_meta.update_shape_interval(shape)
+        self.shapes_encoder[local_index] = shape
+        self.tensor_meta.update_shape_interval(shape)
 
-    def check_shape_for_update(self, shape):
+    def check_shape_for_update(self, local_index: int, shape):
         """Checks if the shape being assigned at the new index is valid."""
-        if shape is None:
-            return
-        max_shape = self.tensor_meta.max_shape
-        if max_shape:
-            expected_dimensionality = len(max_shape)
-            if expected_dimensionality != len(shape):
-                raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+        expected_dimensionality = len(self.shapes_encoder[local_index])
+        if expected_dimensionality != len(shape):
+            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
     def create_updated_data(self, local_index: int, old_data, new_sample_bytes: bytes):
         if not old_data or self.byte_positions_encoder.is_empty():  # tiled sample
@@ -400,15 +368,3 @@ class BaseChunk(HubMemoryObject):
                     )
                 return np.zeros(shape, dtype=self.dtype)
         return None
-
-    def _fill_empty_shapes(self, shape, num_samples):
-        dims = len(shape)
-        self.num_dims = self.num_dims or dims
-        if num_samples > 0:
-            empty_shape = (0,) * dims
-            self.shapes_encoder.register_samples(empty_shape, num_samples)
-            self.tensor_meta.update_shape_interval(empty_shape)
-
-    @property
-    def is_empty_tensor(self):
-        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0

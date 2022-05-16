@@ -3,7 +3,6 @@ from typing import List, Union
 from hub.core.serialize import check_sample_shape, bytes_to_text
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.casting import intelligent_cast
-from hub.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -13,10 +12,7 @@ class UncompressedChunk(BaseChunk):
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
-            if incoming_samples.dtype == object:
-                incoming_samples = list(incoming_samples)
-            else:
-                return self._extend_if_has_space_numpy(incoming_samples)
+            return self._extend_if_has_space_numpy(incoming_samples)
         return self._extend_if_has_space_list(incoming_samples)
 
     def _extend_if_has_space_numpy(self, incoming_samples: np.ndarray) -> float:
@@ -51,9 +47,8 @@ class UncompressedChunk(BaseChunk):
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
-            if shape is not None:
-                self.num_dims = self.num_dims or len(shape)
-                check_sample_shape(shape, self.num_dims)
+            self.num_dims = self.num_dims or len(shape)
+            check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
@@ -79,8 +74,6 @@ class UncompressedChunk(BaseChunk):
         copy: bool = False,
         decompress: bool = True,
     ):
-        if self.is_empty_tensor:
-            raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -102,7 +95,7 @@ class UncompressedChunk(BaseChunk):
     def update_sample(self, local_index: int, sample: InputSample):
         self.prepare_for_write()
         serialized_sample, shape = self.serialize_sample(sample, break_into_tiles=False)
-        self.check_shape_for_update(shape)
+        self.check_shape_for_update(local_index, shape)
         new_nb = (
             None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
         )
@@ -111,4 +104,5 @@ class UncompressedChunk(BaseChunk):
         self.data_bytes = self.create_updated_data(
             local_index, old_data, serialized_sample
         )
+
         self.update_in_meta_and_headers(local_index, new_nb, shape)

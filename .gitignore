@@ -125,9 +125,9 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
-.tests/
-.test_resources/
-
+*.test_resources
+*Python-3.7*
+*mem:*
 # Translations
 *.mo
 *.pot

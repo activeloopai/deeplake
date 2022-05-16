@@ -1,6 +1,5 @@
 import hub
 import numpy as np
-from tqdm import tqdm  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
 from hub.core.tensor_link import get_link_transform
@@ -15,12 +14,7 @@ from hub.core.tiling.deserialize import combine_chunks, translate_slices, coales
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
-from hub.constants import (
-    DEFAULT_MAX_CHUNK_SIZE,
-    FIRST_COMMIT_ID,
-    PARTIAL_NUM_SAMPLES,
-    DEFAULT_TILING_THRESHOLD,
-)
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, FIRST_COMMIT_ID, PARTIAL_NUM_SAMPLES
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
@@ -179,7 +173,6 @@ class ChunkEngine:
         return (
             self.chunk_class == UncompressedChunk
             and tensor_meta.htype not in ["text", "json", "list"]
-            and tensor_meta.max_shape
             and (tensor_meta.max_shape == tensor_meta.min_shape)
             and (np.prod(tensor_meta.max_shape) < 20)
         )
@@ -196,19 +189,10 @@ class ChunkEngine:
         )
 
     @property
-    def tiling_threshold(self):
-        return (
-            getattr(self.tensor_meta, "tiling_threshold", None)
-            or DEFAULT_TILING_THRESHOLD
-            or self.min_chunk_size
-        )
-
-    @property
     def chunk_args(self):
         return [
             self.min_chunk_size,
             self.max_chunk_size,
-            self.tiling_threshold,
             self.tensor_meta,
             self.compression,
         ]
@@ -566,10 +550,9 @@ class ChunkEngine:
         check_samples_type(samples)
         verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
-        all_empty = all(sample is None for sample in samples)
-        if tensor_meta.htype is None and not all_empty:
+        if tensor_meta.htype is None:
             tensor_meta.set_htype(get_htype(samples))
-        if tensor_meta.dtype is None and not all_empty:
+        if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
@@ -581,7 +564,6 @@ class ChunkEngine:
         start_chunk: Optional[BaseChunk] = None,
         register: bool = True,
         update_commit_diff: bool = False,
-        progressbar: bool = False,
     ):
         current_chunk = start_chunk
         updated_chunks = []
@@ -593,8 +575,6 @@ class ChunkEngine:
         nsamples = len(samples)
         if register and update_commit_diff:
             commit_diff = self.commit_diff
-        if progressbar:
-            pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(samples)  # type: ignore
             self.register_new_creds(num_samples_added, samples)
@@ -628,10 +608,6 @@ class ChunkEngine:
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
-            if progressbar:
-                pbar.update(num_samples_added)
-        if progressbar:
-            pbar.close()
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -642,14 +618,11 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, progressbar, update_commit_diff=True):
+    def _extend(self, samples, update_commit_diff=True):
         if isinstance(samples, hub.Tensor):
-            samples = tqdm(samples) if progressbar else samples
             for sample in samples:
                 self._extend(
-                    [sample],
-                    update_commit_diff=update_commit_diff,
-                    progressbar=False,
+                    [sample], update_commit_diff=update_commit_diff
                 )  # TODO optimize this
             return
         if len(samples) == 0:
@@ -659,37 +632,28 @@ class ChunkEngine:
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
-            progressbar=progressbar,
             update_commit_diff=update_commit_diff,
         )
         return verified_samples
 
-    def extend(
-        self,
-        samples,
-        progressbar: bool = False,
-        link_callback: Optional[Callable] = None,
-    ):
+    def extend(self, samples, link_callback: Optional[Callable] = None):
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
         if self.is_sequence:
-            samples = tqdm(samples) if progressbar else samples
             for sample in samples:
-                verified_sample = self._extend(
-                    sample, progressbar=False, update_commit_diff=False
-                )
+                verified_sample = self._extend(sample, update_commit_diff=False)
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
+
                 ls = verified_sample or sample
                 if link_callback:
                     link_callback(ls, flat=False)
                     for s in ls:
                         link_callback(s, flat=True)
-
         else:
-            verified_samples = self._extend(samples, progressbar)
+            verified_samples = self._extend(samples)
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:

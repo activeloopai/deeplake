@@ -304,15 +304,9 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     """Gets the shape of a bounding box that can contain the given the shapes tiled horizontally."""
     if len(shapes) == 0:
         return (0, 0, 0)
-    channels_shape = None
+    channels_shape = shapes[0][2:]
     for shape in shapes:
-        if shape != (0, 0, 0):
-            channels_shape = shape[2:]
-            break
-    if channels_shape is None:
-        channels_shape = (0,)
-    for shape in shapes:
-        if shape != (0, 0, 0) and shape[2:] != channels_shape:
+        if shape[2:] != channels_shape:
             raise ValueError(
                 "The data can't be compressed as the number of channels doesn't match."
             )
@@ -326,18 +320,14 @@ def compress_multiple(
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     if len(arrays) == 0:
         return b""
-    dtype = None
+    dtype = arrays[0].dtype
     for arr in arrays:
-        if arr.size:
-            if dtype is None:
-                dtype = arr.dtype
-            elif arr.dtype != dtype:
-                raise SampleCompressionError(
-                    arr.shape,
-                    compression,
-                    message="All arrays expected to have same dtype.",
-                )
-
+        if arr.dtype != dtype:
+            raise SampleCompressionError(
+                arr.shape,
+                compression,
+                message="All arrays expected to have same dtype.",
+            )
     compr_type = get_compression_type(compression)
     if compr_type == BYTE_COMPRESSION:
         return compress_bytes(
@@ -352,8 +342,6 @@ def compress_multiple(
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
-        if arr.shape == (0, 0, 0):
-            continue
         canvas[: arr.shape[0], next_x : next_x + arr.shape[1]] = arr
         next_x += arr.shape[1]
     return compress_array(canvas, compression=compression)
@@ -383,11 +371,8 @@ def decompress_multiple(
     arrays = []
     next_x = 0
     for shape in shapes:
-        if shape == (0, 0, 0):
-            arrays.append(np.zeros(shape, dtype=canvas.dtype))
-        else:
-            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
-            next_x += shape[1]
+        arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+        next_x += shape[1]
     return arrays
 
 

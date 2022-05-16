@@ -27,7 +27,6 @@ Supported htypes and their respective defaults are:
 | binary_mask    |  bool     |  none         |
 | segment_mask   |  uint32   |  none         |
 | keypoints_coco |  int32    |  none         |
-| point          |  int32    |  none         |
 | audio          |  float64  |  none         |
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
@@ -70,7 +69,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
     "segment_mask": {"dtype": "uint32", "class_names": [], "_info": ["class_names"]},
     "keypoints_coco": {"dtype": "int32"},
-    "point": {"dtype": "int32"},
     "json": {
         "dtype": "Any",
     },
@@ -103,7 +101,6 @@ COMMON_CONFIGS = {
     "chunk_compression": None,
     "dtype": None,
     "max_chunk_size": None,
-    "tiling_threshold": None,
     "is_sequence": False,
     "is_link": False,
     "hidden": False,

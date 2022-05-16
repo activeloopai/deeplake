@@ -59,7 +59,6 @@ tensor = Tensor
 __all__ = [
     "tensor",
     "read",
-    "link",
     "__version__",
     "load",
     "empty",
