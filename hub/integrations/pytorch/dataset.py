@@ -44,7 +44,6 @@ def process(inp):
     raise ValueError(f"Unsupported sample type: {type(inp)}")
 
 
-
 def use_scheduler(num_workers: int, ensure_order: bool):
     if num_workers <= 1:
         return SingleThreadScheduler()
