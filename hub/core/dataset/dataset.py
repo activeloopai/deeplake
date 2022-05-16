@@ -2108,10 +2108,11 @@ class Dataset:
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Uniquie id for this view.
-            message (Optional, message): Custom user message.
-            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+            message (Optional, str): Custom user message.
             copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
-            num_workers (int): Number of workers to be used if copy=True.
+            num_workers (int): Number of workers to be used if `copy` is True.
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
         Returns:
             str: Path to the saved VDS.
         """
@@ -2126,7 +2127,7 @@ class Dataset:
         num_workers: int = 0,
         _ret_ds: bool = False,
         **ds_args,
-    ):
+    ) -> Union[str, Any]:
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
@@ -2147,6 +2148,7 @@ class Dataset:
 
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+            NotImplementedError: When attempting to save in-memory datasets.
         """
 
         if path is None and hasattr(self, "_vds"):
@@ -2240,8 +2242,8 @@ class Dataset:
 
         Args:
             commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
-            To get views from all commits, pass `commits="all"`.
-            If not specified, views from the currently checked out commit will be returned.
+                To get views from all commits, pass `commits="all"`.
+                If not specified, views from the currently checked out commit will be returned.
 
         Returns:
             List of ViewEntry instances
