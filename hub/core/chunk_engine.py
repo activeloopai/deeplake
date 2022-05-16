@@ -1311,7 +1311,9 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if self.tensor_meta.sample_compression is None:
+                if self.tensor_meta.htype in {"text", "json", "list"}:
+                    num_bytes_entries = num_samples_in_chunk * 3
+                elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
                 else:
                     num_bytes_entries = num_samples_in_chunk * 3
@@ -1324,11 +1326,10 @@ class ChunkEngine:
             shape_enc_size = num_shape_entries * ENTRY_SIZE
             worst_case_header_size += shape_enc_size
             worst_case_header_size += bytes_enc_size
-            partial_chunk_bytes = worst_case_header_size
 
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(
-            chunk_id, partial_chunk_bytes=partial_chunk_bytes
+            chunk_id, partial_chunk_bytes=worst_case_header_size
         )
         return chunk.read_sample(
             local_sample_index, cast=self.tensor_meta.htype != "dicom"
