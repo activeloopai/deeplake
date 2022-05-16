@@ -67,6 +67,12 @@ class Lock(object):
         except Exception:
             pass
 
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, *args, **kwargs):
+        self.release()
+
 
 class PersistentLock(Lock):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
