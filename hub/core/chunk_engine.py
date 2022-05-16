@@ -1298,7 +1298,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
-        partial_chunk_bytes = 0
+        worst_case_header_size = 0
         num_samples_in_chunk = -1
         if (
             not fetch_chunks
@@ -1307,7 +1307,7 @@ class ChunkEngine:
         ):
             prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
             num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
-            worst_case_header_size = HEADER_SIZE_BYTES + 10  # 10 for version
+            worst_case_header_size += HEADER_SIZE_BYTES + 10  # 10 for version
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
