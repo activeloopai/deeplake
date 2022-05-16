@@ -20,7 +20,6 @@ from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
     FIRST_COMMIT_ID,
-    PARTIAL_CHUNK_RANGE,
     PARTIAL_NUM_SAMPLES,
     RANDOM_MAX_ALLOWED_CHUNK_SIZE,
     RANDOM_MINIMAL_CHUNK_SIZE,
