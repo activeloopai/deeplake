@@ -827,19 +827,11 @@ class Tensor:
         if self.is_sequence:
 
             def get_sample_shape(global_sample_index: int):
-                shapes = sample_shape_tensor[
-                    Index(
-                        [
-                            IndexEntry(
-                                slice(
-                                    *self.chunk_engine.sequence_encoder[
-                                        global_sample_index
-                                    ]
-                                )
-                            )
-                        ]
-                    )
-                ].numpy()
+                seq_pos = slice(
+                    *self.chunk_engine.sequence_encoder[global_sample_index]
+                )
+                idx = Index([IndexEntry(seq_pos)])
+                shapes = sample_shape_tensor[idx].numpy()
                 return shapes
 
         else:

@@ -1753,6 +1753,7 @@ class ChunkEngine:
 
     @property
     def _sequence_item_length_range(self):
+        """Returns minimum and maximum length of items in a sequence"""
         enc = self.sequence_encoder
         nrows = len(enc._encoded)
         if nrows == 0:
