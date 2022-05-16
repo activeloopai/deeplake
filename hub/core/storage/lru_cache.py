@@ -93,7 +93,7 @@ class LRUCache(StorageProvider):
         expected_class,
         meta: Optional[Dict] = None,
         url=False,
-        partial_bytes=False,
+        partial_bytes: int = 0,
     ):
         """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
@@ -103,7 +103,7 @@ class LRUCache(StorageProvider):
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
             url (bool): Get presigned url instead of downloading chunk (only for videos)
-            get_partial (bool): Get partial bytes of the chunk, retrieve more bytes when required. Defaults to False.
+            partial_bytes (int): Number of bytes to read from the beginning of the file. If 0, reads the whole file. Defaults to 0.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
