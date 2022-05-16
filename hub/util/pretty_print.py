@@ -38,7 +38,8 @@ def summary_tensor(tensor):
     if tensor_htype == None:
         tensor_htype = "None"
 
-    tensor_shape = str(tensor.shape_interval if None in tensor.shape else tensor.shape)
+    shape = tensor.shape
+    tensor_shape = str(tensor.shape_interval if None in shape else shape)
 
     tensor_compression = tensor.meta.sample_compression
     if tensor_compression == None:
@@ -87,11 +88,8 @@ def summary_dataset(dataset):
         if tensor_htype == None:
             tensor_htype = "None"
 
-        tensor_shape = str(
-            tensor_object.shape_interval
-            if None in tensor_object.shape
-            else tensor_object.shape
-        )
+        shape = tensor_object.shape
+        tensor_shape = str(tensor_object.shape_interval if None in shape else shape)
 
         tensor_compression = tensor_object.meta.sample_compression
         if tensor_compression == None:
