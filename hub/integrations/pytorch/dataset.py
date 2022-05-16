@@ -1,19 +1,16 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
-from hub.util.compute import get_compute_provider
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
     DistributedScheduler,
-    IOBlock,
     SampleStreaming,
     Schedule,
     SequentialMultithreadScheduler,
     ShufflingSchedulerWrapper,
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
-    Streaming,
 )
 from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
@@ -44,8 +41,8 @@ def process(inp):
         return {k: process(v) for k, v in inp.items()}
     elif isinstance(inp, Sequence):
         return [process(v) for v in inp]
-    else:
-        return inp
+    raise ValueError(f"Unsupported sample type: {type(inp)}")
+
 
 
 def use_scheduler(num_workers: int, ensure_order: bool):
@@ -522,14 +519,16 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                         for i in range(len(next_batch[batch_keys[0]]))
                     )
                 elif isinstance(next_batch, Sequence):
-                    vals = (process(next_batch[i]) for i in range(len(next_batch)))
+                    num_samples = len(next_batch[0])
+                    vals = (
+                        [process(next_batch[i][j]) for i in range(len(next_batch))]
+                        for j in range(num_samples)
+                    )
                 else:
-                    vals = next_batch
-
+                    raise ValueError(f"Unsupported sample type: {type(next_batch)}")
                 for val in vals:
                     if buffer is not None:
                         result = buffer.exchange(val)
-
                         if result:
                             yield result
                     else:

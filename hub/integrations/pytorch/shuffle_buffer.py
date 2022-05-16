@@ -78,21 +78,12 @@ class ShuffleBuffer:
 
     def _sample_size(self, sample):
         if isinstance(sample, dict):
-            return sum(
-                [
-                    tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
-                    for _, tensor in sample.items()
-                ]
-            )
+            return sum(self._sample_size(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
-            return sum(
-                [
-                    tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
-                    for tensor in sample
-                ]
-            )
+            return sum(self._sample_size(tensor) for tensor in sample)
         elif isinstance(sample, torch.Tensor):
             return sample.storage().element_size() * reduce(mul, sample.shape, 1)
+        raise ValueError(f"Unsupported sample type: {type(sample)}")
 
     def __len__(self):
         return len(self.buffer)

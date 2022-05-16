@@ -34,6 +34,15 @@ def my_collate(batch):
     return default_collate(x)
 
 
+def my_transform(sample):
+    return [sample["a"], sample["b"], sample["c"]]
+
+
+def my_transform_collate(batch):
+    x = [(c, a, b) for a, b, c in batch]
+    return default_collate(x)
+
+
 def pytorch_small_shuffle_helper(start, end, dataloader):
     for _ in range(2):
         all_values = []
@@ -481,6 +490,32 @@ def test_pytorch_collate(local_ds, shuffle):
         np.testing.assert_array_equal(batch[0][0], np.array([0, 0, 0, 0]).reshape(4, 1))
         np.testing.assert_array_equal(batch[0][1], np.array([1, 1, 1, 1]).reshape(4, 1))
         np.testing.assert_array_equal(batch[1], np.array([2, 2, 2, 2]).reshape(4, 1))
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_transform_collate(local_ds, shuffle):
+    local_ds.create_tensor("a")
+    local_ds.create_tensor("b")
+    local_ds.create_tensor("c")
+    for _ in range(100):
+        local_ds.a.append(0)
+        local_ds.b.append(1)
+        local_ds.c.append(2)
+
+    ptds = local_ds.pytorch(
+        batch_size=4,
+        shuffle=shuffle,
+        collate_fn=my_transform_collate,
+        transform=my_transform,
+    )
+    for batch in ptds:
+        assert len(batch) == 3
+        for i in range(2):
+            assert len(batch[i]) == 4
+        np.testing.assert_array_equal(batch[0], np.array([2, 2, 2, 2]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[1], np.array([0, 0, 0, 0]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[2], np.array([1, 1, 1, 1]).reshape(4, 1))
 
 
 def run_ddp(rank, size, ds, q, backend="gloo"):
