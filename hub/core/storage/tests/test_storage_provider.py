@@ -52,7 +52,7 @@ def check_storage_provider(storage):
 
 
 def check_cache_state(cache, expected_state):
-    assert cache.dirty_keys == expected_state[0]
+    assert set(cache.dirty_keys) == expected_state[0]
     assert set(cache.lru_sizes.keys()) == expected_state[1]
     assert len(cache.cache_storage) == expected_state[2]
     assert len(cache.next_storage) == expected_state[3]
