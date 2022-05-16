@@ -3,6 +3,7 @@ from random import randrange
 from functools import reduce
 from operator import mul
 import warnings
+import torch
 
 
 class ShuffleBuffer:
@@ -90,6 +91,8 @@ class ShuffleBuffer:
                     for tensor in sample
                 ]
             )
+        elif isinstance(sample, torch.Tensor):
+            return sample.storage().element_size() * reduce(mul, sample.shape, 1)
 
     def __len__(self):
         return len(self.buffer)

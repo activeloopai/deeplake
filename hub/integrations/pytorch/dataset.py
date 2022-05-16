@@ -37,6 +37,17 @@ import hub
 mp = torch.multiprocessing.get_context()
 
 
+def process(inp):
+    if isinstance(inp, torch.Tensor):
+        return inp.clone().detach()
+    elif isinstance(inp, dict):
+        return {k: process(v) for k, v in inp.items()}
+    elif isinstance(inp, Sequence):
+        return [process(v) for v in inp]
+    else:
+        return inp
+
+
 def use_scheduler(num_workers: int, ensure_order: bool):
     if num_workers <= 1:
         return SingleThreadScheduler()
@@ -466,6 +477,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
+        batch_size: int = 1,
     ) -> None:
         super().__init__()
 
@@ -480,6 +492,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         )
 
         self.num_workers = num_workers
+        self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
 
         if self.buffer_size == 0:
@@ -490,7 +503,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
 
         sub_loader = DataLoader(
             self.torch_datset,
-            batch_size=1,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=collate_fn,
         )
@@ -501,29 +514,26 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             while True:
                 next_batch = next(it)
                 if isinstance(next_batch, dict):
-                    d = {}
-                    for k, v in next_batch.items():
-                        current_val = v[0]
-                        if isinstance(current_val, torch.Tensor):
-                            current_val = current_val.clone().detach()
-                        d[k] = current_val
-                    val = IterableOrderedDict(d)
+                    batch_keys = list(next_batch.keys())
+                    vals = (
+                        IterableOrderedDict(
+                            {k: process(next_batch[k][i]) for k in batch_keys}
+                        )
+                        for i in range(len(next_batch[batch_keys[0]]))
+                    )
                 elif isinstance(next_batch, Sequence):
-                    val = []
-                    for item in next_batch:
-                        if isinstance(item, torch.Tensor):
-                            item = item.clone().detach()
-                        val.append(item)
+                    vals = (process(next_batch[i]) for i in range(len(next_batch)))
                 else:
-                    val = next_batch
+                    vals = next_batch
 
-                if buffer is not None:
-                    result = buffer.exchange(val)
+                for val in vals:
+                    if buffer is not None:
+                        result = buffer.exchange(val)
 
-                    if result:
-                        yield result
-                else:
-                    yield val
+                        if result:
+                            yield result
+                    else:
+                        yield val
 
                 del next_batch
 
