@@ -474,7 +474,8 @@ def test_pytorch_large(local_ds):
 
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_collate(local_ds, shuffle):
+@pytest.mark.parametrize("buffer_size", [0, 10])
+def test_pytorch_collate(local_ds, shuffle, buffer_size):
     local_ds.create_tensor("a")
     local_ds.create_tensor("b")
     local_ds.create_tensor("c")
@@ -483,7 +484,9 @@ def test_pytorch_collate(local_ds, shuffle):
         local_ds.b.append(1)
         local_ds.c.append(2)
 
-    ptds = local_ds.pytorch(batch_size=4, shuffle=shuffle, collate_fn=my_collate)
+    ptds = local_ds.pytorch(
+        batch_size=4, shuffle=shuffle, collate_fn=my_collate, buffer_size=buffer_size
+    )
     for batch in ptds:
         assert len(batch) == 2
         assert len(batch[0]) == 2
@@ -499,23 +502,24 @@ def test_pytorch_transform_collate(local_ds, shuffle):
     local_ds.create_tensor("b")
     local_ds.create_tensor("c")
     for _ in range(100):
-        local_ds.a.append(0)
-        local_ds.b.append(1)
-        local_ds.c.append(2)
+        local_ds.a.append(0 * np.ones((300, 300)))
+        local_ds.b.append(1 * np.ones((300, 300)))
+        local_ds.c.append(2 * np.ones((300, 300)))
 
     ptds = local_ds.pytorch(
         batch_size=4,
         shuffle=shuffle,
         collate_fn=my_transform_collate,
         transform=my_transform,
+        buffer_size=10,
     )
     for batch in ptds:
         assert len(batch) == 3
         for i in range(2):
             assert len(batch[i]) == 4
-        np.testing.assert_array_equal(batch[0], np.array([2, 2, 2, 2]).reshape(4, 1))
-        np.testing.assert_array_equal(batch[1], np.array([0, 0, 0, 0]).reshape(4, 1))
-        np.testing.assert_array_equal(batch[2], np.array([1, 1, 1, 1]).reshape(4, 1))
+        np.testing.assert_array_equal(batch[0], 2 * np.ones((4, 300, 300)))
+        np.testing.assert_array_equal(batch[1], 0 * np.ones((4, 300, 300)))
+        np.testing.assert_array_equal(batch[2], 1 * np.ones((4, 300, 300)))
 
 
 def run_ddp(rank, size, ds, q, backend="gloo"):
