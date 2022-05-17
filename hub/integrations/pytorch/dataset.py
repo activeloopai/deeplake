@@ -527,7 +527,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                     )
                 else:
                     raise ValueError(
-                        f"Expected input of type Tensor, dict or Sequence, got: {type(next_batch)}"
+                        f"Expected input of type dict or Sequence, got: {type(next_batch)}"
                     )
                 for val in vals:
                     if buffer is not None:
