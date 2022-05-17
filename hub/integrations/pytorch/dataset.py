@@ -41,7 +41,9 @@ def process(inp):
         return {k: process(v) for k, v in inp.items()}
     elif isinstance(inp, Sequence):
         return [process(v) for v in inp]
-    raise ValueError(f"Unsupported sample type: {type(inp)}")
+    raise ValueError(
+        f"Expected input of type Tensor, dict or Sequence, got: {type(inp)}"
+    )
 
 
 def use_scheduler(num_workers: int, ensure_order: bool):
@@ -524,7 +526,9 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                         for j in range(num_samples)
                     )
                 else:
-                    raise ValueError(f"Unsupported sample type: {type(next_batch)}")
+                    raise ValueError(
+                        f"Expected input of type Tensor, dict or Sequence, got: {type(next_batch)}"
+                    )
                 for val in vals:
                     if buffer is not None:
                         result = buffer.exchange(val)

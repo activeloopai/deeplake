@@ -83,7 +83,9 @@ class ShuffleBuffer:
             return sum(self._sample_size(tensor) for tensor in sample)
         elif isinstance(sample, torch.Tensor):
             return sample.storage().element_size() * reduce(mul, sample.shape, 1)
-        raise ValueError(f"Unsupported sample type: {type(sample)}")
+        raise ValueError(
+            f"Expected input of type Tensor, dict or Sequence, got: {type(sample)}"
+        )
 
     def __len__(self):
         return len(self.buffer)
