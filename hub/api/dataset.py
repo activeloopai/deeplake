@@ -537,6 +537,10 @@ class dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
+
+        src = convert_pathlib_to_string_if_needed(src)
+        dest = convert_pathlib_to_string_if_needed(dest)
+
         report_params = {
             "Overwrite": overwrite,
             "Num_Workers": num_workers,
@@ -547,9 +551,6 @@ class dataset:
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
         feature_report_path(src, "deepcopy", report_params)
-
-        src = convert_pathlib_to_string_if_needed(src)
-        dest = convert_pathlib_to_string_if_needed(dest)
 
         src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
         src_storage = get_base_storage(src_ds.storage)
