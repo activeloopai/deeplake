@@ -1602,3 +1602,17 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.checkout("branch", create=True)
     assert local_ds.branch == "branch"
     local_ds.create_tensor("x")
+
+
+def test_partial_read_then_write(s3_ds_generator):
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("xyz")
+        for i in range(10):
+            ds.xyz.append(i * np.ones((1000, 1000)))
+
+    ds = s3_ds_generator()
+    np.testing.assert_array_equal(ds.xyz[0].numpy(), 0 * np.ones((1000, 1000)))
+
+    with ds:
+        ds.xyz[1] = 20 * np.ones((1000, 1000))
