@@ -1,7 +1,10 @@
+import sys
 from collections import OrderedDict
+from hub.constants import KB
+from hub.core.partial_reader import PartialReader
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.chunk.base_chunk import BaseChunk
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Optional, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -40,7 +43,11 @@ class LRUCache(StorageProvider):
 
         # tracks keys in lru order, stores size of value, only keys present in this exist in cache
         self.lru_sizes: OrderedDict[str, int] = OrderedDict()
-        self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
+
+        self.dirty_keys: Dict[str, None] = (
+            OrderedDict() if sys.version_info < (3, 7) else {}  # type: ignore
+        )  # keys present in cache but not next_storage. Using a dict instead of set to preserve order.
+
         self.cache_used = 0
         self.hub_objects: Dict[str, HubMemoryObject] = {}
 
@@ -86,7 +93,12 @@ class LRUCache(StorageProvider):
         self.autoflush = initial_autoflush
 
     def get_hub_object(
-        self, path: str, expected_class, meta: Optional[Dict] = None, url=False
+        self,
+        path: str,
+        expected_class,
+        meta: Optional[Dict] = None,
+        url=False,
+        partial_bytes: int = 0,
     ):
         """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
@@ -96,6 +108,7 @@ class LRUCache(StorageProvider):
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
             url (bool): Get presigned url instead of downloading chunk (only for videos)
+            partial_bytes (int): Number of bytes to read from the beginning of the file. If 0, reads the whole file. Defaults to 0.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -105,7 +118,16 @@ class LRUCache(StorageProvider):
         Returns:
             An instance of `expected_class` populated with the data.
         """
-
+        if partial_bytes != 0:
+            assert issubclass(expected_class, BaseChunk)
+            if path in self.lru_sizes:
+                return self[path]
+            buff = self.get_bytes(path, 0, partial_bytes)
+            obj = expected_class.frombuffer(buff, meta, partial=True)
+            obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
+            if obj.nbytes <= self.cache_size:
+                self._insert_in_cache(path, obj)
+            return obj
         if url:
             from hub.util.remove_cache import get_base_storage
 
@@ -195,7 +217,11 @@ class LRUCache(StorageProvider):
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.hub_objects[path].tobytes()[start_byte:end_byte]
-        elif path in self.lru_sizes:
+        # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
+        elif path in self.lru_sizes and not (
+            isinstance(self.cache_storage[path], BaseChunk)
+            and self.cache_storage[path].is_partially_read_chunk
+        ):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path][start_byte:end_byte]
         else:
@@ -223,7 +249,7 @@ class LRUCache(StorageProvider):
 
         if _get_nbytes(value) <= self.cache_size:
             self._insert_in_cache(path, value)
-            self.dirty_keys.add(path)
+            self.dirty_keys[path] = None
         else:  # larger than cache, directly send to next layer
             self._forward_value(path, value)
 
@@ -250,7 +276,7 @@ class LRUCache(StorageProvider):
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
             del self.cache_storage[path]
-            self.dirty_keys.discard(path)
+            self.dirty_keys.pop(path, None)
             deleted_from_cache = True
 
         try:
@@ -292,7 +318,7 @@ class LRUCache(StorageProvider):
             for path in rm:
                 size = self.lru_sizes.pop(path)
                 self.cache_used -= size
-                self.dirty_keys.discard(path)
+                self.dirty_keys.pop(path, None)
         else:
             self.cache_used = 0
             self.lru_sizes.clear()
@@ -332,7 +358,7 @@ class LRUCache(StorageProvider):
             value (bytes, HubMemoryObject): the value to send to the next storage.
         """
         if self.next_storage is not None:
-            self.dirty_keys.discard(path)
+            self.dirty_keys.pop(path, None)
 
             if isinstance(value, HubMemoryObject):
                 self.next_storage[path] = value.tobytes()
@@ -422,7 +448,7 @@ class LRUCache(StorageProvider):
         self.cache_storage = state["cache_storage"]
         self.cache_size = state["cache_size"]
         self.lru_sizes = OrderedDict()
-        self.dirty_keys = set()
+        self.dirty_keys = OrderedDict()
         self.cache_used = 0
         self.hub_objects = {}
 
