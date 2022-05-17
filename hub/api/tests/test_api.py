@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import pathlib
 import pytest
 import hub
 from hub.core.dataset import Dataset
@@ -658,19 +659,25 @@ def test_index_range(memory_ds):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
-def test_empty_dataset():
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_empty_dataset(convert_to_pathlib):
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test")
+        test_path = "test"
+        test_path = convert_string_to_pathlib_if_needed(test_path, convert_to_pathlib)
+        ds = hub.dataset(test_path)
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = hub.dataset("test")
+        ds = hub.dataset(test_path)
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
-def test_like(local_path):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_like(local_path, convert_to_pathlib):
     src_path = os.path.join(local_path, "src")
+    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
     dest_path = os.path.join(local_path, "dest")
+    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.dataset(src_path)
     src_ds.info.update(key=0)
@@ -734,6 +741,13 @@ def test_dataset_delete():
         hub.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
+        pathlib_path = pathlib.Path("test/")
+        hub.empty(pathlib_path).create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.delete(pathlib_path)
+        assert not os.path.isfile("test/dataset_meta.json")
+
         old_size = hub.constants.DELETE_SAFETY_SIZE
         hub.constants.DELETE_SAFETY_SIZE = 1 * MB
 
@@ -762,17 +776,21 @@ def test_dataset_delete():
     ],
     indirect=True,
 )
-def test_dataset_rename(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ds = ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
 
     new_path = "_".join([path, "renamed"])
 
+    ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
+    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
+
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
 
-    if ds.path.startswith("hub://"):
+    if str(ds.path).startswith("hub://"):
         with pytest.raises(BadRequestException):
             ds.rename(ds.path)
     else:
@@ -802,9 +820,15 @@ def test_dataset_rename(ds_generator, path, hub_token):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_deepcopy(
+    path, hub_token, num_workers, progressbar, convert_to_pathlib
+):
     src_path = "_".join((path, "src"))
+    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
+
     dest_path = "_".join((path, "dest"))
+    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
 
@@ -861,6 +885,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    # test fot dataset.load:
     dest_ds = hub.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
@@ -1549,7 +1574,17 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize(
     "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
 )
-def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_copy(
+    memory_ds, local_ds, num_workers, progressbar, index, convert_to_pathlib
+):
+    memory_ds.path = convert_string_to_pathlib_if_needed(
+        memory_ds.path, convert_to_pathlib
+    )
+    local_ds.path = convert_string_to_pathlib_if_needed(
+        local_ds.path, convert_to_pathlib
+    )
+
     ds = memory_ds
     with ds:
         ds.create_tensor("image")
@@ -1579,7 +1614,9 @@ def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
     ],
     indirect=True,
 )
-def test_hub_exists(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
+    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
@@ -1616,3 +1653,9 @@ def test_partial_read_then_write(s3_ds_generator):
 
     with ds:
         ds.xyz[1] = 20 * np.ones((1000, 1000))
+
+
+def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
+    if convert_to_pathlib and "//" not in path:
+        path = pathlib.Path(path)
+    return path
