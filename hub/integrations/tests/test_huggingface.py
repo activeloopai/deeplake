@@ -1,15 +1,19 @@
 from datasets import load_dataset  # type: ignore
 from datasets import Dataset  # type: ignore
+from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
 from hub.integrations.huggingface import ingest_huggingface
 from hub.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
 
+import pytest
 import hub
 
 
-def test_before_split():
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_before_split(convert_to_pathlib):
+    mem_path = convert_string_to_pathlib_if_needed("mem://xyz", convert_to_pathlib)
     ds = load_dataset("glue", "mrpc")
-    hub_ds = ingest_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, mem_path)
 
     splits = ds.keys()
     columns = ds["train"].column_names
