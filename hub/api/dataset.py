@@ -445,7 +445,7 @@ class dataset:
     @staticmethod
     def copy(
         src: Union[str, pathlib.Path, Dataset],
-        dest: str,
+        dest: Union[str, pathlib.Path],
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
