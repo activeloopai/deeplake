@@ -2096,9 +2096,7 @@ class Dataset:
         """Returns an empty VDS with this dataset as the source dataset. Internal.
 
         Args:
-            vds_path (Optional, str, pathlib.Path): If specified, the vds will be stored at this path. Else the vds will
-             be stored
-                under `.queries` subdirectory.
+            vds_path (Optional, str, pathlib.Path): If specified, the vds will be stored at this path. Else the vds will be stored under `.queries` subdirectory.
             query (Optional, str): Query string associated with this view.
             vds_args (dict): Additional args for creating vds when path is specified.
 
