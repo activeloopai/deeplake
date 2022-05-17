@@ -23,14 +23,14 @@ from hub.util.remove_cache import get_base_storage
 
 
 class HubCloudDataset(Dataset):
-    def _first_load_init(self):
+    def _first_load_init(self, verbose=True):
         if self.is_first_load:
             self._set_org_and_name()
             if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
-                if self.verbose:
+                if self.verbose and verbose:
                     logger.info(
                         f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
                     )
@@ -261,7 +261,7 @@ class HubCloudDataset(Dataset):
     def __setstate__(self, state: Dict[str, Any]):
         super().__setstate__(state)
         self._client = None
-        self._first_load_init()
+        self._first_load_init(verbose=False)
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
