@@ -1656,6 +1656,11 @@ def test_partial_read_then_write(s3_ds_generator):
 
 
 def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
-    if convert_to_pathlib and "//" not in path:
-        path = pathlib.Path(path)
+    converted_path = pathlib.Path(path)
+    if (
+        convert_to_pathlib
+        and "//" not in path
+        and not isinstance(converted_path, pathlib.WindowsPath)
+    ):
+        return converted_path
     return path
