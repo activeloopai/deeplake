@@ -906,6 +906,20 @@ def test_dataset_deepcopy(
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    hub.deepcopy(
+        src_path,
+        dest_path,
+        tensors=["a", "d"],
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
     hub.delete(src_path, token=hub_token)
     hub.delete(dest_path, token=hub_token)
 

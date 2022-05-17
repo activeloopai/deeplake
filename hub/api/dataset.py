@@ -1,6 +1,8 @@
 import os
+import re
 import hub
 import pathlib
+import posixpath
 from typing import Dict, Optional, Union, List
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
@@ -8,11 +10,13 @@ from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.util.path import convert_pathlib_to_string_if_needed
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
+    DATASET_META_FILENAME,
 )
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
@@ -558,6 +562,7 @@ class dataset:
     def deepcopy(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
@@ -573,6 +578,7 @@ class dataset:
         Args:
             src (str, pathlib.Path): Path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
                 -
@@ -628,6 +634,8 @@ class dataset:
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
                 )
 
+        metas = {}
+
         def copy_func(keys, progress_callback=None):
             cache = generate_chain(
                 src_storage,
@@ -636,17 +644,72 @@ class dataset:
                 path=src,
             )
             for key in keys:
-                if isinstance(cache[key], HubMemoryObject):
-                    dest_storage[key] = cache[key].tobytes()
+                val = metas.get(key) or cache[key]
+                if isinstance(val, HubMemoryObject):
+                    dest_storage[key] = val.tobytes()
                 else:
-                    dest_storage[key] = cache[key]
+                    dest_storage[key] = val
                 if progress_callback:
                     progress_callback(1)
 
         def copy_func_with_progress_bar(pg_callback, keys):
             copy_func(keys, pg_callback)
 
-        keys = list(src_storage._all_keys())
+        keys = src_storage._all_keys()
+
+        if tensors is not None:
+            required_tensors = src_ds._resolve_tensor_list(tensors)
+            for t in required_tensors[:]:
+                required_tensors.extend(src_ds[t].meta.links)
+            required_tensor_paths = set(
+                src_ds.meta.tensor_names[t] for t in required_tensors
+            )
+
+            all_tensors_in_src = src_ds._tensors()
+            all_tensor_paths_in_src = [
+                src_ds.meta.tensor_names[t] for t in all_tensors_in_src
+            ]
+            tensor_paths_to_exclude = [
+                t for t in all_tensor_paths_in_src if t not in required_tensor_paths
+            ]
+
+            def fltr(k):
+                for t in tensor_paths_to_exclude:
+                    if k.startswith(t + "/") or "/" + t + "/" in k:
+                        return False
+                return True
+
+            def keep_group(g):
+                for t in tensors:
+                    if t == g or t.startswith(g + "/"):
+                        return True
+                return False
+
+            def process_meta(k):
+                if posixpath.basename(k) == DATASET_META_FILENAME:
+                    meta = DatasetMeta.frombuffer(src_storage[k])
+                    if not meta.tensor_names:  # backward compatibility
+                        meta.tensor_names = {t: t for t in meta.tensors}
+                    meta.tensors = list(
+                        filter(
+                            lambda t: meta.tensor_names[t] in required_tensor_paths,
+                            meta.tensors,
+                        )
+                    )
+                    meta.hidden_tensors = list(
+                        filter(lambda t: t in meta.tensors, meta.hidden_tensors)
+                    )
+                    meta.groups = list(filter(keep_group, meta.groups))
+                    meta.tensor_names = {
+                        k: v for k, v in meta.tensor_names.items() if k in meta.tensors
+                    }
+                    metas[k] = meta
+                return k
+
+            keys = filter(fltr, map(process_meta, keys))
+        keys = list(keys)
+        if tensors:
+            assert metas
         len_keys = len(keys)
         if num_workers == 0:
             keys = [keys]
@@ -665,7 +728,6 @@ class dataset:
                 compute_provider.map(copy_func, keys)
         finally:
             compute_provider.close()
-
         return dataset_factory(
             path=dest,
             storage=cache_chain,
