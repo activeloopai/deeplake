@@ -8,7 +8,7 @@ from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
-from hub.core.dataset.dataset import convert_pathlib_to_string_if_needed
+from hub.util.path import convert_pathlib_to_string_if_needed
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -429,10 +429,11 @@ class dataset:
             token=token,
             public=public,
         )
-        source_ds = source
         if isinstance(source, (str, pathlib.Path)):
             source = str(source)
             source_ds = dataset.load(source)
+        else:
+            source_ds = source
 
         for tensor_name in source_ds.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])

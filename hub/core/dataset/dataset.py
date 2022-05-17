@@ -2390,9 +2390,3 @@ class Dataset:
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
-
-
-def convert_pathlib_to_string_if_needed(path):
-    if isinstance(path, pathlib.Path):
-        path = str(path)
-    return path
