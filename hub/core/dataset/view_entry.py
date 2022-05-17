@@ -1,8 +1,9 @@
 from typing import Dict, Optional, Any
-import warnings
 
 
 class ViewEntry:
+    """Represents a view saved inside a dataset."""
+
     def __init__(self, info: Dict, dataset):
         self.info = info
         self._ds = dataset
@@ -16,6 +17,10 @@ class ViewEntry:
     @property
     def id(self) -> str:
         return self.info["id"]
+
+    @property
+    def query(self) -> Optional[str]:
+        return self.info.get("query")
 
     @property
     def message(self) -> str:
@@ -34,5 +39,5 @@ class ViewEntry:
             ds = ds._get_view()
         return ds
 
-    def materialize(self):
-        self.info = self._ds._materialize_saved_view(self.info["id"])
+    def optimize(self):
+        self.info = self._ds._optimize_saved_view(self.info["id"])

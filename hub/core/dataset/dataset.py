@@ -1,6 +1,7 @@
 # type: ignore
 from operator import sub
 from os import stat
+from pickletools import optimize
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
@@ -2096,7 +2097,7 @@ class Dataset:
         path: Optional[str] = None,
         id: Optional[str] = None,
         message: Optional[str] = None,
-        copy: bool = False,
+        optimize: bool = False,
         num_workers: int = 0,
         **ds_args,
     ) -> str:
@@ -2109,21 +2110,23 @@ class Dataset:
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Uniquie id for this view.
             message (Optional, str): Custom user message.
-            copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
+            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `copy` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Returns:
             str: Path to the saved VDS.
         """
-        return self._save_view(path, id, message, copy, num_workers, False, **ds_args)
+        return self._save_view(
+            path, id, message, optimize, num_workers, False, **ds_args
+        )
 
     def _save_view(
         self,
         path: Optional[str] = None,
         id: Optional[str] = None,
         message: Optional[str] = None,
-        copy: bool = False,
+        optimize: bool = False,
         num_workers: int = 0,
         _ret_ds: bool = False,
         **ds_args,
@@ -2137,7 +2140,7 @@ class Dataset:
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Uniquie id for this view.
             message (Optional, message): Custom user message.
-            copy (bool): Whether the view should be optimized by copying the required chunks. Default False.
+            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if copy=True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
@@ -2161,17 +2164,17 @@ class Dataset:
             if self.read_only:
                 if isinstance(self, hub.core.dataset.HubCloudDataset):
                     vds = self._save_view_in_user_queries_dataset(
-                        id, message, copy, num_workers
+                        id, message, optimize, num_workers
                     )
                 else:
                     raise ReadOnlyModeError(
                         "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
                     )
             else:
-                vds = self._save_view_in_subdir(id, message, copy, num_workers)
+                vds = self._save_view_in_subdir(id, message, optimize, num_workers)
         else:
             vds = self._save_view_in_path(
-                path, id, message, copy, num_workers, **ds_args
+                path, id, message, optimize, num_workers, **ds_args
             )
         if _ret_ds:
             return vds
@@ -2537,7 +2540,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _materialize_saved_view(self, id: str):
+    def _optimize_saved_view(self, id: str):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
@@ -2549,14 +2552,14 @@ class Dataset:
                 raise KeyError(f"View with id {id} not found.")
             info = qjson[i]
             if not info["virtual-datasource"]:
-                # Already materialzed
+                # Already optimized
                 return
             path = info.get("path", info["id"])
             vds = self._sub_ds(".queries/" + path)
             view = vds._get_view()
-            new_path = path + "_MATERIALIZED"
-            materialized = self._sub_ds(".queries/" + new_path)
-            view.copy(materialized, overwrite=True)
+            new_path = path + "_OPTIMIZED"
+            optimized = self._sub_ds(".queries/" + new_path)
+            view.copy(optimized, overwrite=True)
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)

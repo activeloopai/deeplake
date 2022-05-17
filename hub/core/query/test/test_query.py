@@ -111,29 +111,29 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-@pytest.mark.parametrize("copy", [True, False])
-def test_sub_sample_view_save(copy):
+@pytest.mark.parametrize("optimize", [True, False])
+def test_sub_sample_view_save(optimize):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
         ds.x.extend(np.random.random((100, 32, 32, 3)))
     view = ds[10:77, 2:17, 19:31, :1]
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(copy=copy)
+        view.save_view(optimize=optimize)
     ds.commit()
-    view.save_view(copy=copy)
+    view.save_view(optimize=optimize)
     view2 = ds.get_views()[0].load()
     np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
 
 
-@pytest.mark.parametrize("copy", [True, False])
-def test_dataset_view_save(copy):
+@pytest.mark.parametrize("optimize", [True, False])
+def test_dataset_view_save(optimize):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+        view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+    view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
@@ -142,9 +142,9 @@ def test_dataset_view_save(copy):
     ds.commit()
     _populate_data(ds)
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+        view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True, copy=copy)
+    view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
 
 
 @pytest.mark.parametrize(
@@ -158,14 +158,14 @@ def test_dataset_view_save(copy):
     indirect=True,
 )
 @pytest.mark.parametrize(
-    "stream,num_workers,read_only,progressbar,query_type,copy",
+    "stream,num_workers,read_only,progressbar,query_type,optimize",
     [
         (False, 2, False, True, "string", False),
         (True, 0, True, False, "function", False),
     ],
 )
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type, copy
+    ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
@@ -182,7 +182,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert len(ds.get_views()) == int(stream)
-    vds_path = view.save_view(copy=copy)
+    vds_path = view.save_view(optimize=optimize)
     assert len(ds.get_views()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
@@ -195,7 +195,7 @@ def test_inplace_dataset_view_save(
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     entry = ds.get_views()[0]
     assert entry.virtual
-    entry.materialize()
+    entry.optimize()
     assert not entry.virtual
     entries = ds.get_views()
     assert len(entries) == 1
