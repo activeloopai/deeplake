@@ -29,12 +29,12 @@ def to_tuple(sample):
     return sample["image"], sample["image2"]
 
 
-def my_collate(batch):
+def reorder_collate(batch):
     x = [((x["a"], x["b"]), x["c"]) for x in batch]
     return default_collate(x)
 
 
-def my_transform(sample):
+def dict_to_list(sample):
     return [sample["a"], sample["b"], sample["c"]]
 
 
@@ -485,7 +485,10 @@ def test_pytorch_collate(local_ds, shuffle, buffer_size):
         local_ds.c.append(2)
 
     ptds = local_ds.pytorch(
-        batch_size=4, shuffle=shuffle, collate_fn=my_collate, buffer_size=buffer_size
+        batch_size=4,
+        shuffle=shuffle,
+        collate_fn=reorder_collate,
+        buffer_size=buffer_size,
     )
     for batch in ptds:
         assert len(batch) == 2
@@ -510,7 +513,7 @@ def test_pytorch_transform_collate(local_ds, shuffle):
         batch_size=4,
         shuffle=shuffle,
         collate_fn=my_transform_collate,
-        transform=my_transform,
+        transform=dict_to_list,
         buffer_size=10,
     )
     for batch in ptds:
