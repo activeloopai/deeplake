@@ -646,13 +646,19 @@ class Tensor:
                 f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
             )
 
-    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
+    def numpy(
+        self, aslist=False, fetch_chunks=False
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
         Args:
             aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
                 If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
                 an error is raised.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
@@ -662,7 +668,9 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         self.check_link_ready()
-        return self.chunk_engine.numpy(self.index, aslist=aslist)
+        return self.chunk_engine.numpy(
+            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+        )
 
     def summary(self):
         pretty_print = summary_tensor(self)

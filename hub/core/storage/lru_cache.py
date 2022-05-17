@@ -1,5 +1,7 @@
 import sys
 from collections import OrderedDict
+from hub.constants import KB
+from hub.core.partial_reader import PartialReader
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
@@ -91,7 +93,12 @@ class LRUCache(StorageProvider):
         self.autoflush = initial_autoflush
 
     def get_hub_object(
-        self, path: str, expected_class, meta: Optional[Dict] = None, url=False
+        self,
+        path: str,
+        expected_class,
+        meta: Optional[Dict] = None,
+        url=False,
+        partial_bytes: int = 0,
     ):
         """If the data at `path` was stored using the output of a HubMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
@@ -101,6 +108,7 @@ class LRUCache(StorageProvider):
             expected_class (callable): The expected subclass of `HubMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
             url (bool): Get presigned url instead of downloading chunk (only for videos)
+            partial_bytes (int): Number of bytes to read from the beginning of the file. If 0, reads the whole file. Defaults to 0.
 
         Raises:
             ValueError: If the incorrect `expected_class` was provided.
@@ -110,7 +118,16 @@ class LRUCache(StorageProvider):
         Returns:
             An instance of `expected_class` populated with the data.
         """
-
+        if partial_bytes != 0:
+            assert issubclass(expected_class, BaseChunk)
+            if path in self.lru_sizes:
+                return self[path]
+            buff = self.get_bytes(path, 0, partial_bytes)
+            obj = expected_class.frombuffer(buff, meta, partial=True)
+            obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
+            if obj.nbytes <= self.cache_size:
+                self._insert_in_cache(path, obj)
+            return obj
         if url:
             from hub.util.remove_cache import get_base_storage
 
@@ -200,7 +217,11 @@ class LRUCache(StorageProvider):
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.hub_objects[path].tobytes()[start_byte:end_byte]
-        elif path in self.lru_sizes:
+        # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
+        elif path in self.lru_sizes and not (
+            isinstance(self.cache_storage[path], BaseChunk)
+            and self.cache_storage[path].is_partially_read_chunk
+        ):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path][start_byte:end_byte]
         else:
