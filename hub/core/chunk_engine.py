@@ -3,6 +3,8 @@ import numpy as np
 from tqdm import tqdm  # type: ignore
 from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
 from hub.api.info import Info
+from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
+from hub.core.serialize import HEADER_SIZE_BYTES
 from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
@@ -16,9 +18,11 @@ from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
+    DEFAULT_MAX_CHUNK_SIZE,
+    FIRST_COMMIT_ID,
+    PARTIAL_NUM_SAMPLES,
     RANDOM_MAX_ALLOWED_CHUNK_SIZE,
     RANDOM_MINIMAL_CHUNK_SIZE,
-    RANDOM_CHUNK_SIZE,
     DEFAULT_MAX_CHUNK_SIZE,
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
@@ -479,14 +483,21 @@ class ChunkEngine:
         self.active_appended_chunk = chunk
         return chunk
 
-    def get_chunk(self, chunk_key: str) -> BaseChunk:
-        return self.cache.get_hub_object(chunk_key, self.chunk_class, self.chunk_args)
+    def get_chunk(self, chunk_key: str, partial_chunk_bytes=0) -> BaseChunk:
+        return self.cache.get_hub_object(
+            chunk_key,
+            self.chunk_class,
+            self.chunk_args,
+            partial_bytes=partial_chunk_bytes,
+        )
 
-    def get_chunk_from_chunk_id(self, chunk_id, copy: bool = False) -> BaseChunk:
+    def get_chunk_from_chunk_id(
+        self, chunk_id, copy: bool = False, partial_chunk_bytes=0
+    ) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
-        chunk = self.get_chunk(chunk_key)
+        chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
         chunk.key = chunk_key  # type: ignore
         chunk.id = chunk_id  # type: ignore
         if copy and chunk_commit_id != self.commit_id:
@@ -1243,7 +1254,11 @@ class ChunkEngine:
         )
 
     def numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1251,6 +1266,10 @@ class ChunkEngine:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
             aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1259,7 +1278,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache
+            index, aslist, use_data_cache, fetch_chunks
         )
 
     def get_video_sample(self, global_sample_index, index):
@@ -1275,19 +1294,53 @@ class ChunkEngine:
         )[tuple(entry.value for entry in index.values[2:])]
         return sample
 
-    def get_basic_sample(self, global_sample_index, index):
+    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         enc = self.chunk_id_encoder
-        chunk_ids = enc[global_sample_index]
+        out = enc.__getitem__(global_sample_index, return_row_index=True)
+        chunk_id, row = out[0][0], out[0][1]
+        worst_case_header_size = 0
+        num_samples_in_chunk = -1
+        if (
+            not fetch_chunks
+            and isinstance(self.base_storage, (S3Provider, GCSProvider))
+            and not isinstance(self.chunk_class, ChunkCompressedChunk)
+        ):
+            prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
+            num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            worst_case_header_size += HEADER_SIZE_BYTES + 10  # 10 for version
+            ENTRY_SIZE = 4
+            if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
+                num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
+                if self.tensor_meta.htype in {"text", "json", "list"}:
+                    num_bytes_entries = num_samples_in_chunk * 3
+                elif self.tensor_meta.sample_compression is None:
+                    num_bytes_entries = 1 * 3
+                else:
+                    num_bytes_entries = num_samples_in_chunk * 3
+            else:
+                num_shape_entries = num_samples_in_chunk * (
+                    1 + len(self.tensor_meta.max_shape)
+                )
+                num_bytes_entries = num_samples_in_chunk * 3
+            bytes_enc_size = num_bytes_entries * ENTRY_SIZE
+            shape_enc_size = num_shape_entries * ENTRY_SIZE
+            worst_case_header_size += shape_enc_size
+            worst_case_header_size += bytes_enc_size
+
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        chunk = self.get_chunk_from_chunk_id(chunk_ids[0])
+        chunk = self.get_chunk_from_chunk_id(
+            chunk_id, partial_chunk_bytes=worst_case_header_size
+        )
         return chunk.read_sample(
             local_sample_index, cast=self.tensor_meta.htype != "dicom"
         )[tuple(entry.value for entry in index.values[1:])]
 
-    def get_non_tiled_sample(self, global_sample_index, index):
+    def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
         if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
             return self.get_video_sample(global_sample_index, index)
-        return self.get_basic_sample(global_sample_index, index)
+        return self.get_basic_sample(
+            global_sample_index, index, fetch_chunks=fetch_chunks
+        )
 
     def get_full_tiled_sample(self, global_sample_index):
         chunks = self.get_chunks_for_sample(global_sample_index)
@@ -1313,9 +1366,11 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
-    def get_single_sample(self, global_sample_index, index):
+    def get_single_sample(self, global_sample_index, index, fetch_chunks=False):
         if not self._is_tiled_sample(global_sample_index):
-            sample = self.get_non_tiled_sample(global_sample_index, index)
+            sample = self.get_non_tiled_sample(
+                global_sample_index, index, fetch_chunks=fetch_chunks
+            )
         elif len(index.values) == 1:
             sample = self.get_full_tiled_sample(global_sample_index)
         else:
@@ -1324,7 +1379,11 @@ class ChunkEngine:
         return sample
 
     def _numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1332,6 +1391,10 @@ class ChunkEngine:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
             aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1346,7 +1409,9 @@ class ChunkEngine:
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
-                sample = self.get_single_sample(global_sample_index, index)
+                sample = self.get_single_sample(
+                    global_sample_index, index, fetch_chunks=fetch_chunks
+                )
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
@@ -1577,12 +1642,17 @@ class ChunkEngine:
         return self._sequence_encoder
 
     def _sequence_numpy(
-        self, index: Index, aslist: bool = False, use_data_cache: bool = True
+        self,
+        index: Index,
+        aslist: bool = False,
+        use_data_cache: bool = True,
+        fetch_chunks: bool = False,
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),
             aslist=aslist,
             use_data_cache=use_data_cache,
+            fetch_chunks=fetch_chunks,
         )
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             if aslist:
@@ -1751,36 +1821,59 @@ class ChunkEngine:
         else:
             return None
 
+    @property
+    def _sequence_item_length_range(self):
+        """Returns minimum and maximum length of items in a sequence"""
+        enc = self.sequence_encoder
+        nrows = len(enc._encoded)
+        if nrows == 0:
+            return 0, 0
+        min_ = max_ = enc[0][1] - enc[0][0]
+        for i in range(1, nrows):
+            length = enc[i][1] - enc[i][0]
+            if length < min_:
+                min_ = length
+            elif length > max_:
+                max_ = length
+        return min_, max_
+
     def shape(
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
         idxs = index.values
         skip_dims = 0
-        if self.is_sequence:
+        if None in shape or self.tensor_meta.is_link:
             if not idxs[0].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-            if len(idxs) > 1 and not idxs[1].subscriptable():
-                shape = shape[1:]
-                skip_dims += 1
-        else:
-            if None in shape or self.tensor_meta.is_link:
-                if not idxs[0].subscriptable():
-                    if self.tensor_meta.htype in ("text", "json"):
-                        shape = (1,)
-                    else:
-                        if sample_shape_provider:
-                            try:
-                                shape = sample_shape_provider(idxs[0].value)  # type: ignore
-                            except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
-                                shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                        else:
+                if self.tensor_meta.htype in ("text", "json"):
+                    shape = (1,)
+                else:
+                    if sample_shape_provider:
+                        try:
+                            shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            if self.is_sequence:
+                                if len(idxs) > 1 and not idxs[1].subscriptable():
+                                    shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
+                                    skip_dims += 1
+                                else:
+                                    shape = (len(shape),) + (
+                                        tuple(
+                                            int(shape[0, i])  # type: ignore
+                                            if np.all(shape[:, i] == shape[0, i])  # type: ignore
+                                            else None
+                                            for i in range(shape.shape[1])  # type: ignore
+                                        )
+                                        or (1,)
+                                    )
+
+                        except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                    skip_dims += 1
-            elif not idxs[0].subscriptable():
-                shape = shape[1:]
+                    else:
+                        shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                 skip_dims += 1
+        elif not idxs[0].subscriptable():
+            shape = shape[1:]
+            skip_dims += 1
         shape = list(shape)  # type: ignore
         squeeze_dims = set()
         for i, idx in enumerate(idxs[skip_dims:]):
@@ -1820,14 +1913,14 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            length = [
-                self._sequence_length,
-                self._sequence_item_length,
-            ]
+            seq_length = self._sequence_length
+            min_item_length, max_item_length = self._sequence_item_length_range
+            min_length = [seq_length, min_item_length]
+            max_length = [seq_length, max_item_length]
         else:
-            length = [meta.length]
-        min_shape = length + list(meta.min_shape)
-        max_shape = length + list(meta.max_shape)
+            min_length = max_length = [meta.length]
+        min_shape = min_length + list(meta.min_shape)
+        max_shape = max_length + list(meta.max_shape)
 
         return ShapeInterval(min_shape, max_shape)
 

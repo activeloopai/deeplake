@@ -644,13 +644,19 @@ class Tensor:
                 f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
             )
 
-    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
+    def numpy(
+        self, aslist=False, fetch_chunks=False
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
         Args:
             aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
                 If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
                 an error is raised.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
@@ -660,7 +666,9 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         self.check_link_ready()
-        return self.chunk_engine.numpy(self.index, aslist=aslist)
+        return self.chunk_engine.numpy(
+            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+        )
 
     def summary(self):
         pretty_print = summary_tensor(self)
@@ -827,23 +835,12 @@ class Tensor:
         if self.is_sequence:
 
             def get_sample_shape(global_sample_index: int):
-                shapes = sample_shape_tensor.numpy(
-                    Index(
-                        [
-                            IndexEntry(
-                                slice(
-                                    *self.chunk_engine.sequence_encoder[
-                                        global_sample_index
-                                    ]
-                                )
-                            )
-                        ]
-                    )
+                seq_pos = slice(
+                    *self.chunk_engine.sequence_encoder[global_sample_index]
                 )
-                return (len(shapes),) + tuple(
-                    int(shapes[0, i]) if np.all(shapes[:, i] == shapes[0, i]) else None
-                    for i in range(shapes.shape[1])
-                )
+                idx = Index([IndexEntry(seq_pos)])
+                shapes = sample_shape_tensor[idx].numpy()
+                return shapes
 
         else:
 

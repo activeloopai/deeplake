@@ -17,11 +17,13 @@ from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.partial_reader import PartialReader
 from hub.core.sample import Sample  # type: ignore
 from hub.core.partial_sample import PartialSample
 from hub.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
+    infer_header_num_bytes,
     serialize_chunk,
     serialize_numpy_and_base_types,
     serialize_sample_object,
@@ -60,10 +62,12 @@ class BaseChunk(HubMemoryObject):
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
-        data: Optional[memoryview] = None,
+        data: Optional[Union[memoryview, PartialReader]] = None,
     ):
         super().__init__()
-        self._data_bytes: Union[bytearray, bytes, memoryview] = data or bytearray()
+        self._data_bytes: Union[bytearray, bytes, memoryview, PartialReader] = (
+            data or bytearray()
+        )
         self.version = hub.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
@@ -98,15 +102,28 @@ class BaseChunk(HubMemoryObject):
         )
 
     @property
-    def data_bytes(self) -> Union[bytearray, bytes, memoryview]:
+    def is_partially_read_chunk(self):
+        return isinstance(self.data_bytes, PartialReader)
+
+    @property
+    def data_bytes(self) -> Union[bytearray, bytes, memoryview, PartialReader]:
         return self._data_bytes
 
     @data_bytes.setter
-    def data_bytes(self, value: Union[bytearray, bytes, memoryview]):
+    def data_bytes(self, value: Union[bytearray, bytes, memoryview, PartialReader]):
         self._data_bytes = value
 
     @property
     def num_data_bytes(self) -> int:
+        if isinstance(self.data_bytes, PartialReader):
+            enc = self.byte_positions_encoder
+            num_samples = enc.num_samples
+            if num_samples == 0:
+                return 0
+            first_data_start_byte = enc[0][0]
+            last_data_end_byte = enc[num_samples - 1][1]
+            return last_data_end_byte - first_data_start_byte
+
         return len(self.data_bytes)
 
     @property
@@ -135,8 +152,14 @@ class BaseChunk(HubMemoryObject):
         )
 
     @property
+    def header_bytes(self):
+        return infer_header_num_bytes(
+            self.version, self.shapes_encoder.array, self.byte_positions_encoder.array
+        )
+
+    @property
     def memoryview_data(self):
-        if isinstance(self.data_bytes, memoryview):
+        if isinstance(self.data_bytes, (memoryview, PartialReader)):
             return self.data_bytes
         return memoryview(self.data_bytes)
 
@@ -149,6 +172,7 @@ class BaseChunk(HubMemoryObject):
         )
 
     def tobytes(self) -> memoryview:
+        assert isinstance(self.data_bytes, (memoryview, bytearray, bytes))
         return serialize_chunk(
             self.version,
             self.shapes_encoder.array,
@@ -157,7 +181,7 @@ class BaseChunk(HubMemoryObject):
         )
 
     @classmethod
-    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False):  # type: ignore
+    def frombuffer(cls, buffer: bytes, chunk_args: list, copy=True, url=False, partial=False):  # type: ignore
         if not buffer:
             return cls(*chunk_args)
         if url:
@@ -167,6 +191,8 @@ class BaseChunk(HubMemoryObject):
             data = memoryview(buffer + struct.pack("<i", header_size))
         else:
             version, shapes, byte_positions, data = deserialize_chunk(buffer, copy=copy)
+            if partial:
+                data = None
         chunk = cls(*chunk_args, shapes, byte_positions, data=data)  # type: ignore
         chunk.version = version
         chunk.is_dirty = False
@@ -197,6 +223,8 @@ class BaseChunk(HubMemoryObject):
         # data_bytes will be a memoryview if frombuffer is called.
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
+        elif isinstance(self.data_bytes, PartialReader):
+            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
 
     def prepare_for_write(self):
         ffw_chunk(self)
@@ -430,7 +458,11 @@ class BaseChunk(HubMemoryObject):
                 self.byte_positions_encoder._pop()
 
     def _get_partial_sample_tile(self, as_bytes=False):
-        if not self._data_bytes and len(self.shapes_encoder._encoded) > 0:
+        if (
+            not isinstance(self.data_bytes, PartialReader)
+            and not self.data_bytes
+            and len(self.shapes_encoder._encoded) > 0
+        ):
             shape = self.shapes_encoder._encoded[0][:-1]
             if len(shape) and np.all(shape):
                 if as_bytes:
