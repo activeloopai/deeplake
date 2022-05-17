@@ -1957,7 +1957,6 @@ class Dataset:
         id = self._view_hash() if id is None else id
         info = {
             "id": id,
-            "description": "Dataset View Copy" if copy else "Virtual Datasource",
             "virtual-datasource": not copy,
             "source-dataset": self.path,
             "source-dataset-version": commit_id,
@@ -2559,7 +2558,6 @@ class Dataset:
             materialized = self._sub_ds(".queries/" + new_path)
             view.copy(materialized, overwrite=True)
             info["virtual-datasource"] = False
-            info["description"] = "Dataset View Copy"
             info["path"] = new_path
             self._write_queries_json(qjson)
         vds.delete(large_ok=True)
