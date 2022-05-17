@@ -1,6 +1,4 @@
 # type: ignore
-from operator import sub
-from os import stat
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
