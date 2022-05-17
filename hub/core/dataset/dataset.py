@@ -1,7 +1,4 @@
 # type: ignore
-from operator import sub
-from os import stat
-from pickletools import optimize
 import uuid
 import sys
 from hub.core.index.index import IndexEntry

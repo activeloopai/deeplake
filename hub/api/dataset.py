@@ -378,7 +378,7 @@ class dataset:
 
     @staticmethod
     def like(
-        dest,
+        dest: Union[str, Dataset],
         src: Union[str, Dataset],
         overwrite: bool = False,
         creds: Optional[dict] = None,
@@ -388,7 +388,7 @@ class dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
 
         Args:
-            dest: Empty Dataset or Path where the new dataset will be created.
+            dest (Union[str, Dataset]): Empty Dataset or Path where the new dataset will be created.
             src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
@@ -402,20 +402,19 @@ class dataset:
             Dataset: New dataset object.
         """
         if isinstance(dest, Dataset):
-            feature_report_path(
-                dest.path, "like", {"Overwrite": overwrite, "Public": public}
-            )
+            dest_path = dest.path
             destination_ds = dest
         else:
-            feature_report_path(
-                dest, "like", {"Overwrite": overwrite, "Public": public}
-            )
+            dest_path = dest
             destination_ds = dataset.empty(
                 dest,
                 creds=creds,
                 overwrite=overwrite,
                 token=token,
             )
+        feature_report_path(
+            dest_path, "like", {"Overwrite": overwrite, "Public": public}
+        )
         source_ds = src
         if isinstance(src, str):
             source_ds = dataset.load(src)
