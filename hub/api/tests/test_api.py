@@ -547,6 +547,7 @@ def test_htype(memory_ds: Dataset):
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
     point = memory_ds.create_tensor("point", htype="point")
+    point_cloud = memory_ds.create_tensor("point_cloud", htype="point_cloud")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -558,6 +559,7 @@ def test_htype(memory_ds: Dataset):
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
+    point_cloud.append(np.array([[1.0, 4.5, 6.3],[2.8, 2.6, 7.8],[4.4, 3.2, 6.5]], dtype=np.float64))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -969,6 +971,7 @@ def test_htypes_list():
         "keypoints_coco",
         "list",
         "point",
+        "point_cloud",
         "segment_mask",
         "text",
         "video",
