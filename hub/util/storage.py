@@ -141,11 +141,15 @@ def get_storage_and_cache_chain(
     return storage, storage_chain
 
 
-def get_pytorch_local_storage(dataset):
-    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
-    local_cache_name: str = dataset.path + "_pytorch"
-    local_cache_name = local_cache_name.replace("://", "_")
+def get_local_storage_path(path: str, prefix: str):
+    local_cache_name = path.replace("://", "_")
     local_cache_name = local_cache_name.replace("/", "_")
     local_cache_name = local_cache_name.replace("\\", "_")
-    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
+    return f"{prefix}/{local_cache_name}"
+
+
+def get_pytorch_local_storage(dataset):
+    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
+    local_cache_name: str = f"{dataset.path}_pytorch"
+    local_cache_path = get_local_storage_path(local_cache_name, LOCAL_CACHE_PREFIX)
     return LocalProvider(local_cache_path)

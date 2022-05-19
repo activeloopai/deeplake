@@ -1662,6 +1662,44 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.create_tensor("x")
 
 
+def test_access_method(s3_ds_generator):
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="download")
+
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="local")
+
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("x")
+        for i in range(10):
+            ds.x.append(i)
+
+    ds = s3_ds_generator(access_method="download")
+    with pytest.raises(DatasetHandlerError):
+        # second time download is not allowed
+        s3_ds_generator(access_method="download")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="invalid")
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="download", overwrite=True)
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="local", overwrite=True)
+
+    ds = s3_ds_generator(access_method="local")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    ds.delete()
+
+
 def test_partial_read_then_write(s3_ds_generator):
     ds = s3_ds_generator()
     with ds:
@@ -1677,6 +1715,11 @@ def test_partial_read_then_write(s3_ds_generator):
 
 
 def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
-    if convert_to_pathlib and "//" not in path:
-        path = pathlib.Path(path)
+    converted_path = pathlib.Path(path)
+    if (
+        convert_to_pathlib
+        and "//" not in path
+        and not isinstance(converted_path, pathlib.WindowsPath)
+    ):
+        return converted_path
     return path
