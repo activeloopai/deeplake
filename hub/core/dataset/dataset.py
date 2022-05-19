@@ -2381,8 +2381,8 @@ class Dataset:
         from hub.visualizer import visualize
 
         hub_reporter.feature_report(feature_name="visualize", parameters={})
-        if is_colab:
-            raise Exception("Cannot visualize local dataset in Colab.")
+        if is_colab():
+            raise Exception("Cannot visualize non hub cloud dataset in Colab.")
         else:
             visualize(self.storage, width=width, height=height)
 

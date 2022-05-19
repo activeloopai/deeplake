@@ -124,8 +124,8 @@ def visualize(
         params = f"url={source}&token={token}"
     iframe = IFrame(
         f"{_get_visualizer_backend_url()}/visualizer/hub?{params}",
-        width=width or "100%",
-        height=height or 900,
+        width=width or "90%",
+        height=height or 800,
     )
     display(iframe)
 
