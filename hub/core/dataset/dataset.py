@@ -356,6 +356,7 @@ class Dataset:
             ds.create_tensor("images", htype="image", sample_compression="jpg")
             ds.create_tensor("videos", htype="video", sample_compression="mp4")
             ds.create_tensor("data")
+            ds.create_tesnsor("point_clouds", htype="point_cloud")
 
             # append data
             ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
