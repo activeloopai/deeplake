@@ -634,7 +634,7 @@ class dataset:
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
                 )
 
-        metas = {}
+        metas: Dict[str, DatasetMeta] = {}
 
         def copy_func(keys, progress_callback=None):
             cache = generate_chain(
