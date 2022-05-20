@@ -15,6 +15,7 @@ compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4"])
 common_args = {
     "min_chunk_size": 1 * MB,
     "max_chunk_size": 2 * MB,
+    "tiling_threshold": 1 * MB,
 }
 
 
@@ -51,6 +52,7 @@ def test_read_write_sequence_big(cat_path, compression):
     common_args = {
         "min_chunk_size": 16 * MB,
         "max_chunk_size": 32 * MB,
+        "tiling_threshold": 16 * MB,
         "tensor_meta": tensor_meta,
         "compression": compression,
     }

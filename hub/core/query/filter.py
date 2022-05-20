@@ -451,11 +451,10 @@ def query_inplace(
             else:
                 result = compute.map(subquery, subdatasets)  # type: ignore
 
-            index_map = [
-                k + dataset_slice.offset
-                for x, dataset_slice in zip(result, subdatasets)
-                for k in x
-            ]  # unfold the result map
+            index_map = []
+            for ls in result:
+                index_map.extend(ls)
+
     except Exception as e:
         dataset._send_query_progress(
             query_text=query,

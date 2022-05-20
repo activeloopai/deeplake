@@ -252,6 +252,7 @@ class SampleStreaming(Streaming):
         self,
         dataset,
         tensors: Sequence[str],
+        tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
     ) -> None:
         super().__init__()
@@ -269,6 +270,16 @@ class SampleStreaming(Streaming):
             )
 
         self.tensors = tensors
+        if isinstance(tobytes, bool):
+            self.tobytes = {k: tobytes for k in self.tensors}
+        else:
+            for k in tobytes:
+                if k not in tensors:
+                    raise Exception(
+                        f"Tensor {k} is not present in the list of provided tensors: {tensors}."
+                    )
+            self.tobytes = {k: k in tobytes for k in tensors}
+
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
         self.local_caches: Optional[CachesMap] = (
@@ -288,15 +299,22 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
+                decompress = not self.tobytes[key]
                 chunk_class = engine.chunk_class
                 try:
 
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
 
+                    version_state = self.dataset.version_state
+
                     for c_name in c_names:
                         commit_id = engine.get_chunk_commit(c_name)
-                        c_key = get_chunk_key(key, c_name, commit_id)
+                        c_key = get_chunk_key(
+                            version_state["tensor_names"][key],
+                            c_name,
+                            commit_id,
+                        )
                         if self.local_caches is not None:
                             local_cache = self.local_caches[key]
 
@@ -312,8 +330,14 @@ class SampleStreaming(Streaming):
                             chunk = engine.get_chunk(c_key)
                         chunks.append(chunk)
                     if len(chunks) == 1:
-                        data = engine.read_sample_from_chunk(idx, chunk)
+                        data = engine.read_sample_from_chunk(
+                            idx, chunk, decompress=decompress
+                        )
                     else:
+                        if not decompress:
+                            raise NotImplementedError(
+                                "`tobytes=True` is not supported by tiled samples as it can cause recompression."
+                            )
                         data = combine_chunks(chunks, idx, engine.tile_encoder)
 
                     if data is not None:
@@ -387,16 +411,18 @@ class SampleStreaming(Streaming):
 
     def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {
-            key: self._create_chunk_engine(key, self.dataset.version_state)
-            for key in tensors
+            name: self._create_chunk_engine(name, self.dataset.version_state)
+            for name in tensors
         }
 
-    def _create_chunk_engine(self, tensor_key, version_state):
+    def _create_chunk_engine(self, tensor_name, version_state):
+        tensor_key = version_state["tensor_names"][tensor_name]
         return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
 
     def _get_dataset_indicies(self):
+        version_state = self.dataset.version_state
         tensor_lengths = [
-            len(self.dataset.version_state["full_tensors"][tensor])
+            len(version_state["full_tensors"][version_state["tensor_names"][tensor]])
             for tensor in self.tensors
         ]
         length = min(tensor_lengths, default=0)

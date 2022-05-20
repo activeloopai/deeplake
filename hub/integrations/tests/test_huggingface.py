@@ -1,20 +1,24 @@
 from datasets import load_dataset  # type: ignore
 from datasets import Dataset  # type: ignore
+from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
 from hub.integrations.huggingface import ingest_huggingface
 from hub.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
 
+import pytest
 import hub
 
 
-def test_before_split():
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_before_split(convert_to_pathlib):
+    mem_path = convert_string_to_pathlib_if_needed("mem://xyz", convert_to_pathlib)
     ds = load_dataset("glue", "mrpc")
-    hub_ds = ingest_huggingface(ds, "mem://xyz")
+    hub_ds = ingest_huggingface(ds, mem_path)
 
     splits = ds.keys()
     columns = ds["train"].column_names
 
-    assert set(hub_ds.meta.tensors) == {
+    assert set(hub_ds.tensors) == {
         f"{split}/{column}" for split in splits for column in columns
     }
 
@@ -29,7 +33,7 @@ def test_split():
     ds = load_dataset("glue", "mrpc", split="train[:5%]")
     hub_ds = ingest_huggingface(ds, "mem://xyz")
 
-    assert hub_ds.meta.tensors == ds.column_names
+    assert list(hub_ds.tensors) == ds.column_names
 
     for column in ds.column_names:
         assert_array_equal(hub_ds[column].numpy().reshape(-1), ds[column])
@@ -41,7 +45,7 @@ def test_seq_with_dict():
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 
-    assert set(hub_ds.meta.tensors) == keys
+    assert set(hub_ds.tensors) == keys
 
     for key in ("id", "title", "context", "question"):
         assert_array_equal(hub_ds[key].numpy().reshape(-1), ds[key])
@@ -66,7 +70,7 @@ def test_seq():
 
     hub_ds = ingest_huggingface(ds, "mem://xyz")
 
-    assert set(hub_ds.meta.tensors) == {"id", "seq"}
+    assert set(hub_ds.tensors) == {"id", "seq"}
     assert_array_equal(hub_ds["seq"], [arr1, arr2])
 
     arr = [["abcd"], ["efgh"]]

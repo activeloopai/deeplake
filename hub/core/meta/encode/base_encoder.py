@@ -1,6 +1,6 @@
 import hub
 from abc import ABC
-from typing import Any, List, Sequence
+from typing import Any, List, Sequence, Optional
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -144,13 +144,14 @@ class Encoder(ABC):
 
         return row_index  # type: ignore
 
-    def register_samples(self, item: Any, num_samples: int):
+    def register_samples(self, item: Any, num_samples: int, row: Optional[int] = None):
         """Register `num_samples` as `item`. Combines when the `self._combine_condition` returns True.
         This method adds data to `self._encoded` without decoding.
 
         Args:
             item (Any): General input, will be passed along to subclass methods.
             num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
+            row (Optional[int]): Parameter that shows to which chunk the samples need to be added
         """
 
         # TODO: optimize this
@@ -162,19 +163,27 @@ class Encoder(ABC):
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 new_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
-
+                if row is not None:
+                    self._encoded[row][1] += num_samples
+                else:
+                    self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
             else:
                 decomposable = self._make_decomposable(item)
 
                 last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                shape_entry = np.array(
-                    [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
-                )
-
-                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
+                if row is not None:
+                    self._encoded[:, LAST_SEEN_INDEX_COLUMN] += num_samples
+                    shape_entry = np.array(
+                        [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
+                    )
+                    self._encoded = np.insert(self._encoded, row, shape_entry, axis=0)
+                else:
+                    shape_entry = np.array(
+                        [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
+                    )
+                    self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
 
         else:
             decomposable = self._make_decomposable(item)
@@ -275,9 +284,7 @@ class Encoder(ABC):
         Raises:
             ValueError: If no update actions were taken.
         """
-
         row_index = self.translate_index(local_sample_index)
-
         # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
         actions = (
             self._try_not_changing,
@@ -322,19 +329,24 @@ class Encoder(ABC):
         self._decomposable_item = None
         self._num_samples_at_row = None
 
-    def _setup_update(self, item: Any, row_index: int, *_):
+    def _setup_update(self, item: Any, row_index: int, local_sample_index: int):
         """Setup the state variables for preceeding actions. Used for updating."""
 
         self._has_above = row_index > 0
         self._has_below = row_index + 1 < len(self._encoded)
 
-        self._can_combine_above = False
-        if self._has_above:
-            self._can_combine_above = self._combine_condition(item, row_index - 1)
+        self._can_combine_above = (
+            self._has_above
+            and self._encoded[row_index - 1][LAST_SEEN_INDEX_COLUMN] + 1
+            == local_sample_index
+            and self._combine_condition(item, row_index - 1)
+        )
 
-        self._can_combine_below = False
-        if self._has_below:
-            self._can_combine_below = self._combine_condition(item, row_index + 1)
+        self._can_combine_below = (
+            self._has_below
+            and self._encoded[row_index][LAST_SEEN_INDEX_COLUMN] == local_sample_index
+            and self._combine_condition(item, row_index + 1)
+        )
 
         self._decomposable_item = self._make_decomposable(item, row_index)
         self._num_samples_at_row = self.num_samples_at(row_index)
@@ -604,21 +616,19 @@ class Encoder(ABC):
                 C       20
         """
 
-        above_last_index = 0
+        above_last_index = -1
         if self._has_above:
             above_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN]
-
-        if above_last_index != local_sample_index:
+        if above_last_index != local_sample_index - 1:
             return False
 
         # a new row should be created above
-        start = self._encoded[: max(0, row_index - 1)]
+        start = self._encoded[: max(0, row_index)]
         end = self._encoded[row_index:]
         new_row = np.array(
             [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
         )
         self._encoded = np.concatenate((start, [new_row], end))
-
         return True
 
     def _try_splitting_down(
@@ -717,6 +727,9 @@ class Encoder(ABC):
 
     def _pop(self):
         num_samples_in_last_row = self._num_samples_in_last_row()
+        if num_samples_in_last_row == 0:  # backwards compatibility
+            self._encoded = self._encoded[:-1]
+            return self._pop()
         if num_samples_in_last_row == 1:
             self._encoded = self._encoded[:-1]
         elif num_samples_in_last_row > 1:

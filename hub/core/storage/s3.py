@@ -5,7 +5,7 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
@@ -15,6 +15,7 @@ from hub.util.exceptions import (
     S3ListError,
     S3SetError,
     S3Error,
+    PathNotEmptyException,
 )
 from botocore.exceptions import (
     ReadTimeoutError,
@@ -33,6 +34,13 @@ CONNECTION_ERRORS = (
     EndpointConnectionError,
     IncompleteReadError,
 )
+
+try:
+    from botocore.exceptions import ResponseStreamingError
+
+    CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)  # type: ignore
+except ImportError:
+    pass
 
 
 class S3ReloadCredentialsManager:
@@ -116,7 +124,7 @@ class S3Provider(StorageProvider):
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
-        self._presigned_urls: Dict[str, float] = {}
+        self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
     def subdir(self, path: str):
         sd = self.__class__(
@@ -170,9 +178,9 @@ class S3Provider(StorageProvider):
                     return
                 except Exception:
                     pass
-            raise S3SetError(err)
+            raise S3SetError(err) from err
         except Exception as err:
-            raise S3SetError(err)
+            raise S3SetError(err) from err
 
     def _get(self, path):
         resp = self.client.get_object(
@@ -193,30 +201,64 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
-            ReadOnlyError: If the provider is in read-only mode.
+        """
+        return self.get_bytes(path)
+
+    def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
+        if start_byte is not None and end_byte is not None:
+            range = f"bytes={start_byte}-{end_byte - 1}"
+        elif start_byte is not None:
+            range = f"bytes={start_byte}-"
+        elif end_byte is not None:
+            range = f"bytes=0-{end_byte - 1}"
+        else:
+            range = ""
+        resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
+        return resp["Body"].read()
+
+    def get_bytes(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
+
+        Returns:
+            bytes: The bytes of the object present at the path within the given byte range.
+
+        Raises:
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
+            S3GetError: Any other error other than KeyError while retrieving the object.
         """
         self._check_update_creds()
         path = "".join((self.path, path))
         try:
-            return self._get(path)
+            return self._get_bytes(path, start_byte, end_byte)
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
-                raise KeyError(err)
+                raise KeyError(err) from err
             reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3GetError):
-                return self._get(path)
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
+            with manager(self, S3GetError):  # type: ignore
+                return self._get_bytes(path, start_byte, end_byte)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
                 warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
-                    return self._get(path)
+                    return self._get_bytes(path, start_byte, end_byte)
                 except Exception:
                     pass
-            raise S3GetError(err)
+            raise S3GetError(err) from err
         except Exception as err:
-            raise S3GetError(err)
+            raise S3GetError(err) from err
 
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
@@ -251,9 +293,9 @@ class S3Provider(StorageProvider):
                     return
                 except Exception:
                     pass
-            raise S3DeletionError(err)
+            raise S3DeletionError(err) from err
         except Exception as err:
-            raise S3DeletionError(err)
+            raise S3DeletionError(err) from err
 
     @property
     def num_tries(self):
@@ -280,7 +322,7 @@ class S3Provider(StorageProvider):
                     Bucket=self.bucket, Prefix=self.path
                 )
         except Exception as err:
-            raise S3ListError(err)
+            raise S3ListError(err) from err
 
         if items["KeyCount"] <= 0:
             return set()
@@ -312,14 +354,15 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         yield from self._all_keys()
 
-    def clear(self):
-        """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+    def clear(self, prefix=""):
+        """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root). Exercise caution!"""
         self.check_readonly()
         self._check_update_creds()
+        path = posixpath.join(self.path, prefix) if prefix else self.path
         if self.resource is not None:
             try:
                 bucket = self.resource.Bucket(self.bucket)
-                bucket.objects.filter(Prefix=self.path).delete()
+                bucket.objects.filter(Prefix=path).delete()
             except Exception as err:
                 reload = self.need_to_reload_creds(err)
                 manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
@@ -329,6 +372,39 @@ class S3Provider(StorageProvider):
 
         else:
             super().clear()
+
+    def rename(self, root):
+        """Rename root folder"""
+        self.check_readonly()
+        self._check_update_creds()
+        items = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=self.bucket, Prefix=self.path)
+        for page in pages:
+            items.extend(page["Contents"])
+        path = root.replace("s3://", "")
+        _, new_path = path.split("/", 1)
+        try:
+            dest_objects = self.client.list_objects_v2(
+                Bucket=self.bucket, Prefix=new_path
+            )["Contents"]
+            for item in dest_objects:
+                raise PathNotEmptyException(use_hub=False)
+        except KeyError:
+            pass
+        for item in items:
+            old_key = item["Key"]
+            copy_source = {"Bucket": self.bucket, "Key": old_key}
+            new_key = "/".join([new_path, posixpath.relpath(old_key, self.path)])
+            self.client.copy_object(
+                CopySource=copy_source, Bucket=self.bucket, Key=new_key
+            )
+            self.client.delete_object(Bucket=self.bucket, Key=old_key)
+
+        self.root = root
+        self.path = new_path
+        if not self.path.endswith("/"):
+            self.path += "/"
 
     def _state_keys(self):
         """Keys used to store the state of the provider."""
@@ -410,8 +486,7 @@ class S3Provider(StorageProvider):
             )
 
     def _locate_and_load_creds(self):
-        boto3.setup_default_session(profile_name=self.profile_name)
-        session = boto3._get_default_session()._session
+        session = boto3.session.Session(profile_name=self.profile_name)._session
         component_locator = ComponentLocator()
         component_locator.lazy_register_component(
             "credential_provider", session._create_credential_resolver
@@ -441,8 +516,9 @@ class S3Provider(StorageProvider):
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
         }
-        self.client = boto3.client("s3", **args)
-        self.resource = boto3.resource("s3", **args)
+        session = boto3.session.Session(profile_name=self.profile_name)
+        self.client = session.client("s3", **args)
+        self.resource = session.resource("s3", **args)
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
@@ -453,9 +529,16 @@ class S3Provider(StorageProvider):
             and self.loaded_creds_from_environment
         )
 
-    def get_presigned_url(self, key):
+    def get_presigned_url(self, key, full=False):
         self._check_update_creds()
-        path = "".join((self.path, key))
+        if full:
+            root = key.replace("s3://", "")
+            split_root = root.split("/", 1)
+            bucket = split_root[0]
+            path = split_root[1] if len(split_root) > 1 else ""
+        else:
+            bucket = self.bucket
+            path = "".join((self.path, key))
 
         url = None
         cached = self._presigned_urls.get(path)
@@ -469,18 +552,26 @@ class S3Provider(StorageProvider):
         if url is None:
             if self._is_hub_path:
                 client = HubBackendClient(self.token)
-                org_id, ds_name = self.tag.split("/")
+                org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
                 url = self.client.generate_presigned_url(
                     "get_object",
-                    Params={"Bucket": self.bucket, "Key": path},
+                    Params={"Bucket": bucket, "Key": path},
                     ExpiresIn=3600,
                 )
             self._presigned_urls[path] = (url, time.time())
         return url
 
-    def get_object_size(self, path):
+    def get_object_size(self, path: str) -> int:
         path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
+
+    def get_object_from_full_url(self, url: str):
+        root = url.replace("s3://", "")
+        split_root = root.split("/", 1)
+        bucket = split_root[0]
+        path = split_root[1] if len(split_root) > 1 else ""
+        resp = self.client.get_object(Bucket=bucket, Key=path)
+        return resp["Body"].read()

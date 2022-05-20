@@ -1,8 +1,9 @@
-from typing import List, Any
+from typing import List, Any, Sequence
 from random import randrange
 from functools import reduce
 from operator import mul
 import warnings
+import torch
 
 
 class ShuffleBuffer:
@@ -76,11 +77,14 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
-        return sum(
-            [
-                tensor.storage().element_size() * reduce(mul, tensor.shape, 1)
-                for _, tensor in sample.items()
-            ]
+        if isinstance(sample, dict):
+            return sum(self._sample_size(tensor) for tensor in sample.values())
+        elif isinstance(sample, Sequence):
+            return sum(self._sample_size(tensor) for tensor in sample)
+        elif isinstance(sample, torch.Tensor):
+            return sample.storage().element_size() * reduce(mul, sample.shape, 1)
+        raise ValueError(
+            f"Expected input of type Tensor, dict or Sequence, got: {type(sample)}"
         )
 
     def __len__(self):

@@ -200,7 +200,7 @@ class IndexEntry:
         return (
             isinstance(self.value, slice)
             and not self.value.start
-            and self.value.stop == None
+            and self.value.stop is None
             and ((self.value.step or 1) == 1)
         )
 
@@ -247,7 +247,7 @@ class IndexEntry:
         # Check ints that are too large (positive or negative)
         if isinstance(self.value, int):
             if self.value >= parent_length or self.value < -parent_length:
-                raise ValueError(
+                raise IndexError(
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
 
@@ -263,6 +263,8 @@ class Index:
         """
         if isinstance(item, Index):
             item = item.values
+        elif item in ((), [], None):
+            item = slice(None)
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
@@ -402,7 +404,8 @@ class Index:
         self.values[0].validate(parent_length)
 
     def __str__(self):
-        values = [entry.value for entry in self.values]
+        eval_f = lambda v: list(v()) if callable(v) else v
+        values = [eval_f(entry.value) for entry in self.values]
         return f"Index({values})"
 
     def __repr__(self):

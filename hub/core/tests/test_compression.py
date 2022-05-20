@@ -27,13 +27,10 @@ from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
-compressions = SUPPORTED_COMPRESSIONS[:]
-compressions.remove(None)  # type: ignore
-compressions.remove("wmf")  # driver has to be provided by user for wmf write support
-
 image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
+image_compressions.remove("dcm")
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
@@ -137,6 +134,9 @@ def test_lz4_empty():
     assert decompress_bytes(b"", "lz4") == b""
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
 def test_audio(compression, audio_paths):
     path = audio_paths[compression]

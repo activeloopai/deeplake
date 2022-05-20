@@ -23,26 +23,6 @@ import struct
 import sys
 import re
 import numcodecs.lz4  # type: ignore
-
-try:
-    from miniaudio import (  # type: ignore
-        mp3_read_file_f32,
-        mp3_read_f32,
-        mp3_get_file_info,
-        mp3_get_info,
-        flac_read_file_f32,
-        flac_read_f32,
-        flac_get_file_info,
-        flac_get_info,
-        wav_read_file_f32,
-        wav_read_f32,
-        wav_get_file_info,
-        wav_get_info,
-    )
-
-    _MINIAUDIO_INSTALLED = True
-except ImportError:
-    _MINIAUDIO_INSTALLED = False
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 
@@ -298,12 +278,19 @@ def decompress_array(
         except Exception:
             raise SampleDecompressionError()
     elif compr_type == AUDIO_COMPRESSION:
-        return _decompress_audio(buffer, compression)
+        return _decompress_audio(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
+    if compression == "dcm":
+        return _decompress_dicom(buffer)  # type: ignore
+    if compression is None and isinstance(buffer, memoryview) and shape is not None:
+        assert buffer is not None
+        assert shape is not None
+        return np.frombuffer(buffer=buffer, dtype=dtype).reshape(shape)
+
     try:
         if shape is not None and 0 in shape:
             return np.zeros(shape, dtype=dtype)
@@ -322,9 +309,15 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     """Gets the shape of a bounding box that can contain the given the shapes tiled horizontally."""
     if len(shapes) == 0:
         return (0, 0, 0)
-    channels_shape = shapes[0][2:]
+    channels_shape = None
     for shape in shapes:
-        if shape[2:] != channels_shape:
+        if shape != (0, 0, 0):
+            channels_shape = shape[2:]
+            break
+    if channels_shape is None:
+        channels_shape = (0,)
+    for shape in shapes:
+        if shape != (0, 0, 0) and shape[2:] != channels_shape:
             raise ValueError(
                 "The data can't be compressed as the number of channels doesn't match."
             )
@@ -338,14 +331,18 @@ def compress_multiple(
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     if len(arrays) == 0:
         return b""
-    dtype = arrays[0].dtype
+    dtype = None
     for arr in arrays:
-        if arr.dtype != dtype:
-            raise SampleCompressionError(
-                arr.shape,
-                compression,
-                message="All arrays expected to have same dtype.",
-            )
+        if arr.size:
+            if dtype is None:
+                dtype = arr.dtype
+            elif arr.dtype != dtype:
+                raise SampleCompressionError(
+                    arr.shape,
+                    compression,
+                    message="All arrays expected to have same dtype.",
+                )
+
     compr_type = get_compression_type(compression)
     if compr_type == BYTE_COMPRESSION:
         return compress_bytes(
@@ -360,6 +357,8 @@ def compress_multiple(
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
+        if arr.shape == (0, 0, 0):
+            continue
         canvas[: arr.shape[0], next_x : next_x + arr.shape[1]] = arr
         next_x += arr.shape[1]
     return compress_array(canvas, compression=compression)
@@ -389,8 +388,11 @@ def decompress_multiple(
     arrays = []
     next_x = 0
     for shape in shapes:
-        arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
-        next_x += shape[1]
+        if shape == (0, 0, 0):
+            arrays.append(np.zeros(shape, dtype=canvas.dtype))
+        else:
+            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+            next_x += shape[1]
     return arrays
 
 
@@ -420,6 +422,8 @@ def verify_compressed_file(
         elif compression in ("mp4", "mkv", "avi"):
             if isinstance(file, (bytes, memoryview, str)):
                 return _read_video_shape(file), "|u1"  # type: ignore
+        elif compression == "dcm":
+            return _read_dicom_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -434,10 +438,11 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = ["mp3", "flac", "wav", "mp4", "mkv", "avi"]
+        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm"]
+        path = str(path).lower()
         for fmt in file_formats:
-            if str(path).lower().endswith("." + fmt):
-                return fmt
+            if path.endswith(fmt):
+                return fmt[1:]
     if header:
         if not Image.OPEN:
             Image.init()
@@ -606,9 +611,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
+        elif compression == "dcm":
+            shape, typestr = _read_dicom_shape_and_dtype(f)
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
-                shape, typestr = _read_audio_shape(file, compression), "<f4"
+                shape, typestr = _read_audio_shape(file), "<f4"
             except Exception as e:
                 raise CorruptedSampleError(compression)
         elif compression in ("mp4", "mkv", "avi"):
@@ -696,6 +703,41 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
     return shape
 
 
+def _read_dicom_shape_and_dtype(
+    f: Union[bytes, BinaryIO]
+) -> Tuple[Tuple[int, ...], str]:
+    try:
+        from pydicom import dcmread
+        from pydicom.pixel_data_handlers.util import pixel_dtype
+    except ImportError:
+        raise ModuleNotFoundError(
+            "Pydicom not found. Install using `pip install pydicom`"
+        )
+    if not hasattr(f, "read"):
+        f = BytesIO(f)  # type: ignore
+    dcm = dcmread(f)
+    nchannels = dcm[0x0028, 0x0002].value
+    shape = (dcm.Rows, dcm.Columns, nchannels)
+    isfloat = "FloatPixelData" in dcm or "DoubleFloatPixelData" in dcm
+    dtype = pixel_dtype(dcm, isfloat).str
+    return shape, dtype
+
+
+def _decompress_dicom(f: Union[str, bytes, BinaryIO]):
+    if isinstance(f, (bytes, memoryview, bytearray)):
+        f = BytesIO(f)
+    try:
+        from pydicom import dcmread
+    except ImportError:
+        raise ModuleNotFoundError(
+            "Pydicom not found. Install using `pip install pydicom`"
+        )
+    arr = dcmread(f).pixel_array
+    if arr.ndim == 2:
+        return np.expand_dims(arr, -1)
+    return arr
+
+
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
     """Reads shape and dtype of a png file from a file like object or file contents.
     If a file like object is provided, all of its contents are NOT loaded into memory."""
@@ -731,45 +773,6 @@ def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...
     return shape, typstr  # type: ignore
 
 
-def _decompress_audio(
-    file: Union[bytes, memoryview, str], compression: Optional[str]
-) -> np.ndarray:
-    if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError(
-            "Miniaudio is not installed. Run `pip install hub[audio]`."
-        )
-    decompressor = globals()[
-        f"{compression}_read{'_file' if isinstance(file, str) else ''}_f32"
-    ]
-    if isinstance(file, memoryview):
-        if (
-            isinstance(file.obj, bytes)
-            and file.strides == (1,)
-            and file.shape == (len(file.obj),)
-        ):
-            file = file.obj
-        else:
-            file = bytes(file)
-    raw_audio = decompressor(file)
-    return np.frombuffer(raw_audio.samples, dtype="<f4").reshape(
-        raw_audio.num_frames, raw_audio.nchannels
-    )
-
-
-def _read_audio_shape(
-    file: Union[bytes, memoryview, str], compression: str
-) -> Tuple[int, ...]:
-    if not _MINIAUDIO_INSTALLED:
-        raise ModuleNotFoundError(
-            "Miniaudio is not installed. Run `pip install hub[audio]`."
-        )
-    f_info = globals()[
-        f"{compression}_get{'_file' if isinstance(file, str) else ''}_info"
-    ]
-    info = f_info(file)
-    return (info.num_frames, info.nchannels)
-
-
 def _frame_to_stamp(nframe, stream):
     """Convert frame number to timestamp based on fps of video stream."""
     fps = stream.guessed_rate.numerator / stream.guessed_rate.denominator
@@ -781,6 +784,10 @@ def _frame_to_stamp(nframe, stream):
 
 
 def _open_video(file: Union[str, bytes, memoryview]):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "PyAV is not installed. Run `pip install hub[video]`."
+        )
     if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
@@ -798,31 +805,32 @@ def _open_video(file: Union[str, bytes, memoryview]):
     return container, vstream
 
 
-def _read_shape_from_vstream(container, vstream):
-    nframes = vstream.frames
+def _read_metadata_from_vstream(container, vstream):
+    duration = vstream.duration
+    if duration is None:
+        duration = container.duration
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
 
+    nframes = vstream.frames
     if nframes == 0:
-        duration = vstream.duration
-        if duration is None:
-            duration = container.duration
-            time_base = 1 / av.time_base
-        else:
-            time_base = vstream.time_base.numerator / vstream.time_base.denominator
-        fps = vstream.guessed_rate.numerator / vstream.guessed_rate.denominator
         nframes = math.floor(fps * duration * time_base)
 
     height = vstream.codec_context.height
     width = vstream.codec_context.width
+    shape = (nframes, height, width, 3)
 
-    return (nframes, height, width)
+    return shape, duration, fps, time_base
 
 
 def _read_video_shape(
     file: Union[str, bytes, memoryview],
 ):
     container, vstream = _open_video(file)
-    shape = _read_shape_from_vstream(container, vstream)
-    return (*shape, 3)
+    shape = _read_metadata_from_vstream(container, vstream)[0]
+    return shape
 
 
 def _decompress_video(
@@ -832,12 +840,8 @@ def _decompress_video(
     step: Optional[int],
     reverse: bool,
 ):
-    if not _PYAV_INSTALLED:
-        raise ModuleNotFoundError(
-            "Module av not found. Find instructions to install PyAV at https://pyav.org/docs/develop/overview/installation.html"
-        )
     container, vstream = _open_video(file)
-    nframes, height, width = _read_shape_from_vstream(container, vstream)
+    nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
     if start is None:
         start = 0
@@ -890,3 +894,105 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _open_audio(file: Union[str, bytes, memoryview]):
+    if not _PYAV_INSTALLED:
+        raise ModuleNotFoundError(
+            "PyAV is not installed. Please run `pip install hub[audio]`"
+        )
+    if isinstance(file, str):
+        container = av.open(
+            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+        )
+    else:
+        container = av.open(BytesIO(file))
+
+    astreams = container.streams.audio
+
+    if len(astreams) == 0:
+        raise IndexError("No audio streams available!")
+
+    astream = astreams[0]
+
+    return container, astream
+
+
+def _read_shape_from_astream(container, astream):
+    nchannels = astream.channels
+    duration = astream.duration
+    if duration is None:
+        duration = container.duration
+        if duration is None:
+            return (0, nchannels)
+        time_base = 1 / av.time_base
+    else:
+        time_base = astream.time_base.numerator / astream.time_base.denominator
+    sample_rate = astream.sample_rate
+    nsamples = math.floor(sample_rate * duration * time_base)
+
+    # possible for some files with bad meta
+    if nsamples < 0:
+        nsamples = 0
+    return (nsamples, nchannels)
+
+
+def _read_audio_shape(
+    file: Union[bytes, memoryview, str],
+) -> Tuple[int, ...]:
+    container, astream = _open_audio(file)
+    shape = _read_shape_from_astream(container, astream)
+    return shape
+
+
+def _read_audio_meta(
+    file: Union[bytes, memoryview, str],
+) -> dict:
+    container, astream = _open_audio(file)
+    meta = {}
+    if astream.duration:
+        meta["duration"] = astream.duration
+        meta["time_base"] = astream.time_base.numerator / astream.time_base.denominator
+    else:
+        meta["duration"] = container.duration
+        meta["time_base"] = 1 / av.time_base
+    meta["sample_rate"] = astream.sample_rate
+    meta["duration"] = astream.duration or container.duration
+    meta["frame_size"] = astream.frame_size
+    meta["nchannels"] = astream.channels
+    meta["sample_format"] = astream.format.name
+    return meta
+
+
+def _decompress_audio(
+    file: Union[bytes, memoryview, str],
+):
+    container, astream = _open_audio(file)
+    shape = _read_shape_from_astream(container, astream)
+
+    if shape[0] == 0:
+        audio = None
+        for frame in container.decode(audio=0):
+            if not frame.is_corrupt:
+                audio = frame.to_ndarray().astype("<f4")
+                break
+
+        if audio is not None:
+            for frame in container.decode(audio=0):
+                if not frame.is_corrupt:
+                    audio = np.concatenate(
+                        (audio, frame.to_ndarray().astype("<f4")), axis=1
+                    )
+
+        return np.transpose(audio)
+
+    audio = np.zeros(shape, dtype="<f4")
+    sample_count = 0
+
+    for frame in container.decode(audio=0):
+        if not frame.is_corrupt:
+            audio[sample_count : sample_count + frame.samples] = (
+                frame.to_ndarray().transpose().astype("<f4")
+            )
+            sample_count += frame.samples
+    return audio

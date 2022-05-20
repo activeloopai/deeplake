@@ -8,6 +8,7 @@ from hub.client.config import (
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
+    HUB_REST_ENDPOINT_STAGING,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
@@ -20,6 +21,9 @@ from hub.client.config import (
     GET_PRESIGNED_URL_SUFFIX,
 )
 from hub.client.log import logger
+
+# for these codes, we will retry requests upto 3 times
+retry_status_codes = {502}
 
 
 class HubBackendClient:
@@ -91,22 +95,27 @@ class HubBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-        response = requests.request(
-            method,
-            request_url,
-            params=params,
-            data=data,
-            json=json,
-            headers=headers,
-            files=files,
-            timeout=timeout,
-        )
 
         # clearer error than `ServerUnderMaintenence`
         if json is not None and "password" in json and json["password"] is None:
             # do NOT pass in the password here. `None` is explicitly typed.
             raise InvalidPasswordException("Password cannot be `None`.")
 
+        status_code = None
+        tries = 0
+        while status_code is None or (status_code in retry_status_codes and tries < 3):
+            response = requests.request(
+                method,
+                request_url,
+                params=params,
+                data=data,
+                json=json,
+                headers=headers,
+                files=files,
+                timeout=timeout,
+            )
+            status_code = response.status_code
+            tries += 1
         check_response_status(response)
         return response
 
@@ -115,6 +124,8 @@ class HubBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
+        if hub.client.config.USE_STAGING_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_STAGING
 
         return HUB_REST_ENDPOINT
 
@@ -218,6 +229,12 @@ class HubBackendClient:
             suffix,
             endpoint=self.endpoint(),
         ).json()
+
+    def rename_dataset_entry(self, username, old_name, new_name):
+        suffix = UPDATE_SUFFIX.format(username, old_name)
+        self.request(
+            "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
+        )
 
     def get_user_organizations(self):
         """Get list of user organizations from the backend. If user is not logged in, returns ['public'].

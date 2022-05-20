@@ -27,6 +27,7 @@ Supported htypes and their respective defaults are:
 | binary_mask    |  bool     |  none         |
 | segment_mask   |  uint32   |  none         |
 | keypoints_coco |  int32    |  none         |
+| point          |  int32    |  none         |
 | audio          |  float64  |  none         |
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
@@ -34,6 +35,13 @@ Supported htypes and their respective defaults are:
 """
 
 from typing import Dict
+from hub.compression import (
+    IMAGE_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
+)
 
 DEFAULT_HTYPE = "generic"
 
@@ -49,6 +57,12 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "image": {
         "dtype": "uint8",
     },
+    "image.rgb": {
+        "dtype": "uint8",
+    },
+    "image.gray": {
+        "dtype": "uint8",
+    },
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
@@ -62,16 +76,36 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
     "segment_mask": {"dtype": "uint32", "class_names": [], "_info": ["class_names"]},
     "keypoints_coco": {"dtype": "int32"},
+    "point": {"dtype": "int32"},
     "json": {
         "dtype": "Any",
     },
     "list": {"dtype": "List"},
     "text": {"dtype": "str"},
+    "dicom": {"sample_compression": "dcm"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
     "bbox": {"coords": {"type": dict, "keys": ["type", "mode"]}}
 }
+
+_image_compressions = (
+    IMAGE_COMPRESSIONS[:] + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES)
+)
+_image_compressions.remove("dcm")
+
+HTYPE_SUPPORTED_COMPRESSIONS = {
+    "image": _image_compressions,
+    "image.rgb": _image_compressions,
+    "image.gray": _image_compressions,
+    "video": VIDEO_COMPRESSIONS[:],
+    "audio": AUDIO_COMPRESSIONS[:],
+    "text": BYTE_COMPRESSIONS[:],
+    "list": BYTE_COMPRESSIONS[:],
+    "json": BYTE_COMPRESSIONS[:],
+    "dicom": ["dcm"],
+}
+
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
@@ -81,8 +115,12 @@ COMMON_CONFIGS = {
     "max_chunk_size": None,
     "num_compressed_bytes": None,
     "num_uncompressed_bytes": None,
+    "tiling_threshold": None,
     "is_sequence": False,
+    "is_link": False,
     "hidden": False,
+    "links": None,
+    "verify": False,
 }
 
 

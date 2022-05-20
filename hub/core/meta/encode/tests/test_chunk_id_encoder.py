@@ -1,9 +1,7 @@
 from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 import pytest
-from hub.core.meta.encode.chunk_id import (
-    ChunkIdEncoder,
-)
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
 
 def test_trivial():

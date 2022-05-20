@@ -1,10 +1,10 @@
 from hub.core.storage.gcs import GCSProvider
+from hub.core.storage.google_drive import GDriveProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
 import hub
-from conftest import S3_PATH_OPT
 from hub.constants import (
     HUB_CLOUD_OPT,
     KEEP_STORAGE_OPT,
@@ -17,7 +17,13 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
+    GDRIVE_OPT,
+    S3_PATH_OPT,
+    GDRIVE_PATH_OPT,
     ENV_GOOGLE_APPLICATION_CREDENTIALS,
+    ENV_GDRIVE_CLIENT_ID,
+    ENV_GDRIVE_CLIENT_SECRET,
+    ENV_GDRIVE_REFRESH_TOKEN,
 )
 import posixpath
 from hub.tests.common import (
@@ -33,6 +39,7 @@ import sys
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
+GDRIVE = "gdrive"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
@@ -134,6 +141,12 @@ def _get_path_composition_configs(request):
             "is_id_prefix": True,
             "use_underscores": False,
         },
+        GDRIVE: {
+            "base_root": request.config.getoption(GDRIVE_PATH_OPT),
+            "use_id": True,
+            "is_id_prefix": True,
+            "use_underscores": False,
+        },
         GCS: {
             "base_root": PYTEST_GCS_PROVIDER_BASE_ROOT,
             "use_id": True,
@@ -170,7 +183,7 @@ def _get_storage_path(
     if info["use_underscores"]:
         path = path.replace("/", "_")
 
-    root = posixpath.join(root, path)
+    root = posixpath.join(root, path).strip("/")
     return root
 
 
@@ -231,6 +244,19 @@ def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
 
 
+@pytest.fixture(scope="session")
+def gdrive_creds():
+    client_id = os.environ.get(ENV_GDRIVE_CLIENT_ID)
+    client_secret = os.environ.get(ENV_GDRIVE_CLIENT_SECRET)
+    refresh_token = os.environ.get(ENV_GDRIVE_REFRESH_TOKEN)
+    creds = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+    }
+    return creds
+
+
 @pytest.fixture
 def gcs_path(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
@@ -255,6 +281,21 @@ def gcs_vstream_path(request):
 
     path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
     yield path
+
+
+@pytest.fixture
+def gdrive_path(request, gdrive_creds):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
+        return
+
+    path = _get_storage_path(request, GDRIVE, with_current_test_name=False)
+    GDriveProvider(path, token=gdrive_creds).clear()
+
+    yield path
+
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        GDriveProvider(path, token=gdrive_creds).clear()
 
 
 @pytest.fixture

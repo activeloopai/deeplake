@@ -1,13 +1,24 @@
 import os
 import hub
-from typing import Optional, Union
+import pathlib
+from typing import Dict, Optional, Union
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE
+from hub.util.path import convert_pathlib_to_string_if_needed
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    DEFAULT_READONLY,
+)
+from hub.util.access_method import (
+    check_access_method,
+    get_local_dataset,
+    parse_access_method,
+)
 from hub.util.auto import get_most_common_extension
 from hub.util.bugout_reporter import feature_report_path, hub_reporter
 from hub.util.delete_entry import remove_path_from_backend
@@ -29,40 +40,54 @@ from hub.core.storage.hub_memory_object import HubMemoryObject
 
 
 class dataset:
-    def __new__(
-        cls,
-        path: str,
-        read_only: bool = False,
+    @staticmethod
+    def init(
+        path: Union[str, pathlib.Path],
+        read_only: bool = DEFAULT_READONLY,
         overwrite: bool = False,
         public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[Dict, str]] = None,
         token: Optional[str] = None,
         verbose: bool = True,
+        access_method: str = "stream",
     ):
         """Returns a Dataset object referencing either a new or existing dataset.
 
         Important:
             Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
+        Examples:
+            ```
+            ds = hub.dataset("hub://username/dataset")
+            ds = hub.dataset("s3://mybucket/my_dataset")
+            ds = hub.dataset("./datasets/my_dataset", overwrite=True)
+            ```
+
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str, pathlib.Path): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): A dictionary containing credentials or path to credentials file used to access the dataset at the path.
                 If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
+            access_method (str): The access method to use for the dataset. Can be:-
+                - 'stream' - Streams the data from the dataset i.e. only fetches data when required. This is the default value.
+                - 'download' - Downloads the data to the local filesystem to the path specified in environment variable HUB_DOWNLOAD_PATH. Raises an exception if the environment variable is not set, or if the path is not empty. Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler. For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                - 'local' - Used when download was already done in a previous run. Doesn't download the data again. Raises an exception if HUB_DOWNLOAD_PATH environment variable is not set or the dataset is not found in HUB_DOWNLOAD_PATH.
+                Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.
 
         Returns:
             Dataset object created using the arguments provided.
@@ -70,6 +95,10 @@ class dataset:
         Raises:
             AgreementError: When agreement is rejected
         """
+        access_method, num_workers, scheduler = parse_access_method(access_method)
+        check_access_method(access_method, overwrite)
+        path = convert_pathlib_to_string_if_needed(path)
+
         if creds is None:
             creds = {}
 
@@ -83,34 +112,54 @@ class dataset:
             memory_cache_size=memory_cache_size,
             local_cache_size=local_cache_size,
         )
-        if overwrite and dataset_exists(cache_chain):
+        ds_exists = dataset_exists(cache_chain)
+        if overwrite and ds_exists:
             cache_chain.clear()
 
         try:
             read_only = storage.read_only
-            return dataset_factory(
+            if access_method == "stream":
+                return dataset_factory(
+                    path=path,
+                    storage=cache_chain,
+                    read_only=read_only,
+                    public=public,
+                    token=token,
+                    verbose=verbose,
+                )
+
+            return get_local_dataset(
+                access_method=access_method,
                 path=path,
-                storage=cache_chain,
                 read_only=read_only,
-                public=public,
+                memory_cache_size=memory_cache_size,
+                local_cache_size=local_cache_size,
+                creds=creds,
                 token=token,
                 verbose=verbose,
+                ds_exists=ds_exists,
+                num_workers=num_workers,
+                scheduler=scheduler,
             )
         except AgreementError as e:
             raise e from None
 
     @staticmethod
     def exists(
-        path: str, creds: Optional[dict] = None, token: Optional[str] = None
+        path: Union[str, pathlib.Path],
+        creds: Optional[dict] = None,
+        token: Optional[str] = None,
     ) -> bool:
         """Checks if a dataset exists at the given `path`.
         Args:
-            path (str): the path which needs to be checked.
+            path (str, pathlib.Path): the path which needs to be checked.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
         Returns:
             A boolean confirming whether the dataset exists or not at the given path.
         """
+        path = convert_pathlib_to_string_if_needed(path)
+
         if creds is None:
             creds = {}
         try:
@@ -125,16 +174,13 @@ class dataset:
         except (AuthorizationException):
             # Cloud Dataset does not exist
             return False
-        if dataset_exists(storage):
-            return True
-        else:
-            return False
+        return dataset_exists(storage)
 
     @staticmethod
     def empty(
-        path: str,
+        path: Union[str, pathlib.Path],
         overwrite: bool = False,
-        public: Optional[bool] = False,
+        public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -146,18 +192,20 @@ class dataset:
             Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
-            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+            path (str, pathlib.Path): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            overwrite (bool): __WARNING__: If set to True this overwrites the dataset if it already exists. This can __NOT__ be undone! Defaults to False.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
@@ -166,6 +214,8 @@ class dataset:
         Raises:
             DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
         """
+        path = convert_pathlib_to_string_if_needed(path)
+
         if creds is None:
             creds = {}
 
@@ -198,31 +248,39 @@ class dataset:
 
     @staticmethod
     def load(
-        path: str,
-        read_only: bool = False,
+        path: Union[str, pathlib.Path],
+        read_only: bool = DEFAULT_READONLY,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
         verbose: bool = True,
+        access_method: str = "stream",
     ) -> Dataset:
         """Loads an existing dataset
 
         Args:
-            path (str): The full path to the dataset. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str, pathlib.Path): The full path to the dataset. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
+            access_method (str): The access method to use for the dataset. Can be:-
+                - 'stream' - Streams the data from the dataset i.e. only fetches data when required. This is the default.
+                - 'download' - Downloads the data to the local filesystem to the path specified in environment variable HUB_DOWNLOAD_PATH. Raises an exception if the environment variable is not set, or if the path is not empty. Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler. For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                - 'local' - Used when download was already done in a previous run. Doesn't download the data again. Raises an exception if the dataset is not found in HUB_DOWNLOAD_PATH.
+                Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.
 
         Returns:
             Dataset object created using the arguments provided.
@@ -231,6 +289,10 @@ class dataset:
             DatasetHandlerError: If a Dataset does not exist at the given path.
             AgreementError: When agreement is rejected
         """
+        access_method, num_workers, scheduler = parse_access_method(access_method)
+        check_access_method(access_method, overwrite=False)
+        path = convert_pathlib_to_string_if_needed(path)
+
         if creds is None:
             creds = {}
 
@@ -252,19 +314,75 @@ class dataset:
 
         try:
             read_only = storage.read_only
-            return dataset_factory(
+            if access_method == "stream":
+                return dataset_factory(
+                    path=path,
+                    storage=cache_chain,
+                    read_only=read_only,
+                    token=token,
+                    verbose=verbose,
+                )
+            return get_local_dataset(
+                access_method=access_method,
                 path=path,
-                storage=cache_chain,
                 read_only=read_only,
+                memory_cache_size=memory_cache_size,
+                local_cache_size=local_cache_size,
+                creds=creds,
                 token=token,
                 verbose=verbose,
+                ds_exists=True,
+                num_workers=num_workers,
+                scheduler=scheduler,
             )
         except AgreementError as e:
             raise e from None
 
     @staticmethod
+    def rename(
+        old_path: Union[str, pathlib.Path],
+        new_path: Union[str, pathlib.Path],
+        creds: Optional[dict] = None,
+        token: Optional[str] = None,
+    ) -> Dataset:
+        """Renames dataset at `old_path` to `new_path`.
+        Examples:
+            ```
+            hub.rename("hub://username/image_ds", "hub://username/new_ds")
+            hub.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
+            ```
+
+        Args:
+            old_path (str, pathlib.Path): The path to the dataset to be renamed.
+            new_path (str, pathlib.Path): Path to the dataset after renaming.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                -
+                - This takes precedence over credentials present in the environment. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+            token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
+
+        Returns:
+            Dataset object after renaming.
+
+        Raises:
+            DatasetHandlerError: If a Dataset does not exist at the given path or if new path is to a different directory.
+        """
+        old_path = convert_pathlib_to_string_if_needed(old_path)
+        new_path = convert_pathlib_to_string_if_needed(new_path)
+
+        if creds is None:
+            creds = {}
+
+        feature_report_path(old_path, "rename", {})
+
+        ds = hub.load(old_path, verbose=False, token=token, creds=creds)
+        ds.rename(new_path)
+
+        return ds  # type: ignore
+
+    @staticmethod
     def delete(
-        path: str,
+        path: Union[str, pathlib.Path],
         force: bool = False,
         large_ok: bool = False,
         creds: Optional[dict] = None,
@@ -272,22 +390,26 @@ class dataset:
         verbose: bool = False,
     ) -> None:
         """Deletes a dataset at a given path.
-        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        This is an __IRREVERSIBLE__ operation. Data once deleted can not be recovered.
 
         Args:
-            path (str): The path to the dataset to be deleted.
+            path (str, pathlib.Path): The path to the dataset to be deleted.
             force (bool): Delete data regardless of whether
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and force = False.
         """
+        path = convert_pathlib_to_string_if_needed(path)
+
         if creds is None:
             creds = {}
 
@@ -321,40 +443,47 @@ class dataset:
 
     @staticmethod
     def like(
-        path: str,
-        source: Union[str, Dataset],
+        path: Union[str, pathlib.Path],
+        source: Union[str, Dataset, pathlib.Path],
         overwrite: bool = False,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
+        public: bool = False,
     ) -> Dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
 
         Args:
-            path (str): Path where the new dataset will be created.
-            source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            path (str, pathlib.Path): Path where the new dataset will be created.
+            source (Union[str, Dataset, pathlib.Path]): Path or dataset object that will be used as the template for the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
 
         Returns:
             Dataset: New dataset object.
         """
 
-        feature_report_path(path, "like", {"Overwrite": overwrite})
+        path = convert_pathlib_to_string_if_needed(path)
+        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public})
 
         destination_ds = dataset.empty(
             path,
             creds=creds,
             overwrite=overwrite,
             token=token,
+            public=public,
         )
-        source_ds = source
-        if isinstance(source, str):
+        if isinstance(source, (str, pathlib.Path)):
+            source = str(source)
             source_ds = dataset.load(source)
+        else:
+            source_ds = source
 
-        for tensor_name in source_ds.version_state["meta"].tensors:  # type: ignore
+        for tensor_name in source_ds.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
@@ -363,35 +492,34 @@ class dataset:
 
     @staticmethod
     def copy(
-        src: str,
-        dest: str,
+        src: Union[str, pathlib.Path, Dataset],
+        dest: Union[str, pathlib.Path],
         overwrite: bool = False,
         src_creds=None,
-        dest_creds=None,
         src_token=None,
+        dest_creds=None,
         dest_token=None,
         num_workers: int = 0,
         scheduler="threaded",
-        progress_bar=True,
-        public: bool = True,
+        progressbar=True,
     ):
-        """Copies dataset at `src` to `dest`.
+        """Copies this dataset at `src` to `dest`. Version control history is not included.
 
         Args:
-            src (str): Path to the dataset to be copied.
-            dest (str): Destination path to copy to.
+            src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
+            dest (str, pathlib.Path): Destination path to copy to.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
-                If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+                -
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
             src_token (str, optional): Activeloop token, used for fetching credentials to the dataset at `src` if it is a Hub dataset. This is optional, tokens are normally autogenerated.
             dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
             dest_token (str, optional): token used to for fetching credentials to `dest`.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
-            progress_bar (bool): Displays a progress bar if True (default).
-            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+            progressbar (bool): Displays a progress bar if True (default).
 
         Returns:
             Dataset: New dataset object.
@@ -399,7 +527,85 @@ class dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-        src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
+
+        if isinstance(src, (str, pathlib.Path)):
+            src = convert_pathlib_to_string_if_needed(src)
+            src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
+        else:
+            src_ds = src
+            src_ds.path = str(src_ds.path)
+
+        dest = convert_pathlib_to_string_if_needed(dest)
+
+        return src_ds.copy(
+            dest,
+            overwrite=overwrite,
+            creds=dest_creds,
+            token=dest_token,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
+        )
+
+    @staticmethod
+    def deepcopy(
+        src: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
+        overwrite: bool = False,
+        src_creds=None,
+        src_token=None,
+        dest_creds=None,
+        dest_token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
+        verbose: bool = True,
+    ):
+        """Copies dataset at `src` to `dest` including version control history.
+
+        Args:
+            src (str, pathlib.Path): Path to the dataset to be copied.
+            dest (str, pathlib.Path): Destination path to copy to.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
+                -
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+            src_token (str, optional): Activeloop token, used for fetching credentials to the dataset at `src` if it is a Hub dataset. This is optional, tokens are normally autogenerated.
+            dest_creds (dict, optional): creds required to create / overwrite datasets at `dest`.
+            dest_token (str, optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            verbose (bool): If True, logs will be printed. Defaults to True.
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+
+        src = convert_pathlib_to_string_if_needed(src)
+        dest = convert_pathlib_to_string_if_needed(dest)
+
+        report_params = {
+            "Overwrite": overwrite,
+            "Num_Workers": num_workers,
+            "Scheduler": scheduler,
+            "Progressbar": progressbar,
+            "Public": public,
+        }
+        if dest.startswith("hub://"):
+            report_params["Dest"] = dest
+        feature_report_path(src, "deepcopy", report_params)
+
+        src_ds = hub.load(
+            src, read_only=True, creds=src_creds, token=src_token, verbose=False
+        )
         src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
@@ -445,7 +651,7 @@ class dataset:
             keys = [keys[i::num_workers] for i in range(num_workers)]
         compute_provider = get_compute_provider(scheduler, num_workers)
         try:
-            if progress_bar:
+            if progressbar:
                 compute_provider.map_with_progressbar(
                     copy_func_with_progress_bar,
                     keys,
@@ -463,15 +669,16 @@ class dataset:
             read_only=False,
             public=public,
             token=dest_token,
+            verbose=verbose,
         )
 
     @staticmethod
     def ingest(
-        src,
-        dest: str,
+        src: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
         images_compression: str = "auto",
         dest_creds: dict = None,
-        progress_bar: bool = True,
+        progressbar: bool = True,
         summary: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
@@ -523,15 +730,16 @@ class dataset:
             - Mapping filenames to classes from an external file is currently not supported.
 
         Args:
-            src (str): Local path to where the unstructured dataset is stored or path to csv file.
-            dest (str): Destination path where the structured dataset will be stored. Can be:-
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
+            dest (str, pathlib.Path): Destination path where the structured dataset will be stored. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
+            progressbar (bool): Enables or disables ingestion progress bar. Defaults to True.
             summary (bool): If True, a summary of skipped files will be printed after completion. Defaults to True.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -544,16 +752,18 @@ class dataset:
             AutoCompressionError: If the source director is empty or does not contain a valid extension.
             InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
-
+        dest = convert_pathlib_to_string_if_needed(dest)
         feature_report_path(
             dest,
             "ingest",
             {
                 "Images_Compression": images_compression,
-                "Progress_Bar": progress_bar,
+                "Progressbar": progressbar,
                 "Summary": summary,
             },
         )
+
+        src = convert_pathlib_to_string_if_needed(src)
 
         if isinstance(src, str):
             if os.path.isdir(dest) and os.path.samefile(src, dest):
@@ -566,7 +776,7 @@ class dataset:
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progress_bar, **dataset_kwargs
+                    source, dest, dest_creds, progressbar, **dataset_kwargs
                 )
                 return ds
 
@@ -586,7 +796,7 @@ class dataset:
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
-                use_progress_bar=progress_bar,
+                use_progress_bar=progressbar,
                 generate_summary=summary,
                 image_tensor_args={"sample_compression": images_compression},
             )
@@ -595,13 +805,13 @@ class dataset:
     @staticmethod
     def ingest_kaggle(
         tag: str,
-        src: str,
-        dest: str,
+        src: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
         exist_ok: bool = False,
         images_compression: str = "auto",
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
-        progress_bar: bool = True,
+        progressbar: bool = True,
         summary: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
@@ -612,17 +822,18 @@ class dataset:
 
         Args:
             tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
-            src (str): Local path to where the raw kaggle dataset will be downlaoded to.
-            dest (str): Destination path where the structured dataset will be stored. Can be:
-                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
+            dest (str, pathlib.Path): Destination path where the structured dataset will be stored. Can be:
+                -
+                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
+                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and `exist_ok` is True, ingestion will proceed without error.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
-            progress_bar (bool): Enables or disables ingestion progress bar. Set to true by default.
+            progressbar (bool): Enables or disables ingestion progress bar. Set to true by default.
             summary (bool): Generates ingestion summary. Set to true by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -632,6 +843,8 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
+        src = convert_pathlib_to_string_if_needed(src)
+        dest = convert_pathlib_to_string_if_needed(dest)
 
         feature_report_path(
             dest,
@@ -639,7 +852,7 @@ class dataset:
             {
                 "Images_Compression": images_compression,
                 "Exist_Ok": exist_ok,
-                "Progress_Bar": progress_bar,
+                "Progressbar": progressbar,
                 "Summary": summary,
             },
         )
@@ -660,7 +873,7 @@ class dataset:
             dest=dest,
             images_compression=images_compression,
             dest_creds=dest_creds,
-            progress_bar=progress_bar,
+            progressbar=progressbar,
             summary=summary,
             **dataset_kwargs,
         )
@@ -670,9 +883,9 @@ class dataset:
     @staticmethod
     def ingest_dataframe(
         src,
-        dest: str,
+        dest: Union[str, pathlib.Path],
         dest_creds: dict = None,
-        progress_bar: bool = True,
+        progressbar: bool = True,
         **dataset_kwargs,
     ):
         import pandas as pd
@@ -681,10 +894,12 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
+        dest = convert_pathlib_to_string_if_needed(dest)
+
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         structured = DataFrame(src)
-        structured.fill_dataset(ds, progress_bar)  # type: ignore
+        structured.fill_dataset(ds, progressbar)  # type: ignore
         return ds  # type: ignore
 
     @staticmethod

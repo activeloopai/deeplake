@@ -1,19 +1,16 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction
-from hub.util.compute import get_compute_provider
+from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
     DistributedScheduler,
-    IOBlock,
     SampleStreaming,
     Schedule,
     SequentialMultithreadScheduler,
     ShufflingSchedulerWrapper,
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
-    Streaming,
 )
 from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
@@ -35,6 +32,18 @@ import hub
 
 
 mp = torch.multiprocessing.get_context()
+
+
+def process(inp):
+    if isinstance(inp, torch.Tensor):
+        return inp.clone().detach()
+    elif isinstance(inp, dict):
+        return {k: process(v) for k, v in inp.items()}
+    elif isinstance(inp, Sequence):
+        return [process(v) for v in inp]
+    raise ValueError(
+        f"Expected input of type Tensor, dict or Sequence, got: {type(inp)}"
+    )
 
 
 def use_scheduler(num_workers: int, ensure_order: bool):
@@ -59,7 +68,13 @@ def cast_type(tensor: np.ndarray):
 
 
 def _process(tensor, transform: PytorchTransformFunction):
-    tensor = IterableOrderedDict((k, cast_type(tensor[k].copy())) for k in tensor)
+    def copy(x):
+        try:
+            return cast_type(x.copy())
+        except AttributeError:
+            return bytes(x)
+
+    tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
     return tensor
 
@@ -93,6 +108,7 @@ def _worker_loop(
     wid: int,
     dataset,
     tensors,
+    tobytes,
     use_local_cache: bool,
     schedule: Schedule,
     transform: PytorchTransformFunction,
@@ -110,6 +126,7 @@ def _worker_loop(
         streaming = SampleStreaming(
             dataset,
             tensors=tensors,
+            tobytes=tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -220,6 +237,7 @@ class PrefetchConcurrentIterator(Iterable):
                     i,
                     dataset.dataset,
                     dataset.tensors,
+                    dataset.tobytes,
                     dataset.use_local_cache,
                     dataset.schedules[i],
                     dataset.transform,
@@ -331,6 +349,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 0,
@@ -344,6 +363,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.transform = transform
         self.tensors = tensors
+        self.tobytes = tobytes
         self.use_local_cache = use_local_cache
 
         if dist.is_initialized():
@@ -359,6 +379,7 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
+            tobytes=self.tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -382,6 +403,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
@@ -392,6 +414,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.dataset = dataset
         self.transform = transform
         self.tensors = tensors
+        self.tobytes = tobytes
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
@@ -405,6 +428,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
+            tobytes=self.tobytes,
             use_local_cache=use_local_cache,
         )
 
@@ -425,6 +449,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             self.dataset,
             tensors=self.tensors,
+            tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
         )
 
@@ -446,11 +471,11 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         dataset,
         use_local_cache: bool = False,
         tensors: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
-        batch_size: int = 0,
-        collate_fn: Optional[Callable] = None,
+        batch_size: int = 1,
     ) -> None:
         super().__init__()
 
@@ -458,6 +483,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             dataset,
             use_local_cache,
             tensors,
+            tobytes,
             transform,
             num_workers=num_workers,
             shuffle=True,
@@ -465,7 +491,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
 
         self.num_workers = num_workers
         self.batch_size = batch_size
-        self.collate_fn = collate_fn
         self.buffer_size = buffer_size * MB
 
         if self.buffer_size == 0:
@@ -478,7 +503,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=self.collate_fn,
+            collate_fn=collate_fn,
         )
 
         it = iter(sub_loader)
@@ -486,22 +511,33 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         try:
             while True:
                 next_batch = next(it)
-                batch_keys = list(next_batch.keys())
-
-                for i in range(len(next_batch[batch_keys[0]])):
-                    val = IterableOrderedDict(
-                        {k: next_batch[k][i].clone().detach() for k in batch_keys}
+                if isinstance(next_batch, dict):
+                    batch_keys = list(next_batch.keys())
+                    vals = (
+                        IterableOrderedDict(
+                            {k: process(next_batch[k][i]) for k in batch_keys}
+                        )
+                        for i in range(len(next_batch[batch_keys[0]]))
                     )
-
+                elif isinstance(next_batch, Sequence):
+                    num_samples = len(next_batch[0])
+                    vals = (
+                        [process(next_batch[i][j]) for i in range(len(next_batch))]
+                        for j in range(num_samples)
+                    )
+                else:
+                    raise ValueError(
+                        f"Expected input of type dict or Sequence, got: {type(next_batch)}"
+                    )
+                for val in vals:
                     if buffer is not None:
                         result = buffer.exchange(val)
-
                         if result:
                             yield result
                     else:
                         yield val
 
-                del next_batch, batch_keys
+                del next_batch
 
         except StopIteration:
             pass

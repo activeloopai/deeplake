@@ -1,5 +1,5 @@
 import hub
-
+import pytest
 from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
 
 
@@ -31,3 +31,17 @@ def test_text_transform(ds, scheduler="threaded"):
 
     assert len(ds) == 2
     assert ds.text.data() == ["hi", "if ur reading this ur a nerd"]
+
+
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+def test_text_update(memory_ds, args):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="text", **args)
+        for _ in range(10):
+            ds.x.append("cat")
+    for i in range(0, 10, 2):
+        ds.x[i] = "flower"
+    assert ds.x.data() == ["flower", "cat"] * 5

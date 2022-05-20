@@ -1,17 +1,19 @@
 import hub
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage.memory import MemoryProvider
+from hub.util.invalid_view_op import invalid_view_op
 from hub.core.version_control.commit_chunk_set import CommitChunkSet
 from hub.core.version_control.commit_diff import CommitDiff
 from hub.core.chunk.base_chunk import InputSample
 import numpy as np
-from typing import Dict, List, Sequence, Union, Optional, Tuple, Any
-from functools import reduce
-from hub.core.index import Index
+from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
+from functools import reduce, partial
+from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
-from hub.api.info import Info, load_info
+from hub.core.tensor_link import get_link_transform
+from hub.api.info import load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -19,10 +21,19 @@ from hub.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_sequence_encoder_key,
     tensor_exists,
     get_tensor_info_key,
+    get_sample_id_tensor_key,
 )
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    tensor_exists,
+    get_tensor_info_key,
+    get_sample_id_tensor_key,
+    get_sample_info_tensor_key,
+    get_sample_shape_tensor_key,
+)
 from hub.util.modified import get_modified_indexes
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
@@ -30,8 +41,21 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.constants import FIRST_COMMIT_ID, MB
+
+from hub.util.pretty_print import (
+    max_array_length,
+    get_string,
+    summary_tensor,
+)
+from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+
+
 from hub.util.version_control import auto_checkout
+
+from hub.compression import get_compression_type, VIDEO_COMPRESSION
+from hub.util.notebook import is_jupyter, video_html, is_colab
+import warnings
+import webbrowser
 
 
 def create_tensor(
@@ -94,11 +118,7 @@ def delete_tensor(key: str, dataset):
     """
     storage = dataset.storage
     version_state = dataset.version_state
-
-    if not tensor_exists(key, storage, version_state["commit_id"]):
-        raise TensorDoesNotExistError(key)
-
-    tensor = dataset[key]
+    tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
     n_chunks = chunk_engine.num_chunks
@@ -144,13 +164,24 @@ def delete_tensor(key: str, dataset):
     except KeyError:
         pass
 
+    seq_encoder_key = get_sequence_encoder_key(key, commit_id)
+    try:
+        del storage[seq_encoder_key]
+    except KeyError:
+        pass
+
 
 def _inplace_op(f):
     op = f.__name__
 
     def inner(tensor, other):
         tensor._write_initialization()
-        tensor.chunk_engine.update(tensor.index, other, op)
+        tensor.chunk_engine.update(
+            tensor.index,
+            other,
+            op,
+            link_callback=tensor._update_links if tensor.meta.links else None,
+        )
         if not tensor.index.is_trivial():
             tensor._skip_next_setitem = True
         return tensor
@@ -189,16 +220,28 @@ class Tensor:
         self.storage: LRUCache = dataset.storage
         self.index = index or Index()
         self.version_state = dataset.version_state
+        self.link_creds = dataset.link_creds
         self.is_iteration = is_iteration
+        commit_id = self.version_state["commit_id"]
 
         if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, self.version_state["commit_id"]
+            self.key, self.storage, commit_id
         ):
             raise TensorDoesNotExistError(self.key)
 
-        self.chunk_engine = chunk_engine or ChunkEngine(
-            self.key, self.storage, self.version_state
-        )
+        meta_key = get_tensor_meta_key(self.key, commit_id)
+        meta = self.storage.get_hub_object(meta_key, TensorMeta)
+        if chunk_engine is not None:
+            self.chunk_engine = chunk_engine
+        elif meta.is_link:
+            self.chunk_engine = LinkedChunkEngine(
+                self.key,
+                self.storage,
+                self.version_state,
+                link_creds=dataset.link_creds,
+            )
+        else:
+            self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
         if not self.is_iteration:
             self.index.validate(self.num_samples)
@@ -214,39 +257,53 @@ class Tensor:
                 self.key
             ].chunk_engine
 
-    def extend(self, samples: Union[np.ndarray, Sequence[InputSample], "Tensor"]):
+    @invalid_view_op
+    def extend(
+        self,
+        samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
+        progressbar: bool = False,
+    ):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
         Example:
-            numpy input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend(np.zeros((100, 28, 28, 1)))
-                >>> len(tensor)
-                100
+            Numpy input:
 
-            file input:
-                >>> len(tensor)
-                0
-                >>> tensor.extend([
-                        hub.read("path/to/image1"),
-                        hub.read("path/to/image2"),
-                    ])
-                >>> len(tensor)
-                2
+            >>> len(tensor)
+            0
+            >>> tensor.extend(np.zeros((100, 28, 28, 1)))
+            >>> len(tensor)
+            100
+
+
+            File input:
+
+            >>> len(tensor)
+            0
+            >>> tensor.extend([
+                    hub.read("path/to/image1"),
+                    hub.read("path/to/image2"),
+                ])
+            >>> len(tensor)
+            2
 
 
         Args:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
+            progressbar (bool): Specifies whether a progressbar should be displayed while extending.
 
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
+        self.check_link_ready()
         self._write_initialization()
-        self.chunk_engine.extend(samples)
+        self.chunk_engine.extend(
+            samples,
+            progressbar=progressbar,
+            link_callback=self._append_to_links if self.meta.links else None,
+        )
 
     @property
     def info(self):
@@ -272,12 +329,13 @@ class Tensor:
         else:
             raise TypeError("Info must be set with type Dict")
 
+    @invalid_view_op
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,
         which can be used to load files. See examples down below.
 
         Examples:
-            numpy input:
+            Numpy input:
 
             >>> len(tensor)
             0
@@ -285,7 +343,7 @@ class Tensor:
             >>> len(tensor)
             1
 
-            file input:
+            File input:
 
             >>> len(tensor)
             0
@@ -296,13 +354,25 @@ class Tensor:
         Args:
             sample (InputSample): The data to append to the tensor. `Sample` is generated by `hub.read`. See the above examples.
         """
-        self.extend([sample])
+        self.extend([sample], progressbar=False)
+
+    def clear(self):
+        """Deletes all samples from the tensor"""
+        self.chunk_engine.clear()
+        sample_id_key = get_sample_id_tensor_key(self.key)
+        try:
+            sample_id_tensor = Tensor(sample_id_key, self.dataset)
+            sample_id_tensor.chunk_engine.clear()
+            self.meta.links.clear()
+            self.meta.is_dirty = True
+        except TensorDoesNotExistError:
+            pass
 
     def modified_samples(
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
         """Returns a slice of the tensor with only those elements that were modified/added.
-        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a target id.
+        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a `target id`.
 
         Args:
             target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to None.
@@ -350,7 +420,32 @@ class Tensor:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
                 an `int` (if that axis is fixed).
         """
-        return self.chunk_engine.shape(self.index)
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        if sample_shape_provider is None:
+            self.check_link_ready()
+        shape: Tuple[Optional[int], ...]
+        shape = self.chunk_engine.shape(
+            self.index, sample_shape_provider=sample_shape_provider
+        )
+        if not shape and self.meta.max_shape:
+            shape = (0,) * len(self.meta.max_shape)
+        if self.meta.max_shape == [0, 0, 0]:
+            shape = ()
+        return shape
+
+    @property
+    def size(self) -> Optional[int]:
+        s = 1
+        for x in self.shape:
+            if x is None:
+                return None
+            s *= x  # not using np.prod to avoid overflow
+        return s
 
     @property
     def ndim(self) -> int:
@@ -369,10 +464,25 @@ class Tensor:
         return self.meta.is_sequence
 
     @property
+    def is_link(self):
+        return self.meta.is_link
+
+    @property
+    def verify(self):
+        return self.is_link and self.meta.verify
+
+    @property
     def htype(self):
+        htype = self.meta.htype
         if self.is_sequence:
-            return f"sequence[{self.meta.htype}]"
-        return self.meta.htype
+            htype = f"sequence[{htype}]"
+        if self.is_link:
+            htype = f"link[{htype}]"
+        return htype
+
+    @property
+    def hidden(self) -> bool:
+        return self.meta.hidden
 
     @property
     def base_htype(self):
@@ -499,7 +609,9 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        self.check_link_ready()
         self._write_initialization()
+        update_link_callback = self._update_links if self.meta.links else None
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
                 value._skip_next_setitem = False
@@ -513,37 +625,72 @@ class Tensor:
             and item >= self.num_samples
         ):
             num_samples_to_pad = item - self.num_samples
-            self.chunk_engine.pad_and_append(num_samples_to_pad, value)
+            append_link_callback = self._append_to_links if self.meta.links else None
+
+            self.chunk_engine.pad_and_append(
+                num_samples_to_pad,
+                value,
+                append_link_callback=append_link_callback,
+                update_link_callback=update_link_callback,
+            )
             return
 
-        self.chunk_engine.update(self.index[item_index], value)
+        self.chunk_engine.update(
+            self.index[item_index],
+            value,
+            link_callback=update_link_callback,
+        )
 
     def __iter__(self):
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
-    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
+    def check_link_ready(self):
+        if not self.is_link:
+            return
+        missing_keys = self.link_creds.missing_keys
+        if missing_keys:
+            raise ValueError(
+                f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
+            )
+
+    def numpy(
+        self, aslist=False, fetch_chunks=False
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
         Args:
             aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
                 If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
                 an error is raised.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ValueError: If the tensor is a link and the credentials are not populated.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
+        self.check_link_ready()
+        return self.chunk_engine.numpy(
+            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+        )
 
-        return self.chunk_engine.numpy(self.index, aslist=aslist)
+    def summary(self):
+        pretty_print = summary_tensor(self)
+
+        print(self)
+        print(pretty_print)
 
     def __str__(self):
         index_str = f", index={self.index}"
         if self.index.is_trivial():
             index_str = ""
-        return f"Tensor(key={repr(self.key)}{index_str})"
+        return f"Tensor(key={repr(self.meta.name or self.key)}{index_str})"
 
     __repr__ = __str__
 
@@ -598,7 +745,7 @@ class Tensor:
     def __ior__(self, other):
         pass
 
-    def data(self) -> Any:
+    def data(self, aslist: bool = False) -> Any:
         htype = self.base_htype
         if htype in ("json", "text"):
 
@@ -612,13 +759,15 @@ class Tensor:
             else:
                 return list(map(list, self.numpy(aslist=True)))
         else:
-            return self.numpy()
+            return self.numpy(aslist=aslist)
 
     def tobytes(self) -> bytes:
-        """Returns the bytes of the tensor. Only works for a single sample of tensor.
-        If the tensor is uncompressed, this returns the bytes of the numpy array.
-        If the tensor is sample compressed, this returns the compressed bytes of the sample.
-        If the tensor is chunk compressed, this raises an error.
+        """Returns the bytes of the tensor.
+
+        - Only works for a single sample of tensor.
+        - If the tensor is uncompressed, this returns the bytes of the numpy array.
+        - If the tensor is sample compressed, this returns the compressed bytes of the sample.
+        - If the tensor is chunk compressed, this raises an error.
 
         Returns:
             bytes: The bytes of the tensor.
@@ -628,7 +777,143 @@ class Tensor:
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
-        return self.chunk_engine.read_bytes_for_sample(self.index.values[0].value)  # type: ignore
+        self.check_link_ready()
+        idx = self.index.values[0].value
+        if self.is_link:
+            return self.chunk_engine.get_hub_read_sample(idx).compressed_bytes  # type: ignore
+        return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _pop(self):
         self.chunk_engine._pop()
+        [self.dataset[link]._pop() for link in self.meta.links]
+
+    def _append_to_links(self, sample, flat: Optional[bool]):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                v = get_link_transform(v["append"])(sample, self.link_creds)
+                tensor = Tensor(k, self.dataset)
+                if (
+                    isinstance(v, np.ndarray)
+                    and tensor.dtype
+                    and v.dtype != tensor.dtype
+                ):
+                    v = v.astype(tensor.dtype)  # bc
+                tensor.append(v)
+
+    def _update_links(
+        self,
+        global_sample_index: int,
+        sub_index: Index,
+        new_sample,
+        flat: Optional[bool],
+    ):
+        for k, v in self.meta.links.items():
+            if flat is None or v["flatten_sequence"] == flat:
+                fname = v.get("update")
+                if fname:
+                    func = get_link_transform(fname)
+                    tensor = Tensor(k, self.dataset)
+                    val = func(
+                        new_sample,
+                        tensor[global_sample_index],
+                        sub_index=sub_index,
+                        partial=not sub_index.is_trivial(),
+                        link_creds=self.link_creds,
+                    )
+                    if val is not _NO_LINK_UPDATE:
+                        if (
+                            isinstance(val, np.ndarray)
+                            and tensor.dtype
+                            and val.dtype != tensor.dtype
+                        ):
+                            val = val.astype(tensor.dtype)  # bc
+                        tensor[global_sample_index] = val
+
+    @property
+    def _sample_info_tensor(self):
+        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+
+    @property
+    def _sample_shape_tensor(self):
+        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+
+    @property
+    def _sample_id_tensor(self):
+        return self.dataset._tensors().get(get_sample_id_tensor_key(self.key))
+
+    def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
+        if self.is_sequence:
+
+            def get_sample_shape(global_sample_index: int):
+                seq_pos = slice(
+                    *self.chunk_engine.sequence_encoder[global_sample_index]
+                )
+                idx = Index([IndexEntry(seq_pos)])
+                shapes = sample_shape_tensor[idx].numpy()
+                return shapes
+
+        else:
+
+            def get_sample_shape(global_sample_index: int):
+                return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
+
+        return get_sample_shape
+
+    def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
+        if self.is_sequence:
+            return [
+                sample_info_tensor[i].data()
+                for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
+            ]
+        return sample_info_tensor[global_sample_index].data()
+
+    def _sample_info(self, index: Index):
+        sample_info_tensor = self._sample_info_tensor
+        if sample_info_tensor is None:
+            return None
+        if index.subscriptable_at(0):
+            return list(
+                map(
+                    partial(
+                        self._get_sample_info_at_index,
+                        sample_info_tensor=sample_info_tensor,
+                    ),
+                    index.values[0].indices(self.num_samples),
+                )
+            )
+        return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
+
+    @property
+    def sample_info(self):
+        return self._sample_info(self.index)
+
+    def _linked_sample(self):
+        if not self.is_link:
+            raise ValueError("Not supported as the tensor is not a link.")
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
+        return self.chunk_engine.linked_sample(self.index.values[0].value)
+
+    def _get_video_stream_url(self):
+        from hub.visualizer.video_streaming import get_video_stream_url
+
+        return get_video_stream_url(self, self.index.values[0].value)
+
+    def play(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Video streaming requires exactly 1 sample.")
+        if len(self.index.values) > 1:
+            warnings.warn(
+                "Sub indexes to video sample will be ignored while streaming."
+            )
+        if is_colab():
+            raise NotImplementedError("Video streaming is not supported on colab yet.")
+        elif is_jupyter():
+            return video_html(
+                src=self._get_video_stream_url(),
+                alt=f"{self.key}[{self.index.values[0].value}]",
+            )
+        else:
+            webbrowser.open(self._get_video_stream_url())

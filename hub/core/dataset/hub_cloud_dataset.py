@@ -1,3 +1,6 @@
+from typing import Union
+import logging
+import posixpath
 from typing import Any, Dict, Optional
 from hub.client.utils import get_user_name
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
@@ -5,24 +8,31 @@ from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
+from hub.util.bugout_reporter import hub_reporter
+from hub.util.exceptions import (
+    RenameError,
+    PathNotEmptyException,
+    AuthorizationException,
+)
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
 import time
 import hub
+from hub.util.remove_cache import get_base_storage
 
 
 class HubCloudDataset(Dataset):
-    def _first_load_init(self):
+    def _first_load_init(self, verbose=True):
         if self.is_first_load:
             self._set_org_and_name()
             if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
-                if self.verbose:
+                if self.verbose and verbose:
                     logger.info(
-                        f"This dataset can be visualized at https://app.activeloop.ai/{self.org_id}/{self.ds_name}."
+                        f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
                     )
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
@@ -220,6 +230,17 @@ class HubCloudDataset(Dataset):
             return
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
+    def rename(self, path):
+        self.storage.check_readonly()
+        path = path.rstrip("/")
+        root, new_name = posixpath.split(path)
+        if root != posixpath.split(self.path)[0]:
+            raise RenameError
+        self.client.rename_dataset_entry(self.org_id, self.ds_name, new_name)
+
+        self.ds_name = new_name
+        self.path = path
+
     @property
     def agreement(self) -> Optional[str]:
         try:
@@ -240,4 +261,12 @@ class HubCloudDataset(Dataset):
     def __setstate__(self, state: Dict[str, Any]):
         super().__setstate__(state)
         self._client = None
-        self._first_load_init()
+        self._first_load_init(verbose=False)
+
+    def visualize(
+        self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
+    ):
+        from hub.visualizer import visualize
+
+        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        visualize(self.path, self.token, width=width, height=height)

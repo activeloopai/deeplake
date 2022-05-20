@@ -11,7 +11,7 @@ from hub.util.exceptions import (
 from hub.util.check_installation import tensorflow_installed
 
 
-def dataset_to_tensorflow(dataset):
+def dataset_to_tensorflow(dataset, tensors, tobytes):
     """Converts the dataset into a tensorflow compatible format"""
     if not tensorflow_installed():
         raise ModuleNotInstalledException(
@@ -21,13 +21,30 @@ def dataset_to_tensorflow(dataset):
     import tensorflow as tf  # type: ignore
     from hub.integrations.tf.hubtensorflowdataset import HubTensorflowDataset  # type: ignore
 
+    if not tensors:
+        tensors = dataset.tensors
+
+    if isinstance(tobytes, bool):
+        tobytes = {k: tobytes for k in tensors}
+    else:
+        for k in tobytes:
+            if k not in tensors:
+                raise Exception(
+                    f"Tensor {k} is not present in the list of provided tensors: {tensors}."
+                )
+        tobytes = {k: k in tobytes for k in tensors}
+
     def __iter__():
         for index in range(len(dataset)):
             sample = {}
             corrupt_sample_found = False
-            for key in dataset.tensors:
+            for key in tensors:
                 try:
-                    value = dataset[key][index].numpy()
+                    value = dataset[key][index]
+                    if tobytes[key]:
+                        value = [value.tobytes()]
+                    else:
+                        value = value.numpy()
                     sample[key] = value
                 except SampleDecompressionError:
                     warnings.warn(
@@ -39,12 +56,13 @@ def dataset_to_tensorflow(dataset):
 
     def generate_signature():
         signature = {}
-        for key in dataset.tensors:
+        for key in tensors:
+            tb = tobytes[key]
             dtype = dataset[key].meta.dtype
-            shape = dataset[key].shape
-            if dtype == "str":
+            if tb or dtype == "str":
                 dtype = tf.string
-            signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
+            shape = (1,) if tb else dataset[key].shape[1:]
+            signature[key] = tf.TensorSpec(shape=shape, dtype=dtype)
         return signature
 
     signature = generate_signature()

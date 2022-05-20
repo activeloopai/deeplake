@@ -14,6 +14,7 @@ class CommitNode:
         self.commit_message: Optional[str] = None
         self.commit_time: Optional[datetime] = None
         self.commit_user_name: Optional[str] = None
+        self.merge_parent: Optional["CommitNode"] = None
 
     def add_child(self, node: "CommitNode"):
         """Adds a child to the node, used for branching."""
@@ -34,6 +35,15 @@ class CommitNode:
         self.commit_message = message
         self.commit_user_name = get_user_name()
         self.commit_time = datetime.utcnow()
+
+    def merge_from(self, node: "CommitNode"):
+        """Merges the given node into this node."""
+        self.merge_parent = node
+
+    @property
+    def is_merge_node(self):
+        """Returns True if the node is a merge node."""
+        return self.merge_parent is not None
 
     def __repr__(self) -> str:
         return f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"

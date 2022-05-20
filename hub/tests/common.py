@@ -2,7 +2,7 @@ from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import os
 import pathlib
-from typing import List, Optional
+from typing import List, Optional, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -16,6 +16,7 @@ from hub.util.check_installation import (
     tensorflow_installed,
     tfds_installed,
 )
+from hub.core.tensor_link import _register_link_transform, _unregister_link_transform
 
 
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
@@ -106,3 +107,15 @@ requires_tensorflow = pytest.mark.skipif(
 requires_tfds = pytest.mark.skipif(
     not tfds_installed(), reason="requires tensorflow_datasets to be installed"
 )
+
+
+class LinkTransformTestContext:
+    def __init__(self, func: Callable, name: str):
+        self.func = func
+        self.name = name
+
+    def __enter__(self):
+        _register_link_transform(self.name, self.func)
+
+    def __exit__(self, *args, **kwargs):
+        _unregister_link_transform(self.name)

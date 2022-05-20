@@ -4,6 +4,9 @@ from hub.core.compression import (
     verify_compressed_file,
     read_meta_from_compressed_file,
     get_compression,
+    _open_video,
+    _read_metadata_from_vstream,
+    _read_audio_meta,
 )
 from hub.compression import (
     get_compression_type,
@@ -16,22 +19,28 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-from hub.util.exceptions import CorruptedSampleError
+
+from hub.util.exif import getexif
+from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
+from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from urllib.request import urlopen
 
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.google_drive import GDriveProvider
 
 try:
     from hub.core.storage.gcs import GCSProvider
 except ImportError:
     GCSProvider = None  # type: ignore
+
+import warnings
 
 
 class Sample:
@@ -47,6 +56,7 @@ class Sample:
         shape: Tuple[int] = None,
         dtype: Optional[str] = None,
         creds: Optional[Dict] = None,
+        storage: Optional[StorageProvider] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -64,6 +74,7 @@ class Sample:
             shape (Tuple[int]): Shape of the sample.
             dtype (str, optional): Data type of the sample.
             creds (optional, Dict): Credentials for s3 and gcp for urls.
+            storage (optional, StorageProvider): Storage provider.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -79,6 +90,7 @@ class Sample:
         self._shape = shape or None
         self._dtype = dtype or None
         self.path = None
+        self.storage = storage
         self._buffer = None
         self._creds = creds or {}
 
@@ -92,6 +104,7 @@ class Sample:
             self._array = array
             self._shape = array.shape  # type: ignore
             self._typestr = array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
             self._compression = None
 
         if buffer is not None:
@@ -110,10 +123,10 @@ class Sample:
 
     @property
     def dtype(self):
-        if self._dtype:
-            return self._dtype
-        self._read_meta()
-        return np.dtype(self._typestr).name
+        if self._dtype is None:
+            self._read_meta()
+            self._dtype = np.dtype(self._typestr).name
+        return self._dtype
 
     @property
     def shape(self):
@@ -125,6 +138,23 @@ class Sample:
         if self._compression is None and self.path:
             self._read_meta()
         return self._compression
+
+    def _load_dicom(self):
+        if self._array is not None:
+            return
+        try:
+            from pydicom import dcmread
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+        self._array = dcm.pixel_array
+        self._shape = self._array.shape
+        self._typestr = self._array.__array_interface__["typestr"]
 
     def _read_meta(self, f=None):
         if self._shape is not None:
@@ -147,6 +177,48 @@ class Sample:
         )
         if store:
             self._compressed_bytes[self._compression] = f
+
+    def _get_dicom_meta(self) -> dict:
+        try:
+            from pydicom import dcmread
+            from pydicom.dataelem import RawDataElement
+        except ImportError:
+            raise ModuleNotFoundError(
+                "Pydicom not found. Install using `pip install pydicom`"
+            )
+        if self.path and get_path_type(self.path) == "local":
+            dcm = dcmread(self.path)
+        else:
+            dcm = dcmread(BytesIO(self.buffer))
+
+        meta = {
+            x.keyword: {
+                "name": x.name,
+                "tag": str(x.tag),
+                "value": x.value
+                if isinstance(x.value, (str, int, float))
+                else x.to_json_dict(None, None).get("Value", ""),  # type: ignore
+                "vr": x.VR,
+            }
+            for x in dcm
+            if not isinstance(x.value, bytes)
+        }
+        return meta
+
+    def _get_video_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            container, vstream = _open_video(self.path)
+        else:
+            container, vstream = _open_video(self.buffer)
+        _, duration, fps, timebase = _read_metadata_from_vstream(container, vstream)
+        return {"duration": duration, "fps": fps, "timebase": timebase}
+
+    def _get_audio_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_audio_meta(self.path)
+        else:
+            info = _read_audio_meta(self.buffer)
+        return info
 
     @property
     def is_lazy(self) -> bool:
@@ -201,7 +273,7 @@ class Sample:
                         self._shape, self._typestr = verify_compressed_file(  # type: ignore
                             compressed_bytes, self._compression
                         )
-                    else:
+                    elif self._shape is None:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
                             compressed_bytes, compression=self._compression
                         )
@@ -214,83 +286,41 @@ class Sample:
             self._compressed_bytes[compression] = compressed_bytes
         return compressed_bytes
 
-    def uncompressed_bytes(self) -> bytes:
-        """Returns uncompressed bytes."""
-
-        if self._uncompressed_bytes is None:
-            if self.path is not None:
-                compr = self._compression
-                if compr is None:
-                    compr = get_compression(path=self.path)
-                if get_compression_type(compr) in (
-                    AUDIO_COMPRESSION,
-                    VIDEO_COMPRESSION,
-                ):
-                    self._compression = compr
-                    if self._array is None:
-                        self._array = decompress_array(
-                            self.path, compression=compr, shape=self.shape
-                        )
-                    self._uncompressed_bytes = self._array.tobytes()
-                else:
-                    img = Image.open(self.path)
-                    if img.mode == "1":
-                        # Binary images need to be extended from bits to bytes
-                        self._uncompressed_bytes = img.tobytes("raw", "L")
-                    else:
-                        self._uncompressed_bytes = img.tobytes()
-            elif self._compressed_bytes:
-                compr = self._compression
-                if compr is None:
-                    compr = get_compression(path=self.path)
-                buffer = self._buffer
-                if buffer is None:
-                    buffer = self._compressed_bytes[compr]
-                self._array = decompress_array(
-                    buffer, compression=compr, shape=self.shape, dtype=self.dtype
-                )
+    def _decompress(self):
+        if self._array is not None:
+            if self._uncompressed_bytes is None:
                 self._uncompressed_bytes = self._array.tobytes()
-                self._typestr = self._array.__array_interface__["typestr"]
+            return
+        compression = self.compression
+        if compression is None and self._buffer is not None:
+            self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                self.shape
+            )
+        else:
+            if self.path and get_path_type(self.path) == "local":
+                compressed = self.path
             else:
-                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
+                compressed = self.buffer
 
+            self._array = decompress_array(
+                compressed, compression=compression, shape=self.shape, dtype=self.dtype
+            )
+            self._uncompressed_bytes = self._array.tobytes()
+            self._typestr = self._array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
+
+    def uncompressed_bytes(self) -> Optional[bytes]:
+        """Returns uncompressed bytes."""
+        self._decompress()
         return self._uncompressed_bytes
 
     @property
-    def array(self) -> np.ndarray:
-
-        if self._array is None:
-            compr = self._compression
-            if compr is None:
-                compr = get_compression(path=self.path)
-            if get_compression_type(compr) in (AUDIO_COMPRESSION, VIDEO_COMPRESSION):
-                self._compression = compr
-                if self.path and is_remote_path(self.path):
-                    compressed = self.buffer
-                else:
-                    compressed = self.path or self._buffer
-                array = decompress_array(
-                    compressed, compression=compr, shape=self.shape
-                )
-                if self._shape is None:
-                    self._shape = array.shape  # type: ignore
-                    self._typestr = array.__array_interface__["typestr"]
-                self._array = array
-            else:
-                self._read_meta()
-                data = self.uncompressed_bytes()
-                array_interface = {
-                    "shape": self._shape,
-                    "typestr": self._typestr,
-                    "version": 3,
-                    "data": data,
-                }
-
-                class ArrayData:
-                    __array_interface__ = array_interface
-
-                self._array = np.array(ArrayData, None)
-        return self._array
+    def array(self) -> np.ndarray:  # type: ignore
+        arr = self._array
+        if arr is not None:
+            return arr
+        self._decompress()
+        return self._array  # type: ignore
 
     def __str__(self):
         if self.is_lazy:
@@ -320,6 +350,8 @@ class Sample:
             return self._read_from_gcs()
         elif path_type == "s3":
             return self._read_from_s3()
+        elif path_type == "gdrive":
+            return self._read_from_gdrive()
         elif path_type == "http":
             return self._read_from_http()
 
@@ -336,23 +368,69 @@ class Sample:
         return root, key
 
     def _read_from_s3(self) -> bytes:
+        assert self.path is not None
+        if self.storage is not None:
+            assert isinstance(self.storage, S3Provider)
+            return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         s3 = S3Provider(root, **self._creds)
         return s3[key]
 
     def _read_from_gcs(self) -> bytes:
+        assert self.path is not None
         if GCSProvider is None:
             raise Exception(
                 "GCP dependencies not installed. Install them with pip install hub[gcs]"
             )
+        if self.storage is not None:
+            assert isinstance(self.storage, GCSProvider)
+            return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         gcs = GCSProvider(root, **self._creds)
         return gcs[key]
 
+    def _read_from_gdrive(self) -> bytes:
+        path = self.path.replace("gdrive://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
+        return gdrive[key]
+
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
+
+    def _getexif(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            img = Image.open(self.path)
+        else:
+            img = Image.open(BytesIO(self.buffer))
+        try:
+            return getexif(img)
+        except Exception as e:
+            warnings.warn(
+                f"Error while reading exif data, possibly due to corrupt exif: {e}"
+            )
+            return {}
+
+    @property
+    def meta(self) -> dict:
+        meta: Dict[str, Union[Dict, str]] = {}
+        compression = self.compression
+        compression_type = get_compression_type(compression)
+        if compression == "dcm":
+            meta.update(self._get_dicom_meta())
+        elif compression_type == IMAGE_COMPRESSION:
+            meta["exif"] = self._getexif()
+        elif compression_type == VIDEO_COMPRESSION:
+            meta.update(self._get_video_meta())
+        elif compression_type == AUDIO_COMPRESSION:
+            meta.update(self._get_audio_meta())
+        meta["shape"] = self.shape
+        meta["format"] = self.compression
+        if self.path:
+            meta["filename"] = str(self.path)
+        return meta
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

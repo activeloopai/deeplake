@@ -5,7 +5,13 @@ from hub.util.tag import process_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
+from hub.core.storage import (
+    LocalProvider,
+    S3Provider,
+    MemoryProvider,
+    GDriveProvider,
+    LRUCache,
+)
 from hub.client.client import HubBackendClient
 import posixpath
 
@@ -28,8 +34,9 @@ def storage_provider_from_path(
         is_hub_path (bool): whether the path points to a hub dataset.
 
     Returns:
-        If given a path starting with s3://  returns the S3Provider.
+        If given a path starting with s3:// returns the S3Provider.
         If given a path starting with gcp:// or gcs:// returns the GCPProvider.
+        If given a path starting with gdrive:// returns the GDriveProvider
         If given a path starting with mem:// returns the MemoryProvider.
         If given a path starting with hub:// returns the underlying cloud Provider.
         If given a valid local path, returns the LocalProvider.
@@ -58,6 +65,8 @@ def storage_provider_from_path(
         )
     elif path.startswith("gcp://") or path.startswith("gcs://"):
         storage = GCSProvider(path, creds)
+    elif path.startswith("gdrive://"):
+        storage = GDriveProvider(path, creds)
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
@@ -132,11 +141,15 @@ def get_storage_and_cache_chain(
     return storage, storage_chain
 
 
-def get_pytorch_local_storage(dataset):
-    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
-    local_cache_name: str = dataset.path + "_pytorch"
-    local_cache_name = local_cache_name.replace("://", "_")
+def get_local_storage_path(path: str, prefix: str):
+    local_cache_name = path.replace("://", "_")
     local_cache_name = local_cache_name.replace("/", "_")
     local_cache_name = local_cache_name.replace("\\", "_")
-    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
+    return f"{prefix}/{local_cache_name}"
+
+
+def get_pytorch_local_storage(dataset):
+    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
+    local_cache_name: str = f"{dataset.path}_pytorch"
+    local_cache_path = get_local_storage_path(local_cache_name, LOCAL_CACHE_PREFIX)
     return LocalProvider(local_cache_path)

@@ -158,7 +158,6 @@ def test_method2(ds):
         use_local_cache=False,
         num_workers=2,
         batch_size=2,
-        collate_fn=default_collate_fn,
         tensors=tensors,
     )
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=default_collate_fn)

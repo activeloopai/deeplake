@@ -1,6 +1,7 @@
 import pytest
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from .common import assert_encoded
+import numpy as np
 
 
 def test_trivial():
@@ -70,3 +71,14 @@ def test_failures():
     with pytest.raises(ValueError):
         # num_samples cannot be 0
         enc.register_samples(8, 0)
+
+
+def test_alternate():
+    enc = BytePositionsEncoder()
+    enc.register_samples(3, 100)
+    for i in range(0, 100, 2):
+        enc[i] = 7
+    np.testing.assert_array_equal(enc._encoded[0], [7, 0, 0])
+    np.testing.assert_array_equal(enc._encoded[:, 0], [7, 3] * 50)
+    np.testing.assert_array_equal(np.diff(enc._encoded[:, 1]), [7, 3] * 49 + [7])
+    np.testing.assert_array_equal(enc._encoded[:, 2], np.arange(100))
