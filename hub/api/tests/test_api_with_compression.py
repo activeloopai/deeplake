@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 from io import BytesIO
-=======
 import os
 import sys
->>>>>>> 21db6def5831464b5435f2e0ada9b961df642058
 from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,
