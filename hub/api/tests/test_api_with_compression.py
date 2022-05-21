@@ -309,27 +309,19 @@ def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
     _populate_compressed_samples(image, cat_path, flower_path)
 
     header_size = _get_header_size(memory_ds, "image")
-    assert (
-        image.num_compressed_bytes
-        == (cat_png_size + flower_png_size + ones_png_size) * 2 + header_size
-    )
-    assert (
-        image.num_uncompressed_bytes
-        == sum([np.prod(shape).item() for shape in shapes]) * 2 + header_size
-    )
-    assert image.chunk_engine._get_num_compressed_bytes() == image.num_compressed_bytes
-    assert (
-        image.chunk_engine._get_num_uncompressed_bytes() == image.num_uncompressed_bytes
-    )
+    size = (cat_png_size + flower_png_size + ones_png_size) * 2 + header_size
 
-    chunk_size = 600 * KB
-    image = memory_ds.create_tensor(
-        "ch_image", htype="image", chunk_compression="jpg", max_chunk_size=chunk_size
-    )
-    image.extend([hub.read(cat_path)] * 5)
+    assert image.num_bytes == size
+    assert image.chunk_engine._get_num_bytes() == image.num_bytes
 
-    header_size = _get_header_size(memory_ds, "ch_image")
-    assert image.num_uncompressed_bytes == np.prod(cat_shape) * 5 + header_size
+    # test update
+    image.append(hub.read(cat_path))
+    assert image.num_bytes == size + cat_png_size
+
+    image[-1] = hub.read(flower_path)
+    size -= header_size
+    header_size = _get_header_size(memory_ds, "image")
+    assert image.num_bytes == size + flower_png_size + header_size
 
 
 def test_tracked_sizes_persistence(local_ds_generator: Dataset, flower_path):
@@ -342,14 +334,12 @@ def test_tracked_sizes_persistence(local_ds_generator: Dataset, flower_path):
     image.append(hub.read(flower_path))
 
     header_size = _get_header_size(ds, "image")
-    assert image.num_compressed_bytes == flower_png_size + header_size
-    assert image.num_uncompressed_bytes == np.prod(flower_shape) + header_size
+    assert image.num_bytes == flower_png_size + header_size
 
     ds = local_ds_generator()  # type: ignore
     image = ds["image"]
 
-    assert image.num_compressed_bytes == flower_png_size + header_size
-    assert image.num_uncompressed_bytes == np.prod(flower_shape) + header_size
+    assert image.num_bytes == flower_png_size + header_size
 
 
 def test_exif(memory_ds, compressed_image_paths):

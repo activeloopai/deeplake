@@ -245,20 +245,11 @@ class ChunkEngine:
         return self.max_chunk_size // 2
 
     @property
-    def num_compressed_bytes(self):
-        nbytes = getattr(self.tensor_meta, "num_compressed_bytes", None)
+    def num_bytes(self):
+        nbytes = getattr(self.tensor_meta, "num_bytes", None)
         if nbytes is None:
-            nbytes = self._get_num_compressed_bytes()
+            nbytes = self._get_num_bytes()
         return nbytes
-
-    @property
-    def num_uncompressed_bytes(self):
-        if self.track_uncompressed_size:
-            nbytes = getattr(self.tensor_meta, "num_uncompressed_bytes", None)
-            if nbytes is None:
-                nbytes = self._get_num_uncompressed_bytes()
-            return nbytes
-        return None
 
     @property
     def tensor_meta(self):
@@ -627,11 +618,7 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        tensor_meta.num_compressed_bytes = self.num_compressed_bytes
-        if self.track_uncompressed_size:
-            tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
-        else:
-            tensor_meta.num_uncompressed_bytes = None
+        tensor_meta.num_bytes = self.num_bytes
         tensor_meta.is_dirty = True
         if tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
@@ -685,27 +672,17 @@ class ChunkEngine:
         if progressbar:
             pbar = tqdm(total=len(samples))
         while len(samples) > 0:
-            num_compressed_bytes_current = current_chunk.nbytes
-            if self.track_uncompressed_size:
-                num_uncompressed_bytes_current = self._get_chunk_uncompressed_size(
-                    current_chunk
-                )
+            num_bytes_current = current_chunk.nbytes
             num_samples_added = current_chunk.extend_if_has_space(
                 samples, update_tensor_meta=update_tensor_meta
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk()
+                current_chunk = self._create_new_chunk(register)
+                updated_chunks.append(current_chunk)
                 continue
 
-            self.tensor_meta.num_compressed_bytes += (
-                current_chunk.nbytes - num_compressed_bytes_current
-            )
-            if self.track_uncompressed_size:
-                self.tensor_meta.num_uncompressed_bytes += (
-                    self._get_chunk_uncompressed_size(current_chunk)
-                    - num_uncompressed_bytes_current
-                )
+            self.tensor_meta.num_bytes += current_chunk.nbytes - num_bytes_current
             self.tensor_meta.is_dirty = True
 
             if num_samples_added == PARTIAL_NUM_SAMPLES:
@@ -819,9 +796,7 @@ class ChunkEngine:
         if self.active_appended_chunk is not None:
             self.write_chunk_to_storage(self.active_appended_chunk)
         self.active_appended_chunk = chunk
-        self.tensor_meta.num_compressed_bytes += chunk.nbytes
-        if self.track_uncompressed_size:
-            self.tensor_meta.num_uncompressed_bytes += chunk.nbytes
+        self.tensor_meta.num_bytes += chunk.nbytes
         self.tensor_meta.is_dirty = True
         return chunk
 
@@ -1176,6 +1151,7 @@ class ChunkEngine:
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
+        tensor_meta = self.tensor_meta
         for i, sample in enumerate(samples):
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
@@ -1185,6 +1161,7 @@ class ChunkEngine:
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
+                tensor_meta.num_bytes -= chunk.nbytes
 
                 if len(index.values) <= 1 + int(self.is_sequence):
                     chunk.update_sample(local_sample_index, sample)
@@ -1198,6 +1175,8 @@ class ChunkEngine:
                 ):
                     self.write_chunk_to_storage(self.active_updated_chunk)
                 self.active_updated_chunk = chunk
+
+                tensor_meta.num_bytes += chunk.nbytes
 
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
@@ -1565,47 +1544,11 @@ class ChunkEngine:
                 continue
         return chunks
 
-    def _get_num_compressed_bytes(self):
+    def _get_num_bytes(self):
         if self.num_chunks == 0:
             return 0
 
         nbytes = sum([chunk.nbytes for chunk in self._get_all_chunks()])
-
-        return nbytes
-
-    def _get_chunk_uncompressed_size(self, chunk: BaseChunk):
-        dtype = self.tensor_meta.dtype
-        if not dtype:
-            return 0
-
-        try:
-            itemsize = np.dtype(dtype).itemsize
-        except TypeError:
-            itemsize = int(re.findall("[0-9]+", dtype)[0])
-
-        header_size = (
-            len(chunk.version)
-            + chunk.shapes_encoder.nbytes
-            + chunk.byte_positions_encoder.nbytes
-            + 13
-        )
-        shapes = [
-            chunk.shapes_encoder[i] for i in range(chunk.shapes_encoder.num_samples)
-        ]
-        nbytes = (
-            sum([np.prod(shape).item() for shape in shapes]) * itemsize + header_size
-        )
-        return nbytes
-
-    def _get_num_uncompressed_bytes(self):
-        if self.num_chunks == 0:
-            return 0
-
-        chunks = self._get_all_chunks()
-        nbytes = 0
-
-        for chunk in chunks:
-            nbytes += self._get_chunk_uncompressed_size(chunk)
 
         return nbytes
 

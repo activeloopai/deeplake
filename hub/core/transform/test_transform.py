@@ -155,11 +155,9 @@ def test_single_transform_hub_dataset(ds, scheduler):
     )
     assert len(ds_out) == 99
     header_size = _get_header_size(ds_out, "image")
-    assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
-    assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+    assert ds_out.image.num_bytes == expected_imbytes + header_size
     header_size = _get_header_size(ds_out, "label")
-    assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
-    assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
+    assert ds_out.label.num_bytes == expected_lbytes + header_size
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -211,11 +209,9 @@ def test_groups(local_ds):
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
         header_size = _get_header_size(ds_out, "image")
-        assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
-        assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+        assert ds_out.image.num_bytes == expected_imbytes + header_size
         header_size = _get_header_size(ds_out, "label")
-        assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
-        assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
+        assert ds_out.label.num_bytes == expected_lbytes + header_size
 
 
 def test_groups_2(local_ds):
@@ -289,11 +285,9 @@ def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
     )
     assert len(ds_out) == 99
     header_size = _get_header_size(ds_out, "image")
-    assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
-    assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+    assert ds_out.image.num_bytes == expected_imbytes + header_size
     header_size = _get_header_size(ds_out, "label")
-    assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
-    assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
+    assert ds_out.label.num_bytes == expected_lbytes + header_size
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -322,20 +316,8 @@ def test_chain_transform_list_small(local_ds, scheduler):
         scheduler=scheduler,
     )
     assert len(ds_out) == 600
-    header_size = _get_header_size(ds_out, "image")
-    assert (
-        ds_out.image.num_uncompressed_bytes
-        == 337 * 200 * np.dtype(float).itemsize * 600 + header_size
-    )
     header_size = _get_header_size(ds_out, "label")
-    assert (
-        ds_out.label.num_compressed_bytes
-        == 1 * np.dtype(float).itemsize * 600 + header_size
-    )
-    assert (
-        ds_out.label.num_uncompressed_bytes
-        == 1 * np.dtype(float).itemsize * 600 + header_size
-    )
+    assert ds_out.label.num_bytes == 1 * np.dtype(float).itemsize * 600 + header_size
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(

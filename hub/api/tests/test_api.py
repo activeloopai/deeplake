@@ -1417,12 +1417,7 @@ def test_tracked_sizes(memory_ds: Dataset):
     )
 
     assert (
-        memory_ds["abc"].num_compressed_bytes
-        == 8 * np.dtype(MAX_INT_DTYPE).itemsize + header_size
-    )
-    assert (
-        memory_ds["abc"].num_uncompressed_bytes
-        == 8 * np.dtype(MAX_INT_DTYPE).itemsize + header_size
+        memory_ds["abc"].num_bytes == 8 * np.dtype(MAX_INT_DTYPE).itemsize + header_size
     )
 
 

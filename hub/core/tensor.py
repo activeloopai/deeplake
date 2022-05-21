@@ -523,14 +523,9 @@ class Tensor:
         return self.meta.length
 
     @property
-    def num_compressed_bytes(self) -> int:
-        """Returns the compressed size of all data stored in the tensor in bytes."""
-        return self.chunk_engine.num_compressed_bytes
-
-    @property
-    def num_uncompressed_bytes(self) -> int:
-        """Returns the uncompressed size of all data stored in the tensor in bytes."""
-        return self.chunk_engine.num_uncompressed_bytes
+    def num_bytes(self) -> int:
+        """Returns the size of all data stored in the tensor in bytes."""
+        return self.chunk_engine.num_bytes
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
