@@ -367,7 +367,7 @@ class BaseChunk(HubMemoryObject):
         """Registers a new sample in meta and headers
 
         Args:
-           sample_nbytes (Optional[int]): Paramter shat shows the numbero of bytes
+           sample_nbytes (Optional[int]): Parameter that shows the number of bytes
            shape (Any): Parameter that shows the shape of the added elements
            update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
            update_tensor_meta (bool): Parameter that shows if it is need to update tensor metas, in case of rechunk we do not need to update meta as we do not add new elements

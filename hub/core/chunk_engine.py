@@ -1,3 +1,4 @@
+import re
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
@@ -67,6 +68,7 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.image import convert_sample, convert_img_arr
 from hub.compression import VIDEO_COMPRESSIONS
 from hub.core.sample import Sample
+from hub.compression import get_compression_type, BYTE_COMPRESSION
 from itertools import chain, repeat
 from collections.abc import Iterable
 
@@ -170,6 +172,8 @@ class ChunkEngine:
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
 
+        self._track_uncompressed_size = None
+
         tensor_meta = self.tensor_meta
 
         if tensor_meta.sample_compression:
@@ -180,9 +184,23 @@ class ChunkEngine:
             self.chunk_class = ChunkCompressedChunk
         else:
             self.chunk_class = UncompressedChunk
+            self._get_chunk_uncompressed_size = lambda chunk: chunk.nbytes
+            self._get_num_uncompressed_bytes = self._get_num_compressed_bytes
 
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
+
+    @property
+    def track_uncompressed_size(self):
+        if self._track_uncompressed_size is not None:
+            return self._track_uncompressed_size
+        dtype = self.tensor_meta.dtype
+        self._track_uncompressed_size = False
+        try:
+            self._track_uncompressed_size = bool(np.dtype(dtype).itemsize)
+        except TypeError:
+            self._track_uncompressed_size = len(re.findall("[0-9]+", dtype)) == 1
+        return self._track_uncompressed_size
 
     @property
     def is_data_cachable(self):
@@ -238,10 +256,12 @@ class ChunkEngine:
 
     @property
     def num_uncompressed_bytes(self):
-        nbytes = getattr(self.tensor_meta, "num_uncompressed_bytes", None)
-        if nbytes is None:
-            nbytes = self._get_num_uncompressed_bytes()
-        return nbytes
+        if self.track_uncompressed_size:
+            nbytes = getattr(self.tensor_meta, "num_uncompressed_bytes", None)
+            if nbytes is None:
+                nbytes = self._get_num_uncompressed_bytes()
+            return nbytes
+        return None
 
     @property
     def tensor_meta(self):
@@ -611,7 +631,10 @@ class ChunkEngine:
         if self._convert_to_list(samples):
             samples = list(samples)
         tensor_meta.num_compressed_bytes = self.num_compressed_bytes
-        tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
+        if self.track_uncompressed_size:
+            tensor_meta.num_uncompressed_bytes = self.num_uncompressed_bytes
+        else:
+            tensor_meta.num_uncompressed_bytes = None
         tensor_meta.is_dirty = True
         if tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
@@ -666,9 +689,10 @@ class ChunkEngine:
             pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_compressed_bytes_current = current_chunk.nbytes
-            num_uncompressed_bytes_current = self._get_chunk_uncompressed_size(
-                current_chunk
-            )
+            if self.track_uncompressed_size:
+                num_uncompressed_bytes_current = self._get_chunk_uncompressed_size(
+                    current_chunk
+                )
             num_samples_added = current_chunk.extend_if_has_space(
                 samples, update_tensor_meta=update_tensor_meta
             )  # type: ignore
@@ -680,10 +704,11 @@ class ChunkEngine:
             self.tensor_meta.num_compressed_bytes += (
                 current_chunk.nbytes - num_compressed_bytes_current
             )
-            self.tensor_meta.num_uncompressed_bytes += (
-                self._get_chunk_uncompressed_size(current_chunk)
-                - num_uncompressed_bytes_current
-            )
+            if self.track_uncompressed_size:
+                self.tensor_meta.num_uncompressed_bytes += (
+                    self._get_chunk_uncompressed_size(current_chunk)
+                    - num_uncompressed_bytes_current
+                )
             self.tensor_meta.is_dirty = True
 
             if num_samples_added == PARTIAL_NUM_SAMPLES:
@@ -798,7 +823,8 @@ class ChunkEngine:
             self.write_chunk_to_storage(self.active_appended_chunk)
         self.active_appended_chunk = chunk
         self.tensor_meta.num_compressed_bytes += chunk.nbytes
-        self.tensor_meta.num_uncompressed_bytes += chunk.nbytes
+        if self.track_uncompressed_size:
+            self.tensor_meta.num_uncompressed_bytes += chunk.nbytes
         self.tensor_meta.is_dirty = True
         return chunk
 
@@ -1555,7 +1581,11 @@ class ChunkEngine:
         if not dtype:
             return 0
 
-        itemsize = np.dtype(dtype).itemsize
+        try:
+            itemsize = np.dtype(dtype).itemsize
+        except TypeError:
+            itemsize = int(re.findall("[0-9]+", dtype)[0])
+
         header_size = (
             len(chunk.version)
             + chunk.shapes_encoder.nbytes

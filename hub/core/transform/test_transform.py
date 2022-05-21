@@ -154,10 +154,12 @@ def test_single_transform_hub_dataset(ds, scheduler):
         progressbar=False,
     )
     assert len(ds_out) == 99
-    assert ds_out.image.num_compressed_bytes == expected_imbytes
-    assert ds_out.image.num_uncompressed_bytes == expected_imbytes
-    assert ds_out.label.num_compressed_bytes == expected_lbytes
-    assert ds_out.label.num_uncompressed_bytes == expected_lbytes
+    header_size = _get_header_size(ds_out, "image")
+    assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
+    assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+    header_size = _get_header_size(ds_out, "label")
+    assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
+    assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
     for index in range(1, 100):
         np.testing.assert_array_equal(
             ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
@@ -208,10 +210,12 @@ def test_groups(local_ds):
         assert ds_out.image.shape_interval.lower == (99, 1, 1)
         assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
-        assert ds_out.image.num_compressed_bytes == expected_imbytes
-        assert ds_out.image.num_uncompressed_bytes == expected_imbytes
-        assert ds_out.label.num_compressed_bytes == expected_lbytes
-        assert ds_out.label.num_uncompressed_bytes == expected_lbytes
+        header_size = _get_header_size(ds_out, "image")
+        assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
+        assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+        header_size = _get_header_size(ds_out, "label")
+        assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
+        assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
 
 
 def test_groups_2(local_ds):
@@ -287,6 +291,7 @@ def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
     header_size = _get_header_size(ds_out, "image")
     assert ds_out.image.num_compressed_bytes == expected_imbytes + header_size
     assert ds_out.image.num_uncompressed_bytes == expected_imbytes + header_size
+    header_size = _get_header_size(ds_out, "label")
     assert ds_out.label.num_compressed_bytes == expected_lbytes + header_size
     assert ds_out.label.num_uncompressed_bytes == expected_lbytes + header_size
     for index in range(1, 100):
