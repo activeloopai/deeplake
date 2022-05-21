@@ -184,8 +184,6 @@ class ChunkEngine:
             self.chunk_class = ChunkCompressedChunk
         else:
             self.chunk_class = UncompressedChunk
-            self._get_chunk_uncompressed_size = lambda chunk: chunk.nbytes  # type: ignore
-            self._get_num_uncompressed_bytes = self._get_num_compressed_bytes  # type: ignore
 
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
