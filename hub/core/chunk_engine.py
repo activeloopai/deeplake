@@ -195,7 +195,6 @@ class ChunkEngine:
         if self._track_uncompressed_size is not None:
             return self._track_uncompressed_size
         dtype = self.tensor_meta.dtype
-        self._track_uncompressed_size = False
         try:
             self._track_uncompressed_size = bool(np.dtype(dtype).itemsize)
         except TypeError:
