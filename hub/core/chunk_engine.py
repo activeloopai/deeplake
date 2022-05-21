@@ -172,8 +172,6 @@ class ChunkEngine:
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
 
-        self._track_uncompressed_size = None
-
         tensor_meta = self.tensor_meta
 
         if tensor_meta.sample_compression:
@@ -187,17 +185,6 @@ class ChunkEngine:
 
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
-
-    @property
-    def track_uncompressed_size(self):
-        if self._track_uncompressed_size is not None:
-            return self._track_uncompressed_size
-        dtype = self.tensor_meta.dtype
-        try:
-            self._track_uncompressed_size = bool(np.dtype(dtype).itemsize)
-        except TypeError:
-            self._track_uncompressed_size = len(re.findall("[0-9]+", dtype)) == 1
-        return self._track_uncompressed_size
 
     @property
     def is_data_cachable(self):
