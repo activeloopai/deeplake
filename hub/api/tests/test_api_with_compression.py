@@ -280,11 +280,7 @@ def _get_header_size(ds, tensor):
 def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
     from PIL import Image  # type: ignore
 
-    cat_shape = (900, 900, 3)
-    flower_shape = (513, 464, 4)
     ones_shape = (100, 100, 4)
-
-    shapes = [cat_shape, flower_shape, ones_shape]
 
     with open(flower_path, "rb") as f:  # already png
         flower_png_size = len(f.read())
@@ -326,7 +322,6 @@ def test_tracked_sizes(memory_ds: Dataset, cat_path, flower_path):
 
 def test_tracked_sizes_persistence(local_ds_generator: Dataset, flower_path):
     ds = local_ds_generator()  # type: ignore
-    flower_shape = (513, 464, 4)
     with open(flower_path, "rb") as f:
         flower_png_size = len(f.read())
 
