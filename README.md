@@ -79,10 +79,9 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[av]          -> Audio and video support via PyAV
-pip3 install hub[gcp]         -> GCS support via google-* dependencies
-pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
-pip3 install hub[all]         -> Installs everything - audio, video and GCS support
+pip3 install "hub[av]"          -> Audio and video support via PyAV
+pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
+pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
 ```
 
 ### 🧠 Training a PyTorch model on a Hub dataset
