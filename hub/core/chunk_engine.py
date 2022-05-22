@@ -605,7 +605,8 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        tensor_meta.num_bytes = self.num_bytes
+        if tensor_meta.num_bytes is None:
+            tensor_meta.num_bytes = self._get_num_bytes()
         tensor_meta.is_dirty = True
         if tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
@@ -931,6 +932,8 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+        if self.tensor_meta.num_bytes is None:
+            self.tensor_meta.num_bytes = self._get_num_bytes()
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
             index,
             samples,
