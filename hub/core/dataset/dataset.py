@@ -260,7 +260,8 @@ class Dataset:
         keys = [
             "path",
             "_read_only",
-            "_read_only_error" "index",
+            "_read_only_error",
+            "index",
             "group_index",
             "public",
             "storage",
