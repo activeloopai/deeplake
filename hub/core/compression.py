@@ -12,6 +12,7 @@ from hub.compression import (
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
@@ -214,7 +215,10 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         raise NotImplementedError(
             "In order to store video data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
-
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store point cloud data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     if compression == "apng":
         return _compress_apng(array)
     try:
@@ -281,6 +285,8 @@ def decompress_array(
         return _decompress_audio(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        return _decompress_point_cloud(buffer)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -351,6 +357,8 @@ def compress_multiple(
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support audio samples.")
     elif compr_type == VIDEO_COMPRESSION:
+        raise NotImplementedError("compress_multiple does not support video samples.")
+    elif compr_type == POINT_CLOUD_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support video samples.")
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
@@ -424,6 +432,8 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
+        elif compression == "las":
+            return _read_point_cloud_shape(file), "<f4"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -438,7 +448,7 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm"]
+        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm", ".las"]
         path = str(path).lower()
         for fmt in file_formats:
             if path.endswith(fmt):
@@ -621,6 +631,11 @@ def read_meta_from_compressed_file(
         elif compression in ("mp4", "mkv", "avi"):
             try:
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
+            except Exception as e:
+                raise CorruptedSampleError(compression)
+        elif compression in ("las"):
+            try:
+                shape, typestr = _read_point_cloud_shape(file), "<f4"
             except Exception as e:
                 raise CorruptedSampleError(compression)
         else:
@@ -996,3 +1011,40 @@ def _decompress_audio(
             )
             sample_count += frame.samples
     return audio
+
+
+def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
+    try:
+        import laspy as lp
+    except:
+        raise ModuleNotFoundError(
+            "laspy not found. Install using `pip install laspy`"
+        )
+
+    if isinstance(file, str):
+        point_cloud = lp.read(file)
+    else:
+        raise UnsupportedCompressionError
+    return point_cloud
+
+
+def _read_point_cloud_meta(file):
+    point_cloud = _open_cloud_point_data(file)
+    dimension_names = list(point_cloud.point_format.dimension_names)
+    meta_data = {}
+    for dimension_name in dimension_names:
+        if dimension_name not in ["x", "X", "y", "Y", "z", "Z"]:
+            meta_data[dimension_name] = np.array(point_cloud[dimension_name]).transpose()
+    return meta_data
+
+
+def _read_point_cloud_shape(file):
+    point_cloud = _decompress_point_cloud(file)
+    shape = point_cloud.shape
+    return shape
+
+
+def _decompress_point_cloud(file: Union[bytes, memoryview, str]):
+    point_cloud = _open_cloud_point_data(file)
+    xyz_points = np.vstack((point_cloud.x, point_cloud.y, point_cloud.z)).transpose()
+    return xyz_points

@@ -22,6 +22,7 @@ from hub.compression import (
     AUDIO_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
     SUPPORTED_COMPRESSIONS,
+    POINT_CLOUD_COMPRESSIONS,
 )
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
@@ -159,6 +160,18 @@ def test_video(compression, video_paths):
         assert arr.dtype == "uint8"
         with open(path, "rb") as f:
             assert sample.compressed_bytes(compression) == f.read()
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+@pytest.mark.parametrize("compression", POINT_CLOUD_COMPRESSIONS)
+def test_point_cloud(compression, point_cloud_paths):
+    path = point_cloud_paths[compression]
+    sample = hub.read(path)
+    arr = np.array(sample)
+    assert arr.shape[-1] == 3
+    assert arr.dtype == "float64"
 
 
 def test_apng(memory_ds):

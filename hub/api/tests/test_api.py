@@ -954,6 +954,7 @@ def test_compressions_list():
         "webp",
         "wmf",
         "xbm",
+        "las",
         None,
     ]
 
