@@ -171,6 +171,7 @@ class Dataset:
             storage
         )
         d["storage"] = storage
+        d["_read_only_error"] = read_only is True
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
@@ -186,7 +187,7 @@ class Dataset:
         d["_ds_diff"] = None
         self.__dict__.update(d)
         try:
-            self._set_derived_attributes(read_only=read_only)
+            self._set_derived_attributes()
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=False`."
@@ -259,7 +260,7 @@ class Dataset:
         keys = [
             "path",
             "_read_only",
-            "index",
+            "_read_only_error" "index",
             "group_index",
             "public",
             "storage",
@@ -1380,14 +1381,14 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self, read_only: Optional[bool], verbose: bool = True):
+    def _set_derived_attributes(self, verbose: bool = True):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
             self._load_version_info()
             self._load_link_creds()
             self._set_read_only(
-                self._read_only, err=read_only is True
+                self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
         elif not self._read_only:
