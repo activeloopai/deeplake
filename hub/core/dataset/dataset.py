@@ -1549,8 +1549,7 @@ class Dataset:
         Acesses storage only for the first call.
         """
         key = self.version_state["tensor_names"].get(name)
-        ret = self.version_state["full_tensors"].get(key)
-        return ret
+        return self.version_state["full_tensors"].get(key)
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
@@ -2358,9 +2357,29 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
+    def _resolve_tensor_list(self, keys: List[str]) -> List[str]:
+        ret = []
+        for k in keys:
+            fullpath = posixpath.join(self.group_index, k)
+            if (
+                self.version_state["tensor_names"].get(fullpath)
+                in self.version_state["full_tensors"]
+            ):
+                ret.append(k)
+            else:
+                if fullpath[-1] != "/":
+                    fullpath = fullpath + "/"
+                hidden = self.meta.hidden_tensors
+                ret += filter(
+                    lambda t: t.startswith(fullpath) and t not in hidden,
+                    self.version_state["tensor_names"],
+                )
+        return ret
+
     def copy(
         self,
         dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
         token=None,
@@ -2373,6 +2392,7 @@ class Dataset:
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -2395,6 +2415,7 @@ class Dataset:
             path = dest.path
 
         report_params = {
+            "Tensors": tensors,
             "Overwrite": overwrite,
             "Num_Workers": num_workers,
             "Scheduler": scheduler,
@@ -2406,17 +2427,20 @@ class Dataset:
             report_params["Dest"] = path
         feature_report_path(self.path, "copy", report_params)
 
-        dest_ds = hub.like(
+        dest_ds = hub.api.dataset.dataset._like(
             dest,
             self,
+            tensors=tensors,
             creds=creds,
             token=token,
             overwrite=overwrite,
             public=public,
         )
+
         with dest_ds:
             dest_ds.info.update(self.info)
-        for tensor in self.tensors:
+
+        for tensor in dest_ds.tensors:
             if progressbar:
                 sys.stderr.write(f"Copying tensor: {tensor}.\n")
             hub.compute(_copy_tensor, name="tensor copy transform")(
