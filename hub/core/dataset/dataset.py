@@ -457,6 +457,7 @@ class Dataset:
                 create_shape_tensor,
                 create_id_tensor,
                 verify,
+                exist_ok,
                 **kwargs,
             )
 
@@ -1777,7 +1778,7 @@ class Dataset:
                 ds["images/jpg"].create_group("dogs")
         """
         if not self._is_root():
-            return self.root.create_group(posixpath.join(self.group_index, name))
+            return self.root.create_group(posixpath.join(self.group_index, name), exist_ok=exist_ok)
         name = filter_name(name)
         if name in self._groups:
             if not exist_ok:
