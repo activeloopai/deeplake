@@ -2235,7 +2235,7 @@ class Dataset:
         try:
             queries_ds = hub.load(f"hub://{username}/queries")
         except DatasetHandlerError:
-            return []
+            return [], None
         return (
             list(
                 filter(
