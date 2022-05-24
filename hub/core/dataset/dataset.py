@@ -1778,7 +1778,9 @@ class Dataset:
                 ds["images/jpg"].create_group("dogs")
         """
         if not self._is_root():
-            return self.root.create_group(posixpath.join(self.group_index, name), exist_ok=exist_ok)
+            return self.root.create_group(
+                posixpath.join(self.group_index, name), exist_ok=exist_ok
+            )
         name = filter_name(name)
         if name in self._groups:
             if not exist_ok:
