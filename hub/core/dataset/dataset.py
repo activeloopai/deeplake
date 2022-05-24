@@ -457,7 +457,6 @@ class Dataset:
                 create_sample_info_tensor,
                 create_shape_tensor,
                 create_id_tensor,
-                verify,
                 exist_ok,
                 **kwargs,
             )
