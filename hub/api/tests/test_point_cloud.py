@@ -20,7 +20,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
         sample = hub.read(path)
         if "dummy_data" in path:  # check shape only for internal test point_clouds
             if compression == "las":
-                assert sample.shape == (20152365, 3)
+                assert sample.shape == (20153, 3)
 
         assert sample.shape[-1] == 3
 
@@ -38,7 +38,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
 def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
     for compression, path in point_cloud_paths.items():
         if compression == "las":
-            dummy = np.zeros((20152365, 3))
+            dummy = np.zeros((20153, 3))
 
             local_ds.create_tensor("point_cloud", htype="point_cloud")
             local_ds.point_cloud.append(hub.read(path))

@@ -940,6 +940,7 @@ def test_compressions_list():
         "ico",
         "jpeg",
         "jpeg2000",
+        "las",
         "lz4",
         "mkv",
         "mp3",
@@ -954,7 +955,6 @@ def test_compressions_list():
         "webp",
         "wmf",
         "xbm",
-        "las",
         None,
     ]
 
