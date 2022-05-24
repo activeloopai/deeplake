@@ -444,9 +444,7 @@ def video_paths():
 
 @pytest.fixture
 def point_cloud_paths():
-    paths = {
-        "las": "point_cloud.las"
-    }
+    paths = {"las": "point_cloud.las"}
 
     parent = get_dummy_data_path("point_cloud")
     for k in paths:

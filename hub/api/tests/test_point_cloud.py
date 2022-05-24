@@ -14,9 +14,7 @@ import numpy as np
 # @pytest.mark.parametrize("compression", hub.compression.POINT_CLOUD_COMPRESSIONS)
 def test_point_cloud(local_ds, point_cloud_paths):
     for i, (compression, path) in enumerate(point_cloud_paths.items()):
-        tensor = local_ds.create_tensor(
-            f"point_cloud_{i}", htype="point_cloud"
-        )
+        tensor = local_ds.create_tensor(f"point_cloud_{i}", htype="point_cloud")
         sample = hub.read(path)
         if "dummy_data" in path:  # check shape only for internal test point_clouds
             if compression == "las":

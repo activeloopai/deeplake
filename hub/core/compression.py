@@ -1017,9 +1017,7 @@ def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
     try:
         import laspy as lp
     except:
-        raise ModuleNotFoundError(
-            "laspy not found. Install using `pip install laspy`"
-        )
+        raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
 
     if isinstance(file, str):
         point_cloud = lp.read(file)
@@ -1034,7 +1032,9 @@ def _read_point_cloud_meta(file):
     meta_data = {}
     for dimension_name in dimension_names:
         if dimension_name not in ["x", "X", "y", "Y", "z", "Z"]:
-            meta_data[dimension_name] = np.array(point_cloud[dimension_name]).transpose()
+            meta_data[dimension_name] = np.array(
+                point_cloud[dimension_name]
+            ).transpose()
     return meta_data
 
 
