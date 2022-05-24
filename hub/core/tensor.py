@@ -907,3 +907,17 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @property
+    def _config(self):
+        """Returns a summary of the configuration of the tensor."""
+        tensor_meta = self.meta
+        return {
+            "htype": tensor_meta.htype,
+            "dtype": tensor_meta.dtype,
+            "sample_compression": tensor_meta.sample_compression,
+            "chunk_compression": tensor_meta.chunk_compression,
+            "hidden": tensor_meta.hidden,
+            "is_link": tensor_meta.is_link,
+            "is_sequence": tensor_meta.is_sequence,
+        }
