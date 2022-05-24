@@ -62,7 +62,7 @@ def filter_dataset(
     num_workers: int = 0,
     scheduler: str = "threaded",
     progressbar: bool = True,
-    store_result: bool = False,
+    save_result: bool = False,
     result_path: Optional[str] = None,
     result_ds_args: Optional[dict] = None,
 ) -> hub.Dataset:
@@ -73,7 +73,7 @@ def filter_dataset(
     query_text = _filter_function_to_query_text(filter_function)
     vds = (
         dataset._get_empty_vds(result_path, query=query_text, **(result_ds_args or {}))
-        if store_result
+        if save_result
         else None
     )
 
@@ -332,7 +332,7 @@ def query_dataset(
     num_workers: int = 0,
     scheduler: str = "threaded",
     progressbar: bool = True,
-    store_result: bool = False,
+    save_result: bool = False,
     result_path: Optional[str] = None,
     result_ds_args: Optional[Dict] = None,
 ) -> hub.Dataset:
@@ -340,7 +340,7 @@ def query_dataset(
 
     vds = (
         dataset._get_empty_vds(result_path, query=query, **(result_ds_args or {}))
-        if store_result
+        if save_result
         else None
     )
     index_map = query_inplace(dataset, query, progressbar, num_workers, scheduler, vds)
