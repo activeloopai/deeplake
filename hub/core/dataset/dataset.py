@@ -163,6 +163,8 @@ class Dataset:
             InvalidHubPathException: If a Hub cloud path (path starting with `hub://`) is specified and it isn't of the form `hub://username/datasetname`.
             AuthorizationException: If a Hub cloud path (path starting with `hub://`) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
+            LockedException: If read_only is False but the dataset is locked for writing by another machine.
+            ReadOnlyModeError: If read_only is False but write access is not available.
         """
         d: Dict[str, Any] = {}
         d["_client"] = d["org_id"] = d["ds_name"] = None
@@ -171,7 +173,7 @@ class Dataset:
             storage
         )
         d["storage"] = storage
-        d["_read_only_error"] = read_only is True
+        d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
@@ -260,7 +262,6 @@ class Dataset:
         keys = [
             "path",
             "_read_only",
-            "_read_only_error",
             "index",
             "group_index",
             "public",
@@ -286,14 +287,15 @@ class Dataset:
         state["is_first_load"] = True
         state["_info"] = None
         state["is_iteration"] = False
+        state["_read_only_error"] = False
+        state["_initial_autoflush"] = []
+        state["_is_first_load"] = True
+        state["_info"] = None
+        state["_ds_diff"] = None
         self.__dict__.update(state)
 
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
-        self._initial_autoflush = []
-        self.is_first_load = True
-        self._info = None
-        self._ds_diff = None
         self._set_derived_attributes(verbose=False)
 
     def __getitem__(
