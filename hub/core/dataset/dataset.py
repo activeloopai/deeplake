@@ -382,12 +382,13 @@ class Dataset:
             create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
                 This is useful for merge operations.
             verify (bool): Valid only for link htypes. If True, all links will be verified before they are added to the tensor.
+            exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
 
         Raises:
-            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorAlreadyExistsError: If the tensor already exists and `exist_ok` is False.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
@@ -1765,6 +1766,9 @@ class Dataset:
 
         Returns:
             The created group.
+
+        Raises:
+            TensorGroupAlreadyExistsError: If the group already exists and exist_ok is False.
 
         Examples:
 
