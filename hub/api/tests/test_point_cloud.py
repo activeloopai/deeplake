@@ -44,5 +44,11 @@ def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
             local_ds.point_cloud[0][100:120].numpy().shape == dummy[100:120].shape
             local_ds.point_cloud[0][120].numpy().shape == dummy[120].shape
             local_ds.point_cloud[0][-1].numpy().shape == dummy[-1].shape
+            local_ds.point_cloud[0][10:5:-2].numpy().shape == dummy[10:5:-2].shape
+            local_ds.point_cloud[0][-3:-10:-1].numpy().shape == dummy[-3:-10:-1].shape
+            local_ds.point_cloud[0][-25:100:-2].numpy().shape == dummy[-25:100:-2].shape
+            local_ds.point_cloud[0][::-1].numpy().shape == dummy[::-1].shape
+            local_ds.point_cloud[0][:5:-1].numpy().shape == dummy[:5:-1].shape
+            local_ds.point_cloud[0][-1].numpy().shape == dummy[-1].shape
             return
     raise Exception  # test did not run
