@@ -47,7 +47,7 @@ from hub.util.pretty_print import (
     get_string,
     summary_tensor,
 )
-from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
 from hub.util.version_control import auto_checkout
@@ -913,10 +913,10 @@ class Tensor:
         """Returns a summary of the configuration of the tensor."""
         tensor_meta = self.meta
         return {
-            "htype": tensor_meta.htype,
-            "dtype": tensor_meta.dtype,
-            "sample_compression": tensor_meta.sample_compression,
-            "chunk_compression": tensor_meta.chunk_compression,
+            "htype": tensor_meta.htype or UNSPECIFIED,
+            "dtype": tensor_meta.dtype or UNSPECIFIED,
+            "sample_compression": tensor_meta.sample_compression or UNSPECIFIED,
+            "chunk_compression": tensor_meta.chunk_compression or UNSPECIFIED,
             "hidden": tensor_meta.hidden,
             "is_link": tensor_meta.is_link,
             "is_sequence": tensor_meta.is_sequence,

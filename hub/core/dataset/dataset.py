@@ -417,7 +417,7 @@ class Dataset:
             }
             if current_config != new_config:
                 raise ValueError(
-                    f"Tensor {name} already exists with different configuration."
+                    f"Tensor {name} already exists with different configuration. "
                     f"Current config: {current_config}. "
                     f"New config: {new_config}"
                 )
