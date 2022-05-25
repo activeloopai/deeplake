@@ -1,7 +1,6 @@
 import numpy as np
 import random
 import hub
-from click.testing import CliRunner
 
 
 def test_rechunk(local_ds):
@@ -69,17 +68,14 @@ def test_rechunk_2(local_ds):
         assert ds.compr.chunk_engine.num_chunks == 1
 
 
-def test_rechunk_3():
-    with CliRunner().isolated_filesystem():
-        NUM_TEST_SAMPLES = 100
-        hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
-        test_sample = np.random.randint(0, 255, size=(600, 600, 3), dtype=np.uint8)
-        dataset_path = r"local/path"
-        ds = hub.empty(dataset_path, overwrite=True)
+def test_rechunk_3(local_ds):
+    NUM_TEST_SAMPLES = 100
+    hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+    test_sample = np.random.randint(0, 255, size=(600, 600, 3), dtype=np.uint8)
+    with local_ds as ds:
         ds.create_tensor("test", dtype="uint8")
         r = list(range(NUM_TEST_SAMPLES))
         random.seed(20)
         random.shuffle(r)
-        with ds:
-            for i in r:
-                ds.test[i] = test_sample
+        for i in r:
+            ds.test[i] = test_sample
