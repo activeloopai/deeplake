@@ -1025,7 +1025,7 @@ def _decompress_audio(
 
 def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
     try:
-        import laspy as lp #type: ignore
+        import laspy as lp  # type: ignore
     except:
         raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
 
