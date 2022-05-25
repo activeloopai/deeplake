@@ -448,7 +448,17 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm", ".las", ".laz"]
+        file_formats = [
+            ".mp3",
+            ".flac",
+            ".wav",
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".dcm",
+            ".las",
+            ".laz",
+        ]
         path = str(path).lower()
         for fmt in file_formats:
             if path.endswith(fmt):
@@ -1022,7 +1032,9 @@ def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
     if isinstance(file, str):
         point_cloud = lp.read(file)
     else:
-        raise UnsupportedCompressionError
+        raise NotImplementedError(
+            "Working with bytes or memoryview is not yet supported"
+        )
     return point_cloud
 
 
