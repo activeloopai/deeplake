@@ -80,7 +80,7 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
-POINT_CLOUD_COMPRESSIONS = ["las"]
+POINT_CLOUD_COMPRESSIONS = ["las", "laz"]
 
 
 # Just constants

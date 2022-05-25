@@ -40,7 +40,10 @@ extras = {
         "google-auth",
         "google-auth-oauthlib",
     ],
-    "pc": ["laspy"],
+    "pc": [
+        "laspy",
+        "laspy[lazrs,laszip]"
+    ],
 }
 
 all_extras = {r for v in extras.values() for r in v}

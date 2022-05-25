@@ -16,3 +16,4 @@ pydicom
 IPython
 flask
 laspy
+laspy[lazrs,laszip]

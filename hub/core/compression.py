@@ -432,7 +432,7 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
-        elif compression == "las":
+        elif compression in ("las", "laz"):
             return _read_point_cloud_shape(file), "<f4"
         else:
             return _fast_decompress(file)
@@ -448,7 +448,7 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm", ".las"]
+        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm", ".las", ".laz"]
         path = str(path).lower()
         for fmt in file_formats:
             if path.endswith(fmt):
@@ -633,7 +633,7 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression)
-        elif compression in ("las"):
+        elif compression in ("las", "laz"):
             try:
                 shape, typestr = _read_point_cloud_shape(file), "<f4"
             except Exception as e:
