@@ -117,7 +117,6 @@ class dataset:
             cache_chain.clear()
 
         try:
-            read_only = storage.read_only
             if access_method == "stream":
                 return dataset_factory(
                     path=path,
@@ -313,7 +312,6 @@ class dataset:
             )
 
         try:
-            read_only = storage.read_only
             if access_method == "stream":
                 return dataset_factory(
                     path=path,

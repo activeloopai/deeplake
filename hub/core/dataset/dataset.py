@@ -172,6 +172,8 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
+        print("=========")
+        print(read_only)
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
@@ -202,9 +204,6 @@ class Dataset:
         ] = []  # This is a stack to support nested with contexts
         self._is_filtered_view = False
         self._view_info = None
-        if read_only and not self._read_only:
-            if self._locked_out:
-                raise LockedException("")
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -1243,8 +1242,10 @@ class Dataset:
                 storage.next_storage.enable_readonly()
         else:
             try:
+                print("Attempting lock")
                 locked = self._lock(err=err)
                 if locked:
+                    print("Locked")
                     self.storage.disable_readonly()
                     if (
                         isinstance(storage, LRUCache)
@@ -1252,8 +1253,10 @@ class Dataset:
                     ):
                         storage.next_storage.disable_readonly()
                 else:
+                    print("Not locked")
                     self.__dict__["_read_only"] = True
             except LockedException as e:
+                print("Lock exception")
                 self.__dict__["_read_only"] = True
                 raise e
 
