@@ -41,7 +41,6 @@ extras = {
         "google-auth-oauthlib",
     ],
     "pc": [
-        "laspy",
         "laspy[lazrs,laszip]"
     ],
 }
