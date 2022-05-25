@@ -2022,6 +2022,7 @@ class Dataset:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
                 )
+                vds.info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                 if len(self.index) > 1:
                     vds.info["sub-sample-index"] = Index(
                         self.index.values[1:]
@@ -2095,9 +2096,9 @@ class Dataset:
 
     def save_view(
         self,
+        message: Optional[str] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
         id: Optional[str] = None,
-        message: Optional[str] = None,
         optimize: bool = False,
         num_workers: int = 0,
         **ds_args,
@@ -2105,12 +2106,12 @@ class Dataset:
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
+            message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path.
                 If not, the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Uniquie id for this view.
-            message (Optional, str): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `copy` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2197,7 +2198,11 @@ class Dataset:
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
         ds.checkout(self.info["source-dataset-version"])
-        index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        first_index_subscriptable = self.info.get("first-index-subscriptable", True)
+        if first_index_subscriptable:
+            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        else:
+            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
         sub_sample_index = self.info.get("sub-sample-index")
         if sub_sample_index:
             index_entries += Index.from_json(sub_sample_index).values

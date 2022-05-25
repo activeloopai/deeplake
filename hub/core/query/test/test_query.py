@@ -111,12 +111,18 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-@pytest.mark.parametrize("optimize", [True, False])
-def test_sub_sample_view_save(optimize):
+@pytest.mark.parametrize("optimize,idx_subscriptable", [(True, False), (False, True)])
+def test_sub_sample_view_save(optimize, idx_subscriptable):
+    arr = np.random.random((100, 32, 32, 3))
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
-        ds.x.extend(np.random.random((100, 32, 32, 3)))
+        ds.x.extend(arr)
     view = ds[10:77, 2:17, 19:31, :1]
+    arr = arr[10:77, 2:17, 19:31, :1]
+    if idx_subscriptable:
+        view = view[0]
+        arr = arr[0]
+    np.testing.assert_array_equal(view.x.numpy(), arr)
     with pytest.raises(DatasetViewSavingError):
         view.save_view(optimize=optimize)
     ds.commit()
