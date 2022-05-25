@@ -448,16 +448,16 @@ class Dataset:
 
         if not self._is_root():
             return self.root.create_tensor(
-                key,
-                htype,
-                dtype,
-                sample_compression,
-                chunk_compression,
-                hidden,
-                create_sample_info_tensor,
-                create_shape_tensor,
-                create_id_tensor,
-                exist_ok,
+                name=key,
+                htype=htype,
+                dtype=dtype,
+                sample_compression=sample_compression,
+                chunk_compression=chunk_compression,
+                hidden=hidden,
+                create_sample_info_tensor=create_sample_info_tensor,
+                create_shape_tensor=create_shape_tensor,
+                create_id_tensor=create_id_tensor,
+                exist_ok=exist_ok,
                 **kwargs,
             )
 
