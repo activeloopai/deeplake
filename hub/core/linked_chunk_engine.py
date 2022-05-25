@@ -132,15 +132,17 @@ class LinkedChunkEngine(ChunkEngine):
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
 
-            if self.verify:
-                if sample is None:
-                    verified_samples.append(sample)
-                else:
-                    verified_samples.append(
-                        read_linked_sample(
-                            sample.path, sample.creds_key, self.link_creds, verify=True
-                        )
+            if sample is None:
+                verified_samples.append(sample)
+            else:
+                verified_samples.append(
+                    read_linked_sample(
+                        sample.path,
+                        sample.creds_key,
+                        self.link_creds,
+                        verify=self.verify,
                     )
+                )
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):
