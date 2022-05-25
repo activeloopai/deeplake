@@ -1702,3 +1702,14 @@ def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
     ):
         return converted_path
     return path
+
+def test_exist_ok(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("abc")
+        ds.create_tensor("abc", exist_ok=True)
+        ds.create_group("grp")
+        with pytest.raises(TensorGroupAlreadyExistsError):
+            ds.create_group("grp")
+        ds.create_group("grp", exist_ok=True)
