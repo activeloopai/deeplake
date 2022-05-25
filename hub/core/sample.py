@@ -97,10 +97,11 @@ class Sample:
         if path is not None:
             self.path = path
             self._compression = compression
-            self._verified = False
             self._verify = verify
             if self._verify:
-                self.buffer
+                self._shape, self._typestr = verify_compressed_file(  # type: ignore
+                    self.buffer, self._compression
+                )
 
         if array is not None:
             self._array = array
@@ -116,6 +117,10 @@ class Sample:
                 self._uncompressed_bytes = buffer
             else:
                 self._compressed_bytes[compression] = buffer
+                if self._verify:
+                    self._shape, self._typestr = verify_compressed_file(  # type: ignore
+                        buffer, self._compression
+                    )
 
     @property
     def buffer(self):
@@ -271,11 +276,7 @@ class Sample:
                 if self._compression is None:
                     self._compression = get_compression(header=compressed_bytes[:32])
                 if self._compression == compression:
-                    if self._verify:
-                        self._shape, self._typestr = verify_compressed_file(  # type: ignore
-                            compressed_bytes, self._compression
-                        )
-                    elif self._shape is None:
+                    if self._shape is None:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
                             compressed_bytes, compression=self._compression
                         )
