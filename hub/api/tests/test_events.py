@@ -12,8 +12,8 @@ def test_query_progress_event(hub_cloud_ds):
         ds.create_tensor("labels")
         ds.labels.append([0])
         ds.labels.append([1])
-
-    result = ds.filter("labels == 0", progressbar=False, store_result=True)
+    ds.commit()
+    result = ds.filter("labels == 0", progressbar=False, save_result=True)
     assert len(result) == 1
 
 
