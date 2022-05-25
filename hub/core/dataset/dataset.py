@@ -112,8 +112,6 @@ from hub.util.version_control import (
     create_commit_chunk_sets,
 )
 from hub.util.pretty_print import (
-    max_array_length,
-    get_string,
     summary_dataset,
 )
 from hub.client.utils import get_user_name
@@ -172,9 +170,8 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
-        print("=========")
-        print(read_only)
         d["storage"] = storage
+        print("storage readonly", storage.read_only, type(storage), type(get_base_storage(storage)), get_base_storage(storage).read_only)
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["_locked_out"] = False  # User requested write access but was denied
@@ -194,10 +191,10 @@ class Dataset:
             self._set_derived_attributes()
         except LockedException:
             raise LockedException(
-                "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=False`."
+                "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
             )
         except ReadOnlyModeError as e:
-            raise e
+            raise ReadOnlyModeError("This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True.")
         self._first_load_init()
         self._initial_autoflush: List[
             bool
@@ -890,6 +887,10 @@ class Dataset:
 
     def _lock(self, err=False):
         storage = get_base_storage(self.storage)
+        if storage.read_only and not self._locked_out:
+            if err:
+                raise ReadOnlyModeError()
+            return False
 
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
@@ -1242,10 +1243,8 @@ class Dataset:
                 storage.next_storage.enable_readonly()
         else:
             try:
-                print("Attempting lock")
                 locked = self._lock(err=err)
                 if locked:
-                    print("Locked")
                     self.storage.disable_readonly()
                     if (
                         isinstance(storage, LRUCache)
@@ -1253,10 +1252,8 @@ class Dataset:
                     ):
                         storage.next_storage.disable_readonly()
                 else:
-                    print("Not locked")
                     self.__dict__["_read_only"] = True
             except LockedException as e:
-                print("Lock exception")
                 self.__dict__["_read_only"] = True
                 raise e
 

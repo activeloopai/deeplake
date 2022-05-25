@@ -102,12 +102,16 @@ def storage_provider_from_hub_path(
             # warns user about automatic mode change
             print("Opening dataset in read-only mode as you don't have write permissions.")
 
+    if read_only is None:
+        read_only = DEFAULT_READONLY
+
 
     url = posixpath.join(url, subdir)
 
     storage = storage_provider_from_path(
         path=url, creds=creds, read_only=read_only, is_hub_path=True
     )
+    assert storage.read_only
     storage._set_hub_creds_info(path, expiration)
     return storage
 
