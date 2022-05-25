@@ -119,7 +119,7 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
         ds.x.extend(arr)
     view = ds[10:77, 2:17, 19:31, :1]
     arr = arr[10:77, 2:17, 19:31, :1]
-    if idx_subscriptable:
+    if not idx_subscriptable:
         view = view[0]
         arr = arr[0]
     np.testing.assert_array_equal(view.x.numpy(), arr)
