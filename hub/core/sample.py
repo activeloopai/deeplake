@@ -99,6 +99,8 @@ class Sample:
             self._compression = compression
             self._verified = False
             self._verify = verify
+            if self._verify:
+                self.buffer
 
         if array is not None:
             self._array = array
