@@ -96,15 +96,16 @@ def storage_provider_from_hub_path(
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
 
-    if  mode == "r":
+    if mode == "r":
         read_only = True
         if read_only is None and not DEFAULT_READONLY:
             # warns user about automatic mode change
-            print("Opening dataset in read-only mode as you don't have write permissions.")
+            print(
+                "Opening dataset in read-only mode as you don't have write permissions."
+            )
 
     if read_only is None:
         read_only = DEFAULT_READONLY
-
 
     url = posixpath.join(url, subdir)
 

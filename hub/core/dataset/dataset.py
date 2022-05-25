@@ -171,7 +171,13 @@ class Dataset:
             storage
         )
         d["storage"] = storage
-        print("storage readonly", storage.read_only, type(storage), type(get_base_storage(storage)), get_base_storage(storage).read_only)
+        print(
+            "storage readonly",
+            storage.read_only,
+            type(storage),
+            type(get_base_storage(storage)),
+            get_base_storage(storage).read_only,
+        )
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["_locked_out"] = False  # User requested write access but was denied
@@ -194,7 +200,9 @@ class Dataset:
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
             )
         except ReadOnlyModeError as e:
-            raise ReadOnlyModeError("This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True.")
+            raise ReadOnlyModeError(
+                "This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True."
+            )
         self._first_load_init()
         self._initial_autoflush: List[
             bool
