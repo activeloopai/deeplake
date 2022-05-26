@@ -35,8 +35,11 @@ def get_changes_and_messages_compared_to_prev(
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
     get_dataset_changes_for_id(commit_id, storage, ds_changes)
+
+    combine_data_deleted(tensor_changes)
     filter_cleared(tensor_changes)
     filter_data_updated(tensor_changes)
+    filter_renamed_diff(ds_changes)
     remove_empty_changes(tensor_changes)
 
     # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
@@ -116,9 +119,13 @@ def compare_commits(
             )
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
+
+        combine_data_deleted(tensor_changes)
+        filter_cleared(tensor_changes)
         filter_data_updated(tensor_changes)
         filter_renamed_diff(dataset_changes)
-        filter_cleared(tensor_changes)
+        remove_empty_changes(tensor_changes)
+
     return (
         dataset_changes_1,
         dataset_changes_2,
@@ -341,16 +348,40 @@ def get_tensor_changes_for_id(
             change["data_transformed_in_place"] = (
                 change.get("data_transformed_in_place") or commit_diff.data_transformed
             )
+
+            if "data_deleted_list" not in change:
+                change["data_deleted_list"] = [commit_diff.data_deleted]
+            else:
+                change["data_deleted_list"].append(commit_diff.data_deleted)
+
         except KeyError:
             pass
+
+
+def combine_data_deleted(changes: Dict[str, Dict]):
+    """Combines the data deleted list into a single list of tuples."""
+    data_deleted = []
+    for change in changes.values():
+        data_deleted_list = change.get("data_deleted_list", [])
+        for deleted_list in reversed(data_deleted_list):
+            for index in deleted_list:
+                offset = sum(i < index for i in data_deleted)
+                data_deleted.append(index + offset)
+    changes.pop("data_deleted_list", None)
+    changes["data_deleted"] = data_deleted
 
 
 def filter_data_updated(changes: Dict[str, Dict]):
     """Removes the intersection of data added and data updated from data updated."""
     for change in changes.values():
+        deleted_data = set(change.get("data_deleted", []))
         # only show the elements in data_updated that are not in data_added
         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
-        upd = {data for data in change["data_updated"] if data not in data_added_range}
+        upd = {
+            data
+            for data in change["data_updated"]
+            if data not in data_added_range and data not in deleted_data
+        }
         change["data_updated"] = upd
 
 
