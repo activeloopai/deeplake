@@ -171,13 +171,6 @@ class Dataset:
             storage
         )
         d["storage"] = storage
-        print(
-            "storage readonly",
-            storage.read_only,
-            type(storage),
-            type(get_base_storage(storage)),
-            get_base_storage(storage).read_only,
-        )
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["_locked_out"] = False  # User requested write access but was denied
