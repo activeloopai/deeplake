@@ -146,7 +146,6 @@ class PersistentLock(Lock):
         if self.acquired:
             return
         self.storage.check_readonly()
-        assert self.storage.read_only
         lock_bytes = self.storage.get(self.path)
         if lock_bytes is not None:
             nodeid = None
