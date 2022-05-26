@@ -21,6 +21,8 @@ Supported htypes and their respective defaults are:
 | HTYPE          |  DTYPE    |  COMPRESSION  |
 | ------------   |  -------  |  -----------  |
 | image          |  uint8    |  none         |
+| image.rgb      |  uint8    |  none         |
+| image.gray     |  uint8    |  none         |
 | class_label    |  uint32   |  none         |
 | bbox           |  float32  |  none         |
 | video          |  uint8    |  none         |
