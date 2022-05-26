@@ -1,4 +1,5 @@
-from typing import Optional
+import pathlib
+from typing import Optional, Union
 from hub.core.storage.provider import StorageProvider
 import glob
 import os
@@ -76,3 +77,9 @@ def get_path_type(path: Optional[str]) -> str:
 
 def is_remote_path(path: str) -> bool:
     return get_path_type(path) != "local"
+
+
+def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
+    if isinstance(path, pathlib.Path):
+        path = str(path)
+    return path

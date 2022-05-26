@@ -127,6 +127,8 @@ coverage.xml
 .pytest_cache/
 .tests/
 .test_resources/
+*Python-3.7*
+*mem:/*
 
 # Translations
 *.mo

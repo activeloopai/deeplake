@@ -279,17 +279,19 @@ def test_forced_htypes(
         gray = ds.create_tensor("gray", htype="image.gray", sample_compression="jpeg")
         rgb = ds.create_tensor("rgb", htype="image.rgb", sample_compression="jpeg")
 
-        ds.gray.append(hub.read(grayscale_image_paths["jpeg"]))
-        ds.gray.append(hub.read(color_image_paths["jpeg"]))
-        ds.gray.extend(np.ones((4, 10, 10, 3), dtype=np.uint8))
-        ds.gray.extend(
+        gray.append(hub.read(grayscale_image_paths["jpeg"]))
+        gray.append(hub.read(color_image_paths["jpeg"]))
+        gray.append(hub.read(flower_path))
+        gray.extend(np.ones((4, 10, 10, 3), dtype=np.uint8))
+        gray.extend(
             [hub.read(color_image_paths["jpeg"]), np.ones((10, 10), dtype=np.uint8)]
         )
 
-        ds.rgb.append(hub.read(grayscale_image_paths["jpeg"]))
-        ds.rgb.append(hub.read(color_image_paths["jpeg"]))
-        ds.rgb.extend(np.ones((4, 10, 10), dtype=np.uint8))
-        ds.rgb.extend(
+        rgb.append(hub.read(grayscale_image_paths["jpeg"]))
+        rgb.append(hub.read(color_image_paths["jpeg"]))
+        rgb.append(hub.read(flower_path))
+        rgb.extend(np.ones((4, 10, 10), dtype=np.uint8))
+        rgb.extend(
             [
                 hub.read(grayscale_image_paths["jpeg"]),
                 np.ones((10, 10, 3), dtype=np.uint8),

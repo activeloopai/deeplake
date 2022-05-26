@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import pathlib
 import pytest
 import hub
 from hub.core.dataset import Dataset
@@ -658,19 +659,25 @@ def test_index_range(memory_ds):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
-def test_empty_dataset():
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_empty_dataset(convert_to_pathlib):
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test")
+        test_path = "test"
+        test_path = convert_string_to_pathlib_if_needed(test_path, convert_to_pathlib)
+        ds = hub.dataset(test_path)
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = hub.dataset("test")
+        ds = hub.dataset(test_path)
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
-def test_like(local_path):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_like(local_path, convert_to_pathlib):
     src_path = os.path.join(local_path, "src")
+    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
     dest_path = os.path.join(local_path, "dest")
+    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.dataset(src_path)
     src_ds.info.update(key=0)
@@ -734,6 +741,13 @@ def test_dataset_delete():
         hub.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
+        pathlib_path = pathlib.Path("test/")
+        hub.empty(pathlib_path).create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.delete(pathlib_path)
+        assert not os.path.isfile("test/dataset_meta.json")
+
         old_size = hub.constants.DELETE_SAFETY_SIZE
         hub.constants.DELETE_SAFETY_SIZE = 1 * MB
 
@@ -762,17 +776,21 @@ def test_dataset_delete():
     ],
     indirect=True,
 )
-def test_dataset_rename(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ds = ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
 
     new_path = "_".join([path, "renamed"])
 
+    ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
+    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
+
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
 
-    if ds.path.startswith("hub://"):
+    if str(ds.path).startswith("hub://"):
         with pytest.raises(BadRequestException):
             ds.rename(ds.path)
     else:
@@ -802,9 +820,15 @@ def test_dataset_rename(ds_generator, path, hub_token):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_deepcopy(
+    path, hub_token, num_workers, progressbar, convert_to_pathlib
+):
     src_path = "_".join((path, "src"))
+    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
+
     dest_path = "_".join((path, "dest"))
+    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
 
@@ -861,6 +885,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    # test fot dataset.load:
     dest_ds = hub.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
@@ -881,6 +906,20 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    hub.deepcopy(
+        src_path,
+        dest_path,
+        tensors=["a", "d"],
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
     hub.delete(src_path, token=hub_token)
     hub.delete(dest_path, token=hub_token)
 
@@ -1479,6 +1518,35 @@ def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
                 np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
 
 
+def test_sequence_shapes(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
+
+        assert ds.abc[0].shape == (3, 1)
+
+        assert ds.abc.shape_interval.lower == (2, 3, 1)
+        assert ds.abc.shape_interval.upper == (2, 4, 1)
+
+        ds.create_tensor("xyz", htype="sequence")
+        ds.xyz.append([[[1, 2], [3, 4]], [[1, 2, 3], [4, 5, 6]]])
+
+        assert ds.xyz.shape == (1, 2, 2, None)
+        assert ds.xyz[0][0].shape == (2, 2)
+        assert ds.xyz[0][1].shape == (2, 3)
+
+        assert ds.xyz.shape_interval.lower == (1, 2, 2, 2)
+        assert ds.xyz.shape_interval.upper == (1, 2, 2, 3)
+
+        ds.create_tensor("red", htype="sequence")
+        ds.red.extend([[4, 5, 6, 7], [1, 2, 3]])
+
+        assert ds.red[0].shape == (4, 1)
+
+        assert ds.red.shape_interval.lower == (2, 3, 1)
+        assert ds.abc.shape_interval.upper == (2, 4, 1)
+
+
 def test_shape_bug(memory_ds):
     ds = memory_ds
     ds.create_tensor("x")
@@ -1520,24 +1588,41 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize(
     "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
 )
-def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_copy(
+    memory_ds, local_ds, num_workers, progressbar, index, convert_to_pathlib
+):
+    memory_ds.path = convert_string_to_pathlib_if_needed(
+        memory_ds.path, convert_to_pathlib
+    )
+    local_ds.path = convert_string_to_pathlib_if_needed(
+        local_ds.path, convert_to_pathlib
+    )
+
     ds = memory_ds
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("images/image1")
+        ds.create_tensor("images/image2")
         ds.create_tensor("label")
+        ds.create_tensor("nocopy")
         for _ in range(10):
-            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
             ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.nocopy.append([0])
 
     hub.copy(
         ds[index],
         local_ds.path,
+        tensors=["images", "label"],
         overwrite=True,
         num_workers=num_workers,
         progressbar=progressbar,
     )
     local_ds = hub.load(local_ds.path)
-    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
+    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+    for t in local_ds.tensors:
+        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(
@@ -1550,7 +1635,9 @@ def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
     ],
     indirect=True,
 )
-def test_hub_exists(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
+    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
@@ -1573,3 +1660,66 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.checkout("branch", create=True)
     assert local_ds.branch == "branch"
     local_ds.create_tensor("x")
+
+
+def test_access_method(s3_ds_generator):
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="download")
+
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="local")
+
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("x")
+        for i in range(10):
+            ds.x.append(i)
+
+    ds = s3_ds_generator(access_method="download")
+    with pytest.raises(DatasetHandlerError):
+        # second time download is not allowed
+        s3_ds_generator(access_method="download")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="invalid")
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="download", overwrite=True)
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="local", overwrite=True)
+
+    ds = s3_ds_generator(access_method="local")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    ds.delete()
+
+
+def test_partial_read_then_write(s3_ds_generator):
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("xyz")
+        for i in range(10):
+            ds.xyz.append(i * np.ones((1000, 1000)))
+
+    ds = s3_ds_generator()
+    np.testing.assert_array_equal(ds.xyz[0].numpy(), 0 * np.ones((1000, 1000)))
+
+    with ds:
+        ds.xyz[1] = 20 * np.ones((1000, 1000))
+
+
+def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
+    converted_path = pathlib.Path(path)
+    if (
+        convert_to_pathlib
+        and "//" not in path
+        and not isinstance(converted_path, pathlib.WindowsPath)
+    ):
+        return converted_path
+    return path

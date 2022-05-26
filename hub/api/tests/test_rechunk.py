@@ -1,4 +1,6 @@
 import numpy as np
+import random
+import hub
 
 
 def test_rechunk(local_ds):
@@ -64,3 +66,18 @@ def test_rechunk_2(local_ds):
             ds.compr[i] = np.random.randint(0, 3, size=(10, 10, 10))
         assert len(ds.compr) == 100
         assert ds.compr.chunk_engine.num_chunks == 1
+
+
+def test_rechunk_3():
+    NUM_TEST_SAMPLES = 100
+    hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+    test_sample = np.random.randint(0, 255, size=(600, 600, 3), dtype=np.uint8)
+    dataset_path = r"local/path"
+    ds = hub.empty(dataset_path, overwrite=True)
+    ds.create_tensor("test", dtype="uint8")
+    r = list(range(NUM_TEST_SAMPLES))
+    random.seed(20)
+    random.shuffle(r)
+    with ds:
+        for i in r:
+            ds.test[i] = test_sample

@@ -310,7 +310,7 @@ def discard_old_metas(
         all_src_keys.append(src_tensor_info_key)
 
     for key in all_src_keys:
-        storage.dirty_keys.discard(key)
+        storage.dirty_keys.pop(key, None)
         if key in storage.lru_sizes:
             size = storage.lru_sizes.pop(key)
             storage.cache_used -= size
