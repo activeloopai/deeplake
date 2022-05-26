@@ -20,6 +20,10 @@ enabled_non_gcs_datasets = pytest.mark.parametrize(
     indirect=True,
 )
 
+enabled_non_gcs_gdrive_datasets = pytest.mark.parametrize(
+    "ds", ["memory_ds", "local_ds", "s3_ds"], indirect=True
+)
+
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
     "ds_generator",
     [
