@@ -266,6 +266,9 @@ class Index:
         elif item in ((), [], None):
             item = slice(None)
 
+        if isinstance(item, tuple):
+            item = list(map(IndexEntry, item))
+
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
 
