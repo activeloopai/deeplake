@@ -112,7 +112,6 @@ def storage_provider_from_hub_path(
     storage = storage_provider_from_path(
         path=url, creds=creds, read_only=read_only, is_hub_path=True
     )
-    assert storage.read_only
     storage._set_hub_creds_info(path, expiration)
     return storage
 
