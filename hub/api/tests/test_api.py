@@ -1586,7 +1586,7 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
 @pytest.mark.parametrize(
-    "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
+    "index", [slice(None), slice(5, None, None), slice(None, 8, 2), 7]
 )
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 def test_dataset_copy(
@@ -1608,21 +1608,27 @@ def test_dataset_copy(
         for _ in range(10):
             ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
             ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
-            ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.label.append(np.random.randint(0, 10, (1, 10)))
             ds.nocopy.append([0])
 
-    hub.copy(
-        ds[index],
-        local_ds.path,
-        tensors=["images", "label"],
-        overwrite=True,
-        num_workers=num_workers,
-        progressbar=progressbar,
+    expect = (
+        pytest.raises(NotImplementedError)
+        if isinstance(index, int)
+        else memoryview(b"")
     )
-    local_ds = hub.load(local_ds.path)
-    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
-    for t in local_ds.tensors:
-        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
+    with expect:
+        hub.copy(
+            ds[index],
+            local_ds.path,
+            tensors=["images", "label"],
+            overwrite=True,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
+        local_ds = hub.load(local_ds.path)
+        assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+        for t in local_ds.tensors:
+            np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(

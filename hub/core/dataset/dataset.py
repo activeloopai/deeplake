@@ -2022,11 +2022,9 @@ class Dataset:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
                 )
-                vds.info["first-index-subscriptable"] = self.index.subscriptable_at(0)
+                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                 if len(self.index) > 1:
-                    vds.info["sub-sample-index"] = Index(
-                        self.index.values[1:]
-                    ).to_json()
+                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
             vds.info.update(info)
 
     def _save_view_in_subdir(
@@ -2444,6 +2442,9 @@ class Dataset:
 
         with dest_ds:
             dest_ds.info.update(self.info)
+
+        if not self.index.subscriptable_at(0):
+            raise NotImplementedError("Sub-sample views cannot be copied.")
 
         for tensor in dest_ds.tensors:
             if progressbar:

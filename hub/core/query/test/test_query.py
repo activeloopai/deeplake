@@ -111,7 +111,9 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-@pytest.mark.parametrize("optimize,idx_subscriptable", [(True, False), (False, True)])
+@pytest.mark.parametrize(
+    "optimize,idx_subscriptable", [(True, True), (False, False), (True, False)]
+)
 def test_sub_sample_view_save(optimize, idx_subscriptable):
     arr = np.random.random((100, 32, 32, 3))
     with hub.dataset(".tests/ds", overwrite=True) as ds:
@@ -126,9 +128,16 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
     with pytest.raises(DatasetViewSavingError):
         view.save_view(optimize=optimize)
     ds.commit()
-    view.save_view(optimize=optimize)
-    view2 = ds.get_views()[0].load()
-    np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
+    expect = (
+        pytest.raises(NotImplementedError)
+        if optimize and not idx_subscriptable
+        else memoryview(b"")
+    )
+    with expect:
+        view.save_view(optimize=optimize)
+        assert len(ds.get_views()) == 1
+        view2 = ds.get_views()[0].load()
+        np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
 
 
 @pytest.mark.parametrize("optimize", [True, False])
@@ -137,9 +146,9 @@ def test_dataset_view_save(optimize):
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
+        view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
+    view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
@@ -148,9 +157,9 @@ def test_dataset_view_save(optimize):
     ds.commit()
     _populate_data(ds)
     with pytest.raises(DatasetViewSavingError):
-        view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
+        view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
-    view.save_view(".tests/ds_view", overwrite=True, optimize=optimize)
+    view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
 
 
 @pytest.mark.parametrize(
