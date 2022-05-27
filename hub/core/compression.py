@@ -843,6 +843,15 @@ def _decompress_video(
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
+    if start is None:
+        start = 0
+
+    if stop is None:
+        stop = nframes
+
+    if step is None:
+        step = 1
+
     nframes = math.ceil((stop - start) / step)
 
     video = np.zeros((nframes, height, width, 3), dtype=np.uint8)
