@@ -62,15 +62,16 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 @pytest.mark.parametrize(
-    "vstream_path",
-    ["gcs_vstream_path", "s3_vstream_path", "hub_cloud_vstream_path"],
+    ("vstream_path", "hub_token"),
+    [
+        ("gcs_vstream_path", "hub_cloud_dev_token"),
+        ("s3_vstream_path", "hub_cloud_dev_token"),
+        ("hub_cloud_vstream_path", "hub_cloud_dev_token"),
+    ],
     indirect=True,
 )
-def test_video_streaming(vstream_path, hub_cloud_dev_token):
-    if vstream_path.startswith("hub://"):
-        ds = hub.load(vstream_path, read_only=True, token=hub_cloud_dev_token)
-    else:
-        ds = hub.load(vstream_path, read_only=True)
+def test_video_streaming(vstream_path, hub_token):
+    ds = hub.load(vstream_path, read_only=True, token=hub_token)
 
     # no streaming, downloads chunk
     assert ds.mp4_videos[0].shape == (400, 360, 640, 3)
@@ -88,22 +89,23 @@ def test_video_streaming(vstream_path, hub_cloud_dev_token):
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 @pytest.mark.parametrize(
-    "vstream_path",
-    ["gcs_vstream_path", "s3_vstream_path", "hub_cloud_vstream_path"],
+    ("vstream_path", "hub_token"),
+    [
+        ("gcs_vstream_path", "hub_cloud_dev_token"),
+        ("s3_vstream_path", "hub_cloud_dev_token"),
+        ("hub_cloud_vstream_path", "hub_cloud_dev_token"),
+    ],
     indirect=True,
 )
-def test_video_timestamps(vstream_path, hub_cloud_dev_token):
-    if vstream_path.startswith("hub://"):
-        ds = hub.load(vstream_path, read_only=True, token=hub_cloud_dev_token)
-    else:
-        ds = hub.load(vstream_path, read_only=True)
+def test_video_timestamps(vstream_path, hub_token):
+    ds = hub.load(vstream_path, read_only=True, token=hub_token)
 
     with pytest.raises(ValueError):
         stamps = ds.mp4_videos[:2].timestamp
 
-    stamps = ds.large_video[0, 1200:1300].timestamp
+    stamps = ds.large_video[0, 1200:1300:2].timestamp
 
-    assert len(stamps) == 100
+    assert len(stamps) == 50
 
     # timestamp is 50, 24 fps video, 50 * 24 = 1200th frame
     assert stamps[0] == 50
