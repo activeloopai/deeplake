@@ -835,9 +835,9 @@ def _read_video_shape(
 
 def _decompress_video(
     file: Union[str, bytes],
-    start: Optional[int],
-    stop: Optional[int],
-    step: Optional[int],
+    start: int,
+    stop: int,
+    step: int,
     reverse: bool,
 ):
     container, vstream = _open_video(file)
@@ -889,9 +889,9 @@ def _decompress_video(
 
 def _read_timestamps(
     file: Union[str, bytes],
-    start: Optional[int],
-    stop: Optional[int],
-    step: Optional[int],
+    start: int,
+    stop: int,
+    step: int,
     reverse: bool,
 ):
     container, vstream = _open_video(file)
