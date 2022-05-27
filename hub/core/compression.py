@@ -843,15 +843,6 @@ def _decompress_video(
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
-    if start is None:
-        start = 0
-
-    if stop is None:
-        stop = nframes
-
-    if step is None:
-        step = 1
-
     nframes = math.ceil((stop - start) / step)
 
     video = np.zeros((nframes, height, width, 3), dtype=np.uint8)
@@ -894,6 +885,66 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _read_timestamps(
+    file: Union[str, bytes],
+    start: Optional[int],
+    stop: Optional[int],
+    step: Optional[int],
+    reverse: bool,
+):
+    container, vstream = _open_video(file)
+
+    nframes = math.ceil((stop - start) / step)
+
+    seek_target = _frame_to_stamp(start, vstream)
+    step_time = _frame_to_stamp(step, vstream)
+
+    stamps = np.zeros((nframes, 1), dtype=np.float32)
+    if vstream.duration is None:
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+
+    gop_size = (
+        vstream.codec_context.gop_size
+    )  # gop size is distance (in frames) between 2 I-frames
+    if step > gop_size:
+        step_seeking = True
+    else:
+        step_seeking = False
+
+    seekable = True
+    try:
+        container.seek(seek_target, stream=vstream)
+    except av.error.PermissionError:
+        seekable = False
+        container, vstream = _open_video(file)  # try again but this time don't seek
+        warning(
+            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+        )
+
+    i = 0
+    for packet in container.demux(video=0):
+        pts = packet.pts
+        if pts and pts >= seek_target:
+            stamps[i] = pts * time_base
+            i += 1
+            seek_target += step_time
+            if step_seeking and seekable:
+                container.seek(seek_target, stream=vstream)
+
+        if i == nframes:
+            break
+
+    # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
+    # we need it in order of pts (presentation timestamp)
+    stamps.sort(axis=0)
+
+    if reverse:
+        return stamps[::-1]
+    return stamps
 
 
 def _open_audio(file: Union[str, bytes, memoryview]):

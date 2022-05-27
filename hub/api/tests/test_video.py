@@ -82,3 +82,35 @@ def test_video_streaming(vstream_path, hub_cloud_dev_token):
     assert ds.large_video[0, 13500].numpy().shape == (546, 1280, 3)
     # will use cached url
     assert ds.large_video[0, 18000].numpy().shape == (546, 1280, 3)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+@pytest.mark.parametrize(
+    "vstream_path",
+    ["gcs_vstream_path", "s3_vstream_path", "hub_cloud_vstream_path"],
+    indirect=True,
+)
+def test_video_timestamps(vstream_path, hub_cloud_dev_token):
+    if vstream_path.startswith("hub://"):
+        ds = hub.load(vstream_path, read_only=True, token=hub_cloud_dev_token)
+    else:
+        ds = hub.load(vstream_path, read_only=True)
+
+    with pytest.raises(ValueError):
+        stamps = ds.mp4_videos[:2].timestamp
+
+    stamps = ds.large_video[0, 1200:1300].timestamp
+
+    assert len(stamps) == 100
+
+    # timestamp is 50, 24 fps video, 50 * 24 = 1200th frame
+    assert stamps[0] == 50
+
+
+def test_video_exception(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        with pytest.raises(Exception):
+            stamps = ds.abc.timestamp

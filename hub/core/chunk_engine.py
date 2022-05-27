@@ -1281,7 +1281,7 @@ class ChunkEngine:
             index, aslist, use_data_cache, fetch_chunks
         )
 
-    def get_video_sample(self, global_sample_index, index):
+    def get_video_sample(self, global_sample_index, index, decompress=True):
         enc = self.chunk_id_encoder
         chunk_ids = enc[global_sample_index]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
@@ -1291,7 +1291,11 @@ class ChunkEngine:
             local_sample_index,
             sub_index=sub_index,
             stream=stream,
-        )[tuple(entry.value for entry in index.values[2:])]
+            decompress=decompress,
+            copy=not decompress,
+        )
+        if decompress:
+            return sample[tuple(entry.value for entry in index.values[2:])]
         return sample
 
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):

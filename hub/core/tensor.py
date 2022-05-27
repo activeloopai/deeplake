@@ -12,6 +12,7 @@ from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.compression import _read_timestamps
 from hub.core.tensor_link import get_link_transform
 from hub.api.info import load_info
 from hub.util.keys import (
@@ -51,6 +52,7 @@ from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
 
 
 from hub.util.version_control import auto_checkout
+from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
@@ -909,3 +911,21 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @property
+    def timestamp(self):
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        if self.index.values[0].subscriptable():
+            raise ValueError("Only supported for exactly 1 sample.")
+        index = self.index
+        sub_index = index.values[1].value if len(index.values) > 1 else None
+        sample = self.chunk_engine.get_video_sample(
+            index.values[0].value, index, decompress=False
+        )
+
+        nframes = self.shape[0]
+        start, stop, step, reverse = normalize_index(sub_index, nframes)
+
+        stamps = _read_timestamps(sample, start, stop, step, reverse)
+        return stamps
