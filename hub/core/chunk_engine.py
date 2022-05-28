@@ -1292,7 +1292,6 @@ class ChunkEngine:
             sub_index=sub_index,
             stream=stream,
             decompress=decompress,
-            copy=not decompress,
         )
         if decompress:
             return sample[tuple(entry.value for entry in index.values[2:])]

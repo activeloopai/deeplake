@@ -103,11 +103,17 @@ def test_video_timestamps(vstream_path, hub_token):
     with pytest.raises(ValueError):
         stamps = ds.mp4_videos[:2].timestamp
 
+    stamps = ds.large_video[0, 12000:1199:-100].timestamp
+
+    assert len(stamps) == 109
+
+    # timestamp is 50, 24 fps video, 50 * 24 = 1200th frame
+    assert stamps[-1] == 50
+
+    # cover stepping without seeking
     stamps = ds.large_video[0, 1200:1300:2].timestamp
 
     assert len(stamps) == 50
-
-    # timestamp is 50, 24 fps video, 50 * 24 = 1200th frame
     assert stamps[0] == 50
 
 
