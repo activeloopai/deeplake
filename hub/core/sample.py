@@ -93,11 +93,11 @@ class Sample:
         self.storage = storage
         self._buffer = None
         self._creds = creds or {}
+        self._verify = verify
 
         if path is not None:
             self.path = path
             self._compression = compression
-            self._verify = verify
             if self._verify:
                 self._shape, self._typestr = verify_compressed_file(self.buffer, self._compression)  # type: ignore
 
