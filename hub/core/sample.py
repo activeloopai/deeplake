@@ -99,9 +99,7 @@ class Sample:
             self._compression = compression
             self._verify = verify
             if self._verify:
-                self._shape, self._typestr = verify_compressed_file(  # type: ignore
-                    self.buffer, self._compression
-                )
+                self._shape, self._typestr = verify_compressed_file(self.buffer, self._compression)  # type: ignore
 
         if array is not None:
             self._array = array
@@ -118,9 +116,7 @@ class Sample:
             else:
                 self._compressed_bytes[compression] = buffer
                 if self._verify:
-                    self._shape, self._typestr = verify_compressed_file(  # type: ignore
-                        buffer, self._compression
-                    )
+                    self._shape, self._typestr = verify_compressed_file(buffer, self._compression)  # type: ignore
 
     @property
     def buffer(self):
