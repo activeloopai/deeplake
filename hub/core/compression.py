@@ -910,7 +910,7 @@ def _read_timestamps(
     seek_target = _frame_to_stamp(start, vstream)
     step_time = _frame_to_stamp(step, vstream)
 
-    stamps = np.zeros((nframes, 1), dtype=np.float32)
+    stamps = []
     if vstream.duration is None:
         time_base = 1 / av.time_base
     else:
@@ -938,7 +938,7 @@ def _read_timestamps(
     for packet in container.demux(video=0):
         pts = packet.pts
         if pts and pts >= seek_target:
-            stamps[i] = pts * time_base
+            stamps.append(pts * time_base)
             i += 1
             seek_target += step_time
             if step_seeking and seekable:
@@ -949,11 +949,13 @@ def _read_timestamps(
 
     # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
     # we need it in order of pts (presentation timestamp)
-    stamps.sort(axis=0)
+    stamps.sort()
+    stamps_arr = np.zeros((nframes,), dtype=np.float32)
+    stamps_arr[: len(stamps)] = stamps
 
     if reverse:
-        return stamps[::-1]
-    return stamps
+        return stamps_arr[::-1]
+    return stamps_arr
 
 
 def _open_audio(file: Union[str, bytes, memoryview]):

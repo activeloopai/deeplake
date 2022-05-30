@@ -1,9 +1,11 @@
 import os
+from re import L
 import sys
 import pytest
 
 import hub
 from hub.core.dataset import Dataset
+from hub.util.exceptions import DynamicTensorNumpyError
 
 import numpy as np
 
@@ -122,3 +124,31 @@ def test_video_exception(local_ds):
         ds.create_tensor("abc")
         with pytest.raises(Exception):
             stamps = ds.abc.timestamp
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+def test_video_data(local_ds, video_paths):
+    with local_ds as ds:
+        ds.create_tensor("video", htype="video", sample_compression="mp4")
+        for _ in range(3):
+            ds.video.append(hub.read(video_paths["mp4"][0]))
+        ds.video.append(hub.read(video_paths["mp4"][1]))
+
+        assert ds.video[:2, 4, :5, :5].data().shape == (2, 5, 5, 3)
+
+        data = ds.video[:2, 10:20].data()
+        assert data["frames"].shape == (2, 10, 360, 640, 3)
+        assert data["timestamps"].shape == (2, 10)
+
+        with pytest.raises(DynamicTensorNumpyError):
+            ds.video[2:].data()
+
+        data = ds.video[2:].data(aslist=True)
+        assert len(data["frames"]) == 2
+        assert data["frames"][0].shape == ds.video[2].shape
+        assert data["frames"][1].shape == ds.video[3].shape
+        assert len(data["timestamps"]) == 2
+        assert data["timestamps"][0].shape == (ds.video[2].shape[0],)
+        assert data["timestamps"][1].shape == (ds.video[3].shape[0],)
