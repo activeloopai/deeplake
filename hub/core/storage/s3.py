@@ -476,7 +476,7 @@ class S3Provider(StorageProvider):
             mode = "r" if self.read_only else "a"
 
             url, creds, mode, expiration = client.get_dataset_credentials(
-                org_id, ds_name, mode
+                org_id, ds_name, mode, force,
             )
             self.expiration = expiration
             self._set_s3_client_and_resource(
