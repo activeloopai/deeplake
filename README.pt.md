@@ -1,9 +1,10 @@
-<img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-     <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
-</h1>
-    </br>
-    <h1 align="center">Dataset Format for AI
- </h1>
+<img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" />
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
+  <h1 align="center">Formatação de Dados para IA</h1>
+</p>
+
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
@@ -11,82 +12,113 @@
      <a href="https://github.com/activeloopai/Hub/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/main"><img src="https://codecov.io/gh/activeloopai/Hub/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
-  <h3 align="center">
-   <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentation</b></a> &bull;
-   <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Getting Started</b></a> &bull;
-   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
-   <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
+</p>
+
+<h3 align="center">
+   <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentação</b></a> &bull;
+   <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Primeiros Passos</b></a> &bull;
+   <a href="https://api-docs.activeloop.ai/"><b>Referências da API</b></a> &bull;  
+   <a href="https://github.com/activeloopai/examples/"><b>Exemplos</b></a> &bull;
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
-  <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
+  <a href="http://slack.activeloop.ai"><b>Comunidade no Slack</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20dataset%20format%20for%20AI.%20Stream%20data%20to%20PyTorch%20and%20Tensorflow%20datasets&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,databaseforAI"><b>Twitter</b></a>
  </h3>
- 
 
-*Read this in other languages: [简体中文](README.zh-cn.md)*
+*Leia isto em outros idiomas: [简体中文](README.zh-cn.md), [Inglês](README.pt.md)*
 
-## About Hub
+# Conteúdos
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
+<!-- TOC -->
+
+- [Conteúdos](#conteúdos)
+  - [ℹ️ Sobre a Hub](#ℹ️-sobre-a-hub)
+  - [🚀 Dando os Primeiros Passos com a Hub](#-dando-os-primeiros-passos-com-a-hub)
+    - [💻 Como Instalar o Hub](#-como-instalar-o-hub)
+    - [🧠 Treinando um modelo PyTorch em um conjunto de dados da Hub](#-treinando-um-modelo-pytorch-em-um-conjunto-de-dados-da-hub)
+      - [Carregar Cifar 10, um dos conjuntos de dados prontamente disponíveis no Hub](#carregar-cifar-10-um-dos-conjuntos-de-dados-prontamente-disponíveis-no-hub)
+      - [Inspecione os tensors no conjunto de dados](#inspecione-os-tensors-no-conjunto-de-dados)
+      - [Treine um modelo PyTorch no conjunto de dados Cifar 10 sem a necessidade de baixá-lo](#treine-um-modelo-pytorch-no-conjunto-de-dados-cifar-10-sem-a-necessidade-de-baixá-lo)
+    - [🏗️ Como criar os Dados na Hub](#️-como-criar-os-dados-na-hub)
+    - [🔄 Como carregar os Dados da Hub](#-como-carregar-os-dados-da-hub)
+  - [📚 Documentação](#-documentação)
+  - [🎓 Para Estudantes e Educadores](#-para-estudantes-e-educadores)
+  - [👩‍💻 Comparações entre Ferramentas Familiares](#-comparações-entre-ferramentas-familiares)
+  - [👨‍👩‍👧‍👦 Comunidade](#-comunidade)
+  - [🔖 Emblema para o README](#-emblema-para-o-readme)
+  - [🏛️ Avisos Legais](#️-avisos-legais)
+  - [💬 citações](#-citações)
+  - [✒️ Reconhecimento](#️-reconhecimento)
+
+<!-- /TOC -->
+
+## ℹ️ Sobre a Hub
+
+O Hub é um formato de conjunto de dados com uma API simples para criar, armazenar e colaborar nos conjuntos de dados de AI de qualquer tamanho.Ele permite armazenar todos os seus dados em um só lugar, variando de anotações simples a vídeos grandes, e desbloqueia um fluxo rápido de dados ao treinar modelos em escala.O Hub é usado pelo Google, Waymo, Cruz Vermelha, Universidade de Oxford e Omdena.Hub inclui os seguintes recursos:
 
 <details>
-  <summary><b>Storage Agnostic API</b></summary>
-Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
-</details>
-<details>
-  <summary><b>Compressed Storage</b></summary>
-Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
-</details>
-<details>
-  <summary><b>Lazy NumPy-like Indexing</b></summary>
-Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
-</details>
-<details>
-  <summary><b>Dataset Version Control</b></summary>
-Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
-</details>
-<details>
-  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
-Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
-</details>
-<details>
-  <summary><b>Distributed Transformations</b></summary>
-Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
-<details>
-  <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
-Hub community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
-</details>
-</details>
-<details>
-  <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
-Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+  <summary><b>Armazenamento agnóstico API</b></summary>
+Use a mesma API para fazer upload, baixar e transmitir conjuntos de dados de/para o AWS S3/S3 Compatível de armazenamento, GCP, ActiveLoop Cloud, armazenamento local e também em memória.
 </details>
 
+<details>
+  <summary><b>Armazenamento comprimido</b></summary>
+Armazene imagens, áudios e vídeos em sua compressão nativa, descomprimindo -os apenas quando necessário, por exemplo, ao treinar um modelo.
+</details>
+
+<details>
+  <summary><b>Indexação preguiçosa do tipo Numpy</b></summary>
+Trate seus conjuntos de dados S3 ou GCP como se fossem uma coleção de matrizes Numpy na memória do seu sistema.Corte -os, indexe -os ou itera através deles.Somente os bytes que você pedir serão baixados!
+</details>
+
+<details>
+  <summary><b>Controle da versão do conjunto de dados</b></summary>
+Compromissos, Ramificações, Checkout. Conceitos Com Os Quais Você Já Está Familiarizado Em Seus Repositórios De Código Agora Pode Ser Aplicado Aos Seus Conjuntos De Dados Também!
+</details>
+
+<details>
+  <summary><b>Integrações com estruturas de aprendizado profundo</b></summary>
+Hub Vem com integrações internas para Pytorch e Tensorflow. Treine seu modelo com algumas linhas de código - até cuidamos do conjunto de dados. :)
+</details>
+
+<details>
+  <summary><b>Transformações distribuídas</b></summary>
+Aplique rapidamente transformações em seus conjuntos de dados usando multi-threading, multiprocessamento ou nosso interno <a href="https://www.ray.io/">Ray</a> integração.</details>
+
+<details>
+  <summary><b>100+ conjuntos de dados de imagem, vídeo e áudio mais populares disponíveis em segundos</b></summary>
+Hub Comunidade enviou <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ conjuntos de dados de imagem, vídeo e áudio</a> como <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> e outros.
+</details>
+
+<details>
+  <summary><b>Suporte de visualização instantâneo na <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Plataforma ActiveLoop</a></b></summary>
+Hub Os conjuntos de dados são visualizados instantaneamente com caixas delimitadoras, máscaras, anotações, etc. em <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Plataforma ActiveLoop</a> (Veja abaixo).
+</details>
 
 <div align="center">
 <a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
 </div>
 
-    
-## Getting Started with Hub
+## 🚀 Dando os Primeiros Passos com a Hub
 
+### 💻 Como Instalar o Hub
 
-### 🚀 How to install Hub
-Hub is written in 100% Python and can be quickly installed using pip.
+Hub está escrito em 100% Python e pode ser instalado rapidamente usando o PIP.
 
 ```sh
 pip3 install hub
 ```
 
-**By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
+**Por padrão, o Hub não instala dependências para suporte de áudio, vídeo e Google-Cloud (GCS).Eles podem ser instalados usando**:
+
 ```sh
-pip3 install "hub[av]"          -> Audio and video support via PyAV
-pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
-pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
+pip3 install "hub[av]"          -> Suporte de áudio e vídeo via PyAV
+pip3 install "hub[gcp]"         -> GCS suporte via google-* dependências
+pip3 install "hub[all]"         -> Instala tudo - áudio vídeo e suporte GCS 
 ```
 
-### 🧠 Training a PyTorch model on a Hub dataset
+### 🧠 Treinando um modelo PyTorch em um conjunto de dados da Hub
 
-#### Load CIFAR 10, one of the readily available datasets in Hub:
+#### Carregar Cifar 10, um dos conjuntos de dados prontamente disponíveis no Hub
 
 ```python
 import hub
@@ -96,16 +128,16 @@ from torchvision import transforms, models
 ds = hub.load('hub://activeloop/cifar10-train')
 ```
 
-#### Inspect tensors in the dataset:
+#### Inspecione os tensors no conjunto de dados
 
 ```python
 ds.tensors.keys()    # dict_keys(['images', 'labels'])
 ds.labels[0].numpy() # array([6], dtype=uint32)
 ```
 
-#### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
+#### Treine um modelo PyTorch no conjunto de dados Cifar 10 sem a necessidade de baixá-lo
 
-First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
+Primeiro, defina uma transformação para as imagens e use o Pytorch de uma linha embutido do Hub para conectar os dados à computação:
 
 ```python
 tform = transforms.Compose([
@@ -113,11 +145,10 @@ tform = transforms.Compose([
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
 ])
 
-hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
-                        'images': tform, 'labels': None}, shuffle=True)
+hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={'images': tform, 'labels': None}, shuffle=True)
 ```
 
-Next, define the model, loss and optimizer:
+Em seguida, defina o modelo, perda e otimizador:
 
 ```python
 net = models.resnet18(pretrained=False)
@@ -127,7 +158,7 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 ```
 
-Finally, the training loop for 2 epochs:
+Finalmente, o loop de treinamento para 2 épocas:
 
 ```python
 for epoch in range(2):
@@ -152,23 +183,20 @@ for epoch in range(2):
             running_loss = 0.0
 ```
 
+### 🏗️ Como criar os Dados na Hub
 
-### 🏗️ How to create a Hub Dataset
+Um conjunto de dados de hub pode ser criado em vários locais (provedores de armazenamento).É assim que os caminhos para cada um deles seriam:
 
-A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
+| Provedor de armazenamento | Exemplo de caminho          |
+| ---------------------- | ------------------------------ |
+| Activeloop cloud       | hub://user_name/dataset_name   |
+| AWS S3 / S3 compatível | s3://bucket_name/dataset_name  |
+| GCP                    | gcp://bucket_name/dataset_name |
+| Google Drive           | gdrive://path_to_dataset       |
+| Armazenamento local    | caminho para o diretório local |
+| In-memory              | mem://dataset_name             |
 
-| Storage provider        | Example path                   |
-| ----------------------- | ------------------------------ |
-| Activeloop cloud        | hub://user_name/dataset_name   |
-| AWS S3 / S3 compatible  | s3://bucket_name/dataset_name  |
-| GCP                     | gcp://bucket_name/dataset_name |
-| Google Drive            | gdrive://path_to_dataset
-| Local storage           | path to local directory        |
-| In-memory               | mem://dataset_name             |
-
-
-
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
+Vamos criar um conjunto de dados na nuvem ActiveLoop.ActiveLoop Cloud fornece armazenamento gratuito de até 300 GB por usuário (mais informações [aqui](#-for-students-and-educators)). Crie uma nova conta com o Hub a partir do terminal usando o `ActiveLoop Register`, se você ainda não o fez.Você será solicitado um nome de usuário, ID de email e senha.O nome de usuário que você inserir aqui será usado no caminho do conjunto de dados.
 
 ```sh
 $ activeloop register
@@ -178,7 +206,7 @@ Email:
 Password:
 ```
 
-Initialize an empty dataset in the Activeloop Cloud:
+Inicialize um conjunto de dados vazio na nuvem ActiveLoop:
 
 ```python
 import hub
@@ -186,14 +214,13 @@ import hub
 ds = hub.empty("hub://<USERNAME>/test-dataset")
 ```
 
-
-Next, create a tensor to hold images in the dataset we just initialized:
+Em seguida, crie um tensor para manter imagens no conjunto de dados que acabamos de inicializar:
 
 ```python
 images = ds.create_tensor("images", htype="image", sample_compression="jpg")
 ```
 
-Assuming you have a list of image file paths, let's upload them to the dataset:
+Supondo que você tenha uma lista de caminhos de arquivo de imagem, vamos carregá-los no conjunto de dados:
 
 ```python
 image_paths = ...
@@ -203,8 +230,7 @@ with ds:
         ds.images.append(image)
 ```
 
-Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression="jpg"`, the arrays will be compressed with jpeg compression.
-
+Como alternativa, você também pode fazer upload de matrizes numpy. Como o tensor `images` foi criado com `sample_compression = "jpg"`, as matrizes serão compactadas com compressão JPEG.
 
 ```python
 import numpy as np
@@ -215,12 +241,9 @@ with ds:
         ds.images.append(random_image)
 ```
 
+### 🔄 Como carregar os Dados da Hub
 
-
-### 🚀 How to load a Hub Dataset
-
-
-You can load the dataset you just created with a single line of code:
+Você pode carregar o conjunto de dados que acabou de criar com uma única linha de código:
 
 ```python
 import hub
@@ -228,7 +251,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Hub format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+Você também pode acessar um dos <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ conjuntos de dados de imagem, vídeo e áudio no formato do hub </a>, não apenas os que você criou.Aqui está como você carregaria o [Conjunto de dados de bicicletas objectron](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub
@@ -236,123 +259,124 @@ import hub
 ds = hub.load('hub://activeloop/objectron_bike_train')
 ```
 
-To get the first image in the Objectron Bikes dataset in numpy format:
-
+Para obter a primeira imagem no conjunto de dados do Objectron Bikes em formato Numpy:
 
 ```python
 image_arr = ds.image[0].numpy()
 ```
 
+## 📚 Documentação
 
+Iniciar guias, exemplos, tutoriais, referência da API e outras informações úteis podem ser encontradas em nossa [página de documentação](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
-## 📚 Documentation
-Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
+## 🎓 Para Estudantes e Educadores
 
-## 🎓 For Students and Educators
-Hub users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
+Os usuários do hub podem acessar e visualizar uma variedade de conjuntos de dados populares por meio de uma integração gratuita com a plataforma da ActiveLoop.Os usuários também podem criar e armazenar seus próprios conjuntos de dados e disponibilizá -los ao público.O armazenamento gratuito de até 300 GB está disponível para estudantes e educadores:
 
-| <!-- -->    | <!-- -->    |
-| ---------------------------------------------------- | ------------- |
-| Storage for public datasets hosted by Activeloop     | 200GB Free    |
-| Storage for private datasets hosted by Activeloop    | 100GB Free    |
+| <!-- -->                                          | <!-- -->   |
+| ------------------------------------------------- | ---------- |
+| Armazenamento para conjuntos de dados públicos hospedados pela ActiveLoop  | 200GB grátis |
+| Armazenamento para conjuntos de dados privados hospedados pela ActiveLoop | 100GB grátis |
 
-
-
-## 👩‍💻 Comparisons to Familiar Tools
-
+## 👩‍💻 Comparações entre Ferramentas Familiares
 
 <details>
   <summary><b>Activeloop Hub vs DVC</b></summary>
   
-Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Hub is a Python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+O Hub e o DVC oferecem controle de versão do conjunto de dados semelhante ao Git para dados, mas seus métodos para armazenar dados diferem significativamente.O Hub converte e armazena dados como matrizes compactadas em chunk, que permitem streaming rápido para modelos ML, enquanto o DVC opera sobre os dados armazenados em estruturas de arquivos tradicionais menos eficientes.O formato do hub facilita significativamente a versão do conjunto de dados em comparação com as estruturas de arquivos tradicionais por DVC quando os conjuntos de dados são compostos de muitos arquivos (ou seja, muitas imagens).Uma distinção adicional é que o DVC usa principalmente uma interface de linha de comando, enquanto o Hub é um pacote Python.Por fim, o Hub oferece uma API para conectar facilmente os conjuntos de dados a estruturas ML e outras ferramentas comuns de ML e permite a visualização instantânea do conjunto de dados por meio [Ferramenta de visualização do ActiveLoop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 </details>
-
 
 <details>
   <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
-Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
+O Hub e o TFDS conectam perfeitamente os conjuntos de dados populares às estruturas ML.Os conjuntos de dados de hub são compatíveis com Pytorch e Tensorflow, enquanto os TFDs são compatíveis apenas com o TensorFlow.Uma diferença importante entre o Hub e o TFDS é que os conjuntos de dados hub são projetados para streaming da nuvem, enquanto o TFDS deve ser baixado localmente antes do uso.Como resultado, com o hub, pode -se importar conjuntos de dados diretamente dos conjuntos de dados do TensorFlow e transmiti -los para Pytorch ou TensorFlow.Além de fornecer acesso a conjuntos de dados populares disponíveis ao público, o Hub também oferece ferramentas poderosas para criar conjuntos de dados personalizados, armazená -los em uma variedade de provedores de armazenamento em nuvem e colaborar com outras pessoas via API simples.O TFDS está focado principalmente em fornecer ao público fácil acesso a conjuntos de dados geralmente disponíveis, e o gerenciamento de conjuntos de dados personalizados não é o foco principal.Um artigo de comparação completo pode ser encontrado [aqui](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 
-
-
 <details>
   <summary><b>Activeloop Hub vs HuggingFace</b></summary>
-Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
-
+O Hub e o HuggingFace oferecem acesso a conjuntos de dados populares, mas o Hub se concentra principalmente na visão computacional, enquanto o Huggingface se concentra no processamento de linguagem natural.Transformagens de Huggingface e outras ferramentas computacionais para PNL não são análogas aos recursos oferecidos pelo Hub.
 
 </details>
 
 <details>
   <summary><b>Activeloop Hub vs WebDatasets</b></summary>
-Hub and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Hub enables simple indexing and modification of the dataset without having to recreate it.
-
+O Hub e o WebDatasets oferecem um fluxo rápido de dados entre as redes.Eles têm velocidades de vapor quase idênticas, porque as solicitações de rede subjacentes e as estruturas de dados são muito semelhantes.No entanto, o Hub oferece acesso aleatório e arrastamento superiores, sua API simples está no Python em vez de linha de comando, e o Hub permite a indexação e modificação simples do conjunto de dados sem ter que recriá-lo.
 
 </details>
 
+## 👨‍👩‍👧‍👦 Comunidade
 
-## Community
+Junte-se ao nosso [**Comunidade Slack**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) Para saber mais sobre o gerenciamento de conjunto de dados não estruturado usando o Hub e obter ajuda da equipe ActiveLoop e de outros usuários.
 
-Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Hub and to get help from the Activeloop team and other users.
+Adoraríamos seu feedback completando nossos 3 minutos [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
-We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
-
-As always, thanks to our amazing contributors!    
+Como sempre, graças aos nossos incríveis colaboradores!
 
 <a href="https://github.com/activeloopai/hub/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
 </a>
 
-Made with [contributors-img](https://contrib.rocks).
+Feito com [contributors-img](https://contrib.rocks).
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to Hub.
+Por favor leia [CONTRIBUTING.md](CONTRIBUTING.md) Para começar a fazer contribuições para o hub.
 
+## 🔖 Emblema para o README
 
-## README Badge
-
-Using Hub? Add a README badge to let everyone know: 
-
+Usando o hub? Adicione um emblema no seu README para que todos saibam:
 
 [![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
 
-```
+```md
 [![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
 ```
 
-
-
-## Disclaimers
+## 🏛️ Avisos Legais
 
 <details>
-  <summary><b> Dataset Licenses</b></summary>
+  <summary><b>Licença dos dados</b></summary>
 
-Hub users may have access to a variety of publicly available datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have a license to use the datasets. It is your responsibility to determine whether you have permission to use the datasets under their license.
+Os usuários do hub podem ter acesso a uma variedade de conjuntos de dados disponíveis ao público. Não hospedamos ou distribuímos esses conjuntos de dados, atestamos sua qualidade ou justiça ou afirmamos que você tem uma licença para usar os conjuntos de dados. É sua responsabilidade determinar se você tem permissão para usar os conjuntos de dados em sua licença.
 
-If you're a dataset owner and do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Thank you for your contribution to the ML community!
+Se você é proprietário de um conjunto de dados e não deseja que seu conjunto de dados seja incluído nesta biblioteca, entre em contato através de um [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Obrigado por sua contribuição para a comunidade ML!
 
 </details>
 
 <details>
-  <summary><b> Usage Tracking</b></summary>
+  <summary><b>Rastreamento de uso</b></summary>
 
-By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Hub library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below:
+Por padrão, coletamos dados de uso usando Bugout (Aqui está o [codigo](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) que faz isso). Ele não coleta dados do usuário que não sejam dados de endereço IP anonimizado e apenas registra as próprias ações da biblioteca do hub.Isso ajuda nossa equipe a entender como a ferramenta é usada e como criar recursos que importam para você!Depois de se registrar no ActiveLoop, os dados não são mais anônimos.Você sempre pode optar por não participar de relatórios usando o comando da CLI abaixo:
 
-```
+```sh
 activeloop reporting --off
 ```
+
 </details>
 
-## Citation
-If you use Hub in your research, please cite Activeloop using:
-```
-@article{2022ActiveloopHub,
-  title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
-  author={Activeloop Developer Team},
-  journal={GitHub. Note: https://github.com/activeloopai/Hub},
-  year={2022}
+## 💬 citações
+
+Se você usar o hub em sua pesquisa, cite o Activeloop usando:
+
+```txt
+@article{
+  2022ActiveloopHub,
+  title = {
+    Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.
+  },
+  author = {
+    Activeloop Developer Team
+  },
+  journal = {
+    GitHub.
+    Note: https://github.com/activeloopai/Hub
+  },
+  year = {
+    2022
+  }
 }
 ```
-## Acknowledgment
-This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
+
+## ✒️ Reconhecimento
+
+Essa tecnologia foi inspirada em nosso trabalho de pesquisa na Universidade de Princeton.Gostaríamos de agradecer William Silversmith @SeungLab pela sua incrível ferramenta [cloud-volume](https://github.com/seung-lab/cloud-volume).
