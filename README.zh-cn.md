@@ -22,7 +22,7 @@
  </h3>
  
  
-*用其他语言阅读这篇文章: [English](README.md)*
+*用其他语言阅读这篇文章: [English](README.md), [Portuguese](README.pt.md)*
 
 ## 关于 Hub
 
