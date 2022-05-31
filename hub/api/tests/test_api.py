@@ -906,6 +906,20 @@ def test_dataset_deepcopy(
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    hub.deepcopy(
+        src_path,
+        dest_path,
+        tensors=["a", "d"],
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
     hub.delete(src_path, token=hub_token)
     hub.delete(dest_path, token=hub_token)
 
@@ -1587,21 +1601,28 @@ def test_dataset_copy(
 
     ds = memory_ds
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("images/image1")
+        ds.create_tensor("images/image2")
         ds.create_tensor("label")
+        ds.create_tensor("nocopy")
         for _ in range(10):
-            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
             ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.nocopy.append([0])
 
     hub.copy(
         ds[index],
         local_ds.path,
+        tensors=["images", "label"],
         overwrite=True,
         num_workers=num_workers,
         progressbar=progressbar,
     )
     local_ds = hub.load(local_ds.path)
-    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
+    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+    for t in local_ds.tensors:
+        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(
@@ -1702,3 +1723,15 @@ def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
     ):
         return converted_path
     return path
+
+
+def test_exist_ok(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("abc")
+        ds.create_tensor("abc", exist_ok=True)
+        ds.create_group("grp")
+        with pytest.raises(TensorGroupAlreadyExistsError):
+            ds.create_group("grp")
+        ds.create_group("grp", exist_ok=True)

@@ -47,7 +47,7 @@ from hub.util.pretty_print import (
     get_string,
     summary_tensor,
 )
-from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
 from hub.util.version_control import auto_checkout
@@ -299,6 +299,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        [f() for f in list(self.dataset._update_hooks.values())]
         self.chunk_engine.extend(
             samples,
             progressbar=progressbar,
@@ -601,6 +602,7 @@ class Tensor:
         """
         self.check_link_ready()
         self._write_initialization()
+        [f() for f in list(self.dataset._update_hooks.values())]
         update_link_callback = self._update_links if self.meta.links else None
         if isinstance(value, Tensor):
             if value._skip_next_setitem:
@@ -907,3 +909,17 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @property
+    def _config(self):
+        """Returns a summary of the configuration of the tensor."""
+        tensor_meta = self.meta
+        return {
+            "htype": tensor_meta.htype or UNSPECIFIED,
+            "dtype": tensor_meta.dtype or UNSPECIFIED,
+            "sample_compression": tensor_meta.sample_compression or UNSPECIFIED,
+            "chunk_compression": tensor_meta.chunk_compression or UNSPECIFIED,
+            "hidden": tensor_meta.hidden,
+            "is_link": tensor_meta.is_link,
+            "is_sequence": tensor_meta.is_sequence,
+        }

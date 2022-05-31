@@ -1,18 +1,22 @@
 import os
+import re
 import hub
 import pathlib
-from typing import Dict, Optional, Union
+import posixpath
+from typing import Dict, Optional, Union, List
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.util.path import convert_pathlib_to_string_if_needed
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
+    DATASET_META_FILENAME,
 )
 from hub.util.access_method import (
     check_access_method,
@@ -441,8 +445,9 @@ class dataset:
 
     @staticmethod
     def like(
-        path: Union[str, pathlib.Path],
-        source: Union[str, Dataset, pathlib.Path],
+        dest: Union[str, pathlib.Path],
+        src: Union[str, Dataset, pathlib.Path],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
@@ -451,8 +456,9 @@ class dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
 
         Args:
-            path (str, pathlib.Path): Path where the new dataset will be created.
-            source (Union[str, Dataset, pathlib.Path]): Path or dataset object that will be used as the template for the new dataset.
+            dest: Empty Dataset or Path where the new dataset will be created.
+            src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 -
@@ -464,25 +470,75 @@ class dataset:
         Returns:
             Dataset: New dataset object.
         """
-
-        path = convert_pathlib_to_string_if_needed(path)
-        feature_report_path(path, "like", {"Overwrite": overwrite, "Public": public})
-
-        destination_ds = dataset.empty(
-            path,
-            creds=creds,
-            overwrite=overwrite,
-            token=token,
-            public=public,
-        )
-        if isinstance(source, (str, pathlib.Path)):
-            source = str(source)
-            source_ds = dataset.load(source)
+        if isinstance(dest, Dataset):
+            path = dest.path
         else:
-            source_ds = source
+            path = dest
+        feature_report_path(
+            path,
+            "like",
+            {"Overwrite": overwrite, "Public": public, "Tensors": tensors},
+        )
+        return dataset._like(dest, src, tensors, overwrite, creds, token, public)
 
-        for tensor_name in source_ds.tensors:  # type: ignore
-            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
+    @staticmethod
+    def _like(  # (No reporting)
+        dest,
+        src: Union[str, Dataset],
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds: Optional[dict] = None,
+        token: Optional[str] = None,
+        public: bool = False,
+    ) -> Dataset:
+        """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
+
+        Args:
+            dest: Empty Dataset or Path where the new dataset will be created.
+            src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
+            dest (str, pathlib.Path, Dataset): Empty Dataset or Path where the new dataset will be created.
+            src (Union[str, pathlib.Path, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                -
+                - If aws_access_key_id, aws_secret_access_key, aws_session_token are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'region', 'profile_name' as keys.
+            token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+
+        Returns:
+            Dataset: New dataset object.
+        """
+        dest = convert_pathlib_to_string_if_needed(dest)
+        if isinstance(dest, Dataset):
+            destination_ds = dest
+            dest_path = dest.path
+        else:
+            dest_path = dest
+            destination_ds = dataset.empty(
+                dest,
+                creds=creds,
+                overwrite=overwrite,
+                token=token,
+                public=public,
+            )
+        feature_report_path(
+            dest_path, "like", {"Overwrite": overwrite, "Public": public}
+        )
+        src = convert_pathlib_to_string_if_needed(src)
+        if isinstance(src, str):
+            source_ds = dataset.load(src)
+        else:
+            source_ds = src
+
+        if tensors:
+            tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
+        else:
+            tensors = source_ds.tensors  # type: ignore
+
+        for tensor_name in tensors:  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])  # type: ignore
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
@@ -492,6 +548,7 @@ class dataset:
     def copy(
         src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
@@ -506,6 +563,7 @@ class dataset:
         Args:
             src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
                 -
@@ -537,6 +595,7 @@ class dataset:
 
         return src_ds.copy(
             dest,
+            tensors=tensors,
             overwrite=overwrite,
             creds=dest_creds,
             token=dest_token,
@@ -549,6 +608,7 @@ class dataset:
     def deepcopy(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
         src_token=None,
@@ -565,6 +625,7 @@ class dataset:
         Args:
             src (str, pathlib.Path): Path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): A dictionary containing credentials used to access the dataset at `src`.
                 -
@@ -623,6 +684,8 @@ class dataset:
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
                 )
 
+        metas: Dict[str, DatasetMeta] = {}
+
         def copy_func(keys, progress_callback=None):
             cache = generate_chain(
                 src_storage,
@@ -631,17 +694,72 @@ class dataset:
                 path=src,
             )
             for key in keys:
-                if isinstance(cache[key], HubMemoryObject):
-                    dest_storage[key] = cache[key].tobytes()
+                val = metas.get(key) or cache[key]
+                if isinstance(val, HubMemoryObject):
+                    dest_storage[key] = val.tobytes()
                 else:
-                    dest_storage[key] = cache[key]
+                    dest_storage[key] = val
                 if progress_callback:
                     progress_callback(1)
 
         def copy_func_with_progress_bar(pg_callback, keys):
             copy_func(keys, pg_callback)
 
-        keys = list(src_storage._all_keys())
+        keys = src_storage._all_keys()
+
+        if tensors is not None:
+            required_tensors = src_ds._resolve_tensor_list(tensors)
+            for t in required_tensors[:]:
+                required_tensors.extend(src_ds[t].meta.links)
+            required_tensor_paths = set(
+                src_ds.meta.tensor_names[t] for t in required_tensors
+            )
+
+            all_tensors_in_src = src_ds._tensors()
+            all_tensor_paths_in_src = [
+                src_ds.meta.tensor_names[t] for t in all_tensors_in_src
+            ]
+            tensor_paths_to_exclude = [
+                t for t in all_tensor_paths_in_src if t not in required_tensor_paths
+            ]
+
+            def fltr(k):
+                for t in tensor_paths_to_exclude:
+                    if k.startswith(t + "/") or "/" + t + "/" in k:
+                        return False
+                return True
+
+            def keep_group(g):
+                for t in tensors:
+                    if t == g or t.startswith(g + "/"):
+                        return True
+                return False
+
+            def process_meta(k):
+                if posixpath.basename(k) == DATASET_META_FILENAME:
+                    meta = DatasetMeta.frombuffer(src_storage[k])
+                    if not meta.tensor_names:  # backward compatibility
+                        meta.tensor_names = {t: t for t in meta.tensors}
+                    meta.tensors = list(
+                        filter(
+                            lambda t: meta.tensor_names[t] in required_tensor_paths,
+                            meta.tensors,
+                        )
+                    )
+                    meta.hidden_tensors = list(
+                        filter(lambda t: t in meta.tensors, meta.hidden_tensors)
+                    )
+                    meta.groups = list(filter(keep_group, meta.groups))
+                    meta.tensor_names = {
+                        k: v for k, v in meta.tensor_names.items() if k in meta.tensors
+                    }
+                    metas[k] = meta
+                return k
+
+            keys = filter(fltr, map(process_meta, keys))
+        keys = list(keys)
+        if tensors:
+            assert metas
         len_keys = len(keys)
         if num_workers == 0:
             keys = [keys]
@@ -660,7 +778,6 @@ class dataset:
                 compute_provider.map(copy_func, keys)
         finally:
             compute_provider.close()
-
         return dataset_factory(
             path=dest,
             storage=cache_chain,
