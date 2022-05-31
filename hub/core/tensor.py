@@ -752,7 +752,7 @@ class Tensor:
                 return list(self.numpy())
             else:
                 return list(map(list, self.numpy(aslist=True)))
-        elif htype == "video":
+        elif self.htype == "video":
             if len(self.index.values) > 2:
                 return self.numpy(aslist=aslist)
             else:
@@ -937,10 +937,15 @@ class Tensor:
     def timestamp(self) -> np.ndarray:
         if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
             raise Exception("Only supported for video tensors.")
-        if self.index.values[0].subscriptable():
-            raise ValueError("Only supported for exactly 1 sample.")
         index = self.index
-        sub_index = index.values[1].value if len(index.values) > 1 else None
+        if index.values[0].subscriptable():
+            raise ValueError("Only supported for exactly 1 video sample.")
+        if self.is_sequence:
+            if len(index.values) == 1 or index.values[1].subscriptable():
+                raise ValueError("Only supported for exactly 1 video sample.")
+            sub_index = index.values[2].value if len(index.values) > 2 else None
+        else:
+            sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
         sample = self.chunk_engine.get_video_sample(
             global_sample_index, index, decompress=False

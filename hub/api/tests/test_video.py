@@ -129,6 +129,27 @@ def test_video_exception(local_ds):
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
+def test_video_sequence(local_ds, video_paths):
+    with local_ds as ds:
+        ds.create_tensor("video_seq", htype="sequence[video]", sample_compression="mp4")
+        ds.video_seq.append([hub.read(video_paths["mp4"][0]) for _ in range(3)])
+        ds.video_seq.append([hub.read(video_paths["mp4"][1]) for _ in range(3)])
+
+        with pytest.raises(ValueError):
+            ds.video_seq[:2].timestamp
+
+        with pytest.raises(ValueError):
+            ds.video_seq[0].timestamp
+        
+        with pytest.raises(ValueError):
+            ds.video_seq[0, :2].timestamp
+
+        assert ds.video_seq[0][1, 5:10].timestamp.shape == (5,)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_video_data(local_ds, video_paths):
     with local_ds as ds:
         ds.create_tensor("video", htype="video", sample_compression="mp4")
