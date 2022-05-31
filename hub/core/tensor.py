@@ -771,7 +771,7 @@ class Tensor:
                 else:
                     data["timestamps"] = self.timestamp
                 if aslist:
-                    data["timestamps"] = data["timestamps"].tolist()
+                    data["timestamps"] = data["timestamps"].tolist()  # type: ignore
                 return data
         else:
             return self.numpy(aslist=aslist)
@@ -934,15 +934,16 @@ class Tensor:
             webbrowser.open(self._get_video_stream_url())
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> np.ndarray:
         if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
             raise Exception("Only supported for video tensors.")
         if self.index.values[0].subscriptable():
             raise ValueError("Only supported for exactly 1 sample.")
         index = self.index
         sub_index = index.values[1].value if len(index.values) > 1 else None
+        global_sample_index = next(index.values[0].indices(self.num_samples))
         sample = self.chunk_engine.get_video_sample(
-            index.values[0].value, index, decompress=False
+            global_sample_index, index, decompress=False
         )
 
         nframes = self.shape[0]

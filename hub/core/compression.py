@@ -902,7 +902,7 @@ def _read_timestamps(
     stop: int,
     step: int,
     reverse: bool,
-):
+) -> np.ndarray:
     container, vstream = _open_video(file)
 
     nframes = math.ceil((stop - start) / step)
