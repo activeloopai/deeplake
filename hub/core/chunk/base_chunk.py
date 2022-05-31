@@ -253,7 +253,7 @@ class BaseChunk(HubMemoryObject):
                 incoming_sample = incoming_sample.path
             if incoming_sample is None:
                 htype = "text" if self.tensor_meta.is_link else self.htype
-                empty_mapping = {"text": "", "list": [], "json": None}
+                empty_mapping = {"text": "", "list": [], "json": {}}
                 incoming_sample = empty_mapping[htype]
 
             incoming_sample, shape = serialize_text(
