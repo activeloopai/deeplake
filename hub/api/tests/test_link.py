@@ -197,20 +197,17 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         with pytest.raises(TypeError):
             ds.linked_images.append(np.ones((100, 100, 3)))
 
-        for i in range(10):
-            sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
+        for _ in range(10):
+            sample = hub.link(flower_path)
             ds.linked_images.append(sample)
 
-        # Uncomment after text is fixed
-        # for _ in range(10):
-        #     sample = hub.link(flower_path)
-        #     ds.linked_images.append(sample)
+        ds.linked_images.append(None)
 
-        # for i in range(0, 10, 2):
-        #     sample = hub.link(cat_path)
-        #     ds.linked_images[i] = sample
+        for i in range(0, 10, 2):
+            sample = hub.link(cat_path)
+            ds.linked_images[i] = sample
 
-        assert len(ds.linked_images) == 10
+        assert len(ds.linked_images) == 11
 
         ds.create_tensor(
             "linked_images_2",
@@ -220,13 +217,18 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             sample_compression="jpeg",
         )
         ds.linked_images_2.extend(ds.linked_images)
-        assert len(ds.linked_images_2) == 10
+        assert len(ds.linked_images_2) == 11
         for i in range(10):
             shape_target = (900, 900, 3) if i % 2 == 0 else (513, 464, 4)
             assert ds.linked_images[i].shape == shape_target
             assert ds.linked_images[i].numpy().shape == shape_target
             assert ds.linked_images_2[i].shape == shape_target
             assert ds.linked_images_2[i].numpy().shape == shape_target
+
+        assert ds.linked_images[10].shape == (0,)
+        np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
+        assert ds.linked_images_2[10].shape == (0,)
+        np.testing.assert_array_equal(ds.linked_images_2[10].numpy(), np.ones((0,)))
 
     # checking persistence
     ds = local_ds_generator()
