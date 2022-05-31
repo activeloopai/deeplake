@@ -358,6 +358,7 @@ class Dataset:
         create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
         verify: bool = False,
+        exist_ok: bool = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -396,12 +397,13 @@ class Dataset:
             create_id_tensor (bool): If True, an associated tensor containing unique ids for each sample will be created.
                 This is useful for merge operations.
             verify (bool): Valid only for link htypes. If True, all links will be verified before they are added to the tensor.
+            exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
 
         Raises:
-            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            TensorAlreadyExistsError: If the tensor already exists and `exist_ok` is False.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
@@ -413,13 +415,32 @@ class Dataset:
 
         name = filter_name(name, self.group_index)
         key = self.version_state["tensor_names"].get(name)
+        is_sequence, is_link, htype = parse_complex_htype(htype)
         if key:
-            raise TensorAlreadyExistsError(name)
+            if not exist_ok:
+                raise TensorAlreadyExistsError(name)
+            tensor = self.root[key]
+            current_config = tensor._config
+            new_config = {
+                "htype": htype,
+                "dtype": dtype,
+                "sample_compression": sample_compression,
+                "chunk_compression": chunk_compression,
+                "hidden": hidden,
+                "is_link": is_link,
+                "is_sequence": is_sequence,
+            }
+            if current_config != new_config:
+                raise ValueError(
+                    f"Tensor {name} already exists with different configuration. "
+                    f"Current config: {current_config}. "
+                    f"New config: {new_config}"
+                )
+            return tensor
+        elif name in self.version_state["full_tensors"]:
+            key = f"{name}_{uuid.uuid4().hex[:4]}"
         else:
-            if name in self.version_state["full_tensors"]:
-                key = f"{name}_{uuid.uuid4().hex[:4]}"
-            else:
-                key = name
+            key = name
 
         if name in self._groups:
             raise TensorGroupAlreadyExistsError(name)
@@ -428,7 +449,6 @@ class Dataset:
         if not tensor_name or tensor_name in dir(self):
             raise InvalidTensorNameError(tensor_name)
 
-        is_sequence, is_link, htype = parse_complex_htype(htype)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
         kwargs["verify"] = verify
@@ -443,7 +463,17 @@ class Dataset:
 
         if not self._is_root():
             return self.root.create_tensor(
-                key, htype, dtype, sample_compression, chunk_compression, **kwargs
+                name=key,
+                htype=htype,
+                dtype=dtype,
+                sample_compression=sample_compression,
+                chunk_compression=chunk_compression,
+                hidden=hidden,
+                create_sample_info_tensor=create_sample_info_tensor,
+                create_shape_tensor=create_shape_tensor,
+                create_id_tensor=create_id_tensor,
+                exist_ok=exist_ok,
+                **kwargs,
             )
 
         if "/" in name:
@@ -1740,8 +1770,18 @@ class Dataset:
         return self[fullname]
 
     @hub_reporter.record_call
-    def create_group(self, name: str) -> "Dataset":
+    def create_group(self, name: str, exist_ok=False) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
+
+        Args:
+            name: The name of the group to create.
+            exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
+
+        Returns:
+            The created group.
+
+        Raises:
+            TensorGroupAlreadyExistsError: If the group already exists and exist_ok is False.
 
         Examples:
 
@@ -1755,10 +1795,14 @@ class Dataset:
                 ds["images/jpg"].create_group("dogs")
         """
         if not self._is_root():
-            return self.root.create_group(posixpath.join(self.group_index, name))
+            return self.root.create_group(
+                posixpath.join(self.group_index, name), exist_ok=exist_ok
+            )
         name = filter_name(name)
         if name in self._groups:
-            raise TensorGroupAlreadyExistsError(name)
+            if not exist_ok:
+                raise TensorGroupAlreadyExistsError(name)
+            return self[name]
         return self._create_group(name)
 
     def rechunk(
