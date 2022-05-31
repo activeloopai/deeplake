@@ -1,5 +1,4 @@
 import os
-from re import L
 import sys
 import pytest
 
@@ -140,7 +139,7 @@ def test_video_sequence(local_ds, video_paths):
 
         with pytest.raises(ValueError):
             ds.video_seq[0].timestamp
-        
+
         with pytest.raises(ValueError):
             ds.video_seq[0, :2].timestamp
 
