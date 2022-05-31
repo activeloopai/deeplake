@@ -34,6 +34,7 @@ Supported htypes and their respective defaults are:
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
 | list           |  List     |  none         |
+| link           |  str      |  none         |
 """
 
 from typing import Dict
