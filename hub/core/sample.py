@@ -99,7 +99,12 @@ class Sample:
             self.path = path
             self._compression = compression
             if self._verify:
-                self._shape, self._typestr = verify_compressed_file(self.buffer, self._compression)  # type: ignore
+                if self._compression is None:
+                    self._compression = get_compression(path=self.path)
+                compressed_bytes = self._read_from_path()
+                if self._compression is None:
+                    self._compression = get_compression(header=compressed_bytes[:32])
+                self._shape, self._typestr = verify_compressed_file(compressed_bytes, self._compression)  # type: ignore
 
         if array is not None:
             self._array = array
@@ -342,17 +347,19 @@ class Sample:
         return self.buffer == other.buffer
 
     def _read_from_path(self) -> bytes:  # type: ignore
-        path_type = get_path_type(self.path)
-        if path_type == "local":
-            return self._read_from_local()
-        elif path_type == "gcs":
-            return self._read_from_gcs()
-        elif path_type == "s3":
-            return self._read_from_s3()
-        elif path_type == "gdrive":
-            return self._read_from_gdrive()
-        elif path_type == "http":
-            return self._read_from_http()
+        if self._buffer is None:
+            path_type = get_path_type(self.path)
+            if path_type == "local":
+                self._buffer = self._read_from_local()
+            elif path_type == "gcs":
+                self._buffer = self._read_from_gcs()
+            elif path_type == "s3":
+                self._buffer = self._read_from_s3()
+            elif path_type == "gdrive":
+                self._buffer = self._read_from_gdrive()
+            elif path_type == "http":
+                self._buffer = self._read_from_http()
+        return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:
         with open(self.path, "rb") as f:  # type: ignore
