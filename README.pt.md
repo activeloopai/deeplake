@@ -199,14 +199,14 @@ Um conjunto de dados de hub pode ser criado em vários locais (provedores de arm
 
 | Provedor de armazenamento | Exemplo de caminho          |
 | ---------------------- | ------------------------------ |
-| Núvem Activeloop       | hub://user_name/dataset_name   |
-| AWS S3 / S3 compatível | s3://bucket_name/dataset_name  |
-| GCP                    | gcp://bucket_name/dataset_name |
-| Google Drive           | gdrive://path_to_dataset       |
+| Núvem Activeloop       | hub://nome_do_usuario/nome_do_dado   |
+| AWS S3 / S3 compatível | s3://nome_do_balde/nome_do_dado  |
+| GCP                    | gcp://bucket_name/nome_do_dado |
+| Google Drive           | gdrive://nome_e_diretorio_dado |
 | Armazenamento local    | caminho para o diretório local |
-| Na memoria              | mem://dataset_name             |
+| Na memoria             | mem://nome_do_dado             |
 
-Vamos criar um conjunto de dados na nuvem ActiveLoop. A Nuvem ActiveLoop fornece armazenamento gratuito de até 300 GB por usuário, (mais informações [aqui](#-for-students-and-educators)). Crie uma nova conta com o Hub a partir do terminal usando o `activeloop register`, se você ainda não o fez. Você será solicitado um nome de usuário, ID de email e senha. O nome de usuário que você inserir aqui será usado no caminho do conjunto de dados.
+Vamos criar um conjunto de dados na nuvem ActiveLoop. A Nuvem ActiveLoop fornece armazenamento gratuito de até 300 GB por usuário, (mais informações [aqui](#-for-students-and-educators)). Crie uma nova conta com o Hub a partir do terminal usando o comando `activeloop register`, se você ainda não o fez. Você será solicitado um nome de usuário, email e senha. O nome de usuário que você inserir aqui será usado no caminho do conjunto de dados.
 
 ```sh
 $ activeloop register
@@ -261,7 +261,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-Você também pode acessar um dos <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ conjuntos de dados de imagem, vídeo e áudio no formato do hub </a>, não apenas os que você criou.Aqui está como você carregaria o [Conjunto de dados de bicicletas objectron](https://github.com/google-research-datasets/Objectron):
+Você também pode acessar um dos <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">+100 conjuntos de dados de imagem, vídeo e áudio formatados do hub </a>, não apenas os que você criou. Aqui está como você carregaria o [Conjunto de dados de bicicletas objectron](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub
@@ -281,7 +281,7 @@ Iniciar guias, exemplos, tutoriais, referência da API e outras informações ú
 
 ## 🎓 Para Estudantes e Educadores
 
-Os usuários do hub podem acessar e visualizar uma variedade de conjuntos de dados populares por meio de uma integração gratuita com a plataforma da ActiveLoop.Os usuários também podem criar e armazenar seus próprios conjuntos de dados e disponibilizá -los ao público.O armazenamento gratuito de até 300 GB está disponível para estudantes e educadores:
+Os usuários do hub podem acessar e visualizar uma variedade de conjuntos de dados populares por meio de uma integração gratuita com a plataforma da ActiveLoop. Os usuários também podem criar e armazenar seus próprios conjuntos de dados e disponibilizá-los ao público. O armazenamento gratuito de até 300 GB está disponível para estudantes e educadores:
 
 | <!-- -->                                          | <!-- -->   |
 | ------------------------------------------------- | ---------- |
@@ -293,32 +293,34 @@ Os usuários do hub podem acessar e visualizar uma variedade de conjuntos de dad
 <details>
   <summary><b>Activeloop Hub vs DVC</b></summary>
   
-O Hub e o DVC oferecem controle de versão do conjunto de dados semelhante ao Git para dados, mas seus métodos para armazenar dados diferem significativamente.O Hub converte e armazena dados como matrizes compactadas em chunk, que permitem streaming rápido para modelos ML, enquanto o DVC opera sobre os dados armazenados em estruturas de arquivos tradicionais menos eficientes.O formato do hub facilita significativamente a versão do conjunto de dados em comparação com as estruturas de arquivos tradicionais por DVC quando os conjuntos de dados são compostos de muitos arquivos (ou seja, muitas imagens).Uma distinção adicional é que o DVC usa principalmente uma interface de linha de comando, enquanto o Hub é um pacote Python.Por fim, o Hub oferece uma API para conectar facilmente os conjuntos de dados a estruturas ML e outras ferramentas comuns de ML e permite a visualização instantânea do conjunto de dados por meio [Ferramenta de visualização do ActiveLoop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+O Hub e o DVC oferecem controle de versão do conjunto de dados semelhante ao Git para dados, mas seus métodos para armazenar dados diferem significativamente. O Hub converte e armazena dados como matrizes compactadas em chunk, que permitem streaming rápido para modelos ML, enquanto o DVC opera sobre os dados armazenados em estruturas de arquivos tradicionais menos eficientes. O formato do hub facilita significativamente a versão do conjunto de dados em comparação com as estruturas de arquivos tradicionais por DVC quando os conjuntos de dados são compostos de muitos arquivos (ou seja, muitas imagens). Uma distinção adicional é que o DVC usa principalmente uma interface de linha de comando, enquanto o Hub é um pacote Python. Por fim, o Hub oferece uma API para conectar facilmente os conjuntos de dados a estruturas ML e outras ferramentas comuns de ML e permite a visualização instantânea do conjunto de dados por meio [Ferramenta de visualização do ActiveLoop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 </details>
 
 <details>
   <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
-O Hub e o TFDS conectam perfeitamente os conjuntos de dados populares às estruturas ML.Os conjuntos de dados de hub são compatíveis com Pytorch e Tensorflow, enquanto os TFDs são compatíveis apenas com o TensorFlow.Uma diferença importante entre o Hub e o TFDS é que os conjuntos de dados hub são projetados para streaming da nuvem, enquanto o TFDS deve ser baixado localmente antes do uso.Como resultado, com o hub, pode -se importar conjuntos de dados diretamente dos conjuntos de dados do TensorFlow e transmiti -los para Pytorch ou TensorFlow.Além de fornecer acesso a conjuntos de dados populares disponíveis ao público, o Hub também oferece ferramentas poderosas para criar conjuntos de dados personalizados, armazená -los em uma variedade de provedores de armazenamento em nuvem e colaborar com outras pessoas via API simples.O TFDS está focado principalmente em fornecer ao público fácil acesso a conjuntos de dados geralmente disponíveis, e o gerenciamento de conjuntos de dados personalizados não é o foco principal.Um artigo de comparação completo pode ser encontrado [aqui](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
+O Hub e o TFDS conectam perfeitamente os conjuntos de dados populares às estruturas ML. Os conjuntos de dados de hub são compatíveis com Pytorch e Tensorflow, enquanto os TFDs são compatíveis apenas com o TensorFlow. Uma diferença importante entre o Hub e o TFDS é que os conjuntos de dados hub são projetados para streaming da nuvem, enquanto o TFDS deve ser baixado localmente antes do uso. Como resultado, com o hub, pode-se importar conjuntos de dados diretamente dos conjuntos de dados do TensorFlow e transmiti-los para Pytorch ou TensorFlow.
+
+Além de fornecer acesso a conjuntos de dados populares disponíveis ao público, o Hub também oferece ferramentas poderosas para criar conjuntos de dados personalizados, armazená-los em uma variedade de provedores de armazenamento em nuvem e colaborar com outras pessoas via API simples. O TFDS está focado principalmente em fornecer ao público fácil acesso a conjuntos de dados geralmente disponíveis, e o gerenciamento de conjuntos de dados personalizados não é o foco principal. Um artigo de comparação completo pode ser encontrado [aqui](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 
 <details>
   <summary><b>Activeloop Hub vs HuggingFace</b></summary>
-O Hub e o HuggingFace oferecem acesso a conjuntos de dados populares, mas o Hub se concentra principalmente na visão computacional, enquanto o Huggingface se concentra no processamento de linguagem natural.Transformagens de Huggingface e outras ferramentas computacionais para PNL não são análogas aos recursos oferecidos pelo Hub.
+O Hub e o HuggingFace oferecem acesso a conjuntos de dados populares, mas o Hub se concentra principalmente na visão computacional, enquanto o Huggingface se concentra no processamento de linguagem natural. Transformações de Huggingface e outras ferramentas computacionais para PNL não são análogas aos recursos oferecidos pelo Hub.
 
 </details>
 
 <details>
   <summary><b>Activeloop Hub vs WebDatasets</b></summary>
-O Hub e o WebDatasets oferecem um fluxo rápido de dados entre as redes.Eles têm velocidades de vapor quase idênticas, porque as solicitações de rede subjacentes e as estruturas de dados são muito semelhantes.No entanto, o Hub oferece acesso aleatório e arrastamento superiores, sua API simples está no Python em vez de linha de comando, e o Hub permite a indexação e modificação simples do conjunto de dados sem ter que recriá-lo.
+O Hub e o WebDatasets oferecem um fluxo rápido de dados entre as redes. Eles têm velocidades de vapor quase idênticas, porque as solicitações de rede subjacentes e as estruturas de dados são muito semelhantes. No entanto, o Hub oferece acesso aleatório e arrastamento superiores, sua API simples está no Python em vez de linha de comando, e o Hub permite a indexação e modificação simples do conjunto de dados sem ter que recriá-lo.
 
 </details>
 
 ## 👨‍👩‍👧‍👦 Comunidade
 
-Junte-se ao nosso [**Comunidade Slack**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) Para saber mais sobre o gerenciamento de conjunto de dados não estruturado usando o Hub e obter ajuda da equipe ActiveLoop e de outros usuários.
+Junte-se a nossa [**Comunidade Slack**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) para saber mais sobre o gerenciamento de conjunto de dados não estruturado usando o Hub e obter ajuda da equipe ActiveLoop e de outros usuários.
 
 Adoraríamos seu feedback completando nossos 3 minutos [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
@@ -328,9 +330,8 @@ Como sempre, graças aos nossos incríveis colaboradores!
   <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
 </a>
 
-Feito com [contributors-img](https://contrib.rocks).
-
-Por favor leia [CONTRIBUTING.md](CONTRIBUTING.md) Para começar a fazer contribuições para o hub.
+- Feito com [contributors-img](https://contrib.rocks).
+- Por favor leia [CONTRIBUTING.md](CONTRIBUTING.md) para começar a fazer contribuições para o hub.
 
 ## 🔖 Emblema para o README
 
@@ -356,7 +357,9 @@ Se você é proprietário de um conjunto de dados e não deseja que seu conjunto
 <details>
   <summary><b>Rastreamento de uso</b></summary>
 
-Por padrão, coletamos dados de uso usando Bugout (Aqui está o [codigo](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) que faz isso). Ele não coleta dados do usuário que não sejam dados de endereço IP anonimizado e apenas registra as próprias ações da biblioteca do hub.Isso ajuda nossa equipe a entender como a ferramenta é usada e como criar recursos que importam para você!Depois de se registrar no ActiveLoop, os dados não são mais anônimos.Você sempre pode optar por não participar de relatórios usando o comando da CLI abaixo:
+Por padrão, coletamos dados de uso usando Bugout (Aqui está o [codigo](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) que faz isso). Ele não coleta dados do usuário que não sejam dados de endereço IP anonimizado e apenas registra as próprias ações da biblioteca do hub. Isso ajuda nossa equipe a entender como a ferramenta é usada e como criar recursos que importam para você! 
+
+Depois de se registrar no ActiveLoop, os dados não são mais anônimos. Você sempre pode optar por não participar de relatórios usando o comando da CLI abaixo:
 
 ```sh
 activeloop reporting --off
@@ -389,4 +392,4 @@ Se você usar o hub em sua pesquisa, cite o Activeloop usando:
 
 ## ✒️ Reconhecimento
 
-Essa tecnologia foi inspirada em nosso trabalho de pesquisa na Universidade de Princeton.Gostaríamos de agradecer William Silversmith @SeungLab pela sua incrível ferramenta [cloud-volume](https://github.com/seung-lab/cloud-volume).
+Essa tecnologia foi inspirada em nosso trabalho de pesquisa na Universidade de Princeton. Gostaríamos de agradecer William Silversmith `@SeungLab` pela sua incrível ferramenta, o [cloud-volume](https://github.com/seung-lab/cloud-volume).
