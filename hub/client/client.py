@@ -169,7 +169,7 @@ class HubBackendClient:
         org_id: str,
         ds_name: str,
         mode: Optional[str] = None,
-        no_cache: Optional[bool] = False,
+        no_cache: bool = False,
     ):
         """Retrieves temporary 12 hour credentials for the required dataset from the backend.
 
@@ -178,7 +178,7 @@ class HubBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
-            no_cache (bool, optional): If True, cached creds are ignored and new creds are returned. Default False.
+            no_cache (bool): If True, cached creds are ignored and new creds are returned. Default False.
 
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
