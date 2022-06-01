@@ -74,7 +74,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             OutOfSampleCountError: when num_samples are exeeding sample count
             OutOfChunkCountError: When the row is out of chunk bounds
         """
-        if self.num_samples < num_samples:
+        if self.num_samples_at(row) < num_samples:
             raise OutOfSampleCountError()
 
         if self.num_chunks < row + 1:

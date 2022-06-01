@@ -165,7 +165,9 @@ class Encoder(ABC):
                 if row is not None:
                     self._encoded[row][1] += num_samples
                 else:
-                    new_last_index = self._derive_next_last_index(last_index, num_samples)
+                    new_last_index = self._derive_next_last_index(
+                        last_index, num_samples
+                    )
                     self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
             else:
                 decomposable = self._make_decomposable(item)
