@@ -165,7 +165,11 @@ class HubBackendClient:
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
 
     def get_dataset_credentials(
-        self, org_id: str, ds_name: str, mode: Optional[str] = None, no_cache: Optional[bool] = False,
+        self,
+        org_id: str,
+        ds_name: str,
+        mode: Optional[str] = None,
+        no_cache: Optional[bool] = False,
     ):
         """Retrieves temporary 12 hour credentials for the required dataset from the backend.
 
