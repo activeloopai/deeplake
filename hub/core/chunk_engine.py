@@ -624,18 +624,18 @@ class ChunkEngine:
 
         Args:
             samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
-            start_chunk (Optional[BaseChunk]): Parameter that points to the chunk on which the samples should be added
+            start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
-            start_chunk_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+            start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
-
+        
         updated_chunks = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(register)
@@ -653,7 +653,11 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register)
+                if start_chunk_row is None:
+                    current_chunk = self._create_new_chunk(register)
+                else:
+                    current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                    start_chunk_row += 1
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -671,7 +675,11 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    current_chunk = self._create_new_chunk(register)
+                    if start_chunk_row is None:
+                        current_chunk = self._create_new_chunk(register)
+                    else:
+                        current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                        start_chunk_row += 1
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
@@ -983,8 +991,15 @@ class ChunkEngine:
         return samples_to_move
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
+        # print("=====before=====")
+        # print(self.chunk_id_encoder.array)
+        # print("rechunking at ", chunk_row)
+        # self._validate_enc()
         samples_to_move = self._get_samples_to_move(chunk=chunk)
+        # print(f"num samples at {chunk_row} = {self.chunk_id_encoder.num_samples_at(chunk_row)}")
+        
         num_samples = len(samples_to_move)
+        # print(f"num_samples_to_move={num_samples}")
         if num_samples == 0:
             return
         new_chunk = self._create_new_chunk(register=True, row=chunk_row)
@@ -995,7 +1010,7 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-
+        # print("popped from ", ChunkIdEncoder.id_from_name(chunk.key.split("/")[-1]))
         samples, _ = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
@@ -1005,6 +1020,9 @@ class ChunkEngine:
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
         )
+        self.cache.flush()
+        # self._validate_enc()
+        
 
     def _merge_chunks(
         self,
@@ -1013,6 +1031,7 @@ class ChunkEngine:
         to_chunk: BaseChunk,
         to_chunk_row: int,
     ):
+        # self._validate_enc()
         samples_to_move = self._get_chunk_samples(chunk=from_chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
@@ -1020,6 +1039,8 @@ class ChunkEngine:
 
         from_chunk.pop_multiple(num_samples=num_samples)
         samples, _ = self._sanitize_samples(samples_to_move)
+        to_chunk.is_dirty = True
+        self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
             samples,
             start_chunk=to_chunk,
@@ -1031,6 +1052,7 @@ class ChunkEngine:
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         del self.cache[from_chunk.key]  # type: ignore
+        # self._validate_enc()
         return True
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
@@ -1043,7 +1065,6 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
-
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
             return self._merge_chunks(
@@ -1086,6 +1107,7 @@ class ChunkEngine:
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
             self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+            # self._validate_enc()
             return
 
         if (
@@ -1094,6 +1116,22 @@ class ChunkEngine:
         ):
             self.__rechunk(chunk, chunk_row)
             return
+
+    def _validate_enc(self, before=None):
+        for global_sample_index in range(self.num_samples):
+            chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
+            row = self.chunk_id_encoder.__getitem__(global_sample_index, return_row_index=True)[0][1]
+            num_samples = self.chunk_id_encoder.num_samples_at(row)
+            if num_samples != chunk.num_samples:
+                print(self.chunk_id_encoder.array)
+                print(num_samples, chunk.num_samples, row, global_sample_index)
+                if before is not None:
+                    print("From before::")
+                    self.chunk_id_encoder._encoded = before
+                    row = self.chunk_id_encoder.__getitem__(global_sample_index, return_row_index=True)[0][1]
+                    print("row = ", row)
+                    print("num_sample_at = ", self.chunk_id_encoder.num_samples_at(row))
+                raise Exception()
 
     def _update(
         self,
@@ -1104,6 +1142,7 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+        # self._validate_enc()
         self._write_initialization()
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
@@ -1125,6 +1164,7 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
+                row = self.chunk_id_encoder.__getitem__(global_sample_index, return_row_index=True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -1135,6 +1175,7 @@ class ChunkEngine:
                     orig_sample = chunk.read_sample(local_sample_index, copy=True)
                     orig_sample[tuple(e.value for e in index.values[1:])] = sample
                     chunk.update_sample(local_sample_index, orig_sample)
+                # self._validate_enc()
                 if (
                     self.active_updated_chunk is not None
                     and self.active_updated_chunk.key != chunk.key  # type: ignore
@@ -1145,11 +1186,11 @@ class ChunkEngine:
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
-
+                # self._validate_enc()
                 self._check_rechunk(
                     chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
                 )
-
+                # self._validate_enc()
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)
@@ -1166,6 +1207,7 @@ class ChunkEngine:
                 )
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
+        # self._validate_enc()
         return verified_samples
 
     def _update_with_operator(
