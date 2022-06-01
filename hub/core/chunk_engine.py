@@ -653,9 +653,7 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(
-                        register, row=start_chunk_row
-                    )
+                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 updated_chunks.append(current_chunk)
@@ -676,8 +674,8 @@ class ChunkEngine:
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(
-                            register, row=start_chunk_row
-                        )
+                        register, row=start_chunk_row
+                    )
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     updated_chunks.append(current_chunk)
