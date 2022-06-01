@@ -47,7 +47,7 @@ class dataset:
     @staticmethod
     def init(
         path: Union[str, pathlib.Path],
-        read_only: bool = DEFAULT_READONLY,
+        read_only: Optional[bool] = None,
         overwrite: bool = False,
         public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
@@ -76,7 +76,7 @@ class dataset:
                 - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
                 - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+            read_only (bool, optional): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
@@ -131,7 +131,6 @@ class dataset:
             cache_chain.clear()
 
         try:
-            read_only = storage.read_only
             if access_method == "stream":
                 return dataset_factory(
                     path=path,
@@ -263,7 +262,7 @@ class dataset:
     @staticmethod
     def load(
         path: Union[str, pathlib.Path],
-        read_only: bool = DEFAULT_READONLY,
+        read_only: Optional[bool] = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -280,7 +279,7 @@ class dataset:
                 - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
                 - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+            read_only (bool, optional): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -327,7 +326,6 @@ class dataset:
             )
 
         try:
-            read_only = storage.read_only
             if access_method == "stream":
                 return dataset_factory(
                     path=path,

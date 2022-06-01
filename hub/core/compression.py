@@ -835,9 +835,9 @@ def _read_video_shape(
 
 def _decompress_video(
     file: Union[str, bytes],
-    start: Optional[int],
-    stop: Optional[int],
-    step: Optional[int],
+    start: int,
+    stop: int,
+    step: int,
     reverse: bool,
 ):
     container, vstream = _open_video(file)
@@ -894,6 +894,68 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _read_timestamps(
+    file: Union[str, bytes],
+    start: int,
+    stop: int,
+    step: int,
+    reverse: bool,
+) -> np.ndarray:
+    container, vstream = _open_video(file)
+
+    nframes = math.ceil((stop - start) / step)
+
+    seek_target = _frame_to_stamp(start, vstream)
+    step_time = _frame_to_stamp(step, vstream)
+
+    stamps = []
+    if vstream.duration is None:
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+
+    gop_size = (
+        vstream.codec_context.gop_size
+    )  # gop size is distance (in frames) between 2 I-frames
+    if step > gop_size:
+        step_seeking = True
+    else:
+        step_seeking = False
+
+    seekable = True
+    try:
+        container.seek(seek_target, stream=vstream)
+    except av.error.PermissionError:
+        seekable = False
+        container, vstream = _open_video(file)  # try again but this time don't seek
+        warning(
+            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+        )
+
+    i = 0
+    for packet in container.demux(video=0):
+        pts = packet.pts
+        if pts and pts >= seek_target:
+            stamps.append(pts * time_base)
+            i += 1
+            seek_target += step_time
+            if step_seeking and seekable:
+                container.seek(seek_target, stream=vstream)
+
+        if i == nframes:
+            break
+
+    # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
+    # we need it in order of pts (presentation timestamp)
+    stamps.sort()
+    stamps_arr = np.zeros((nframes,), dtype=np.float32)
+    stamps_arr[: len(stamps)] = stamps
+
+    if reverse:
+        return stamps_arr[::-1]
+    return stamps_arr
 
 
 def _open_audio(file: Union[str, bytes, memoryview]):
