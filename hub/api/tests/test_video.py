@@ -156,6 +156,10 @@ def test_video_data(local_ds, video_paths):
             ds.video.append(hub.read(video_paths["mp4"][0]))
         ds.video.append(hub.read(video_paths["mp4"][1]))
 
+        data = ds.video[2].data()
+        assert data["frames"].shape == (400, 360, 640, 3)
+        assert data["timestamps"].shape == (400,)
+
         data = ds.video[:2, 4, :5, :5].data()
         assert data["frames"].shape == (2, 5, 5, 3)
         assert data["timestamps"].shape == (2, 1)
