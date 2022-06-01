@@ -991,15 +991,8 @@ class ChunkEngine:
         return samples_to_move
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
-        # print("=====before=====")
-        # print(self.chunk_id_encoder.array)
-        # print("rechunking at ", chunk_row)
-        # self._validate_enc()
         samples_to_move = self._get_samples_to_move(chunk=chunk)
-        # print(f"num samples at {chunk_row} = {self.chunk_id_encoder.num_samples_at(chunk_row)}")
-        
         num_samples = len(samples_to_move)
-        # print(f"num_samples_to_move={num_samples}")
         if num_samples == 0:
             return
         new_chunk = self._create_new_chunk(register=True, row=chunk_row)
@@ -1010,7 +1003,6 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        # print("popped from ", ChunkIdEncoder.id_from_name(chunk.key.split("/")[-1]))
         samples, _ = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
@@ -1020,9 +1012,6 @@ class ChunkEngine:
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
         )
-        self.cache.flush()
-        # self._validate_enc()
-        
 
     def _merge_chunks(
         self,
@@ -1031,7 +1020,6 @@ class ChunkEngine:
         to_chunk: BaseChunk,
         to_chunk_row: int,
     ):
-        # self._validate_enc()
         samples_to_move = self._get_chunk_samples(chunk=from_chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
@@ -1046,13 +1034,11 @@ class ChunkEngine:
             start_chunk=to_chunk,
             register=True,
             update_commit_diff=True,
-            # append_to_end=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         del self.cache[from_chunk.key]  # type: ignore
-        # self._validate_enc()
         return True
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
@@ -1116,22 +1102,6 @@ class ChunkEngine:
         ):
             self.__rechunk(chunk, chunk_row)
             return
-
-    def _validate_enc(self, before=None):
-        for global_sample_index in range(self.num_samples):
-            chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-            row = self.chunk_id_encoder.__getitem__(global_sample_index, return_row_index=True)[0][1]
-            num_samples = self.chunk_id_encoder.num_samples_at(row)
-            if num_samples != chunk.num_samples:
-                print(self.chunk_id_encoder.array)
-                print(num_samples, chunk.num_samples, row, global_sample_index)
-                if before is not None:
-                    print("From before::")
-                    self.chunk_id_encoder._encoded = before
-                    row = self.chunk_id_encoder.__getitem__(global_sample_index, return_row_index=True)[0][1]
-                    print("row = ", row)
-                    print("num_sample_at = ", self.chunk_id_encoder.num_samples_at(row))
-                raise Exception()
 
     def _update(
         self,
