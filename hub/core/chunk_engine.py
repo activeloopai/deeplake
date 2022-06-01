@@ -1036,7 +1036,10 @@ class ChunkEngine:
             start_chunk_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
-        del self.cache[from_chunk.key]  # type: ignore
+        try:
+            del self.cache[from_chunk.key]  # type: ignore
+        except KeyError:
+            pass
         return True
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
