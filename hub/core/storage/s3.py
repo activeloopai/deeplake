@@ -69,7 +69,7 @@ class S3ResetClientManager:
 
     def __enter__(self):
         self.s3p._check_update_creds(force=True)
-        self.s3p._initialize_s3_parameters(update_creds=True)
+        self.s3p._initialize_s3_parameters()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -465,7 +465,7 @@ class S3Provider(StorageProvider):
 
         self._set_s3_client_and_resource()
 
-    def _check_update_creds(self, force=True):
+    def _check_update_creds(self, force=False):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
