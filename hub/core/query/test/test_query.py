@@ -1,4 +1,3 @@
-from tkinter.ttk import Progressbar
 import pytest
 from hub.core import query
 
