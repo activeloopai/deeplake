@@ -753,26 +753,30 @@ class Tensor:
             else:
                 return list(map(list, self.numpy(aslist=True)))
         elif self.htype == "video":
-            if len(self.index.values) > 2:
-                return self.numpy(aslist=aslist)
-            else:
-                data = {}
-                data["frames"] = self.numpy(aslist=aslist)
-                if self.index.values[0].subscriptable():
-                    start = self.index.values[0].value
-                    if isinstance(start, slice):
-                        start = start.start or 0
+            data = {}
+            data["frames"] = self.numpy(aslist=aslist)
+            index = self.index
+            if index.values[0].subscriptable():
+                root = Tensor(self.key, self.dataset)
+                if len(index.values) > 1:
                     data["timestamps"] = np.array(
                         [
-                            self[i - start].timestamp
-                            for i in self.index.values[0].indices(self.num_samples)
+                            root[i, index.values[1].value].timestamp
+                            for i in index.values[0].indices(self.num_samples)
                         ]
                     )
                 else:
-                    data["timestamps"] = self.timestamp
-                if aslist:
-                    data["timestamps"] = data["timestamps"].tolist()  # type: ignore
-                return data
+                    data["timestamps"] = np.array(
+                        [
+                            root[i].timestamp
+                            for i in index.values[0].indices(self.num_samples)
+                        ]
+                    )
+            else:
+                data["timestamps"] = self.timestamp
+            if aslist:
+                data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+            return data
         else:
             return self.numpy(aslist=aslist)
 
