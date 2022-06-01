@@ -761,7 +761,7 @@ class Tensor:
                 if len(index.values) > 1:
                     data["timestamps"] = np.array(
                         [
-                            root[i, index.values[1].value].timestamp
+                            root[i, index.values[1].value].timestamp  # type: ignore
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
