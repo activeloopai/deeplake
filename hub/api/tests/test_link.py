@@ -201,6 +201,8 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             sample = hub.link(flower_path)
             ds.linked_images.append(sample)
 
+        ds.commit()
+
         ds.linked_images.append(None)
 
         for i in range(0, 10, 2):
