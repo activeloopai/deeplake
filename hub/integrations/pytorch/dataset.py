@@ -216,7 +216,6 @@ class PrefetchConcurrentIterator(Iterable):
         self.dataset = dataset
         self.num_workers = dataset.num_workers
         self.buffer_size = dataset.buffer_size
-        self.return_index = dataset.return_index
         self.prefetch = 64
 
         self.workers: List[Process] = []
