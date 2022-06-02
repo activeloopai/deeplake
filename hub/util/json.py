@@ -177,7 +177,7 @@ class JsonValidationError(Exception):
 
 
 def validate_json_object(obj: Any, schema: Union[str, Schema]) -> None:
-    if not _validate_object(obj, schema):
+    if obj and not _validate_object(obj, schema):
         raise JsonValidationError()
 
 

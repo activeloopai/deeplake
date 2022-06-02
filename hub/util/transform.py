@@ -236,12 +236,14 @@ def create_worker_chunk_engines(
                 existing_meta = storage_chunk_engine.tensor_meta
 
                 chunk_size = storage_chunk_engine.max_chunk_size
+                tiling_threshold = storage_chunk_engine.tiling_threshold
                 new_tensor_meta = TensorMeta(
                     htype=existing_meta.htype,
                     dtype=existing_meta.dtype,
                     sample_compression=existing_meta.sample_compression,
                     chunk_compression=existing_meta.chunk_compression,
                     max_chunk_size=chunk_size,
+                    tiling_threshold=tiling_threshold,
                     links=existing_meta.links,
                     is_sequence=existing_meta.is_sequence,
                     is_link=existing_meta.is_link,
