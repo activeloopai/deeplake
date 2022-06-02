@@ -2507,7 +2507,9 @@ class Dataset:
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
-            new_first_index = IndexEntry(slice(old_first_index.value, old_first_index.value + 1))
+            new_first_index = IndexEntry(
+                slice(old_first_index.value, old_first_index.value + 1)
+            )
             self.index.values[0] = new_first_index
             print(self.index)
             reset_index = True
