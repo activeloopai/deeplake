@@ -1442,6 +1442,8 @@ class Dataset:
                 self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
+            if self.index.is_trivial():
+                self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
             self._lock()  # for ref counting
         if not self.is_iteration:
@@ -2500,15 +2502,14 @@ class Dataset:
             overwrite=overwrite,
             public=public,
         )
-
         with dest_ds:
             dest_ds.info.update(self.info)
 
         if not self.index.subscriptable_at(0):
-            warnings.warn("This dataset view is smaller than a single sample. After copying, the destination dataset will contain 1 sample whose contents are same as this view.")
             old_first_index = self.index.values[0]
             new_first_index = IndexEntry(slice(old_first_index.value, old_first_index.value + 1))
             self.index.values[0] = new_first_index
+            print(self.index)
             reset_index = True
         else:
             reset_index = False
@@ -2529,6 +2530,11 @@ class Dataset:
                 )
         finally:
             if reset_index:
+                assert dest_ds.x.shape[0]==1, dest_ds.x.shape
+                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
+                dest_ds.meta.is_dirty = True
+                dest_ds.flush()
+                dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
         return dest_ds
 
