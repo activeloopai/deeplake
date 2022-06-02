@@ -2505,22 +2505,31 @@ class Dataset:
             dest_ds.info.update(self.info)
 
         if not self.index.subscriptable_at(0):
-            raise NotImplementedError("Sub-sample views cannot be copied.")
-
-        for tensor in dest_ds.tensors:
-            if progressbar:
-                sys.stderr.write(f"Copying tensor: {tensor}.\n")
-            hub.compute(_copy_tensor, name="tensor copy transform")(
-                tensor_name=tensor
-            ).eval(
-                self,
-                dest_ds,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-                skip_ok=True,
-                check_lengths=False,
-            )
+            warnings.warn("This dataset view is smaller than a single sample. After copying, the destination dataset will contain 1 sample whose contents are same as this view.")
+            old_first_index = self.index.values[0]
+            new_first_index = IndexEntry(slice(old_first_index.value, old_first_index.value + 1))
+            self.index.values[0] = new_first_index
+            reset_index = True
+        else:
+            reset_index = False
+        try:
+            for tensor in dest_ds.tensors:
+                if progressbar:
+                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
+                hub.compute(_copy_tensor, name="tensor copy transform")(
+                    tensor_name=tensor
+                ).eval(
+                    self,
+                    dest_ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                )
+        finally:
+            if reset_index:
+                self.index.values[0] = old_first_index
         return dest_ds
 
     @invalid_view_op

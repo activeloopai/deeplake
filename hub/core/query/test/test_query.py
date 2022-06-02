@@ -127,16 +127,12 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
     with pytest.raises(DatasetViewSavingError):
         view.save_view(optimize=optimize)
     ds.commit()
-    expect = (
-        pytest.raises(NotImplementedError)
-        if optimize and not idx_subscriptable
-        else memoryview(b"")
-    )
-    with expect:
-        view.save_view(optimize=optimize)
-        assert len(ds.get_views()) == 1
-        view2 = ds.get_views()[0].load()
-        np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
+    view.save_view(optimize=optimize)
+    assert len(ds.get_views()) == 1
+    view2 = ds.get_views()[0].load()
+    if optimize and not idx_subscriptable:
+        view2 = view2[0]
+    np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
 
 
 @pytest.mark.parametrize("optimize", [True, False])
