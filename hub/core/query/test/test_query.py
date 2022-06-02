@@ -118,6 +118,8 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
         ds.x.extend(arr)
+    with pytest.raises(DatasetViewSavingError):
+        ds.save_view(optimize=optimize)
     view = ds[10:77, 2:17, 19:31, :1]
     arr = arr[10:77, 2:17, 19:31, :1]
     if not idx_subscriptable:

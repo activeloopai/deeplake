@@ -2015,9 +2015,9 @@ class Dataset:
                         self._view_base._update_hooks[uid] = update_hook
                         self._view_base._commit_hooks[uid] = commit_hook
 
-                    raise DatasetViewSavingError(
-                        "HEAD node has uncommited changes. Commit them before saving views."
-                    )
+                raise DatasetViewSavingError(
+                    "HEAD node has uncommited changes. Commit them before saving views."
+                )
         tm = getattr(self, "_created_at", time())
         id = self._view_hash() if id is None else id
         info = {
