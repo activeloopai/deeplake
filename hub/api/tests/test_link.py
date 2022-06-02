@@ -241,7 +241,6 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
     for v1, v2 in zip(view1_np, view2_np):
         np.testing.assert_array_equal(v1, v2)
 
-
     # checking persistence
     ds = local_ds_generator()
     for i in range(10):
