@@ -2530,7 +2530,6 @@ class Dataset:
                 )
         finally:
             if reset_index:
-                assert dest_ds.x.shape[0]==1, dest_ds.x.shape
                 dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
                 dest_ds.meta.is_dirty = True
                 dest_ds.flush()
