@@ -20,7 +20,7 @@ def create_dataloader_nesteddataloader(
     collate_fn,
     pin_memory,
     drop_last,
-    return_index
+    return_index,
 ):
     import torch
     import torch.utils.data
@@ -132,7 +132,7 @@ def dataset_to_pytorch(
             collate_fn,
             pin_memory,
             drop_last,
-            return_index
+            return_index,
         )
     else:
         return torch.utils.data.DataLoader(
