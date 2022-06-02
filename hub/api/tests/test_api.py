@@ -1611,24 +1611,18 @@ def test_dataset_copy(
             ds.label.append(np.random.randint(0, 10, (1, 10)))
             ds.nocopy.append([0])
 
-    expect = (
-        pytest.raises(NotImplementedError)
-        if isinstance(index, int)
-        else memoryview(b"")
+    hub.copy(
+        ds[index],
+        local_ds.path,
+        tensors=["images", "label"],
+        overwrite=True,
+        num_workers=num_workers,
+        progressbar=progressbar,
     )
-    with expect:
-        hub.copy(
-            ds[index],
-            local_ds.path,
-            tensors=["images", "label"],
-            overwrite=True,
-            num_workers=num_workers,
-            progressbar=progressbar,
-        )
-        local_ds = hub.load(local_ds.path)
-        assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
-        for t in local_ds.tensors:
-            np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
+    local_ds = hub.load(local_ds.path)
+    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+    for t in local_ds.tensors:
+        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(
