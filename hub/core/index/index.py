@@ -361,7 +361,7 @@ class Index:
         elif isinstance(item, list):
             return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
-            return self[tuple(v.value for v in item.values)]
+            return self[tuple(v.value for v in item.values)]  # type: ignore
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
