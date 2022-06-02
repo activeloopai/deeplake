@@ -12,6 +12,7 @@ from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.compression import _read_timestamps
 from hub.core.tensor_link import get_link_transform
 from hub.api.info import load_info
 from hub.util.keys import (
@@ -47,10 +48,11 @@ from hub.util.pretty_print import (
     get_string,
     summary_tensor,
 )
-from hub.constants import FIRST_COMMIT_ID, MB, _NO_LINK_UPDATE
+from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
 from hub.util.version_control import auto_checkout
+from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
@@ -750,6 +752,31 @@ class Tensor:
                 return list(self.numpy())
             else:
                 return list(map(list, self.numpy(aslist=True)))
+        elif self.htype == "video":
+            data = {}
+            data["frames"] = self.numpy(aslist=aslist)
+            index = self.index
+            if index.values[0].subscriptable():
+                root = Tensor(self.key, self.dataset)
+                if len(index.values) > 1:
+                    data["timestamps"] = np.array(
+                        [
+                            root[i, index.values[1].value].timestamp  # type: ignore
+                            for i in index.values[0].indices(self.num_samples)
+                        ]
+                    )
+                else:
+                    data["timestamps"] = np.array(
+                        [
+                            root[i].timestamp
+                            for i in index.values[0].indices(self.num_samples)
+                        ]
+                    )
+            else:
+                data["timestamps"] = self.timestamp
+            if aslist:
+                data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+            return data
         else:
             return self.numpy(aslist=aslist)
 
@@ -909,3 +936,41 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @property
+    def timestamp(self) -> np.ndarray:
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        index = self.index
+        if index.values[0].subscriptable():
+            raise ValueError("Only supported for exactly 1 video sample.")
+        if self.is_sequence:
+            if len(index.values) == 1 or index.values[1].subscriptable():
+                raise ValueError("Only supported for exactly 1 video sample.")
+            sub_index = index.values[2].value if len(index.values) > 2 else None
+        else:
+            sub_index = index.values[1].value if len(index.values) > 1 else None
+        global_sample_index = next(index.values[0].indices(self.num_samples))
+        sample = self.chunk_engine.get_video_sample(
+            global_sample_index, index, decompress=False
+        )
+
+        nframes = self.shape[0]
+        start, stop, step, reverse = normalize_index(sub_index, nframes)
+
+        stamps = _read_timestamps(sample, start, stop, step, reverse)
+        return stamps
+
+    @property
+    def _config(self):
+        """Returns a summary of the configuration of the tensor."""
+        tensor_meta = self.meta
+        return {
+            "htype": tensor_meta.htype or UNSPECIFIED,
+            "dtype": tensor_meta.dtype or UNSPECIFIED,
+            "sample_compression": tensor_meta.sample_compression or UNSPECIFIED,
+            "chunk_compression": tensor_meta.chunk_compression or UNSPECIFIED,
+            "hidden": tensor_meta.hidden,
+            "is_link": tensor_meta.is_link,
+            "is_sequence": tensor_meta.is_sequence,
+        }
