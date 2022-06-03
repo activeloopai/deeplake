@@ -474,7 +474,13 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video", "dicom"):
+        if create_sample_info_tensor and htype in (
+            "image",
+            "audio",
+            "video",
+            "dicom",
+            "point_cloud",
+        ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)

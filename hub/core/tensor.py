@@ -644,6 +644,14 @@ class Tensor:
                 f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
             )
 
+    def get_full_point_cloud_numpy(
+        self, aslist=False, fetch_chunks=False
+    ) -> Union[np.ndarray, List[np.ndarray]]:
+        self.check_link_ready()
+        return self.chunk_engine.numpy(
+            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+        )
+
     def numpy(
         self, aslist=False, fetch_chunks=False
     ) -> Union[np.ndarray, List[np.ndarray]]:
@@ -666,6 +674,10 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         self.check_link_ready()
+        if self.htype == "point_cloud":
+            return self.get_full_point_cloud_numpy(aslist=False, fetch_chunks=False)[
+                ..., :3
+            ]
         return self.chunk_engine.numpy(
             self.index, aslist=aslist, fetch_chunks=fetch_chunks
         )
@@ -748,6 +760,10 @@ class Tensor:
                 return list(self.numpy())
             else:
                 return list(map(list, self.numpy(aslist=True)))
+        elif htype == "point_cloud":
+            full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
+            keys = self.sample_info.keys()
+            return {key: arr for key, arr in zip(keys, full_arr)}
         else:
             return self.numpy(aslist=aslist)
 

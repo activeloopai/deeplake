@@ -18,16 +18,42 @@ def test_point_cloud(local_ds, point_cloud_paths):
         sample = hub.read(path)
         if "dummy_data" in path:  # check shape only for internal test point_clouds
             if compression in ["las", "laz"]:
-                assert sample.shape == (20153, 3)
+                assert sample.shape == (20153, 18)
 
-        assert sample.shape[-1] == 3
+        assert sample.shape[-1] == 18
 
         with local_ds:
             for _ in range(5):
                 tensor.append(hub.read(path))  # type: ignore
             tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
         for i in range(10):
-            assert tensor[i].numpy().shape == sample.shape  # type: ignore
+            assert tensor[i].numpy().shape[0] == sample.shape[0]  # type: ignore
+
+        assert len(sample.meta["las_header"]) == 17
+        assert type(sample.meta["dimension_names"]) == dict
+        assert type(sample.meta["las_header"]) == dict
+        assert type(sample.meta["las_header"]["DEFAULT_VERSION"]) == dict
+        assert type(sample.meta["las_header"]["file_source_id"]) == int
+        assert type(sample.meta["las_header"]["system_identifier"]) == str
+        assert type(sample.meta["las_header"]["generating_software"]) == str
+        assert type(sample.meta["las_header"]["creation_date"]) == dict
+        assert type(sample.meta["las_header"]["point_count"]) == int
+        assert type(sample.meta["las_header"]["scales"]) == np.ndarray
+        assert type(sample.meta["las_header"]["offsets"]) == np.ndarray
+        assert (
+            type(sample.meta["las_header"]["number_of_points_by_return"]) == np.ndarray
+        )
+        assert (
+            type(sample.meta["las_header"]["start_of_waveform_data_packet_record"])
+            == int
+        )
+        assert type(sample.meta["las_header"]["start_of_first_evlr"]) == int
+        assert type(sample.meta["las_header"]["number_of_evlrs"]) == int
+        assert type(sample.meta["las_header"]["version"]) == dict
+        assert type(sample.meta["las_header"]["maxs"]) == np.ndarray
+        assert type(sample.meta["las_header"]["mins"]) == np.ndarray
+        assert type(sample.meta["las_header"]["major_version"]) == int
+        assert type(sample.meta["las_header"]["minor_version"]) == int
 
 
 @pytest.mark.skipif(
@@ -51,4 +77,3 @@ def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
             local_ds.point_cloud[0][:5:-1].numpy().shape == dummy[:5:-1].shape
             local_ds.point_cloud[0][-1].numpy().shape == dummy[-1].shape
             return
-    raise Exception  # test did not run

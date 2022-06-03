@@ -41,6 +41,7 @@ from hub.compression import (
     AUDIO_COMPRESSIONS,
     BYTE_COMPRESSIONS,
     COMPRESSION_ALIASES,
+    POINT_CLOUD_COMPRESSIONS,
 )
 
 DEFAULT_HTYPE = "generic"
@@ -104,6 +105,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     "text": BYTE_COMPRESSIONS[:],
     "list": BYTE_COMPRESSIONS[:],
     "json": BYTE_COMPRESSIONS[:],
+    "point_cloud": POINT_CLOUD_COMPRESSIONS[:],
     "dicom": ["dcm"],
 }
 

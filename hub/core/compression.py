@@ -6,6 +6,10 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
+from hub.util.las import (
+    convert_version_to_dict,
+    convert_creation_date_to_dict,
+)
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
@@ -40,7 +44,6 @@ try:
     _LZ4_INSTALLED = True
 except ImportError:
     _LZ4_INSTALLED = False
-
 
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
@@ -355,7 +358,9 @@ def compress_multiple(
             b"".join(arr.tobytes() for arr in arrays), compression
         )  # Note: shape and dtype info not included
     elif compr_type == AUDIO_COMPRESSION:
-        raise NotImplementedError("compress_multiple does not support audio samples.")
+        raise NotImplementedError(
+            "compress_multiple does not support point cloud data samples."
+        )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support video samples.")
     elif compr_type == POINT_CLOUD_COMPRESSION:
@@ -1023,7 +1028,7 @@ def _decompress_audio(
     return audio
 
 
-def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
+def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
     try:
         import laspy as lp  # type: ignore
     except:
@@ -1032,21 +1037,40 @@ def _open_cloud_point_data(file: Union[bytes, memoryview, str]):
     if isinstance(file, str):
         point_cloud = lp.read(file)
     else:
-        raise NotImplementedError(
-            "Working with bytes or memoryview is not yet supported"
-        )
+        point_cloud = lp.read(BytesIO(file))
     return point_cloud
 
 
 def _read_point_cloud_meta(file):
-    point_cloud = _open_cloud_point_data(file)
-    dimension_names = list(point_cloud.point_format.dimension_names)
-    meta_data = {}
-    for dimension_name in dimension_names:
-        if dimension_name not in ["x", "X", "y", "Y", "z", "Z"]:
-            meta_data[dimension_name] = np.array(
-                point_cloud[dimension_name]
-            ).transpose()
+    point_cloud = _open_point_cloud_data(file)
+    keys = list(point_cloud.point_format.dimension_names)
+    meta_data = {
+        "dimension_names": {keys[i]: i for i in range(len(keys))},
+        "las_header": {
+            "DEFAULT_VERSION": convert_version_to_dict(
+                point_cloud.header.DEFAULT_VERSION
+            ),
+            "file_source_id": point_cloud.header.file_source_id,
+            "system_identifier": point_cloud.header.system_identifier,
+            "generating_software": point_cloud.header.generating_software,
+            "creation_date": convert_creation_date_to_dict(
+                point_cloud.header.creation_date
+            ),
+            "point_count": point_cloud.header.point_count,  # think about ways to add it to meta
+            "scales": point_cloud.header.scales,
+            "offsets": point_cloud.header.offsets,
+            "number_of_points_by_return": point_cloud.header.number_of_points_by_return,
+            "start_of_waveform_data_packet_record": point_cloud.header.start_of_waveform_data_packet_record,
+            "start_of_first_evlr": point_cloud.header.start_of_first_evlr,
+            "number_of_evlrs": point_cloud.header.number_of_evlrs,
+            "version": convert_version_to_dict(point_cloud.header.version),
+            "maxs": point_cloud.header.maxs,
+            "mins": point_cloud.header.mins,
+            "major_version": point_cloud.header.major_version,
+            "minor_version": point_cloud.header.minor_version,
+        },  # TO DO: add support for DEFAULT_POINT_FORMAT, uuid, extra_header_bytes, extra_vlr_bytes,
+        # point_format, global_encoding, vlrs
+    }
     return meta_data
 
 
@@ -1057,6 +1081,9 @@ def _read_point_cloud_shape(file):
 
 
 def _decompress_point_cloud(file: Union[bytes, memoryview, str]):
-    point_cloud = _open_cloud_point_data(file)
-    xyz_points = np.vstack((point_cloud.x, point_cloud.y, point_cloud.z)).transpose()
-    return xyz_points
+    point_cloud = _open_point_cloud_data(file)
+    point_cloud_dimension_names = _read_point_cloud_meta(file)["dimension_names"]
+    decompressed_point_cloud = np.vstack(
+        [point_cloud[dimension_name] for dimension_name in point_cloud_dimension_names]
+    ).transpose()
+    return decompressed_point_cloud
