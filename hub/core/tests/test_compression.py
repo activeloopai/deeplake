@@ -170,7 +170,7 @@ def test_point_cloud(compression, point_cloud_paths):
     path = point_cloud_paths[compression]
     sample = hub.read(path)
     arr = np.array(sample)
-    assert arr.shape[-1] == 3
+    assert arr.shape[-1] == 18
     assert arr.dtype == "float64"
 
 
