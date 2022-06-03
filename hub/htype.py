@@ -34,6 +34,7 @@ Supported htypes and their respective defaults are:
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
 | list           |  List     |  none         |
+| dicom          |  none     |  dcm          |
 | link           |  str      |  none         |
 | sequence       |  none     |  none         |
 
@@ -125,7 +126,25 @@ from hub.compression import (
     COMPRESSION_ALIASES,
 )
 
-DEFAULT_HTYPE = "generic"
+
+class htype:
+    DEFAULT = "generic"
+    IMAGE = "image"
+    IMAGE_RGB = "image.rgb"
+    IMAGE_GRAY = "image.gray"
+    CLASS_LABEL = "class_label"
+    BBOX = "bbox"
+    VIDEO = "video"
+    BINARY_MASK = "binary_mask"
+    SEGMENT_MASK = "segment_mask"
+    KEYPOINTS_COCO = "keypoints_coco"
+    POINT = "point"
+    AUDIO = "audio"
+    TEXT = "text"
+    JSON = "json"
+    LIST = "list"
+    DICOM = "dicom"
+
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
 REQUIRE_USER_SPECIFICATION = "require_user_specification"
@@ -135,40 +154,44 @@ UNSPECIFIED = "unspecified"
 
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
-    DEFAULT_HTYPE: {"dtype": None},
-    "image": {
+    htype.DEFAULT: {"dtype": None},
+    htype.IMAGE: {
         "dtype": "uint8",
     },
-    "image.rgb": {
+    htype.IMAGE_RGB: {
         "dtype": "uint8",
     },
-    "image.gray": {
+    htype.IMAGE_GRAY: {
         "dtype": "uint8",
     },
-    "class_label": {
+    htype.CLASS_LABEL: {
         "dtype": "uint32",
         "class_names": [],
         "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
-    "bbox": {"dtype": "float32", "coords": {}, "_info": ["coords"]},
-    "audio": {"dtype": "float64"},
-    "video": {"dtype": "uint8"},
-    "binary_mask": {
+    htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
+    htype.AUDIO: {"dtype": "float64"},
+    htype.VIDEO: {"dtype": "uint8"},
+    htype.BINARY_MASK: {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
-    "segment_mask": {"dtype": "uint32", "class_names": [], "_info": ["class_names"]},
-    "keypoints_coco": {"dtype": "int32"},
-    "point": {"dtype": "int32"},
-    "json": {
+    htype.SEGMENT_MASK: {
+        "dtype": "uint32",
+        "class_names": [],
+        "_info": ["class_names"],
+    },
+    htype.KEYPOINTS_COCO: {"dtype": "int32"},
+    htype.POINT: {"dtype": "int32"},
+    htype.JSON: {
         "dtype": "Any",
     },
-    "list": {"dtype": "List"},
-    "text": {"dtype": "str"},
-    "dicom": {"sample_compression": "dcm"},
+    htype.LIST: {"dtype": "List"},
+    htype.TEXT: {"dtype": "str"},
+    htype.DICOM: {"sample_compression": "dcm"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
-    "bbox": {"coords": {"type": dict, "keys": ["type", "mode"]}}
+    htype.BBOX: {"coords": {"type": dict, "keys": ["type", "mode"]}}
 }
 
 _image_compressions = (
@@ -177,15 +200,15 @@ _image_compressions = (
 _image_compressions.remove("dcm")
 
 HTYPE_SUPPORTED_COMPRESSIONS = {
-    "image": _image_compressions,
-    "image.rgb": _image_compressions,
-    "image.gray": _image_compressions,
-    "video": VIDEO_COMPRESSIONS[:],
-    "audio": AUDIO_COMPRESSIONS[:],
-    "text": BYTE_COMPRESSIONS[:],
-    "list": BYTE_COMPRESSIONS[:],
-    "json": BYTE_COMPRESSIONS[:],
-    "dicom": ["dcm"],
+    htype.IMAGE: _image_compressions,
+    htype.IMAGE_RGB: _image_compressions,
+    htype.IMAGE_GRAY: _image_compressions,
+    htype.VIDEO: VIDEO_COMPRESSIONS[:],
+    htype.AUDIO: AUDIO_COMPRESSIONS[:],
+    htype.TEXT: BYTE_COMPRESSIONS[:],
+    htype.LIST: BYTE_COMPRESSIONS[:],
+    htype.JSON: BYTE_COMPRESSIONS[:],
+    htype.DICOM: ["dcm"],
 }
 
 
