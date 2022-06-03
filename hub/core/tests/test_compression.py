@@ -171,7 +171,7 @@ def test_point_cloud(compression, point_cloud_paths):
     sample = hub.read(path)
     arr = np.array(sample)
     assert arr.shape[-1] == 18
-    assert arr.dtype == "float64"
+    assert arr.dtype == "int32"
 
 
 def test_apng(memory_ds):
