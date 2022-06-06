@@ -939,6 +939,25 @@ class Tensor:
 
     @property
     def timestamp(self) -> np.ndarray:
+        """Returns timestamps (in seconds) for video sample as numpy array.
+
+        ## Examples:
+
+        Return timestamps for all frames of first video sample
+
+        ```
+        >>> ds.video[0].timestamp
+        ```
+
+        Return timestamps for 5th to 10th frame of first video sample
+
+        ```
+        >>> ds.video[0, 5:10].timestamp
+        array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
+        dtype=float32)
+        ```
+
+        """
         if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
             raise Exception("Only supported for video tensors.")
         index = self.index

@@ -20,6 +20,7 @@ def create_dataloader_nesteddataloader(
     collate_fn,
     pin_memory,
     drop_last,
+    return_index,
 ):
     import torch
     import torch.utils.data
@@ -37,6 +38,7 @@ def create_dataloader_nesteddataloader(
             batch_size=batch_size,
             num_workers=num_workers,
             buffer_size=buffer_size,
+            return_index=return_index,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
@@ -97,6 +99,7 @@ def dataset_to_pytorch(
     transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
     tobytes: Union[bool, Sequence[str]] = False,
+    return_index: bool = False,
 ):
 
     import torch
@@ -129,6 +132,7 @@ def dataset_to_pytorch(
             collate_fn,
             pin_memory,
             drop_last,
+            return_index,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -141,6 +145,7 @@ def dataset_to_pytorch(
                 num_workers=num_workers,
                 shuffle=shuffle,
                 buffer_size=buffer_size,
+                return_index=return_index,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

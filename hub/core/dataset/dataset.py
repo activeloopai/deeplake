@@ -494,8 +494,8 @@ class Dataset:
 
         # Seperate meta and info
 
-        htype_config = HTYPE_CONFIGURATIONS.get(htype, {})
-        info_keys = htype_config.copy().pop("_info", [])
+        htype_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
+        info_keys = htype_config.pop("_info", [])
         info_kwargs = {}
         meta_kwargs = {}
         for k, v in kwargs.items():
@@ -508,7 +508,10 @@ class Dataset:
         # Set defaults
         for k in info_keys:
             if k not in info_kwargs:
-                info_kwargs[k] = htype_config[k]
+                if k == "class_names":
+                    info_kwargs[k] = htype_config[k].copy()
+                else:
+                    info_kwargs[k] = htype_config[k]
 
         create_tensor(
             key,
@@ -1325,6 +1328,7 @@ class Dataset:
         buffer_size: int = 2048,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
+        return_index: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1349,6 +1353,7 @@ class Dataset:
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
+            return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1368,6 +1373,7 @@ class Dataset:
             shuffle=shuffle,
             buffer_size=buffer_size,
             use_local_cache=use_local_cache,
+            return_index=return_index,
         )
 
         if use_progress_bar:
@@ -1442,6 +1448,8 @@ class Dataset:
                 self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
             self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
+            if self.index.is_trivial():
+                self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
             self._lock()  # for ref counting
         if not self.is_iteration:
@@ -2013,9 +2021,9 @@ class Dataset:
                         self._view_base._update_hooks[uid] = update_hook
                         self._view_base._commit_hooks[uid] = commit_hook
 
-                    raise DatasetViewSavingError(
-                        "HEAD node has uncommited changes. Commit them before saving views."
-                    )
+                raise DatasetViewSavingError(
+                    "HEAD node has uncommited changes. Commit them before saving views."
+                )
         tm = getattr(self, "_created_at", time())
         id = self._view_hash() if id is None else id
         info = {
@@ -2083,10 +2091,9 @@ class Dataset:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
                 )
+                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                 if len(self.index) > 1:
-                    vds.info["sub-sample-index"] = Index(
-                        self.index.values[1:]
-                    ).to_json()
+                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
             vds.info.update(info)
 
     def _save_view_in_subdir(
@@ -2156,9 +2163,9 @@ class Dataset:
 
     def save_view(
         self,
+        message: Optional[str] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
         id: Optional[str] = None,
-        message: Optional[str] = None,
         optimize: bool = False,
         num_workers: int = 0,
         **ds_args,
@@ -2166,12 +2173,12 @@ class Dataset:
         """Stores a dataset view as a virtual dataset (VDS)
 
         Args:
+            message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path.
                 If not, the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Uniquie id for this view.
-            message (Optional, str): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `copy` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2258,7 +2265,11 @@ class Dataset:
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
         ds.checkout(self.info["source-dataset-version"])
-        index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        first_index_subscriptable = self.info.get("first-index-subscriptable", True)
+        if first_index_subscriptable:
+            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        else:
+            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
         sub_sample_index = self.info.get("sub-sample-index")
         if sub_sample_index:
             index_entries += Index.from_json(sub_sample_index).values
@@ -2497,24 +2508,40 @@ class Dataset:
             overwrite=overwrite,
             public=public,
         )
-
         with dest_ds:
             dest_ds.info.update(self.info)
 
-        for tensor in dest_ds.tensors:
-            if progressbar:
-                sys.stderr.write(f"Copying tensor: {tensor}.\n")
-            hub.compute(_copy_tensor, name="tensor copy transform")(
-                tensor_name=tensor
-            ).eval(
-                self,
-                dest_ds,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-                skip_ok=True,
-                check_lengths=False,
+        if not self.index.subscriptable_at(0):
+            old_first_index = self.index.values[0]
+            new_first_index = IndexEntry(
+                slice(old_first_index.value, old_first_index.value + 1)
             )
+            self.index.values[0] = new_first_index
+            reset_index = True
+        else:
+            reset_index = False
+        try:
+            for tensor in dest_ds.tensors:
+                if progressbar:
+                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
+                hub.compute(_copy_tensor, name="tensor copy transform")(
+                    tensor_name=tensor
+                ).eval(
+                    self,
+                    dest_ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                )
+        finally:
+            if reset_index:
+                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
+                dest_ds.meta.is_dirty = True
+                dest_ds.flush()
+                dest_ds = dest_ds[0]
+                self.index.values[0] = old_first_index
         return dest_ds
 
     @invalid_view_op
