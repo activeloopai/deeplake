@@ -1737,6 +1737,14 @@ def test_exist_ok(local_ds):
         ds.create_group("grp", exist_ok=True)
 
 
+def test_empty_sample_partial_read(s3_ds):
+    with s3_ds as ds:
+        ds.create_tensor("xyz")
+        ds.xyz.append([1, 2, 3, 4])
+        ds.xyz.append(None)
+    assert ds.xyz[1].numpy().tolist() == []
+
+
 def test_htype_config_bug(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc", htype="class_label")
