@@ -294,7 +294,7 @@ Hub and WebDatasets both offer rapid data streaming across networks. They have n
 
 <details>
   <summary><b>Hub vs Zarr</b></summary>
-Hub and Zarr both offer storage of data as chunked arrays. However, hub is primarily designed for returning data as arrays using a simple API, rather than actually storing data as arrays (even though that's also possible). Data is stored in hub in its use-case-optimized format, such as jpeg or png for images, or mp4 for audio, and the user can treat the data as if it's an array, becuase hub handles all the data processing in between. In addition, hub provides several features that are not available in Zarr, such as version control and data streaming.
+Hub and Zarr both offer storage of data as chunked arrays. However, hub is primarily designed for returning data as arrays using a simple API, rather than actually storing arrays (even though that's also possible). Hub stores data in its use-case-optimized format, such as jpeg or png for images, or mp4 for audio, and the user can treat the data as if it's an array, becuase hub handles all the data processing in between. In addition, hub provides several features that are not naively available in Zarr, such as version control and data streaming.
 
 
 </details>
