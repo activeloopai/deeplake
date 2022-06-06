@@ -609,7 +609,9 @@ class ChunkEngine:
                     raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
         elif tensor_meta.htype == "class_label":
-            tensor_info = self.cache[get_tensor_info_key(self.key, self.commit_id)]
+            tensor_info = self.cache.get_hub_object(
+                get_tensor_info_key(self.key, self.commit_id), Info
+            )
             class_names = tensor_info.class_names
             labels = []
             for sample in samples:
