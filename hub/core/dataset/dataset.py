@@ -494,8 +494,8 @@ class Dataset:
 
         # Seperate meta and info
 
-        htype_config = HTYPE_CONFIGURATIONS.get(htype, {})
-        info_keys = htype_config.copy().pop("_info", [])
+        htype_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
+        info_keys = htype_config.pop("_info", [])
         info_kwargs = {}
         meta_kwargs = {}
         for k, v in kwargs.items():
@@ -508,7 +508,10 @@ class Dataset:
         # Set defaults
         for k in info_keys:
             if k not in info_kwargs:
-                info_kwargs[k] = htype_config[k]
+                if k == "class_names":
+                    info_kwargs[k] = htype_config[k].copy()
+                else:
+                    info_kwargs[k] = htype_config[k]
 
         create_tensor(
             key,

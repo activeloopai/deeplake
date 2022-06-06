@@ -1735,3 +1735,11 @@ def test_exist_ok(local_ds):
         with pytest.raises(TensorGroupAlreadyExistsError):
             ds.create_group("grp")
         ds.create_group("grp", exist_ok=True)
+
+
+def test_htype_config_bug(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.info.class_names.append("car")
+        ds.create_tensor("xyz", htype="class_label")
+        assert ds.xyz.info.class_names == []
