@@ -207,6 +207,8 @@ class S3Provider(StorageProvider):
 
     def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
         if start_byte is not None and end_byte is not None:
+            if start_byte == end_byte:
+                return b""
             range = f"bytes={start_byte}-{end_byte - 1}"
         elif start_byte is not None:
             range = f"bytes={start_byte}-"
