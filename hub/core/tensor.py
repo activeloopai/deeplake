@@ -629,6 +629,9 @@ class Tensor:
             )
             return
 
+        if isinstance(item, int):
+            value = [value]
+
         self.chunk_engine.update(
             self.index[item_index],
             value,
