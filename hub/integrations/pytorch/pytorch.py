@@ -114,7 +114,7 @@ def dataset_to_pytorch(
 
     tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
-        tensors = list(transform.keys())
+        tensors = [k for k in transform.keys() if k != "index"]
         transform = PytorchTransformFunction(transform_dict=transform, tensors=tensors)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)

@@ -42,7 +42,7 @@ class PytorchTransformFunction:
 
         if transform_dict is not None:
             for tensor in transform_dict:
-                if tensor not in tensors:
+                if tensor != "index" and tensor not in tensors:
                     raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
 
     def __call__(self, data_in: Dict) -> Dict:
