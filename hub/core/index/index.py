@@ -167,13 +167,13 @@ class IndexEntry:
                 return IndexEntry(new_value)
             elif isinstance(item, slice):
                 return IndexEntry(merge_slices(self.value, item))
-            elif isinstance(item, tuple):
+            elif isinstance(item, (tuple, list)):
                 new_value = tuple(slice_at_int(self.value, idx) for idx in item)
                 return IndexEntry(new_value)
         elif isinstance(self.value, tuple):
             if isinstance(item, int) or isinstance(item, slice):
                 return IndexEntry(self.value[item])
-            elif isinstance(item, tuple):
+            elif isinstance(item, (tuple, list)):
                 new_value = tuple(self.value[idx] for idx in item)
                 return IndexEntry(new_value)
 
@@ -265,6 +265,9 @@ class Index:
             item = item.values
         elif item in ((), [], None):
             item = slice(None)
+
+        if isinstance(item, tuple):
+            item = list(map(IndexEntry, item))
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
@@ -358,15 +361,7 @@ class Index:
         elif isinstance(item, list):
             return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
-            base = self
-            for index in item.values:
-                value = index.value
-                if isinstance(value, tuple) and not (
-                    value and isinstance(value[0], slice)
-                ):
-                    value = (value,)  # type: ignore
-                base = base[value]
-            return base
+            return self[tuple(v.value for v in item.values)]  # type: ignore
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 

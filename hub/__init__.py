@@ -36,6 +36,7 @@ from .core.tensor import Tensor
 from .util.bugout_reporter import hub_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
+from .htype import htype
 from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
@@ -83,7 +84,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.5.2"
+__version__ = "2.5.3"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

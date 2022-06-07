@@ -1586,7 +1586,7 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
 @pytest.mark.parametrize(
-    "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
+    "index", [slice(None), slice(5, None, None), slice(None, 8, 2), 7]
 )
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 def test_dataset_copy(
@@ -1608,7 +1608,7 @@ def test_dataset_copy(
         for _ in range(10):
             ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
             ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
-            ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.label.append(np.random.randint(0, 10, (1, 10)))
             ds.nocopy.append([0])
 
     hub.copy(
@@ -1735,3 +1735,35 @@ def test_exist_ok(local_ds):
         with pytest.raises(TensorGroupAlreadyExistsError):
             ds.create_group("grp")
         ds.create_group("grp", exist_ok=True)
+
+
+def test_text_label(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.append("airplane")
+        ds.abc.append("boat")
+        ds.abc.append("airplane")
+        ds.abc.extend(["car", "airplane", 0, 2])
+        ds.abc.info.class_names == ["airplane", "boat", "car"]
+        np.testing.assert_array_equal(
+            ds.abc.numpy(), np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+        )
+
+    ds = local_ds_generator()
+    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+
+
+def test_empty_sample_partial_read(s3_ds):
+    with s3_ds as ds:
+        ds.create_tensor("xyz")
+        ds.xyz.append([1, 2, 3, 4])
+        ds.xyz.append(None)
+    assert ds.xyz[1].numpy().tolist() == []
+
+
+def test_htype_config_bug(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.info.class_names.append("car")
+        ds.create_tensor("xyz", htype="class_label")
+        assert ds.xyz.info.class_names == []

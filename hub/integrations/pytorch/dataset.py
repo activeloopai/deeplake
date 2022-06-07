@@ -408,6 +408,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
+        return_index: bool = False,
     ) -> None:
         super().__init__()
 
@@ -438,6 +439,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         self.shuffle: bool = shuffle
         self.buffer_size: int = buffer_size * MB
+        self.return_index: bool = return_index
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -451,6 +453,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             tensors=self.tensors,
             tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
+            return_index=self.return_index,
         )
 
         if self.shuffle:
@@ -476,6 +479,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 1,
+        return_index: bool = False,
     ) -> None:
         super().__init__()
 
@@ -487,6 +491,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             transform,
             num_workers=num_workers,
             shuffle=True,
+            return_index=return_index,
         )
 
         self.num_workers = num_workers

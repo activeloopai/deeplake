@@ -7,6 +7,7 @@ from warnings import warn
 from numpy import nditer, argmin
 from numpy import array as nparray
 from math import floor
+import numpy as np
 
 
 from hub.constants import MB
@@ -254,6 +255,7 @@ class SampleStreaming(Streaming):
         tensors: Sequence[str],
         tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
+        return_index: bool = False,
     ) -> None:
         super().__init__()
 
@@ -287,6 +289,8 @@ class SampleStreaming(Streaming):
             if self.local_storage is not None
             else None
         )
+
+        self.return_index = return_index
 
     def read(self, schedule: Schedule) -> Iterator:
         for block in schedule._blocks:
@@ -353,6 +357,8 @@ class SampleStreaming(Streaming):
                     break
 
             if valid_sample_flag:
+                if self.return_index:
+                    sample["index"] = np.array([idx])
                 yield sample
 
     def list_blocks(self) -> List[IOBlock]:

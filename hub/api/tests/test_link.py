@@ -1,3 +1,4 @@
+from pickletools import optimize
 import numpy as np
 import os
 import sys
@@ -229,6 +230,16 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
         assert ds.linked_images_2[10].shape == (0,)
         np.testing.assert_array_equal(ds.linked_images_2[10].numpy(), np.ones((0,)))
+
+    ds.commit()
+    view = ds[:5]
+    view.save_view(optimize=True)
+    view2 = ds.get_views()[0].load()
+    view1_np = view.linked_images.numpy(aslist=True)
+    view2_np = view2.linked_images.numpy(aslist=True)
+    assert len(view1_np) == len(view2_np)
+    for v1, v2 in zip(view1_np, view2_np):
+        np.testing.assert_array_equal(v1, v2)
 
     # checking persistence
     ds = local_ds_generator()
