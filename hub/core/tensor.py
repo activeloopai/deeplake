@@ -629,7 +629,7 @@ class Tensor:
             )
             return
 
-        if isinstance(item, int):
+        if not item_index.values[0].subscriptable():
             value = [value]
 
         self.chunk_engine.update(
