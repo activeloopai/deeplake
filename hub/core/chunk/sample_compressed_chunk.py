@@ -64,8 +64,6 @@ class SampleCompressedChunk(BaseChunk):
         stream: bool = False,
         decompress: bool = True,
     ):
-        if not decompress and stream:
-            raise Exception("`decompress=False` is not valid when `stream=True`")
         if self.is_empty_tensor:
             raise EmptyTensorError
 
@@ -86,6 +84,8 @@ class SampleCompressedChunk(BaseChunk):
                     f"subfile,,start,{header_size + sb},end,{header_size + eb},,:"
                     + bytes(buffer[:-4]).decode("utf-8")
                 )
+                if not decompress:
+                    return buffer
             else:
                 buffer = buffer[sb:eb]
         if not decompress:

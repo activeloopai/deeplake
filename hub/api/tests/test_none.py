@@ -78,3 +78,81 @@ def test_none_image_chunk_compression_2d(local_ds):
         assert ds.xyz[1].shape == (0, 0)
         assert ds.xyz[2].numpy().shape == (500, 500)
         assert ds.xyz[2].shape == (500, 500)
+
+
+def test_none_text(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("xyz", htype="text")
+        ds.xyz.append(None)
+        ds.xyz.append(None)
+        assert ds.xyz.meta.max_shape == [1]
+        assert ds.xyz[0].numpy().shape == (1,)
+        assert ds.xyz[0].shape == (1,)
+        assert ds.xyz[0].numpy() == ""
+        assert ds.xyz[1].numpy().shape == (1,)
+        assert ds.xyz[1].shape == (1,)
+        assert ds.xyz[1].numpy() == ""
+
+        ds.xyz.append("hello")
+        assert ds.xyz.meta.max_shape == [1]
+        assert ds.xyz[0].numpy().shape == (1,)
+        assert ds.xyz[0].shape == (1,)
+        assert ds.xyz[0].numpy() == ""
+        assert ds.xyz[1].numpy().shape == (1,)
+        assert ds.xyz[1].shape == (1,)
+        assert ds.xyz[1].numpy() == ""
+        assert ds.xyz[2].numpy().shape == (1,)
+        assert ds.xyz[2].shape == (1,)
+        assert ds.xyz[2].numpy() == "hello"
+
+
+def test_none_json(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("xyz", htype="json")
+        ds.xyz.append(None)
+        ds.xyz.append(None)
+        assert ds.xyz.meta.max_shape == [1]
+        assert ds.xyz[0].numpy().shape == (1,)
+        assert ds.xyz[0].shape == (1,)
+        assert ds.xyz[0].numpy() == {}
+        assert ds.xyz[1].numpy().shape == (1,)
+        assert ds.xyz[1].shape == (1,)
+        assert ds.xyz[1].numpy() == {}
+
+        ds.xyz.append({"hello": "world"})
+        assert ds.xyz.meta.max_shape == [1]
+        assert ds.xyz[0].numpy().shape == (1,)
+        assert ds.xyz[0].shape == (1,)
+        assert ds.xyz[0].numpy() == {}
+        assert ds.xyz[1].numpy().shape == (1,)
+        assert ds.xyz[1].shape == (1,)
+        assert ds.xyz[1].numpy() == {}
+        assert ds.xyz[2].numpy().shape == (1,)
+        assert ds.xyz[2].shape == (1,)
+        assert ds.xyz[2].numpy() == {"hello": "world"}
+
+
+def test_none_list(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("xyz", htype="list")
+        ds.xyz.append(None)
+        ds.xyz.append(None)
+        assert ds.xyz.meta.max_shape == [0]
+        assert ds.xyz[0].numpy().shape == (0,)
+        assert ds.xyz[0].shape == (0,)
+        assert ds.xyz[0].numpy().tolist() == []
+        assert ds.xyz[1].numpy().shape == (0,)
+        assert ds.xyz[1].shape == (0,)
+        assert ds.xyz[1].numpy().tolist() == []
+
+        ds.xyz.append(["hello", "world"])
+        assert ds.xyz.meta.max_shape == [2]
+        assert ds.xyz[0].numpy().shape == (0,)
+        assert ds.xyz[0].shape == (0,)
+        assert ds.xyz[0].numpy().tolist() == []
+        assert ds.xyz[1].numpy().shape == (0,)
+        assert ds.xyz[1].shape == (0,)
+        assert ds.xyz[1].numpy().tolist() == []
+        assert ds.xyz[2].numpy().shape == (2,)
+        assert ds.xyz[2].shape == (2,)
+        assert ds.xyz[2].numpy().tolist() == ["hello", "world"]

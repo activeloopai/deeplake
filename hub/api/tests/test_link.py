@@ -1,3 +1,4 @@
+from pickletools import optimize
 import numpy as np
 import os
 import sys
@@ -197,20 +198,17 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         with pytest.raises(TypeError):
             ds.linked_images.append(np.ones((100, 100, 3)))
 
-        for i in range(10):
-            sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
+        for _ in range(10):
+            sample = hub.link(flower_path)
             ds.linked_images.append(sample)
 
-        # Uncomment after text is fixed
-        # for _ in range(10):
-        #     sample = hub.link(flower_path)
-        #     ds.linked_images.append(sample)
+        ds.linked_images.append(None)
 
-        # for i in range(0, 10, 2):
-        #     sample = hub.link(cat_path)
-        #     ds.linked_images[i] = sample
+        for i in range(0, 10, 2):
+            sample = hub.link(cat_path)
+            ds.linked_images[i] = sample
 
-        assert len(ds.linked_images) == 10
+        assert len(ds.linked_images) == 11
 
         ds.create_tensor(
             "linked_images_2",
@@ -220,13 +218,28 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             sample_compression="jpeg",
         )
         ds.linked_images_2.extend(ds.linked_images)
-        assert len(ds.linked_images_2) == 10
+        assert len(ds.linked_images_2) == 11
         for i in range(10):
             shape_target = (900, 900, 3) if i % 2 == 0 else (513, 464, 4)
             assert ds.linked_images[i].shape == shape_target
             assert ds.linked_images[i].numpy().shape == shape_target
             assert ds.linked_images_2[i].shape == shape_target
             assert ds.linked_images_2[i].numpy().shape == shape_target
+
+        assert ds.linked_images[10].shape == (0,)
+        np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
+        assert ds.linked_images_2[10].shape == (0,)
+        np.testing.assert_array_equal(ds.linked_images_2[10].numpy(), np.ones((0,)))
+
+    ds.commit()
+    view = ds[:5]
+    view.save_view(optimize=True)
+    view2 = ds.get_views()[0].load()
+    view1_np = view.linked_images.numpy(aslist=True)
+    view2_np = view2.linked_images.numpy(aslist=True)
+    assert len(view1_np) == len(view2_np)
+    for v1, v2 in zip(view1_np, view2_np):
+        np.testing.assert_array_equal(v1, v2)
 
     # checking persistence
     ds = local_ds_generator()

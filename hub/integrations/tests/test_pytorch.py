@@ -603,6 +603,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
                 assert f.read() == image
 
 
+@requires_torch
 def test_rename(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -620,3 +621,22 @@ def test_rename(local_ds):
             np.testing.assert_array_equal(
                 np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
             )
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_pytorch_indexes(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True, batch_size=4, shuffle=shuffle, num_workers=num_workers
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}
+        for i in range(len(batch)):
+            np.testing.assert_array_equal(batch["index"][i], batch["xyz"][i][0, 0])

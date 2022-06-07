@@ -150,7 +150,7 @@ def test_json_with_schema(memory_ds):
     ]
     ds.json2.extend(items)
     for i in range(len(items)):
-        assert ds.json2[i].data() == ds.json2.data()[i] == items[i]
+        assert ds.json2[i].data() == ds.json2.data()[i] == (items[i] or {})
 
 
 @enabled_non_gcs_gdrive_datasets

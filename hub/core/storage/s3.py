@@ -68,6 +68,7 @@ class S3ResetClientManager:
         self.s3p = s3p
 
     def __enter__(self):
+        self.s3p._check_update_creds(force=True)
         self.s3p._initialize_s3_parameters()
         return self
 
@@ -206,6 +207,8 @@ class S3Provider(StorageProvider):
 
     def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
         if start_byte is not None and end_byte is not None:
+            if start_byte == end_byte:
+                return b""
             range = f"bytes={start_byte}-{end_byte - 1}"
         elif start_byte is not None:
             range = f"bytes={start_byte}-"
@@ -342,7 +345,6 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        self._check_update_creds()
         return len(self._all_keys())
 
     def __iter__(self):
@@ -465,18 +467,21 @@ class S3Provider(StorageProvider):
 
         self._set_s3_client_and_resource()
 
-    def _check_update_creds(self):
+    def _check_update_creds(self, force=False):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
-        if self.expiration and float(self.expiration) < time.time():
+        if self.expiration and (force or float(self.expiration) < time.time()):
             client = HubBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
 
             url, creds, mode, expiration = client.get_dataset_credentials(
-                org_id, ds_name, mode
+                org_id,
+                ds_name,
+                mode,
+                force,
             )
             self.expiration = expiration
             self._set_s3_client_and_resource(
