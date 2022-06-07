@@ -255,7 +255,7 @@ class SampleStreaming(Streaming):
         tensors: Sequence[str],
         tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
-        return_index: bool = False,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 

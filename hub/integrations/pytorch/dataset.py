@@ -408,7 +408,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
-        return_index: bool = False,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 
@@ -479,7 +479,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 1,
-        return_index: bool = False,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 

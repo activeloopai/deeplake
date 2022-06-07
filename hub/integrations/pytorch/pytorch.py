@@ -99,7 +99,7 @@ def dataset_to_pytorch(
     transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
     tobytes: Union[bool, Sequence[str]] = False,
-    return_index: bool = False,
+    return_index: bool = True,
 ):
 
     import torch
