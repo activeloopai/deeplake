@@ -1738,19 +1738,35 @@ def test_exist_ok(local_ds):
 
 
 def test_text_label(local_ds_generator):
+    text_labels = [
+        ["airplane"],
+        ["boat"],
+        ["airplane"],
+        ["car"],
+        ["airplane"],
+        ["airplane"],
+        ["car"],
+    ]
     with local_ds_generator() as ds:
         ds.create_tensor("abc", htype="class_label")
         ds.abc.append("airplane")
         ds.abc.append("boat")
         ds.abc.append("airplane")
         ds.abc.extend(["car", "airplane", 0, 2])
-        ds.abc.info.class_names == ["airplane", "boat", "car"]
+        assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+        np_data = ds.abc.numpy()
+        data = ds.abc.data()
         np.testing.assert_array_equal(
-            ds.abc.numpy(), np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+            np_data, np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
         )
+        np.testing.assert_array_equal(data["numeric"], np_data)
+        assert data["text"] == text_labels
 
     ds = local_ds_generator()
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+
+    data = ds.abc.data()
+    assert data["text"] == text_labels
 
 
 def test_empty_sample_partial_read(s3_ds):

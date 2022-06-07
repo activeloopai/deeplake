@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List
 
+
 def numeric_to_text(inp, class_names: List[str]):
     if isinstance(inp, np.integer):
         idx = int(inp)
