@@ -394,7 +394,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        gcs = GCSProvider(root, **self._creds)
+        gcs = GCSProvider(root, token=self._creds)
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
