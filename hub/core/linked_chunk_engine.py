@@ -72,8 +72,8 @@ class LinkedChunkEngine(ChunkEngine):
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         return LinkedSample(sample_path, sample_creds_key)
-
-    def get_video_sample(self, global_sample_index, index):
+    
+    def get_video_url(self, global_sample_index):
         creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index)
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
@@ -87,6 +87,10 @@ class LinkedChunkEngine(ChunkEngine):
             url = storage.get_presigned_url(sample_path, full=True)
         else:
             url = sample_path
+        return url
+
+    def get_video_sample(self, global_sample_index, index):
+        url = self.get_video_url(global_sample_index)
         squeeze = isinstance(index, int)
         shape = _read_video_shape(url)
         sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
