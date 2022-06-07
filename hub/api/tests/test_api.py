@@ -1737,6 +1737,22 @@ def test_exist_ok(local_ds):
         ds.create_group("grp", exist_ok=True)
 
 
+def test_text_label(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.append("airplane")
+        ds.abc.append("boat")
+        ds.abc.append("airplane")
+        ds.abc.extend(["car", "airplane", 0, 2])
+        ds.abc.info.class_names == ["airplane", "boat", "car"]
+        np.testing.assert_array_equal(
+            ds.abc.numpy(), np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+        )
+
+    ds = local_ds_generator()
+    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+
+
 def test_empty_sample_partial_read(s3_ds):
     with s3_ds as ds:
         ds.create_tensor("xyz")

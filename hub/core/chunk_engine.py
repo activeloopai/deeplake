@@ -1,3 +1,4 @@
+from logging import info
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
@@ -607,6 +608,29 @@ class ChunkEngine:
                 else:
                     raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
+        elif tensor_meta.htype == "class_label":
+            tensor_info = self.cache.get_hub_object(
+                get_tensor_info_key(self.key, self.commit_id), Info
+            )
+            class_names = tensor_info.class_names
+            labels = []
+            for sample in samples:
+                if isinstance(sample, str):
+                    for i in range(len(class_names)):
+                        if class_names[i] == sample:
+                            labels.append(i)
+                            break
+                    else:
+                        class_names.append(sample)
+                        tensor_info.is_dirty = True
+                        idx = len(class_names) - 1
+                        labels.append(idx)
+                        info(
+                            f"'{sample}' added to {self.tensor_meta.name or self.key}.info.class_names at index {idx}"
+                        )
+                else:
+                    labels.append(sample)
+            samples = verified_samples = labels
         return samples, verified_samples
 
     def _samples_to_chunks(
