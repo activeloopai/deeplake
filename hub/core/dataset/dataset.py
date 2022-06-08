@@ -2641,6 +2641,11 @@ class Dataset:
         """
         self.link_creds.populate_creds(creds_key, creds)
 
+    def replace_creds(self, old_creds_key: str, new_creds_key: str):
+        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
+        self.link_creds.replace_creds(old_creds_key, new_creds_key)
+        save_link_creds(self.link_creds, self.storage)
+
     def get_creds(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
         return self.link_creds.creds_keys

@@ -18,9 +18,11 @@ def merge_link_creds(old_link_creds: LinkCreds, current_link_creds: LinkCreds):
     new_keys = current_link_creds.creds_keys[num_common_keys:]
     current_link_creds.creds_keys = old_link_creds.creds_keys
     current_link_creds.creds_mapping = old_link_creds.creds_mapping
+    current_link_creds.managed_creds_keys = old_link_creds.managed_creds_keys
     for key in new_keys:
         if key not in current_link_creds.creds_mapping:
-            current_link_creds.add_creds(key)
+            managed = key in current_link_creds.managed_creds_keys
+            current_link_creds.add_creds(key, managed)
     return current_link_creds
 
 

@@ -60,13 +60,35 @@ class LinkCreds(HubMemoryObject):
         self.storage_providers[key] = provider
         return provider
 
-    def add_creds(self, creds_key: str, managed: False):
+    def add_creds(self, creds_key: str, managed: bool = False):
         if creds_key in self.creds_keys:
             raise ValueError(f"Creds key {creds_key} already exists")
         self.creds_keys.append(creds_key)
         self.creds_mapping[creds_key] = len(self.creds_keys)
         if managed:
             self.managed_creds_keys.add(creds_key)
+
+    def replace_creds(self, old_creds_key: str, new_creds_key: str):
+        for i in range(len(self.creds_keys)):
+            if self.creds_keys[i] == old_creds_key:
+                self.creds_keys[i] = new_creds_key
+
+        if old_creds_key in self.creds_dict:
+            self.creds_dict[new_creds_key] = self.creds_dict[old_creds_key]
+            del self.creds_dict[old_creds_key]
+
+        self.creds_mapping[new_creds_key] = self.creds_mapping[old_creds_key]
+        del self.creds_mapping[old_creds_key]
+
+        if old_creds_key in self.managed_creds_keys:
+            self.managed_creds_keys.remove(old_creds_key)
+            self.managed_creds_keys.add(new_creds_key)
+
+        if old_creds_key in self.storage_providers:
+            self.storage_providers[new_creds_key] = self.storage_providers[
+                old_creds_key
+            ]
+            del self.storage_providers[old_creds_key]
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
