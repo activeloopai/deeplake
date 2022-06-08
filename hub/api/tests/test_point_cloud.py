@@ -4,6 +4,7 @@ import pytest
 
 import hub
 from hub.core.dataset import Dataset
+from hub.core.sample import Sample
 
 import numpy as np
 
@@ -28,6 +29,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
             tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
         for i in range(10):
             assert tensor[i].numpy().shape[0] == sample.shape[0]  # type: ignore
+            assert len(tensor[i].data()) == 6
 
         assert len(sample.meta["las_header"]) == 17
         assert type(sample.meta["dimension_names"]) == dict

@@ -218,10 +218,6 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         raise NotImplementedError(
             "In order to store video data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
-    elif compr_type == POINT_CLOUD_COMPRESSION:
-        raise NotImplementedError(
-            "In order to store point cloud data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
-        )
     if compression == "apng":
         return _compress_apng(array)
     try:
@@ -363,8 +359,6 @@ def compress_multiple(
         )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support video samples.")
-    elif compr_type == POINT_CLOUD_COMPRESSION:
-        raise NotImplementedError("compress_multiple does not support video samples.")
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
@@ -437,8 +431,6 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
-        elif compression in ("las", "laz"):
-            return _read_point_cloud_shape(file), "<f4"
         else:
             return _fast_decompress(file)
     except Exception as e:
