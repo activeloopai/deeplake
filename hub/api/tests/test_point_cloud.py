@@ -9,10 +9,6 @@ from hub.core.sample import Sample
 import numpy as np
 
 
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
-)
-# @pytest.mark.parametrize("compression", hub.compression.POINT_CLOUD_COMPRESSIONS)
 def test_point_cloud(local_ds, point_cloud_paths):
     for i, (compression, path) in enumerate(point_cloud_paths.items()):
         tensor = local_ds.create_tensor(f"point_cloud_{i}", htype="point_cloud")
@@ -58,9 +54,6 @@ def test_point_cloud(local_ds, point_cloud_paths):
         assert type(sample.meta["las_header"]["minor_version"]) == int
 
 
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
-)
 def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
     for compression, path in point_cloud_paths.items():
         if compression in ["las", "laz"]:
