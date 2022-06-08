@@ -917,8 +917,9 @@ class Tensor:
     def _get_video_stream_url(self):
         if self.is_link:
             return self.chunk_engine.get_video_url(self.index.values[0].value)
-        
+
         from hub.visualizer.video_streaming import get_video_stream_url
+
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
