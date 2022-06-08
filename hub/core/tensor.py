@@ -629,6 +629,7 @@ class Tensor:
             )
             return
 
+        # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
         if not item_index.values[0].subscriptable():
             value = [value]
 
