@@ -630,6 +630,10 @@ class Tensor:
             )
             return
 
+        if not item_index.values[0].subscriptable() and not self.is_sequence:
+            # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
+            value = [value]
+
         self.chunk_engine.update(
             self.index[item_index],
             value,
