@@ -780,10 +780,10 @@ class Tensor:
             return data
         elif htype == "class_label":
             labels = self.numpy(aslist=aslist)
-            data = {
-                "numeric": labels,
-                "text": numeric_to_text(labels, self.info.class_names),
-            }
+            data = {"numeric": labels}
+            class_names = self.info.class_names
+            if class_names:
+                data["text"] = numeric_to_text(labels, self.info.class_names)
             return data
         else:
             return self.numpy(aslist=aslist)

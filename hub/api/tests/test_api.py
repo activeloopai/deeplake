@@ -1737,7 +1737,7 @@ def test_exist_ok(local_ds):
         ds.create_group("grp", exist_ok=True)
 
 
-def test_text_label(local_ds_generator):
+def verify_label_data(ds):
     text_labels = [
         ["airplane"],
         ["boat"],
@@ -1747,26 +1747,43 @@ def test_text_label(local_ds_generator):
         ["airplane"],
         ["car"],
     ]
+    arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+
+    # abc
+    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+    np_data = ds.abc.numpy()
+    data = ds.abc.data()
+    assert set(data.keys()) == {"numeric", "text"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+    assert data["text"] == text_labels
+
+    # xyz
+    assert ds.xyz.info.class_names == []
+    np_data = ds.xyz.numpy()
+    data = ds.xyz.data()
+    assert set(data.keys()) == {"numeric"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+
+
+def test_text_label(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", htype="class_label")
         ds.abc.append("airplane")
         ds.abc.append("boat")
         ds.abc.append("airplane")
         ds.abc.extend(["car", "airplane", 0, 2])
-        assert ds.abc.info.class_names == ["airplane", "boat", "car"]
-        np_data = ds.abc.numpy()
-        data = ds.abc.data()
-        np.testing.assert_array_equal(
-            np_data, np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
-        )
-        np.testing.assert_array_equal(data["numeric"], np_data)
-        assert data["text"] == text_labels
+
+        ds.create_tensor("xyz", htype="class_label")
+        ds.xyz.append(0)
+        ds.xyz.append(1)
+        ds.xyz.append(0)
+        ds.xyz.extend([2, 0, 0, 2])
+        verify_label_data(ds)
 
     ds = local_ds_generator()
-    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
-
-    data = ds.abc.data()
-    assert data["text"] == text_labels
+    verify_label_data(ds)
 
 
 def test_empty_sample_partial_read(s3_ds):
