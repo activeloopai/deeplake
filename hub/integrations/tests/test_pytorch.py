@@ -281,7 +281,7 @@ def test_custom_tensor_order(ds):
     with pytest.raises(TensorDoesNotExistError):
         dl = ds.pytorch(num_workers=0, tensors=["c", "d", "e"])
 
-    dl = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
+    dl = ds.pytorch(num_workers=0, tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -307,7 +307,7 @@ def test_custom_tensor_order(ds):
         np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
         np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
-    dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
+    dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"], return_index=False)
     for i, batch in enumerate(dls):
         c1, d1, a1 = batch
         a2 = batch["a"]
@@ -357,7 +357,7 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
             local_ds.image.append(img_bad)
     num_samples = 0
     num_batches = 0
-    dl = local_ds.pytorch(num_workers=0, batch_size=2)
+    dl = local_ds.pytorch(num_workers=0, batch_size=2, return_index=False)
     for (batch,) in dl:
         num_batches += 1
         num_samples += len(batch)
@@ -414,7 +414,7 @@ def test_groups(local_ds, compressed_image_paths):
         for _ in range(10):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
-    dl = local_ds.pytorch()
+    dl = local_ds.pytorch(return_index=False)
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
@@ -430,7 +430,7 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.arrays.x.append(np.random.random((2, 3)))
             local_ds.arrays.y.append(np.random.random((4, 5)))
 
-    dl = local_ds.images.pytorch()
+    dl = local_ds.images.pytorch(return_index=False)
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
@@ -612,7 +612,7 @@ def test_rename(local_ds):
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
         ds["red/green"].append([1, 2, 3, 4])
-        loader = ds.pytorch()
+        loader = ds.pytorch(return_index=False)
         for sample in loader:
             assert set(sample.keys()) == {"xyz", "red/green"}
             np.testing.assert_array_equal(
