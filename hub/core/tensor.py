@@ -53,7 +53,6 @@ from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 from hub.util.version_control import auto_checkout
 from hub.util.video import normalize_index
-from hub.util.path import get_path_type
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
