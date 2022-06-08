@@ -1767,3 +1767,14 @@ def test_htype_config_bug(local_ds):
         ds.abc.info.class_names.append("car")
         ds.create_tensor("xyz", htype="class_label")
         assert ds.xyz.info.class_names == []
+
+def test_update_bug(local_ds):
+    with local_ds as ds:
+        bb = ds.create_tensor("bb", "bbox", dtype="float64")
+        arr1 = np.array([[1.0, 2.0, 3.0, 4.0]])
+        bb.append(arr1)
+        np.testing.assert_array_equal(bb[0].numpy(), arr1)
+
+        arr2 = np.array([[5.0, 6.0, 7.0, 8.0]])
+        bb[0] = arr2
+        np.testing.assert_array_equal(bb[0].numpy(), arr2)
