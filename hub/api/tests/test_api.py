@@ -1184,6 +1184,14 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
+def test_tobytes_link(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("images", htype="link[image]")
+        ds.images.append(hub.link("https://picsum.photos/id/237/200/300"))
+        sample = hub.read("https://picsum.photos/id/237/200/300")
+        assert ds.images[0].tobytes() == sample.buffer
+
+
 def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
