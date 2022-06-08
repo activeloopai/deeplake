@@ -926,12 +926,18 @@ class Tensor:
         return self.chunk_engine.linked_sample(self.index.values[0].value)
 
     def _get_video_stream_url(self):
+        if self.is_link:
+            return self.chunk_engine.get_video_url(self.index.values[0].value)
+
         from hub.visualizer.video_streaming import get_video_stream_url
 
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
-        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+        if (
+            get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
+            and self.htype != "link[video]"
+        ):
             raise Exception("Only supported for video tensors.")
         if self.index.values[0].subscriptable():
             raise ValueError("Video streaming requires exactly 1 sample.")
