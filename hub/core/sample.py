@@ -125,6 +125,8 @@ class Sample:
 
     @property
     def buffer(self):
+        if self._buffer is None and self.path is not None:
+            self._read_from_path()
         if self._buffer is not None:
             return self._buffer
         return self.compressed_bytes(self.compression)
