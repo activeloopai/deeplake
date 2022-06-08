@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
@@ -9,6 +10,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_keys = []
         self.creds_dict = {}  # keys to actual creds dictionary
         self.creds_mapping = {}  # keys to numbers, for encoding
+        self.managed_creds_keys = set()  # keys which are managed
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
@@ -58,11 +60,13 @@ class LinkCreds(HubMemoryObject):
         self.storage_providers[key] = provider
         return provider
 
-    def add_creds(self, creds_key: str):
+    def add_creds(self, creds_key: str, managed: False):
         if creds_key in self.creds_keys:
             raise ValueError(f"Creds key {creds_key} already exists")
         self.creds_keys.append(creds_key)
         self.creds_mapping[creds_key] = len(self.creds_keys)
+        if managed:
+            self.managed_creds_keys.add(creds_key)
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
@@ -70,7 +74,22 @@ class LinkCreds(HubMemoryObject):
         self.creds_dict[creds_key] = creds
 
     def tobytes(self) -> bytes:
-        return bytes(",".join(self.creds_keys), "utf-8")
+        d = {
+            "creds_keys": self.creds_keys,
+            "managed_creds_keys": self.managed_creds_keys,
+        }
+        return json.dumps(d).encode("utf-8")
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        obj = cls()
+        if buffer:
+            d = json.loads(buffer.decode("utf-8"))
+            obj.creds_keys = list(d["creds_keys"])
+            obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
+            obj.managed_creds_keys = set(d["managed_creds_keys"])
+        obj.is_dirty = False
+        return obj
 
     def get_encoding(self, key):
         if key in {None, "ENV"}:
@@ -84,15 +103,6 @@ class LinkCreds(HubMemoryObject):
             raise KeyError(f"Encoding {encoding} not found.")
         return None if encoding == 0 else self.creds_keys[encoding - 1]
 
-    @classmethod
-    def frombuffer(cls, buffer: bytes):
-        obj = cls()
-        if buffer:
-            obj.creds_keys = list(buffer.decode("utf-8").split(","))
-            obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
-        obj.is_dirty = False
-        return obj
-
     @property
     def nbytes(self):
         return len(self.tobytes())
@@ -101,11 +111,13 @@ class LinkCreds(HubMemoryObject):
         return {
             "creds_keys": self.creds_keys,
             "creds_dict": self.creds_dict,
+            "managed_creds_keys": self.managed_creds_keys,
         }
 
     def __setstate__(self, state):
         self.creds_keys = state["creds_keys"]
         self.creds_dict = state["creds_dict"]
+        self.managed_creds_keys = state["managed_creds_keys"]
         self.creds_mapping = {key: i + 1 for i, key in enumerate(self.creds_keys)}
         self.storage_providers = {}
         self.default_s3_provider = None

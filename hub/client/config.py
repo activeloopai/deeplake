@@ -21,6 +21,7 @@ CREATE_DATASET_SUFFIX = "/api/dataset/create"
 SEND_EVENT_SUFFIX = "/api/event"
 DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
+GET_MANAGED_CREDS_SUFFIX = "/api/org/{}/storage"
 LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
 

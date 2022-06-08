@@ -2594,7 +2594,7 @@ class Dataset:
             except KeyError:
                 pass
 
-    def add_creds(self, creds_key: str):
+    def add_creds(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
 
         Examples:
@@ -2608,7 +2608,17 @@ class Dataset:
 
         Args:
             creds_key (str): The key to be added.
+            managed (bool): If True, the creds corresponding to the key will be fetched from activeloop platform.
+                Note, this is only applicable for datasets that are connected to activeloop platform.
+                Defaults to False.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
         """
+        if managed:
+            raise ValueError(
+                "Managed creds are not supported for datasets that are not connected to activeloop platform."
+            )
         self.link_creds.add_creds(creds_key)
         save_link_creds(self.link_creds, self.storage)
 

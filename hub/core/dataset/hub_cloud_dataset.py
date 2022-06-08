@@ -14,6 +14,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     AuthorizationException,
 )
+from hub.util.link import save_link_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
@@ -39,6 +40,9 @@ class HubCloudDataset(Dataset):
                 warn(
                     f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
+            if self.link_creds.managed_creds_keys:
+                for creds_key in self.link_creds.managed_creds_keys:
+                    self._fetch_and_populate_managed_creds(creds_key)
 
     @property
     def client(self):
@@ -270,3 +274,31 @@ class HubCloudDataset(Dataset):
 
         hub_reporter.feature_report(feature_name="visualize", parameters={})
         visualize(self.path, self.token, width=width, height=height)
+
+    def add_creds(self, creds_key: str, managed: bool = False):
+        """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds("my_s3_key")
+            ```
+
+        Args:
+            creds_key (str): The key to be added.
+            managed (bool): If True, the creds corresponding to the key will be fetched from activeloop platform.
+                Note, this is only applicable for datasets that are connected to activeloop platform.
+                Defaults to False.
+        """
+        self.link_creds.add_creds(creds_key)
+        save_link_creds(self.link_creds, self.storage)
+        if managed:
+            self._fetch_and_populate_managed_creds(creds_key)
+
+    def _fetch_and_populate_managed_creds(self, creds_key):
+        creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(f"Loaded credentials ({creds_key}) from Activeloop platform.")
+        self.populate_creds(creds_key, creds)
