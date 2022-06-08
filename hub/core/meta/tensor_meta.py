@@ -265,7 +265,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             raise TensorMetaMissingRequiredValue(
                 htype, ["chunk_compression", "sample_compression"]  # type: ignore
             )
-    if htype in ("audio", "video"):
+    if htype in ("audio", "video", "point_cloud"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
