@@ -1768,6 +1768,7 @@ def test_htype_config_bug(local_ds):
         ds.create_tensor("xyz", htype="class_label")
         assert ds.xyz.info.class_names == []
 
+
 def test_update_bug(local_ds):
     with local_ds as ds:
         bb = ds.create_tensor("bb", "bbox", dtype="float64")
