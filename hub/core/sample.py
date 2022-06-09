@@ -93,12 +93,18 @@ class Sample:
         self.storage = storage
         self._buffer = None
         self._creds = creds or {}
+        self._verify = verify
 
         if path is not None:
             self.path = path
             self._compression = compression
-            self._verified = False
-            self._verify = verify
+            if self._verify:
+                if self._compression is None:
+                    self._compression = get_compression(path=self.path)
+                compressed_bytes = self._read_from_path()
+                if self._compression is None:
+                    self._compression = get_compression(header=compressed_bytes[:32])
+                self._shape, self._typestr = verify_compressed_file(compressed_bytes, self._compression)  # type: ignore
 
         if array is not None:
             self._array = array
@@ -114,9 +120,13 @@ class Sample:
                 self._uncompressed_bytes = buffer
             else:
                 self._compressed_bytes[compression] = buffer
+                if self._verify:
+                    self._shape, self._typestr = verify_compressed_file(buffer, self._compression)  # type: ignore
 
     @property
     def buffer(self):
+        if self._buffer is None and self.path is not None:
+            self._read_from_path()
         if self._buffer is not None:
             return self._buffer
         return self.compressed_bytes(self.compression)
@@ -269,11 +279,7 @@ class Sample:
                 if self._compression is None:
                     self._compression = get_compression(header=compressed_bytes[:32])
                 if self._compression == compression:
-                    if self._verify:
-                        self._shape, self._typestr = verify_compressed_file(  # type: ignore
-                            compressed_bytes, self._compression
-                        )
-                    elif self._shape is None:
+                    if self._shape is None:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
                             compressed_bytes, compression=self._compression
                         )
@@ -343,17 +349,19 @@ class Sample:
         return self.buffer == other.buffer
 
     def _read_from_path(self) -> bytes:  # type: ignore
-        path_type = get_path_type(self.path)
-        if path_type == "local":
-            return self._read_from_local()
-        elif path_type == "gcs":
-            return self._read_from_gcs()
-        elif path_type == "s3":
-            return self._read_from_s3()
-        elif path_type == "gdrive":
-            return self._read_from_gdrive()
-        elif path_type == "http":
-            return self._read_from_http()
+        if self._buffer is None:
+            path_type = get_path_type(self.path)
+            if path_type == "local":
+                self._buffer = self._read_from_local()
+            elif path_type == "gcs":
+                self._buffer = self._read_from_gcs()
+            elif path_type == "s3":
+                self._buffer = self._read_from_s3()
+            elif path_type == "gdrive":
+                self._buffer = self._read_from_gdrive()
+            elif path_type == "http":
+                self._buffer = self._read_from_http()
+        return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:
         with open(self.path, "rb") as f:  # type: ignore
@@ -388,7 +396,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        gcs = GCSProvider(root, **self._creds)
+        gcs = GCSProvider(root, token=self._creds)
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:

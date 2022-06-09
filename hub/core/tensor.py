@@ -12,6 +12,7 @@ from hub.core.index import Index, IndexEntry
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.compression import _read_timestamps
 from hub.core.tensor_link import get_link_transform
 from hub.api.info import load_info
 from hub.util.keys import (
@@ -35,6 +36,7 @@ from hub.util.keys import (
     get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
+from hub.util.numeric_to_text import numeric_to_text
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -51,6 +53,7 @@ from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
 from hub.util.version_control import auto_checkout
+from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
@@ -627,6 +630,10 @@ class Tensor:
             )
             return
 
+        if not item_index.values[0].subscriptable() and not self.is_sequence:
+            # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
+            value = [value]
+
         self.chunk_engine.update(
             self.index[item_index],
             value,
@@ -750,6 +757,38 @@ class Tensor:
                 return list(self.numpy())
             else:
                 return list(map(list, self.numpy(aslist=True)))
+        elif self.htype == "video":
+            data = {}
+            data["frames"] = self.numpy(aslist=aslist)
+            index = self.index
+            if index.values[0].subscriptable():
+                root = Tensor(self.key, self.dataset)
+                if len(index.values) > 1:
+                    data["timestamps"] = np.array(
+                        [
+                            root[i, index.values[1].value].timestamp  # type: ignore
+                            for i in index.values[0].indices(self.num_samples)
+                        ]
+                    )
+                else:
+                    data["timestamps"] = np.array(
+                        [
+                            root[i].timestamp
+                            for i in index.values[0].indices(self.num_samples)
+                        ]
+                    )
+            else:
+                data["timestamps"] = self.timestamp
+            if aslist:
+                data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+            return data
+        elif htype == "class_label":
+            labels = self.numpy(aslist=aslist)
+            data = {"numeric": labels}
+            class_names = self.info.class_names
+            if class_names:
+                data["text"] = numeric_to_text(labels, self.info.class_names)
+            return data
         else:
             return self.numpy(aslist=aslist)
 
@@ -772,7 +811,7 @@ class Tensor:
         self.check_link_ready()
         idx = self.index.values[0].value
         if self.is_link:
-            return self.chunk_engine.get_hub_read_sample(idx).compressed_bytes  # type: ignore
+            return self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _pop(self):
@@ -887,12 +926,18 @@ class Tensor:
         return self.chunk_engine.linked_sample(self.index.values[0].value)
 
     def _get_video_stream_url(self):
+        if self.is_link:
+            return self.chunk_engine.get_video_url(self.index.values[0].value)
+
         from hub.visualizer.video_streaming import get_video_stream_url
 
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
-        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+        if (
+            get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
+            and self.htype != "link[video]"
+        ):
             raise Exception("Only supported for video tensors.")
         if self.index.values[0].subscriptable():
             raise ValueError("Video streaming requires exactly 1 sample.")
@@ -909,6 +954,49 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @property
+    def timestamp(self) -> np.ndarray:
+        """Returns timestamps (in seconds) for video sample as numpy array.
+
+        ## Examples:
+
+        Return timestamps for all frames of first video sample
+
+        ```
+        >>> ds.video[0].timestamp
+        ```
+
+        Return timestamps for 5th to 10th frame of first video sample
+
+        ```
+        >>> ds.video[0, 5:10].timestamp
+        array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
+        dtype=float32)
+        ```
+
+        """
+        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+            raise Exception("Only supported for video tensors.")
+        index = self.index
+        if index.values[0].subscriptable():
+            raise ValueError("Only supported for exactly 1 video sample.")
+        if self.is_sequence:
+            if len(index.values) == 1 or index.values[1].subscriptable():
+                raise ValueError("Only supported for exactly 1 video sample.")
+            sub_index = index.values[2].value if len(index.values) > 2 else None
+        else:
+            sub_index = index.values[1].value if len(index.values) > 1 else None
+        global_sample_index = next(index.values[0].indices(self.num_samples))
+        sample = self.chunk_engine.get_video_sample(
+            global_sample_index, index, decompress=False
+        )
+
+        nframes = self.shape[0]
+        start, stop, step, reverse = normalize_index(sub_index, nframes)
+
+        stamps = _read_timestamps(sample, start, stop, step, reverse)
+        return stamps
 
     @property
     def _config(self):

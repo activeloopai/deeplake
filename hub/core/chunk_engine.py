@@ -1,3 +1,4 @@
+from logging import info
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
@@ -607,6 +608,29 @@ class ChunkEngine:
                 else:
                     raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
+        elif tensor_meta.htype == "class_label":
+            tensor_info = self.cache.get_hub_object(
+                get_tensor_info_key(self.key, self.commit_id), Info
+            )
+            class_names = tensor_info.class_names
+            labels = []
+            for sample in samples:
+                if isinstance(sample, str):
+                    for i in range(len(class_names)):
+                        if class_names[i] == sample:
+                            labels.append(i)
+                            break
+                    else:
+                        class_names.append(sample)
+                        tensor_info.is_dirty = True
+                        idx = len(class_names) - 1
+                        labels.append(idx)
+                        info(
+                            f"'{sample}' added to {self.tensor_meta.name or self.key}.info.class_names at index {idx}"
+                        )
+                else:
+                    labels.append(sample)
+            samples = verified_samples = labels
         return samples, verified_samples
 
     def _samples_to_chunks(
@@ -1288,7 +1312,7 @@ class ChunkEngine:
             index, aslist, use_data_cache, fetch_chunks
         )
 
-    def get_video_sample(self, global_sample_index, index):
+    def get_video_sample(self, global_sample_index, index, decompress=True):
         enc = self.chunk_id_encoder
         chunk_ids = enc[global_sample_index]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
@@ -1298,7 +1322,10 @@ class ChunkEngine:
             local_sample_index,
             sub_index=sub_index,
             stream=stream,
-        )[tuple(entry.value for entry in index.values[2:])]
+            decompress=decompress,
+        )
+        if decompress:
+            return sample[tuple(entry.value for entry in index.values[2:])]
         return sample
 
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):

@@ -86,7 +86,7 @@ def append_shape(sample, link_creds=None):
 
 @link
 def append_len(sample, link_creds=None):
-    return len(sample)
+    return 0 if sample is None else len(sample)
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}
