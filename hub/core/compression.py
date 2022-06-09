@@ -439,7 +439,7 @@ def verify_compressed_file(
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
         elif compression in ("las", "laz"):
-            return (_read_point_cloud_shape(file),)
+            return _read_point_cloud_shape(file), "<f4"
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -1046,7 +1046,7 @@ def _read_point_cloud_meta(file):
     point_cloud = _open_point_cloud_data(file)
     keys = list(point_cloud.point_format.dimension_names)
     meta_data = {
-        "dimension_names": {keys[i]: i for i in range(len(keys))},
+        "dimension_names": keys,
         "las_header": {
             "DEFAULT_VERSION": convert_version_to_dict(
                 point_cloud.header.DEFAULT_VERSION
@@ -1086,5 +1086,5 @@ def _decompress_point_cloud(file: Union[bytes, memoryview, str]):
     point_cloud_dimension_names = _read_point_cloud_meta(file)["dimension_names"]
     decompressed_point_cloud = np.vstack(
         [point_cloud[dimension_name] for dimension_name in point_cloud_dimension_names]
-    ).transpose()
+    ).transpose().astype(np.dtype("float32"))
     return decompressed_point_cloud

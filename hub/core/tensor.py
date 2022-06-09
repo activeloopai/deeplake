@@ -762,8 +762,11 @@ class Tensor:
                 return list(map(list, self.numpy(aslist=True)))
         elif htype == "point_cloud":
             full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
-            keys = self.sample_info[0].keys()
-            return {key: arr for key, arr in zip(keys, full_arr[0].transpose(1, 0))}
+            meta = {
+                self.sample_info[0]["dimension_names"][i]: full_arr[0][..., i]
+                for i in range(len(self.sample_info[0]["dimension_names"]))
+            }
+            return meta
         else:
             return self.numpy(aslist=aslist)
 
