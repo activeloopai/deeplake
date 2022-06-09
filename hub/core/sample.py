@@ -125,6 +125,8 @@ class Sample:
 
     @property
     def buffer(self):
+        if self._buffer is None and self.path is not None:
+            self._read_from_path()
         if self._buffer is not None:
             return self._buffer
         return self.compressed_bytes(self.compression)
@@ -394,7 +396,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        gcs = GCSProvider(root, **self._creds)
+        gcs = GCSProvider(root, token=self._creds)
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:

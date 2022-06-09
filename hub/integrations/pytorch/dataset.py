@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Sequence, List, Union
+from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
 
@@ -478,6 +478,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
+        collate_fn: Callable = None,
         batch_size: int = 1,
         return_index: bool = True,
     ) -> None:
@@ -497,6 +498,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
+        self.collate_fn = collate_fn
 
         if self.buffer_size == 0:
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
@@ -508,7 +510,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=collate_fn,
+            collate_fn=self.collate_fn,
         )
 
         it = iter(sub_loader)

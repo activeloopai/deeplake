@@ -1184,6 +1184,14 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
+def test_tobytes_link(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("images", htype="link[image]")
+        ds.images.append(hub.link("https://picsum.photos/id/237/200/300"))
+        sample = hub.read("https://picsum.photos/id/237/200/300")
+        assert ds.images[0].tobytes() == sample.buffer
+
+
 def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
@@ -1737,6 +1745,36 @@ def test_exist_ok(local_ds):
         ds.create_group("grp", exist_ok=True)
 
 
+def verify_label_data(ds):
+    text_labels = [
+        ["airplane"],
+        ["boat"],
+        ["airplane"],
+        ["car"],
+        ["airplane"],
+        ["airplane"],
+        ["car"],
+    ]
+    arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+
+    # abc
+    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+    np_data = ds.abc.numpy()
+    data = ds.abc.data()
+    assert set(data.keys()) == {"numeric", "text"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+    assert data["text"] == text_labels
+
+    # xyz
+    assert ds.xyz.info.class_names == []
+    np_data = ds.xyz.numpy()
+    data = ds.xyz.data()
+    assert set(data.keys()) == {"numeric"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+
+
 def test_text_label(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", htype="class_label")
@@ -1744,13 +1782,16 @@ def test_text_label(local_ds_generator):
         ds.abc.append("boat")
         ds.abc.append("airplane")
         ds.abc.extend(["car", "airplane", 0, 2])
-        ds.abc.info.class_names == ["airplane", "boat", "car"]
-        np.testing.assert_array_equal(
-            ds.abc.numpy(), np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
-        )
+
+        ds.create_tensor("xyz", htype="class_label")
+        ds.xyz.append(0)
+        ds.xyz.append(1)
+        ds.xyz.append(0)
+        ds.xyz.extend([2, 0, 0, 2])
+        verify_label_data(ds)
 
     ds = local_ds_generator()
-    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+    verify_label_data(ds)
 
 
 def test_empty_sample_partial_read(s3_ds):
@@ -1767,3 +1808,15 @@ def test_htype_config_bug(local_ds):
         ds.abc.info.class_names.append("car")
         ds.create_tensor("xyz", htype="class_label")
         assert ds.xyz.info.class_names == []
+
+
+def test_update_bug(local_ds):
+    with local_ds as ds:
+        bb = ds.create_tensor("bb", "bbox", dtype="float64")
+        arr1 = np.array([[1.0, 2.0, 3.0, 4.0]])
+        bb.append(arr1)
+        np.testing.assert_array_equal(bb[0].numpy(), arr1)
+
+        arr2 = np.array([[5.0, 6.0, 7.0, 8.0]])
+        bb[0] = arr2
+        np.testing.assert_array_equal(bb[0].numpy(), arr2)

@@ -36,6 +36,7 @@ from hub.util.keys import (
     get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
+from hub.util.numeric_to_text import numeric_to_text
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -629,6 +630,10 @@ class Tensor:
             )
             return
 
+        if not item_index.values[0].subscriptable() and not self.is_sequence:
+            # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
+            value = [value]
+
         self.chunk_engine.update(
             self.index[item_index],
             value,
@@ -777,6 +782,13 @@ class Tensor:
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
             return data
+        elif htype == "class_label":
+            labels = self.numpy(aslist=aslist)
+            data = {"numeric": labels}
+            class_names = self.info.class_names
+            if class_names:
+                data["text"] = numeric_to_text(labels, self.info.class_names)
+            return data
         else:
             return self.numpy(aslist=aslist)
 
@@ -799,7 +811,7 @@ class Tensor:
         self.check_link_ready()
         idx = self.index.values[0].value
         if self.is_link:
-            return self.chunk_engine.get_hub_read_sample(idx).compressed_bytes  # type: ignore
+            return self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _pop(self):
@@ -914,12 +926,18 @@ class Tensor:
         return self.chunk_engine.linked_sample(self.index.values[0].value)
 
     def _get_video_stream_url(self):
+        if self.is_link:
+            return self.chunk_engine.get_video_url(self.index.values[0].value)
+
         from hub.visualizer.video_streaming import get_video_stream_url
 
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
-        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+        if (
+            get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
+            and self.htype != "link[video]"
+        ):
             raise Exception("Only supported for video tensors.")
         if self.index.values[0].subscriptable():
             raise ValueError("Video streaming requires exactly 1 sample.")
