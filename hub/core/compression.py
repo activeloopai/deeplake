@@ -24,6 +24,7 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
+import os
 import struct
 import sys
 import re
@@ -91,6 +92,9 @@ _JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
+
+_LIDAR_COMPRESSIONS = [".las", ".laz"]
+_LIDAR_SIGNATURE = b"LASF"
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -438,7 +442,7 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
-        elif compression in ("las", "laz"):
+        elif compression in ("las", "laz", "bin"):
             return _read_point_cloud_shape(file), "<f4"
         else:
             return _fast_decompress(file)
@@ -464,6 +468,7 @@ def get_compression(header=None, path=None):
             ".dcm",
             ".las",
             ".laz",
+            ".bin",
         ]
         path = str(path).lower()
         for fmt in file_formats:
@@ -649,7 +654,7 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression)
-        elif compression in ("las", "laz"):
+        elif compression in ("las", "laz", "bin"):
             try:
                 shape, typestr = _read_point_cloud_shape(file), "<f4"
             except Exception as e:
@@ -1029,17 +1034,33 @@ def _decompress_audio(
     return audio
 
 
-def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
+def open_kitti_bin_file(file):
+    if type(file) is str:
+        return np.fromfile(file, dtype=np.float32).reshape(-1, 4)
+    else:
+        return np.frombuffer(file)
+
+
+def open_lidar_file(file):
     try:
         import laspy as lp  # type: ignore
     except:
         raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
+    return lp.read(file)
+
+
+def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
 
     if isinstance(file, str):
-        point_cloud = lp.read(file)
+        extension = os.path.splitext(file)[1]
+        if extension in _LIDAR_COMPRESSIONS:
+            return open_lidar_file(file)
+        return open_kitti_bin_file(file)
     else:
-        point_cloud = lp.read(BytesIO(file))
-    return point_cloud
+        file = BytesIO(file)
+        if _LIDAR_SIGNATURE in file:
+            return open_lidar_file(file)
+        return open_kitti_bin_file(file)
 
 
 def _read_point_cloud_meta(file):

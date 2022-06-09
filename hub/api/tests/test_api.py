@@ -560,7 +560,7 @@ def test_htype(memory_ds: Dataset):
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
     point_cloud.append(
-        np.array([[1.0, 4.5, 6.3], [2.8, 2.6, 7.8], [4.4, 3.2, 6.5]], dtype=np.float64)
+        np.array([[1.0, 4.5, 6.3], [2.8, 2.6, 7.8], [4.4, 3.2, 6.5]], dtype=np.float32)
     )
 
 

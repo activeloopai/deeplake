@@ -26,7 +26,7 @@ def test_point_cloud(local_ds, point_cloud_paths, compression):
             tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
         for i in range(10):
             assert tensor[i].numpy().shape[0] == sample.shape[0]  # type: ignore
-            assert len(tensor[i].data()) == 6
+            assert len(tensor[i].data()) == 18
 
         assert len(sample.meta["las_header"]) == 17
         assert type(sample.meta["dimension_names"]) == dict
