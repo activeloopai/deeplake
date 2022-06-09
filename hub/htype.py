@@ -28,6 +28,7 @@ Supported htypes and their respective defaults are:
 | segment_mask   |  uint32   |  none         |
 | keypoints_coco |  int32    |  none         |
 | point          |  int32    |  none         |
+| point cloud    |  float32  |  las/laz/bin  |
 | audio          |  float64  |  none         |
 | text           |  str      |  none         |
 | json           |  Any      |  none         |
