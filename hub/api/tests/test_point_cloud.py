@@ -9,9 +9,10 @@ from hub.core.sample import Sample
 import numpy as np
 
 
-def test_point_cloud(local_ds, point_cloud_paths):
+@pytest.mark.parametrize("compression", hub.compression.POINT_CLOUD_COMPRESSIONS)
+def test_point_cloud(local_ds, point_cloud_paths, compression):
     for i, (compression, path) in enumerate(point_cloud_paths.items()):
-        tensor = local_ds.create_tensor(f"point_cloud_{i}", htype="point_cloud")
+        tensor = local_ds.create_tensor(f"point_cloud_{i}", htype="point_cloud", sample_compression=compression)
         sample = hub.read(path)
         if "dummy_data" in path:  # check shape only for internal test point_clouds
             if compression in ["las", "laz"]:
@@ -54,12 +55,13 @@ def test_point_cloud(local_ds, point_cloud_paths):
         assert type(sample.meta["las_header"]["minor_version"]) == int
 
 
-def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
+@pytest.mark.parametrize("compression", hub.compression.POINT_CLOUD_COMPRESSIONS)
+def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths, compression):
     for compression, path in point_cloud_paths.items():
         if compression in ["las", "laz"]:
             dummy = np.zeros((20153, 3))
 
-            local_ds.create_tensor("point_cloud", htype="point_cloud")
+            local_ds.create_tensor("point_cloud", htype="point_cloud", sample_compression=compression)
             local_ds.point_cloud.append(hub.read(path))
             local_ds.point_cloud[0][0:5].numpy().shape == dummy[0:5].shape
             local_ds.point_cloud[0][100:120].numpy().shape == dummy[100:120].shape
