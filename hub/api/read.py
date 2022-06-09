@@ -1,11 +1,12 @@
+import pathlib
 from hub.core.sample import Sample  # type: ignore
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 
 from hub.core.storage.provider import StorageProvider
-
+from hub.util.path import convert_pathlib_to_string_if_needed
 
 def read(
-    path: str,
+    path: Union[str, pathlib.Path],
     verify: bool = False,
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
@@ -44,7 +45,7 @@ def read(
         Dicom: "dcm"
 
     Args:
-        path (str): Path to a supported file.
+        path (str, pathlib.Path): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
         creds (optional, Dict): Credentials for s3 and gcp for urls.
         compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
@@ -53,6 +54,7 @@ def read(
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
+    path = convert_pathlib_to_string_if_needed(path)
     return Sample(
         path, verify=verify, compression=compression, creds=creds, storage=storage
     )

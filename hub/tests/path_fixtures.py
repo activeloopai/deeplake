@@ -447,6 +447,7 @@ def point_cloud_paths():
     paths = {
         "las": "point_cloud.las",
         "laz": "point_cloud.laz",
+        "bin": "point_cloud.bin",
     }
 
     parent = get_dummy_data_path("point_cloud")
