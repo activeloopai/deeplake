@@ -34,16 +34,8 @@ import hub
 mp = torch.multiprocessing.get_context()
 
 
-def process(inp):
-    if isinstance(inp, torch.Tensor):
-        return inp.clone().detach()
-    elif isinstance(inp, dict):
-        return {k: process(v) for k, v in inp.items()}
-    elif isinstance(inp, Sequence):
-        return [process(v) for v in inp]
-    raise ValueError(
-        f"Expected input of type Tensor, dict or Sequence, got: {type(inp)}"
-    )
+def identity(x):
+    return x
 
 
 def use_scheduler(num_workers: int, ensure_order: bool):
@@ -508,7 +500,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=lambda x: x,
+            collate_fn=identity,
         )
 
         it = iter(sub_loader)
