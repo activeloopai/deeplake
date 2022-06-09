@@ -1133,9 +1133,7 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-                row = self.chunk_id_encoder.__getitem__(
-                    global_sample_index, return_row_index=True
-                )
+                row = self.chunk_id_encoder.__getitem__(global_sample_index, True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
