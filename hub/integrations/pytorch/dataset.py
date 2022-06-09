@@ -478,7 +478,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
-        collate_fn: Callable = None,
         batch_size: int = 1,
         return_index: bool = True,
     ) -> None:
@@ -498,7 +497,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
-        self.collate_fn = collate_fn
 
         if self.buffer_size == 0:
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
@@ -510,7 +508,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=self.collate_fn,
+            collate_fn=lambda x: x,
         )
 
         it = iter(sub_loader)
@@ -518,25 +516,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         try:
             while True:
                 next_batch = next(it)
-                if isinstance(next_batch, dict):
-                    batch_keys = list(next_batch.keys())
-                    vals = (
-                        IterableOrderedDict(
-                            {k: process(next_batch[k][i]) for k in batch_keys}
-                        )
-                        for i in range(len(next_batch[batch_keys[0]]))
-                    )
-                elif isinstance(next_batch, Sequence):
-                    num_samples = len(next_batch[0])
-                    vals = (
-                        [process(next_batch[i][j]) for i in range(len(next_batch))]
-                        for j in range(num_samples)
-                    )
-                else:
-                    raise ValueError(
-                        f"Expected input of type dict or Sequence, got: {type(next_batch)}"
-                    )
-                for val in vals:
+                for val in next_batch:
                     if buffer is not None:
                         result = buffer.exchange(val)
                         if result:
