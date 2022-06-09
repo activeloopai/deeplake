@@ -34,16 +34,9 @@ class PytorchTransformFunction:
         self,
         transform_dict: Optional[Dict[str, Optional[Callable]]] = None,
         composite_transform: Optional[Callable] = None,
-        tensors: List[str] = None,
     ) -> None:
         self.composite_transform = composite_transform
         self.transform_dict = transform_dict
-        tensors = tensors or []
-
-        if transform_dict is not None:
-            for tensor in transform_dict:
-                if tensor != "index" and tensor not in tensors:
-                    raise ValueError(f"Invalid transform. Tensor {tensor} not found.")
 
     def __call__(self, data_in: Dict) -> Dict:
         if self.composite_transform is not None:

@@ -626,7 +626,7 @@ def test_rename(local_ds):
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_pytorch_indexes(local_ds, shuffle, num_workers):
+def test_indexes(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -640,3 +640,95 @@ def test_pytorch_indexes(local_ds, shuffle, num_workers):
         assert batch.keys() == {"xyz", "index"}
         for i in range(len(batch)):
             np.testing.assert_array_equal(batch["index"][i], batch["xyz"][i][0, 0])
+
+
+def index_transform(sample):
+    return sample["index"], sample["xyz"]
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_transform(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform=index_transform,
+    )
+
+    for batch in ptds:
+        assert len(batch) == 2
+        assert len(batch[0]) == 4
+        assert len(batch[1]) == 4
+
+        for i in range(4):
+            np.testing.assert_array_equal(batch[0][i], batch[1][i][0, 0])
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_transform_dict(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform={"xyz": double, "index": None},
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}
+        for i in range(len(batch)):
+            np.testing.assert_array_equal(2 * batch["index"][i], batch["xyz"][i][0, 0])
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform={"xyz": double},
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz"}
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_tensors(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    with pytest.raises(ValueError):
+        ptds = local_ds.pytorch(
+            return_index=True,
+            shuffle=shuffle,
+            tensors=["xyz", "index"],
+        )
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        tensors=["xyz"],
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}

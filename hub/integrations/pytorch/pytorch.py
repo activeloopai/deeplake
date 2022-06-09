@@ -112,10 +112,13 @@ def dataset_to_pytorch(
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
 
+    if tensors is not None and "index" in tensors:
+        raise ValueError("index is not a tensor, to get index, pass return_index=True")
+
     tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
         tensors = [k for k in transform.keys() if k != "index"]
-        transform = PytorchTransformFunction(transform_dict=transform, tensors=tensors)
+        transform = PytorchTransformFunction(transform_dict=transform)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
