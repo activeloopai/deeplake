@@ -27,6 +27,9 @@ def test_video_playback(local_ds_generator, video_paths):
     assert byte_stream == expected
 
 
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 def test_linked_video_playback(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("video_links", htype="link[video]")
