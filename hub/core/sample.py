@@ -371,8 +371,10 @@ class Sample:
         split_path = path.split("/", 2)
         if len(split_path) > 2:
             root, key = "/".join(split_path[:2]), split_path[2]
-        else:
+        elif len(split_path) == 2:
             root, key = split_path
+        else:
+            root, key = None, split_path[0]
         return root, key
 
     def _read_from_s3(self) -> bytes:
@@ -400,10 +402,8 @@ class Sample:
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
-        path = self.path.replace("gdrive://", "")  # type: ignore
-        root, key = self._get_root_and_key(path)
-        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
-        return gdrive[key]
+        gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
+        return gdrive.get_object_from_full_url(self.path)
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
