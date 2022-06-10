@@ -1250,15 +1250,13 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         if self._is_tiled_sample(global_sample_index):
             return self.tile_encoder.get_sample_shape(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         if self.is_video:
             chunk_id = enc[global_sample_index][0]
             chunk = self.get_video_chunk(chunk_id)[0]
         else:
-            chunk_id, row, worst_case_header_size = self.get_chunk_info(
+            chunk_id, _, worst_case_header_size = self.get_chunk_info(
                 global_sample_index, fetch_chunks=False
-            )
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
             )
             chunk = self.get_chunk_from_chunk_id(
                 chunk_id, partial_chunk_bytes=worst_case_header_size
