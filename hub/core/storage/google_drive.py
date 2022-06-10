@@ -30,6 +30,7 @@ logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.install",
+    "https://www.googleapis.com/auth/drive.readonly",
 ]
 FOLDER = "application/vnd.google-apps.folder"
 FILE = "application/octet-stream"
