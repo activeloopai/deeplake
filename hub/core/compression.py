@@ -1,3 +1,4 @@
+import io
 from logging import warning
 import hub
 from hub.util.exceptions import (
@@ -1049,26 +1050,41 @@ def _open_lidar_file(file):
     return lp.read(file)
 
 
-def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
-    if isinstance(file, memoryview) or isinstance(file, bytes):
-        file = BytesIO(file)
-    extension = os.path.splitext(file)[1]
-    if extension in _LIDAR_COMPRESSIONS:
-        point_cloud = _open_lidar_file(file)
-        dimension_names = point_cloud.point_format.dimension_names
-        point_cloud = np.vstack(
-            [point_cloud[dimension_name] for dimension_name in dimension_names]
-        ).transpose().astype(np.dtype("float32"))
-        return point_cloud, dimension_names, "raw_lidar"
+def _load_lidar_point_cloud_data(file):
+    point_cloud = _open_lidar_file(file)
+    dimension_names = list(point_cloud.point_format.dimension_names)
+    return point_cloud, dimension_names
+
+
+def _load_kitti_point_cloud_data(file):
     point_cloud = _open_kitti_bin_file(file)
     dimension_names = ["x", "y", "z", "intensity"]
-    return point_cloud, dimension_names, "point_cloud"
+    return point_cloud, dimension_names
+
+
+def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
+    if isinstance(file, str):
+        extension = os.path.splitext(file)[1]
+        if extension in _LIDAR_COMPRESSIONS:
+            point_cloud, dimension_names = _load_lidar_point_cloud_data(file)
+            return point_cloud, dimension_names
+        return _load_kitti_point_cloud_data(file)
+
+    if isinstance(file, memoryview):
+        file = file.obj
+    if _LIDAR_SIGNATURE in file:
+        point_cloud, dimension_names = _load_lidar_point_cloud_data(io.BytesIO(file))
+        return point_cloud, dimension_names
+    return _load_kitti_point_cloud_data(file)
+
 
 
 def _read_point_cloud_meta(file):
-    point_cloud, dimension_names, data_type = _open_point_cloud_data(file)
-    meta_data = {"dimension_names": dimension_names}
-    if data_type == "raw_lidar":
+    point_cloud, dimension_names = _open_point_cloud_data(file)
+    meta_data = {
+        "dimension_names": dimension_names,
+    }
+    if type(point_cloud) != np.ndarray:
         meta_data.update({
             "las_header": {
                 "DEFAULT_VERSION": convert_version_to_dict(
@@ -1105,5 +1121,10 @@ def _read_point_cloud_shape(file):
 
 
 def _decompress_point_cloud(file: Union[bytes, memoryview, str]):
-    decompressed_point_cloud, _, _ = _open_point_cloud_data(file)
+    decompressed_point_cloud, _ = _open_point_cloud_data(file)
+    if type(decompressed_point_cloud) is not np.ndarray:
+        meta = _read_point_cloud_meta(file)
+        decompressed_point_cloud = np.vstack(
+            [decompressed_point_cloud[dimension_name] for dimension_name in meta["dimension_names"]]
+        ).transpose().astype(np.dtype("float32"))
     return decompressed_point_cloud

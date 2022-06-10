@@ -86,7 +86,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "text": {"dtype": "str"},
     "dicom": {"sample_compression": "dcm"},
     "point_cloud": {"dtype": "float32"},
-    "point_cloud_calibration_matrices": {"dtype": "float32"}
+    "point_cloud_calibration_matrix": {"dtype": "Dict"}
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
@@ -109,6 +109,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     "json": BYTE_COMPRESSIONS[:],
     "point_cloud": POINT_CLOUD_COMPRESSIONS[:],
     "dicom": ["dcm"],
+    "point_cloud_calibration_matrix": BYTE_COMPRESSIONS[:],
 }
 
 

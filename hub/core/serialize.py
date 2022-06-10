@@ -336,11 +336,11 @@ def text_to_bytes(sample, dtype, htype):
                 return sample.tobytes(), sample.shape
         except (ValueError, NotImplementedError):  # sliced sample or tiled sample
             sample = sample.data()
-    if htype in ("json", "list"):
+    if htype in ("json", "list", "point_cloud_calibration_matrix"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
                 sample = list(sample) if sample.dtype == object else sample.tolist()
-            elif htype == "json":
+            elif htype in ["json", "point_cloud_calibration_matrix"]:
                 if sample.ndim == 0 or sample.dtype != object:
                     sample = sample.tolist()  # actually returns dict
                 else:
@@ -360,7 +360,7 @@ def text_to_bytes(sample, dtype, htype):
 
 def bytes_to_text(buffer, htype):
     buffer = bytes(buffer)
-    if htype == "json":
+    if htype == ["json", "point_cloud_calibration_matrix"]:
         arr = np.empty(1, dtype=object)
         arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
         return arr
