@@ -648,11 +648,11 @@ class ChunkEngine:
 
         Args:
             samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
-            start_chunk (Optional[BaseChunk]): Parameter that points to the chunk on which the samples should be added
+            start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
-            start_chunk_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+            start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
 
         Returns:
@@ -677,7 +677,9 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register)
+                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                if start_chunk_row is not None:
+                    start_chunk_row += 1
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -695,7 +697,11 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    current_chunk = self._create_new_chunk(register)
+                    current_chunk = self._create_new_chunk(
+                        register, row=start_chunk_row
+                    )
+                    if start_chunk_row is not None:
+                        start_chunk_row += 1
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
@@ -1019,7 +1025,6 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-
         samples, _ = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
@@ -1044,17 +1049,21 @@ class ChunkEngine:
 
         from_chunk.pop_multiple(num_samples=num_samples)
         samples, _ = self._sanitize_samples(samples_to_move)
+        to_chunk.is_dirty = True
+        self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
             samples,
             start_chunk=to_chunk,
             register=True,
             update_commit_diff=True,
-            # append_to_end=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
-        del self.cache[from_chunk.key]  # type: ignore
+        try:
+            del self.cache[from_chunk.key]  # type: ignore
+        except KeyError:
+            pass
         return True
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
@@ -1067,7 +1076,6 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
-
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
             return self._merge_chunks(
@@ -1149,6 +1157,7 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
+                row = self.chunk_id_encoder.__getitem__(global_sample_index, True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -1169,11 +1178,9 @@ class ChunkEngine:
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
-
                 self._check_rechunk(
                     chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
                 )
-
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)
