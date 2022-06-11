@@ -83,7 +83,7 @@ class ShuffleBuffer:
         elif isinstance(sample, Sequence):
             return sum(self._sample_size(tensor) for tensor in sample)
         elif isinstance(sample, torch.Tensor):
-            return sample.storage().element_size() * reduce(mul, sample.shape, 1)
+            return sample.element_size() * reduce(mul, sample.shape, 1)
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
         raise ValueError(
