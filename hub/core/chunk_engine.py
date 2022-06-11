@@ -1255,20 +1255,20 @@ class ChunkEngine:
         global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
-            chunks = [
-                self.get_video_chunk(idx)[0]
-                for idx in self.chunk_id_encoder[global_sample_index]
-            ]
-        else:
-            chunks = self.get_chunks_for_sample(global_sample_index)
-        if len(chunks) == 1:
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
-            return tuple(map(int, chunks[0].shapes_encoder[local_sample_index]))
-        else:
+        if self._is_tiled_sample(global_sample_index):
             return self.tile_encoder.get_sample_shape(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if self.is_video:
+            chunk_id = enc[global_sample_index][0]
+            chunk = self.get_video_chunk(chunk_id)[0]
+        else:
+            chunk_id, _, worst_case_header_size = self.get_chunk_info(
+                global_sample_index, fetch_chunks=False
+            )
+            chunk = self.get_chunk_from_chunk_id(
+                chunk_id, partial_chunk_bytes=worst_case_header_size
+            )
+        return tuple(map(int, chunk.shapes_encoder[local_sample_index]))
 
     def read_sample_from_chunk(
         self,
@@ -1328,10 +1328,12 @@ class ChunkEngine:
             return sample[tuple(entry.value for entry in index.values[2:])]
         return sample
 
-    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_chunk_info(self, global_sample_index, fetch_chunks):
+        """Returns the chunk_id, row and worst case header size of chunk containing the given sample."""
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
+
         worst_case_header_size = 0
         num_samples_in_chunk = -1
         if (
@@ -1361,6 +1363,13 @@ class ChunkEngine:
             worst_case_header_size += shape_enc_size
             worst_case_header_size += bytes_enc_size
 
+        return chunk_id, row, worst_case_header_size
+
+    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
+        enc = self.chunk_id_encoder
+        chunk_id, row, worst_case_header_size = self.get_chunk_info(
+            global_sample_index, fetch_chunks
+        )
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
@@ -1370,7 +1379,7 @@ class ChunkEngine:
         )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
-        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
+        if self.is_video:
             return self.get_video_sample(global_sample_index, index)
         return self.get_basic_sample(
             global_sample_index, index, fetch_chunks=fetch_chunks
@@ -1622,6 +1631,12 @@ class ChunkEngine:
     @property
     def is_sequence(self):
         return self.tensor_meta.is_sequence
+
+    @property
+    def is_video(self):
+        return (
+            self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video"
+        )
 
     @property
     def sequence_encoder_exists(self) -> bool:
