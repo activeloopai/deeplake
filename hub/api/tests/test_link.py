@@ -132,7 +132,6 @@ def test_link_creds(request):
 
     bts = link_creds.tobytes()
     assert len(bts) == link_creds.nbytes
-    assert bts == b"abc,def,ghi"
 
     from_buffer_link_creds = LinkCreds.frombuffer(bts)
     assert len(from_buffer_link_creds) == 3
