@@ -1452,6 +1452,12 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
     assert memory_ds.images[2].shape == (323, 480, 3)
 
 
+def test_hub_remote_read_gdrive_root(memory_ds, gdrive_creds):
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+    memory_ds.images.append(hub.read("gdrive://cat.jpeg", creds=gdrive_creds))
+    assert memory_ds.images[0].shape == (900, 900, 3)
+
+
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
