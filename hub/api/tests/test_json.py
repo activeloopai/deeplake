@@ -2,7 +2,10 @@ import numpy as np
 import hub
 import pytest
 from hub.util.json import JsonValidationError
-from hub.tests.dataset_fixtures import enabled_non_gcs_gdrive_datasets
+from hub.tests.dataset_fixtures import (
+    enabled_non_gcs_gdrive_datasets,
+    enabled_non_gcs_datasets,
+)
 from typing import Any, Optional, Union, List, Dict
 
 
@@ -153,7 +156,7 @@ def test_json_with_schema(memory_ds):
         assert ds.json2[i].data() == ds.json2.data()[i] == (items[i] or {})
 
 
-@enabled_non_gcs_gdrive_datasets
+@enabled_non_gcs_datasets
 @pytest.mark.parametrize("compression", ["lz4", None])
 def test_json_transform(ds, compression, scheduler="threaded"):
     ds.create_tensor("json", htype="json", sample_compression=compression)
