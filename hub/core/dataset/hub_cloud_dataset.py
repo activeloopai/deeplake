@@ -293,9 +293,9 @@ class HubCloudDataset(Dataset):
                 Note, this is only applicable for datasets that are connected to activeloop platform.
                 Defaults to False.
         """
-        self.link_creds.add_creds(creds_key)
         if managed:
             self._fetch_and_populate_managed_creds(creds_key)
+        self.link_creds.add_creds(creds_key)
         save_link_creds(self.link_creds, self.storage)
         self._populate_missing_managed_creds()
 
