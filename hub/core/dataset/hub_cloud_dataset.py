@@ -297,8 +297,21 @@ class HubCloudDataset(Dataset):
         if managed:
             self._fetch_and_populate_managed_creds(creds_key)
         save_link_creds(self.link_creds, self.storage)
+        self._populate_missing_managed_creds()
+
+    def replace_creds(self, old_creds_key: str, new_creds_key: str):
+        super().replace_creds(old_creds_key, new_creds_key)
+        self._populate_missing_managed_creds()
 
     def _fetch_and_populate_managed_creds(self, creds_key):
+        """Fetches creds from activeloop platform and populates the dataset with them."""
         creds = self.client.get_managed_creds(self.org_id, creds_key)
         print(f"Loaded credentials ({creds_key}) from Activeloop platform.")
         self.populate_creds(creds_key, creds)
+
+    def _populate_missing_managed_creds(self):
+        """Populates missing creds from activeloop platform for any new creds that were added parallel by someone else."""
+        missing_creds = self.link_creds.missing_keys
+        for creds_key in missing_creds:
+            if creds_key in self.link_creds.managed_creds_keys:
+                self._fetch_and_populate_managed_creds(creds_key)

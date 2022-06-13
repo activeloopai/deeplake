@@ -253,6 +253,11 @@ class Dataset:
         """Returns the metadata of the dataset."""
         return self.version_state["meta"]
 
+    @property
+    def client(self):
+        """Returns the client of the dataset."""
+        return self._client
+
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
