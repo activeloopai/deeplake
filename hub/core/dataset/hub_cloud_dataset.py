@@ -294,9 +294,9 @@ class HubCloudDataset(Dataset):
                 Defaults to False.
         """
         self.link_creds.add_creds(creds_key)
-        save_link_creds(self.link_creds, self.storage)
         if managed:
             self._fetch_and_populate_managed_creds(creds_key)
+        save_link_creds(self.link_creds, self.storage)
 
     def _fetch_and_populate_managed_creds(self, creds_key):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
