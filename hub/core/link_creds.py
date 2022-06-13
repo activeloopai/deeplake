@@ -98,7 +98,7 @@ class LinkCreds(HubMemoryObject):
     def tobytes(self) -> bytes:
         d = {
             "creds_keys": self.creds_keys,
-            "managed_creds_keys": self.managed_creds_keys,
+            "managed_creds_keys": list(self.managed_creds_keys),
         }
         return json.dumps(d).encode("utf-8")
 

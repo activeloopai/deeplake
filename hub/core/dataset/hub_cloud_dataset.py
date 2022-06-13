@@ -306,7 +306,7 @@ class HubCloudDataset(Dataset):
     def _fetch_and_populate_managed_creds(self, creds_key):
         """Fetches creds from activeloop platform and populates the dataset with them."""
         creds = self.client.get_managed_creds(self.org_id, creds_key)
-        print(f"Loaded credentials ({creds_key}) from Activeloop platform.")
+        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         self.populate_creds(creds_key, creds)
 
     def _populate_missing_managed_creds(self):
