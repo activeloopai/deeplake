@@ -243,7 +243,7 @@ class HubBackendClient:
             dict: The managed credentials.
 
         Raises:
-            ManagedCredentialsException: If the managed credentials do not exist for the given organization.
+            ManagedCredentialsNotFoundError: If the managed credentials do not exist for the given organization.
         """
         relative_url = GET_MANAGED_CREDS_SUFFIX.format(org_id)
         try:
