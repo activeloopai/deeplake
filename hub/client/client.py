@@ -1,7 +1,12 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.exceptions import (
+    LoginException,
+    InvalidPasswordException,
+    ManagedCredentialsNotFoundError,
+    ResourceNotFoundException,
+)
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     GET_MANAGED_CREDS_SUFFIX,
@@ -238,12 +243,27 @@ class HubBackendClient:
             dict: The managed credentials.
         """
         relative_url = GET_MANAGED_CREDS_SUFFIX.format(org_id)
-        return self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"query": creds_key},
-        ).json()
+        try:
+            resp = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"query": creds_key},
+            ).json()
+        except ResourceNotFoundException:
+            raise ManagedCredentialsNotFoundError(org_id, creds_key) from None
+        creds = resp["creds"]
+        key_mapping = {
+            "access_key": "aws_access_key_id",
+            "secret_key": "aws_secret_access_key",
+            "session_token": "aws_session_token",
+        }
+        final_creds = {}
+        for key, value in creds.items():
+            if key in key_mapping:
+                key = key_mapping[key]
+            final_creds[key] = value
+        return final_creds
 
     def delete_dataset_entry(self, username, dataset_name):
         tag = f"{username}/{dataset_name}"
