@@ -6,7 +6,6 @@ from hub.core.query import DatasetQuery
 from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
-import itertools
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
