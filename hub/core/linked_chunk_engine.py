@@ -1,4 +1,5 @@
 import hub
+from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.compression import _read_video_shape, _decompress_video
 from hub.core.index.index import Index
@@ -114,6 +115,7 @@ class LinkedChunkEngine(ChunkEngine):
         )[0]
 
     def get_hub_read_sample(self, global_sample_index):
+        # self.check_link_ready()
         creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index)
         if not sample_path:
@@ -159,6 +161,7 @@ class LinkedChunkEngine(ChunkEngine):
             creds_key = None if sample is None else sample.creds_key
             encoded_creds_key = link_creds.get_encoding(creds_key)
             creds_encoder.register_samples((encoded_creds_key,), 1)
+            # link_creds.add_used_creds(creds_key)
 
     def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
         link_creds = self.link_creds
@@ -171,3 +174,37 @@ class LinkedChunkEngine(ChunkEngine):
         if sample is None:
             return (0,)
         return sample.shape
+
+    def read_sample_from_chunk(
+        self,
+        global_sample_index: int,
+        chunk: BaseChunk,
+        cast: bool = True,
+        copy: bool = False,
+        decompress: bool = True,
+    ) -> np.ndarray:
+        enc = self.chunk_id_encoder
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        sample_path = chunk.read_sample(
+            local_sample_index, cast=cast, copy=copy, decompress=decompress
+        )[0]
+
+        creds_encoder = self.creds_encoder
+        if not sample_path:
+            return None
+        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
+
+    # def creds_used(self):
+    #     if self._creds_used is None:
+    #         self._creds_used = np.unique(self.creds_encoder[:, 1])
+    #     return self._creds_used
+
+
+    # def check_link_ready(self):
+    #     missing_keys = self.link_creds.missing_keys
+    #     creds_used = self.creds_used()
+    #     for key in missing_keys:
+    #         if key in creds_used:
+    #             raise ValueError(f"Creds key '{key}' is not present. Please populate the dataset using .populate_creds().")
