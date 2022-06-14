@@ -323,3 +323,4 @@ def test_view_sample_indices(memory_ds):
         ds.create_tensor("x")
         ds.x.extend(list(range(10)))
     assert list(ds[:5].sample_indices) == list(range(5))
+    assert list(ds[5:].sample_indices) == list(range(5, 10))
