@@ -1011,3 +1011,7 @@ class Tensor:
             "is_link": tensor_meta.is_link,
             "is_sequence": tensor_meta.is_sequence,
         }
+
+    @property
+    def sample_indices(self):
+        return self.index.values[0].indices(len(self))

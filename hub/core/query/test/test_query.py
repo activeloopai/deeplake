@@ -316,3 +316,12 @@ def test_query_bug_transformed_dataset(local_ds):
 
     ds_view = local_ds.filter("classes == 'class_0'", scheduler="threaded")
     np.testing.assert_array_equal(ds_view.classes.numpy()[:, 0], [0] * len(ds_view))
+
+
+def test_view_sample_indices(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    assert list(ds[:5].sample_indices) == list(range(5))
+    assert list(ds.x[:5].sample_indices) == list(range(5))
