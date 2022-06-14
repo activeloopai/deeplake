@@ -748,6 +748,7 @@ class ChunkEngine:
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
     ):
+        self.check_link_ready()
         self._write_initialization()
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
@@ -901,6 +902,7 @@ class ChunkEngine:
         update_link_callback=None,
     ):
         """Pads the tensor with empty samples and appends value at the end."""
+        self.check_link_ready()
         update_first_sample = False
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
@@ -936,6 +938,7 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+        self.check_link_ready()
         (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
             index,
             samples,
@@ -1301,6 +1304,7 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
+        self.check_link_ready()
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache, fetch_chunks
         )
@@ -1864,6 +1868,9 @@ class ChunkEngine:
                 max_ = length
         return min_, max_
 
+    def check_link_ready(self):
+        return
+
     def shape(
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
@@ -1896,6 +1903,7 @@ class ChunkEngine:
                         except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                     else:
+                        self.check_link_ready()
                         shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                 skip_dims += 1
         elif not idxs[0].subscriptable():

@@ -121,7 +121,7 @@ VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
-LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_FILENAME = "linked_creds.json"
 LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
 
 

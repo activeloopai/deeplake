@@ -1,3 +1,4 @@
+import warnings
 from hub.core.link_creds import LinkCreds
 from hub.core.lock import Lock
 from hub.core.storage.lru_cache import LRUCache
@@ -19,6 +20,9 @@ def merge_link_creds(old_link_creds: LinkCreds, current_link_creds: LinkCreds):
     current_link_creds.creds_keys = old_link_creds.creds_keys
     current_link_creds.creds_mapping = old_link_creds.creds_mapping
     current_link_creds.managed_creds_keys = old_link_creds.managed_creds_keys
+    current_link_creds.used_creds_keys = old_link_creds.used_creds_keys.union(
+        current_link_creds.used_creds_keys
+    )
     for key in new_keys:
         if key not in current_link_creds.creds_mapping:
             managed = key in current_link_creds.managed_creds_keys
@@ -45,3 +49,16 @@ def save_link_creds(current_link_creds: LinkCreds, storage: LRUCache):
 
     storage[key] = new_link_creds.tobytes()
     lock.release()
+
+
+def warn_missing_managed_creds(self):
+    """Warns about any missing managed creds that were added in parallel by someone else."""
+    missing_creds = self.link_creds.missing_keys
+
+    missing_managed_creds = [
+        creds for creds in missing_creds if creds in self.link_creds.managed_creds_keys
+    ]
+    if missing_managed_creds:
+        warnings.warn(
+            f"There are some managed creds missing ({missing_managed_creds}) that were added after the dataset was loaded. Reload the dataset to load them."
+        )

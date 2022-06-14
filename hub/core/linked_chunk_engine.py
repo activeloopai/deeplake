@@ -10,6 +10,7 @@ from hub.core.storage import LRUCache
 from hub.core.tensor_link import read_linked_sample
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
+from hub.util.link import save_link_creds
 from hub.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
@@ -161,7 +162,8 @@ class LinkedChunkEngine(ChunkEngine):
             creds_key = None if sample is None else sample.creds_key
             encoded_creds_key = link_creds.get_encoding(creds_key)
             creds_encoder.register_samples((encoded_creds_key,), 1)
-            # link_creds.add_used_creds(creds_key)
+            if link_creds.add_to_used_creds(creds_key):
+                save_link_creds(self.link_creds, self.cache)
 
     def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
         link_creds = self.link_creds
@@ -196,15 +198,11 @@ class LinkedChunkEngine(ChunkEngine):
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
 
-    # def creds_used(self):
-    #     if self._creds_used is None:
-    #         self._creds_used = np.unique(self.creds_encoder[:, 1])
-    #     return self._creds_used
-
-
-    # def check_link_ready(self):
-    #     missing_keys = self.link_creds.missing_keys
-    #     creds_used = self.creds_used()
-    #     for key in missing_keys:
-    #         if key in creds_used:
-    #             raise ValueError(f"Creds key '{key}' is not present. Please populate the dataset using .populate_creds().")
+    def check_link_ready(self):
+        missing_keys = self.link_creds.missing_keys
+        creds_used = self.link_creds.used_creds_keys
+        missing_used_keys = {key for key in missing_keys if key in creds_used}
+        if missing_used_keys:
+            raise ValueError(
+                f"Creds keys {missing_used_keys} are used in the data but not populated. Please populate the dataset using ds.populate_creds()."
+            )

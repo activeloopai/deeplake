@@ -1,5 +1,4 @@
 from typing import Union
-import logging
 import posixpath
 from typing import Any, Dict, Optional
 from hub.client.utils import get_user_name
@@ -9,18 +8,13 @@ from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.exceptions import (
-    RenameError,
-    PathNotEmptyException,
-    AuthorizationException,
-)
-from hub.util.link import save_link_creds
+from hub.util.exceptions import RenameError
+from hub.util.link import save_link_creds, warn_missing_managed_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
 import time
 import hub
-from hub.util.remove_cache import get_base_storage
 
 
 class HubCloudDataset(Dataset):
@@ -299,22 +293,14 @@ class HubCloudDataset(Dataset):
         if managed:
             self.link_creds.populate_creds(creds_key, creds)
         save_link_creds(self.link_creds, self.storage)
-        self._populate_missing_managed_creds()
+        warn_missing_managed_creds(self.link_creds)
 
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         super().replace_creds(old_creds_key, new_creds_key)
-        self._populate_missing_managed_creds()
+        warn_missing_managed_creds(self.link_creds)
 
     def _fetch_managed_creds(self, creds_key):
         """Fetches creds from activeloop platform and populates the dataset with them."""
         creds = self.client.get_managed_creds(self.org_id, creds_key)
         print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds
-
-    def _populate_missing_managed_creds(self):
-        """Populates missing creds from activeloop platform for any new creds that were added parallel by someone else."""
-        missing_creds = self.link_creds.missing_keys
-        for creds_key in missing_creds:
-            if creds_key in self.link_creds.managed_creds_keys:
-                creds = self._fetch_managed_creds(creds_key)
-                self.populate_creds(creds_key, creds)

@@ -11,6 +11,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_dict = {}  # keys to actual creds dictionary
         self.creds_mapping = {}  # keys to numbers, for encoding
         self.managed_creds_keys = set()  # keys which are managed
+        self.used_creds_keys = set()  # keys which are used by one or more samples
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
@@ -95,10 +96,17 @@ class LinkCreds(HubMemoryObject):
             raise KeyError(f"Creds key {creds_key} does not exist")
         self.creds_dict[creds_key] = creds
 
+    def add_to_used_creds(self, creds_key: str):
+        if creds_key not in self.used_creds_keys:
+            self.used_creds_keys.add(creds_key)
+            return True
+        return False
+
     def tobytes(self) -> bytes:
         d = {
             "creds_keys": self.creds_keys,
             "managed_creds_keys": list(self.managed_creds_keys),
+            "used_creds_keys": list(self.used_creds_keys),
         }
         return json.dumps(d).encode("utf-8")
 
@@ -110,6 +118,7 @@ class LinkCreds(HubMemoryObject):
             obj.creds_keys = list(d["creds_keys"])
             obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
             obj.managed_creds_keys = set(d["managed_creds_keys"])
+            obj.used_creds_keys = set(d["used_creds_keys"])
         obj.is_dirty = False
         return obj
 
@@ -134,12 +143,14 @@ class LinkCreds(HubMemoryObject):
             "creds_keys": self.creds_keys,
             "creds_dict": self.creds_dict,
             "managed_creds_keys": self.managed_creds_keys,
+            "used_creds_keys": self.used_creds_keys,
         }
 
     def __setstate__(self, state):
         self.creds_keys = state["creds_keys"]
         self.creds_dict = state["creds_dict"]
         self.managed_creds_keys = state["managed_creds_keys"]
+        self.used_creds_keys = state["used_creds_keys"]
         self.creds_mapping = {key: i + 1 for i, key in enumerate(self.creds_keys)}
         self.storage_providers = {}
         self.default_s3_provider = None
