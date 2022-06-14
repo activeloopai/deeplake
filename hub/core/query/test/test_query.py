@@ -1,5 +1,4 @@
 import pytest
-from hub.core import query
 
 import numpy as np
 
@@ -7,7 +6,7 @@ from hub.core.query import DatasetQuery
 from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
-import os
+import itertools
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -324,4 +323,3 @@ def test_view_sample_indices(memory_ds):
         ds.create_tensor("x")
         ds.x.extend(list(range(10)))
     assert list(ds[:5].sample_indices) == list(range(5))
-    assert list(ds.x[:5].sample_indices) == list(range(5))

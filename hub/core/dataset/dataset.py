@@ -2687,7 +2687,9 @@ class Dataset:
 
     @property
     def sample_indices(self):
-        return self.index.values[0].indices(len(self))
+        return self.index.values[0].indices(
+            min(t.num_samples for t in self.tensors.values())
+        )
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):

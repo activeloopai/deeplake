@@ -1014,4 +1014,4 @@ class Tensor:
 
     @property
     def sample_indices(self):
-        return self.index.values[0].indices(len(self))
+        return self.index.values[0].indices(self.num_samples)
