@@ -241,6 +241,8 @@ class GCSProvider(StorageProvider):
         )
         self._initialize_provider()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
+        self.hub_path: Optional[str] = None
+        self.expiration: Optional[str] = None
 
     def subdir(self, path: str):
         return self.__class__(
@@ -281,6 +283,18 @@ class GCSProvider(StorageProvider):
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
+
+    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+        """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
+        This info is used to fetch new credentials when the temporary 12 hour credentials expire.
+
+        Args:
+            hub_path (str): The hub cloud path to the dataset.
+            expiration (str): The time at which the credentials expire.
+        """
+        self.hub_path = hub_path
+        self.tag = hub_path[6:]  # removing the hub:// part from the path
+        self.expiration = expiration
 
     def clear(self, prefix=""):
         """Remove all keys with given prefix below root - empties out mapping"""
