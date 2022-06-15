@@ -99,10 +99,10 @@ class SingleThreadScheduler(Scheduler):
 
 class SequentialMultithreadScheduler(Scheduler):
     """
-    Splits list of IO blocks in a way, so PyTroch loader would return
+    Splits list of IO blocks in a way, so PyTorch loader would return
     samples in sequence, when started with `num_worker` > 1.
 
-    Scheduler relays on a fact, that PyTroch DataLoader synchronize
+    Scheduler relays on a fact, that PyTorch DataLoader synchronize
     read of samples per thread and return in a sequence per worker.
 
     Example:
@@ -255,7 +255,7 @@ class SampleStreaming(Streaming):
         tensors: Sequence[str],
         tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
-        return_index: bool = False,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 

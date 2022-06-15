@@ -648,11 +648,11 @@ class ChunkEngine:
 
         Args:
             samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
-            start_chunk (Optional[BaseChunk]): Parameter that points to the chunk on which the samples should be added
+            start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
             register (bool): Parameter that shows if we need to register the chunk
             update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
-            start_chunk_row (Optional[int]): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
+            start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
 
         Returns:
@@ -677,7 +677,9 @@ class ChunkEngine:
             )  # type: ignore
             self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register)
+                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                if start_chunk_row is not None:
+                    start_chunk_row += 1
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
@@ -695,7 +697,11 @@ class ChunkEngine:
                         )
                     samples = samples[1:]
                 if len(samples) > 0:
-                    current_chunk = self._create_new_chunk(register)
+                    current_chunk = self._create_new_chunk(
+                        register, row=start_chunk_row
+                    )
+                    if start_chunk_row is not None:
+                        start_chunk_row += 1
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
@@ -1019,7 +1025,6 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-
         samples, _ = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
@@ -1044,17 +1049,21 @@ class ChunkEngine:
 
         from_chunk.pop_multiple(num_samples=num_samples)
         samples, _ = self._sanitize_samples(samples_to_move)
+        to_chunk.is_dirty = True
+        self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
             samples,
             start_chunk=to_chunk,
             register=True,
             update_commit_diff=True,
-            # append_to_end=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
-        del self.cache[from_chunk.key]  # type: ignore
+        try:
+            del self.cache[from_chunk.key]  # type: ignore
+        except KeyError:
+            pass
         return True
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
@@ -1067,7 +1076,6 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
-
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
             return self._merge_chunks(
@@ -1149,6 +1157,7 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
+                row = self.chunk_id_encoder.__getitem__(global_sample_index, True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -1169,11 +1178,9 @@ class ChunkEngine:
                 # only care about deltas if it isn't the last chunk
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
-
                 self._check_rechunk(
                     chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
                 )
-
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)
@@ -1248,20 +1255,20 @@ class ChunkEngine:
         global_sample_index: int,
     ) -> Tuple[int, ...]:
         enc = self.chunk_id_encoder
-        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
-            chunks = [
-                self.get_video_chunk(idx)[0]
-                for idx in self.chunk_id_encoder[global_sample_index]
-            ]
-        else:
-            chunks = self.get_chunks_for_sample(global_sample_index)
-        if len(chunks) == 1:
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
-            return tuple(map(int, chunks[0].shapes_encoder[local_sample_index]))
-        else:
+        if self._is_tiled_sample(global_sample_index):
             return self.tile_encoder.get_sample_shape(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if self.is_video:
+            chunk_id = enc[global_sample_index][0]
+            chunk = self.get_video_chunk(chunk_id)[0]
+        else:
+            chunk_id, _, worst_case_header_size = self.get_chunk_info(
+                global_sample_index, fetch_chunks=False
+            )
+            chunk = self.get_chunk_from_chunk_id(
+                chunk_id, partial_chunk_bytes=worst_case_header_size
+            )
+        return tuple(map(int, chunk.shapes_encoder[local_sample_index]))
 
     def read_sample_from_chunk(
         self,
@@ -1321,10 +1328,12 @@ class ChunkEngine:
             return sample[tuple(entry.value for entry in index.values[2:])]
         return sample
 
-    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_chunk_info(self, global_sample_index, fetch_chunks):
+        """Returns the chunk_id, row and worst case header size of chunk containing the given sample."""
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
+
         worst_case_header_size = 0
         num_samples_in_chunk = -1
         if (
@@ -1354,6 +1363,13 @@ class ChunkEngine:
             worst_case_header_size += shape_enc_size
             worst_case_header_size += bytes_enc_size
 
+        return chunk_id, row, worst_case_header_size
+
+    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
+        enc = self.chunk_id_encoder
+        chunk_id, row, worst_case_header_size = self.get_chunk_info(
+            global_sample_index, fetch_chunks
+        )
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
@@ -1363,7 +1379,7 @@ class ChunkEngine:
         )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
-        if self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video":
+        if self.is_video:
             return self.get_video_sample(global_sample_index, index)
         return self.get_basic_sample(
             global_sample_index, index, fetch_chunks=fetch_chunks
@@ -1615,6 +1631,12 @@ class ChunkEngine:
     @property
     def is_sequence(self):
         return self.tensor_meta.is_sequence
+
+    @property
+    def is_video(self):
+        return (
+            self.compression in VIDEO_COMPRESSIONS or self.tensor_meta.htype == "video"
+        )
 
     @property
     def sequence_encoder_exists(self) -> bool:

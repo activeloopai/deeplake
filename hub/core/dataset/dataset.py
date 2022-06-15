@@ -1328,7 +1328,7 @@ class Dataset:
         buffer_size: int = 2048,
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
-        return_index: bool = False,
+        return_index: bool = True,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1353,7 +1353,7 @@ class Dataset:
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
-            return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is False.
+            return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -2684,6 +2684,12 @@ class Dataset:
             self._write_queries_json(qjson)
         vds.delete(large_ok=True)
         return info
+
+    @property
+    def sample_indices(self):
+        return self.index.values[0].indices(
+            min(t.num_samples for t in self.tensors.values())
+        )
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):

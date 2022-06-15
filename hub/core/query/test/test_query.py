@@ -1,5 +1,4 @@
 import pytest
-from hub.core import query
 
 import numpy as np
 
@@ -7,7 +6,6 @@ from hub.core.query import DatasetQuery
 from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
-import os
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -316,3 +314,23 @@ def test_query_bug_transformed_dataset(local_ds):
 
     ds_view = local_ds.filter("classes == 'class_0'", scheduler="threaded")
     np.testing.assert_array_equal(ds_view.classes.numpy()[:, 0], [0] * len(ds_view))
+
+
+def test_view_sample_indices(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    assert list(ds[:5].sample_indices) == list(range(5))
+    assert list(ds[5:].sample_indices) == list(range(5, 10))
+
+
+def test_query_view_union(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    v1 = ds.filter(lambda s: s.x.numpy() % 2)
+    v2 = ds.filter(lambda s: not (s.x.numpy() % 2))
+    union = ds[sorted(list(set(v1.sample_indices).union(v2.sample_indices)))]
+    np.testing.assert_array_equal(union.x.numpy(), ds.x.numpy())
