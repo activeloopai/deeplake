@@ -51,12 +51,12 @@ def save_link_creds(current_link_creds: LinkCreds, storage: LRUCache):
     lock.release()
 
 
-def warn_missing_managed_creds(self):
+def warn_missing_managed_creds(link_creds):
     """Warns about any missing managed creds that were added in parallel by someone else."""
-    missing_creds = self.link_creds.missing_keys
+    missing_creds = link_creds.missing_keys
 
     missing_managed_creds = [
-        creds for creds in missing_creds if creds in self.link_creds.managed_creds_keys
+        creds for creds in missing_creds if creds in link_creds.managed_creds_keys
     ]
     if missing_managed_creds:
         warnings.warn(
