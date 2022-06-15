@@ -85,6 +85,10 @@ class LinkCreds(HubMemoryObject):
             self.managed_creds_keys.remove(old_creds_key)
             self.managed_creds_keys.add(new_creds_key)
 
+        if old_creds_key in self.used_creds_keys:
+            self.used_creds_keys.remove(old_creds_key)
+            self.used_creds_keys.add(new_creds_key)
+
         if old_creds_key in self.storage_providers:
             self.storage_providers[new_creds_key] = self.storage_providers[
                 old_creds_key

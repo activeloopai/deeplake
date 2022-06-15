@@ -1,8 +1,7 @@
-from typing import Union
 import posixpath
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from hub.client.utils import get_user_name
-from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
+from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME, UNSPECIFIED
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
@@ -295,9 +294,23 @@ class HubCloudDataset(Dataset):
         save_link_creds(self.link_creds, self.storage)
         warn_missing_managed_creds(self.link_creds)
 
-    def replace_creds(self, old_creds_key: str, new_creds_key: str):
-        super().replace_creds(old_creds_key, new_creds_key)
+    def update_creds_key(self, old_creds_key: str, new_creds_key: str):
+        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
+        super().update_creds_keys(old_creds_key, new_creds_key)
         warn_missing_managed_creds(self.link_creds)
+
+    def change_creds_management(self, creds_key: str, managed: bool):
+        """Changes the management status of the creds key."""
+        is_managed = creds_key in self.link_creds.managed_creds_keys
+        if is_managed == managed:
+            return
+        if managed:
+            creds = self._fetch_managed_creds(creds_key)
+            self.link_creds.managed_creds_keys.add(creds_key)
+            self.link_creds.populate_creds(creds_key, creds)
+        else:
+            self.link_creds.managed_creds_keys.discard(creds_key)
+        save_link_creds(self.link_creds, self.storage)
 
     def _fetch_managed_creds(self, creds_key):
         """Fetches creds from activeloop platform and populates the dataset with them."""
