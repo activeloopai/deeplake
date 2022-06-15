@@ -185,6 +185,9 @@ class ChunkEngine:
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
+        self._chunk_args = None
+        self._num_samples_per_chunk: Optional[int] = None
+
     @property
     def is_data_cachable(self):
         tensor_meta = self.tensor_meta
@@ -217,13 +220,15 @@ class ChunkEngine:
 
     @property
     def chunk_args(self):
-        return [
-            self.min_chunk_size,
-            self.max_chunk_size,
-            self.tiling_threshold,
-            self.tensor_meta,
-            self.compression,
-        ]
+        if self._chunk_args is None:
+            self._chunk_args = [
+                self.min_chunk_size,
+                self.max_chunk_size,
+                self.tiling_threshold,
+                self.tensor_meta,
+                self.compression,
+            ]
+        return self._chunk_args
 
     @property
     def min_chunk_size(self):
@@ -419,6 +424,11 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
+        """Returns the length of the primary axis of the tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        if self.is_sequence:
+            return self._sequence_length
         return self.tensor_meta.length
 
     @property
@@ -1270,6 +1280,20 @@ class ChunkEngine:
             )
         return tuple(map(int, chunk.shapes_encoder[local_sample_index]))
 
+    @property
+    def is_fixed_shape(self):
+        tensor_meta = self.tensor_meta
+        return tensor_meta.min_shape == tensor_meta.max_shape
+
+    @property
+    def num_samples_per_chunk(self):
+        # should only be called if self.is_fixed_shape
+        if self._num_samples_per_chunk is None:
+            self._num_samples_per_chunk = (
+                self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
+            )
+        return self._num_samples_per_chunk
+
     def read_sample_from_chunk(
         self,
         global_sample_index: int,
@@ -1279,7 +1303,13 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if self.is_fixed_shape:
+            num_samples_per_chunk = self.num_samples_per_chunk
+            local_sample_index = global_sample_index % num_samples_per_chunk
+        else:
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
         return chunk.read_sample(
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )

@@ -107,10 +107,12 @@ class UncompressedChunk(BaseChunk):
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        shape = self.shapes_encoder[local_index]
-        if not self.byte_positions_encoder.is_empty():
+        if self.is_fixed_shape:
+            shape = self.tensor_meta.min_shape
+            sb, eb = self.get_byte_positions(local_index)
+        else:
             sb, eb = self.byte_positions_encoder[local_index]
-            buffer = buffer[sb:eb]
+        buffer = buffer[sb:eb]
         if not decompress:
             if copy:
                 buffer = bytes(buffer)
