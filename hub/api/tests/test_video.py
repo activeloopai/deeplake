@@ -178,3 +178,15 @@ def test_video_data(local_ds, video_paths):
         assert len(data["timestamps"]) == 2
         assert data["timestamps"][0].shape == (ds.video[2].shape[0],)
         assert data["timestamps"][1].shape == (ds.video[3].shape[0],)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
+def test_linked_video_timestamps(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("videos", htype="link[video]")
+        ds.videos.append(hub.link("gcs://gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
+        ds.videos[0, 5:10].timestamp == np.array(
+            [0.04170833, 0.08341666, 0.125125, 0.16683333, 0.20854166]
+        )
