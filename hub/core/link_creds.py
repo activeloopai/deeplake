@@ -127,8 +127,15 @@ class LinkCreds(HubMemoryObject):
         return obj
 
     def get_encoding(self, key):
-        if key in {None, "ENV"}:
+        if key == "ENV":
             return 0
+        if key is None:
+            if len(self.creds_keys) == 1:
+                key = self.creds_keys[0]
+            else:
+                raise ValueError(
+                    "creds_key can be None only when the dataset has exactly 1 creds_key. For 0 or more than 2 creds_keys, None isn't allowed. If you want to use creds from the environment, pass creds_key='ENV'"
+                )
         if key not in self.creds_keys:
             raise ValueError(f"Creds key {key} does not exist")
         return self.creds_mapping[key]
