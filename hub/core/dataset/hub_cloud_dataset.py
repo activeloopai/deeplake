@@ -1,7 +1,7 @@
 import posixpath
 from typing import Any, Dict, Optional, Union
 from hub.client.utils import get_user_name
-from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME, UNSPECIFIED
+from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.client.log import logger

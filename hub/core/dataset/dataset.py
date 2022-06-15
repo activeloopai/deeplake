@@ -112,9 +112,7 @@ from hub.util.version_control import (
     copy_metas,
     create_commit_chunk_sets,
 )
-from hub.util.pretty_print import (
-    summary_dataset,
-)
+from hub.util.pretty_print import summary_dataset
 from hub.core.dataset.view_entry import ViewEntry
 from hub.client.utils import get_user_name
 from itertools import chain
