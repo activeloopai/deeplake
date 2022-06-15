@@ -371,10 +371,8 @@ class Sample:
         split_path = path.split("/", 2)
         if len(split_path) > 2:
             root, key = "/".join(split_path[:2]), split_path[2]
-        elif len(split_path) == 2:
-            root, key = split_path
         else:
-            root, key = None, split_path[0]
+            root, key = split_path
         return root, key
 
     def _read_from_s3(self) -> bytes:
