@@ -2655,7 +2655,7 @@ class Dataset:
             "Managed creds are not supported for datasets that are not connected to activeloop platform."
         )
 
-    def get_creds(self) -> List[str]:
+    def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
         return self.link_creds.creds_keys
 
