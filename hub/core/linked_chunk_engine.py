@@ -116,7 +116,6 @@ class LinkedChunkEngine(ChunkEngine):
         )[0]
 
     def get_hub_read_sample(self, global_sample_index):
-        # self.check_link_ready()
         creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index)
         if not sample_path:
@@ -194,7 +193,7 @@ class LinkedChunkEngine(ChunkEngine):
 
         creds_encoder = self.creds_encoder
         if not sample_path:
-            return None
+            return np.ones((0,))
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
