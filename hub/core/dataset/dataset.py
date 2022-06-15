@@ -2356,15 +2356,15 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, id: str) -> ViewEntry:
+    def get_view(self, id: str, check_user_account=True) -> ViewEntry:
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
                 return ViewEntry(q, self)
-        if self.path.startswith("hub://"):
+        if check_user_account and self.path.startswith("hub://"):
             _, qds = self._read_queries_json_from_user_account()
             if qds:
-                return qds.get_view(id)
+                return qds.get_view(id, False)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
