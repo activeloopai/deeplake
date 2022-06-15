@@ -992,7 +992,7 @@ class Tensor:
             sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
         if self.is_link:
-            sample = self.chunk_engine.get_video_url(global_sample_index)
+            sample = self.chunk_engine.get_video_url(global_sample_index)  # type: ignore
         else:
             sample = self.chunk_engine.get_video_sample(
                 global_sample_index, index, decompress=False
