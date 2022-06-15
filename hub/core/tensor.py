@@ -522,9 +522,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        if self.is_sequence:
-            return self.chunk_engine._sequence_length
-        return self.meta.length
+        return self.chunk_engine.num_samples
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
