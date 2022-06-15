@@ -2263,17 +2263,17 @@ class Dataset:
             Exception: If this is not a VDS.
         """
 
-        if self._parent_dataset:
-            ds = self._parent_dataset
-        else:
-            try:
-                ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
-            except KeyError:
-                raise Exception("Dataset._get_view() works only for virtual datasets.")
+        try:
+            commit_id = self.info["source-dataset-version"]
+        except KeyError:
+            raise Exception("Dataset._get_view() works only for virtual datasets.")
+        ds = self._parent_dataset or hub.dataset(
+            path=self.info["source-dataset"], verbose=False
+        )
         try:
             orig_index = ds.index
             ds.index = Index()
-            ds.checkout(self.info["source-dataset-version"])
+            ds.checkout(commit_id)
             first_index_subscriptable = self.info.get("first-index-subscriptable", True)
             if first_index_subscriptable:
                 index_entries = [
