@@ -668,8 +668,7 @@ class dataset:
             "Progressbar": progressbar,
             "Public": public,
         }
-        is_hub_dest = dest.startswith("hub://")
-        if is_hub_dest:
+        if dest.startswith("hub://"):
             report_params["Dest"] = dest
         feature_report_path(src, "deepcopy", report_params)
 
@@ -798,9 +797,7 @@ class dataset:
             token=dest_token,
             verbose=verbose,
         )
-        if is_hub_dest:
-            ret._register_dataset()
-        return ret
+        ret._register_dataset()
 
     @staticmethod
     def ingest(
