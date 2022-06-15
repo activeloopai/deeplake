@@ -64,7 +64,11 @@ def storage_provider_from_path(
             profile_name=profile,
             token=token,
         )
-    elif path.startswith("gcp://") or path.startswith("gcs://") or path.startswith("gs://"):
+    elif (
+        path.startswith("gcp://")
+        or path.startswith("gcs://")
+        or path.startswith("gs://")
+    ):
         storage = GCSProvider(path, creds)
     elif path.startswith("gdrive://"):
         storage = GDriveProvider(path, creds)
