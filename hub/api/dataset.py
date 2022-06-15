@@ -798,6 +798,7 @@ class dataset:
             verbose=verbose,
         )
         ret._register_dataset()
+        return ret
 
     @staticmethod
     def ingest(
