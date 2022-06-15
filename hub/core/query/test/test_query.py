@@ -129,7 +129,8 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
     with pytest.raises(DatasetViewSavingError):
         view.save_view(optimize=optimize)
     ds.commit()
-    view.save_view(optimize=optimize, id="abcd")
+    ds.save_view(optimize=optimize, id="abcd")
+    view.save_view(optimize=optimize, id="abcd")  # test overwrite
     assert len(ds.get_views()) == 1
     view2 = ds.get_views()[0].load()
     np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
