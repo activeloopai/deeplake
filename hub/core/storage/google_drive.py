@@ -100,7 +100,7 @@ class GDriveProvider(StorageProvider):
     refresh_token = None
 
     def __init__(
-        self, root: str, token: Optional[Union[str, Dict]] = None, makemap=True
+        self, root: str, token: Optional[Union[str, Dict]] = None, makemap: bool = True
     ):
         """Initializes the GDriveProvider
 
@@ -110,6 +110,7 @@ class GDriveProvider(StorageProvider):
         Args:
             root(str): The root of the provider. All read/write request keys will be appended to root.
             token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
+            makemap(bool): Creates path to id map if True.
 
         Note:
             - Requires `client_secrets.json` in working directory if `token` is not provided.

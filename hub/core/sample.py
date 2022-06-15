@@ -400,6 +400,7 @@ class Sample:
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
+        assert self.path is not None
         gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
         return gdrive.get_object_from_full_url(self.path)
 
