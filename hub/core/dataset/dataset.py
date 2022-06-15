@@ -2064,9 +2064,17 @@ class Dataset:
 
     def _append_to_queries_json(self, info: dict):
         with self._lock_queries_json():
-            queries = self._read_queries_json()
-            queries.append(info)
-            self._write_queries_json(queries)
+            qjson = self._read_queries_json()
+            idx = None
+            for i in range(len(qjson)):
+                if qjson[i]["id"] == info["id"]:
+                    idx = i
+                    break
+            if idx is None:
+                qjson.append(info)
+            else:
+                qjson[idx] = info
+            self._write_queries_json(qjson)
 
     def _read_queries_json(self) -> list:
         try:
@@ -2323,7 +2331,6 @@ class Dataset:
 
         Args:
             commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
-                To get views from all commits, pass `commits="all"`.
                 If not specified, views from the currently checked out commit will be returned.
 
         Returns:
@@ -2348,6 +2355,17 @@ class Dataset:
                     ),
                 )
         return list(ret)
+
+    def get_view(self, id: str) -> ViewEntry:
+        queries = self._read_queries_json()
+        for q in queries:
+            if q["id"] == id:
+                return ViewEntry(q, self)
+        if self.path.startswith("hub://"):
+            _, qds = self._read_queries_json_from_user_account()
+            if qds:
+                return qds.get_view(id)
+        raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
         self,
