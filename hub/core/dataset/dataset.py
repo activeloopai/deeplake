@@ -2403,7 +2403,7 @@ class Dataset:
             token=self._token,
         )
         ret._parent_dataset = self
-        ret
+        return ret
 
     def _link_tensors(
         self,
