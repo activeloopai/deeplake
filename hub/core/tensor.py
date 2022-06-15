@@ -976,7 +976,10 @@ class Tensor:
         ```
 
         """
-        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+        if (
+            get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
+            and self.htype != "link[video]"
+        ):
             raise Exception("Only supported for video tensors.")
         index = self.index
         if index.values[0].subscriptable():
@@ -988,9 +991,12 @@ class Tensor:
         else:
             sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
-        sample = self.chunk_engine.get_video_sample(
-            global_sample_index, index, decompress=False
-        )
+        if self.is_link:
+            sample = self.chunk_engine.get_video_url(global_sample_index)  # type: ignore
+        else:
+            sample = self.chunk_engine.get_video_sample(
+                global_sample_index, index, decompress=False
+            )
 
         nframes = self.shape[0]
         start, stop, step, reverse = normalize_index(sub_index, nframes)
