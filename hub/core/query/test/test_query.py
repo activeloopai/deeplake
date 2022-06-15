@@ -195,7 +195,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     assert len(ds.get_views()) == int(stream)
-    vds_path = view.save_view(optimize=optimize)
+    vds_path = view.save_view(optimize=optimize, id="abcd")
     assert len(ds.get_views()) == 1
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
@@ -206,7 +206,7 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
-    entry = ds.get_views()[0]
+    entry = ds.get_view("abcd")
     assert entry.virtual
     entry.optimize()
     assert not entry.virtual
