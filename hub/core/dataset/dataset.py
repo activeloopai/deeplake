@@ -197,6 +197,7 @@ class Dataset:
         d["_view_base"] = None
         d["_update_hooks"] = {}
         d["_commit_hooks"] = {}
+        d["_parent_dataset"] = None
 
         self.__dict__.update(d)
         try:
@@ -283,6 +284,7 @@ class Dataset:
             "_view_id",
             "_view_invalid",
             "_new_view_base_commit",
+            "_parent_dataset",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -2260,23 +2262,33 @@ class Dataset:
         Raises:
             Exception: If this is not a VDS.
         """
-        try:
-            ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
-        except KeyError:
-            raise Exception("Dataset._get_view() works only for virtual datasets.")
-        ds.checkout(self.info["source-dataset-version"])
-        first_index_subscriptable = self.info.get("first-index-subscriptable", True)
-        if first_index_subscriptable:
-            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+
+        if self._parent_dataset:
+            ds = self._parent_dataset
         else:
-            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
-        sub_sample_index = self.info.get("sub-sample-index")
-        if sub_sample_index:
-            index_entries += Index.from_json(sub_sample_index).values
-        index = Index(index_entries)
-        ds = ds[index]
-        ds._vds = self
-        return ds
+            try:
+                ds = hub.dataset(path=self.info["source-dataset"], verbose=False)
+            except KeyError:
+                raise Exception("Dataset._get_view() works only for virtual datasets.")
+        try:
+            orig_index = ds.index
+            ds.index = Index()
+            ds.checkout(self.info["source-dataset-version"])
+            first_index_subscriptable = self.info.get("first-index-subscriptable", True)
+            if first_index_subscriptable:
+                index_entries = [
+                    IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
+                ]
+            else:
+                index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
+            sub_sample_index = self.info.get("sub-sample-index")
+            if sub_sample_index:
+                index_entries += Index.from_json(sub_sample_index).values
+            ds = ds[Index(index_entries)]
+            ds._vds = self
+            return ds
+        finally:
+            ds.index = orig_index
 
     def _get_empty_vds(
         self,
@@ -2381,7 +2393,7 @@ class Dataset:
             path = sub_storage.root
             cls = hub.core.dataset.Dataset
 
-        return cls(
+        ret = cls(
             generate_chain(
                 sub_storage,
                 memory_cache_size * MB,
@@ -2390,6 +2402,7 @@ class Dataset:
             path=path,
             token=self._token,
         )
+        ret._parent_dataset = self
 
     def _link_tensors(
         self,
