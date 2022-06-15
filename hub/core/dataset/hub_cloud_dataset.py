@@ -61,6 +61,8 @@ class HubCloudDataset(Dataset):
         return self._token
 
     def _set_org_and_name(self):
+        if self.org_id:
+            return
         if self.is_actually_cloud:
             if self.org_id is not None:
                 return
