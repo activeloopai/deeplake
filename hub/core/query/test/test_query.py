@@ -323,3 +323,14 @@ def test_view_sample_indices(memory_ds):
         ds.x.extend(list(range(10)))
     assert list(ds[:5].sample_indices) == list(range(5))
     assert list(ds[5:].sample_indices) == list(range(5, 10))
+
+
+def test_query_view_union(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    v1 = ds.filter(lambda s: s.x.numpy() % 2)
+    v2 = ds.filter(lambda s: not (s.x.numpy() % 2))
+    union = ds[sorted(list(set(v1.sample_indices).union(v2.sample_indices)))]
+    np.testing.assert_array_equal(union.x.numpy(), ds.x.numpy())
