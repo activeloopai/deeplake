@@ -32,6 +32,10 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 
 
+def _remove_protocol_from_path(path: str) -> str:
+    return path.replace("gcp://", "").replace("gcs://", "").replace("gs://", "")
+
+
 class GCloudCredentials:
     def __init__(self, token: Union[str, Dict] = None, project: str = None):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
@@ -261,7 +265,7 @@ class GCSProvider(StorageProvider):
         return self._client_bucket
 
     def _set_bucket_and_path(self):
-        root = self.root.replace("gcp://", "").replace("gcs://", "")
+        root = _remove_protocol_from_path(self.root)
         split_root = root.split("/", 1)
         self.bucket = split_root[0]
         if len(split_root) > 1:
@@ -292,7 +296,7 @@ class GCSProvider(StorageProvider):
     def rename(self, root):
         """Rename root folder"""
         self.check_readonly()
-        path = root.replace("gcs://", "").replace("gcp://", "")
+        path = _remove_protocol_from_path(root)
         new_bucket, new_path = path.split("/", 1)
         if new_bucket != self.client_bucket.name:
             raise RenameError
@@ -401,7 +405,7 @@ class GCSProvider(StorageProvider):
 
     def get_presigned_url(self, key, full=False):
         if full:
-            root = key.replace("gcp://", "").replace("gcs://", "")
+            root = _remove_protocol_from_path(key)
             split_root = root.split("/", 1)
             bucket = split_root[0]
             key = split_root[1] if len(split_root) > 1 else ""
@@ -437,7 +441,7 @@ class GCSProvider(StorageProvider):
         return blob.size
 
     def get_object_from_full_url(self, url: str):
-        root = url.replace("gcp://", "").replace("gcs://", "")
+        root = _remove_protocol_from_path(url)
         split_root = root.split("/", 1)
         bucket = split_root[0]
         path = split_root[1] if len(split_root) > 1 else ""
