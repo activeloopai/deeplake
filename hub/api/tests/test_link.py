@@ -75,11 +75,11 @@ def test_complex_htype_parsing():
 
 def test_link_creds(request):
     link_creds = LinkCreds()
-    link_creds.add_creds("abc")
-    link_creds.add_creds("def")
+    link_creds.add_creds_key("abc")
+    link_creds.add_creds_key("def")
 
     with pytest.raises(ValueError):
-        link_creds.add_creds("abc")
+        link_creds.add_creds_key("abc")
 
     link_creds.populate_creds("abc", {})
     link_creds.populate_creds("def", {})
@@ -103,7 +103,7 @@ def test_link_creds(request):
     assert len(link_creds) == 2
     assert link_creds.missing_keys == []
 
-    link_creds.add_creds("ghi")
+    link_creds.add_creds_key("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
     with pytest.raises(KeyError):
@@ -167,8 +167,8 @@ def test_creds_encoder():
 def test_add_populate_creds(local_ds_generator):
     local_ds = local_ds_generator()
     with local_ds as ds:
-        ds.add_creds("my_s3_key")
-        ds.add_creds("my_gcs_key")
+        ds.add_creds_key("my_s3_key")
+        ds.add_creds_key("my_gcs_key")
         ds.populate_creds("my_s3_key", {})
         ds.populate_creds("my_gcs_key", {})
 
@@ -301,8 +301,8 @@ def test_complex_creds(local_ds_generator):
             create_sample_info_tensor=False,
         )
         ds.create_tensor("xyz")
-        ds.add_creds("my_first_key")
-        ds.add_creds("my_second_key")
+        ds.add_creds_key("my_first_key")
+        ds.add_creds_key("my_second_key")
 
         assert ds.get_creds() == ["my_first_key", "my_second_key"]
 

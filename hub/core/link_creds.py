@@ -61,7 +61,7 @@ class LinkCreds(HubMemoryObject):
         self.storage_providers[key] = provider
         return provider
 
-    def add_creds(self, creds_key: str, managed: bool = False):
+    def add_creds_key(self, creds_key: str, managed: bool = False):
         if creds_key in self.creds_keys:
             raise ValueError(f"Creds key {creds_key} already exists")
         self.creds_keys.append(creds_key)

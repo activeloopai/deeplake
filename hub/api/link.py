@@ -20,8 +20,8 @@ def link(
         >>> ds = hub.dataset("......")
 
         Add the names of the creds you want to use (not needed for http/local urls)
-        >>> ds.add_creds("MY_S3_KEY")
-        >>> ds.add_creds("GCS_KEY")
+        >>> ds.add_creds_key("MY_S3_KEY")
+        >>> ds.add_creds_key("GCS_KEY")
 
         Populate the names added with creds dictionary
         These creds are only present temporarily and will have to be repopulated on every reload

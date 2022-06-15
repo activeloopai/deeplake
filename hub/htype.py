@@ -80,8 +80,8 @@ array([[[1],
 Add the names of the creds you want to use (not needed for http/local urls)
 
 ```
->>> ds.add_creds(“MY_S3_KEY”)
->>> ds.add_creds(“GCS_KEY”)
+>>> ds.add_creds_key(“MY_S3_KEY”)
+>>> ds.add_creds_key(“GCS_KEY”)
 ```
 
 Populate the names added with creds dictionary

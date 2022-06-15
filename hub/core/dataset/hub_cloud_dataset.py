@@ -268,7 +268,7 @@ class HubCloudDataset(Dataset):
         hub_reporter.feature_report(feature_name="visualize", parameters={})
         visualize(self.path, self.token, width=width, height=height)
 
-    def add_creds(self, creds_key: str, managed: bool = False):
+    def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
 
         Examples:
@@ -277,7 +277,7 @@ class HubCloudDataset(Dataset):
             ds = hub.dataset("path/to/dataset")
 
             # add a new creds key
-            ds.add_creds("my_s3_key")
+            ds.add_creds_key("my_s3_key")
             ```
 
         Args:
@@ -288,7 +288,7 @@ class HubCloudDataset(Dataset):
         """
         if managed:
             creds = self._fetch_managed_creds(creds_key)
-        self.link_creds.add_creds(creds_key, managed=managed)
+        self.link_creds.add_creds_key(creds_key, managed=managed)
         if managed:
             self.link_creds.populate_creds(creds_key, creds)
         save_link_creds(self.link_creds, self.storage)
