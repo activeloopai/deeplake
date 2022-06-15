@@ -170,6 +170,10 @@ class LinkedChunkEngine(ChunkEngine):
         creds_key = None if sample is None else sample.creds_key
         encoded_creds_key = link_creds.get_encoding(creds_key)
         self.creds_encoder[sample_index] = (encoded_creds_key,)
+        if link_creds.add_to_used_creds(creds_key):
+            save_link_creds(self.link_creds, self.cache)
+            warn_missing_managed_creds(self.link_creds)
+
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_hub_read_sample(global_sample_index)
