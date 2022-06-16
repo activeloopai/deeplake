@@ -111,6 +111,7 @@ class UncompressedChunk(BaseChunk):
             shape = self.tensor_meta.min_shape
             sb, eb = self.get_byte_positions(local_index)
         else:
+            shape = self.shapes_encoder[local_index]
             sb, eb = self.byte_positions_encoder[local_index]
         buffer = buffer[sb:eb]
         if not decompress:
