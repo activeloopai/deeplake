@@ -1459,7 +1459,9 @@ class Dataset:
                 map(
                     len,
                     filter(
-                        lambda t: (not group_index or t.key.startswith(group_index + "/"))
+                        lambda t: (
+                            not group_index or t.key.startswith(group_index + "/")
+                        )
                         and t.key not in self.meta.hidden_tensors,
                         self.version_state["full_tensors"].values(),
                     ),
