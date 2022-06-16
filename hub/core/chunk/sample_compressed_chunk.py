@@ -90,7 +90,10 @@ class SampleCompressedChunk(BaseChunk):
                 buffer = buffer[sb:eb]
         if not decompress:
             return bytes(buffer) if copy else buffer
-        shape = self.shapes_encoder[local_index]
+        if self.is_fixed_shape:
+            shape = self.tensor_meta.min_shape
+        else:
+            shape = self.shapes_encoder[local_index]
         nframes = shape[0]
         if self.is_text_like:
             buffer = decompress_bytes(buffer, compression=self.compression)
