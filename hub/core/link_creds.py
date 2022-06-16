@@ -71,6 +71,8 @@ class LinkCreds(HubMemoryObject):
             self.managed_creds_keys.add(creds_key)
 
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
+        if old_creds_key not in self.creds_keys:
+            raise KeyError(f"Creds key {old_creds_key} does not exist")
         for i in range(len(self.creds_keys)):
             if self.creds_keys[i] == old_creds_key:
                 self.creds_keys[i] = new_creds_key
