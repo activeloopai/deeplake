@@ -1,4 +1,3 @@
-from pickletools import optimize
 import numpy as np
 import os
 import sys
@@ -11,7 +10,7 @@ from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.s3 import S3Provider
 from hub.tests.common import is_opt_true
-from hub.util.exceptions import TensorMetaInvalidHtype
+from hub.util.exceptions import ManagedCredentialsNotFoundError, TensorMetaInvalidHtype
 
 from hub.util.htype import parse_complex_htype  # type: ignore
 
@@ -396,6 +395,49 @@ def test_transform(local_ds, cat_path, flower_path):
         assert ds.linked_images[i].numpy().shape == shape_target
 
     data_in.delete()
+
+
+def test_link_managed(hub_cloud_ds_generator, cat_path):
+    with hub_cloud_ds_generator() as ds:
+        key_name = "CREDS_MANAGEMENT_TEST"
+        ds.create_tensor("img", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.add_creds_key(key_name, managed=True)
+        assert key_name in ds.link_creds.creds_mapping
+        assert key_name in ds.link_creds.managed_creds_keys
+        assert key_name not in ds.link_creds.used_creds_keys
+
+        ds.img.append(hub.link(cat_path, creds_key=key_name))
+        assert key_name not in ds.link_creds.used_creds_keys
+
+    ds = hub_cloud_ds_generator()
+    assert key_name in ds.link_creds.creds_mapping
+    assert key_name in ds.link_creds.managed_creds_keys
+    assert key_name in ds.link_creds.used_creds_keys
+
+    shape_target = (900, 900, 3)
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    with pytest.raises(ManagedCredentialsNotFoundError):
+        ds.add_creds_key("some_random_key", managed=True)
+
+    # even after failure one can simply add a new key, setting managed to False
+    ds.add_creds_key("some_random_key")
+
+
+def test_link_ready(local_ds_generator, cat_path):
+    with local_ds_generator() as ds:
+        ds.create_tensor("img", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.add_creds_key("abc")
+        ds.populate_creds("abc", {})
+        ds.add_creds_key("def")
+        ds.img.append(hub.link(cat_path, creds_key="abc"))
+
+    ds = local_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+    ds.populate_creds("abc", {})
+    assert ds.img[0].numpy().shape == (900, 900, 3)
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
