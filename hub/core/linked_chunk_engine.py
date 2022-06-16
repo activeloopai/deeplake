@@ -133,6 +133,7 @@ class LinkedChunkEngine(ChunkEngine):
         return self.tensor_meta.is_link and self.tensor_meta.verify
 
     def check_each_sample(self, samples):
+        link_creds = self.link_creds
         verified_samples = []
         for i, sample in enumerate(samples):
             if isinstance(sample, hub.core.tensor.Tensor) and sample.is_link:
@@ -142,6 +143,12 @@ class LinkedChunkEngine(ChunkEngine):
                 raise TypeError(
                     f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
                 )
+            
+            path, creds_key = get_path_creds_key(sample)
+
+            # verifies existence of creds_key
+            link_creds.get_encoding(creds_key, path)
+
 
             if sample is None or sample.path == "":
                 verified_samples.append(sample)
