@@ -1455,19 +1455,14 @@ class Dataset:
 
         if not self.is_iteration:
             group_index = self.group_index
-            max_tensor_length = max(
-                map(
-                    len,
-                    filter(
-                        lambda t: (
-                            not group_index or t.key.startswith(group_index + "/")
-                        )
-                        and t.key not in self.meta.hidden_tensors,
-                        self.version_state["full_tensors"].values(),
-                    ),
-                ),
-                default=0,
+            group_filter = (
+                lambda t: (not group_index or t.key.startswith(group_index + "/"))
+                and t.key not in self.meta.hidden_tensors
             )
+            group_tensors = filter(
+                group_filter, self.version_state["full_tensors"].values()
+            )
+            max_tensor_length = max(map(len, group_tensors), default=0)
             self.index.validate(max_tensor_length)
 
     @property
