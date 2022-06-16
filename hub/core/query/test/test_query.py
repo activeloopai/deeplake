@@ -7,7 +7,7 @@ from hub.core.query import DatasetQuery
 from hub.util.exceptions import DatasetViewSavingError
 import hub
 from uuid import uuid4
-import os
+import uuid
 
 
 first_row = {"images": [1, 2, 3], "labels": [0]}
@@ -114,6 +114,7 @@ def test_query_scheduler(local_ds):
     "optimize,idx_subscriptable", [(True, True), (False, False), (True, False)]
 )
 def test_sub_sample_view_save(optimize, idx_subscriptable):
+    id = str(uuid.uuid4())
     arr = np.random.random((100, 32, 32, 3))
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
@@ -129,12 +130,12 @@ def test_sub_sample_view_save(optimize, idx_subscriptable):
     with pytest.raises(DatasetViewSavingError):
         view.save_view(optimize=optimize)
     ds.commit()
-    ds.save_view(optimize=optimize, id="abcd")
-    view.save_view(optimize=optimize, id="abcd")  # test overwrite
+    ds.save_view(optimize=optimize, id=id)
+    view.save_view(optimize=optimize, id=id)  # test overwrite
     assert len(ds.get_views()) == 1
     view2 = ds.get_views()[0].load()
     np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
-    view3 = ds.get_view("abcd").load()
+    view3 = ds.get_view(id).load()
     np.testing.assert_array_equal(view.x.numpy(), view3.x.numpy())
 
 
@@ -181,21 +182,22 @@ def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
 ):
     ds = ds_generator()
-    if read_only and not ds.path.startswith("hub://"):
+    is_hub_ds = ds.path.startswith("hub://")
+    if read_only and not is_hub_ds:
         return
+    id = str(uuid.uuid4())
+    to_del = [id]
     _populate_data(ds, n=2)
     ds.commit()
     ds.read_only = read_only
-    f = (
-        f"labels == 'dog'#{uuid4().hex}"
-        if query_type == "string"
-        else lambda s: s.labels == "dog"
-    )
+    f = f"labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
     view = ds.filter(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
+    if stream:
+        id.append(view._vds["id"])
     assert len(ds.get_views()) == int(stream)
-    vds_path = view.save_view(optimize=optimize, id="abcd")
+    vds_path = view.save_view(optimize=optimize, id=id)
     assert len(ds.get_views()) == 1 + int(stream)
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
@@ -206,13 +208,17 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
-    entry = ds.get_view("abcd")
+    entry = ds.get_view(id)
     assert entry.virtual
     entry.optimize()
     assert not entry.virtual
     view3 = entry.load()
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
+    for id in to_del:
+        ds.delete_view(id)
+        with pytest.raises(KeyError):
+            ds.get_view(id)
 
 
 def test_group(local_ds):

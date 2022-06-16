@@ -34,10 +34,13 @@ class ViewEntry:
         return self.info["virtual-datasource"]
 
     def load(self):
-        ds = self._ds._sub_ds(".queries/" + self.info.get("path", self.info["id"]))
+        ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
         if self.virtual:
             ds = ds._get_view()
         return ds
 
     def optimize(self):
         self.info = self._ds._optimize_saved_view(self.info["id"])
+
+    def delete(self):
+        self._ds.delete_view(id=self.info["id"])

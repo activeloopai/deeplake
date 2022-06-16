@@ -937,7 +937,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False):
-        storage = get_base_storage(self.storage)
+        storage = self.base_storage
         if storage.read_only and not self._locked_out:
             if err:
                 raise ReadOnlyModeError()
@@ -1100,8 +1100,7 @@ class Dataset:
         if self._locked_out:
             self.storage.disable_readonly()
             self._read_only = False
-            base_storage = get_base_storage(self.storage)
-            base_storage.disable_readonly()
+            self.base_storage.disable_readonly()
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
@@ -1114,7 +1113,7 @@ class Dataset:
             if self._locked_out:
                 self.storage.enable_readonly()
                 self._read_only = True
-                base_storage.enable_readonly()
+                self.base_storage.enable_readonly()
             raise e
         finally:
             if not (err and self._locked_out):
@@ -1547,8 +1546,7 @@ class Dataset:
         path = path.rstrip("/")
         if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
             raise RenameError
-        storage = get_base_storage(self.storage)
-        storage.rename(path)
+        self.base_storage.rename(path)
         self.path = path
 
     @invalid_view_op
@@ -2078,9 +2076,7 @@ class Dataset:
 
     def _read_queries_json(self) -> list:
         try:
-            return json.loads(
-                get_base_storage(self.storage)[get_queries_key()].decode("utf-8")
-            )
+            return json.loads(self.base_storage[get_queries_key()].decode("utf-8"))
         except KeyError:
             return []
 
@@ -2112,7 +2108,7 @@ class Dataset:
         hash = info["id"]
         path = f".queries/{hash}"
         self.flush()
-        get_base_storage(self.storage).subdir(path).clear()
+        self.base_storage.subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2375,6 +2371,23 @@ class Dataset:
                 return qds.get_view(id, False)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
+    def delete_view(self, id: str, check_user_account=True):
+        with self._lock_queries_json():
+            qjson = self._read_queries_json()
+            for i, q in enumerate(qjson):
+                if q["id"] == id:
+                    qjson.pop(i)
+                    self.base_storage.subdir(
+                        ".queries/" + (q.get("path") or q["id"])
+                    ).clear()
+                    self._write_queries_json(qjson)
+                    return
+        if check_user_account and self.path.startswith("hub://"):
+            _, qds = self._read_queries_json_from_user_account()
+            if qds:
+                return qds.delete_view(id, False)
+        raise KeyError(f"No view with id {id} found in the dataset.")
+
     def _sub_ds(
         self,
         path,
@@ -2394,8 +2407,7 @@ class Dataset:
         Returns:
             Sub dataset
         """
-        base_storage = get_base_storage(self.storage)
-        sub_storage = base_storage.subdir(path)
+        sub_storage = self.base_storage.subdir(path)
 
         if empty:
             sub_storage.clear()
