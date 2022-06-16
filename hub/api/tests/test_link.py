@@ -89,6 +89,8 @@ def test_link_creds(request):
 
     assert link_creds.get_encoding("ENV") == 0
     assert link_creds.get_encoding(None) == 0
+    with pytest.raises(ValueError):
+        link_creds.get_encoding(None, "s3://my_bucket/my_key")
     assert link_creds.get_encoding("abc") == 1
     assert link_creds.get_encoding("def") == 2
     with pytest.raises(ValueError):
@@ -304,7 +306,7 @@ def test_complex_creds(local_ds_generator):
         ds.add_creds_key("my_first_key")
         ds.add_creds_key("my_second_key")
 
-        assert ds.get_creds() == ["my_first_key", "my_second_key"]
+        assert ds.get_creds_keys() == ["my_first_key", "my_second_key"]
 
         ds.populate_creds("my_first_key", {})
         ds.populate_creds("my_second_key", {})
