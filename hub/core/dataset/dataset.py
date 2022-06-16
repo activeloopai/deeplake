@@ -939,7 +939,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False):
-        storage = get_base_storage(self.storage)
+        storage = self.base_storage
         if storage.read_only and not self._locked_out:
             if err:
                 raise ReadOnlyModeError()
@@ -1102,8 +1102,7 @@ class Dataset:
         if self._locked_out:
             self.storage.disable_readonly()
             self._read_only = False
-            base_storage = get_base_storage(self.storage)
-            base_storage.disable_readonly()
+            self.base_storage.disable_readonly()
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
@@ -1116,7 +1115,7 @@ class Dataset:
             if self._locked_out:
                 self.storage.enable_readonly()
                 self._read_only = True
-                base_storage.enable_readonly()
+                self.base_storage.enable_readonly()
             raise e
         finally:
             if not (err and self._locked_out):
@@ -1549,8 +1548,7 @@ class Dataset:
         path = path.rstrip("/")
         if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
             raise RenameError
-        storage = get_base_storage(self.storage)
-        storage.rename(path)
+        self.base_storage.rename(path)
         self.path = path
 
     @invalid_view_op
@@ -2066,15 +2064,21 @@ class Dataset:
 
     def _append_to_queries_json(self, info: dict):
         with self._lock_queries_json():
-            queries = self._read_queries_json()
-            queries.append(info)
-            self._write_queries_json(queries)
+            qjson = self._read_queries_json()
+            idx = None
+            for i in range(len(qjson)):
+                if qjson[i]["id"] == info["id"]:
+                    idx = i
+                    break
+            if idx is None:
+                qjson.append(info)
+            else:
+                qjson[idx] = info
+            self._write_queries_json(qjson)
 
     def _read_queries_json(self) -> list:
         try:
-            return json.loads(
-                get_base_storage(self.storage)[get_queries_key()].decode("utf-8")
-            )
+            return json.loads(self.base_storage[get_queries_key()].decode("utf-8"))
         except KeyError:
             return []
 
@@ -2106,7 +2110,7 @@ class Dataset:
         hash = info["id"]
         path = f".queries/{hash}"
         self.flush()
-        get_base_storage(self.storage).subdir(path).clear()
+        self.base_storage.subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2227,28 +2231,36 @@ class Dataset:
 
         path = convert_pathlib_to_string_if_needed(path)
 
+        vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
-        elif path is None:
-            if isinstance(self, MemoryProvider):
-                raise NotImplementedError(
-                    "Saving views inplace is not supported for in-memory datasets."
+            vds_id = vds.info["id"]
+            if id is not None and vds_id != id:
+                vds = None
+                warnings.warn(
+                    "This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
-            if self.read_only:
-                if isinstance(self, hub.core.dataset.HubCloudDataset):
-                    vds = self._save_view_in_user_queries_dataset(
-                        id, message, optimize, num_workers
+        if vds is None:
+            if path is None:
+                if isinstance(self, MemoryProvider):
+                    raise NotImplementedError(
+                        "Saving views inplace is not supported for in-memory datasets."
                     )
+                if self.read_only:
+                    if isinstance(self, hub.core.dataset.HubCloudDataset):
+                        vds = self._save_view_in_user_queries_dataset(
+                            id, message, optimize, num_workers
+                        )
+                    else:
+                        raise ReadOnlyModeError(
+                            "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
+                        )
                 else:
-                    raise ReadOnlyModeError(
-                        "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
-                    )
+                    vds = self._save_view_in_subdir(id, message, optimize, num_workers)
             else:
-                vds = self._save_view_in_subdir(id, message, optimize, num_workers)
-        else:
-            vds = self._save_view_in_path(
-                path, id, message, optimize, num_workers, **ds_args
-            )
+                vds = self._save_view_in_path(
+                    path, id, message, optimize, num_workers, **ds_args
+                )
         if _ret_ds:
             return vds
         return vds.path
@@ -2340,7 +2352,6 @@ class Dataset:
 
         Args:
             commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
-                To get views from all commits, pass `commits="all"`.
                 If not specified, views from the currently checked out commit will be returned.
 
         Returns:
@@ -2366,6 +2377,34 @@ class Dataset:
                 )
         return list(ret)
 
+    def get_view(self, id: str, check_user_account=True) -> ViewEntry:
+        queries = self._read_queries_json()
+        for q in queries:
+            if q["id"] == id:
+                return ViewEntry(q, self)
+        if check_user_account and self.path.startswith("hub://"):
+            _, qds = self._read_queries_json_from_user_account()
+            if qds:
+                return qds.get_view(id, False)
+        raise KeyError(f"No view with id {id} found in the dataset.")
+
+    def delete_view(self, id: str, check_user_account=True):
+        with self._lock_queries_json():
+            qjson = self._read_queries_json()
+            for i, q in enumerate(qjson):
+                if q["id"] == id:
+                    qjson.pop(i)
+                    self.base_storage.subdir(
+                        ".queries/" + (q.get("path") or q["id"])
+                    ).clear()
+                    self._write_queries_json(qjson)
+                    return
+        if check_user_account and self.path.startswith("hub://"):
+            _, qds = self._read_queries_json_from_user_account()
+            if qds:
+                return qds.delete_view(id, False)
+        raise KeyError(f"No view with id {id} found in the dataset.")
+
     def _sub_ds(
         self,
         path,
@@ -2385,8 +2424,7 @@ class Dataset:
         Returns:
             Sub dataset
         """
-        base_storage = get_base_storage(self.storage)
-        sub_storage = base_storage.subdir(path)
+        sub_storage = self.base_storage.subdir(path)
 
         if empty:
             sub_storage.clear()
@@ -2703,6 +2741,12 @@ class Dataset:
             self._write_queries_json(qjson)
         vds.delete(large_ok=True)
         return info
+
+    @property
+    def sample_indices(self):
+        return self.index.values[0].indices(
+            min(t.num_samples for t in self.tensors.values())
+        )
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
