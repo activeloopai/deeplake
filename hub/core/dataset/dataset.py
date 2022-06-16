@@ -2411,15 +2411,16 @@ class Dataset:
             pass
         if self.path.startswith("hub://"):
             qds = Dataset._get_queries_ds_from_user_account()
-            with qds._lock_queries_json():
-                for i, q in enumerate(qjson):
-                    if q["source-dataset"] == self.path and q["id"] == "id":
-                        qjson.pop(i)
-                        qds.base_storage.subdir(
-                            ".queries/" + (q.get("path") or q["id"])
-                        ).clear()
-                        qds._write_queries_json(qjson)
-                        return
+            if qds:
+                with qds._lock_queries_json():
+                    for i, q in enumerate(qjson):
+                        if q["source-dataset"] == self.path and q["id"] == "id":
+                            qjson.pop(i)
+                            qds.base_storage.subdir(
+                                ".queries/" + (q.get("path") or q["id"])
+                            ).clear()
+                            qds._write_queries_json(qjson)
+                            return
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
