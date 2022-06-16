@@ -278,7 +278,9 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[i][:5].numpy().shape == (5, 720, 1280, 3)
 
         if is_opt_true(request, GCS_OPT):
-            sample = hub.link("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4")
+            sample = hub.link(
+                "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", creds_key="ENV"
+            )
             ds.linked_videos.append(sample)
             assert len(ds.linked_videos) == 4
             assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
