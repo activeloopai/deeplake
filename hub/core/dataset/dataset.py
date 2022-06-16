@@ -2329,13 +2329,19 @@ class Dataset:
             view._query = query
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
-    def _read_queries_json_from_user_account(self):
+    @staticmethod
+    def _get_queries_ds_from_user_account():
         username = get_user_name()
         if username == "public":
-            return [], None
+            return
         try:
-            queries_ds = hub.load(f"hub://{username}/queries")
+            return hub.load(f"hub://{username}/queries")
         except DatasetHandlerError:
+            return
+
+    def _read_queries_json_from_user_account(self):
+        queries_ds = Dataset._get_queries_ds_from_user_account()
+        if not queries_ds:
             return [], None
         return (
             list(
@@ -2377,32 +2383,43 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, id: str, check_user_account=True) -> ViewEntry:
+    def get_view(self, id: str) -> ViewEntry:
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
                 return ViewEntry(q, self)
-        if check_user_account and self.path.startswith("hub://"):
-            _, qds = self._read_queries_json_from_user_account()
-            if qds:
-                return qds.get_view(id, False)
+        if self.path.startswith("hub://"):
+            queries, qds = self._read_queries_json_from_user_account()
+            for q in queries:
+                if q["id"] == id:
+                    return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
-    def delete_view(self, id: str, check_user_account=True):
-        with self._lock_queries_json():
-            qjson = self._read_queries_json()
-            for i, q in enumerate(qjson):
-                if q["id"] == id:
-                    qjson.pop(i)
-                    self.base_storage.subdir(
-                        ".queries/" + (q.get("path") or q["id"])
-                    ).clear()
-                    self._write_queries_json(qjson)
-                    return
-        if check_user_account and self.path.startswith("hub://"):
-            _, qds = self._read_queries_json_from_user_account()
-            if qds:
-                return qds.delete_view(id, False)
+    def delete_view(self, id: str):
+        try:
+            with self._lock_queries_json():
+                qjson = self._read_queries_json()
+                for i, q in enumerate(qjson):
+                    if q["id"] == id:
+                        qjson.pop(i)
+                        self.base_storage.subdir(
+                            ".queries/" + (q.get("path") or q["id"])
+                        ).clear()
+                        self._write_queries_json(qjson)
+                        return
+        except Exception:
+            pass
+        if self.path.startswith("hub://"):
+            qds = Dataset._get_queries_ds_from_user_account()
+            with qds._lock_queries_json():
+                for i, q in enumerate(qjson):
+                    if q["source-dataset"] == self.path and q["id"] == "id":
+                        qjson.pop(i)
+                        qds.base_storage.subdir(
+                            ".queries/" + (q.get("path") or q["id"])
+                        ).clear()
+                        qds._write_queries_json(qjson)
+                        return
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
