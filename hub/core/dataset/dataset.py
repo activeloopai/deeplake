@@ -2284,9 +2284,9 @@ class Dataset:
             sub_sample_index = self.info.get("sub-sample-index")
             if sub_sample_index:
                 index_entries += Index.from_json(sub_sample_index).values
-            ds = ds[Index(index_entries)]
-            ds._vds = self
-            return ds
+            ret = ds[Index(index_entries)]
+            ret._vds = self
+            return ret
         finally:
             ds.index = orig_index
 
