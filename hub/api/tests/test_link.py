@@ -400,7 +400,13 @@ def test_transform(local_ds, cat_path, flower_path):
 def test_link_managed(hub_cloud_ds_generator, cat_path):
     with hub_cloud_ds_generator() as ds:
         key_name = "CREDS_MANAGEMENT_TEST"
-        ds.create_tensor("img", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+        )
         ds.add_creds_key(key_name, managed=True)
         assert key_name in ds.link_creds.creds_mapping
         assert key_name in ds.link_creds.managed_creds_keys
@@ -427,7 +433,13 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
 
 def test_link_ready(local_ds_generator, cat_path):
     with local_ds_generator() as ds:
-        ds.create_tensor("img", htype="link[image]", verify=False, create_shape_tensor=False, create_sample_info_tensor=False)
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+        )
         ds.add_creds_key("abc")
         ds.populate_creds("abc", {})
         ds.add_creds_key("def")
