@@ -2233,28 +2233,36 @@ class Dataset:
 
         path = convert_pathlib_to_string_if_needed(path)
 
+        vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
-        elif path is None:
-            if isinstance(self, MemoryProvider):
-                raise NotImplementedError(
-                    "Saving views inplace is not supported for in-memory datasets."
+            vds_id = vds.info["id"]
+            if id is not None and vds_id != id:
+                vds = None
+                warnings.warn(
+                    "This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
-            if self.read_only:
-                if isinstance(self, hub.core.dataset.HubCloudDataset):
-                    vds = self._save_view_in_user_queries_dataset(
-                        id, message, optimize, num_workers
+        if vds is None:
+            if path is None:
+                if isinstance(self, MemoryProvider):
+                    raise NotImplementedError(
+                        "Saving views inplace is not supported for in-memory datasets."
                     )
+                if self.read_only:
+                    if isinstance(self, hub.core.dataset.HubCloudDataset):
+                        vds = self._save_view_in_user_queries_dataset(
+                            id, message, optimize, num_workers
+                        )
+                    else:
+                        raise ReadOnlyModeError(
+                            "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
+                        )
                 else:
-                    raise ReadOnlyModeError(
-                        "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
-                    )
+                    vds = self._save_view_in_subdir(id, message, optimize, num_workers)
             else:
-                vds = self._save_view_in_subdir(id, message, optimize, num_workers)
-        else:
-            vds = self._save_view_in_path(
-                path, id, message, optimize, num_workers, **ds_args
-            )
+                vds = self._save_view_in_path(
+                    path, id, message, optimize, num_workers, **ds_args
+                )
         if _ret_ds:
             return vds
         return vds.path

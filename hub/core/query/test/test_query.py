@@ -196,7 +196,7 @@ def test_inplace_dataset_view_save(
     )
     assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(optimize=optimize, id="abcd")
-    assert len(ds.get_views()) == 1
+    assert len(ds.get_views()) == 1 + int(stream)
     view2 = hub.dataset(vds_path)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
@@ -209,10 +209,6 @@ def test_inplace_dataset_view_save(
     entry = ds.get_view("abcd")
     assert entry.virtual
     entry.optimize()
-    assert not entry.virtual
-    entries = ds.get_views()
-    assert len(entries) == 1
-    entry = entries[0]
     assert not entry.virtual
     view3 = entry.load()
     for t in view.tensors:
