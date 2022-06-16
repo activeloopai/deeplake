@@ -10,7 +10,11 @@ from hub.core.storage import LRUCache
 from hub.core.tensor_link import read_linked_sample
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
-from hub.util.link import save_link_creds, warn_missing_managed_creds
+from hub.util.link import (
+    get_path_creds_key,
+    save_link_creds,
+    warn_missing_managed_creds,
+)
 from hub.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
@@ -158,8 +162,8 @@ class LinkedChunkEngine(ChunkEngine):
         creds_encoder = self.creds_encoder
         for i in range(num_samples_added):
             sample = samples[i]
-            creds_key = None if sample is None else sample.creds_key
-            encoded_creds_key = link_creds.get_encoding(creds_key)
+            path, creds_key = get_path_creds_key(sample)
+            encoded_creds_key = link_creds.get_encoding(creds_key, path)
             creds_encoder.register_samples((encoded_creds_key,), 1)
             if link_creds.add_to_used_creds(creds_key):
                 save_link_creds(self.link_creds, self.cache)
@@ -167,13 +171,12 @@ class LinkedChunkEngine(ChunkEngine):
 
     def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
         link_creds = self.link_creds
-        creds_key = None if sample is None else sample.creds_key
-        encoded_creds_key = link_creds.get_encoding(creds_key)
+        path, creds_key = get_path_creds_key(sample)
+        encoded_creds_key = link_creds.get_encoding(creds_key, path)
         self.creds_encoder[sample_index] = (encoded_creds_key,)
         if link_creds.add_to_used_creds(creds_key):
             save_link_creds(self.link_creds, self.cache)
             warn_missing_managed_creds(self.link_creds)
-
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_hub_read_sample(global_sample_index)

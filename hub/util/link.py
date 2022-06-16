@@ -1,5 +1,5 @@
-import warnings
 from hub.core.link_creds import LinkCreds
+from hub.core.linked_sample import LinkedSample
 from hub.core.lock import Lock
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.keys import (
@@ -7,6 +7,8 @@ from hub.util.keys import (
     get_dataset_linked_creds_lock_key,
 )
 from hub.util.remove_cache import get_base_storage
+from typing import Optional
+import warnings
 
 
 def merge_link_creds(old_link_creds: LinkCreds, current_link_creds: LinkCreds):
@@ -62,3 +64,9 @@ def warn_missing_managed_creds(link_creds):
         warnings.warn(
             f"There are some managed creds missing ({missing_managed_creds}) that were added after the dataset was loaded. Reload the dataset to load them."
         )
+
+
+def get_path_creds_key(sample: Optional[LinkedSample]):
+    if sample is None:
+        return None, None
+    return sample.path, sample.creds_key

@@ -100,8 +100,9 @@ Populate the tensor with links
 ```
 >>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“MY_S3_KEY”))
 >>> ds.img.append(hub.link(“gcs://ghi/jkl.png”, creds_key=“GCS_KEY”))
->>> ds.img.append(hub.link(“https://picsum.photos/200/300”)) # doesn’t need creds
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”))  # here creds_key = None, if exactly one creds_key is present in the dataset, it will use that, else it will throw an exception
+>>> ds.img.append(hub.link(“https://picsum.photos/200/300”)) # http path doesn’t need creds
+>>> ds.img.append(hub.link(“./path/to/cat.jpeg”)) # local path doesn’t need creds
+>>> ds.img.append(hub.link(“s3://abc/def.jpeg”))  # this will throw an exception as cloud paths always need creds_key
 >>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“ENV”))  # this will use creds from environment
 ```
 

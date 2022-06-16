@@ -139,6 +139,8 @@ PARTIAL_NUM_SAMPLES = 0.5
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+
 _ENABLE_HUB_SUB_DATASETS = False
 _ENABLE_RANDOM_ASSIGNMENT = False
 
