@@ -1303,7 +1303,7 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        if self.is_fixed_shape:
+        if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
             num_samples_per_chunk = self.num_samples_per_chunk
             local_sample_index = global_sample_index % num_samples_per_chunk
         else:
