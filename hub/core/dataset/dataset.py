@@ -2723,6 +2723,12 @@ class Dataset:
         vds.delete(large_ok=True)
         return info
 
+    @property
+    def sample_indices(self):
+        return self.index.values[0].indices(
+            min(t.num_samples for t in self.tensors.values())
+        )
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
