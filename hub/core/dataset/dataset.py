@@ -2253,11 +2253,14 @@ class Dataset:
             return vds
         return vds.path
 
-    def _get_view(self):
+    def _get_view(self, inherit_creds=True):
         """Returns a view for this VDS. Only works if this Dataset is a virtual dataset.
 
         Returns:
             A view of the source dataset based on the indices from VDS.
+
+        Args:
+            inherit_creds (bool): Whether to inherit creds from the parent dataset in which this vds is stored. Default True.
 
         Raises:
             Exception: If this is not a VDS.
@@ -2267,8 +2270,10 @@ class Dataset:
             commit_id = self.info["source-dataset-version"]
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
-        ds = self._parent_dataset or hub.dataset(
-            path=self.info["source-dataset"], verbose=False
+        ds = (
+            self._parent_dataset
+            if (inherit_creds and self._parent_dataset)
+            else hub.dataset(path=self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
@@ -2284,9 +2289,9 @@ class Dataset:
             sub_sample_index = self.info.get("sub-sample-index")
             if sub_sample_index:
                 index_entries += Index.from_json(sub_sample_index).values
-            ds = ds[Index(index_entries)]
-            ds._vds = self
-            return ds
+            ret = ds[Index(index_entries)]
+            ret._vds = self
+            return ret
         finally:
             ds.index = orig_index
 
@@ -2355,7 +2360,7 @@ class Dataset:
                 ret = chain(
                     ret,
                     map(
-                        partial(ViewEntry, dataset=qds),
+                        partial(ViewEntry, dataset=qds, external=True),
                         filter(f, queries),
                     ),
                 )
@@ -2673,7 +2678,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str):
+    def _optimize_saved_view(self, id: str, external=False):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
@@ -2689,7 +2694,7 @@ class Dataset:
                 return
             path = info.get("path", info["id"])
             vds = self._sub_ds(".queries/" + path)
-            view = vds._get_view()
+            view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path)
             view.copy(optimized, overwrite=True)
