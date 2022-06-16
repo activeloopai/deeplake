@@ -1828,8 +1828,8 @@ def test_uneven_view(memory_ds):
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(10)))
-        ds.x.extend(list(range(5)))
+        ds.y.extend(list(range(5)))
         view = ds[list(range(0, 10, 2))]
-        np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy())
+        np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy().squeeze())
         with pytest.raises(IndexError):
-            np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy())
+            np.testing.assert_equal(np.arange(0, 10, 2), view.y.numpy().squeeze())

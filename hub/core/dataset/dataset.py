@@ -1455,7 +1455,7 @@ class Dataset:
 
         if not self.is_iteration:
             group_index = self.group_index
-            max_tensor_length = min(
+            max_tensor_length = max(
                 map(
                     len,
                     filter(
