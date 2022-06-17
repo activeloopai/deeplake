@@ -173,9 +173,10 @@ def test_dataset_view_save(optimize):
     "stream,num_workers,read_only,progressbar,query_type,optimize",
     [
         (False, 2, True, True, "string", False),
-        (True, 0, False, False, "function", False),
+        (True, 0, False, False, "function", True),
     ],
 )
+@pytest.mark.timeout(600)
 def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
 ):
@@ -206,7 +207,7 @@ def test_inplace_dataset_view_save(
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     entry = ds.get_view(id)
-    assert entry.virtual
+    assert entry.virtual == (not optimize)
     entry.optimize()
     assert not entry.virtual
     view3 = entry.load()
