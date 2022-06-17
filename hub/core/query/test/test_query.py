@@ -172,16 +172,15 @@ def test_dataset_view_save(optimize):
 @pytest.mark.parametrize(
     "stream,num_workers,read_only,progressbar,query_type,optimize",
     [
-        (False, 2, False, True, "string", False),
-        (True, 0, True, False, "function", False),
+        (False, 2, True, True, "string", False),
+        (True, 0, False, False, "function", False),
     ],
 )
 def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
 ):
     ds = ds_generator()
-    is_hub_ds = ds.path.startswith("hub://")
-    if read_only and not is_hub_ds:
+    if read_only and not ds.path.startswith("hub://"):
         return
     id = str(uuid4())
     to_del = [id]
@@ -193,7 +192,7 @@ def test_inplace_dataset_view_save(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
     if stream:
-        id.append(view._vds["id"])
+        to_del.append(view._vds.info["id"])
     assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(optimize=optimize, id=id)
     assert len(ds.get_views()) == 1 + int(stream)
