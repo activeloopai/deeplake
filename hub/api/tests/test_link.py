@@ -413,7 +413,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
         assert key_name not in ds.link_creds.used_creds_keys
 
         ds.img.append(hub.link(cat_path, creds_key=key_name))
-        assert key_name not in ds.link_creds.used_creds_keys
+        assert key_name in ds.link_creds.used_creds_keys
 
     ds = hub_cloud_ds_generator()
     assert key_name in ds.link_creds.creds_mapping

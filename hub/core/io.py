@@ -425,7 +425,7 @@ class SampleStreaming(Streaming):
 
     def _create_chunk_engine(self, tensor_name, version_state):
         tensor_key = version_state["tensor_names"][tensor_name]
-        meta_key = get_tensor_meta_key(tensor_name, version_state["commit_id"])
+        meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
         cache = self._use_cache(self.storage)
         meta = cache.get_hub_object(meta_key, TensorMeta)
         if meta.is_link:
