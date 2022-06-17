@@ -35,7 +35,8 @@ class HubCloudDataset(Dataset):
                 )
             if self.link_creds.managed_creds_keys:
                 for creds_key in self.link_creds.managed_creds_keys:
-                    self._fetch_managed_creds(creds_key)
+                    creds = self._fetch_managed_creds(creds_key)
+                    self.link_creds.populate_creds(creds_key, creds)
 
     @property
     def client(self):
