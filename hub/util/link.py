@@ -7,12 +7,12 @@ from hub.util.keys import (
     get_dataset_linked_creds_lock_key,
 )
 from hub.util.remove_cache import get_base_storage
-from typing import Optional
+from typing import Optional, Tuple
 import warnings
 
 
 def merge_link_creds(
-    old_link_creds: LinkCreds, current_link_creds: LinkCreds, replaced_index=None
+    old_link_creds: LinkCreds, current_link_creds: LinkCreds, replaced_index: Optional[int]=None, managed_info: Optional[Tuple]=None
 ):
     num_common_keys = 0
     if replaced_index is not None:
@@ -31,13 +31,21 @@ def merge_link_creds(
     current_link_creds.used_creds_keys = old_link_creds.used_creds_keys.union(
         current_link_creds.used_creds_keys
     )
-    if replaced_index:
-        replaced_key = current_link_creds.creds_keys[replaced_index]
-        current_link_creds.replace_creds(replaced_key, new_key)
     for key in new_keys:
         if key not in current_link_creds.creds_mapping:
             managed = key in current_link_creds.managed_creds_keys
             current_link_creds.add_creds_key(key, managed)
+    if replaced_index is not None:
+        replaced_key = current_link_creds.creds_keys[replaced_index]
+        current_link_creds.replace_creds(replaced_key, new_key)
+    if managed_info is not None:
+        is_managed = managed_info[0]
+        managed_index = managed_info[1]
+        key = current_link_creds.creds_keys[managed_index]
+        if is_managed:
+            current_link_creds.managed_creds_keys.add(key)
+        else:
+            current_link_creds.managed_creds_keys.discard(key)        
     return current_link_creds
 
 
@@ -45,6 +53,7 @@ def save_link_creds(
     current_link_creds: LinkCreds,
     storage: LRUCache,
     replaced_index: Optional[int] = None,
+    managed_info: Optional[Tuple] = None,
 ):
     """Saves the linked creds info to storage."""
     storage = get_base_storage(storage)
@@ -59,7 +68,7 @@ def save_link_creds(
     if data_bytes is not None:
         old_link_creds = LinkCreds.frombuffer(data_bytes)
         new_link_creds = merge_link_creds(
-            old_link_creds, current_link_creds, replaced_index
+            old_link_creds, current_link_creds, replaced_index, managed_info
         )
     else:
         new_link_creds = current_link_creds

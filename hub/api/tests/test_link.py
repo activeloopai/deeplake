@@ -398,8 +398,8 @@ def test_transform(local_ds, cat_path, flower_path):
 
 
 def test_link_managed(hub_cloud_ds_generator, cat_path):
+    key_name = "CREDS_MANAGEMENT_TEST"
     with hub_cloud_ds_generator() as ds:
-        key_name = "CREDS_MANAGEMENT_TEST"
         ds.create_tensor(
             "img",
             htype="link[image]",
@@ -424,11 +424,35 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
+    # another_key = "something_else"
+    # ds.update_creds_key(key_name, another_key)
+
+    # ds = hub_cloud_ds_generator()
+    # assert another_key in ds.link_creds.creds_dict
+    # assert another_key in ds.link_creds.managed_creds_keys
+    # assert another_key in ds.link_creds.used_creds_keys
+
+    # assert ds.img[0].shape == shape_target
+    # assert ds.img[0].numpy().shape == shape_target
+
+    # no longer managed
+    ds.change_creds_management(key_name, False)
+
+    ds = hub_cloud_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+
+    ds.populate_creds(key_name, {})
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    new_key = "some_random_key"
     with pytest.raises(ManagedCredentialsNotFoundError):
-        ds.add_creds_key("some_random_key", managed=True)
+        ds.add_creds_key(new_key, managed=True)
 
     # even after failure one can simply add a new key, setting managed to False
-    ds.add_creds_key("some_random_key")
+    ds.add_creds_key(new_key)
+
 
 
 def test_link_ready(local_ds_generator, cat_path):

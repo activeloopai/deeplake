@@ -2647,7 +2647,7 @@ class Dataset:
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
         """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
         replaced_index = self.link_creds.replace_creds(old_creds_key, new_creds_key)
-        save_link_creds(self.link_creds, self.storage, replaced_index)
+        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
 
     def change_creds_management(self, creds_key: str, managed: bool):
         """Changes the management status of the creds key."""
