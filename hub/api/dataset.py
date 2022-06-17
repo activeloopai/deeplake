@@ -788,7 +788,8 @@ class dataset:
                 compute_provider.map(copy_func, keys)
         finally:
             compute_provider.close()
-        return dataset_factory(
+
+        ret = dataset_factory(
             path=dest,
             storage=cache_chain,
             read_only=False,
@@ -796,6 +797,8 @@ class dataset:
             token=dest_token,
             verbose=verbose,
         )
+        ret._register_dataset()
+        return ret
 
     @staticmethod
     def ingest(
