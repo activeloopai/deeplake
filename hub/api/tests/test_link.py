@@ -440,9 +440,9 @@ def test_link_ready(local_ds_generator, cat_path):
             create_shape_tensor=False,
             create_sample_info_tensor=False,
         )
+        ds.add_creds_key("def")
         ds.add_creds_key("abc")
         ds.populate_creds("abc", {})
-        ds.add_creds_key("def")
         ds.img.append(hub.link(cat_path, creds_key="abc"))
 
     ds = local_ds_generator()
@@ -450,6 +450,18 @@ def test_link_ready(local_ds_generator, cat_path):
         ds.img[0].numpy()
     ds.populate_creds("abc", {})
     assert ds.img[0].numpy().shape == (900, 900, 3)
+    with pytest.raises(KeyError):
+        ds.update_creds_key("xyz", "ghi")
+    with pytest.raises(ValueError):
+        ds.update_creds_key("abc", "def")
+    ds.update_creds_key("abc", "new")
+    assert ds.img[0].numpy().shape == (900, 900, 3)
+    ds = local_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+    ds.populate_creds("new", {})
+    assert ds.img[0].numpy().shape == (900, 900, 3)
+
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])

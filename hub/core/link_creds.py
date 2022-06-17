@@ -73,9 +73,12 @@ class LinkCreds(HubMemoryObject):
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         if old_creds_key not in self.creds_keys:
             raise KeyError(f"Creds key {old_creds_key} does not exist")
+        if new_creds_key in self.creds_keys:
+            raise ValueError(f"Creds key {new_creds_key} already exists")
         for i in range(len(self.creds_keys)):
             if self.creds_keys[i] == old_creds_key:
                 self.creds_keys[i] = new_creds_key
+                replaced_index = i
 
         if old_creds_key in self.creds_dict:
             self.creds_dict[new_creds_key] = self.creds_dict[old_creds_key]
@@ -97,6 +100,7 @@ class LinkCreds(HubMemoryObject):
                 old_creds_key
             ]
             del self.storage_providers[old_creds_key]
+        return replaced_index
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
