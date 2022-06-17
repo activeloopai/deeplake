@@ -2413,6 +2413,7 @@ class Dataset:
             qds = Dataset._get_queries_ds_from_user_account()
             if qds:
                 with qds._lock_queries_json():
+                    qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
                         if q["source-dataset"] == self.path and q["id"] == "id":
                             qjson.pop(i)
