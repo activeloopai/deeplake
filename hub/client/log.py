@@ -22,6 +22,7 @@ def configure_logger(debug=0):
     stream_handler.setFormatter(formatter)
 
     logger.addHandler(stream_handler)
+    logger.propagate = False
 
 
 configure_logger(0)
