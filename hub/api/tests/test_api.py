@@ -1826,3 +1826,16 @@ def test_update_bug(local_ds):
         arr2 = np.array([[5.0, 6.0, 7.0, 8.0]])
         bb[0] = arr2
         np.testing.assert_array_equal(bb[0].numpy(), arr2)
+
+
+def test_uneven_view(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        view = ds[list(range(0, 10, 2))]
+        np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy().squeeze())
+        with pytest.raises(IndexError):
+            np.testing.assert_equal(np.arange(0, 10, 2), view.y.numpy().squeeze())

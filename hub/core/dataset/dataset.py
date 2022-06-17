@@ -1452,8 +1452,18 @@ class Dataset:
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
             self._lock()  # for ref counting
+
         if not self.is_iteration:
-            self.index.validate(self.num_samples)
+            group_index = self.group_index
+            group_filter = (
+                lambda t: (not group_index or t.key.startswith(group_index + "/"))
+                and t.key not in self.meta.hidden_tensors
+            )
+            group_tensors = filter(
+                group_filter, self.version_state["full_tensors"].values()
+            )
+            max_tensor_length = max(map(len, group_tensors), default=0)
+            self.index.validate(max_tensor_length)
 
     @property
     def info(self):
