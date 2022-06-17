@@ -176,7 +176,7 @@ def test_dataset_view_save(optimize):
         (True, 0, False, False, "function", True),
     ],
 )
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_inplace_dataset_view_save(
     ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
 ):
