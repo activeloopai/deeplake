@@ -13,7 +13,6 @@ logger = logging.getLogger("hub")
 def configure_logger(debug=0):
     log_level = logging.DEBUG if debug == 1 else logging.INFO
     logger.setLevel(log_level)
-    logging.basicConfig(format="%(message)s", stream=sys.stdout)
 
 
 configure_logger(0)
