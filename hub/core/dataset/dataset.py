@@ -2748,7 +2748,7 @@ class Dataset:
             info = qjson[i]
             if not info["virtual-datasource"]:
                 # Already optimized
-                return
+                return info
             path = info.get("path", info["id"])
             vds = self._sub_ds(".queries/" + path)
             view = vds._get_view(not external)
