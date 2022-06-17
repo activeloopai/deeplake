@@ -107,7 +107,7 @@ class BaseChunk(HubMemoryObject):
 
     @property
     def is_fixed_shape(self):
-        return self.tensor_meta.min_shape == self.tensor_meta.max_shape
+        return self.tensor_meta.min_shape == self.tensor_meta.max_shape and not self.is_text_like
 
     @property
     def item_size(self):
@@ -116,6 +116,7 @@ class BaseChunk(HubMemoryObject):
             if self.dtype is None:
                 raise ValueError("Can't get item size as dtype is not set.")
             self._item_size = np.dtype(self.dtype).itemsize
+        print("item_size", self._item_size)
         return self._item_size
 
     @property
@@ -124,6 +125,7 @@ class BaseChunk(HubMemoryObject):
         shape = self.tensor_meta.max_shape
         if self._sample_size is None:
             self._sample_size = self.item_size * reduce(mul, shape, 1)
+        print("sample_size", self._sample_size)
         return self._sample_size
 
     def get_byte_positions(self, local_index):
