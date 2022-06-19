@@ -44,7 +44,7 @@ def dataset_read(path: str):
             paths[path] = None
             run.config.input_datasets = list(paths)
             if path.startswith("hub://"):
-                run.log({f"Dataset [{path}]", wandb.Html(viz_html(path))})
+                run.log({f"Dataset [{path}]": wandb.Html(viz_html(path))})
 
 
 def viz_html(hub_path: str):
