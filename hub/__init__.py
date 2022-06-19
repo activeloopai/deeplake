@@ -5,6 +5,7 @@ import numpy as np
 import multiprocessing
 import sys
 from hub.util.check_latest_version import warn_if_update_required
+from hub.core.augment.augment import Augment
 
 if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
