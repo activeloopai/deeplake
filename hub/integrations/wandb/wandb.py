@@ -36,11 +36,8 @@ def dataset_read(path: str):
         if run.id not in _ACTIVE_DATASET_CACHE:
             _ACTIVE_DATASET_CACHE.clear()
             _ACTIVE_DATASET_CACHE[run.id] = {}
-        if path not in _ACTIVE_DATASET_CACHE:
-            paths = _ACTIVE_DATASET_CACHE[run.id]
-            is_hub_path = path.startswith("hub://")
-            if is_hub_path:
-                path = path + "  -  " + _plat_link(path)
+        paths = _ACTIVE_DATASET_CACHE[run.id]
+        if path not in paths:
             paths[path] = None
             run.config.input_datasets = list(paths)
             if path.startswith("hub://"):
