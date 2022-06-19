@@ -14,9 +14,6 @@ def wandb_run():
     return getattr(sys.modules.get("wandb"), "run", None)
 
 
-loaded_datasets = {}  # OrderedSet
-
-
 def dataset_created(path: str):
     pass
 
@@ -29,14 +26,19 @@ def dataset_written(path: str):
     pass
 
 
+_ACTIVE_DATASET_CACHE = {}
+
+
 def dataset_read(path: str):
     run = wandb_run()
     if run:
-        if not hasattr(run, "_read_datasets"):
-            run._read_datasets = {}
-        if path not in run._read_datasets:
-            run._read_datasets[path] = None
-            run.config.input_datasets = [k for k in run._read_datasets]
+        if run.id not in _ACTIVE_DATASET_CACHE:
+            _ACTIVE_DATASET_CACHE.clear()
+            _ACTIVE_DATASET_CACHE[run.id] = {}
+        if path not in _ACTIVE_DATASET_CACHE:
+            _ACTIVE_DATASET_CACHE[path] = None
+            run.config.input_datasets = [k for k in _ACTIVE_DATASET_CACHE]
+
 
 def viz_html(hub_path):
     return f"""<iframe width=800 height=500 src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
