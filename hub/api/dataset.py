@@ -1,5 +1,4 @@
 import os
-import re
 import hub
 import pathlib
 import posixpath
@@ -12,6 +11,7 @@ from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.util.path import convert_pathlib_to_string_if_needed
+from hub.hooks import dataset_created, dataset_loaded
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -127,8 +127,15 @@ class dataset:
             local_cache_size=local_cache_size,
         )
         ds_exists = dataset_exists(cache_chain)
-        if overwrite and ds_exists:
-            cache_chain.clear()
+
+        if ds_exists:
+            if overwrite:
+                cache_chain.clear()
+                dataset_created(path)
+            else:
+                dataset_loaded(path)
+        else:
+            dataset_created(path)
 
         try:
             if access_method == "stream":
@@ -249,7 +256,7 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
-
+        dataset_created(path)
         read_only = storage.read_only
         return dataset_factory(
             path=path,

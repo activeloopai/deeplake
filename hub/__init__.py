@@ -38,6 +38,7 @@ from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 from .htype import htype
 from .integrations import huggingface
+from .integrations import wandb
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
