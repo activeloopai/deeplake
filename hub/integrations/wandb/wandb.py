@@ -36,8 +36,9 @@ def dataset_read(path: str):
             _ACTIVE_DATASET_CACHE.clear()
             _ACTIVE_DATASET_CACHE[run.id] = {}
         if path not in _ACTIVE_DATASET_CACHE:
-            _ACTIVE_DATASET_CACHE[path] = None
-            run.config.input_datasets = [k for k in _ACTIVE_DATASET_CACHE]
+            paths = _ACTIVE_DATASET_CACHE[run.id]
+            paths[path] = None
+            run.config.input_datasets = list(paths)
 
 
 def viz_html(hub_path):
