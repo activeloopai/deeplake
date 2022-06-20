@@ -424,16 +424,10 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
-    # another_key = "something_else"
-    # ds.update_creds_key(key_name, another_key)
-
-    # ds = hub_cloud_ds_generator()
-    # assert another_key in ds.link_creds.creds_dict
-    # assert another_key in ds.link_creds.managed_creds_keys
-    # assert another_key in ds.link_creds.used_creds_keys
-
-    # assert ds.img[0].shape == shape_target
-    # assert ds.img[0].numpy().shape == shape_target
+    with pytest.raises(ValueError):
+        # managed creds_key can't be updated
+        another_key = "something_else"
+        ds.update_creds_key(key_name, another_key)
 
     # no longer managed
     ds.change_creds_management(key_name, False)
@@ -452,7 +446,6 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
 
     # even after failure one can simply add a new key, setting managed to False
     ds.add_creds_key(new_key)
-
 
 
 def test_link_ready(local_ds_generator, cat_path):
@@ -485,7 +478,6 @@ def test_link_ready(local_ds_generator, cat_path):
         ds.img[0].numpy()
     ds.populate_creds("new", {})
     assert ds.img[0].numpy().shape == (900, 900, 3)
-
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])

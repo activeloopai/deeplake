@@ -297,6 +297,14 @@ class HubCloudDataset(Dataset):
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
         """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
+        if old_creds_key in self.link_creds.managed_creds_keys:
+            raise ValueError(
+                f"""Cannot update managed creds key directly. If you want to update it, follow these steps:-
+                1. ds.change_creds_management("{old_creds_key}", False)
+                2. ds.update_creds_key("{old_creds_key}", "{new_creds_key}")
+                3. [OPTIONSL] ds.change_creds_management("{new_creds_key}", True)
+                """
+            )
         super().update_creds_key(old_creds_key, new_creds_key)
         warn_missing_managed_creds(self.link_creds)
 
@@ -315,7 +323,9 @@ class HubCloudDataset(Dataset):
         else:
             self.link_creds.managed_creds_keys.discard(creds_key)
 
-        save_link_creds(self.link_creds, self.storage, managed_info=(managed, key_index))
+        save_link_creds(
+            self.link_creds, self.storage, managed_info=(managed, key_index)
+        )
 
     def _fetch_managed_creds(self, creds_key):
         """Fetches creds from activeloop platform and populates the dataset with them."""
