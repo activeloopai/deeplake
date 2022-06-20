@@ -38,7 +38,12 @@ def dataset_written(ds):
         paths = _WRITTEN_DATASETS[run.id]
         if path not in paths:
             paths[path] = None
-            output_datasets = getattr(run.config, "output_datasets", [])
+            
+            # output_datasets = getattr(run.config, "output_datasets", [])  # uncomment after is merged
+            try:
+                output_datasets = run.config.input_datasets
+            except (KeyError, AttributeError):
+                output_datasets = []
             if path.startswith("hub://"):
                 plat_link = _plat_link(path)
                 if plat_link not in output_datasets:
@@ -88,7 +93,11 @@ def dataset_read(ds):
         paths = _READ_DATASETS[run.id]
         if path not in paths:
             paths[path] = None
-            input_datasets = getattr(run.config, "input_datasets", [])
+            # input_datasets = getattr(run.config, "input_datasets", [])  # uncomment after is merged
+            try:
+                input_datasets = run.config.input_datasets
+            except (KeyError, AttributeError):
+                input_datasets = []
             if path.startswith("hub://"):
                 plat_link = _plat_link(path)
                 if plat_link not in input_datasets:
