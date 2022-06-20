@@ -726,3 +726,10 @@ class EmptyTensorError(Exception):
 
 class DatasetViewSavingError(Exception):
     pass
+
+
+class ManagedCredentialsNotFoundError(Exception):
+    def __init__(self, org_id, creds_key):
+        super().__init__(
+            f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
+        )

@@ -112,9 +112,7 @@ from hub.util.version_control import (
     copy_metas,
     create_commit_chunk_sets,
 )
-from hub.util.pretty_print import (
-    summary_dataset,
-)
+from hub.util.pretty_print import summary_dataset
 from hub.core.dataset.view_entry import ViewEntry
 from hub.hooks import dataset_read
 from itertools import chain
@@ -253,6 +251,11 @@ class Dataset:
     def meta(self) -> DatasetMeta:
         """Returns the metadata of the dataset."""
         return self.version_state["meta"]
+
+    @property
+    def client(self):
+        """Returns the client of the dataset."""
+        return self._client
 
     def __len__(self):
         """Returns the length of the smallest tensor"""
@@ -2683,7 +2686,7 @@ class Dataset:
             except KeyError:
                 pass
 
-    def add_creds(self, creds_key: str):
+    def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
 
         Examples:
@@ -2692,17 +2695,27 @@ class Dataset:
             ds = hub.dataset("path/to/dataset")
 
             # add a new creds key
-            ds.add_creds("my_s3_key")
+            ds.add_creds_key("my_s3_key")
             ```
 
         Args:
             creds_key (str): The key to be added.
+            managed (bool): If True, the creds corresponding to the key will be fetched from activeloop platform.
+                Note, this is only applicable for datasets that are connected to activeloop platform.
+                Defaults to False.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
         """
-        self.link_creds.add_creds(creds_key)
+        if managed:
+            raise ValueError(
+                "Managed creds are not supported for datasets that are not connected to activeloop platform."
+            )
+        self.link_creds.add_creds_key(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
     def populate_creds(self, creds_key: str, creds: dict):
-        """Populates the creds key added in add_creds with the given creds. These creds are used to fetch the external data.
+        """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
 
         Examples:
@@ -2711,7 +2724,7 @@ class Dataset:
             ds = hub.dataset("path/to/dataset")
 
             # add a new creds key
-            ds.add_creds("my_s3_key")
+            ds.add_creds_key("my_s3_key")
 
             # populate the creds
             ds.populate_creds("my_s3_key", {"aws_access_key_id": "my_access_key", "aws_secret_access_key": "my_secret_key"})
@@ -2720,7 +2733,18 @@ class Dataset:
         """
         self.link_creds.populate_creds(creds_key, creds)
 
-    def get_creds(self) -> List[str]:
+    def update_creds_key(self, old_creds_key: str, new_creds_key: str):
+        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
+        replaced_index = self.link_creds.replace_creds(old_creds_key, new_creds_key)
+        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
+
+    def change_creds_management(self, creds_key: str, managed: bool):
+        """Changes the management status of the creds key."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
+
+    def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
         return self.link_creds.creds_keys
 

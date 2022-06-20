@@ -13,15 +13,17 @@ import numpy as np
 from hub.constants import MB
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
 from hub.core.tiling.deserialize import combine_chunks
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
 )
-from hub.util.keys import get_chunk_key
+from hub.util.keys import get_chunk_key, get_tensor_meta_key
 from hub.util.remove_cache import get_base_storage
 from hub.util.storage import get_pytorch_local_storage
 
@@ -423,7 +425,17 @@ class SampleStreaming(Streaming):
 
     def _create_chunk_engine(self, tensor_name, version_state):
         tensor_key = version_state["tensor_names"][tensor_name]
-        return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
+        meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
+        cache = self._use_cache(self.storage)
+        meta = cache.get_hub_object(meta_key, TensorMeta)
+        if meta.is_link:
+            return LinkedChunkEngine(
+                tensor_key,
+                cache,
+                version_state,
+                link_creds=self.dataset.link_creds,
+            )
+        return ChunkEngine(tensor_key, cache, version_state)
 
     def _get_dataset_indicies(self):
         version_state = self.dataset.version_state

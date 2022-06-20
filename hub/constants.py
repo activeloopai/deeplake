@@ -121,7 +121,7 @@ VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
-LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_FILENAME = "linked_creds.json"
 LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
 
 
@@ -138,6 +138,8 @@ PARTIAL_NUM_SAMPLES = 0.5
 
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
+
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
 
 _ENABLE_HUB_SUB_DATASETS = False
 _ENABLE_RANDOM_ASSIGNMENT = False

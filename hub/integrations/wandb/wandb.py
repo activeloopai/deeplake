@@ -10,8 +10,10 @@ import sys
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
+
 def wandb_run():
     return getattr(sys.modules.get("wandb"), "run", None)
+
 
 _READ_DATASETS = {}
 _WRITTEN_DATASETS = {}
@@ -32,13 +34,14 @@ def dataset_written(ds):
     run = wandb_run()
     if run:
         import wandb
+
         if run.id not in _WRITTEN_DATASETS:
             _WRITTEN_DATASETS.clear()
             _WRITTEN_DATASETS[run.id] = {}
         paths = _WRITTEN_DATASETS[run.id]
         if path not in paths:
             paths[path] = None
-            
+
             # output_datasets = getattr(run.config, "output_datasets", [])  # uncomment after is merged
             try:
                 output_datasets = run.config.input_datasets
@@ -47,7 +50,13 @@ def dataset_written(ds):
             if path.startswith("hub://"):
                 plat_link = _plat_link(path)
                 if plat_link not in output_datasets:
-                    run.log({f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(viz_html(path), False)})
+                    run.log(
+                        {
+                            f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
+                                viz_html(path), False
+                            )
+                        }
+                    )
                     output_datasets.append(plat_link)
                     run.config.input_datasets = output_datasets
             else:
@@ -65,22 +74,19 @@ def dataset_written(ds):
             artifact.add_reference(path, name="url")
             wandb_info = ds.info.get("wandb") or {}
             wandb_info["created-by"] = {
-                "run":{
+                "run": {
                     "entity": run.entity,
                     "project": run.prject,
                     "id": run.id,
                     "url": run.url,
                 },
                 "artifact": artifact,
-                
             }
             ds.info["wandb"] = wandb_info
             ds.flush()
             _CREATED_DATASETS.remove(ds)
     else:
         _CREATED_DATASETS.discard(ds)
-    
-
 
 
 def dataset_read(ds):
@@ -102,7 +108,14 @@ def dataset_read(ds):
                 plat_link = _plat_link(path)
                 if plat_link not in input_datasets:
                     import wandb
-                    run.log({f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(viz_html(path), False)})
+
+                    run.log(
+                        {
+                            f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
+                                viz_html(path), False
+                            )
+                        }
+                    )
                     input_datasets.append(plat_link)
                     run.config.input_datasets = input_datasets
             else:
@@ -114,7 +127,9 @@ def dataset_read(ds):
                 run_and_artifact = wandb_info["created-by"]
                 run_info = wandb_info["run"]
                 artifact = run_and_artifact["artifact"]
-                run.use_artifact(f"{run_info['entity']}/{run_info['project']}/{artifact}:latest")
+                run.use_artifact(
+                    f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
+                )
 
 
 def viz_html(hub_path: str):
@@ -124,8 +139,10 @@ def viz_html(hub_path: str):
 def _plat_link(hub_path: str):
     return f"https://app.activeloop.ai/{hub_path[len('hub://'):]}/"
 
+
 def link_html(hub_path):
     return f"""<a href="{_plat_link(hub_path)}">{hub_path}</a>"""
+
 
 if _WANDB_INSTALLED:
     add_create_dataset_hook(dataset_created, "wandb_dataset_create")
