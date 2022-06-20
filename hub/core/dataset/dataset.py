@@ -116,7 +116,6 @@ from hub.util.pretty_print import (
     summary_dataset,
 )
 from hub.core.dataset.view_entry import ViewEntry
-from hub.client.utils import 
 from hub.hooks import dataset_read
 from itertools import chain
 import warnings
