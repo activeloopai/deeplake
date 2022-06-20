@@ -811,23 +811,15 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     "path,hub_token",
     [
         ["local_path", "hub_cloud_dev_token"],
-        ["s3_path", "hub_cloud_dev_token"],
-        ["gcs_path", "hub_cloud_dev_token"],
         ["hub_cloud_path", "hub_cloud_dev_token"],
     ],
     indirect=True,
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-@pytest.mark.parametrize("convert_to_pathlib", [True, False])
-def test_dataset_deepcopy(
-    path, hub_token, num_workers, progressbar, convert_to_pathlib
-):
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
-    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
-
     dest_path = "_".join((path, "dest"))
-    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
 
