@@ -128,18 +128,18 @@ class dataset:
         )
         ds_exists = dataset_exists(cache_chain)
 
+
         if ds_exists:
             if overwrite:
                 cache_chain.clear()
-                dataset_created(path)
+                create = True
             else:
-                dataset_loaded(path)
+                create = False
         else:
-            dataset_created(path)
+            create = True
 
         try:
-            if access_method == "stream":
-                return dataset_factory(
+            remote_ds = dataset_factory(
                     path=path,
                     storage=cache_chain,
                     read_only=read_only,
@@ -147,6 +147,13 @@ class dataset:
                     token=token,
                     verbose=verbose,
                 )
+            if create:
+                dataset_created(remote_ds)
+            else:
+                dataset_loaded(remote_ds)
+            
+            if access_method == "stream":
+                return remote_ds
 
             return get_local_dataset(
                 access_method=access_method,

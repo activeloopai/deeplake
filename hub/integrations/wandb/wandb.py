@@ -13,37 +13,99 @@ _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 def wandb_run():
     return getattr(sys.modules.get("wandb"), "run", None)
 
+_READ_DATASETS = {}
+_WRITTEN_DATASETS = {}
+_CREATED_DATASETS = set()
 
-def dataset_created(path: str):
+
+def dataset_created(ds):
+    path = ds.path
+    _CREATED_DATASETS.add(path)
+
+
+def dataset_loaded(ds):
     pass
 
 
-def dataset_loaded(path: str):
-    pass
-
-
-def dataset_written(path: str):
-    pass
-
-
-_ACTIVE_DATASET_CACHE = {}
-
-
-def dataset_read(path: str):
+def dataset_written(ds):
+    path = ds.path
     run = wandb_run()
     if run:
         import wandb
-        if run.id not in _ACTIVE_DATASET_CACHE:
-            _ACTIVE_DATASET_CACHE.clear()
-            _ACTIVE_DATASET_CACHE[run.id] = {}
-        paths = _ACTIVE_DATASET_CACHE[run.id]
+        if run.id not in _WRITTEN_DATASETS:
+            _WRITTEN_DATASETS.clear()
+            _WRITTEN_DATASETS[run.id] = {}
+        paths = _WRITTEN_DATASETS[run.id]
         if path not in paths:
             paths[path] = None
+            output_datasets = getattr(run.config, "output_datasets", [])
             if path.startswith("hub://"):
-                run.log({f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(viz_html(path), False)})
-                run.config.input_dataset = list(map(_plat_link, paths))
+                plat_link = _plat_link(path)
+                if plat_link not in output_datasets:
+                    run.log({f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(viz_html(path), False)})
+                    output_datasets.append(plat_link)
+                    run.config.input_datasets = output_datasets
             else:
-                run.config.input_datasets = list(paths)
+                if path not in output_datasets:
+                    output_datasets.append(path)
+                    run.config.input_datasets = output_datasets
+        if path in _CREATED_DATASETS:
+            if not path.startswith("hub://"):
+                orig_path = path
+                path = "hub://" + path
+            else:
+                orig_path = path
+            artifact_name = f"Hub Dataset [{orig_path}]"
+            artifact = wandb.Artifact(artifact_name, "dataset")
+            artifact.add_reference(path, name="url")
+            wandb_info = ds.info.get("wandb") or {}
+            wandb_info["created-by"] = {
+                "run":{
+                    "entity": run.entity,
+                    "project": run.prject,
+                    "id": run.id,
+                    "url": run.url,
+                },
+                "artifact": artifact,
+                
+            }
+            ds.info["wandb"] = wandb_info
+            ds.flush()
+            _CREATED_DATASETS.remove(ds)
+    else:
+        _CREATED_DATASETS.discard(ds)
+    
+
+
+
+def dataset_read(ds):
+    path = ds.path
+    run = wandb_run()
+    if run:
+        if run.id not in _READ_DATASETS:
+            _READ_DATASETS.clear()
+            _READ_DATASETS[run.id] = {}
+        paths = _READ_DATASETS[run.id]
+        if path not in paths:
+            paths[path] = None
+            input_datasets = getattr(run.config, "input_datasets", [])
+            if path.startswith("hub://"):
+                plat_link = _plat_link(path)
+                if plat_link not in input_datasets:
+                    import wandb
+                    run.log({f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(viz_html(path), False)})
+                    input_datasets.append(plat_link)
+                    run.config.input_datasets = input_datasets
+            else:
+                if path not in input_datasets:
+                    input_datasets.append(path)
+                    run.config.input_datasets = input_datasets
+            wandb_info = ds.info.get("wandb")
+            if wandb_info:
+                run_and_artifact = wandb_info["created-by"]
+                run_info = wandb_info["run"]
+                artifact = run_and_artifact["artifact"]
+                run.use_artifact(f"{run_info['entity']}/{run_info['project']}/{artifact}:latest")
 
 
 def viz_html(hub_path: str):

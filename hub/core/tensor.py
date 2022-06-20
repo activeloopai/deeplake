@@ -300,7 +300,7 @@ class Tensor:
             progressbar=progressbar,
             link_callback=self._append_to_links if self.meta.links else None,
         )
-        dataset_written(self.dataset.path)
+        dataset_written(self.dataset)
 
     @property
     def info(self):
@@ -632,7 +632,7 @@ class Tensor:
                 value,
                 link_callback=update_link_callback,
             )
-        dataset_written(self.path)
+        dataset_written(self.dataset)
 
     def __iter__(self):
         for i in range(len(self)):
@@ -672,7 +672,7 @@ class Tensor:
         ret = self.chunk_engine.numpy(
             self.index, aslist=aslist, fetch_chunks=fetch_chunks
         )
-        dataset_read(self.dataset.path)
+        dataset_read(self.dataset)
         return ret
 
     def summary(self):
@@ -810,7 +810,7 @@ class Tensor:
             ret = self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         else:
             ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
-        dataset_read(self.dataset.path)
+        dataset_read(self.dataset)
         return ret
 
     def _pop(self):

@@ -37,17 +37,17 @@ def remove_hook(id: str):
     del globals()[f"_{HOOK_EVENTS.pop(id)}_HOOKS"][id]
 
 
-def dataset_created(path: str):
-    [f(path) for f in CREATE_DATASET_HOOKS.values()]
+def dataset_created(ds):
+    [f(ds) for f in CREATE_DATASET_HOOKS.values()]
 
 
-def dataset_loaded(path: str):
-    [f(path) for f in LOAD_DATASET_HOOKS.values()]
+def dataset_loaded(ds):
+    [f(ds) for f in LOAD_DATASET_HOOKS.values()]
 
 
-def dataset_written(path: str):
-    [f(path) for f in WRITE_DATASET_HOOKS.values()]
+def dataset_written(ds):
+    [f(ds) for f in WRITE_DATASET_HOOKS.values()]
 
 
-def dataset_read(path: str):
-    [f(path) for f in READ_DATASET_HOOKS.values()]
+def dataset_read(ds):
+    [f(ds) for f in READ_DATASET_HOOKS.values()]

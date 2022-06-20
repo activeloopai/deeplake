@@ -116,7 +116,8 @@ from hub.util.pretty_print import (
     summary_dataset,
 )
 from hub.core.dataset.view_entry import ViewEntry
-from hub.client.utils import get_user_name
+from hub.client.utils import 
+from hub.hooks import dataset_read
 from itertools import chain
 import warnings
 
@@ -1379,7 +1380,7 @@ class Dataset:
 
         if use_progress_bar:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
-
+        dataset_read(self)
         return dataloader
 
     @hub_reporter.record_call
@@ -1421,7 +1422,7 @@ class Dataset:
         from hub.core.query import DatasetQuery
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
-        return fn(
+        ret = fn(
             self,
             function,
             num_workers=num_workers,
@@ -1431,6 +1432,8 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
+        dataset_read(self)
+        return ret
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -1506,6 +1509,7 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
+        dataset_read(self)
         return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
 
     def flush(self):
