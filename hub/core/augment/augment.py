@@ -80,7 +80,9 @@ class Hubloader():
   def __init__(self, loader: Dataset,  pipeline, batch_size, pipe_type):
     
     if isinstance(loader, Dataset):
+      print(time.localtime())
       loader = loader.pytorch(batch_size = batch_size)
+      print(time.localtime())
     
     self.dataloader = loader
     self.pipeline = pipeline
@@ -104,3 +106,22 @@ class Augment():
     # self.hub_loader = Hubloader(data_in, pipeline)
   def __call__(self, loader, batch_size = 1):
     return Hubloader(loader, self.pipeline, batch_size, self.pipe_type)
+  # def get_policies(self, policy):
+  #   if policy == "imagenet":
+  #     return
+
+
+
+class Pipeline():
+  def __init__(self):
+    self.pipe_dict = {}
+    pass
+  def add_step(self, input_tensors , pipe):
+    for tensor in input_tensors:
+      if tensor not in self.pipe_dict.keys():
+        self.pipe_dict[tensor] = [pipe]
+      else:
+        self.pipe_dict[tensor].append(pipe)
+  
+  def augment(self, loader, batch_size=1):
+    return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
