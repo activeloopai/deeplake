@@ -142,7 +142,7 @@ QUERIES_LOCK_FILENAME = "queries.lock"
 ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
 
 _ENABLE_HUB_SUB_DATASETS = False
-_ENABLE_RANDOM_ASSIGNMENT = False
+_ENABLE_RANDOM_ASSIGNMENT = True
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
