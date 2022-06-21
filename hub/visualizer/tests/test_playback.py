@@ -35,11 +35,14 @@ def test_linked_video_playback(local_ds_generator):
         ds.create_tensor("video_links", htype="link[video]")
         ds.video_links.append(
             hub.link(
-                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+                creds_key="ENV",
             )
         )
         ds.video_links.append(
-            hub.link("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4")
+            hub.link(
+                "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", creds_key="ENV"
+            )
         )
         url = ds.video_links[0]._get_video_stream_url()
         assert (
