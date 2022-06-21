@@ -10,7 +10,7 @@ from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gdrive_datasets
+from hub.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate

@@ -11,7 +11,6 @@ from hub.util.exceptions import (
 import pytest
 from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_images_close
-from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
