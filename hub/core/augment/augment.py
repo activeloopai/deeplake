@@ -80,9 +80,7 @@ class Hubloader():
   def __init__(self, loader: Dataset,  pipeline, batch_size, pipe_type):
     
     if isinstance(loader, Dataset):
-      print(time.localtime())
       loader = loader.pytorch(batch_size = batch_size)
-      print(time.localtime())
     
     self.dataloader = loader
     self.pipeline = pipeline
