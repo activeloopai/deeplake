@@ -21,9 +21,9 @@ UNSPECIFIED = "unspecified"
 SUPPORTED_MODES = ["r", "a"]
 
 # used to show chunk size
-RANDOM_CHUNK_SIZE = 16 * MB
+RANDOM_CHUNK_SIZE = 8 * MB
 # used to show variation between normal chunk size and maximum chunk size
-RANDOM_MINIMAL_CHUNK_SIZE = 3 * MB
+RANDOM_MINIMAL_CHUNK_SIZE = 2 * MB
 # used to show maximum chunk size allowed to have during random update operation
 RANDOM_MAX_ALLOWED_CHUNK_SIZE = RANDOM_CHUNK_SIZE + RANDOM_MINIMAL_CHUNK_SIZE
 
