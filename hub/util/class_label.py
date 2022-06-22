@@ -17,12 +17,12 @@ def convert_to_idx(samples, class_names: List[str]):
                 idx = len(class_names) - 1
                 idxs.append(idx)
                 additions.append((sample, idx))
-        elif isinstance(sample, (int, np.integer)):
-            idxs.append(sample)
-        else:
+        elif isinstance(sample, list):
             idxs_, additions_ = convert_to_idx(sample, class_names)
             idxs.append(idxs_)
             additions.extend(additions_)
+        else:
+            idxs.append(sample)
     return idxs, additions
 
 
