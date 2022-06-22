@@ -1752,7 +1752,12 @@ def verify_label_data(ds):
         ["airplane"],
         ["car"],
     ]
+    nested_text_labels = [
+        [["airplane", "boat", "car"], ["boat", "car", "person"]],
+        [["person", "car"], ["airplane", "bus"]],
+    ]
     arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+    nested_arr = [np.array([[0, 1, 2], [1, 2, 3]]), np.array([[3, 2], [0, 4]])]
 
     # abc
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
@@ -1771,6 +1776,16 @@ def verify_label_data(ds):
     np.testing.assert_array_equal(np_data, arr)
     np.testing.assert_array_equal(data["numeric"], np_data)
 
+    # nested
+    assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
+    np_data = ds.nested.numpy(aslist=True)
+    data = ds.nested.data(aslist=True)
+    assert set(data.keys()) == {"numeric", "text"}
+    for i in range(2):
+        np.testing.assert_array_equal(np_data[i], nested_arr[i])
+        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    assert data["text"] == nested_text_labels
+
 
 def test_text_label(local_ds_generator):
     with local_ds_generator() as ds:
@@ -1785,6 +1800,12 @@ def test_text_label(local_ds_generator):
         ds.xyz.append(1)
         ds.xyz.append(0)
         ds.xyz.extend([2, 0, 0, 2])
+
+        ds.create_tensor("nested", htype="class_label")
+        ds.nested.append([[0, 1, 2], [1, 2, 3]])
+        ds.nested.info.class_names = ["airplane", "boat", "car"]
+        ds.nested.append([["person", 2], ["airplane", "bus"]])
+
         verify_label_data(ds)
 
     ds = local_ds_generator()

@@ -36,7 +36,7 @@ from hub.util.keys import (
     get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
-from hub.util.numeric_to_text import numeric_to_text
+from hub.util.class_label import convert_to_text
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -773,7 +773,7 @@ class Tensor:
             data = {"numeric": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = numeric_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, self.info.class_names)
             return data
         else:
             return self.numpy(aslist=aslist)

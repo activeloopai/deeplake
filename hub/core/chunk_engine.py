@@ -1,4 +1,4 @@
-from logging import info
+from hub.client.log import logger
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
@@ -66,6 +66,7 @@ from hub.util.exceptions import (
 )
 from hub.util.remove_cache import get_base_storage
 from hub.util.image import convert_sample, convert_img_arr
+from hub.util.class_label import convert_to_idx
 from hub.compression import VIDEO_COMPRESSIONS
 from hub.core.sample import Sample
 from itertools import chain, repeat
@@ -612,24 +613,15 @@ class ChunkEngine:
             tensor_info = self.cache.get_hub_object(
                 get_tensor_info_key(self.key, self.commit_id), Info
             )
+            tensor_name = self.tensor_meta.name or self.key
             class_names = tensor_info.class_names
-            labels = []
-            for sample in samples:
-                if isinstance(sample, str):
-                    for i in range(len(class_names)):
-                        if class_names[i] == sample:
-                            labels.append(i)
-                            break
-                    else:
-                        class_names.append(sample)
-                        tensor_info.is_dirty = True
-                        idx = len(class_names) - 1
-                        labels.append(idx)
-                        info(
-                            f"'{sample}' added to {self.tensor_meta.name or self.key}.info.class_names at index {idx}"
-                        )
-                else:
-                    labels.append(sample)
+            labels, additions = convert_to_idx(samples, class_names)
+            if additions:
+                tensor_info.is_dirty = True
+                for new in additions:
+                    logger.info(
+                        f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
+                    )
             samples = verified_samples = labels
         return samples, verified_samples
 
