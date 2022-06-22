@@ -55,9 +55,23 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
 
     assert ds["images"].meta.sample_compression == "jpeg"
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds["images"].numpy().shape == (3, 200, 200, 3)
-    assert ds["labels"].numpy().shape == (3, 1)
-    assert ds["labels"].info.class_names == ("class0", "class1", "class2")
+    assert ds["images"][0:5].numpy().shape == (5, 200, 200, 3)
+    assert ds["images"].numpy().shape == (12, 200, 200, 3)
+    assert ds["labels"].numpy().shape == (12, 1)
+    assert ds["labels"].info.class_names == (
+        "class0",
+        "class1",
+        "class10",
+        "class11",
+        "class2",
+        "class3",
+        "class4",
+        "class5",
+        "class6",
+        "class7",
+        "class8",
+        "class9",
+    )
 
 
 def test_image_classification_sets(memory_ds: Dataset):
@@ -81,11 +95,19 @@ def test_image_classification_sets(memory_ds: Dataset):
     assert ds["train/images"].meta.sample_compression == "jpeg"
     assert ds["test/images"].numpy().shape == (3, 200, 200, 3)
     assert ds["test/labels"].numpy().shape == (3, 1)
-    assert ds["test/labels"].info.class_names == ("class0", "class1", "class2")
+    assert ds["test/labels"].info.class_names == (
+        "class0",
+        "class1",
+        "class2",
+    )
 
     assert ds["train/images"].numpy().shape == (3, 200, 200, 3)
     assert ds["train/labels"].numpy().shape == (3, 1)
-    assert ds["train/labels"].info.class_names == ("class0", "class1", "class2")
+    assert ds["train/labels"].info.class_names == (
+        "class0",
+        "class1",
+        "class2",
+    )
 
 
 def test_ingestion_exception(memory_ds: Dataset):
