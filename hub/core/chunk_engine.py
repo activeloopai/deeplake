@@ -1315,6 +1315,17 @@ class ChunkEngine:
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
 
+    def _get_full_chunk(self, index):
+        threshold = 10
+        if type(index.values[0].value) == slice:
+            start = index.values[0].value.start or 0
+            stop = index.values[0].value.stop
+            step = index.values[0].value.step or 1
+            if stop is not None:
+                num_samples = (stop - start) // step
+                return num_samples <= threshold
+        return False
+
     def numpy(
         self,
         index: Index,
@@ -1342,6 +1353,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         self.check_link_ready()
+        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
