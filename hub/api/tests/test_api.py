@@ -1755,9 +1755,14 @@ def verify_label_data(ds):
     nested_text_labels = [
         [["airplane", "boat", "car"], ["boat", "car", "person"]],
         [["person", "car"], ["airplane", "bus"]],
+        [["airplane", "boat"], ["car", "person"]],
     ]
     arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
-    nested_arr = [np.array([[0, 1, 2], [1, 2, 3]]), np.array([[3, 2], [0, 4]])]
+    nested_arr = [
+        np.array([[0, 1, 2], [1, 2, 3]]),
+        np.array([[3, 2], [0, 4]]),
+        np.array([[0, 1], [2, 3]]),
+    ]
 
     # abc
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
@@ -1804,7 +1809,7 @@ def test_text_label(local_ds_generator):
         ds.create_tensor("nested", htype="class_label")
         ds.nested.append([[0, 1, 2], [1, 2, 3]])
         ds.nested.info.class_names = ["airplane", "boat", "car"]
-        ds.nested.append([["person", 2], ["airplane", "bus"]])
+        ds.nested.extend([[["person", 2], ["airplane", "bus"]], [[0, 1], ["car", 3]]])
 
         verify_label_data(ds)
 

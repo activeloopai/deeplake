@@ -614,13 +614,15 @@ class ChunkEngine:
                 get_tensor_info_key(self.key, self.commit_id), Info
             )
             tensor_name = self.tensor_meta.name or self.key
-            labels, additions = convert_to_idx(samples, tensor_info.class_names)
+            class_names = tensor_info.class_names
+            labels, additions = convert_to_idx(samples, class_names)
             if additions:
-                tensor_info.is_dirty = True
                 for new in additions:
+                    class_names.append(new[0])
                     logger.info(
                         f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
                     )
+                tensor_info.is_dirty = True
             samples = verified_samples = labels
         return samples, verified_samples
 

@@ -4,26 +4,28 @@ import numpy as np
 
 
 def convert_to_idx(samples, class_names: List[str]):
-    idxs = []
-    additions = []
-    for sample in samples:
-        if isinstance(sample, str):
-            for i in range(len(class_names)):
-                if class_names[i] == sample:
-                    idxs.append(i)
-                    break
-            else:
-                class_names.append(sample)
-                idx = len(class_names) - 1
+    class_idx = {class_names[i]: i for i in range(len(class_names))}
+
+    def convert(samples):
+        idxs = []
+        additions = []
+        for sample in samples:
+            if isinstance(sample, str):
+                idx = class_idx.get(sample)
+                if idx is None:
+                    idx = len(class_idx)
+                    class_idx[sample] = idx
+                    additions.append((sample, idx))
                 idxs.append(idx)
-                additions.append((sample, idx))
-        elif isinstance(sample, list):
-            idxs_, additions_ = convert_to_idx(sample, class_names)
-            idxs.append(idxs_)
-            additions.extend(additions_)
-        else:
-            idxs.append(sample)
-    return idxs, additions
+            elif isinstance(sample, list):
+                idxs_, additions_ = convert(sample)
+                idxs.append(idxs_)
+                additions.extend(additions_)
+            else:
+                idxs.append(sample)
+        return idxs, additions
+
+    return convert(samples)
 
 
 def convert_to_text(inp, class_names: List[str]):
