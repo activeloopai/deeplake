@@ -105,9 +105,9 @@ class SampleTiles:
             and (not compression or compression in BYTE_COMPRESSIONS)
             else -1
         )
-        return get_tile_shape(
+        return get_tile_shape(  # type: ignore
             self.sample_shape,
-            np.prod(np.array(self.sample_shape, dtype=np.uint64))  # type: ignore
+            np.prod(np.array(self.sample_shape, dtype=np.uint64))
             * np.dtype(dtype).itemsize
             * get_compression_ratio(compression),
             chunk_size,
