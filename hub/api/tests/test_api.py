@@ -27,6 +27,7 @@ from hub.util.exceptions import (
     BadRequestException,
     ReadOnlyModeError,
 )
+from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import GDRIVE_OPT, MB
 
@@ -784,7 +785,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     new_path = "_".join([path, "renamed"])
 
     ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
-    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
+    new_path = convert_string_to_pathlib_if_needed(new_path, convert_to_pathlib)
 
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
@@ -798,7 +799,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
 
-    assert ds.path == new_path
+    assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     ds = hub.load(new_path, token=hub_token)
@@ -1719,17 +1720,6 @@ def test_partial_read_then_write(s3_ds_generator):
 
     with ds:
         ds.xyz[1] = 20 * np.ones((1000, 1000))
-
-
-def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
-    converted_path = pathlib.Path(path)
-    if (
-        convert_to_pathlib
-        and "//" not in path
-        and not isinstance(converted_path, pathlib.WindowsPath)
-    ):
-        return converted_path
-    return path
 
 
 def test_exist_ok(local_ds):
