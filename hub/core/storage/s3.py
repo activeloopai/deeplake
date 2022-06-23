@@ -306,6 +306,7 @@ class S3Provider(StorageProvider):
         return min(ceil((time.time() - self.start_time) / 300), 5)
 
     def _keys_iterator(self):
+        self._check_update_creds()
         prefix = self.path
         start_after = ""
         prefix = prefix[1:] if prefix.startswith("/") else prefix
