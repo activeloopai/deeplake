@@ -716,7 +716,7 @@ class dataset:
             copy_func(keys, pg_callback)
 
         keys = src_storage._all_keys()
-
+        print("All keys: ", keys)
         if tensors is not None:
             required_tensors = src_ds._resolve_tensor_list(tensors)
             for t in required_tensors[:]:
