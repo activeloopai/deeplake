@@ -769,6 +769,7 @@ class dataset:
 
             keys = filter(fltr, map(process_meta, keys))
         keys = list(keys)
+        print("New keys:", keys)
         if tensors:
             assert metas
         len_keys = len(keys)
