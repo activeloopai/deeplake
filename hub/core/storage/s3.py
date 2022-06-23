@@ -317,6 +317,7 @@ class S3Provider(StorageProvider):
         for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix, StartAfter=start_after):
             for content in page.get('Contents', ()):
                 yield content['Key']
+    
 
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
@@ -327,28 +328,9 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        self._check_update_creds()
-        try:
-            # TODO boto3 list_objects only returns first 1000 objects
-            # items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
-            names = set(self._keys_iterator())
-        except botocore.exceptions.ClientError as err:
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3ListError):
-                # items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
-                names = set(self._keys_iterator())
-        except Exception as err:
-            raise S3ListError(err) from err
-
-        # if items["KeyCount"] <= 0:
-        #     return set()
-        # items = items["Contents"]
-        # names = [item["Key"] for item in items]
-        # removing the prefix from the names
         len_path = len(self.path.split("/")) - 1
-        names = {"/".join(name.split("/")[len_path:]) for name in names}
-        return names
+        return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
+
 
     def __len__(self):
         """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
@@ -359,7 +341,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        return len(self._all_keys())
+        return sum(1 for _ in self._keys_iterator())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the S3Provider.
