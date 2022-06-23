@@ -1,3 +1,4 @@
+from tracemalloc import start
 import warnings
 import hub
 from math import ceil
@@ -126,6 +127,9 @@ class S3Provider(StorageProvider):
         self.profile_name = profile_name
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
+        self._list_paginator = boto3.client('s3').get_paginator('list_objects_v2')
+
+
 
     def subdir(self, path: str):
         sd = self.__class__(
@@ -304,6 +308,16 @@ class S3Provider(StorageProvider):
     def num_tries(self):
         return min(ceil((time.time() - self.start_time) / 300), 5)
 
+
+    def _keys_iterator(self):
+        prefix = self.path
+        start_after = ''
+        prefix = prefix[1:] if prefix.startswith('/') else prefix
+        start_after = (start_after or prefix) if prefix.endswith('/') else start_after
+        for page in self._list_paginator.paginate(Bucket=self.bucket, Prefix=prefix, StartAfter=start_after):
+            for content in page.get('Contents', ()):
+                yield content['Key']
+
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
 
@@ -316,21 +330,21 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         try:
             # TODO boto3 list_objects only returns first 1000 objects
-            items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
+            # items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
+            names = set(self._keys_iterator())
         except botocore.exceptions.ClientError as err:
             reload = self.need_to_reload_creds(err)
             manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
             with manager(self, S3ListError):
-                items = self.client.list_objects_v2(
-                    Bucket=self.bucket, Prefix=self.path
-                )
+                # items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
+                names = set(self._keys_iterator())
         except Exception as err:
             raise S3ListError(err) from err
 
-        if items["KeyCount"] <= 0:
-            return set()
-        items = items["Contents"]
-        names = [item["Key"] for item in items]
+        # if items["KeyCount"] <= 0:
+        #     return set()
+        # items = items["Contents"]
+        # names = [item["Key"] for item in items]
         # removing the prefix from the names
         len_path = len(self.path.split("/")) - 1
         names = {"/".join(name.split("/")[len_path:]) for name in names}
