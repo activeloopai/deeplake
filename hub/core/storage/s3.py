@@ -127,7 +127,6 @@ class S3Provider(StorageProvider):
         self.profile_name = profile_name
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
-        self._list_paginator = boto3.client('s3').get_paginator('list_objects_v2')
 
 
 
@@ -314,7 +313,8 @@ class S3Provider(StorageProvider):
         start_after = ''
         prefix = prefix[1:] if prefix.startswith('/') else prefix
         start_after = (start_after or prefix) if prefix.endswith('/') else start_after
-        for page in self._list_paginator.paginate(Bucket=self.bucket, Prefix=prefix, StartAfter=start_after):
+        paginator = self.client.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix, StartAfter=start_after):
             for content in page.get('Contents', ()):
                 yield content['Key']
 
