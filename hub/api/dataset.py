@@ -721,6 +721,7 @@ class dataset:
             required_tensors = src_ds._resolve_tensor_list(tensors)
             for t in required_tensors[:]:
                 required_tensors.extend(src_ds[t].meta.links)
+            print("Required tensors:", required_tensors)
             required_tensor_paths = set(
                 src_ds.meta.tensor_names[t] for t in required_tensors
             )
