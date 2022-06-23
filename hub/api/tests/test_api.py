@@ -7,7 +7,7 @@ import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal
+from hub.tests.common import assert_array_lists_equal, is_opt_true
 from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
@@ -28,7 +28,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
 )
 from hub.util.pretty_print import summary_tensor, summary_dataset
-from hub.constants import MB
+from hub.constants import GDRIVE_OPT, MB
 
 from click.testing import CliRunner
 
@@ -1443,7 +1443,9 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
     assert memory_ds.images[2].shape == (323, 480, 3)
 
 
-def test_hub_remote_read_gdrive_root(memory_ds, gdrive_creds):
+def test_hub_remote_read_gdrive_root(request, memory_ds, gdrive_creds):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
     memory_ds.images.append(hub.read("gdrive://cat.jpeg", creds=gdrive_creds))
     assert memory_ds.images[0].shape == (900, 900, 3)
