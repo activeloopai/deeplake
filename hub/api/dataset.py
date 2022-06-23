@@ -733,7 +733,7 @@ class dataset:
             tensor_paths_to_exclude = [
                 t for t in all_tensor_paths_in_src if t not in required_tensor_paths
             ]
-
+            print("Excluding paths:", tensor_paths_to_exclude)
             def fltr(k):
                 for t in tensor_paths_to_exclude:
                     if k.startswith(t + "/") or "/" + t + "/" in k:
