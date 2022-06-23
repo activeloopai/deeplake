@@ -716,12 +716,10 @@ class dataset:
             copy_func(keys, pg_callback)
 
         keys = src_storage._all_keys()
-        print("All keys: ", keys)
         if tensors is not None:
             required_tensors = src_ds._resolve_tensor_list(tensors)
             for t in required_tensors[:]:
                 required_tensors.extend(src_ds[t].meta.links)
-            print("Required tensors:", required_tensors)
             required_tensor_paths = set(
                 src_ds.meta.tensor_names[t] for t in required_tensors
             )
@@ -733,7 +731,7 @@ class dataset:
             tensor_paths_to_exclude = [
                 t for t in all_tensor_paths_in_src if t not in required_tensor_paths
             ]
-            print("Excluding paths:", tensor_paths_to_exclude)
+
             def fltr(k):
                 for t in tensor_paths_to_exclude:
                     if k.startswith(t + "/") or "/" + t + "/" in k:
@@ -769,7 +767,6 @@ class dataset:
 
             keys = filter(fltr, map(process_meta, keys))
         keys = list(keys)
-        print("New keys:", keys)
         if tensors:
             assert metas
         len_keys = len(keys)

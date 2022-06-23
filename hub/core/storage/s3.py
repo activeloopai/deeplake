@@ -128,8 +128,6 @@ class S3Provider(StorageProvider):
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
-
-
     def subdir(self, path: str):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
@@ -307,17 +305,17 @@ class S3Provider(StorageProvider):
     def num_tries(self):
         return min(ceil((time.time() - self.start_time) / 300), 5)
 
-
     def _keys_iterator(self):
         prefix = self.path
-        start_after = ''
-        prefix = prefix[1:] if prefix.startswith('/') else prefix
-        start_after = (start_after or prefix) if prefix.endswith('/') else start_after
-        paginator = self.client.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix, StartAfter=start_after):
-            for content in page.get('Contents', ()):
-                yield content['Key']
-    
+        start_after = ""
+        prefix = prefix[1:] if prefix.startswith("/") else prefix
+        start_after = (start_after or prefix) if prefix.endswith("/") else start_after
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=self.bucket, Prefix=prefix, StartAfter=start_after
+        ):
+            for content in page.get("Contents", ()):
+                yield content["Key"]
 
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
@@ -330,7 +328,6 @@ class S3Provider(StorageProvider):
         """
         len_path = len(self.path.split("/")) - 1
         return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
-
 
     def __len__(self):
         """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
