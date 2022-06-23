@@ -57,7 +57,7 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     return "generic"
 
 
-def get_empty_sample(htype: str):
+def get_empty_text_like_sample(htype: str):
     """Get an empty sample of the given htype.
 
     Args:

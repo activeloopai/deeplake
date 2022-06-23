@@ -100,6 +100,7 @@ def dataset_to_pytorch(
     tensors: Optional[Sequence[str]] = None,
     tobytes: Union[bool, Sequence[str]] = False,
     return_index: bool = True,
+    pad_tensors: bool = True,
 ):
 
     import torch
@@ -136,6 +137,7 @@ def dataset_to_pytorch(
             pin_memory,
             drop_last,
             return_index,
+            pad_tensors
         )
     else:
         return torch.utils.data.DataLoader(
@@ -149,6 +151,7 @@ def dataset_to_pytorch(
                 shuffle=shuffle,
                 buffer_size=buffer_size,
                 return_index=return_index,
+                pad_tensors=pad_tensors,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

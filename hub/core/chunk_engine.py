@@ -16,7 +16,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import get_empty_sample, intelligent_cast
+from hub.util.casting import get_empty_text_like_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
@@ -918,11 +918,16 @@ class ChunkEngine:
                 update_first_sample = True
 
             htype = self.tensor_meta.htype
-            if htype in ["json", "text", "list"]:
-                empty_sample = get_empty_sample(htype)
+            if htype in ("json", "text", "list"):
+                empty_sample = get_empty_text_like_sample(htype)
                 empty_samples = [empty_sample] * num_samples_to_pad
+            elif self.tensor_meta.is_link:
+                empty_sample = None
+                empty_samples = [None] * num_samples_to_pad
             else:
                 ndim = len(self.tensor_meta.max_shape)
+                if self.is_sequence:
+                    ndim += 1
                 shape = tuple([num_samples_to_pad] + [0] * ndim)
                 dtype = self.tensor_meta.dtype
                 empty_sample = np.zeros(shape[1:], dtype=dtype)
@@ -1989,3 +1994,17 @@ class ChunkEngine:
                 self._all_chunk_engines[k].extend(
                     [get_link_transform(v["append"])(sample)]
                 )
+
+    def get_empty_sample(self):
+        if self.num_samples == 0:
+            raise ValueError("This tensor has no samples, cannot get empty sample.")
+        htype = self.tensor_meta.htype
+        dtype = self.tensor_meta.dtype
+        if htype in ("text", "json", "list"):
+            return get_empty_text_like_sample(htype)
+        ndim = len(self.tensor_meta.max_shape)
+        if self.is_sequence:
+            ndim += 1
+        shape = (0,) * ndim
+        return np.ones(shape, dtype=dtype)
+
