@@ -1319,11 +1319,18 @@ class ChunkEngine:
         threshold = 10
         if type(index.values[0].value) == slice:
             start = index.values[0].value.start or 0
-            stop = index.values[0].value.stop
+            stop = index.values[0].value.stop or self.tensor_meta.length
             step = index.values[0].value.step or 1
-            if stop is not None:
-                num_samples = (stop - start) // step
-                return num_samples <= threshold
+
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = self.tensor_meta.length
+            if step is None:
+                step = 1
+
+            num_samples = (stop - start) // step
+            return num_samples > threshold
         return False
 
     def numpy(
