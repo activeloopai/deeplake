@@ -484,7 +484,7 @@ def current_commit_has_info_modified(
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
         dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
-        if dataset_diff.info_modified:
+        if dataset_diff.info_updated:
             return True
     except KeyError:
         pass
@@ -493,7 +493,7 @@ def current_commit_has_info_modified(
         try:
             tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
-            if tensor_diff.info_modified:
+            if tensor_diff.info_updated:
                 return True
         except KeyError:
             pass
