@@ -1420,14 +1420,15 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
-    def get_single_sample(self, global_sample_index, index, fetch_chunks=False, pad_tensor=False):
+    def get_single_sample(
+        self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
+    ):
         if pad_tensor and global_sample_index >= self.tensor_meta.length:
             sample = self.get_empty_sample()
             try:
                 return sample[tuple(entry.value for entry in index.values[1:])]
             except IndexError:
                 return sample
-                
 
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
@@ -1474,7 +1475,10 @@ class ChunkEngine:
             samples = []
             for global_sample_index in index.values[0].indices(length):
                 sample = self.get_single_sample(
-                    global_sample_index, index, fetch_chunks=fetch_chunks, pad_tensor=pad_tensor
+                    global_sample_index,
+                    index,
+                    fetch_chunks=fetch_chunks,
+                    pad_tensor=pad_tensor,
                 )
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
@@ -1501,7 +1505,10 @@ class ChunkEngine:
                 except IndexError:
                     pass
             else:
-                if self.cached_data is None or global_sample_index not in self.cache_range:
+                if (
+                    self.cached_data is None
+                    or global_sample_index not in self.cache_range
+                ):
                     row = enc.__getitem__(global_sample_index, True)[0][1]
                     chunks = self.get_chunks_for_sample(global_sample_index)
                     assert len(chunks) == 1
@@ -1517,7 +1524,9 @@ class ChunkEngine:
                     dtype = self.tensor_meta.dtype
 
                     data_bytes = bytearray(chunk.data_bytes)
-                    self.cached_data = np.frombuffer(data_bytes, dtype).reshape(full_shape)
+                    self.cached_data = np.frombuffer(data_bytes, dtype).reshape(
+                        full_shape
+                    )
                     self.cache_range = range(first_sample, last_sample + 1)
 
                 sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
@@ -2028,4 +2037,3 @@ class ChunkEngine:
             ndim += 1
         shape = (0,) * ndim
         return np.ones(shape, dtype=dtype)
-

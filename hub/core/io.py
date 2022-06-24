@@ -384,7 +384,9 @@ class SampleStreaming(Streaming):
         last_idx: int = 0
 
         while any([not it.finished for it in iterators]):
-            next_it = iterators[argmin(nparray([it.value[0] for it in iterators if not it.finished]))]
+            next_it = iterators[
+                argmin(nparray([it.value[0] for it in iterators if not it.finished]))
+            ]
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:

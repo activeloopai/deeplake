@@ -666,7 +666,10 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         return self.chunk_engine.numpy(
-            self.index, aslist=aslist, fetch_chunks=fetch_chunks, pad_tensor=self.pad_tensor
+            self.index,
+            aslist=aslist,
+            fetch_chunks=fetch_chunks,
+            pad_tensor=self.pad_tensor,
         )
 
     def summary(self):

@@ -292,7 +292,7 @@ class Dataset:
             "_view_invalid",
             "_new_view_base_commit",
             "_parent_dataset",
-            "_pad_index"
+            "_pad_index",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -2815,7 +2815,7 @@ class Dataset:
 
     def _disable_padding(self):
         self._pad_tensors = False
-    
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
