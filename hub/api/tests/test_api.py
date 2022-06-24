@@ -1830,3 +1830,24 @@ def test_uneven_view(memory_ds):
         np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy().squeeze())
         with pytest.raises(IndexError):
             np.testing.assert_equal(np.arange(0, 10, 2), view.y.numpy().squeeze())
+
+
+def test_uneven_iteration(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        ds._enable_padding()
+        assert len(ds) == 10
+        for i in range(10):
+            x, y = ds[i].x.numpy(), ds[i].y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
+
+        for i, dsv in enumerate(ds):
+            x, y = dsv.x.numpy(), dsv.y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
