@@ -1366,7 +1366,7 @@ class Dataset:
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
-            pad_tensors (bool): If True, tensors that are not the same length will be padded to the longest tensor. Default value is False.
+            pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor. Default value is False.
         Returns:
             A torch.utils.data.DataLoader object.
         """
@@ -1404,6 +1404,7 @@ class Dataset:
         save_result: bool = False,
         result_path: Optional[str] = None,
         result_ds_args: Optional[dict] = None,
+        pad_tensors: bool = False,
     ):
         """Filters the dataset in accordance of filter function `f(x: sample) -> bool`
 
@@ -1419,6 +1420,7 @@ class Dataset:
             save_result (bool): If True, result of the filter will be saved to a dataset asynchronously.
             result_path (Optional, str): Path to save the filter result. Only applicable if `save_result` is True.
             result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `save_result` is True.
+            pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor. Default value is False.
 
         Returns:
             View on Dataset with elements, that satisfy filter function
@@ -1432,8 +1434,12 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
         from hub.core.query import DatasetQuery
 
+        if pad_tensors:
+            initial_padding_state = self._pad_tensors
+            self._enable_padding()
+
         fn = query_dataset if isinstance(function, str) else filter_dataset
-        return fn(
+        result = fn(
             self,
             function,
             num_workers=num_workers,
@@ -1443,6 +1449,9 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
+        if pad_tensors and not initial_padding_state:
+            self._disable_padding()
+        return result
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
