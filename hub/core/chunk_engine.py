@@ -1298,6 +1298,7 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1309,6 +1310,7 @@ class ChunkEngine:
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
+            pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1318,7 +1320,7 @@ class ChunkEngine:
         """
         self.check_link_ready()
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache, fetch_chunks
+            index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
@@ -1418,7 +1420,15 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
-    def get_single_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_single_sample(self, global_sample_index, index, fetch_chunks=False, pad_tensor=False):
+        if pad_tensor and global_sample_index >= self.tensor_meta.length:
+            sample = self.get_empty_sample()
+            try:
+                return sample[tuple(entry.value for entry in index.values[1:])]
+            except IndexError:
+                return sample
+                
+
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
                 global_sample_index, index, fetch_chunks=fetch_chunks
@@ -1436,6 +1446,7 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1447,6 +1458,7 @@ class ChunkEngine:
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
+            pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1457,12 +1469,12 @@ class ChunkEngine:
         length = self.num_samples
         last_shape = None
         if use_data_cache and self.is_data_cachable:
-            samples = self.numpy_from_data_cache(index, length, aslist)
+            samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
                 sample = self.get_single_sample(
-                    global_sample_index, index, fetch_chunks=fetch_chunks
+                    global_sample_index, index, fetch_chunks=fetch_chunks, pad_tensor=pad_tensor
                 )
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
@@ -1478,35 +1490,42 @@ class ChunkEngine:
             return samples
         return np.array(samples)
 
-    def numpy_from_data_cache(self, index, length, aslist):
+    def numpy_from_data_cache(self, index, length, aslist, pad_tensor=False):
         samples = []
         enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
-            if self.cached_data is None or global_sample_index not in self.cache_range:
-                row = enc.__getitem__(global_sample_index, True)[0][1]
-                chunks = self.get_chunks_for_sample(global_sample_index)
-                assert len(chunks) == 1
+            if pad_tensor and global_sample_index >= self.tensor_meta.length:
+                sample = self.get_empty_sample()
+                try:
+                    sample = sample[tuple(entry.value for entry in index.values[1:])]
+                except IndexError:
+                    pass
+            else:
+                if self.cached_data is None or global_sample_index not in self.cache_range:
+                    row = enc.__getitem__(global_sample_index, True)[0][1]
+                    chunks = self.get_chunks_for_sample(global_sample_index)
+                    assert len(chunks) == 1
 
-                chunk = chunks[0]
-                chunk_arr = self.chunk_id_encoder.array
+                    chunk_arr = self.chunk_id_encoder.array
 
-                first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                last_sample = self.chunk_id_encoder.array[row][1]
-                num_samples = last_sample - first_sample + 1
+                    chunk = chunks[0]
+                    first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
+                    last_sample = self.chunk_id_encoder.array[row][1]
+                    num_samples = last_sample - first_sample + 1
 
-                full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
-                dtype = self.tensor_meta.dtype
+                    full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
+                    dtype = self.tensor_meta.dtype
 
-                data_bytes = bytearray(chunk.data_bytes)
-                self.cached_data = np.frombuffer(data_bytes, dtype).reshape(full_shape)
-                self.cache_range = range(first_sample, last_sample + 1)
+                    data_bytes = bytearray(chunk.data_bytes)
+                    self.cached_data = np.frombuffer(data_bytes, dtype).reshape(full_shape)
+                    self.cache_range = range(first_sample, last_sample + 1)
 
-            sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
+                sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
 
-            # need to copy if aslist otherwise user might modify the returned data
-            # if not aslist, we already do np.array(samples) while formatting which copies
-            sample = sample.copy() if aslist else sample
-            sample = sample[tuple(entry.value for entry in index.values[1:])]
+                # need to copy if aslist otherwise user might modify the returned data
+                # if not aslist, we already do np.array(samples) while formatting which copies
+                sample = sample.copy() if aslist else sample
+                sample = sample[tuple(entry.value for entry in index.values[1:])]
             samples.append(sample)
         return samples
 
@@ -1705,12 +1724,14 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),
             aslist=aslist,
             use_data_cache=use_data_cache,
             fetch_chunks=fetch_chunks,
+            pad_tensor=pad_tensor,
         )
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             if aslist:

@@ -135,6 +135,7 @@ class Dataset:
         path: Optional[Union[str, pathlib.Path]] = None,
         is_iteration: bool = False,
         link_creds=None,
+        pad_tensors: bool = False,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -152,6 +153,7 @@ class Dataset:
             path (str, pathlib.Path): The path to the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
+            pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
 
 
@@ -196,6 +198,7 @@ class Dataset:
         d["_update_hooks"] = {}
         d["_commit_hooks"] = {}
         d["_parent_dataset"] = None
+        d["_pad_tensors"] = pad_tensors
 
         self.__dict__.update(d)
         try:
@@ -260,7 +263,8 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        return min(tensor_lengths, default=0)
+        length_fn = max if self._pad_tensors else min
+        return length_fn(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
@@ -288,6 +292,7 @@ class Dataset:
             "_view_invalid",
             "_new_view_base_commit",
             "_parent_dataset",
+            "_pad_index"
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -338,6 +343,7 @@ class Dataset:
                     version_state=self.version_state,
                     path=self.path,
                     link_creds=self.link_creds,
+                    pad_tensors=self._pad_tensors,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -356,6 +362,7 @@ class Dataset:
                 path=self.path,
                 is_iteration=is_iteration,
                 link_creds=self.link_creds,
+                pad_tensors=self._pad_tensors,
             )
         else:
             raise InvalidKeyTypeError(item)
@@ -2803,6 +2810,12 @@ class Dataset:
             min(t.num_samples for t in self.tensors.values())
         )
 
+    def _enable_padding(self):
+        self._pad_tensors = True
+
+    def _disable_padding(self):
+        self._pad_tensors = False
+    
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
