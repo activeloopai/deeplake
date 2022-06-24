@@ -292,7 +292,7 @@ class Dataset:
             "_view_invalid",
             "_new_view_base_commit",
             "_parent_dataset",
-            "_pad_index",
+            "_pad_tensors",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
