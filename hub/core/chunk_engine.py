@@ -1318,19 +1318,19 @@ class ChunkEngine:
     def _get_full_chunk(self, index):
         threshold = 10
         if type(index.values[0].value) == slice:
-            start = index.values[0].value.start or 0
-            stop = index.values[0].value.stop or self.tensor_meta.length
-            step = index.values[0].value.step or 1
+            start = index.values[0].value.start
+            stop = index.values[0].value.stop
+            step = index.values[0].value.step
 
             if start is None:
                 start = 0
             if stop is None:
-                stop = self.tensor_meta.length
+                stop = self.num_samples
             if step is None:
                 step = 1
 
-            num_samples = (stop - start) // step
-            return num_samples > threshold
+            numpy_array_length = (stop - start) // step
+            return numpy_array_length > threshold
         return False
 
     def numpy(
