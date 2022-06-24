@@ -137,7 +137,7 @@ def dataset_to_pytorch(
             pin_memory,
             drop_last,
             return_index,
-            pad_tensors
+            pad_tensors,
         )
     else:
         return torch.utils.data.DataLoader(
