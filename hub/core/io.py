@@ -36,8 +36,8 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self, chunks: List[List[str]], indexes: List[int]) -> None:
-        self._chunks: List[List[str]] = chunks
+    def __init__(self, chunks: List[List[Optional[str]]], indexes: List[int]) -> None:
+        self._chunks: List[List[Optional[str]]] = chunks
         self._ind: List[int] = indexes
 
     def shuffle(self):
@@ -46,13 +46,13 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_names(self, tensor_index: int) -> List[str]:
+    def chunk_names(self, tensor_index: int) -> List[Optional[str]]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
         return self._ind
 
-    def chunks(self) -> List[List[str]]:
+    def chunks(self) -> List[List[Optional[str]]]:
         return self._chunks
 
     def split(self, n) -> List["IOBlock"]:
@@ -322,7 +322,7 @@ class SampleStreaming(Streaming):
                         commit_id = engine.get_chunk_commit(c_name)
                         c_key = get_chunk_key(
                             version_state["tensor_names"][key],
-                            c_name,
+                            c_name,  # type: ignore
                             commit_id,
                         )
                         if self.local_caches is not None:
@@ -390,7 +390,7 @@ class SampleStreaming(Streaming):
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:
-                chunks = []
+                chunks: List[List[Optional[str]]] = []
                 for it in iterators:
                     if it.finished:
                         chunks.append([None])
@@ -402,7 +402,7 @@ class SampleStreaming(Streaming):
                             it.iternext()
                     else:
                         cur_ids.append(it.value[1])
-                    cur_chunks = [
+                    cur_chunks: List[Optional[str]] = [
                         ChunkIdEncoder.name_from_id(cid)  # type: ignore
                         for cid in cur_ids
                     ]
