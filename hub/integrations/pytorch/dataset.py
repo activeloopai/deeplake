@@ -476,6 +476,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         buffer_size: int = 512,
         batch_size: int = 1,
         return_index: bool = True,
+        pad_tensors: bool = False,
     ) -> None:
         super().__init__()
 
@@ -488,6 +489,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
+            pad_tensors=pad_tensors,
         )
 
         self.num_workers = num_workers
