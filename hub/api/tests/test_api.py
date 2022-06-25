@@ -1855,6 +1855,8 @@ def test_text_label(local_ds_generator):
         ds.seq.append(["l3", "l1"])
         ds.seq[4] = ["l1", "l3"]
 
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = temp
+
         verify_label_data(ds)
 
     ds = local_ds_generator()
