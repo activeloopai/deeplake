@@ -1826,7 +1826,8 @@ class ChunkEngine:
         )
         i = 0
         verified_samples: Optional[List] = None
-        samples = self._convert_class_labels(samples)
+        if self.tensor_meta.htype == "class_label":
+            samples = self._convert_class_labels(samples)
         if flat_verified_samples:
             verified_samples = []
             for sample in samples:  # type: ignore
