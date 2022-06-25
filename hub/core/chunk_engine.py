@@ -1148,11 +1148,11 @@ class ChunkEngine:
         samples = make_sequence(samples, index_length)
         verified_samples = self.check_each_sample(samples)
         if self.tensor_meta.htype == "class_label":
-            samples = self._convert_class_labels(samples)  # type: ignore
+            samples = self._convert_class_labels(samples)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
-        for i, sample in enumerate(samples):
+        for i, sample in enumerate(samples):  # type: ignore
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
