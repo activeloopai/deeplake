@@ -1756,6 +1756,24 @@ def verify_label_data(ds):
         np.array([[0, 1], [2, 3]]),
     ]
 
+    random_arr = np.array([[0, 1], [1, 2], [0, 1]])
+    random_text_labels = [["l1", "l2"], ["l2", "l3"], ["l1", "l2"]]
+
+    seq_arr = [
+        np.array([0, 1, 2]).reshape(3, 1),
+        [],
+        [],
+        np.array([1, 3]).reshape(2, 1),
+        np.array([0, 2]).reshape(2, 1),
+    ]
+    seq_text_labels = [
+        [["l1"], ["l2"], ["l3"]],
+        [],
+        [],
+        [["l2"], ["l4"]],
+        [["l1"], ["l3"]],
+    ]
+
     # abc
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
     np_data = ds.abc.numpy()
@@ -1783,6 +1801,25 @@ def verify_label_data(ds):
         np.testing.assert_array_equal(data["numeric"][i], np_data[i])
     assert data["text"] == nested_text_labels
 
+    # random
+    assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    np_data = ds.random.numpy()
+    data = ds.random.data()
+    assert set(data.keys()) == {"numeric", "text"}
+    np.testing.assert_array_equal(np_data, random_arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+    assert data["text"] == random_text_labels
+
+    # seq
+    assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    np_data = ds.seq.numpy(aslist=True)
+    data = ds.seq.data(aslist=True)
+    assert set(data.keys()) == {"numeric", "text"}
+    for i in range(4):
+        np.testing.assert_array_equal(np_data[i], seq_arr[i])
+        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    assert data["text"] == seq_text_labels
+
 
 def test_text_label(local_ds_generator):
     with local_ds_generator() as ds:
@@ -1802,6 +1839,21 @@ def test_text_label(local_ds_generator):
         ds.nested.append([[0, 1, 2], [1, 2, 3]])
         ds.nested.info.class_names = ["airplane", "boat", "car"]
         ds.nested.extend([[["person", 2], ["airplane", "bus"]], [[0, 1], ["car", 3]]])
+
+        temp = hub.constants._ENABLE_RANDOM_ASSIGNMENT
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+
+        ds.create_tensor("random", htype="class_label")
+        ds.random[0] = ["l1", "l2"]
+        ds.random[1] = ["l2", "l3"]
+        ds.random[2] = ["l2", "l4"]
+        ds.random[2] = ["l1", "l2"]
+
+        ds.create_tensor("seq", htype="sequence[class_label]")
+        ds.seq.append(["l1", "l2", "l3"])
+        ds.seq[3] = ["l2", "l4"]
+        ds.seq.append(["l3", "l1"])
+        ds.seq[4] = ["l1", "l3"]
 
         verify_label_data(ds)
 

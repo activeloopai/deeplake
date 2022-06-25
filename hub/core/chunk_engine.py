@@ -610,21 +610,24 @@ class ChunkEngine:
                     raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
         elif tensor_meta.htype == "class_label":
-            tensor_info = self.cache.get_hub_object(
-                get_tensor_info_key(self.key, self.commit_id), Info
-            )
-            tensor_name = self.tensor_meta.name or self.key
-            class_names = tensor_info.class_names
-            labels, additions = convert_to_idx(samples, class_names)
-            if additions:
-                for new in additions:
-                    class_names.append(new[0])
-                    logger.info(
-                        f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
-                    )
-                tensor_info.is_dirty = True
-            samples = verified_samples = labels
+            samples = verified_samples = self._convert_class_labels(samples)
         return samples, verified_samples
+
+    def _convert_class_labels(self, samples):
+        tensor_info = self.cache.get_hub_object(
+            get_tensor_info_key(self.key, self.commit_id), Info
+        )
+        tensor_name = self.tensor_meta.name or self.key
+        class_names = tensor_info.class_names
+        labels, additions = convert_to_idx(samples, class_names)
+        if additions:
+            for new in additions:
+                class_names.append(new[0])
+                logger.info(
+                    f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
+                )
+            tensor_info.is_dirty = True
+        return labels
 
     def _samples_to_chunks(
         self,
@@ -1144,6 +1147,8 @@ class ChunkEngine:
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
         verified_samples = self.check_each_sample(samples)
+        if self.tensor_meta.htype == "class_label":
+            samples = self._convert_class_labels(samples)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
@@ -1821,6 +1826,7 @@ class ChunkEngine:
         )
         i = 0
         verified_samples: Optional[List] = None
+        samples = self._convert_class_labels(samples)
         if flat_verified_samples:
             verified_samples = []
             for sample in samples:  # type: ignore
