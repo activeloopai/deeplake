@@ -79,6 +79,13 @@ def is_remote_path(path: str) -> bool:
     return get_path_type(path) != "local"
 
 
+def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
+    converted_path = pathlib.Path(path)
+    if convert_to_pathlib and "//" not in path:
+        return converted_path
+    return path
+
+
 def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
     if isinstance(path, pathlib.Path):
         path = str(path)
