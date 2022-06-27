@@ -1336,7 +1336,7 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
-    ds2.create_tensor("y", **dest_args)
+    ds2.create_tensor("y", max_chunk_size=3 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
