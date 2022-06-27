@@ -39,11 +39,13 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         raise TypeError(f"Cannot infer numpy dtype for {val}")
 
 
-def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
+def get_htype(val: Union[np.ndarray, Sequence, Sample, LinkedSample]) -> str:
     """Get the htype of a non-uniform mixed dtype sequence of samples."""
     if isinstance(val, hub.core.tensor.Tensor):
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
+        return "generic"
+    if len(val) > 0 and isinstance(val[0], LinkedSample):
         return "generic"
     types = set((map(type, val)))  # type: ignore
     if dict in types:
