@@ -1811,14 +1811,14 @@ def verify_label_data(ds):
     assert data["text"] == random_text_labels
 
     # seq
-    assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
-    np_data = ds.seq.numpy(aslist=True)
-    data = ds.seq.data(aslist=True)
-    assert set(data.keys()) == {"numeric", "text"}
-    for i in range(4):
-        np.testing.assert_array_equal(np_data[i], seq_arr[i])
-        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
-    assert data["text"] == seq_text_labels
+    # assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    # np_data = ds.seq.numpy(aslist=True)
+    # data = ds.seq.data(aslist=True)
+    # assert set(data.keys()) == {"numeric", "text"}
+    # for i in range(4):
+    #     np.testing.assert_array_equal(np_data[i], seq_arr[i])
+    #     np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    # assert data["text"] == seq_text_labels
 
 
 def test_text_label(local_ds_generator):
@@ -1851,9 +1851,10 @@ def test_text_label(local_ds_generator):
 
         ds.create_tensor("seq", htype="sequence[class_label]")
         ds.seq.append(["l1", "l2", "l3"])
-        ds.seq[3] = ["l2", "l4"]
-        ds.seq.append(["l3", "l1"])
-        ds.seq[4] = ["l1", "l3"]
+        with pytest.raises(NotImplementedError):
+            ds.seq[3] = ["l2", "l4"]
+            ds.seq.append(["l3", "l1"])
+            ds.seq[4] = ["l1", "l3"]
 
         hub.constants._ENABLE_RANDOM_ASSIGNMENT = temp
 
