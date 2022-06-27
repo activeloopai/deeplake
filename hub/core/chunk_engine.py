@@ -1066,15 +1066,23 @@ class ChunkEngine:
         return True
 
     def _is_tiled(self, row: int) -> bool:
+        """checkes whether the chunk is tiled or not
+
+        Args:
+            row (int): Represents the row of the chunk.
+
+        Returns:
+            bool: return true if the current chunk and previous/next row chunk have the same chunk index false otherwise.
+        """
+
         arr = self.chunk_id_encoder.array
-        result = False
         if row >= 1 and len(arr) > 1:
-            if arr[row][1] == arr[row - 1][1]:
-                result = True
+            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row - 1][LAST_SEEN_INDEX_COLUMN]:
+                return True
         if len(arr) > row + 1:
-            if arr[row][1] == arr[row + 1][1]:
-                result = True
-        return result
+            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row + 1][LAST_SEEN_INDEX_COLUMN]:
+                return True
+        return False
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
         next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
