@@ -151,11 +151,13 @@ def test_cachable_overflow(memory_ds):
 def test_empty_array(memory_ds, compression):
     ds = memory_ds
     arr_list = [
-        np.random.randint(0, 255, (3894, 4279, 0), dtype=np.uint8),
+        np.random.randint(0, 255, (3894, 0, 3), dtype=np.uint8),
         np.random.randint(0, 255, (1089, 1027, 3), dtype=np.uint8),
     ]
     with ds:
-        ds.create_tensor("x", **compression, max_chunk_size=1 * MB)
+        ds.create_tensor(
+            "x", **compression, max_chunk_size=1 * MB, tiling_threshold=1 * MB
+        )
         ds.x.extend(arr_list)
     assert len(ds) == 2
     assert len(ds.x) == 2
