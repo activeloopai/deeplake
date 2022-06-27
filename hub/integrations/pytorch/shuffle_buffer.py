@@ -5,7 +5,7 @@ from operator import mul
 import warnings
 import numpy as np
 import torch
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 
 class ShuffleBuffer:
