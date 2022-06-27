@@ -17,7 +17,7 @@ compressions_paremetrized = pytest.mark.parametrize(
 
 def test_simple(memory_ds):
     with memory_ds:
-        memory_ds.create_tensor("abc", max_chunk_size=2 * MB)
+        memory_ds.create_tensor("abc", max_chunk_size=2 * MB, tiling_threshold=2 * MB)
         memory_ds.abc.extend(np.ones((3, 253, 501, 5)))
     np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
     memory_ds.commit()
@@ -42,7 +42,9 @@ def test_mixed_small_large(local_ds_generator, compression):
     ]
 
     with ds:
-        ds.create_tensor("abc", max_chunk_size=2**21, **compression)
+        ds.create_tensor(
+            "abc", max_chunk_size=2**21, tiling_threshold=2**20, **compression
+        )
         for i in range(10):
             if i % 5 == 0:
                 ds.abc.append(arr1)
@@ -106,7 +108,9 @@ def test_updates(memory_ds, compression):
     arr6 += 1
 
     with memory_ds:
-        memory_ds.create_tensor("abc", max_chunk_size=2**21, **compression)
+        memory_ds.create_tensor(
+            "abc", max_chunk_size=2**21, tiling_threshold=2**20, **compression
+        )
         for i in range(10):
             if i % 5 == 0:
                 memory_ds.abc.append(arr1)
