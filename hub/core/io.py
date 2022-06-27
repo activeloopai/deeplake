@@ -383,7 +383,8 @@ class SampleStreaming(Streaming):
 
         last_idx: int = 0
 
-        while any([not it.finished for it in iterators]):
+        check_fn = any if self.pad_tensors else all
+        while check_fn([not it.finished for it in iterators]):
             next_it = iterators[
                 argmin(nparray([it.value[0] for it in iterators if not it.finished]))
             ]
