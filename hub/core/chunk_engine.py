@@ -610,21 +610,24 @@ class ChunkEngine:
                     raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
             samples = verified_samples = converted
         elif tensor_meta.htype == "class_label":
-            tensor_info = self.cache.get_hub_object(
-                get_tensor_info_key(self.key, self.commit_id), Info
-            )
-            tensor_name = self.tensor_meta.name or self.key
-            class_names = tensor_info.class_names
-            labels, additions = convert_to_idx(samples, class_names)
-            if additions:
-                for new in additions:
-                    class_names.append(new[0])
-                    logger.info(
-                        f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
-                    )
-                tensor_info.is_dirty = True
-            samples = verified_samples = labels
+            samples = verified_samples = self._convert_class_labels(samples)
         return samples, verified_samples
+
+    def _convert_class_labels(self, samples):
+        tensor_info = self.cache.get_hub_object(
+            get_tensor_info_key(self.key, self.commit_id), Info
+        )
+        tensor_name = self.tensor_meta.name or self.key
+        class_names = tensor_info.class_names
+        labels, additions = convert_to_idx(samples, class_names)
+        if additions:
+            for new in additions:
+                class_names.append(new[0])
+                logger.info(
+                    f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
+                )
+            tensor_info.is_dirty = True
+        return labels
 
     def _samples_to_chunks(
         self,
@@ -1063,15 +1066,23 @@ class ChunkEngine:
         return True
 
     def _is_tiled(self, row: int) -> bool:
+        """checkes whether the chunk is tiled or not
+
+        Args:
+            row (int): Represents the row of the chunk.
+
+        Returns:
+            bool: return true if the current chunk and previous/next row chunk have the same chunk index false otherwise.
+        """
+
         arr = self.chunk_id_encoder.array
-        result = False
         if row >= 1 and len(arr) > 1:
-            if arr[row][1] == arr[row - 1][1]:
-                result = True
+            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row - 1][LAST_SEEN_INDEX_COLUMN]:
+                return True
         if len(arr) > row + 1:
-            if arr[row][1] == arr[row + 1][1]:
-                result = True
-        return result
+            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row + 1][LAST_SEEN_INDEX_COLUMN]:
+                return True
+        return False
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
         next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
@@ -1161,10 +1172,12 @@ class ChunkEngine:
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
         verified_samples = self.check_each_sample(samples)
+        if self.tensor_meta.htype == "class_label":
+            samples = self._convert_class_labels(samples)
         nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
-        for i, sample in enumerate(samples):
+        for i, sample in enumerate(samples):  # type: ignore
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
@@ -1838,6 +1851,8 @@ class ChunkEngine:
         )
         i = 0
         verified_samples: Optional[List] = None
+        if self.tensor_meta.htype == "class_label":
+            samples = self._convert_class_labels(samples)
         if flat_verified_samples:
             verified_samples = []
             for sample in samples:  # type: ignore
