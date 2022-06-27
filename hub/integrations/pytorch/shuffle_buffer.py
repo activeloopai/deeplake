@@ -5,6 +5,7 @@ from operator import mul
 import warnings
 import numpy as np
 import torch
+from tqdm import tqdm  # type: ignore
 
 
 class ShuffleBuffer:
@@ -26,6 +27,11 @@ class ShuffleBuffer:
         self.size = size
         self.buffer: List[Any] = list()
         self.buffer_used = 0
+        self.pbar = tqdm(
+            total=self.size,
+            desc="Please wait, filling up the shuffle buffer with samples.",
+        )
+        self.pbar_closed = False
 
     def exchange(self, sample):
         """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument.
@@ -39,14 +45,17 @@ class ShuffleBuffer:
         """
         buffer_len = len(self.buffer)
 
-        if not sample is None:
+        if sample is not None:
             sample_size = self._sample_size(sample)
 
             # fill buffer of not reach limit
             if self.buffer_used + sample_size <= self.size:
                 self.buffer_used += sample_size
+                self.pbar.update(sample_size)
                 self.buffer.append(sample)
                 return None
+            elif not self.pbar_closed:
+                self.close_buffer_pbar()
 
             if buffer_len == 0:
                 warnings.warn(
@@ -63,6 +72,8 @@ class ShuffleBuffer:
             self.buffer_used -= self._sample_size(val)
             return val
         else:
+            if not self.pbar_closed:
+                self.close_buffer_pbar()
             if buffer_len > 0:
 
                 # return random selection
@@ -95,3 +106,9 @@ class ShuffleBuffer:
 
     def __str__(self) -> str:
         return f"ShuffleBuffer(size = {self.size}, buffer_used = {self.buffer_used}, samples = {len(self.buffer)})"
+
+    def close_buffer_pbar(self):
+        if not self.pbar_closed:
+            self.pbar.close()
+            self.pbar_closed = True
+            print("Shuffle buffer filling is complete.")
