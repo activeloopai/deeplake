@@ -1367,6 +1367,7 @@ class Dataset:
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor. Default value is False.
+
         Returns:
             A torch.utils.data.DataLoader object.
         """
