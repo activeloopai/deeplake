@@ -1,3 +1,4 @@
+from hub.constants import MB
 import numpy as np
 import random
 import hub
@@ -20,7 +21,7 @@ def test_rechunk(local_ds):
         assert original_num_chunks == 3
         ds.rechunk()
         new_num_chunks = ds.abc.chunk_engine.num_chunks
-        assert new_num_chunks == 3
+        assert new_num_chunks == 6
 
         assert len(ds.abc) == 10
         for i in range(10):
@@ -95,7 +96,13 @@ def test_rechunk_4(local_ds):
     random.setstate((state[0], tuple(state[1]), state[2]))
 
     with local_ds as ds:
-        ds.create_tensor("test", dtype="uint8", chunk_compression="lz4")
+        ds.create_tensor(
+            "test",
+            dtype="uint8",
+            chunk_compression="lz4",
+            max_chunk_size=32 * MB,
+            tiling_threshold=16 * MB,
+        )
         r = list(range(NUM_TEST_SAMPLES))
         random.shuffle(r)
         with ds:

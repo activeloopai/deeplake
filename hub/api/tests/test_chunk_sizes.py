@@ -10,9 +10,15 @@ def _assert_num_chunks(tensor, expected_num_chunks):
 
 def _create_tensors(ds):
     images = ds.create_tensor(
-        "images", htype="image", sample_compression=None, max_chunk_size=32 * KB
+        "images",
+        htype="image",
+        sample_compression=None,
+        max_chunk_size=32 * KB,
+        tiling_threshold=16 * KB,
     )
-    labels = ds.create_tensor("labels", htype="class_label", max_chunk_size=32 * KB)
+    labels = ds.create_tensor(
+        "labels", htype="class_label", max_chunk_size=32 * KB, tiling_threshold=16 * KB
+    )
     return images, labels
 
 
