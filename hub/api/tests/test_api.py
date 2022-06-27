@@ -26,6 +26,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
+    EmptyTensorInTheDatasetError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -270,6 +271,8 @@ def test_dynamic_tensor(local_ds):
 
 def test_empty_samples(local_ds: Dataset):
     tensor = local_ds.create_tensor("with_empty")
+    with pytest.raises(EmptyTensorInTheDatasetError):
+        ds_pytorch = local_ds.pytorch()
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)

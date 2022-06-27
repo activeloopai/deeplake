@@ -733,3 +733,9 @@ class ManagedCredentialsNotFoundError(Exception):
         super().__init__(
             f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
         )
+
+
+class EmptyTensorInTheDatasetError(Exception):
+    def __init__(self):
+        super().__init__("At least one of the tensors in the dataset is empty")
+
