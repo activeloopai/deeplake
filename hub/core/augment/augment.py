@@ -132,9 +132,9 @@ class Pipeline():
 class Policy():
 
 
-  def __init__(self, policy_input=None, policy_name="image net"):
-    if policy_input == None:
-      self.policy_set = self.get_policies(policy_name)
+  def __init__(self, policy_input="image net", policy_name="image net"):
+    if isinstance(policy_input,str):
+      self.policy_set = self.get_policies(policy_input)
     else:
       self.policy_set = policy_input
     self.transforms_lis = None
