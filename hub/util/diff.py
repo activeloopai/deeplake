@@ -239,7 +239,15 @@ def has_change(change: Dict):
     num_samples_added = data_added[1] - data_added[0]
     data_updated = change.get("data_updated", set())
     info_updated = change.get("info_updated", False)
-    return created or cleared or num_samples_added > 0 or data_updated or info_updated
+    data_deleted = change.get("data_deleted", [])
+    return (
+        created
+        or cleared
+        or num_samples_added > 0
+        or data_updated
+        or info_updated
+        or data_deleted
+    )
 
 
 def get_dataset_changes_for_id(
@@ -367,6 +375,7 @@ def combine_data_deleted(changes: Dict[str, Dict]):
             for index in deleted_list:
                 offset = sum(i < index for i in data_deleted)
                 data_deleted.append(index + offset)
+        data_deleted.sort()
         change["data_deleted"] = data_deleted
 
 
