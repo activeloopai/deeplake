@@ -1621,6 +1621,7 @@ class ChunkEngine:
         if self.is_sequence:
             for idx in range(*self.sequence_encoder[index]):
                 self.pop_item(idx)
+            self.sequence_encoder.pop(index)
         else:
             self.pop_item(index)
 
