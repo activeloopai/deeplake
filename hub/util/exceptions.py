@@ -522,7 +522,7 @@ class TensorMismatchError(TransformError):
         else:
             super().__init__(
                 f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
-                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}. If you want to do this, pass skip_ok=True to the eval method."
             )
 
 

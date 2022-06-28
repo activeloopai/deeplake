@@ -135,6 +135,7 @@ class Dataset:
         path: Optional[Union[str, pathlib.Path]] = None,
         is_iteration: bool = False,
         link_creds=None,
+        pad_tensors: bool = False,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -152,6 +153,7 @@ class Dataset:
             path (str, pathlib.Path): The path to the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
+            pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
 
 
@@ -196,6 +198,7 @@ class Dataset:
         d["_update_hooks"] = {}
         d["_commit_hooks"] = {}
         d["_parent_dataset"] = None
+        d["_pad_tensors"] = pad_tensors
 
         self.__dict__.update(d)
         try:
@@ -260,7 +263,8 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        return min(tensor_lengths, default=0)
+        length_fn = max if self._pad_tensors else min
+        return length_fn(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
@@ -288,6 +292,7 @@ class Dataset:
             "_view_invalid",
             "_new_view_base_commit",
             "_parent_dataset",
+            "_pad_tensors",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -338,6 +343,7 @@ class Dataset:
                     version_state=self.version_state,
                     path=self.path,
                     link_creds=self.link_creds,
+                    pad_tensors=self._pad_tensors,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -356,6 +362,7 @@ class Dataset:
                 path=self.path,
                 is_iteration=is_iteration,
                 link_creds=self.link_creds,
+                pad_tensors=self._pad_tensors,
             )
         else:
             raise InvalidKeyTypeError(item)
@@ -1333,6 +1340,7 @@ class Dataset:
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
         return_index: bool = True,
+        pad_tensors: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1358,6 +1366,7 @@ class Dataset:
             use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
+            pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1378,6 +1387,7 @@ class Dataset:
             buffer_size=buffer_size,
             use_local_cache=use_local_cache,
             return_index=return_index,
+            pad_tensors=pad_tensors,
         )
 
         if use_progress_bar:
@@ -1421,10 +1431,9 @@ class Dataset:
             >>> dataset.filter('labels == 2')
         """
         from hub.core.query import filter_dataset, query_dataset
-        from hub.core.query import DatasetQuery
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
-        return fn(
+        result = fn(
             self,
             function,
             num_workers=num_workers,
@@ -1434,6 +1443,7 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
+        return result
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -2800,6 +2810,12 @@ class Dataset:
         return self.index.values[0].indices(
             min(t.num_samples for t in self.tensors.values())
         )
+
+    def _enable_padding(self):
+        self._pad_tensors = True
+
+    def _disable_padding(self):
+        self._pad_tensors = False
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):

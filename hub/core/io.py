@@ -36,8 +36,8 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self, chunks: List[List[str]], indexes: List[int]) -> None:
-        self._chunks: List[List[str]] = chunks
+    def __init__(self, chunks: List[List[Optional[str]]], indexes: List[int]) -> None:
+        self._chunks: List[List[Optional[str]]] = chunks
         self._ind: List[int] = indexes
 
     def shuffle(self):
@@ -46,13 +46,13 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_names(self, tensor_index: int) -> List[str]:
+    def chunk_names(self, tensor_index: int) -> List[Optional[str]]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
         return self._ind
 
-    def chunks(self) -> List[List[str]]:
+    def chunks(self) -> List[List[Optional[str]]]:
         return self._chunks
 
     def split(self, n) -> List["IOBlock"]:
@@ -258,6 +258,7 @@ class SampleStreaming(Streaming):
         tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
         return_index: bool = True,
+        pad_tensors: bool = False,
     ) -> None:
         super().__init__()
 
@@ -274,6 +275,7 @@ class SampleStreaming(Streaming):
             )
 
         self.tensors = tensors
+        self.pad_tensors = pad_tensors
         if isinstance(tobytes, bool):
             self.tobytes = {k: tobytes for k in self.tensors}
         else:
@@ -313,12 +315,14 @@ class SampleStreaming(Streaming):
                     c_names = block.chunk_names(keyid)
 
                     version_state = self.dataset.version_state
-
+                    if c_names == [None]:
+                        sample[key] = engine.get_empty_sample()
+                        continue
                     for c_name in c_names:
                         commit_id = engine.get_chunk_commit(c_name)
                         c_key = get_chunk_key(
                             version_state["tensor_names"][key],
-                            c_name,
+                            c_name,  # type: ignore
                             commit_id,
                         )
                         if self.local_caches is not None:
@@ -379,13 +383,19 @@ class SampleStreaming(Streaming):
 
         last_idx: int = 0
 
-        while all([not it.finished for it in iterators]):
-            next_it = iterators[argmin(nparray([it.value[0] for it in iterators]))]
+        check_fn = any if self.pad_tensors else all
+        while check_fn([not it.finished for it in iterators]):
+            next_it = iterators[
+                argmin(nparray([it.value[0] for it in iterators if not it.finished]))
+            ]
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:
-                chunks = []
+                chunks: List[List[Optional[str]]] = []
                 for it in iterators:
+                    if it.finished:
+                        chunks.append([None])
+                        continue
                     cur_ids = []
                     if it.value[0] == next_it_value:
                         while not it.finished and it.value[0] == next_it_value:
@@ -393,7 +403,7 @@ class SampleStreaming(Streaming):
                             it.iternext()
                     else:
                         cur_ids.append(it.value[1])
-                    cur_chunks = [
+                    cur_chunks: List[Optional[str]] = [
                         ChunkIdEncoder.name_from_id(cid)  # type: ignore
                         for cid in cur_ids
                     ]
@@ -443,6 +453,6 @@ class SampleStreaming(Streaming):
             len(version_state["full_tensors"][version_state["tensor_names"][tensor]])
             for tensor in self.tensors
         ]
-        length = min(tensor_lengths, default=0)
-
+        length_fn = max if self.pad_tensors else min
+        length = length_fn(tensor_lengths, default=0)
         return self.dataset.index.values[0].indices(length)

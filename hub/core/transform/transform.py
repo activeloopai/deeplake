@@ -48,6 +48,7 @@ class ComputeFunction:
         progressbar: bool = True,
         skip_ok: bool = False,
         check_lengths: bool = True,
+        pad_data_in: bool = False,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
 
@@ -64,6 +65,8 @@ class ComputeFunction:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+                Defaults to False.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -74,7 +77,14 @@ class ComputeFunction:
 
         pipeline = Pipeline([self])
         pipeline.eval(
-            data_in, ds_out, num_workers, scheduler, progressbar, skip_ok, check_lengths
+            data_in,
+            ds_out,
+            num_workers,
+            scheduler,
+            progressbar,
+            skip_ok,
+            check_lengths,
+            pad_data_in,
         )
 
     def __call__(self, sample_in):
@@ -98,6 +108,7 @@ class Pipeline:
         progressbar: bool = True,
         skip_ok: bool = False,
         check_lengths: bool = True,
+        pad_data_in: bool = False,
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -114,6 +125,8 @@ class Pipeline:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+                Defaults to False.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -136,6 +149,9 @@ class Pipeline:
                 auto_checkout(data_in)
             original_data_in = data_in
             data_in = get_dataset_with_zero_size_cache(data_in)
+            if pad_data_in:
+                initial_padding_state = data_in._pad_tensors
+                data_in._enable_padding()
 
         target_ds = data_in if overwrite else ds_out
 
@@ -176,6 +192,8 @@ class Pipeline:
             if overwrite:
                 original_data_in.storage.clear_cache_without_flush()
                 load_meta(original_data_in)
+                if pad_data_in and not initial_padding_state:
+                    original_data_in._disable_padding()
             else:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
