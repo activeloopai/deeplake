@@ -289,7 +289,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         Returns:
             Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
         """
-        out = self.__getitem__(index, return_row_index=True)
+        out = self.__getitem__(index, return_row_index=True)  # type: ignore
         chunk_ids = [out[i][0] for i in range(len(out))]
         rows = [out[i][1] for i in range(len(out))]
         if len(chunk_ids) > 1:  # tiled sample

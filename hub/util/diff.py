@@ -360,15 +360,14 @@ def get_tensor_changes_for_id(
 
 def combine_data_deleted(changes: Dict[str, Dict]):
     """Combines the data deleted list into a single list of tuples."""
-    data_deleted = []
     for change in changes.values():
-        data_deleted_list = change.get("data_deleted_list", [])
+        data_deleted: List[int] = []
+        data_deleted_list = change.pop("data_deleted_list", [])
         for deleted_list in reversed(data_deleted_list):
             for index in deleted_list:
                 offset = sum(i < index for i in data_deleted)
                 data_deleted.append(index + offset)
-    changes.pop("data_deleted_list", None)
-    changes["data_deleted"] = data_deleted
+        change["data_deleted"] = data_deleted
 
 
 def filter_data_updated(changes: Dict[str, Dict]):
