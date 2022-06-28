@@ -140,13 +140,6 @@ class Policy():
     self.transforms_lis = None
 
 
-  def initialize_loader(self, loader, tensor = "images" ):
-    self.loader = loader  
-    self.tensor = tensor
-    if isinstance(loader, Dataset):
-      self.loader = loader.pytorch()
-
-
   def get_policies(self, policy_name):
 
     if policy_name == "image net":
@@ -211,5 +204,15 @@ class Policy():
   #     sample[self.tensor] = torch.from_numpy(np.array(transformed_batch))
   #     yield sample
 
-  def return_dataloader(self, ds, batch_size = 1):
+
+
+  # def initialize_loader(self, loader, tensor = "images" ):
+  #   self.loader = loader  
+  #   self.tensor = tensor
+  #   if isinstance(loader, Dataset):
+  #     self.loader = loader.pytorch()
+
+
+  def return_dataloader(self, ds, tensor="images", batch_size = 1):
+    self.tensor = tensor
     return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample)
