@@ -111,7 +111,7 @@ class Augment():
 
 
 
-class Pipeline():
+class Augmenter():
   def __init__(self):
     self.pipe_dict = {}
     pass
