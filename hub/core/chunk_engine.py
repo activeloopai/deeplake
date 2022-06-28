@@ -1070,33 +1070,11 @@ class ChunkEngine:
             pass
         return True
 
-    def _is_tiled(self, row: int) -> bool:
-        """checkes whether the chunk is tiled or not
-
-        Args:
-            row (int): Represents the row of the chunk.
-
-        Returns:
-            bool: return true if the current chunk and previous/next row chunk have the same chunk index false otherwise.
-        """
-
-        arr = self.chunk_id_encoder.array
-        if row >= 1 and len(arr) > 1:
-            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row - 1][LAST_SEEN_INDEX_COLUMN]:
-                return True
-        if len(arr) > row + 1:
-            if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row + 1][LAST_SEEN_INDEX_COLUMN]:
-                return True
-        return False
-
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
         next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
         if next_chunk_id is None:
             return False
         next_chunk_row = row + 1
-        if self._is_tiled(next_chunk_row):
-            return False
-
         next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)  # type: ignore
         next_chunk_commit_id = self.get_chunk_commit(next_chunk_name)
         chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
@@ -1118,9 +1096,6 @@ class ChunkEngine:
             return False
 
         prev_chunk_row = row - 1
-        if self._is_tiled(prev_chunk_row):
-            return False
-
         prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)  # type: ignore
         prev_chunk_commit_id = self.get_chunk_commit(prev_chunk_name)
         prev_chunk_key = get_chunk_key(self.key, prev_chunk_name, prev_chunk_commit_id)

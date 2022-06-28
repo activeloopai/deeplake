@@ -619,10 +619,6 @@ class Tensor:
             and isinstance(item, int)
             and item >= self.num_samples
         ):
-            if self.is_sequence:
-                raise NotImplementedError(
-                    "Random assignment is not supported for sequences yet."
-                )
             num_samples_to_pad = item - self.num_samples
             append_link_callback = self._append_to_links if self.meta.links else None
 
