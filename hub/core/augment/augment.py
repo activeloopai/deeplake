@@ -185,16 +185,31 @@ class Policy():
       if probs[i] < policy[i][1]:
         image = run_transform(image, policy[i][0], policy[i][2])
     return image
+  
+
+  def run_policy_sample(self, sample):
+    image = sample[self.tensor]
+    num_policies = len(self.policy_set)
+    policy_id = np.random.randint(num_policies)
+    policy = self.policy_set[policy_id]
+    probs = np.random.rand(3)
+    for i in range(len(policy)):
+      if probs[i] < policy[i][1]:
+        image = run_transform(image, policy[i][0], policy[i][2])
+    sample[self.tensor] = image
+    return sample
     
 
-  def __iter__(self):
-    if self.loader == None:
-      raise Exception("Loader not initialized. ")
-    for _, sample in enumerate(self.loader):
-      images = sample[self.tensor]
-      transformed_batch = []
-      for i in range(images.shape[0]):
-        transformed_batch.append(self.run_policy(images[i].numpy()))
-      sample[self.tensor] = torch.from_numpy(np.array(transformed_batch))
-      yield sample
+  # def __iter__(self):
+  #   if self.loader == None:
+  #     raise Exception("Loader not initialized. ")
+  #   for _, sample in enumerate(self.loader):
+  #     images = sample[self.tensor]
+  #     transformed_batch = []
+  #     for i in range(images.shape[0]):
+  #       transformed_batch.append(self.run_policy(images[i].numpy()))
+  #     sample[self.tensor] = torch.from_numpy(np.array(transformed_batch))
+  #     yield sample
 
+  def return_dataloader(self, ds, batch_size = 1):
+    return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample)
