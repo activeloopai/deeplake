@@ -196,13 +196,12 @@ def test_pytorch_transform_dict(ds):
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
         ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+        ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = ds.pytorch(num_workers=0)
         return
-
     dl = ds.pytorch(
         num_workers=2, transform={"image": double, "image2": None}, batch_size=1
     )
