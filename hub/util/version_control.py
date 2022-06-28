@@ -18,6 +18,7 @@ from hub.core.lock import Lock
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_creds_encoder_key,
     get_sequence_encoder_key,
     get_dataset_diff_key,
     get_dataset_info_key,
@@ -257,6 +258,15 @@ def copy_metas(
             pass
 
         try:
+            src_creds_encoder_key = get_creds_encoder_key(tensor, src_commit_id)
+            dest_creds_encoder_key = get_creds_encoder_key(tensor, dest_commit_id)
+            src_creds_encoder = storage[src_creds_encoder_key]
+            dest_creds_encoder = convert_to_bytes(src_creds_encoder)
+            storage[dest_creds_encoder_key] = dest_creds_encoder
+        except KeyError:
+            pass
+
+        try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
@@ -474,7 +484,7 @@ def current_commit_has_info_modified(
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
         dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
-        if dataset_diff.info_modified:
+        if dataset_diff.info_updated:
             return True
     except KeyError:
         pass
@@ -483,7 +493,7 @@ def current_commit_has_info_modified(
         try:
             tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
-            if tensor_diff.info_modified:
+            if tensor_diff.info_updated:
                 return True
         except KeyError:
             pass

@@ -14,6 +14,7 @@ from hub.core.storage import (
 )
 from hub.client.client import HubBackendClient
 import posixpath
+from hub.constants import DEFAULT_READONLY
 
 
 def storage_provider_from_path(
@@ -51,7 +52,7 @@ def storage_provider_from_path(
         secret = creds.get("aws_secret_access_key")
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
-        region = creds.get("region")
+        region = creds.get("aws_region")
         profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
             path,
@@ -95,10 +96,16 @@ def storage_provider_from_hub_path(
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
 
-    if not read_only and mode == "r":
-        # warns user about automatic mode change
-        print("Opening dataset in read-only mode as you don't have write permissions.")
+    if mode == "r":
         read_only = True
+        if read_only is None and not DEFAULT_READONLY:
+            # warns user about automatic mode change
+            print(
+                "Opening dataset in read-only mode as you don't have write permissions."
+            )
+
+    if read_only is None:
+        read_only = DEFAULT_READONLY
 
     url = posixpath.join(url, subdir)
 

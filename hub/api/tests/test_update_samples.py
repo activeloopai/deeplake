@@ -102,8 +102,8 @@ def test(local_ds_generator, compression):
 
     # update single sample
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
-    )  # same shape (with 1)
+        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
+    )  # same shape
     _make_update_assert_equal(
         gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
     )  # same shape
@@ -111,8 +111,8 @@ def test(local_ds_generator, compression):
         gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
     )  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
-    )  # new shape (with 1)
+        gen, "images", 0, np.ones((32, 32), dtype="uint8") * 5
+    )  # new shape
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype="uint8")
     )  # empty sample (new shape)
@@ -164,7 +164,7 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     ds.images[0] = hub.read(cat_path)
     np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
 
-    ds.images[1] = [hub.read(flower_path)]
+    ds.images[1] = hub.read(flower_path)
     np.testing.assert_array_equal(ds.images[1].numpy(), hub.read(flower_path).array)
 
     ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
@@ -237,7 +237,9 @@ def test_failures(memory_ds):
 
 
 def test_warnings(memory_ds):
-    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
+    tensor = memory_ds.create_tensor(
+        "tensor", max_chunk_size=8 * KB, tiling_threshold=4 * KB
+    )
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 

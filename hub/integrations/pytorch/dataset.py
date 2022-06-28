@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Sequence, List, Union
+from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
 
@@ -34,16 +34,8 @@ import hub
 mp = torch.multiprocessing.get_context()
 
 
-def process(inp):
-    if isinstance(inp, torch.Tensor):
-        return inp.clone().detach()
-    elif isinstance(inp, dict):
-        return {k: process(v) for k, v in inp.items()}
-    elif isinstance(inp, Sequence):
-        return [process(v) for v in inp]
-    raise ValueError(
-        f"Expected input of type Tensor, dict or Sequence, got: {type(inp)}"
-    )
+def identity(x):
+    return x
 
 
 def use_scheduler(num_workers: int, ensure_order: bool):
@@ -408,6 +400,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 
@@ -438,6 +431,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
 
         self.shuffle: bool = shuffle
         self.buffer_size: int = buffer_size * MB
+        self.return_index: bool = return_index
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -451,6 +445,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             tensors=self.tensors,
             tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
+            return_index=self.return_index,
         )
 
         if self.shuffle:
@@ -476,6 +471,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 1,
+        return_index: bool = True,
     ) -> None:
         super().__init__()
 
@@ -487,6 +483,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             transform,
             num_workers=num_workers,
             shuffle=True,
+            return_index=return_index,
         )
 
         self.num_workers = num_workers
@@ -503,7 +500,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=collate_fn,
+            collate_fn=identity,
         )
 
         it = iter(sub_loader)
@@ -511,25 +508,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         try:
             while True:
                 next_batch = next(it)
-                if isinstance(next_batch, dict):
-                    batch_keys = list(next_batch.keys())
-                    vals = (
-                        IterableOrderedDict(
-                            {k: process(next_batch[k][i]) for k in batch_keys}
-                        )
-                        for i in range(len(next_batch[batch_keys[0]]))
-                    )
-                elif isinstance(next_batch, Sequence):
-                    num_samples = len(next_batch[0])
-                    vals = (
-                        [process(next_batch[i][j]) for i in range(len(next_batch))]
-                        for j in range(num_samples)
-                    )
-                else:
-                    raise ValueError(
-                        f"Expected input of type dict or Sequence, got: {type(next_batch)}"
-                    )
-                for val in vals:
+                for val in next_batch:
                     if buffer is not None:
                         result = buffer.exchange(val)
                         if result:

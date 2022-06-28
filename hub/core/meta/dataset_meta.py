@@ -1,5 +1,6 @@
 from typing import Any, Dict
 from hub.core.meta.meta import Meta
+from hub.core.index import Index
 import posixpath
 
 
@@ -10,6 +11,7 @@ class DatasetMeta(Meta):
         self.groups = []
         self.tensor_names = {}
         self.hidden_tensors = []
+        self.default_index = Index().to_json()
 
     @property
     def visible_tensors(self):
@@ -31,6 +33,7 @@ class DatasetMeta(Meta):
         d["groups"] = self.groups
         d["tensor_names"] = self.tensor_names
         d["hidden_tensors"] = self.hidden_tensors
+        d["default_index"] = self.default_index
         return d
 
     def add_tensor(self, name, key, hidden=False):

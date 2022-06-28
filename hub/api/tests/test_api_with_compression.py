@@ -11,7 +11,6 @@ from hub.util.exceptions import (
 import pytest
 from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_images_close
-from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
@@ -37,7 +36,11 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
 def test_populate_compressed_samples(local_ds, cat_path, flower_path):
     images = local_ds.create_tensor(
-        TENSOR_KEY, htype="image", sample_compression="png", max_chunk_size=2 * MB
+        TENSOR_KEY,
+        htype="image",
+        sample_compression="png",
+        max_chunk_size=2 * MB,
+        tiling_threshold=1 * MB,
     )
 
     assert images.meta.dtype == "uint8"
@@ -179,7 +182,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
     chunk_size = 600 * KB
     with ds:
         images = ds.create_tensor(
-            "images", htype="image", chunk_compression="jpg", max_chunk_size=chunk_size
+            "images",
+            htype="image",
+            chunk_compression="jpg",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         images.extend([hub.read(cat_path)] * im_ct)
         expected_arr = np.random.randint(0, 10, (500, 450, 3)).astype("uint8")
@@ -194,7 +201,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             assert_images_close(img.numpy(), expected_img)
     with ds:
         images = ds.create_tensor(
-            "images2", htype="image", chunk_compression="png", max_chunk_size=chunk_size
+            "images2",
+            htype="image",
+            chunk_compression="png",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         images.extend([hub.read(flower_path)] * im_ct)
         expected_arr = np.random.randint(0, 256, (200, 250, 4)).astype("uint8")
@@ -209,7 +220,10 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             assert_images_close(img.numpy(), expected_img)
     with ds:
         labels = ds.create_tensor(
-            "labels", chunk_compression="lz4", max_chunk_size=chunk_size
+            "labels",
+            chunk_compression="lz4",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         data = [
             np.random.randint(0, 256, (150, 150)).astype("uint8") for _ in range(20)

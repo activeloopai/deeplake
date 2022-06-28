@@ -20,11 +20,7 @@ from hub.constants import (
 from hub.compression import (
     COMPRESSION_ALIASES,
 )
-from hub.htype import (
-    HTYPE_CONFIGURATIONS,
-    DEFAULT_HTYPE,
-    HTYPE_SUPPORTED_COMPRESSIONS,
-)
+from hub.htype import HTYPE_CONFIGURATIONS, HTYPE_SUPPORTED_COMPRESSIONS, htype as HTYPE
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
 from hub.core.tensor_link import get_link_transform
@@ -64,10 +60,10 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-        if htype and htype not in [UNSPECIFIED, DEFAULT_HTYPE]:
+        if htype and htype not in [UNSPECIFIED, HTYPE.DEFAULT]:
             self.set_htype(htype, **kwargs)
         else:
-            self.set_htype(DEFAULT_HTYPE, **kwargs)
+            self.set_htype(HTYPE.DEFAULT, **kwargs)
             self.htype = None  # type: ignore
 
     def add_link(

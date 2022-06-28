@@ -67,20 +67,21 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         """Decrease sample count from encoder
 
         Args:
-            row (int): shows the row of the chunk
-            num_samples (int): show sample count that needs to be updated
+            row (int): row of the chunk
+            num_samples (int): number of samples to be reduced
 
         Raises:
             OutOfSampleCountError: when num_samples are exeeding sample count
             OutOfChunkCountError: When the row is out of chunk bounds
         """
-        if self.num_samples < num_samples:
-            raise OutOfSampleCountError
+        if self.num_samples_at(row) < num_samples:
+            raise OutOfSampleCountError()
 
         if self.num_chunks < row + 1:
-            raise OutOfChunkCountError
+            raise OutOfChunkCountError()
 
         self._encoded[row][LAST_SEEN_INDEX_COLUMN] -= num_samples
+
         self.is_dirty = True
 
     def delete_chunk_id(self, row):
@@ -118,18 +119,18 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         id = generate_id(ENCODING_DTYPE)
         if register:
             if self.num_samples == 0:
+                assert row is None
                 self._encoded = np.array([[id, -1]], dtype=ENCODING_DTYPE)
 
             else:
-                if row is not None:
-                    if row > self.num_chunks:
-                        raise OutOfChunkCountError
+                if row is not None and row < self.num_chunks:
                     new_entry = np.array(
                         [id, self._encoded[row][LAST_SEEN_INDEX_COLUMN]]
                     )
                     self._encoded = np.insert(self._encoded, row + 1, new_entry, axis=0)
                     return id
-
+                if row is not None and row != self.num_chunks:
+                    raise OutOfChunkCountError()
                 last_index = self.num_samples - 1
 
                 new_entry = np.array(
@@ -145,7 +146,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         Args:
             num_samples (int): The number of samples the last chunk ID should have added to it's registration.
-            row (Optional[int]): The row of chunk in which need to register the samples
+            row (int, Optional): The row of chunk to register the samples in.
 
         Raises:
             ValueError: `num_samples` should be non-negative.

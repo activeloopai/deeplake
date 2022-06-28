@@ -21,16 +21,16 @@ UNSPECIFIED = "unspecified"
 SUPPORTED_MODES = ["r", "a"]
 
 # used to show chunk size
-RANDOM_CHUNK_SIZE = 16 * MB
+RANDOM_CHUNK_SIZE = 8 * MB
 # used to show variation between normal chunk size and maximum chunk size
-RANDOM_MINIMAL_CHUNK_SIZE = 3 * MB
+RANDOM_MINIMAL_CHUNK_SIZE = 2 * MB
 # used to show maximum chunk size allowed to have during random update operation
 RANDOM_MAX_ALLOWED_CHUNK_SIZE = RANDOM_CHUNK_SIZE + RANDOM_MINIMAL_CHUNK_SIZE
 
 # min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
-DEFAULT_MAX_CHUNK_SIZE = 32 * MB
+DEFAULT_MAX_CHUNK_SIZE = 8 * MB
 
-DEFAULT_TILING_THRESHOLD = None  # Note: set to -1 to disable tiling
+DEFAULT_TILING_THRESHOLD = 16 * MB  # Note: set to -1 to disable tiling
 
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
@@ -121,7 +121,7 @@ VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
-LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_FILENAME = "linked_creds.json"
 LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
 
 
@@ -139,8 +139,10 @@ PARTIAL_NUM_SAMPLES = 0.5
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+
 _ENABLE_HUB_SUB_DATASETS = False
-_ENABLE_RANDOM_ASSIGNMENT = False
+_ENABLE_RANDOM_ASSIGNMENT = True
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
