@@ -115,12 +115,12 @@ class Augmenter():
   def __init__(self):
     self.pipe_dict = {}
     pass
-  def add_step(self, input_tensors , pipe):
+  def add_step(self, input_tensors , step_transform):
     for tensor in input_tensors:
       if tensor not in self.pipe_dict.keys():
-        self.pipe_dict[tensor] = [pipe]
+        self.pipe_dict[tensor] = [step_transform]
       else:
-        self.pipe_dict[tensor].append(pipe)
+        self.pipe_dict[tensor].append(step_transform)
   
   def augment(self, loader, batch_size=1):
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
