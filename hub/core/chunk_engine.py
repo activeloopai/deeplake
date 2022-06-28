@@ -1742,7 +1742,7 @@ class ChunkEngine:
             fetch_chunks=fetch_chunks,
             pad_tensor=pad_tensor,
         )
-        if arr.size == 0:
+        if isinstance(arr, np.ndarray) and arr.size == 0:
             return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             if aslist:
