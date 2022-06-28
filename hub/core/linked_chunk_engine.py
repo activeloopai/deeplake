@@ -223,3 +223,7 @@ class LinkedChunkEngine(ChunkEngine):
             raise ValueError(
                 f"Creds keys {missing_used_keys} are used in the data but not populated. Please populate the dataset using ds.populate_creds()."
             )
+
+    def pop_item(self, index):
+        self.creds_encoder.pop(index)
+        return super().pop_item(index)
