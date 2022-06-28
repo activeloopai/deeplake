@@ -744,12 +744,13 @@ class Encoder(ABC):
         _, row = self.__getitem__(index, return_row_index=True)
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
+        if num_samples_in_row == 0:
+            raise IndexError("pop from empty encoder")
+        self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
+
+        # after subtracting 1, the row is now empty
         if num_samples_in_row == 1:
             np.delete(self._encoded, row, axis=0)
-        elif num_samples_in_row > 1:
-            self._encoded[row, LAST_SEEN_INDEX_COLUMN] -= 1
-        else:
-            raise IndexError("pop from empty encoder")
         self.is_dirty = True
 
     def is_empty(self) -> bool:
