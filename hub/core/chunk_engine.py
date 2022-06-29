@@ -1626,6 +1626,11 @@ class ChunkEngine:
         else:
             self.pop_item(index)
 
+        if self.num_samples == 0:
+            self.tensor_meta.min_shape = []
+            self.tensor_meta.max_shape = []
+            self.tensor_meta.is_dirty = True
+
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
