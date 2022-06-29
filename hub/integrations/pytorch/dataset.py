@@ -401,6 +401,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         shuffle: bool = False,
         buffer_size: int = 0,
         return_index: bool = True,
+        pad_tensors: bool = False,
     ) -> None:
         super().__init__()
 
@@ -408,6 +409,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.transform = transform
         self.tensors = tensors
         self.tobytes = tobytes
+        self.pad_tensors = pad_tensors
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
@@ -423,6 +425,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             tensors=self.tensors,  # type: ignore
             tobytes=self.tobytes,
             use_local_cache=use_local_cache,
+            pad_tensors=self.pad_tensors,
         )
 
         self.schedules: List[Schedule] = self.scheduler.schedule(
@@ -446,6 +449,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
             return_index=self.return_index,
+            pad_tensors=self.pad_tensors,
         )
 
         if self.shuffle:
@@ -472,6 +476,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         buffer_size: int = 512,
         batch_size: int = 1,
         return_index: bool = True,
+        pad_tensors: bool = False,
     ) -> None:
         super().__init__()
 
@@ -484,6 +489,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
+            pad_tensors=pad_tensors,
         )
 
         self.num_workers = num_workers

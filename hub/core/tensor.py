@@ -246,11 +246,15 @@ class Tensor:
         else:
             self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
-        if not self.is_iteration:
+        if not self.pad_tensor and not self.is_iteration:
             self.index.validate(self.num_samples)
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+
+    @property
+    def pad_tensor(self):
+        return self.dataset._pad_tensors
 
     def _write_initialization(self):
         self.storage.check_readonly()
@@ -666,7 +670,10 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         return self.chunk_engine.numpy(
-            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+            self.index,
+            aslist=aslist,
+            fetch_chunks=fetch_chunks,
+            pad_tensor=self.pad_tensor,
         )
 
     def summary(self):

@@ -294,6 +294,7 @@ def add_cache_to_dataset_slice(
         token=dataset_slice.token,
         verbose=False,
         link_creds=dataset_slice.link_creds,
+        pad_tensors=dataset_slice._pad_tensors,
     )
     dataset_slice.checkout(commit_id)
     return dataset_slice
