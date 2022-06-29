@@ -1675,21 +1675,12 @@ class ChunkEngine:
             chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
             chunk_to_update.pop(index)
         if delete:
-            active_chunks = [self.active_appended_chunk, self.active_updated_chunk]
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                for i, chunk in enumerate(active_chunks):
-                    if chunk is not None and chunk.key == chunk_key:
-                        active_chunks[i] = None
-                        if i == 0:
-                            self.active_appended_chunk = None
-                        else:
-                            self.active_updated_chunk = None
-                        try:
-                            del self.cache[chunk_key]
-                        except KeyError:
-                            pass
-                    else:
-                        del self.cache[chunk_key]
+                self.check_remove_active_chunks(chunk_key)
+                try:
+                    del self.cache[chunk_key]
+                except KeyError:
+                    pass
 
         self.tensor_meta.pop(index)
 
@@ -2112,3 +2103,15 @@ class ChunkEngine:
             ndim += 1
         shape = (0,) * ndim
         return np.ones(shape, dtype=dtype)
+
+    def check_remove_active_chunks(self, chunk_key):
+        if (
+            self.active_appended_chunk is not None
+            and self.active_appended_chunk.key == chunk_key
+        ):
+            self.active_appended_chunk = None
+        if (
+            self.active_updated_chunk is not None
+            and self.active_updated_chunk.key == chunk_key
+        ):
+            self.active_updated_chunk = None

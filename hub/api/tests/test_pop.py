@@ -38,6 +38,12 @@ def test_multiple(local_ds_generator):
     assert len(ds) == 6
     np.testing.assert_array_equal(ds.xyz[5].numpy(), 20 * np.ones((20, 20)))
 
+    for i in range(6):
+        ds.xyz.pop(0)
+    assert len(ds) == 0
+    assert ds.xyz.meta.max_shape == []
+    assert ds.xyz.meta.min_shape == []
+
 
 def test_link_pop(local_ds_generator, cat_path, flower_path):
     with local_ds_generator() as ds:
