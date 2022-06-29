@@ -1433,11 +1433,7 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
-<<<<<<< HEAD
         ret = fn(
-=======
-        result = fn(
->>>>>>> f0f3cdc96602a72afdda741c4a55e40bbcb4c746
             self,
             function,
             num_workers=num_workers,
@@ -1447,12 +1443,8 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
-<<<<<<< HEAD
         dataset_read(self)
         return ret
-=======
-        return result
->>>>>>> f0f3cdc96602a72afdda741c4a55e40bbcb4c746
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
