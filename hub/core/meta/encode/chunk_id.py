@@ -293,7 +293,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         chunk_ids = [out[i][0] for i in range(len(out))]
         rows = [out[i][1] for i in range(len(out))]
         if len(chunk_ids) > 1:  # tiled sample
-            np.delete(self._encoded, rows, axis=0)
+            self._encoded = np.delete(self._encoded, rows, axis=0)
             to_delete = True
         else:
             row = rows[0]
@@ -301,7 +301,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             num_samples_in_chunk = self.array[row][LAST_SEEN_INDEX_COLUMN] - prev
 
             if num_samples_in_chunk == 1:
-                np.delete(self._encoded, row, axis=0)
+                self._encoded = np.delete(self._encoded, row, axis=0)
                 to_delete = True
             elif num_samples_in_chunk > 1:
                 self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
