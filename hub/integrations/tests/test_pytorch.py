@@ -10,7 +10,7 @@ from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gdrive_datasets
+from hub.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -732,3 +732,17 @@ def test_indexes_tensors(local_ds, shuffle, num_workers):
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
+
+
+def test_uneven_iteration(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        ptds = ds.pytorch()
+        for i, batch in enumerate(ptds):
+            x, y = np.array(batch["x"][0]), np.array(batch["y"][0])
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)

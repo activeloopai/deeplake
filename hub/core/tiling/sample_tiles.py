@@ -107,7 +107,7 @@ class SampleTiles:
         )
         return get_tile_shape(
             self.sample_shape,
-            np.prod(np.array(self.sample_shape, dtype=np.uint64))
+            np.prod(np.array(self.sample_shape, dtype=np.uint64))  # type: ignore
             * np.dtype(dtype).itemsize
             * get_compression_ratio(compression),
             chunk_size,

@@ -30,7 +30,7 @@ from hub.util.keys import (
     get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
-from hub.util.numeric_to_text import numeric_to_text
+from hub.util.class_label import convert_to_text
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -238,11 +238,15 @@ class Tensor:
         else:
             self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
-        if not self.is_iteration:
+        if not self.pad_tensor and not self.is_iteration:
             self.index.validate(self.num_samples)
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+
+    @property
+    def pad_tensor(self):
+        return self.dataset._pad_tensors
 
     def _write_initialization(self):
         self.storage.check_readonly()
@@ -608,6 +612,10 @@ class Tensor:
             and isinstance(item, int)
             and item >= self.num_samples
         ):
+            if self.is_sequence:
+                raise NotImplementedError(
+                    "Random assignment is not supported for sequences yet."
+                )
             num_samples_to_pad = item - self.num_samples
             append_link_callback = self._append_to_links if self.meta.links else None
 
@@ -655,9 +663,11 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        self.check_link_ready()
         ret = self.chunk_engine.numpy(
-            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+            self.index,
+            aslist=aslist,
+            fetch_chunks=fetch_chunks,
+            pad_tensor=self.pad_tensor,
         )
         dataset_read(self.dataset)
         return ret
@@ -770,7 +780,7 @@ class Tensor:
             data = {"numeric": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = numeric_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, self.info.class_names)
             return data
         else:
             return self.numpy(aslist=aslist)

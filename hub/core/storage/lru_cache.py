@@ -408,7 +408,7 @@ class LRUCache(StorageProvider):
         key_set = set()
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
-        key_set = key_set.union(self.cache_storage._all_keys())
+        key_set = set().union(key_set, self.cache_storage._all_keys())
         for path, obj in self.hub_objects.items():
             if obj.is_dirty:
                 key_set.add(path)

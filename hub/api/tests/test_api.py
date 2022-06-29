@@ -7,9 +7,8 @@ import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal
+from hub.tests.common import assert_array_lists_equal, is_opt_true
 from hub.tests.storage_fixtures import enabled_remote_storages
-from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     InvalidOperationError,
@@ -28,8 +27,9 @@ from hub.util.exceptions import (
     BadRequestException,
     ReadOnlyModeError,
 )
+from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
-from hub.constants import MB
+from hub.constants import GDRIVE_OPT, MB
 
 from click.testing import CliRunner
 
@@ -785,7 +785,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     new_path = "_".join([path, "renamed"])
 
     ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
-    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
+    new_path = convert_string_to_pathlib_if_needed(new_path, convert_to_pathlib)
 
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
@@ -799,7 +799,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
 
-    assert ds.path == new_path
+    assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     ds = hub.load(new_path, token=hub_token)
@@ -812,23 +812,15 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     "path,hub_token",
     [
         ["local_path", "hub_cloud_dev_token"],
-        ["s3_path", "hub_cloud_dev_token"],
-        ["gcs_path", "hub_cloud_dev_token"],
         ["hub_cloud_path", "hub_cloud_dev_token"],
     ],
     indirect=True,
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-@pytest.mark.parametrize("convert_to_pathlib", [True, False])
-def test_dataset_deepcopy(
-    path, hub_token, num_workers, progressbar, convert_to_pathlib
-):
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
-    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
-
     dest_path = "_".join((path, "dest"))
-    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
 
@@ -1341,10 +1333,10 @@ def test_ds_extend():
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = hub.dataset("mem://ds1")
     ds2 = hub.dataset("mem://ds2")
-    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
+    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB, tiling_threshold=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
-    ds2.create_tensor("y", **dest_args)
+    ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
@@ -1452,7 +1444,9 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
     assert memory_ds.images[2].shape == (323, 480, 3)
 
 
-def test_hub_remote_read_gdrive_root(memory_ds, gdrive_creds):
+def test_hub_remote_read_gdrive_root(request, memory_ds, gdrive_creds):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
     memory_ds.images.append(hub.read("gdrive://cat.jpeg", creds=gdrive_creds))
     assert memory_ds.images[0].shape == (900, 900, 3)
@@ -1728,17 +1722,6 @@ def test_partial_read_then_write(s3_ds_generator):
         ds.xyz[1] = 20 * np.ones((1000, 1000))
 
 
-def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
-    converted_path = pathlib.Path(path)
-    if (
-        convert_to_pathlib
-        and "//" not in path
-        and not isinstance(converted_path, pathlib.WindowsPath)
-    ):
-        return converted_path
-    return path
-
-
 def test_exist_ok(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -1761,7 +1744,35 @@ def verify_label_data(ds):
         ["airplane"],
         ["car"],
     ]
+    nested_text_labels = [
+        [["airplane", "boat", "car"], ["boat", "car", "person"]],
+        [["person", "car"], ["airplane", "bus"]],
+        [["airplane", "boat"], ["car", "person"]],
+    ]
     arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+    nested_arr = [
+        np.array([[0, 1, 2], [1, 2, 3]]),
+        np.array([[3, 2], [0, 4]]),
+        np.array([[0, 1], [2, 3]]),
+    ]
+
+    random_arr = np.array([[0, 1], [1, 2], [0, 1]])
+    random_text_labels = [["l1", "l2"], ["l2", "l3"], ["l1", "l2"]]
+
+    seq_arr = [
+        np.array([0, 1, 2]).reshape(3, 1),
+        [],
+        [],
+        np.array([1, 3]).reshape(2, 1),
+        np.array([0, 2]).reshape(2, 1),
+    ]
+    seq_text_labels = [
+        [["l1"], ["l2"], ["l3"]],
+        [],
+        [],
+        [["l2"], ["l4"]],
+        [["l1"], ["l3"]],
+    ]
 
     # abc
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
@@ -1780,6 +1791,35 @@ def verify_label_data(ds):
     np.testing.assert_array_equal(np_data, arr)
     np.testing.assert_array_equal(data["numeric"], np_data)
 
+    # nested
+    assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
+    np_data = ds.nested.numpy(aslist=True)
+    data = ds.nested.data(aslist=True)
+    assert set(data.keys()) == {"numeric", "text"}
+    for i in range(2):
+        np.testing.assert_array_equal(np_data[i], nested_arr[i])
+        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    assert data["text"] == nested_text_labels
+
+    # random
+    assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    np_data = ds.random.numpy()
+    data = ds.random.data()
+    assert set(data.keys()) == {"numeric", "text"}
+    np.testing.assert_array_equal(np_data, random_arr)
+    np.testing.assert_array_equal(data["numeric"], np_data)
+    assert data["text"] == random_text_labels
+
+    # seq
+    # assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    # np_data = ds.seq.numpy(aslist=True)
+    # data = ds.seq.data(aslist=True)
+    # assert set(data.keys()) == {"numeric", "text"}
+    # for i in range(4):
+    #     np.testing.assert_array_equal(np_data[i], seq_arr[i])
+    #     np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    # assert data["text"] == seq_text_labels
+
 
 def test_text_label(local_ds_generator):
     with local_ds_generator() as ds:
@@ -1794,6 +1834,30 @@ def test_text_label(local_ds_generator):
         ds.xyz.append(1)
         ds.xyz.append(0)
         ds.xyz.extend([2, 0, 0, 2])
+
+        ds.create_tensor("nested", htype="class_label")
+        ds.nested.append([[0, 1, 2], [1, 2, 3]])
+        ds.nested.info.class_names = ["airplane", "boat", "car"]
+        ds.nested.extend([[["person", 2], ["airplane", "bus"]], [[0, 1], ["car", 3]]])
+
+        temp = hub.constants._ENABLE_RANDOM_ASSIGNMENT
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+
+        ds.create_tensor("random", htype="class_label")
+        ds.random[0] = ["l1", "l2"]
+        ds.random[1] = ["l2", "l3"]
+        ds.random[2] = ["l2", "l4"]
+        ds.random[2] = ["l1", "l2"]
+
+        ds.create_tensor("seq", htype="sequence[class_label]")
+        ds.seq.append(["l1", "l2", "l3"])
+        with pytest.raises(NotImplementedError):
+            ds.seq[3] = ["l2", "l4"]
+            ds.seq.append(["l3", "l1"])
+            ds.seq[4] = ["l1", "l3"]
+
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = temp
+
         verify_label_data(ds)
 
     ds = local_ds_generator()
@@ -1839,3 +1903,24 @@ def test_uneven_view(memory_ds):
         np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy().squeeze())
         with pytest.raises(IndexError):
             np.testing.assert_equal(np.arange(0, 10, 2), view.y.numpy().squeeze())
+
+
+def test_uneven_iteration(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        ds._enable_padding()
+        assert len(ds) == 10
+        for i in range(10):
+            x, y = ds[i].x.numpy(), ds[i].y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
+
+        for i, dsv in enumerate(ds):
+            x, y = dsv.x.numpy(), dsv.y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
