@@ -262,15 +262,16 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
             )
-        dataset_created(path)
         read_only = storage.read_only
-        return dataset_factory(
+        ret = dataset_factory(
             path=path,
             storage=cache_chain,
             read_only=read_only,
             public=public,
             token=token,
         )
+        dataset_created(ret)
+        return ret
 
     @staticmethod
     def load(
