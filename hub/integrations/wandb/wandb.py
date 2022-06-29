@@ -78,7 +78,7 @@ def dataset_written(ds):
             wandb_info["created-by"] = {
                 "run": {
                     "entity": run.entity,
-                    "project": run.prject,
+                    "project": run.project,
                     "id": run.id,
                     "url": run.url,
                 },
