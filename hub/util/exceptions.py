@@ -736,5 +736,5 @@ class ManagedCredentialsNotFoundError(Exception):
 
 
 class EmptyTensorInTheDatasetError(Exception):
-    def __init__(self):
-        super().__init__("At least one of the tensors in the dataset is empty")
+    def __init__(self, tensor_name):
+        super().__init__(f"The tensor {tensor_name} is empty.")

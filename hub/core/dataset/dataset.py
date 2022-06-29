@@ -1394,7 +1394,7 @@ class Dataset:
         # check whether we have an empty tensor inside of tensors
         for tensor_name in self.tensors.keys():
             if len(self.tensors[tensor_name]) == 0:
-                raise EmptyTensorInTheDatasetError
+                raise EmptyTensorInTheDatasetError(tensor_name)
 
         dataloader = to_pytorch(
             self,
