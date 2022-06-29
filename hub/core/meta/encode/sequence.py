@@ -25,5 +25,5 @@ class SequenceEncoder(BytePositionsEncoder, HubMemoryObject):
         )
 
     def pop(self, index):
-        super().pop(index)
         self.is_dirty = True
+        super().pop(index)
