@@ -1574,8 +1574,8 @@ class ChunkEngine:
             List[BaseChunk]: BaseChunk objects that contains `global_sample_index`.
         """
         return [
-            self.get_chunk_from_chunk_id(idx, copy)
-            for idx in self.chunk_id_encoder[global_sample_index]
+            self.get_chunk_from_chunk_id(chunk_id, copy)
+            for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
 
     def validate_num_samples_is_synchronized(self):
