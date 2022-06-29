@@ -1,4 +1,4 @@
-from hub.utils.tag import process_hub_path
+from hub.util.tag import process_hub_path
 from hub.hooks import (
     add_create_dataset_hook,
     add_load_dataset_hook,
