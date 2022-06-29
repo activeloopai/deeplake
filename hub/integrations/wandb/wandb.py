@@ -82,7 +82,7 @@ def dataset_written(ds):
                     "id": run.id,
                     "url": run.url,
                 },
-                "artifact": artifact,
+                "artifact": artifact_name,
             }
             ds.info["wandb"] = wandb_info
             ds.flush()
