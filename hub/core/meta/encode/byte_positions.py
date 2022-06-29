@@ -94,7 +94,7 @@ class BytePositionsEncoder(Encoder):
         if num_samples_in_row == 0:
             raise IndexError("pop from empty encoder")
         self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
-        self._encoded[row:, START_BYTE_COLUMN] -= num_bytes
+        self._encoded[row + 1 :, START_BYTE_COLUMN] -= num_bytes
 
         # after subtracting 1, the row is now empty
         if num_samples_in_row == 1:
