@@ -35,7 +35,7 @@ class LinkedChunkEngine(ChunkEngine):
         self._creds_encoder_commit_id: Optional[str] = None
 
     @property
-    def creds_encoder(self):
+    def creds_encoder(self) -> CredsEncoder:
         commit_id = self.commit_id
         if self._creds_encoder is None or self._creds_encoder_commit_id != commit_id:
             commit_id = self.commit_id
