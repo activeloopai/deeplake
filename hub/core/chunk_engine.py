@@ -1614,6 +1614,7 @@ class ChunkEngine:
 
     def pop(self, index):
         self._write_initialization()
+        self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
