@@ -482,9 +482,10 @@ class BaseChunk(HubMemoryObject):
         self.prepare_for_write()
         sb, eb = self.byte_positions_encoder[index]
         self.data_bytes = self.data_bytes[:sb] + self.data_bytes[eb:]
-        if not self.shapes_encoder.is_empty:
+        if not self.shapes_encoder.is_empty():
             self.shapes_encoder.pop(index)
-        self.byte_positions_encoder.pop(index)
+        if not self.byte_positions_encoder.is_empty():
+            self.byte_positions_encoder.pop(index)
 
     def _fill_empty_shapes(self, shape, num_samples):
         dims = len(shape)

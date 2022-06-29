@@ -29,6 +29,3 @@ class ShapeEncoder(Encoder):
     ) -> bool:
         last_shape = self._derive_value(self._encoded[compare_row_index])
         return shape == last_shape
-
-    def pop(self, index):
-        return super()._pop()

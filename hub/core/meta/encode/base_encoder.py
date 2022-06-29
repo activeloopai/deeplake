@@ -750,7 +750,7 @@ class Encoder(ABC):
 
         # after subtracting 1, the row is now empty
         if num_samples_in_row == 1:
-            np.delete(self._encoded, row, axis=0)
+            self._encoded = np.delete(self._encoded, row, axis=0)
         self.is_dirty = True
 
     def is_empty(self) -> bool:
