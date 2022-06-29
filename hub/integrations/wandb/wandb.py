@@ -87,6 +87,7 @@ def dataset_written(ds):
             ds.info["wandb"] = wandb_info
             ds.flush()
             _CREATED_DATASETS.remove(path)
+            run.log_artifact(artifact)
     else:
         _CREATED_DATASETS.discard(path)
 
