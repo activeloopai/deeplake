@@ -63,7 +63,7 @@ def dataset_written(ds):
             else:
                 if path not in output_datasets:
                     output_datasets.append(path)
-                    run.config.input_datasets = output_datasets
+                    run.config.output_datasets = output_datasets
         if path in _CREATED_DATASETS:
             if not path.startswith("hub://"):
                 orig_path = path
