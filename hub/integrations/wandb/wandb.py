@@ -133,17 +133,17 @@ def dataset_read(ds):
 
 
 def viz_html(hub_path: str):
-    return f"""
-      <div id='container'></div>
-  <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-  <script>
-    let container = document.getElementById('container')
+#     return f"""
+#       <div id='container'></div>
+#   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+#   <script>
+#     let container = document.getElementById('container')
 
-    window.vis.visualize('{hub_path}', null, null, container, {{
-      requireSignin: true
-    }})
-  </script>
-    """
+#     window.vis.visualize('{hub_path}', null, null, container, {{
+#       requireSignin: true
+#     }})
+#   </script>
+#     """
     return f"""<iframe width=800 height=500 sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
