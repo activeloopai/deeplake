@@ -949,7 +949,7 @@ class Tensor:
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
         self.chunk_engine.pop(index)
-        [self.dataset[link].pop() for link in self.meta.links]
+        [self.dataset[link].pop(index) for link in self.meta.links]
 
     @property
     def timestamp(self) -> np.ndarray:
