@@ -202,6 +202,7 @@ def test_pytorch_transform_dict(ds):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = ds.pytorch(num_workers=0)
         return
+
     dl = ds.pytorch(
         num_workers=2, transform={"image": double, "image2": None}, batch_size=1
     )
