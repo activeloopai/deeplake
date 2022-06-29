@@ -128,7 +128,7 @@ def dataset_read(ds):
             wandb_info = ds.info.get("wandb")
             if wandb_info:
                 run_and_artifact = wandb_info["created-by"]
-                run_info = wandb_info["run"]
+                run_info = run_and_artifact["run"]
                 artifact = run_and_artifact["artifact"]
                 run.use_artifact(
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
