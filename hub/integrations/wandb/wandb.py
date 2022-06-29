@@ -1,3 +1,4 @@
+from hub.utils.tag import process_hub_path
 from hub.hooks import (
     add_create_dataset_hook,
     add_load_dataset_hook,
@@ -69,7 +70,8 @@ def dataset_written(ds):
                 path = "hub://" + path
             else:
                 orig_path = path
-            artifact_name = f"Hub Dataset [{orig_path}]"
+            _, org, ds_name, _ = process_hub_path(orig_path)
+            artifact_name = f"hub-{org}-{ds_name}"
             artifact = wandb.Artifact(artifact_name, "dataset")
             artifact.add_reference(path, name="url")
             wandb_info = ds.info.get("wandb") or {}
