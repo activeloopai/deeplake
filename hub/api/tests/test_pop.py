@@ -44,6 +44,17 @@ def test_multiple(local_ds_generator):
     assert ds.xyz.meta.max_shape == []
     assert ds.xyz.meta.min_shape == []
 
+    ds = local_ds_generator()
+    assert len(ds) == 0
+    assert ds.xyz.meta.max_shape == []
+    assert ds.xyz.meta.min_shape == []
+
+    with ds:
+        ds.xyz.append(30 * np.ones((30, 30)))
+
+    assert len(ds) == 1
+    np.testing.assert_array_equal(ds.xyz[0].numpy(), 30 * np.ones((30, 30)))
+
 
 def test_link_pop(local_ds_generator, cat_path, flower_path):
     with local_ds_generator() as ds:
@@ -62,3 +73,18 @@ def test_link_pop(local_ds_generator, cat_path, flower_path):
 
     ds.xyz.append(hub.link(cat_path))
     assert ds.xyz[9].numpy().shape == ds.xyz[9].shape == (900, 900, 3)
+
+
+def test_tiling_pop(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("xyz")
+        ds.xyz.append(np.ones((1000, 1000, 3)))
+        ds.xyz.append(2 * np.ones((2000, 2000, 3)))
+        ds.xyz.append(3 * np.ones((3000, 3000, 3)))
+        ds.xyz.pop(1)
+        assert len(ds.xyz) == 2
+
+        assert ds.xyz[0].numpy().shape == ds.xyz[0].shape == (1000, 1000, 3)
+        np.testing.assert_array_equal(ds.xyz[0].numpy(), np.ones((1000, 1000, 3)))
+        assert ds.xyz[1].numpy().shape == ds.xyz[1].shape == (3000, 3000, 3)
+        np.testing.assert_array_equal(ds.xyz[1].numpy(), 3 * np.ones((3000, 3000, 3)))

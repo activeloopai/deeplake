@@ -293,6 +293,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
         chunk_ids = [out[i][0] for i in range(len(out))]
         rows = [out[i][1] for i in range(len(out))]
         if len(chunk_ids) > 1:  # tiled sample
+            self._encoded[rows[-1] + 1 :, LAST_SEEN_INDEX_COLUMN] -= 1
             self._encoded = np.delete(self._encoded, rows, axis=0)
             to_delete = True
         else:

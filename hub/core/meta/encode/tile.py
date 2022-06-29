@@ -28,6 +28,11 @@ class TileEncoder(HubMemoryObject):
 
     def __delitem__(self, global_sample_index: int):
         del self.entries[global_sample_index]
+        keys = sorted(self.entries.keys())
+        for k in keys:
+            if k > global_sample_index:
+                self.entries[k - 1] = self.entries[k]
+                del self.entries[k]
         self.is_dirty = True
 
     def __getitem__(self, global_sample_index: int):
