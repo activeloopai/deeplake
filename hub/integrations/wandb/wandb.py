@@ -54,7 +54,7 @@ def dataset_written(ds):
                     run.log(
                         {
                             f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
-                                viz_html(path), False
+                                viz_html(path), True
                             )
                         }
                     )
