@@ -239,7 +239,7 @@ def has_change(change: Dict):
     num_samples_added = data_added[1] - data_added[0]
     data_updated = change.get("data_updated", set())
     info_updated = change.get("info_updated", False)
-    data_deleted = change.get("data_deleted", [])
+    data_deleted = change.get("data_deleted", set())
     return (
         created
         or cleared
@@ -369,20 +369,19 @@ def get_tensor_changes_for_id(
 def combine_data_deleted(changes: Dict[str, Dict]):
     """Combines the data deleted list into a single list of tuples."""
     for change in changes.values():
-        data_deleted: List[int] = []
+        data_deleted: Set[int] = set()
         data_deleted_list = change.pop("data_deleted_list", [])
         for deleted_list in reversed(data_deleted_list):
             for index in deleted_list:
                 offset = sum(i < index for i in data_deleted)
-                data_deleted.append(index + offset)
-        data_deleted.sort()
+                data_deleted.add(index + offset)
         change["data_deleted"] = data_deleted
 
 
 def filter_data_updated(changes: Dict[str, Dict]):
     """Removes the intersection of data added and data updated from data updated."""
     for change in changes.values():
-        deleted_data = set(change.get("data_deleted", []))
+        deleted_data = set(change.get("data_deleted", set()))
         # only show the elements in data_updated that are not in data_added
         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
         upd = {
