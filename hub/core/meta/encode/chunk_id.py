@@ -287,7 +287,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def pop(self, index: Optional[int] = None) -> Tuple[List[ENCODING_DTYPE], bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
-            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
+            Tuple of list of affected chunk ids, their rows and boolean specifying whether those chunks should be deleted
         """
         if index is None:
             index = self.get_last_index_for_pop()
@@ -313,7 +313,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 raise ValueError("No samples to pop")
 
         self.is_dirty = True
-        return chunk_ids, to_delete
+        return chunk_ids, rows, to_delete
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]

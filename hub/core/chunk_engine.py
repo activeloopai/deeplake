@@ -1671,12 +1671,13 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def pop_item(self, index):
-        chunk_ids, delete = self.chunk_id_encoder.pop(index)
+        chunk_ids, rows, delete = self.chunk_id_encoder.pop(index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
             chunk_to_update.pop(index)
+            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 self.check_remove_active_chunks(chunk_key)
