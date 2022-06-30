@@ -745,7 +745,7 @@ class Encoder(ABC):
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
         if num_samples_in_row == 0:
-            raise IndexError("No samples to pop")
+            raise ValueError("No samples to pop")
         self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
 
         # after subtracting 1, the row is now empty

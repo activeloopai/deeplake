@@ -308,7 +308,7 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
                 self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
                 to_delete = False
             else:
-                raise IndexError("pop from empty encoder")
+                raise ValueError("No samples to pop")
 
         self.is_dirty = True
         return chunk_ids, to_delete

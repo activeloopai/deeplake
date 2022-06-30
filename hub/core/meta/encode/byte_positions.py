@@ -92,7 +92,7 @@ class BytePositionsEncoder(Encoder):
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
         num_bytes = eb - sb
         if num_samples_in_row == 0:
-            raise IndexError("No samples to pop")
+            raise ValueError("No samples to pop")
         self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
         self._encoded[row + 1 :, START_BYTE_COLUMN] -= num_bytes
 
