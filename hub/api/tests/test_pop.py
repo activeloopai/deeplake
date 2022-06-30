@@ -1,5 +1,6 @@
 import numpy as np
 import hub
+from hub.api.tests.test_api_tiling import compressions_paremetrized
 
 
 def pop_helper_basic(ds, pop_count):
@@ -90,8 +91,45 @@ def test_tiling_pop(local_ds_generator):
         np.testing.assert_array_equal(ds.xyz[1].numpy(), 3 * np.ones((3000, 3000, 3)))
 
 
-def test_compressions_pop():
-    pass
+@compressions_paremetrized
+def test_compressions_pop(local_ds_generator, compression):
+    ds = local_ds_generator()
+    rint = np.random.randint
+    ls = [
+        rint(0, 255, (rint(50, 100), rint(50, 100), 3), dtype=np.uint8)
+        for _ in range(6)
+    ]
+    with ds:
+        ds.create_tensor("xyz", **compression)
+        for i in range(5):
+            ds.xyz.append(ls[i])
+
+        ds.xyz.pop(2)
+        assert len(ds.xyz) == 4
+        np.testing.assert_array_equal(ds.xyz[0].numpy(), ls[0])
+        np.testing.assert_array_equal(ds.xyz[1].numpy(), ls[1])
+        np.testing.assert_array_equal(ds.xyz[2].numpy(), ls[3])
+        np.testing.assert_array_equal(ds.xyz[3].numpy(), ls[4])
+
+        ds.xyz.pop(0)
+        assert len(ds.xyz) == 3
+        np.testing.assert_array_equal(ds.xyz[0].numpy(), ls[1])
+        np.testing.assert_array_equal(ds.xyz[1].numpy(), ls[3])
+        np.testing.assert_array_equal(ds.xyz[2].numpy(), ls[4])
+
+    ds = local_ds_generator()
+    assert len(ds.xyz) == 3
+    np.testing.assert_array_equal(ds.xyz[0].numpy(), ls[1])
+    np.testing.assert_array_equal(ds.xyz[1].numpy(), ls[3])
+    np.testing.assert_array_equal(ds.xyz[2].numpy(), ls[4])
+
+    with ds:
+        ds.xyz.append(ls[5])
+        assert len(ds.xyz) == 4
+        np.testing.assert_array_equal(ds.xyz[0].numpy(), ls[1])
+        np.testing.assert_array_equal(ds.xyz[1].numpy(), ls[3])
+        np.testing.assert_array_equal(ds.xyz[2].numpy(), ls[4])
+        np.testing.assert_array_equal(ds.xyz[3].numpy(), ls[5])
 
 
 def test_sequence_pop(local_ds_generator):
