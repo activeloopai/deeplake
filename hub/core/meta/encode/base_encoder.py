@@ -727,20 +727,9 @@ class Encoder(ABC):
                 - self._encoded[-2][LAST_SEEN_INDEX_COLUMN]
             )
 
-    def _pop(self):
-        num_samples_in_last_row = self._num_samples_in_last_row()
-        if num_samples_in_last_row == 0:  # backwards compatibility
-            self._encoded = self._encoded[:-1]
-            return self._pop()
-        if num_samples_in_last_row == 1:
-            self._encoded = self._encoded[:-1]
-        elif num_samples_in_last_row > 1:
-            self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-        else:
-            raise IndexError("pop from empty encoder")
-        self.is_dirty = True
-
-    def pop(self, index):
+    def pop(self, index: Optional[int] = None):
+        if index is None:
+            index = self.get_last_index_for_pop()
         _, row = self.__getitem__(index, return_row_index=True)
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
@@ -762,3 +751,9 @@ class Encoder(ABC):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         raise NotImplementedError()
+
+    def get_last_index_for_pop(self) -> int:
+        num_samples = self.num_samples
+        if num_samples == 0:
+            raise ValueError("No samples to pop")
+        return num_samples - 1

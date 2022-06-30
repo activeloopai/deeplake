@@ -88,3 +88,15 @@ def test_tiling_pop(local_ds_generator):
         np.testing.assert_array_equal(ds.xyz[0].numpy(), np.ones((1000, 1000, 3)))
         assert ds.xyz[1].numpy().shape == ds.xyz[1].shape == (3000, 3000, 3)
         np.testing.assert_array_equal(ds.xyz[1].numpy(), 3 * np.ones((3000, 3000, 3)))
+
+
+def test_compressions_pop():
+    pass
+
+
+def test_sequence_pop():
+    pass
+
+
+def test_diff_pop():
+    pass

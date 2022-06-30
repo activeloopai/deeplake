@@ -810,11 +810,6 @@ class Tensor:
             return self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
-    def _pop(self):
-        """Removes the last element of the tensor."""
-        self.chunk_engine._pop()
-        [self.dataset[link]._pop() for link in self.meta.links]
-
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:

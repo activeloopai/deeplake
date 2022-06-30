@@ -284,11 +284,13 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def _num_samples_in_last_chunk(self):
         return self._num_samples_in_last_row()
 
-    def pop(self, index) -> Tuple[List[ENCODING_DTYPE], bool]:
+    def pop(self, index: Optional[int] = None) -> Tuple[List[ENCODING_DTYPE], bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
             Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
         """
+        if index is None:
+            index = self.get_last_index_for_pop()
         out = self.__getitem__(index, return_row_index=True)  # type: ignore
         chunk_ids = [out[i][0] for i in range(len(out))]
         rows = [out[i][1] for i in range(len(out))]
@@ -312,30 +314,6 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
 
         self.is_dirty = True
         return chunk_ids, to_delete
-
-    def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
-        """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
-        Returns:
-            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
-        """
-        chunk_ids_for_last_sample = self[-1]
-        if len(chunk_ids_for_last_sample) > 1:
-            self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
-            to_delete = True
-        else:
-            num_samples_in_last_chunk = self._num_samples_in_last_chunk()
-
-            if num_samples_in_last_chunk == 1:
-                self._encoded = self._encoded[:-1]
-                to_delete = True
-            elif num_samples_in_last_chunk > 1:
-                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-                to_delete = False
-            else:
-                raise IndexError("pop from empty encoder")
-
-        self.is_dirty = True
-        return chunk_ids_for_last_sample, to_delete
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]

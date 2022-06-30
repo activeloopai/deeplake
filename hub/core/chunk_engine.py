@@ -1645,8 +1645,17 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, index):
+    def pop(self, index: Optional[int] = None):
         self._write_initialization()
+        if index is None:
+            index = self.tensor_meta.length - 1
+        if self.tensor_meta.length == 0:
+            raise ValueError("There are no samples to pop")
+        if index < 0 or index >= self.tensor_meta.length:
+            raise IndexError(
+                f"Index {index} is out of range for tensor of length {self.tensor_meta.length}"
+            )
+
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
@@ -1658,11 +1667,6 @@ class ChunkEngine:
             self.sequence_encoder.pop(index)
         else:
             self.pop_item(index)
-
-        if self.num_samples == 0:
-            self.tensor_meta.min_shape = []
-            self.tensor_meta.max_shape = []
-            self.tensor_meta.is_dirty = True
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -1683,41 +1687,6 @@ class ChunkEngine:
                     pass
 
         self.tensor_meta.pop(index)
-
-    def _pop(self):
-        if self.num_samples == 0:
-            raise IndexError("pop from empty tensor")
-        self.commit_diff._pop()  # This will fail if the last sample was added in a previous commit
-        (self._pop_sequence if self.is_sequence else self.__pop)()
-
-    def _pop_sequence(self):
-        for _ in range(*self.sequence_encoder[-1]):
-            self.__pop()
-        self.sequence_encoder._pop()
-
-    def __pop(self):
-        """Used only for Dataset.append"""
-        self._write_initialization()
-        chunk_ids, delete = self.chunk_id_encoder._pop()
-        if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            del self.tile_encoder[self.num_samples - 1]
-        elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
-            chunk_to_update._pop_sample()
-        if delete:
-            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                if (
-                    self.active_appended_chunk is not None
-                    and self.active_appended_chunk.key == chunk_key
-                ):
-                    self.active_appended_chunk = None
-                    try:
-                        del self.cache[chunk_key]
-                    except KeyError:
-                        pass
-                else:
-                    del self.cache[chunk_key]
-        self.tensor_meta._pop()
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:

@@ -163,13 +163,6 @@ class TensorMeta(Meta):
             self.max_shape = []
         self.is_dirty = True
 
-    def _pop(self):
-        self.length -= 1
-        if self.length == 0:
-            self.min_shape = []
-            self.max_shape = []
-        self.is_dirty = True
-
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
 

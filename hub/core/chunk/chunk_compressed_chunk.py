@@ -337,23 +337,6 @@ class ChunkCompressedChunk(BaseChunk):
             self.byte_positions_encoder.pop(index)
         self._changed = True
 
-    def _pop_sample(self):
-        if self.is_byte_compression:
-            self.decompressed_bytes = self.decompressed_bytes[
-                : self.byte_positions_encoder[-1][0]
-            ]
-            self._data_bytes = compress_bytes(self.decompressed_bytes, self.compression)
-        else:
-            self.decompressed_samples.pop()
-            self._data_bytes = compress_multiple(
-                self.decompressed_samples, self.compression
-            )
-        if not self.shapes_encoder.is_empty():
-            self.shapes_encoder._pop()
-        if not self.byte_positions_encoder.is_empty():
-            self.byte_positions_encoder._pop()
-        self._changed = False
-
     def pop_multiple(self, num_samples):
         if self.is_byte_compression:
             total_samples = self.num_samples
@@ -370,9 +353,9 @@ class ChunkCompressedChunk(BaseChunk):
 
         for _ in range(num_samples):
             if not self.shapes_encoder.is_empty():
-                self.shapes_encoder._pop()
+                self.shapes_encoder.pop()
             if not self.byte_positions_encoder.is_empty():
-                self.byte_positions_encoder._pop()
+                self.byte_positions_encoder.pop()
         self._changed = False
 
     def _compress(self):

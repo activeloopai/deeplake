@@ -104,19 +104,10 @@ class CommitDiff(HubMemoryObject):
         self.data_transformed = True
         self.is_dirty = True
 
-    def _pop(self) -> None:
-        """Remove index for the last data added. Used by ChunkEngine._pop()"""
-        if self.data_added[1] == self.data_added[0]:
-            raise NotImplementedError(
-                "Cannot pop sample which was added in a previous commit."
-            )
-        self.data_added[1] -= 1
-        self.is_dirty = True
-
     def pop(self, index) -> None:
         index = self.translate_index(index)
-        self.data_deleted.append(index)
         if index not in range(*self.data_added):
+            self.data_deleted.append(index)
             self.data_added[0] -= 1
         self.data_added[1] -= 1
 

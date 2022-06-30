@@ -1,6 +1,6 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 
-from typing import Sequence
+from typing import Optional, Sequence
 import numpy as np
 
 
@@ -86,7 +86,9 @@ class BytePositionsEncoder(Encoder):
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
 
-    def pop(self, index):
+    def pop(self, index: Optional[int] = None):
+        if index is None:
+            index = self.get_last_index_for_pop()
         (sb, eb), row = self.__getitem__(index, return_row_index=True)
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
