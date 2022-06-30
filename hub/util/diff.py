@@ -367,7 +367,7 @@ def get_tensor_changes_for_id(
 
 
 def combine_data_deleted(changes: Dict[str, Dict]):
-    """Combines the data deleted list into a single list of tuples."""
+    """Combines the data deleted list into a single set."""
     for change in changes.values():
         data_deleted: Set[int] = set()
         data_deleted_list = change.pop("data_deleted_list", [])
