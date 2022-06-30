@@ -1645,10 +1645,8 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, index: Optional[int] = None):
+    def pop(self, index: int):
         self._write_initialization()
-        if index is None:
-            index = self.tensor_meta.length - 1
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")
         if index < 0 or index >= self.tensor_meta.length:
@@ -1662,7 +1660,8 @@ class ChunkEngine:
 
         self.commit_diff.pop(index)
         if self.is_sequence:
-            for idx in range(*self.sequence_encoder[index]):
+            # pop in reverse order else indices get shifted
+            for idx in reversed(range(*self.sequence_encoder[index])):
                 self.pop_item(idx)
             self.sequence_encoder.pop(index)
         else:

@@ -950,6 +950,8 @@ class Tensor:
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
+        if index is None:
+            index = self.num_samples - 1
         self.chunk_engine.pop(index)
         [self.dataset[link].pop(index) for link in self.meta.links]
 

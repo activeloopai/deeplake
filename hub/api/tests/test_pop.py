@@ -94,8 +94,24 @@ def test_compressions_pop():
     pass
 
 
-def test_sequence_pop():
-    pass
+def test_sequence_pop(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("xyz", htype="sequence")
+        ds.xyz.append([[1, 2, 3], [4, 5, 6, 7]])
+        ds.xyz.append([[8, 9], [11, 12, 13, 14]])
+        ds.xyz.pop(0)
+        assert len(ds.xyz) == 1
+        val = ds.xyz[0].numpy(aslist=True)
+        assert len(val) == 2
+        assert (val[0] == [8, 9]).all()
+        assert (val[1] == [11, 12, 13, 14]).all()
+
+    ds = local_ds_generator()
+    assert len(ds.xyz) == 1
+    val = ds.xyz[0].numpy(aslist=True)
+    assert len(val) == 2
+    assert (val[0] == [8, 9]).all()
+    assert (val[1] == [11, 12, 13, 14]).all()
 
 
 def test_diff_pop():
