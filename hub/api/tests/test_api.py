@@ -141,6 +141,8 @@ def test_populate_dataset(local_ds):
 
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
+    assert len(local_ds.image.numpy()) == 16
+    assert len(local_ds.image[0:5].numpy()) == 5
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__

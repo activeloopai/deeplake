@@ -1316,18 +1316,17 @@ class ChunkEngine:
         )
 
     def _get_full_chunk(self, index):
+        """Reads samples from chunks and returns as a boolean that says whether we need to fetch full chunks or only specified subset of it.
+        Args:
+            index (Index): Represents the samples to read from chunks. See `Index` for more information.
+        Returns:
+            bool: True/False, whether to fetch a full chunk or only a part of it.
+        """
         threshold = 10
         if type(index.values[0].value) == slice:
-            start = index.values[0].value.start
-            stop = index.values[0].value.stop
-            step = index.values[0].value.step
-
-            if start is None:
-                start = 0
-            if stop is None:
-                stop = self.num_samples
-            if step is None:
-                step = 1
+            start = index.values[0].value.start or 0
+            stop = index.values[0].value.stop or self.num_samples
+            step = index.values[0].value.step or 1
 
             numpy_array_length = (stop - start) // step
             return numpy_array_length > threshold
