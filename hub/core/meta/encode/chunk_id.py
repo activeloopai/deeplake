@@ -284,7 +284,9 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def _num_samples_in_last_chunk(self):
         return self._num_samples_in_last_row()
 
-    def pop(self, index: Optional[int] = None) -> Tuple[List[ENCODING_DTYPE], bool]:
+    def pop(
+        self, index: Optional[int] = None
+    ) -> Tuple[List[ENCODING_DTYPE], List, bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
             Tuple of list of affected chunk ids, their rows and boolean specifying whether those chunks should be deleted

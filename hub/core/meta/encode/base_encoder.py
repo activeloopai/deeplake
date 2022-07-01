@@ -730,7 +730,7 @@ class Encoder(ABC):
     def pop(self, index: Optional[int] = None):
         if index is None:
             index = self.get_last_index_for_pop()
-        _, row = self.__getitem__(index, return_row_index=True)
+        _, row = self.__getitem__(index, return_row_index=True)  # type: ignore
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
         if num_samples_in_row == 0:
