@@ -213,6 +213,3 @@ benchmarks/torch_data
 
 # API docs
 api_docs/
-
-# local files
-hub/staff_to_ignore/
