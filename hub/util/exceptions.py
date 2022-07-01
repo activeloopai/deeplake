@@ -737,4 +737,6 @@ class ManagedCredentialsNotFoundError(Exception):
 
 class EmptyTensorInTheDatasetError(Exception):
     def __init__(self, tensor_name):
-        super().__init__(f"The tensor {tensor_name} is empty.")
+        super().__init__(f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                         f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                         f" tensor.")
