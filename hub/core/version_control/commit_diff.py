@@ -129,7 +129,9 @@ class CommitDiff(HubMemoryObject):
         if index in self.data_updated:
             self.data_updated.remove(index)
 
-        self.data_updated = {idx - 1 if idx > index else idx for idx in self.data_updated}
+        self.data_updated = {
+            idx - 1 if idx > index else idx for idx in self.data_updated
+        }
         self.is_dirty = True
 
     def translate_index(self, index):

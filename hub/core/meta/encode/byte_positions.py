@@ -89,7 +89,7 @@ class BytePositionsEncoder(Encoder):
     def pop(self, index: Optional[int] = None):
         if index is None:
             index = self.get_last_index_for_pop()
-        (sb, eb), row = self.__getitem__(index, return_row_index=True)
+        (sb, eb), row = self.__getitem__(index, return_row_index=True)  # type: ignore
         prev = -1 if row == 0 else self._encoded[row - 1, LAST_SEEN_INDEX_COLUMN]
         num_samples_in_row = self._encoded[row, LAST_SEEN_INDEX_COLUMN] - prev
         num_bytes = eb - sb
