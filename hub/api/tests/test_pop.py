@@ -152,5 +152,34 @@ def test_sequence_pop(local_ds_generator):
     assert (val[1] == [11, 12, 13, 14]).all()
 
 
-def test_diff_pop():
-    pass
+def test_diff_pop(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc")
+        a = ds.commit("first commit")
+        for i in range(5):
+            ds.abc.append(i)
+
+        b = ds.commit("added 5 samples")
+
+        ds.abc[2] = -2
+        ds.abc[3] = -3
+        ds.abc.pop(3)
+        ds.abc.append(5)
+        ds.abc.append(6)
+
+        c = ds.commit("second commit")
+        ds.abc.pop(2)
+
+        diff1, diff2 = ds.diff(b, as_dict=True)["tensor"]
+        assert diff1 == {
+            "abc": {
+                "created": False,
+                "cleared": False,
+                "info_updated": False,
+                "data_transformed_in_place": False,
+                "data_added": [3, 5],
+                "data_updated": set(),
+                "data_deleted": {2, 3},
+            }
+        }
+        assert diff2 == {}

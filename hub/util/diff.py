@@ -210,6 +210,8 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
         data_added_str = convert_adds_to_string(data_added)
         data_updated = change.get("data_updated", set())
         info_updated = change.get("info_updated", False)
+
+        data_deleted = change.get("data_deleted", set())
         all_changes.append(tensor)
         if created:
             all_changes.append("* Created tensor")
@@ -221,7 +223,11 @@ def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: s
             all_changes.append(data_added_str)
 
         if data_updated:
-            output = convert_updates_to_string(data_updated)
+            output = convert_updates_deletes_to_string(data_updated, "Updated")
+            all_changes.append(output)
+
+        if data_deleted:
+            output = convert_updates_deletes_to_string(data_deleted, "Deleted")
             all_changes.append(output)
 
         if info_updated:
@@ -347,7 +353,9 @@ def get_tensor_changes_for_id(
             if "data_added" not in change:
                 change["data_added"] = commit_diff.data_added.copy()
             else:
-                change["data_added"][0] = commit_diff.data_added[0]
+                change["data_added"][0] = (
+                    change["data_added"][0] - commit_diff.num_samples_added
+                )
 
             if "data_updated" not in change:
                 change["data_updated"] = commit_diff.data_updated.copy()
@@ -470,13 +478,13 @@ def range_interval_list_to_string(range_intervals: List[Tuple[int, int]]) -> str
     return output[:-2]
 
 
-def convert_updates_to_string(indexes: Set[int]) -> str:
+def convert_updates_deletes_to_string(indexes: Set[int], operation: str) -> str:
     range_intervals = compress_into_range_intervals(indexes)
     output = range_interval_list_to_string(range_intervals)
 
     num_samples = len(indexes)
     sample_string = "sample" if num_samples == 1 else "samples"
-    return f"* Updated {num_samples} {sample_string}: [{output}]"
+    return f"* {operation} {num_samples} {sample_string}: [{output}]"
 
 
 def convert_adds_to_string(index_range: List[int]) -> str:
