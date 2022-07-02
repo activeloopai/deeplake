@@ -2769,7 +2769,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str, external=False):
+    def _optimize_saved_view(self, id: str, external=False, unlink=True):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
