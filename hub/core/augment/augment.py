@@ -102,16 +102,13 @@ class Augment():
   def __init__(self, pipeline: List[ComputeFunction], pipe_type):
     self.pipeline = pipeline
     self.pipe_type = pipe_type
-    # self.hub_loader = Hubloader(data_in, pipeline)
   def __call__(self, loader, batch_size = 1):
     return Hubloader(loader, self.pipeline, batch_size, self.pipe_type)
-  # def get_policies(self, policy):
-  #   if policy == "imagenet":
-  #     return
 
 
 
-class Augmenter():
+
+class Augmenter():    #used to be Pipeline
   def __init__(self):
     self.pipe_dict = {}
     pass
@@ -126,6 +123,7 @@ class Augmenter():
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
   
 #make policy a class and decorate one method with hub compute and use that to call onto other methods, use that to interact with hubloader and pipeline_image
+
 
 
 
@@ -213,6 +211,8 @@ class Policy():
   #     self.loader = loader.pytorch()
 
 
-  def return_dataloader(self, ds, tensor="images", batch_size = 1):
+  def return_dataloader(self, ds, tensor="images", batch_size = 1, num_workers = None):
     self.tensor = tensor
+    if num_workers is not None:
+      return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample, num_workers = num_workers)
     return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample)
