@@ -189,6 +189,7 @@ class ChunkCompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         if not decompress:
             raise NotImplementedError(
@@ -203,7 +204,7 @@ class ChunkCompressedChunk(BaseChunk):
             return self.decompressed_samples[local_index]  # type: ignore
 
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        if self.is_fixed_shape:
+        if not is_tile and self.is_fixed_shape:
             shape = self.tensor_meta.min_shape
             sb, eb = self.get_byte_positions(local_index)
             decompressed = decompressed[sb:eb]

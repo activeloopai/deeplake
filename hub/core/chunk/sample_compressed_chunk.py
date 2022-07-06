@@ -63,6 +63,7 @@ class SampleCompressedChunk(BaseChunk):
         sub_index: Optional[Union[int, slice]] = None,
         stream: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         if self.is_empty_tensor:
             raise EmptyTensorError
@@ -90,7 +91,7 @@ class SampleCompressedChunk(BaseChunk):
                 buffer = buffer[sb:eb]
         if not decompress:
             return bytes(buffer) if copy else buffer
-        if self.is_fixed_shape:
+        if not is_tile and self.is_fixed_shape:
             shape = self.tensor_meta.min_shape
         else:
             shape = self.shapes_encoder[local_index]

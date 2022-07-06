@@ -100,15 +100,15 @@ class UncompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
-        print("read_sample")
         if self.is_empty_tensor:
             raise EmptyTensorError
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        if self.is_fixed_shape:
+        if not is_tile and self.is_fixed_shape:
             shape = self.tensor_meta.min_shape
             sb, eb = self.get_byte_positions(local_index)
             buffer = buffer[sb:eb]

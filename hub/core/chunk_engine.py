@@ -882,7 +882,7 @@ class ChunkEngine:
         tiles = np.vectorize(
             lambda chunk_id: self.get_chunk_from_chunk_id(
                 chunk_id, copy=True
-            ).read_sample(0),
+            ).read_sample(0, is_tile=True),
             otypes=[object],
         )(required_tile_ids)
         current_sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
@@ -1464,7 +1464,9 @@ class ChunkEngine:
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
-            lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(0),
+            lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
+                0, is_tile=True
+            ),
             otypes=[object],
         )(required_tile_ids)
         sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
