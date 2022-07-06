@@ -428,8 +428,6 @@ class ChunkEngine:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        if self.is_sequence:
-            return self._sequence_length
         return self.tensor_meta.length
 
     @property
