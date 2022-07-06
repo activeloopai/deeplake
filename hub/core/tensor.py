@@ -809,10 +809,6 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _pop(self):
-        self.chunk_engine._pop()
-        [self.dataset[link]._pop() for link in self.meta.links]
-
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
@@ -949,6 +945,14 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """Removes an element at the given index."""
+        if index is None:
+            index = self.num_samples - 1
+        self.chunk_engine.pop(index)
+        [self.dataset[link].pop(index) for link in self.meta.links]
 
     @property
     def timestamp(self) -> np.ndarray:

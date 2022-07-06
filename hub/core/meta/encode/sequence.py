@@ -23,3 +23,7 @@ class SequenceEncoder(BytePositionsEncoder, HubMemoryObject):
         return memoryview(
             serialize_sequence_or_creds_encoder(self.version, self._encoded)
         )
+
+    def pop(self, index):
+        self.is_dirty = True
+        super().pop(index)

@@ -354,11 +354,13 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "label": {
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     if do_commit:
@@ -636,6 +638,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
             "label": {
                 "created": False,
@@ -644,6 +647,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
         }
         assert diff == change

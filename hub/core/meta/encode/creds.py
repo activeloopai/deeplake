@@ -44,3 +44,7 @@ class CredsEncoder(ShapeEncoder, HubMemoryObject):
     @property
     def nbytes(self):
         return len(self.tobytes())
+
+    def pop(self, index):
+        self.is_dirty = True
+        super().pop(index)

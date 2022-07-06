@@ -1995,7 +1995,7 @@ class Dataset:
                         enc._encoded = enc._encoded[:-1]
                     for k in tensors_appended:
                         try:
-                            self[k]._pop()
+                            self[k].pop()
                         except Exception as e2:
                             raise Exception(
                                 "Error while attepting to rollback appends"
