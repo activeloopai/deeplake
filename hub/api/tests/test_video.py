@@ -188,7 +188,8 @@ def test_linked_video_timestamps(local_ds):
         ds.create_tensor("videos", htype="link[video]")
         ds.videos.append(
             hub.link(
-                "gcs://gtv-videos-bucket/sample/ForBiggerBlazes.mp4", creds_key="ENV"
+                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                creds_key="ENV",
             )
         )
         ds.videos[0, 5:10].timestamp == np.array(
