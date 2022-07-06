@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
-from hub.util.exceptions import DatasetViewSavingError
+from hub.util.exceptions import DatasetViewSavingError, InvalidOperationError
 import hub
 from uuid import uuid4
 
@@ -186,7 +186,7 @@ def test_dataset_view_save(optimize):
     "stream,num_workers,read_only,progressbar,query_type,optimize,linked",
     [
         (False, 2, True, True, "string", False, False),
-        (True, 0, False, False, "function", True, True),
+        (True, 0, False, False, "function", False, True),
     ],
 )
 @pytest.mark.timeout(1200)
@@ -232,6 +232,9 @@ def test_inplace_dataset_view_save(
     entry.optimize()
     assert not entry.virtual
     view3 = entry.load()
+    with pytest.raises(InvalidOperationError):
+        for t in view3.tensors:
+            view3[t].append(np.zeros((1,)))
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
     for id in to_del:

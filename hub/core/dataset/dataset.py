@@ -2009,7 +2009,6 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         copy: bool = False,
-        nested: bool = False,
     ):
         if self._view_invalid:
             raise DatasetViewSavingError(
@@ -2048,7 +2047,7 @@ class Dataset:
         info = {
             "id": id,
             "virtual-datasource": not copy,
-            "source-dataset": ".." if nested else self.path,
+            "source-dataset": self.path,
             "source-dataset-version": commit_id,
             "created_at": tm,
         }
@@ -2129,7 +2128,6 @@ class Dataset:
         hash = info["id"]
         path = f".queries/{hash}"
         self.flush()
-        self.base_storage.subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2610,8 +2608,6 @@ class Dataset:
             overwrite=overwrite,
             public=public,
         )
-        with dest_ds:
-            dest_ds.info.update(self.info)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -2653,6 +2649,7 @@ class Dataset:
                 dest_ds.flush()
                 dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
+        dest_ds.flush()
         return dest_ds
 
     def copy(
@@ -2854,7 +2851,11 @@ class Dataset:
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path)
-            view.copy(optimized, overwrite=True)
+            view._copy(optimized, overwrite=True, unlink=unlink)
+            optimized.info.update(vds.info.__getstate__())
+            optimized.info["virtual-datasource"] = False
+            optimized.info["path"] = new_path
+            optimized.flush()
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)
