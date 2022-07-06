@@ -894,17 +894,12 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    def __getattr__(self, key, *args):
-        if args:
-            try:
-                return self[key]
-            except KeyError:
-                return args[0]
+    def __getattr__(self, key):
         try:
-            return self[key]
+            return self.__getitem__(key)
         except KeyError as ke:
             raise AttributeError(
-                f"{self.__class__.__name__} instance has no attribute {key}."
+                f"'{self.__class__}' object has no attribute '{key}'"
             ) from ke
 
     def __setattr__(self, name: str, value):
