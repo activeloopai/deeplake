@@ -2875,11 +2875,11 @@ def _copy_tensor(sample_in, sample_out, tensor_name):
 
 def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(
-        sample_in[tensor].chunk_engine.get_hub_read_sample(
+        sample_in[tensor_name].chunk_engine.get_hub_read_sample(
             sample_in.index.values[0].value
         )
     )
 
 
 def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor].numpy())
+    sample_out[tensor_name].append(sample_in[tensor_name].numpy())
