@@ -40,9 +40,9 @@ class ViewEntry:
             ds = ds._get_view(inherit_creds=not self._external)
         return ds
 
-    def optimize(self):
+    def optimize(self, unlink=True):
         self.info = self._ds._optimize_saved_view(
-            self.info["id"], external=self._external
+            self.info["id"], external=self._external, unlink=unlink
         )
 
     def delete(self):

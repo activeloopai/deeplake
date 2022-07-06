@@ -731,7 +731,9 @@ class Dataset:
 
     @invalid_view_op
     @hub_reporter.record_call
-    def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
+    def create_tensor_like(
+        self, name: str, source: "Tensor", unlink: bool = False
+    ) -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
         Examples:
@@ -742,6 +744,7 @@ class Dataset:
         Args:
             name (str): Name for the new tensor.
             source (Tensor): Tensor who's meta/info will be copied. May or may not be contained in the same dataset.
+            unlink (bool): Whether to unlink linked tensors.
 
         Returns:
             Tensor: New Tensor object.
@@ -749,6 +752,8 @@ class Dataset:
 
         info = source.info.__getstate__().copy()
         meta = source.meta.__getstate__().copy()
+        if unlink:
+            meta["is_link"] = False
         del meta["min_shape"]
         del meta["max_shape"]
         del meta["length"]
@@ -2004,6 +2009,7 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         copy: bool = False,
+        nested: bool = False,
     ):
         if self._view_invalid:
             raise DatasetViewSavingError(
@@ -2042,7 +2048,7 @@ class Dataset:
         info = {
             "id": id,
             "virtual-datasource": not copy,
-            "source-dataset": self.path,
+            "source-dataset": ".." if nested else self.path,
             "source-dataset-version": commit_id,
             "created_at": tm,
         }
@@ -2101,11 +2107,11 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int):
+    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
         """Writes the indices of this view to a vds."""
         with vds:
             if copy:
-                self.copy(vds, num_workers=num_workers)
+                self._copy(vds, num_workers=num_workers, unlink=unlink)
             else:
                 vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
                     list(self.index.values[0].indices(len(self)))
@@ -2295,10 +2301,13 @@ class Dataset:
             commit_id = self.info["source-dataset-version"]
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
+        path = path = self.info["source-dataset"]
+        if path == "..":
+            path = self._parent_dataset.path
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(path=self.info["source-dataset"], verbose=False)
+            else hub.dataset(path=path, verbose=False)
         )
         try:
             orig_index = ds.index
@@ -2407,6 +2416,9 @@ class Dataset:
                 if q["id"] == id:
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
+
+    def load_view(self, id: str):
+        return self.get_view(id).load()
 
     def delete_view(self, id: str):
         try:
@@ -2537,7 +2549,7 @@ class Dataset:
                 )
         return ret
 
-    def copy(
+    def _copy(
         self,
         dest: Union[str, pathlib.Path],
         tensors: Optional[List[str]] = None,
@@ -2548,6 +2560,7 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
         public: bool = False,
+        unlink: bool = False,
     ):
         """Copies this dataset or dataset view to `dest`. Version control history is not included.
 
@@ -2562,6 +2575,7 @@ class Dataset:
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
 
         Returns:
             Dataset: New dataset object.
@@ -2569,7 +2583,6 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-
         if isinstance(dest, str):
             path = dest
         else:
@@ -2610,11 +2623,20 @@ class Dataset:
         else:
             reset_index = False
         try:
-            for tensor in dest_ds.tensors:
+            for tensor_name, tensor in dest_ds.tensors.items():
+                copy_f = (
+                    (
+                        _copy_tensor_unlinked_partial_sample
+                        if len(self.index) > 1
+                        else _copy_tensor_unlinked_full_sample
+                    )
+                    if unlink and tensor.is_link and tensor.base_htype != "video"
+                    else _copy_tensor
+                )
                 if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                hub.compute(_copy_tensor, name="tensor copy transform")(
-                    tensor_name=tensor
+                    sys.stderr.write(f"Copying tensor: {tensor_name}.\n")
+                hub.compute(copy_f, name="tensor copy transform")(
+                    tensor_name=tensor_name
                 ).eval(
                     self,
                     dest_ds,
@@ -2632,6 +2654,50 @@ class Dataset:
                 dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
         return dest_ds
+
+    def copy(
+        self,
+        dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
+    ):
+        """Copies this dataset or dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            token (str, Optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        self._copy(
+            dest,
+            tensors,
+            overwrite,
+            creds,
+            token,
+            num_workers,
+            scheduler,
+            progressbar,
+            public,
+        )
 
     @invalid_view_op
     def reset(self):
@@ -2804,3 +2870,15 @@ class Dataset:
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
+
+
+def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(
+        sample_in[tensor].chunk_engine.get_hub_read_sample(
+            sample_in.index.values[0].value
+        )
+    )
+
+
+def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(sample_in[tensor].numpy())

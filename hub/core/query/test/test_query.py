@@ -20,7 +20,20 @@ def hub_compute_filter(sample_in, mod):
     return val % mod == 0
 
 
-def _populate_data(ds, n=1):
+def _populate_data_linked(ds, n, compressed_image_paths):
+    with ds:
+        if "images" not in ds:
+            ds.create_tensor("images", htype="link[image]")
+            ds.create_tensor("labels", htype="class_label", class_names=class_names)
+            for _ in range(n):
+                for row in rows:
+                    ds.images.append(hub.link(compressed_image_paths["png"][0]))
+                    ds.labels.append(row["labels"])
+
+
+def _populate_data(ds, n=1, linked=False, paths=None):
+    if linked:
+        return _populate_data_linked(ds, n, paths)
     with ds:
         if "images" not in ds:
             ds.create_tensor("images")
@@ -170,22 +183,30 @@ def test_dataset_view_save(optimize):
     indirect=True,
 )
 @pytest.mark.parametrize(
-    "stream,num_workers,read_only,progressbar,query_type,optimize",
+    "stream,num_workers,read_only,progressbar,query_type,optimize,linked",
     [
-        (False, 2, True, True, "string", False),
-        (True, 0, False, False, "function", True),
+        (False, 2, True, True, "string", False, False),
+        (True, 0, False, False, "function", True, True),
     ],
 )
 @pytest.mark.timeout(1200)
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type, optimize
+    ds_generator,
+    stream,
+    num_workers,
+    read_only,
+    progressbar,
+    query_type,
+    optimize,
+    linked,
+    compressed_image_paths,
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
     id = str(uuid4())
     to_del = [id]
-    _populate_data(ds, n=2)
+    _populate_data(ds, n=2, linked=linked, paths=compressed_image_paths)
     ds.commit()
     ds.read_only = read_only
     f = f"labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
