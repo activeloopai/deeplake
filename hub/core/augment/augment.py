@@ -9,6 +9,7 @@ from hub.core.augment.utils import *
 import numpy as np
 import time
 
+
 def pipeline_image(image, pipe):
   updated_image = image.numpy()
   if pipe is None:
@@ -24,6 +25,16 @@ def pipeline_image(image, pipe):
   return updated_image
 
 
+def pipeline_image_sample(sample, pipe):  #meant for ds.pytorch
+  images = sample[images]
+  new_sample_images = []
+  for image in images:
+    new_sample_images.append(pipeline_image(image, pipe))
+  new_sample_images = torch.from_numpy(np.array(new_sample_images))
+  sample[images] = new_sample_images
+  return sample
+
+
 # #old hub_iterator
 # def hub_iterator(dataloader, tensor_name, pipe):
 #   #first decide the kind of pipeline then send to the kind of hub iterator.
@@ -35,7 +46,6 @@ def pipeline_image(image, pipe):
 #       image = image_batch[i]
 #       image = pipeline_image(image, pipe)
 #       image_arr.append(image)
-    
 #     sample[tensor_name] = torch.from_numpy(np.array(image_arr))
 #     yield sample
 
@@ -58,7 +68,7 @@ def hub_iterator_multitensor_parallel(dataloader, pipes):
 
 
 #hub_iterator_multitensor sequential 
-def hub_iterator_multitensor_sequential(dataloader, pipes):   #pute the loader loop first, would inc speed by num_tensor*num_pipe
+def hub_iterator_multitensor_sequential(dataloader, pipes):  
   for tensor in pipes.keys():
     tensor_pipes = pipes[tensor]
     for pipe in tensor_pipes:
@@ -71,18 +81,25 @@ def hub_iterator_multitensor_sequential(dataloader, pipes):   #pute the loader l
           image_arr.append(image)
         sample[tensor] = torch.from_numpy(np.array(image_arr))
         yield sample
+
+        
+
   
+
+
+
+  if num_workers is not None:
+    return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample, num_workers = num_workers)
+  return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample)
 
 
       
 
 
 class Hubloader():
-  def __init__(self, loader: Dataset,  pipeline, batch_size, pipe_type):
-    
+  def __init__(self, loader: Dataset, pipeline, batch_size, pipe_type):
     if isinstance(loader, Dataset):
       loader = loader.pytorch(batch_size = batch_size)
-    
     self.dataloader = loader
     self.pipeline = pipeline
     self.pipe_type = pipe_type
@@ -98,12 +115,12 @@ class Hubloader():
 
 
 
-class Augment():
-  def __init__(self, pipeline: List[ComputeFunction], pipe_type):
-    self.pipeline = pipeline
-    self.pipe_type = pipe_type
-  def __call__(self, loader, batch_size = 1):
-    return Hubloader(loader, self.pipeline, batch_size, self.pipe_type)
+# class Augment():  
+#   def __init__(self, pipeline: List[ComputeFunction], pipe_type):
+#     self.pipeline = pipeline
+#     self.pipe_type = pipe_type
+#   def __call__(self, loader, batch_size = 1):
+#     return Hubloader(loader, self.pipeline, batch_size, self.pipe_type)
 
 
 
@@ -112,6 +129,7 @@ class Augmenter():    #used to be Pipeline
   def __init__(self):
     self.pipe_dict = {}
     pass
+
   def add_step(self, input_tensors , step_transform):
     for tensor in input_tensors:
       if tensor not in self.pipe_dict.keys():
@@ -121,7 +139,31 @@ class Augmenter():    #used to be Pipeline
   
   def augment(self, loader, batch_size=1):
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
-  
+
+  def pipeline_image_sample(self, sample):  #meant for ds.pytorch
+    pipe = self.pipe
+    images = sample[self.tensor]
+    new_sample_images = []
+    for image in images:
+      new_sample_images.append(pipeline_image(image, pipe))
+    new_sample_images = torch.from_numpy(np.array(new_sample_images))
+    sample[images] = new_sample_images
+    return sample
+
+  def return_generator(self, ds: Dataset, batch_size=1, num_workers=None):
+    pipes = self.pipe_dict
+    for tensor in pipes:
+      self.tensor = tensor
+      tensor_pipes = pipes[tensor]
+      for pipe in tensor_pipes:
+        self.pipe = pipe
+        if num_workers is not None:
+          dataloader = ds.pytorch(batch_size=batch_size, transform=self.pipeline_image_sample, num_workers = num_workers)
+        else:
+          dataloader = ds.pytorch(batch_size=batch_size, transform=self.pipeline_image_sample)
+        for _, sample in enumerate(dataloader):
+          yield sample
+
 #make policy a class and decorate one method with hub compute and use that to call onto other methods, use that to interact with hubloader and pipeline_image
 
 
@@ -130,7 +172,7 @@ class Augmenter():    #used to be Pipeline
 class Policy():
 
 
-  def __init__(self, policy_input="image net", policy_name="image net"):
+  def __init__(self, policy_input="image net"):#policy_name="image net"
     if isinstance(policy_input,str):
       self.policy_set = self.get_policies(policy_input)
     else:
@@ -216,3 +258,4 @@ class Policy():
     if num_workers is not None:
       return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample, num_workers = num_workers)
     return ds.pytorch(batch_size=batch_size, transform=self.run_policy_sample)
+
