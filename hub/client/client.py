@@ -1,9 +1,15 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.exceptions import (
+    LoginException,
+    InvalidPasswordException,
+    ManagedCredentialsNotFoundError,
+    ResourceNotFoundException,
+)
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
@@ -225,6 +231,43 @@ class HubBackendClient:
             logger.info("Your Hub dataset has been successfully created!")
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
+
+    def get_managed_creds(self, org_id, creds_key):
+        """Retrieves the managed credentials for the given org_id and creds_key.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            creds_key (str): The key corresponding to the managed credentials.
+
+        Returns:
+            dict: The managed credentials.
+
+        Raises:
+            ManagedCredentialsNotFoundError: If the managed credentials do not exist for the given organization.
+        """
+        relative_url = GET_MANAGED_CREDS_SUFFIX.format(org_id)
+        try:
+            resp = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"query": creds_key},
+            ).json()
+        except ResourceNotFoundException:
+            raise ManagedCredentialsNotFoundError(org_id, creds_key) from None
+        creds = resp["creds"]
+        key_mapping = {
+            "access_key": "aws_access_key_id",
+            "secret_key": "aws_secret_access_key",
+            "session_token": "aws_session_token",
+            "region": "aws_region",
+        }
+        final_creds = {}
+        for key, value in creds.items():
+            if key in key_mapping:
+                key = key_mapping[key]
+            final_creds[key] = value
+        return final_creds
 
     def delete_dataset_entry(self, username, dataset_name):
         tag = f"{username}/{dataset_name}"

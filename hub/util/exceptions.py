@@ -522,7 +522,7 @@ class TensorMismatchError(TransformError):
         else:
             super().__init__(
                 f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
-                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}. If you want to do this, pass skip_ok=True to the eval method."
             )
 
 
@@ -726,3 +726,10 @@ class EmptyTensorError(Exception):
 
 class DatasetViewSavingError(Exception):
     pass
+
+
+class ManagedCredentialsNotFoundError(Exception):
+    def __init__(self, org_id, creds_key):
+        super().__init__(
+            f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
+        )

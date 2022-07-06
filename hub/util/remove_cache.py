@@ -38,6 +38,7 @@ def get_dataset_with_zero_size_cache(ds):
         token=ds.token,
         verbose=False,
         link_creds=ds.link_creds,
+        pad_tensors=ds._pad_tensors,
     )
     if ds.pending_commit_id != commit_id:
         ds.checkout(commit_id)

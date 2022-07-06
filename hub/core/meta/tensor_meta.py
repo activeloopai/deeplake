@@ -156,7 +156,7 @@ class TensorMeta(Meta):
         if length != 0:
             self.is_dirty = True
 
-    def _pop(self):
+    def pop(self, index):
         self.length -= 1
         if self.length == 0:
             self.min_shape = []

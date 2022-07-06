@@ -80,8 +80,8 @@ array([[[1],
 Add the names of the creds you want to use (not needed for http/local urls)
 
 ```
->>> ds.add_creds(“MY_S3_KEY”)
->>> ds.add_creds(“GCS_KEY”)
+>>> ds.add_creds_key(“MY_S3_KEY”)
+>>> ds.add_creds_key(“GCS_KEY”)
 ```
 
 Populate the names added with creds dictionary
@@ -100,9 +100,10 @@ Populate the tensor with links
 ```
 >>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“MY_S3_KEY”))
 >>> ds.img.append(hub.link(“gcs://ghi/jkl.png”, creds_key=“GCS_KEY”))
->>> ds.img.append(hub.link(“https://picsum.photos/200/300”)) # doesn’t need creds
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”))  # will use creds from environment
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“ENV”))  # this will also use creds from environment
+>>> ds.img.append(hub.link(“https://picsum.photos/200/300”)) # http path doesn’t need creds
+>>> ds.img.append(hub.link(“./path/to/cat.jpeg”)) # local path doesn’t need creds
+>>> ds.img.append(hub.link(“s3://abc/def.jpeg”))  # this will throw an exception as cloud paths always need creds_key
+>>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“ENV”))  # this will use creds from environment
 ```
 
 Accessing the data

@@ -1,7 +1,5 @@
-from typing import Union
-import logging
 import posixpath
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from hub.client.utils import get_user_name
 from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
@@ -9,17 +7,13 @@ from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.exceptions import (
-    RenameError,
-    PathNotEmptyException,
-    AuthorizationException,
-)
+from hub.util.exceptions import RenameError
+from hub.util.link import save_link_creds, warn_missing_managed_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
 import time
 import hub
-from hub.util.remove_cache import get_base_storage
 
 
 class HubCloudDataset(Dataset):
@@ -39,6 +33,10 @@ class HubCloudDataset(Dataset):
                 warn(
                     f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
+            if self.link_creds.managed_creds_keys:
+                for creds_key in self.link_creds.managed_creds_keys:
+                    creds = self._fetch_managed_creds(creds_key)
+                    self.link_creds.populate_creds(creds_key, creds)
 
     @property
     def client(self):
@@ -270,3 +268,67 @@ class HubCloudDataset(Dataset):
 
         hub_reporter.feature_report(feature_name="visualize", parameters={})
         visualize(self.path, self.token, width=width, height=height)
+
+    def add_creds_key(self, creds_key: str, managed: bool = False):
+        """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+            ```
+
+        Args:
+            creds_key (str): The key to be added.
+            managed (bool): If True, the creds corresponding to the key will be fetched from activeloop platform.
+                Note, this is only applicable for datasets that are connected to activeloop platform.
+                Defaults to False.
+        """
+        if managed:
+            creds = self._fetch_managed_creds(creds_key)
+        self.link_creds.add_creds_key(creds_key, managed=managed)
+        if managed:
+            self.link_creds.populate_creds(creds_key, creds)
+        save_link_creds(self.link_creds, self.storage)
+        warn_missing_managed_creds(self.link_creds)
+
+    def update_creds_key(self, old_creds_key: str, new_creds_key: str):
+        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
+        if old_creds_key in self.link_creds.managed_creds_keys:
+            raise ValueError(
+                f"""Cannot update managed creds key directly. If you want to update it, follow these steps:-
+                1. ds.change_creds_management("{old_creds_key}", False)
+                2. ds.update_creds_key("{old_creds_key}", "{new_creds_key}")
+                3. [OPTIONSL] ds.change_creds_management("{new_creds_key}", True)
+                """
+            )
+        super().update_creds_key(old_creds_key, new_creds_key)
+        warn_missing_managed_creds(self.link_creds)
+
+    def change_creds_management(self, creds_key: str, managed: bool):
+        """Changes the management status of the creds key."""
+        if creds_key not in self.link_creds.creds_keys:
+            raise KeyError(f"Creds key {creds_key} not found.")
+        is_managed = creds_key in self.link_creds.managed_creds_keys
+        key_index = self.link_creds.creds_mapping[creds_key] - 1
+        if is_managed == managed:
+            return
+        if managed:
+            creds = self._fetch_managed_creds(creds_key)
+            self.link_creds.managed_creds_keys.add(creds_key)
+            self.link_creds.populate_creds(creds_key, creds)
+        else:
+            self.link_creds.managed_creds_keys.discard(creds_key)
+
+        save_link_creds(
+            self.link_creds, self.storage, managed_info=(managed, key_index)
+        )
+
+    def _fetch_managed_creds(self, creds_key):
+        """Fetches creds from activeloop platform and populates the dataset with them."""
+        creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
+        return creds

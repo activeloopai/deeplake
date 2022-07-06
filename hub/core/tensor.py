@@ -36,7 +36,7 @@ from hub.util.keys import (
     get_sample_shape_tensor_key,
 )
 from hub.util.modified import get_modified_indexes
-from hub.util.numeric_to_text import numeric_to_text
+from hub.util.class_label import convert_to_text
 from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -246,11 +246,15 @@ class Tensor:
         else:
             self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
 
-        if not self.is_iteration:
+        if not self.pad_tensor and not self.is_iteration:
             self.index.validate(self.num_samples)
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+
+    @property
+    def pad_tensor(self):
+        return self.dataset._pad_tensors
 
     def _write_initialization(self):
         self.storage.check_readonly()
@@ -300,7 +304,6 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
-        self.check_link_ready()
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
         self.chunk_engine.extend(
@@ -430,8 +433,6 @@ class Tensor:
             if sample_shape_tensor
             else None
         )
-        if sample_shape_provider is None:
-            self.check_link_ready()
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
@@ -601,7 +602,6 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
-        self.check_link_ready()
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
         update_link_callback = self._update_links if self.meta.links else None
@@ -617,6 +617,10 @@ class Tensor:
             and isinstance(item, int)
             and item >= self.num_samples
         ):
+            if self.is_sequence:
+                raise NotImplementedError(
+                    "Random assignment is not supported for sequences yet."
+                )
             num_samples_to_pad = item - self.num_samples
             append_link_callback = self._append_to_links if self.meta.links else None
 
@@ -642,15 +646,6 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
-    def check_link_ready(self):
-        if not self.is_link:
-            return
-        missing_keys = self.link_creds.missing_keys
-        if missing_keys:
-            raise ValueError(
-                f"Not all credentials are populated for a tensor with linked data. Missing: {missing_keys}. Populate with `dataset.populate_creds(key, value)`."
-            )
-
     def numpy(
         self, aslist=False, fetch_chunks=False
     ) -> Union[np.ndarray, List[np.ndarray]]:
@@ -672,9 +667,11 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        self.check_link_ready()
         return self.chunk_engine.numpy(
-            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+            self.index,
+            aslist=aslist,
+            fetch_chunks=fetch_chunks,
+            pad_tensor=self.pad_tensor,
         )
 
     def summary(self):
@@ -785,7 +782,7 @@ class Tensor:
             data = {"numeric": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = numeric_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, self.info.class_names)
             return data
         else:
             return self.numpy(aslist=aslist)
@@ -806,15 +803,10 @@ class Tensor:
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
-        self.check_link_ready()
         idx = self.index.values[0].value
         if self.is_link:
             return self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
-
-    def _pop(self):
-        self.chunk_engine._pop()
-        [self.dataset[link]._pop() for link in self.meta.links]
 
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
@@ -953,6 +945,14 @@ class Tensor:
         else:
             webbrowser.open(self._get_video_stream_url())
 
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """Removes an element at the given index."""
+        if index is None:
+            index = self.num_samples - 1
+        self.chunk_engine.pop(index)
+        [self.dataset[link].pop(index) for link in self.meta.links]
+
     @property
     def timestamp(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
@@ -974,7 +974,10 @@ class Tensor:
         ```
 
         """
-        if get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION:
+        if (
+            get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
+            and self.htype != "link[video]"
+        ):
             raise Exception("Only supported for video tensors.")
         index = self.index
         if index.values[0].subscriptable():
@@ -986,9 +989,12 @@ class Tensor:
         else:
             sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
-        sample = self.chunk_engine.get_video_sample(
-            global_sample_index, index, decompress=False
-        )
+        if self.is_link:
+            sample = self.chunk_engine.get_video_url(global_sample_index)  # type: ignore
+        else:
+            sample = self.chunk_engine.get_video_sample(
+                global_sample_index, index, decompress=False
+            )
 
         nframes = self.shape[0]
         start, stop, step, reverse = normalize_index(sub_index, nframes)
@@ -1009,3 +1015,7 @@ class Tensor:
             "is_link": tensor_meta.is_link,
             "is_sequence": tensor_meta.is_sequence,
         }
+
+    @property
+    def sample_indices(self):
+        return self.index.values[0].indices(self.num_samples)

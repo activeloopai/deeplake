@@ -400,10 +400,9 @@ class Sample:
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
-        path = self.path.replace("gdrive://", "")  # type: ignore
-        root, key = self._get_root_and_key(path)
-        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
-        return gdrive[key]
+        assert self.path is not None
+        gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
+        return gdrive.get_object_from_full_url(self.path)
 
     def _read_from_http(self) -> bytes:
         return urlopen(self.path).read()  # type: ignore
