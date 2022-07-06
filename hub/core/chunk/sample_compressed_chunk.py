@@ -92,7 +92,7 @@ class SampleCompressedChunk(BaseChunk):
         if not decompress:
             return bytes(buffer) if copy else buffer
         if not is_tile and self.is_fixed_shape:
-            shape = self.tensor_meta.min_shape
+            shape = tuple(self.tensor_meta.min_shape)
         else:
             shape = self.shapes_encoder[local_index]
         nframes = shape[0]
