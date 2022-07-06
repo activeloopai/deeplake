@@ -894,7 +894,17 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    __getattr__ = __getitem__
+    def __getattr__(self, key, *args):
+        if args:
+            try:
+                return self[key]
+            except KeyError:
+                return args[0]
+        try:
+            return self[key]
+        except KeyError ke:
+            raise AttributeError(f"{self.__class__.__name__} instance has no attribute {key}.") from ke
+
 
     def __setattr__(self, name: str, value):
         if isinstance(value, (np.ndarray, np.generic)):
