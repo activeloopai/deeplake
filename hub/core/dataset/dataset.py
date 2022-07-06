@@ -2607,6 +2607,7 @@ class Dataset:
             token=token,
             overwrite=overwrite,
             public=public,
+            unlink=[t for t in self.tensors if self.tensors[t].base_htype != "video"],
         )
 
         if not self.index.subscriptable_at(0):
