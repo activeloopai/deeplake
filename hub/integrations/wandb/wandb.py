@@ -147,7 +147,7 @@ def viz_html(hub_path: str):
 #     }})
 #   </script>
 #     """
-    return f"""<iframe width=800 height=500 sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
 def _plat_link(hub_path: str):
