@@ -2617,7 +2617,9 @@ class Dataset:
             token=token,
             overwrite=overwrite,
             public=public,
-            unlink=[t for t in self.tensors if self.tensors[t].base_htype != "video"],
+            unlink=[t for t in self.tensors if self.tensors[t].base_htype != "video"]
+            if unlink
+            else False,
         )
 
         if not self.index.subscriptable_at(0):
@@ -2630,20 +2632,21 @@ class Dataset:
         else:
             reset_index = False
         try:
-            for tensor_name, tensor in dest_ds.tensors.items():
+            for tensor in dest_ds.tensors:
+                src = self[tensor]
                 copy_f = (
                     (
                         _copy_tensor_unlinked_partial_sample
                         if len(self.index) > 1
                         else _copy_tensor_unlinked_full_sample
                     )
-                    if unlink and tensor.is_link and tensor.base_htype != "video"
+                    if unlink and src.is_link and src.base_htype != "video"
                     else _copy_tensor
                 )
                 if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor_name}.\n")
+                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
                 hub.compute(copy_f, name="tensor copy transform")(
-                    tensor_name=tensor_name
+                    tensor_name=tensor
                 ).eval(
                     self,
                     dest_ds,

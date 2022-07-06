@@ -551,8 +551,10 @@ class dataset:
 
         if unlink is True:
             unlink = tensors
+        elif unlink is False:
+            unlink = []
         for tensor_name in tensors:  # type: ignore
-            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name], unlink=tensor_name in tensors)  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name], unlink=tensor_name in unlink)  # type: ignore
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
