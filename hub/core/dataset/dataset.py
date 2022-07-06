@@ -2684,7 +2684,7 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-        self._copy(
+        return self._copy(
             dest,
             tensors,
             overwrite,
