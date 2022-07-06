@@ -309,7 +309,33 @@ class HubCloudDataset(Dataset):
         warn_missing_managed_creds(self.link_creds)
 
     def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key."""
+        """Changes the management status of the creds key.
+
+        Args:
+            creds_key (str): The key whose management status is to be changed.
+            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+
+            # Populate the name added with creds dictionary
+            # These creds are only present temporarily and will have to be repopulated on every reload
+            ds.populate_creds("my_s3_key", {})
+
+            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            ds.change_creds_management("my_s3_key", True)
+            ```
+        """
         if creds_key not in self.link_creds.creds_keys:
             raise KeyError(f"Creds key {creds_key} not found.")
         is_managed = creds_key in self.link_creds.managed_creds_keys
