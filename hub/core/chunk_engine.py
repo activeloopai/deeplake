@@ -16,7 +16,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import get_empty_sample, intelligent_cast
+from hub.util.casting import get_empty_text_like_sample, intelligent_cast
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
@@ -914,11 +914,16 @@ class ChunkEngine:
                 update_first_sample = True
 
             htype = self.tensor_meta.htype
-            if htype in ["json", "text", "list"]:
-                empty_sample = get_empty_sample(htype)
+            if htype in ("json", "text", "list"):
+                empty_sample = get_empty_text_like_sample(htype)
                 empty_samples = [empty_sample] * num_samples_to_pad
+            elif self.tensor_meta.is_link:
+                empty_sample = None
+                empty_samples = [None] * num_samples_to_pad
             else:
                 ndim = len(self.tensor_meta.max_shape)
+                if self.is_sequence:
+                    ndim += 1
                 shape = tuple([num_samples_to_pad] + [0] * ndim)
                 dtype = self.tensor_meta.dtype
                 empty_sample = np.zeros(shape[1:], dtype=dtype)
@@ -1316,6 +1321,7 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1327,6 +1333,7 @@ class ChunkEngine:
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
+            pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1336,7 +1343,7 @@ class ChunkEngine:
         """
         self.check_link_ready()
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache, fetch_chunks
+            index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
@@ -1436,7 +1443,16 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
-    def get_single_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_single_sample(
+        self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
+    ):
+        if pad_tensor and global_sample_index >= self.tensor_meta.length:
+            sample = self.get_empty_sample()
+            try:
+                return sample[tuple(entry.value for entry in index.values[1:])]
+            except IndexError:
+                return sample
+
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
                 global_sample_index, index, fetch_chunks=fetch_chunks
@@ -1454,6 +1470,7 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1465,6 +1482,7 @@ class ChunkEngine:
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
+            pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1475,12 +1493,15 @@ class ChunkEngine:
         length = self.num_samples
         last_shape = None
         if use_data_cache and self.is_data_cachable:
-            samples = self.numpy_from_data_cache(index, length, aslist)
+            samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
                 sample = self.get_single_sample(
-                    global_sample_index, index, fetch_chunks=fetch_chunks
+                    global_sample_index,
+                    index,
+                    fetch_chunks=fetch_chunks,
+                    pad_tensor=pad_tensor,
                 )
                 samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
@@ -1496,35 +1517,47 @@ class ChunkEngine:
             return samples
         return np.array(samples)
 
-    def numpy_from_data_cache(self, index, length, aslist):
+    def numpy_from_data_cache(self, index, length, aslist, pad_tensor=False):
         samples = []
         enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
-            if self.cached_data is None or global_sample_index not in self.cache_range:
-                row = enc.__getitem__(global_sample_index, True)[0][1]
-                chunks = self.get_chunks_for_sample(global_sample_index)
-                assert len(chunks) == 1
+            if pad_tensor and global_sample_index >= self.tensor_meta.length:
+                sample = self.get_empty_sample()
+                try:
+                    sample = sample[tuple(entry.value for entry in index.values[1:])]
+                except IndexError:
+                    pass
+            else:
+                if (
+                    self.cached_data is None
+                    or global_sample_index not in self.cache_range
+                ):
+                    row = enc.__getitem__(global_sample_index, True)[0][1]
+                    chunks = self.get_chunks_for_sample(global_sample_index)
+                    assert len(chunks) == 1
 
-                chunk = chunks[0]
-                chunk_arr = self.chunk_id_encoder.array
+                    chunk_arr = self.chunk_id_encoder.array
 
-                first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                last_sample = self.chunk_id_encoder.array[row][1]
-                num_samples = last_sample - first_sample + 1
+                    chunk = chunks[0]
+                    first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
+                    last_sample = self.chunk_id_encoder.array[row][1]
+                    num_samples = last_sample - first_sample + 1
 
-                full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
-                dtype = self.tensor_meta.dtype
+                    full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
+                    dtype = self.tensor_meta.dtype
 
-                data_bytes = bytearray(chunk.data_bytes)
-                self.cached_data = np.frombuffer(data_bytes, dtype).reshape(full_shape)
-                self.cache_range = range(first_sample, last_sample + 1)
+                    data_bytes = bytearray(chunk.data_bytes)
+                    self.cached_data = np.frombuffer(data_bytes, dtype).reshape(
+                        full_shape
+                    )
+                    self.cache_range = range(first_sample, last_sample + 1)
 
-            sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
+                sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
 
-            # need to copy if aslist otherwise user might modify the returned data
-            # if not aslist, we already do np.array(samples) while formatting which copies
-            sample = sample.copy() if aslist else sample
-            sample = sample[tuple(entry.value for entry in index.values[1:])]
+                # need to copy if aslist otherwise user might modify the returned data
+                # if not aslist, we already do np.array(samples) while formatting which copies
+                sample = sample.copy() if aslist else sample
+                sample = sample[tuple(entry.value for entry in index.values[1:])]
             samples.append(sample)
         return samples
 
@@ -1541,8 +1574,8 @@ class ChunkEngine:
             List[BaseChunk]: BaseChunk objects that contains `global_sample_index`.
         """
         return [
-            self.get_chunk_from_chunk_id(idx, copy)
-            for idx in self.chunk_id_encoder[global_sample_index]
+            self.get_chunk_from_chunk_id(chunk_id, copy)
+            for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
 
     def validate_num_samples_is_synchronized(self):
@@ -1612,40 +1645,48 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def _pop(self):
-        if self.num_samples == 0:
-            raise IndexError("pop from empty tensor")
-        self.commit_diff._pop()  # This will fail if the last sample was added in a previous commit
-        (self._pop_sequence if self.is_sequence else self.__pop)()
-
-    def _pop_sequence(self):
-        for _ in range(*self.sequence_encoder[-1]):
-            self.__pop()
-        self.sequence_encoder._pop()
-
-    def __pop(self):
-        """Used only for Dataset.append"""
+    def pop(self, index: int):
         self._write_initialization()
-        chunk_ids, delete = self.chunk_id_encoder._pop()
+        if self.tensor_meta.length == 0:
+            raise ValueError("There are no samples to pop")
+        if index < 0 or index >= self.tensor_meta.length:
+            raise IndexError(
+                f"Index {index} is out of range for tensor of length {self.tensor_meta.length}"
+            )
+
+        self.cached_data = None
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+
+        self.commit_diff.pop(index)
+        if self.is_sequence:
+            # pop in reverse order else indices get shifted
+            for idx in reversed(range(*self.sequence_encoder[index])):
+                self.pop_item(idx)
+            self.sequence_encoder.pop(index)
+        else:
+            self.pop_item(index)
+
+        self.cache.autoflush = initial_autoflush
+        self.cache.maybe_flush()
+
+    def pop_item(self, index):
+        chunk_ids, rows, delete = self.chunk_id_encoder.pop(index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            del self.tile_encoder[self.num_samples - 1]
+            del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
-            chunk_to_update._pop_sample()
+            chunk_to_update.pop(index)
+            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                if (
-                    self.active_appended_chunk is not None
-                    and self.active_appended_chunk.key == chunk_key
-                ):
-                    self.active_appended_chunk = None
-                    try:
-                        del self.cache[chunk_key]
-                    except KeyError:
-                        pass
-                else:
+                self.check_remove_active_chunks(chunk_key)
+                try:
                     del self.cache[chunk_key]
-        self.tensor_meta._pop()
+                except KeyError:
+                    pass
+
+        self.tensor_meta.pop(index)
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:
@@ -1723,13 +1764,17 @@ class ChunkEngine:
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
+        pad_tensor: bool = False,
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),
             aslist=aslist,
             use_data_cache=use_data_cache,
             fetch_chunks=fetch_chunks,
+            pad_tensor=pad_tensor,
         )
+        if isinstance(arr, np.ndarray) and arr.size == 0:
+            return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             if aslist:
                 _item_length = self._sequence_item_length
@@ -2014,3 +2059,28 @@ class ChunkEngine:
                 self._all_chunk_engines[k].extend(
                     [get_link_transform(v["append"])(sample)]
                 )
+
+    def get_empty_sample(self):
+        if self.num_samples == 0:
+            raise ValueError("This tensor has no samples, cannot get empty sample.")
+        htype = self.tensor_meta.htype
+        dtype = self.tensor_meta.dtype
+        if htype in ("text", "json", "list"):
+            return get_empty_text_like_sample(htype)
+        ndim = len(self.tensor_meta.max_shape)
+        if self.is_sequence:
+            ndim += 1
+        shape = (0,) * ndim
+        return np.ones(shape, dtype=dtype)
+
+    def check_remove_active_chunks(self, chunk_key):
+        if (
+            self.active_appended_chunk is not None
+            and self.active_appended_chunk.key == chunk_key
+        ):
+            self.active_appended_chunk = None
+        if (
+            self.active_updated_chunk is not None
+            and self.active_updated_chunk.key == chunk_key
+        ):
+            self.active_updated_chunk = None

@@ -284,29 +284,38 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
     def _num_samples_in_last_chunk(self):
         return self._num_samples_in_last_row()
 
-    def _pop(self) -> Tuple[List[ENCODING_DTYPE], bool]:
+    def pop(
+        self, index: Optional[int] = None
+    ) -> Tuple[List[ENCODING_DTYPE], List, bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
-            Tuple of list of affected chunk ids and boolean specifying whether those chunks should be deleted
+            Tuple of list of affected chunk ids, their rows and boolean specifying whether those chunks should be deleted
         """
-        chunk_ids_for_last_sample = self[-1]
-        if len(chunk_ids_for_last_sample) > 1:
-            self._encoded = self._encoded[: -len(chunk_ids_for_last_sample)]
+        if index is None:
+            index = self.get_last_index_for_pop()
+        out = self.__getitem__(index, return_row_index=True)  # type: ignore
+        chunk_ids = [out[i][0] for i in range(len(out))]
+        rows = [out[i][1] for i in range(len(out))]
+        if len(chunk_ids) > 1:  # tiled sample
+            self._encoded[rows[-1] + 1 :, LAST_SEEN_INDEX_COLUMN] -= 1
+            self._encoded = np.delete(self._encoded, rows, axis=0)
             to_delete = True
         else:
-            num_samples_in_last_chunk = self._num_samples_in_last_chunk()
+            row = rows[0]
+            prev = -1 if row == 0 else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+            num_samples_in_chunk = self.array[row][LAST_SEEN_INDEX_COLUMN] - prev
 
-            if num_samples_in_last_chunk == 1:
-                self._encoded = self._encoded[:-1]
+            if num_samples_in_chunk == 1:
+                self._encoded = np.delete(self._encoded, row, axis=0)
                 to_delete = True
-            elif num_samples_in_last_chunk > 1:
-                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+            elif num_samples_in_chunk > 1:
+                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
                 to_delete = False
             else:
-                raise IndexError("pop from empty encoder")
+                raise ValueError("No samples to pop")
 
         self.is_dirty = True
-        return chunk_ids_for_last_sample, to_delete
+        return chunk_ids, rows, to_delete
 
     def _replace_chunks_for_tiled_sample(
         self, global_sample_index: int, chunk_ids: List[ENCODING_DTYPE]

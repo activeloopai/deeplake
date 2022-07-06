@@ -440,12 +440,6 @@ class BaseChunk(HubMemoryObject):
             if self._update_tensor_meta_length:
                 self.tensor_meta.update_length(1)
 
-    def _pop_sample(self):
-        self.prepare_for_write()
-        self.data_bytes = self.data_bytes[: self.byte_positions_encoder[-1][0]]
-        self.shapes_encoder._pop()
-        self.byte_positions_encoder._pop()
-
     def pop_multiple(self, num_samples):
         self.prepare_for_write()
 
@@ -454,13 +448,13 @@ class BaseChunk(HubMemoryObject):
             starting_byte_first_popped_sample = self.byte_positions_encoder[
                 total_samples - num_samples
             ][0]
-            self.data_bytes = self.data_bytes[0:starting_byte_first_popped_sample]
+            self.data_bytes = self.data_bytes[:starting_byte_first_popped_sample]
 
         for _ in range(num_samples):
             if not self.shapes_encoder.is_empty():
-                self.shapes_encoder._pop()
+                self.shapes_encoder.pop()
             if not self.byte_positions_encoder.is_empty():
-                self.byte_positions_encoder._pop()
+                self.byte_positions_encoder.pop()
 
     def _get_partial_sample_tile(self, as_bytes=False):
         if (
@@ -477,6 +471,15 @@ class BaseChunk(HubMemoryObject):
                     )
                 return np.zeros(shape, dtype=self.dtype)
         return None
+
+    def pop(self, index):
+        self.prepare_for_write()
+        sb, eb = self.byte_positions_encoder[index]
+        self.data_bytes = self.data_bytes[:sb] + self.data_bytes[eb:]
+        if not self.shapes_encoder.is_empty():
+            self.shapes_encoder.pop(index)
+        if not self.byte_positions_encoder.is_empty():
+            self.byte_positions_encoder.pop(index)
 
     def _fill_empty_shapes(self, shape, num_samples):
         dims = len(shape)

@@ -1,4 +1,4 @@
-from typing import Union, Sequence, Any
+from typing import List, Union, Sequence, Any
 from functools import reduce
 import numpy as np
 from hub.core.linked_sample import LinkedSample
@@ -45,6 +45,8 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"
+    if isinstance(val, List) and len(val) > 0 and isinstance(val[0], LinkedSample):
+        return "generic"
     types = set((map(type, val)))  # type: ignore
     if dict in types:
         return "json"
@@ -57,7 +59,7 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     return "generic"
 
 
-def get_empty_sample(htype: str):
+def get_empty_text_like_sample(htype: str):
     """Get an empty sample of the given htype.
 
     Args:
