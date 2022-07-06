@@ -550,7 +550,7 @@ class dataset:
             tensors = source_ds.tensors  # type: ignore
 
         if unlink is True:
-            unlink = tensors
+            unlink = tensors  # type: ignore
         elif unlink is False:
             unlink = []
         for tensor_name in tensors:  # type: ignore
