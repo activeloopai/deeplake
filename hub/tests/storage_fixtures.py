@@ -1,6 +1,7 @@
 from hub.core.storage.gcs import GCSProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.ipfs import IPFSProvider
 from hub.core.storage.google_drive import GDriveProvider
 from hub.core.storage.local import LocalProvider
 from hub.core.storage.memory import MemoryProvider
@@ -63,6 +64,10 @@ def gdrive_storage(gdrive_path, gdrive_creds):
 @pytest.fixture
 def gcs_storage(gcs_path):
     return GCSProvider(gcs_path)
+
+@pytest.fixture
+def ipfs_storage(ipfs_path):
+    return IPFSProvider(ipfs_path)
 
 
 @pytest.fixture
