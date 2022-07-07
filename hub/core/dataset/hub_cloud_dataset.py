@@ -25,9 +25,14 @@ class HubCloudDataset(Dataset):
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
                 if self.verbose and verbose:
-                    logger.info(
-                        f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
-                    )
+                    msg = "This dataset can be visualized in Jupyter Notebook by ds.visualize()"
+                    url = f"https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
+                    if "/queries/" in url:
+                        logger.info(msg + ".")
+                    elif url.endswith("/queries"):
+                        pass
+                    else:
+                        logger.info(msg + " or at " + url)
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
                 warn(
