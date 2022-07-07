@@ -2,6 +2,7 @@ from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.google_drive import GDriveProvider
 from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.ipfs import IPFSProvider
 from hub.core.storage.local import LocalProvider
 import os
 import hub
@@ -17,8 +18,10 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
+    IPFS_OPT,
     GDRIVE_OPT,
     S3_PATH_OPT,
+    IPFS_PATH_OPT,
     GDRIVE_PATH_OPT,
     ENV_GOOGLE_APPLICATION_CREDENTIALS,
     ENV_GDRIVE_CLIENT_ID,
@@ -40,6 +43,7 @@ MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
 GDRIVE = "gdrive"
+IPFS = "ipfs"
 GCS = "gcs"
 HUB_CLOUD = "hub_cloud"
 
@@ -147,6 +151,12 @@ def _get_path_composition_configs(request):
             "is_id_prefix": True,
             "use_underscores": False,
         },
+        IPFS: {
+            "base_root": request.config.getoption(IPFS_PATH_OPT),
+            "use_id": True,
+            "is_id_prefix": True,
+            "use_underscores": False,
+        },
         GCS: {
             "base_root": PYTEST_GCS_PROVIDER_BASE_ROOT,
             "use_id": True,
@@ -237,6 +247,21 @@ def s3_vstream_path(request):
 
     path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
     yield path
+
+@pytest.fixture
+def ipfs_path(request):
+    if not is_opt_true(request, IPFS_OPT):
+        pytest.skip()
+        return
+
+    path = _get_storage_path(request, IPFS)
+    IPFSProvider(path).clear()
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        IPFSProvider(path).clear()
 
 
 @pytest.fixture(scope="session")
