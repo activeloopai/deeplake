@@ -2417,7 +2417,7 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, vew_id: str) -> ViewEntry:
+    def get_view(self, view_id: str) -> ViewEntry:
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == view_id:
@@ -2430,10 +2430,13 @@ class Dataset:
         raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def load_view(self, view_id: str):
-        """Loads the view with given view id
+        """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
-            view_id (str): Id of the view to load
+            id (str): id of the view to be loaded.
+
+        Returns:
+            Dataset: The loaded view.
 
         Raises:
             KeyError: if view with given id does not exist.
