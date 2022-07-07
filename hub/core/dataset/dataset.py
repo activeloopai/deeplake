@@ -2467,6 +2467,14 @@ class Dataset:
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def delete_view(self, id: str):
+        """Deletes dataset view which corresponds to the given id.
+
+        Args:
+            id (str): id of the view to be deleted.
+
+        Raises:
+            KeyError: If no such view exists.
+        """
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
