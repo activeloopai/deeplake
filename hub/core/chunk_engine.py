@@ -1381,7 +1381,7 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if self.tensor_meta.htype in {"text", "json", "list"}:
+                if self.tensor_meta.htype in {"text", "json", "list"} or self.tensor_meta.is_link:
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
