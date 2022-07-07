@@ -35,7 +35,7 @@ class LinkedChunkEngine(ChunkEngine):
         self._creds_encoder_commit_id: Optional[str] = None
 
     @property
-    def creds_encoder(self):
+    def creds_encoder(self) -> CredsEncoder:
         commit_id = self.commit_id
         if self._creds_encoder is None or self._creds_encoder_commit_id != commit_id:
             commit_id = self.commit_id
@@ -223,6 +223,10 @@ class LinkedChunkEngine(ChunkEngine):
             raise ValueError(
                 f"Creds keys {missing_used_keys} are used in the data but not populated. Please populate the dataset using ds.populate_creds()."
             )
+
+    def pop_item(self, index):
+        self.creds_encoder.pop(index)
+        return super().pop_item(index)
 
     def get_empty_sample(self):
         return np.ones((0,))
