@@ -331,6 +331,25 @@ class S3DeletionError(S3Error):
 class S3ListError(S3Error):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
+class IPFSError(Exception):
+    """Catchall for all errors encountered while working with IPFS"""
+
+
+class IPFSGetError(IPFSError):
+    """Catchall for all errors encountered while working getting an object from IPFS"""
+
+
+class IPFSSetError(IPFSError):
+    """Catchall for all errors encountered while working setting an object in IPFS"""
+
+
+class IPFSDeletionError(IPFSError):
+    """Catchall for all errors encountered while working deleting an object in IPFS"""
+
+
+class IPFSListError(IPFSError):
+    """Catchall for all errors encountered while retrieving a list of objects present in IPFS"""
+
 
 class CompressionError(Exception):
     pass
