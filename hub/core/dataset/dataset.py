@@ -2426,6 +2426,14 @@ class Dataset:
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(self, id: str):
+        """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
+
+        Args:
+            id (str): id of the view to be loaded.
+
+        Returns:
+            Dataset: The loaded view.
+        """
         return self.get_view(id).load()
 
     def delete_view(self, id: str):
