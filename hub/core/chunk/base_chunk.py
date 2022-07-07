@@ -221,10 +221,11 @@ class BaseChunk(HubMemoryObject):
     def _make_data_bytearray(self):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
         # data_bytes will be a memoryview if frombuffer is called.
+        if isinstance(self.data_bytes, PartialReader):
+            chunk_bytes = bytearray(self.data_bytes.get_all_bytes())
+            _, _, _, self.data_bytes = deserialize_chunk(chunk_bytes)
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
-        elif isinstance(self.data_bytes, PartialReader):
-            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
 
     def prepare_for_write(self):
         ffw_chunk(self)
@@ -475,7 +476,9 @@ class BaseChunk(HubMemoryObject):
     def pop(self, index):
         self.prepare_for_write()
         sb, eb = self.byte_positions_encoder[index]
+        print("data_bytes before", str(self.data_bytes))
         self.data_bytes = self.data_bytes[:sb] + self.data_bytes[eb:]
+        print("data_bytes after", str(self.data_bytes))
         if not self.shapes_encoder.is_empty():
             self.shapes_encoder.pop(index)
         if not self.byte_positions_encoder.is_empty():
