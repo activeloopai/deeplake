@@ -2203,25 +2203,40 @@ class Dataset:
 
         Examples:
             ```
-            # save a slice of the dataset
-            ds[:100].save_view()
-
-            # access saved view
-            ds.queries
+            # Save to specified path
+            vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
+            # vds_path = views/first_10
             ```
+
+                # Path unspecified
+                vds_path = ds[:100].save_view(id="first_100", message="first 100 samples")
+                # vds_path = path/to/dataset/.queries/first_100
+
+            ```
+            # Random id
+            vds_path = ds[:100].save_view()
+            # vds_path = "path/to/dataset/.queries/92f41922ed0471ec2d27690b7351fc96bea060e6c5ee22b14f7ffa5f291aa068"
+            ```
+
+            These virtual datasets can be loaded from their path like normal datasets.
+            See `Dataset.get_view` to learn how to load views by id.
 
         Args:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
                 - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
                 - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
-            id (Optional, str): Uniquie id for this view.
-            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
+            id (Optional, str): Uniquie id for this view. Random id will be generated if not specified.
+            optimize (bool): Whether the view should be optimized by copying the required data. Defaults to False.
             num_workers (int): Number of workers to be used if `copy` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Returns:
             str: Path to the saved VDS.
+
+        Raises:
+            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+            DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
             path, id, message, optimize, num_workers, False, **ds_args
