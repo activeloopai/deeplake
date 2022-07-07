@@ -2433,7 +2433,7 @@ class Dataset:
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
-            id (str): id of the view to be loaded.
+            view_id (str): id of the view to be loaded.
 
         Returns:
             Dataset: The loaded view.
