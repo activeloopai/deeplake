@@ -956,7 +956,7 @@ class Tensor:
         [self.dataset[link].pop(index) for link in self.meta.links]
 
     @property
-    def timestamp(self) -> np.ndarray:
+    def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
 
         ## Examples:
