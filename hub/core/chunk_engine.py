@@ -1315,7 +1315,7 @@ class ChunkEngine:
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
 
-    def _get_full_chunk(self, index):
+    def _get_full_chunk(self, index) -> bool:
         """Reads samples from chunks and returns as a boolean that says whether we need to fetch full chunks or only specified subset of it.
         Args:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
