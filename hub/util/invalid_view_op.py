@@ -11,8 +11,9 @@ def invalid_view_op(callable: Callable):
         ds = x if isinstance(x, hub.Dataset) else x.dataset
         # Materialized views have `_is_view = False`. Non materialized views have non trivial indices.
         # Materialized views can be deleted.
-        if not x.index.is_trivial() or (
-            getattr(ds, "_is_view", False) and callable.__name__ != "delete"
+        if not getattr(ds, "_allow_view_updates", False) and (
+            not x.index.is_trivial()
+            or (getattr(ds, "_is_view", False) and callable.__name__ != "delete")
         ):
             raise InvalidOperationError(
                 callable.__name__,

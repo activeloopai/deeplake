@@ -2125,17 +2125,23 @@ class Dataset:
 
     def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
         """Writes the indices of this view to a vds."""
-        with vds:
-            if copy:
-                self._copy(vds, num_workers=num_workers, unlink=unlink)
-            else:
-                vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                    list(self.index.values[0].indices(len(self)))
-                )
-                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
-                if len(self.index) > 1:
-                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
-            vds.info.update(info)
+        vds._allow_view_updates = True
+        try:
+            with vds:
+                if copy:
+                    self._copy(vds, num_workers=num_workers, unlink=unlink)
+                else:
+                    vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                        list(self.index.values[0].indices(len(self)))
+                    )
+                    info["first-index-subscriptable"] = self.index.subscriptable_at(0)
+                    if len(self.index) > 1:
+                        info["sub-sample-index"] = Index(
+                            self.index.values[1:]
+                        ).to_json()
+                vds.info.update(info)
+        finally:
+            vds._allow_view_updates = False
 
     def _save_view_in_subdir(
         self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
