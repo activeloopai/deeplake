@@ -1509,8 +1509,7 @@ class Dataset:
     ):
         """Converts the dataset into a tensorflow compatible format.
 
-        See:
-            https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+        See https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
         Args:
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
@@ -1596,6 +1595,7 @@ class Dataset:
         self.storage.clear()
 
     def summary(self):
+        """Prints a summary of the dataset."""
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2201,12 +2201,20 @@ class Dataset:
     ) -> str:
         """Stores a dataset view as a virtual dataset (VDS)
 
+        Examples:
+            ```
+            # save a slice of the dataset
+            ds[:100].save_view()
+
+            # access saved view
+            ds.queries
+            ```
+
         Args:
             message (Optional, str): Custom user message.
-            path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path.
-                If not, the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
-                is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+            path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
+                - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
+                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
             id (Optional, str): Uniquie id for this view.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `copy` is True.
@@ -2646,7 +2654,9 @@ class Dataset:
     @invalid_view_op
     def reset(self):
         """Resets the uncommitted changes present in the branch.
-        Note: The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+
+        Note:
+            - The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
