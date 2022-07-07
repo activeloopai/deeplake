@@ -1,5 +1,4 @@
 # type: ignore
-from asyncio import constants
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
