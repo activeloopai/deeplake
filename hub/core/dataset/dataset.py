@@ -1392,7 +1392,8 @@ class Dataset:
         from hub.integrations import dataset_to_pytorch as to_pytorch
 
         # check whether we have an empty tensor inside of tensors
-        for tensor_name in tensors:
+        tensor_names = tensors or self.tensors.keys()
+        for tensor_name in tensor_names:
             if len(self.tensors[tensor_name]) == 0:
                 raise EmptyTensorInTheDatasetError(tensor_name)
 
