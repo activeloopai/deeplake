@@ -2315,13 +2315,10 @@ class Dataset:
             commit_id = self.info["source-dataset-version"]
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
-        path = path = self.info["source-dataset"]
-        if path == "..":
-            path = self._parent_dataset.path
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(path=path, verbose=False)
+            else hub.dataset(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
