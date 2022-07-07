@@ -476,9 +476,7 @@ class BaseChunk(HubMemoryObject):
     def pop(self, index):
         self.prepare_for_write()
         sb, eb = self.byte_positions_encoder[index]
-        print("data_bytes before", str(self.data_bytes))
         self.data_bytes = self.data_bytes[:sb] + self.data_bytes[eb:]
-        print("data_bytes after", str(self.data_bytes))
         if not self.shapes_encoder.is_empty():
             self.shapes_encoder.pop(index)
         if not self.byte_positions_encoder.is_empty():
