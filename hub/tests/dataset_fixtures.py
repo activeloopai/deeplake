@@ -4,24 +4,24 @@ import hub
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "gdrive_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "gdrive_ds", "ipfs_ds"],
     indirect=True,
 )
 
 enabled_non_gdrive_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "ipfs_ds"],
     indirect=True,
 )
 
 enabled_non_gcs_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gdrive_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gdrive_ds", "ipfs_ds"],
     indirect=True,
 )
 
 enabled_non_gcs_gdrive_datasets = pytest.mark.parametrize(
-    "ds", ["memory_ds", "local_ds", "s3_ds"], indirect=True
+    "ds", ["memory_ds", "local_ds", "s3_ds", "ipfs_ds"], indirect=True
 )
 
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
@@ -31,6 +31,7 @@ enabled_persistent_dataset_generators = pytest.mark.parametrize(
         "s3_ds_generator",
         "gcs_ds_generator",
         "gdrive_ds_generator",
+        "ipfs_ds_generator",
     ],
     indirect=True,
 )
@@ -40,6 +41,7 @@ enabled_cloud_dataset_generators = pytest.mark.parametrize(
     [
         "s3_ds_generator",
         "gcs_ds_generator",
+        "ipfs_ds_generator",
     ],
     indirect=True,
 )
@@ -101,6 +103,17 @@ def gcs_ds_generator(gcs_path, gcs_creds):
 
     return generate_gcs_ds
 
+@pytest.fixture
+def ipfs_ds(ipfs_ds_generator):
+    return ipfs_ds_generator()
+
+
+@pytest.fixture
+def ipfs_ds_generator(ipfs_path):
+    def generate_ipfs_ds(**kwargs):
+        return hub.dataset(ipfs_path, **kwargs)
+
+    return generate_ipfs_ds
 
 @pytest.fixture
 def hub_cloud_ds(hub_cloud_ds_generator):
