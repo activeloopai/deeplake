@@ -27,4 +27,4 @@ services:
       - ~/.config/gcloud/gcs.json:/root/.config/gcloud/gcs.json
       - ../:/app
     command: >
-      bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ignore-glob=buH/*"
+      bash -c "python3 -m pytest -x --local --s3 --gcs --hub-cloud --ipfs --ignore-glob=buH/*"
