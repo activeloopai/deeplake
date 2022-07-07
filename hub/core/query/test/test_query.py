@@ -20,28 +20,31 @@ def hub_compute_filter(sample_in, mod):
     return val % mod == 0
 
 
-def _populate_data_linked(ds, n, compressed_image_paths):
+def _populate_data_linked(ds, n, compressed_image_paths, labels):
     with ds:
         if "images" not in ds:
             ds.create_tensor("images", htype="link[image]")
-            ds.create_tensor("labels", htype="class_label", class_names=class_names)
+            if labels:
+                ds.create_tensor("labels", htype="class_label", class_names=class_names)
             for _ in range(n):
-                for row in rows:
-                    ds.images.append(hub.link(compressed_image_paths["png"][0]))
-                    ds.labels.append(row["labels"])
+                ds.images.append(hub.link(compressed_image_paths["png"][0]))
+                if labels:
+                    ds.labels.append(rows[0]["labels"])
 
 
-def _populate_data(ds, n=1, linked=False, paths=None):
+def _populate_data(ds, n=1, linked=False, paths=None, labels=True):
     if linked:
-        return _populate_data_linked(ds, n, paths)
+        return _populate_data_linked(ds, n, paths, labels)
     with ds:
         if "images" not in ds:
             ds.create_tensor("images")
-            ds.create_tensor("labels", htype="class_label", class_names=class_names)
+            if labels:
+                ds.create_tensor("labels", htype="class_label", class_names=class_names)
         for _ in range(n):
             for row in rows:
                 ds.images.append(row["images"])
-                ds.labels.append(row["labels"])
+                if labels:
+                    ds.labels.append(row["labels"])
 
 
 @pytest.fixture
@@ -124,12 +127,13 @@ def test_query_scheduler(local_ds):
 @pytest.mark.parametrize(
     "optimize,idx_subscriptable", [(True, True), (False, False), (True, False)]
 )
-def test_sub_sample_view_save(optimize, idx_subscriptable):
+def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_paths):
     id = str(uuid4())
     arr = np.random.random((100, 32, 32, 3))
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
         ds.x.extend(arr)
+    _populate_data(ds, linked=True, n=100, paths=compressed_image_paths, labels=False)
     with pytest.raises(DatasetViewSavingError):
         ds.save_view(optimize=optimize)
     view = ds[10:77, 2:17, 19:31, :1]

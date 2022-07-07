@@ -894,7 +894,13 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    __getattr__ = __getitem__
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except KeyError as ke:
+            raise AttributeError(
+                f"'{self.__class__}' object has no attribute '{key}'"
+            ) from ke
 
     def __setattr__(self, name: str, value):
         if isinstance(value, (np.ndarray, np.generic)):
@@ -2309,13 +2315,10 @@ class Dataset:
             commit_id = self.info["source-dataset-version"]
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
-        path = path = self.info["source-dataset"]
-        if path == "..":
-            path = self._parent_dataset.path
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(path=path, verbose=False)
+            else hub.dataset(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
