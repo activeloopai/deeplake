@@ -1,4 +1,5 @@
 # type: ignore
+from asyncio import constants
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
@@ -2416,27 +2417,43 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, id: str) -> ViewEntry:
+    def get_view(self, vew_id: str) -> ViewEntry:
         queries = self._read_queries_json()
         for q in queries:
-            if q["id"] == id:
+            if q["id"] == view_id:
                 return ViewEntry(q, self)
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == id:
+                if q["id"] == view_id:
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
-    def load_view(self, id: str):
-        return self.get_view(id).load()
+    def load_view(self, view_id: str):
+        """Loads the view with given view id
 
-    def delete_view(self, id: str):
+        Args:
+            view_id (str): Id of the view to load
+
+        Raises:
+            KeyError: if view with given id does not exist.
+        """
+        return self.get_view(view_id).load()
+
+    def delete_view(self, view_id: str):
+        """Deletes the view with given view id
+
+        Args:
+            view_id (str): Id of the view to delete
+
+        Raises:
+            KeyError: if view with given id does not exist.
+        """
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
                 for i, q in enumerate(qjson):
-                    if q["id"] == id:
+                    if q["id"] == view_id:
                         qjson.pop(i)
                         self.base_storage.subdir(
                             ".queries/" + (q.get("path") or q["id"])
@@ -2451,14 +2468,14 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if q["source-dataset"] == self.path and q["id"] == id:
+                        if q["source-dataset"] == self.path and q["id"] == view_id:
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
                             ).clear()
                             qds._write_queries_json(qjson)
                             return
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def _sub_ds(
         self,
@@ -2620,7 +2637,14 @@ class Dataset:
             token=token,
             overwrite=overwrite,
             public=public,
-            unlink=[t for t in self.tensors if self.tensors[t].base_htype != "video"]
+            unlink=[
+                t
+                for t in self.tensors
+                if (
+                    self.tensors[t].base_htype != "video"
+                    or hub.constants._UNLINK_VIDEOS
+                )
+            ]
             if unlink
             else False,
         )
@@ -2643,7 +2667,9 @@ class Dataset:
                         if len(self.index) > 1
                         else _copy_tensor_unlinked_full_sample
                     )
-                    if unlink and src.is_link and src.base_htype != "video"
+                    if unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or hub.constants._UNLINK_VIDEOS)
                     else _copy_tensor
                 )
                 if progressbar:
