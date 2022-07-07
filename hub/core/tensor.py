@@ -746,14 +746,14 @@ class Tensor:
         if htype in ("json", "text"):
 
             if self.ndim == 1:
-                return self.numpy()[0]
+                return {"value": self.numpy()[0]}
             else:
-                return [sample[0] for sample in self.numpy(aslist=True)]
+                return {"value": [sample[0] for sample in self.numpy(aslist=True)]}
         elif htype == "list":
             if self.ndim == 1:
-                return list(self.numpy())
+                return {"value": list(self.numpy())}
             else:
-                return list(map(list, self.numpy(aslist=True)))
+                return {"value": list(map(list, self.numpy(aslist=True)))}
         elif self.htype == "video":
             data = {}
             data["frames"] = self.numpy(aslist=aslist)
@@ -778,16 +778,21 @@ class Tensor:
                 data["timestamps"] = self.timestamps
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+
+            data["sample_info"] = self.sample_info
             return data
         elif htype == "class_label":
             labels = self.numpy(aslist=aslist)
-            data = {"numeric": labels}
+            data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
                 data["text"] = convert_to_text(labels, self.info.class_names)
             return data
         else:
-            return self.numpy(aslist=aslist)
+            return {
+                "value": self.numpy(aslist=aslist),
+                "sample_info": self.sample_info or {},
+            }
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.
