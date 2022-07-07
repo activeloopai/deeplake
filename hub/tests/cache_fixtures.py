@@ -5,15 +5,19 @@ import pytest
 _MEMORY = "memory_storage"
 _LOCAL = "local_storage"
 _S3 = "s3_storage"
+_IPFS = "ipfs_storage"
 _HUB_CLOUD = "hub_cloud_storage"
 
 CACHE_CHAINS = [
     (_MEMORY, _LOCAL),
     (_MEMORY, _S3),
+    (_MEMORY, _IPFS),
     (_MEMORY, _HUB_CLOUD),
     (_LOCAL, _S3),
+    (_LOCAL, _IPFS),
     (_LOCAL, _HUB_CLOUD),
     (_MEMORY, _LOCAL, _S3),
+    (_MEMORY, _LOCAL, _IPFS),
     (_MEMORY, _LOCAL, _HUB_CLOUD),
 ]
 CACHE_CHAINS = list(map(lambda i: ",".join(i), CACHE_CHAINS))  # type: ignore
