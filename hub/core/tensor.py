@@ -763,19 +763,19 @@ class Tensor:
                 if len(index.values) > 1:
                     data["timestamps"] = np.array(
                         [
-                            root[i, index.values[1].value].timestamp  # type: ignore
+                            root[i, index.values[1].value].timestamps  # type: ignore
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
                 else:
                     data["timestamps"] = np.array(
                         [
-                            root[i].timestamp
+                            root[i].timestamps
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
             else:
-                data["timestamps"] = self.timestamp
+                data["timestamps"] = self.timestamps
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
             return data

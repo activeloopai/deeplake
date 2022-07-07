@@ -102,9 +102,9 @@ def test_video_timestamps(vstream_path, hub_token):
     ds = hub.load(vstream_path, read_only=True, token=hub_token)
 
     with pytest.raises(ValueError):
-        stamps = ds.mp4_videos[:2].timestamp
+        stamps = ds.mp4_videos[:2].timestamps
 
-    stamps = ds.large_video[0, 12000:1199:-100].timestamp
+    stamps = ds.large_video[0, 12000:1199:-100].timestamps
 
     assert len(stamps) == 109
 
@@ -112,7 +112,7 @@ def test_video_timestamps(vstream_path, hub_token):
     assert stamps[-1] == 50
 
     # cover stepping without seeking
-    stamps = ds.large_video[0, 1200:1300:2].timestamp
+    stamps = ds.large_video[0, 1200:1300:2].timestamps
 
     assert len(stamps) == 50
     assert stamps[0] == 50
@@ -122,7 +122,7 @@ def test_video_exception(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
         with pytest.raises(Exception):
-            stamps = ds.abc.timestamp
+            stamps = ds.abc.timestamps
 
 
 @pytest.mark.skipif(
@@ -135,15 +135,15 @@ def test_video_sequence(local_ds, video_paths):
         ds.video_seq.append([hub.read(video_paths["mp4"][1]) for _ in range(3)])
 
         with pytest.raises(ValueError):
-            ds.video_seq[:2].timestamp
+            ds.video_seq[:2].timestamps
 
         with pytest.raises(ValueError):
-            ds.video_seq[0].timestamp
+            ds.video_seq[0].timestamps
 
         with pytest.raises(ValueError):
-            ds.video_seq[0, :2].timestamp
+            ds.video_seq[0, :2].timestamps
 
-        assert ds.video_seq[0][1, 5:10].timestamp.shape == (5,)
+        assert ds.video_seq[0][1, 5:10].timestamps.shape == (5,)
 
 
 @pytest.mark.skipif(
@@ -192,6 +192,6 @@ def test_linked_video_timestamps(local_ds):
                 creds_key="ENV",
             )
         )
-        ds.videos[0, 5:10].timestamp == np.array(
+        ds.videos[0, 5:10].timestamps == np.array(
             [0.04170833, 0.08341666, 0.125125, 0.16683333, 0.20854166]
         )
