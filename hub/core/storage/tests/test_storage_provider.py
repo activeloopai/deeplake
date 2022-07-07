@@ -183,7 +183,7 @@ def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
     os.remove("gdrive_token.json")
 
 
-@pytest.mark.parametrize("storage", ["s3_storage", "gcs_storage"], indirect=True)
+@pytest.mark.parametrize("storage", ["s3_storage", "gcs_storage", "ipfs_storage"], indirect=True)
 def test_read_from_full_url(storage, color_image_paths):
     image_path = color_image_paths["jpeg"]
     with open(image_path, "rb") as f:
