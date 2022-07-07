@@ -35,6 +35,7 @@ def pytest_addoption(parser):
         LOCAL_OPT, action="store_true", help="Local tests will run if enabled."
     )
     parser.addoption(S3_OPT, action="store_true", help="S3 tests will run if enabled.")
+    parser.addoption(IPFS_OPT, action="store_true", help="IPFS tests will run if enabled.")
     parser.addoption(
         GCS_OPT, action="store_true", help="GCS tests will run if enabled."
     )
@@ -48,6 +49,12 @@ def pytest_addoption(parser):
         S3_PATH_OPT,
         type=str,
         help="Url to s3 bucket with optional key. Example: s3://bucket_name/key/to/tests/",
+        default=PYTEST_S3_PROVIDER_BASE_ROOT,
+    )
+    parser.addoption(
+        IPFS_PATH_OPT,
+        type=str,
+        help="CID to file stored on IPFS. Example: https://dweb.link/ipfs/cid",
         default=PYTEST_S3_PROVIDER_BASE_ROOT,
     )
     parser.addoption(
