@@ -367,3 +367,17 @@ def test_query_view_union(local_ds):
     v2 = ds.filter(lambda s: not (s.x.numpy() % 2))
     union = ds[sorted(list(set(v1.sample_indices).union(v2.sample_indices)))]
     np.testing.assert_array_equal(union.x.numpy(), ds.x.numpy())
+
+
+def test_view_saving_with_path(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("nums")
+        ds.nums.extend([i for i in range(100)])
+        ds.commit()
+        with pytest.raises(DatasetViewSavingError):
+            ds[:10].save_view(path=local_ds.path)
+        vds_path = local_ds.path + "/../vds"
+        ds[:10].save_view(path=vds_path, id="first_10")
+        with pytest.raises(DatasetViewSavingError):
+            ds[:10].save_view(path=vds_path)
+        ds.delete_view("first_10")
