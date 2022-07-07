@@ -222,8 +222,8 @@ class BaseChunk(HubMemoryObject):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
         # data_bytes will be a memoryview if frombuffer is called.
         if isinstance(self.data_bytes, PartialReader):
-            chunk_bytes = bytearray(self.data_bytes.get_all_bytes())
-            _, _, _, self.data_bytes = deserialize_chunk(chunk_bytes)
+            chunk_bytes = self.data_bytes.get_all_bytes()
+            self.data_bytes = bytearray(chunk_bytes[self.header_bytes:])
         if isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
 
