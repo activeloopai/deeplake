@@ -2754,6 +2754,7 @@ class Dataset:
 
         Raises:
             ValueError: If the dataset is not connected to activeloop platform.
+            KeyError: If the creds key is not present in the dataset.
 
         Examples:
             ```
