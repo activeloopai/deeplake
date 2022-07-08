@@ -143,8 +143,6 @@ def test_populate_dataset(local_ds):
     assert len(local_ds.image) == 16
     assert len(local_ds.image.numpy()) == 16
     assert len(local_ds.image[0:5].numpy()) == 5
-    assert len(local_ds.image[-5:13].numpy()) == 2
-    assert len(local_ds.image[:-1].numpy()) == 15
     assert len(local_ds.image[-5:-1].numpy()) == 4
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
