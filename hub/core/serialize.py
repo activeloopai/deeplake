@@ -514,7 +514,12 @@ def serialize_tensor(
     elif incoming_sample.meta.sample_compression == sample_compression:
         # Pass through
         try:
-            return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
+            byts = incoming_sample.tobytes()
+            shape = incoming_sample.shape
+            print("==========================")
+            np.frombuffer(byts, dtype).reshape(shape)
+            return byts, shape
+            # return incoming_sample.tobytes(), incoming_sample.shape  # type: ignore
         except (
             ValueError,
             NotImplementedError,
