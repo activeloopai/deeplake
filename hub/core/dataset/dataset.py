@@ -2197,11 +2197,10 @@ class Dataset:
         """Stores this view at a given dataset path"""
         if path == self.path:
             raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
-        if hub.exists(path) and ds_args.get("overwrite") == False:
-            raise DatasetViewSavingError(
-                "A dataset already exists at the specified location. Try using overwrite=True."
-            )
-        vds = hub.dataset(path, **ds_args)
+        try:
+            vds = hub.empty(path, **ds_args)
+        except Exception as e:
+            raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
         self._write_vds(vds, info, copy, num_workers)
         return vds
