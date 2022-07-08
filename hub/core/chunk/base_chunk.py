@@ -172,6 +172,9 @@ class BaseChunk(HubMemoryObject):
         )
 
     def tobytes(self) -> memoryview:
+        if isinstance(self.data_bytes, PartialReader):
+            self._make_data_bytearray()
+
         assert isinstance(self.data_bytes, (memoryview, bytearray, bytes))
         return serialize_chunk(
             self.version,
@@ -224,7 +227,7 @@ class BaseChunk(HubMemoryObject):
         if isinstance(self.data_bytes, PartialReader):
             chunk_bytes = self.data_bytes.get_all_bytes()
             self.data_bytes = bytearray(chunk_bytes[self.header_bytes :])
-        if isinstance(self.data_bytes, memoryview):
+        elif isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
 
     def prepare_for_write(self):
