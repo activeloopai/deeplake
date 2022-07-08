@@ -22,7 +22,7 @@ from hub.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
-
+from hub.util.exceptions import S3GetError
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
@@ -172,7 +172,7 @@ def dataset_exists(storage) -> bool:
     try:
         storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
         return True
-    except KeyError:
+    except (KeyError, S3GetError):
         return False
 
 
