@@ -1323,10 +1323,17 @@ class ChunkEngine:
             bool: True/False, whether to fetch a full chunk or only a part of it.
         """
         threshold = 10
+
         if type(index.values[0].value) == slice:
             start = index.values[0].value.start or 0
             stop = index.values[0].value.stop or self.num_samples
             step = index.values[0].value.step or 1
+
+            if start < 0:
+                start = self.num_samples + start
+
+            if stop < 0:
+                stop = self.num_samples + start
 
             numpy_array_length = (stop - start) // step
             return numpy_array_length > threshold
