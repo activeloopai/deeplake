@@ -738,7 +738,9 @@ class Dataset:
 
     @invalid_view_op
     @hub_reporter.record_call
-    def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
+    def create_tensor_like(
+        self, name: str, source: "Tensor", unlink: bool = False
+    ) -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
         Examples:
@@ -749,6 +751,7 @@ class Dataset:
         Args:
             name (str): Name for the new tensor.
             source (Tensor): Tensor who's meta/info will be copied. May or may not be contained in the same dataset.
+            unlink (bool): Whether to unlink linked tensors.
 
         Returns:
             Tensor: New Tensor object.
@@ -756,6 +759,8 @@ class Dataset:
 
         info = source.info.__getstate__().copy()
         meta = source.meta.__getstate__().copy()
+        if unlink:
+            meta["is_link"] = False
         del meta["min_shape"]
         del meta["max_shape"]
         del meta["length"]
@@ -889,7 +894,13 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    __getattr__ = __getitem__
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except KeyError as ke:
+            raise AttributeError(
+                f"'{self.__class__}' object has no attribute '{key}'"
+            ) from ke
 
     def __setattr__(self, name: str, value):
         if isinstance(value, (np.ndarray, np.generic)):
@@ -2111,19 +2122,25 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int):
+    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
         """Writes the indices of this view to a vds."""
-        with vds:
-            if copy:
-                self.copy(vds, num_workers=num_workers)
-            else:
-                vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                    list(self.index.values[0].indices(len(self)))
-                )
-                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
-                if len(self.index) > 1:
-                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
-            vds.info.update(info)
+        vds._allow_view_updates = True
+        try:
+            with vds:
+                if copy:
+                    self._copy(vds, num_workers=num_workers, unlink=unlink)
+                else:
+                    vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                        list(self.index.values[0].indices(len(self)))
+                    )
+                    info["first-index-subscriptable"] = self.index.subscriptable_at(0)
+                    if len(self.index) > 1:
+                        info["sub-sample-index"] = Index(
+                            self.index.values[1:]
+                        ).to_json()
+                vds.info.update(info)
+        finally:
+            vds._allow_view_updates = False
 
     def _save_view_in_subdir(
         self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
@@ -2133,7 +2150,6 @@ class Dataset:
         hash = info["id"]
         path = f".queries/{hash}"
         self.flush()
-        self.base_storage.subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2331,7 +2347,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(path=self.info["source-dataset"], verbose=False)
+            else hub.dataset(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
@@ -2430,6 +2446,7 @@ class Dataset:
                 )
         return list(ret)
 
+<<<<<<< HEAD
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to `id`
 
@@ -2455,31 +2472,48 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
+=======
+    def get_view(self, view_id: str) -> ViewEntry:
+>>>>>>> b15deb8ad8ecb3d6fa29e6d282b802ab963ae613
         queries = self._read_queries_json()
         for q in queries:
-            if q["id"] == id:
+            if q["id"] == view_id:
                 return ViewEntry(q, self)
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == id:
+                if q["id"] == view_id:
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
-    def delete_view(self, id: str):
-        """Deletes dataset view which corresponds to the given id.
+    def load_view(self, view_id: str):
+        """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
-            id (str): id of the view to be deleted.
+            view_id (str): id of the view to be loaded.
+
+        Returns:
+            Dataset: The loaded view.
 
         Raises:
-            KeyError: If no such view exists.
+            KeyError: if view with given id does not exist.
+        """
+        return self.get_view(view_id).load()
+
+    def delete_view(self, view_id: str):
+        """Deletes the view with given view id
+
+        Args:
+            view_id (str): Id of the view to delete
+
+        Raises:
+            KeyError: if view with given id does not exist.
         """
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
                 for i, q in enumerate(qjson):
-                    if q["id"] == id:
+                    if q["id"] == view_id:
                         qjson.pop(i)
                         self.base_storage.subdir(
                             ".queries/" + (q.get("path") or q["id"])
@@ -2494,14 +2528,14 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if q["source-dataset"] == self.path and q["id"] == id:
+                        if q["source-dataset"] == self.path and q["id"] == view_id:
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
                             ).clear()
                             qds._write_queries_json(qjson)
                             return
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def _sub_ds(
         self,
@@ -2603,6 +2637,124 @@ class Dataset:
                 )
         return ret
 
+    def _copy(
+        self,
+        dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
+        unlink: bool = False,
+    ):
+        """Copies this dataset or dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            token (str, Optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        if isinstance(dest, str):
+            path = dest
+        else:
+            path = dest.path
+
+        report_params = {
+            "Tensors": tensors,
+            "Overwrite": overwrite,
+            "Num_Workers": num_workers,
+            "Scheduler": scheduler,
+            "Progressbar": progressbar,
+            "Public": public,
+        }
+
+        if path.startswith("hub://"):
+            report_params["Dest"] = path
+        feature_report_path(self.path, "copy", report_params)
+
+        dest_ds = hub.api.dataset.dataset._like(
+            dest,
+            self,
+            tensors=tensors,
+            creds=creds,
+            token=token,
+            overwrite=overwrite,
+            public=public,
+            unlink=[
+                t
+                for t in self.tensors
+                if (
+                    self.tensors[t].base_htype != "video"
+                    or hub.constants._UNLINK_VIDEOS
+                )
+            ]
+            if unlink
+            else False,
+        )
+
+        if not self.index.subscriptable_at(0):
+            old_first_index = self.index.values[0]
+            new_first_index = IndexEntry(
+                slice(old_first_index.value, old_first_index.value + 1)
+            )
+            self.index.values[0] = new_first_index
+            reset_index = True
+        else:
+            reset_index = False
+        try:
+            for tensor in dest_ds.tensors:
+                src = self[tensor]
+                copy_f = (
+                    (
+                        _copy_tensor_unlinked_partial_sample
+                        if len(self.index) > 1
+                        else _copy_tensor_unlinked_full_sample
+                    )
+                    if unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or hub.constants._UNLINK_VIDEOS)
+                    else _copy_tensor
+                )
+                if progressbar:
+                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
+                hub.compute(copy_f, name="tensor copy transform")(
+                    tensor_name=tensor
+                ).eval(
+                    self,
+                    dest_ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                )
+        finally:
+            if reset_index:
+                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
+                dest_ds.meta.is_dirty = True
+                dest_ds.flush()
+                dest_ds = dest_ds[0]
+                self.index.values[0] = old_first_index
+        dest_ds.flush()
+        return dest_ds
+
     def copy(
         self,
         dest: Union[str, pathlib.Path],
@@ -2635,69 +2787,17 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-
-        if isinstance(dest, str):
-            path = dest
-        else:
-            path = dest.path
-
-        report_params = {
-            "Tensors": tensors,
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-
-        if path.startswith("hub://"):
-            report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params)
-
-        dest_ds = hub.api.dataset.dataset._like(
+        return self._copy(
             dest,
-            self,
-            tensors=tensors,
-            creds=creds,
-            token=token,
-            overwrite=overwrite,
-            public=public,
+            tensors,
+            overwrite,
+            creds,
+            token,
+            num_workers,
+            scheduler,
+            progressbar,
+            public,
         )
-        with dest_ds:
-            dest_ds.info.update(self.info)
-
-        if not self.index.subscriptable_at(0):
-            old_first_index = self.index.values[0]
-            new_first_index = IndexEntry(
-                slice(old_first_index.value, old_first_index.value + 1)
-            )
-            self.index.values[0] = new_first_index
-            reset_index = True
-        else:
-            reset_index = False
-        try:
-            for tensor in dest_ds.tensors:
-                if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                hub.compute(_copy_tensor, name="tensor copy transform")(
-                    tensor_name=tensor
-                ).eval(
-                    self,
-                    dest_ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                    skip_ok=True,
-                    check_lengths=False,
-                )
-        finally:
-            if reset_index:
-                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
-                dest_ds.meta.is_dirty = True
-                dest_ds.flush()
-                dest_ds = dest_ds[0]
-                self.index.values[0] = old_first_index
-        return dest_ds
 
     @invalid_view_op
     def reset(self):
@@ -2804,7 +2904,34 @@ class Dataset:
         save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
 
     def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key."""
+        """Changes the management status of the creds key.
+
+        Args:
+            creds_key (str): The key whose management status is to be changed.
+            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
+            KeyError: If the creds key is not present in the dataset.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+
+            # Populate the name added with creds dictionary
+            # These creds are only present temporarily and will have to be repopulated on every reload
+            ds.populate_creds("my_s3_key", {})
+
+            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            ds.change_creds_management("my_s3_key", True)
+            ```
+        """
         raise ValueError(
             "Managed creds are not supported for datasets that are not connected to activeloop platform."
         )
@@ -2837,7 +2964,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str, external=False):
+    def _optimize_saved_view(self, id: str, external=False, unlink=True):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
@@ -2856,7 +2983,11 @@ class Dataset:
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path)
-            view.copy(optimized, overwrite=True)
+            view._copy(optimized, overwrite=True, unlink=unlink)
+            optimized.info.update(vds.info.__getstate__())
+            optimized.info["virtual-datasource"] = False
+            optimized.info["path"] = new_path
+            optimized.flush()
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)
@@ -2878,3 +3009,15 @@ class Dataset:
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
+
+
+def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(
+        sample_in[tensor_name].chunk_engine.get_hub_read_sample(
+            sample_in.index.values[0].value
+        )
+    )
+
+
+def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(sample_in[tensor_name].numpy())
