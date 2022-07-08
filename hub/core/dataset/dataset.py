@@ -2173,12 +2173,14 @@ class Dataset:
         queries_ds_path = f"hub://{username}/queries"
 
         try:
-            queries_ds = hub.dataset(
+            queries_ds = hub.load(
                 queries_ds_path, verbose=False
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
-            queries_ds = hub.dataset(queries_ds_path, verbose=False)
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
+        except DatasetHandlerError:
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
