@@ -80,7 +80,7 @@ def append_shape(sample, link_creds=None):
             sample.path, sample.creds_key, link_creds, verify=False
         )
     return np.array(
-        # getattr(sample, "shape", None) or
+        getattr(sample, "shape", None) or
         np.array(sample).shape, dtype=np.int64
     )
 
