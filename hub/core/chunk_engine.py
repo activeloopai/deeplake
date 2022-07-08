@@ -2057,7 +2057,7 @@ class ChunkEngine:
         for k, v in self.tensor_meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 item = get_link_transform(v["append"])(sample)
-                print(f"key = {k}, sample = {sample}, sample_shape = {sample.shape}, sum = {np.sum(sample)}")
+                print(f"key = {k}, sample = {sample}, sample_shape = {sample.shape}, sum = {np.sum(sample)}, actual shape = {np.array(sample).shape}")
                 self._all_chunk_engines[k].extend(
                     [item]
                 )
