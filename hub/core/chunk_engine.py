@@ -1678,7 +1678,7 @@ class ChunkEngine:
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0])
             chunk_to_update.pop(index)
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
         if delete:
