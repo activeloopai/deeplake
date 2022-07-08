@@ -62,7 +62,7 @@ def cast_type(tensor: np.ndarray):
 def _process(tensor, transform: PytorchTransformFunction):
     def copy(x):
         try:
-            return cast_type(x.copy())
+            return cast_type(getattr(x, "copy", None) or np.array(x))
         except AttributeError:
             return bytes(x)
 
