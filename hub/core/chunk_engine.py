@@ -2056,8 +2056,10 @@ class ChunkEngine:
         assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
+                item = get_link_transform(v["append"])(sample)
+                print(f"key = {k}, item = {item}")
                 self._all_chunk_engines[k].extend(
-                    [get_link_transform(v["append"])(sample)]
+                    [item]
                 )
 
     def get_empty_sample(self):
