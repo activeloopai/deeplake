@@ -2446,8 +2446,7 @@ class Dataset:
                 )
         return list(ret)
 
-<<<<<<< HEAD
-    def get_view(self, id: str) -> ViewEntry:
+    def get_view(self, view_id: str) -> ViewEntry:
         """Returns the dataset view corresponding to `id`
 
         Examples:
@@ -2472,9 +2471,6 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
-=======
-    def get_view(self, view_id: str) -> ViewEntry:
->>>>>>> b15deb8ad8ecb3d6fa29e6d282b802ab963ae613
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == view_id:
