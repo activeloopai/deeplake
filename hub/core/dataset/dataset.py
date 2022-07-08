@@ -2463,7 +2463,7 @@ class Dataset:
             See `Dataset.save_view` to learn more about saving views.
 
         Args:
-            id (str): id of required view.
+            view_id (str): id of required view.
 
         Returns:
             `hub.core.dataset.view_entry.ViewEntry`
