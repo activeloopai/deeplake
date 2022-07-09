@@ -435,6 +435,7 @@ class Tensor:
         )
         shape: Tuple[Optional[int], ...]
         print(f"sample shape provider: {sample_shape_provider}")
+        print("index = ", [e.value for e in self.index.values])
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
