@@ -428,7 +428,7 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         sample_shape_tensor = self._sample_shape_tensor
-        sample_shape_provider.index = Index()
+        sample_shape_tensor.index = Index()
         sample_shape_provider = (
             self._sample_shape_provider(sample_shape_tensor)
             if sample_shape_tensor
