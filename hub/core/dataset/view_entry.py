@@ -49,6 +49,7 @@ class ViewEntry:
         self.info = self._ds._optimize_saved_view(
             self.info["id"], external=self._external, unlink=unlink
         )
+        return self
 
     def delete(self):
         """Deletes the view."""

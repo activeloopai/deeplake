@@ -2156,16 +2156,23 @@ class Dataset:
         return vds
 
     def _save_view_in_user_queries_dataset(
-        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
+        self,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        num_workers: int,
+        username: Optional[str] = None,
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
         """
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-        username = get_user_name()
-        if username == "public":
-            raise NotLoggedInError("Unable to save query result. Not logged in.")
+
+        if not username:
+            username = get_user_name()
+            if username == "public":
+                raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
