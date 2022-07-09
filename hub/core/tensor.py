@@ -426,7 +426,6 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         sample_shape_tensor = self._sample_shape_tensor
-        sample_shape_tensor.index = Index()
         sample_shape_provider = (
             self._sample_shape_provider(sample_shape_tensor)
             if sample_shape_tensor
@@ -857,7 +856,10 @@ class Tensor:
 
     @property
     def _sample_shape_tensor(self):
-        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"][
+                ds.version_state["tensor_names"][get_sample_shape_tensor_key(self.key)]
+            ]
 
     @property
     def _sample_id_tensor(self):
