@@ -24,6 +24,7 @@ from hub.constants import (
 )
 from hub.util.exceptions import S3GetError
 
+
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, CHUNKS_FOLDER, f"{chunk_name}"))
