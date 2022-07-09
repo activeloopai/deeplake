@@ -434,9 +434,11 @@ class Tensor:
             else None
         )
         shape: Tuple[Optional[int], ...]
+        print(f"sample shape provider: {sample_shape_provider}")
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
+        print("shape 10: ", shape)
         if not shape and self.meta.max_shape:
             shape = (0,) * len(self.meta.max_shape)
         if self.meta.max_shape == [0, 0, 0]:

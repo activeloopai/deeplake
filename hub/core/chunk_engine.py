@@ -1967,19 +1967,23 @@ class ChunkEngine:
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
         shape = self.shape_interval.astuple()
+        print("shape 1: ", shape)
         idxs = index.values
         skip_dims = 0
         if None in shape or self.tensor_meta.is_link:
             if not idxs[0].subscriptable():
                 if self.tensor_meta.htype in ("text", "json"):
                     shape = (1,)
+                    print("shape 2: ", shape)
                 else:
                     if sample_shape_provider:
                         try:
                             shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            print("shape 3: ", shape)
                             if self.is_sequence:
                                 if len(idxs) > 1 and not idxs[1].subscriptable():
                                     shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
+                                    print("shape 4: ", shape)
                                     skip_dims += 1
                                 else:
                                     shape = (len(shape),) + (
@@ -1991,21 +1995,26 @@ class ChunkEngine:
                                         )
                                         or (1,)
                                     )
+                                    print("shape 5: ", shape)
 
                         except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                            print("shape 6: ", shape)
                     else:
                         self.check_link_ready()
                         shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                        print("shape 7: ", shape)
                 skip_dims += 1
         elif not idxs[0].subscriptable():
             shape = shape[1:]
+            print("shape 8: ", shape)
             skip_dims += 1
         shape = list(shape)  # type: ignore
         squeeze_dims = set()
         for i, idx in enumerate(idxs[skip_dims:]):
             if idx.subscriptable():
                 shape[i] = idx.length(shape[i])  # type: ignore
+                print("shape 9: ", shape)
             else:
                 squeeze_dims.add(i)
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
