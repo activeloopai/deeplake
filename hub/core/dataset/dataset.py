@@ -2551,6 +2551,7 @@ class Dataset:
         empty=False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        verbose=True,
     ):
         """Loads a nested dataset. Internal.
         Note: Virtual datasets are returned as such, they are not converted to views.
@@ -2560,6 +2561,7 @@ class Dataset:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
+            verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
             Sub dataset
@@ -2584,6 +2586,7 @@ class Dataset:
             ),
             path=path,
             token=self._token,
+            verbose=verbose,
         )
         ret._parent_dataset = self
         return ret
@@ -2990,7 +2993,7 @@ class Dataset:
             vds = self._sub_ds(".queries/" + path)
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
-            optimized = self._sub_ds(".queries/" + new_path)
+            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
             view._copy(optimized, overwrite=True, unlink=unlink)
             optimized.info.update(vds.info.__getstate__())
             optimized.info["virtual-datasource"] = False
