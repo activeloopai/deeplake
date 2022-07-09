@@ -2175,7 +2175,9 @@ class Dataset:
                 raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
-        hash = f"[{self.org_id}][{self.ds_name}]{info['id']}"
+        base = self._view_base or self
+        org_id, ds_name = base.org_id, base.ds_name
+        hash = f"[{org_id}][{ds_name}]{info['id']}"
         info["id"] = hash
         queries_ds_path = f"hub://{username}/queries"
 
@@ -2484,13 +2486,12 @@ class Dataset:
         for q in queries:
             if q["id"] == view_id:
                 return ViewEntry(q, self)
-        uqueries = []
         if self.path.startswith("hub://"):
-            uqueries, qds = self._read_queries_json_from_user_account()
-            for q in uqueries:
+            queries, qds = self._read_queries_json_from_user_account()
+            for q in queries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{view_id}":
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {view_id} found in the dataset ({self.path}). Views in user account: {uqueries}.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def load_view(self, view_id: str):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
