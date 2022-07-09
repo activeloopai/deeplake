@@ -428,11 +428,11 @@ class Tensor:
                 an `int` (if that axis is fixed).
         """
         sample_shape_tensor = self._sample_shape_tensor
-        if sample_shape_tensor is not None:
-            sample_shape_tensor.index = Index()
-            sample_shape_provider = self._sample_shape_provider(sample_shape_tensor)
-        else:
-            sample_shape_provider = None
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
@@ -854,11 +854,17 @@ class Tensor:
 
     @property
     def _sample_info_tensor(self):
-        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.key))
+        )
 
     @property
     def _sample_shape_tensor(self):
-        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.key))
+        )
 
     @property
     def _sample_id_tensor(self):
@@ -894,7 +900,6 @@ class Tensor:
         sample_info_tensor = self._sample_info_tensor
         if sample_info_tensor is None:
             return None
-        sample_info_tensor.index = Index()
         if index.subscriptable_at(0):
             return list(
                 map(

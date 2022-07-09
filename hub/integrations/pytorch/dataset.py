@@ -1,6 +1,6 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
+from hub.integrations.pytorch.common import PytorchTransformFunction
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
@@ -62,6 +62,7 @@ def cast_type(tensor: np.ndarray):
 def _process(tensor, transform: PytorchTransformFunction):
     def copy(x):
         try:
+            print(type(x))
             return cast_type(getattr(x, "copy", None) or np.array(x))
         except AttributeError:
             return bytes(x)
