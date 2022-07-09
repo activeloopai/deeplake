@@ -2990,7 +2990,7 @@ class Dataset:
                 # Already optimized
                 return info
             path = info.get("path", info["id"])
-            vds = self._sub_ds(".queries/" + path)
+            vds = self._sub_ds(".queries/" + path, verbose=False)
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
