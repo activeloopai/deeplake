@@ -1684,7 +1684,7 @@ class ChunkEngine:
 
             if (
                 self.active_updated_chunk is not None
-                and self.active_updated_chunk.key != chunk.key  # type: ignore
+                and self.active_updated_chunk.key != chunk_to_update.key  # type: ignore
             ):
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk_to_update
