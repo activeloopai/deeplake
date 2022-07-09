@@ -45,8 +45,6 @@ from hub.util.exceptions import (
 )
 
 from hub.util.pretty_print import (
-    max_array_length,
-    get_string,
     summary_tensor,
 )
 from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
@@ -435,12 +433,9 @@ class Tensor:
             else None
         )
         shape: Tuple[Optional[int], ...]
-        print(f"sample shape provider: {sample_shape_provider}")
-        print("index = ", [e.value for e in self.index.values])
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
-        print("shape 10: ", shape)
         if not shape and self.meta.max_shape:
             shape = (0,) * len(self.meta.max_shape)
         if self.meta.max_shape == [0, 0, 0]:
@@ -882,7 +877,6 @@ class Tensor:
         else:
 
             def get_sample_shape(global_sample_index: int):
-                print("in get_sample_shape_provider: ", global_sample_index)
                 return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
 
         return get_sample_shape
