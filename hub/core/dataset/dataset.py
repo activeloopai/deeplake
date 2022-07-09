@@ -2094,7 +2094,13 @@ class Dataset:
         return _LockQueriesJson()
 
     def _write_queries_json(self, data: dict):
-        self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        read_only = self.base_storage.read_only
+        self.base_storage.disable_read_only()
+        try:
+            self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        finally:
+            if read_only:
+                self.base_storage.enable_readonly()
 
     def _append_to_queries_json(self, info: dict):
         with self._lock_queries_json():
@@ -2319,7 +2325,7 @@ class Dataset:
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only:
+                if self.read_only and not self._locked_out:
                     if isinstance(self, hub.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, num_workers
@@ -3004,7 +3010,13 @@ class Dataset:
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)
-        vds.delete(large_ok=True)
+        vds.base_storage.disable_readonly()
+        try:
+            vds.base_storage.clear()
+        except Exception as e:
+            warnings.warn(
+                f"Error while deleting old view after writing optimized version: {e}"
+            )
         return info
 
     @property
