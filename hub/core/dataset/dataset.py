@@ -2484,12 +2484,13 @@ class Dataset:
         for q in queries:
             if q["id"] == view_id:
                 return ViewEntry(q, self)
+        uqueries = []
         if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            for q in queries:
+            uqueries, qds = self._read_queries_json_from_user_account()
+            for q in uqueries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{view_id}":
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {view_id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset ({self.path}). Views in user account: {uqueries}.")
 
     def load_view(self, view_id: str):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
