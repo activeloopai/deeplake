@@ -881,6 +881,7 @@ class Tensor:
         else:
 
             def get_sample_shape(global_sample_index: int):
+                print("in get_sample_shape_provider: ", global_sample_index)
                 return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
 
         return get_sample_shape

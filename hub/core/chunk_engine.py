@@ -1969,6 +1969,7 @@ class ChunkEngine:
         shape = self.shape_interval.astuple()
         print("shape 1: ", shape)
         idxs = index.values
+        print("index 2", [e.value for e in idxs])
         skip_dims = 0
         if None in shape or self.tensor_meta.is_link:
             if not idxs[0].subscriptable():
