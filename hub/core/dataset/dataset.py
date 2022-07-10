@@ -2254,6 +2254,10 @@ class Dataset:
             num_workers (int): Number of workers to be used if `optimize` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
+        Note:
+            Specifying `path` makes the view external. External views cannot be accessed using the parent dataset's `Dataset.get_view`,
+            `Dataset.load_view`, `Dataset.delete_view` methods. They have to be loaded using `hub.load(path)`.
+
         Returns:
             str: Path to the saved VDS.
 
