@@ -418,6 +418,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and force = False.
+            NotImplementedError: When attempting to delete a managed view.
         """
         path = convert_pathlib_to_string_if_needed(path)
 
@@ -427,6 +428,12 @@ class dataset:
         feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
 
         try:
+            qtokens = ["/.queries/", "\\.queries\\"]
+            for qt in qtokens:
+                if qt in path:
+                    raise NotImplementedError(
+                        "Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead."
+                    )
             ds = hub.load(path, verbose=False, token=token, creds=creds)
             ds.delete(large_ok=large_ok)
             if verbose:

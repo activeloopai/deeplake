@@ -1599,9 +1599,11 @@ class Dataset:
         """
 
         if hasattr(self, "_view_entry"):
-            return self._view_entry.delete()
+            self._view_entry.delete()
+            return
         if hasattr(self, "_vds"):
-            return self._vds.delete(large_ok=large_ok)
+            self._vds.delete(large_ok=large_ok)
+            return
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -2163,8 +2165,6 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        if not self._read_only:
-            self.flush()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2378,7 +2378,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(self.info["source-dataset"], verbose=False)
+            else hub.load(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
