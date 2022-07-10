@@ -377,7 +377,8 @@ def test_view_saving_with_path(local_ds):
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=local_ds.path)
         vds_path = local_ds.path + "/../vds"
-        ds[:10].save_view(path=vds_path, id="first_10")
+        hub.delete(vds_path, force=True)
+        ds[:10].save_view(path=vds_path)
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=vds_path)
-        ds.delete_view("first_10")
+        hub.delete(vds_path, force=True)
