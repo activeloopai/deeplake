@@ -2226,7 +2226,7 @@ class Dataset:
         num_workers: int,
         **ds_args,
     ):
-        """Stores this view at a given dataset path"""
+        """Saves this view at a given dataset path"""
         if os.path.abspath(path) == os.path.abspath(self.path):
             raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
         try:
