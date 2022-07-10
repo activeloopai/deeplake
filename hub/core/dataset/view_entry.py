@@ -45,7 +45,23 @@ class ViewEntry:
         return ds
 
     def optimize(self, unlink=True):
-        """Optimizes the view by copying the required data."""
+        """Optimizes the view by copying the required data.
+
+        Args:
+            unlink (bool): Unlink linked tensors by copying data from the links to the view.
+
+        Examples:
+            ```
+            # save view
+            ds[:10].save_view(view_id="first_10")
+
+            # optimize view
+            ds.get_view("first_10").optimize()
+
+            # load optimized view
+            ds.load_view("first_10")
+            ```
+        """
         self.info = self._ds._optimize_saved_view(
             self.info["id"], external=self._external, unlink=unlink
         )
