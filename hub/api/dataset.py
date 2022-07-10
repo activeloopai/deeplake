@@ -418,6 +418,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and force = False.
+            NotImplementedError: When attempting to delete a managed view.
         """
         path = convert_pathlib_to_string_if_needed(path)
 
