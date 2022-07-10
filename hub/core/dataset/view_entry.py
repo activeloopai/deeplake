@@ -35,6 +35,7 @@ class ViewEntry:
         return self.info["virtual-datasource"]
 
     def load(self):
+        "Loads the view and returns the `hub.Dataset`."
         ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
@@ -45,6 +46,7 @@ class ViewEntry:
         self.info = self._ds._optimize_saved_view(
             self.info["id"], external=self._external, unlink=unlink
         )
+        return self
 
     def delete(self):
         self._ds.delete_view(id=self.info["id"])

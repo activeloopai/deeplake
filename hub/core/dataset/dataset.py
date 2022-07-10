@@ -1433,7 +1433,7 @@ class Dataset:
             result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `save_result` is True.
 
         Returns:
-            View on Dataset with elements, that satisfy filter function
+            View of Dataset with elements that satisfy filter function.
 
 
         Example:
@@ -1520,8 +1520,7 @@ class Dataset:
     ):
         """Converts the dataset into a tensorflow compatible format.
 
-        See:
-            https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+        See https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
         Args:
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
@@ -1607,6 +1606,7 @@ class Dataset:
         self.storage.clear()
 
     def summary(self):
+        """Prints a summary of the dataset."""
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2056,7 +2056,7 @@ class Dataset:
                         self._view_base._commit_hooks[uid] = commit_hook
 
                 raise DatasetViewSavingError(
-                    "HEAD node has uncommited changes. Commit them before saving views."
+                    "HEAD node has uncommitted changes. Commit them before saving views."
                 )
         tm = getattr(self, "_created_at", time())
         id = self._view_hash() if id is None else id
@@ -2124,22 +2124,28 @@ class Dataset:
 
     def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
         """Writes the indices of this view to a vds."""
-        with vds:
-            if copy:
-                self._copy(vds, num_workers=num_workers, unlink=unlink)
-            else:
-                vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                    list(self.index.values[0].indices(len(self)))
-                )
-                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
-                if len(self.index) > 1:
-                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
-            vds.info.update(info)
+        vds._allow_view_updates = True
+        try:
+            with vds:
+                if copy:
+                    self._copy(vds, num_workers=num_workers, unlink=unlink)
+                else:
+                    vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                        list(self.index.values[0].indices(len(self)))
+                    )
+                    info["first-index-subscriptable"] = self.index.subscriptable_at(0)
+                    if len(self.index) > 1:
+                        info["sub-sample-index"] = Index(
+                            self.index.values[1:]
+                        ).to_json()
+                vds.info.update(info)
+        finally:
+            vds._allow_view_updates = False
 
     def _save_view_in_subdir(
         self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
     ):
-        """Stores this view under ".queries" sub directory of same storage."""
+        """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
@@ -2150,16 +2156,23 @@ class Dataset:
         return vds
 
     def _save_view_in_user_queries_dataset(
-        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
+        self,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        num_workers: int,
+        username: Optional[str] = None,
     ):
-        """Stores this view under hub://username/queries
+        """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
         """
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-        username = get_user_name()
-        if username == "public":
-            raise NotLoggedInError("Unable to save query result. Not logged in.")
+
+        if not username:
+            username = get_user_name()
+            if username == "public":
+                raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
@@ -2214,21 +2227,44 @@ class Dataset:
         num_workers: int = 0,
         **ds_args,
     ) -> str:
-        """Stores a dataset view as a virtual dataset (VDS)
+        """Saves a dataset view as a virtual dataset (VDS)
+
+        Examples:
+            ```
+            # Save to specified path
+            vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
+            # vds_path = views/first_10
+            ```
+
+                # Path unspecified
+                vds_path = ds[:100].save_view(id="first_100", message="first 100 samples")
+                # vds_path = path/to/dataset/.queries/first_100
+
+            ```
+            # Random id
+            vds_path = ds[:100].save_view()
+            # vds_path = "path/to/dataset/.queries/92f41922ed0471ec2d27690b7351fc96bea060e6c5ee22b14f7ffa5f291aa068"
+            ```
+
+            See `Dataset.get_view` to learn how to load views by id.
+            These virtual datasets can also be loaded from their path like normal datasets.
 
         Args:
             message (Optional, str): Custom user message.
-            path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path.
-                If not, the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
-                is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
-            id (Optional, str): Uniquie id for this view.
-            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
-            num_workers (int): Number of workers to be used if `copy` is True.
+            path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
+                - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
+                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
+            id (Optional, str): Unique id for this view. Random id will be generated if not specified.
+            optimize (bool): Whether the view should be optimized by copying the required data. Defaults to False.
+            num_workers (int): Number of workers to be used if `optimize` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Returns:
             str: Path to the saved VDS.
+
+        Raises:
+            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+            DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
             path, id, message, optimize, num_workers, False, **ds_args
@@ -2244,17 +2280,17 @@ class Dataset:
         _ret_ds: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
-        """Stores a dataset view as a virtual dataset (VDS)
+        """Saves a dataset view as a virtual dataset (VDS)
 
         Args:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
-            id (Optional, str): Uniquie id for this view.
+            id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
-            num_workers (int): Number of workers to be used if copy=True.
+            num_workers (int): Number of workers to be used if `optimize` is True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2395,11 +2431,12 @@ class Dataset:
         """Returns list of views stored in this Dataset.
 
         Args:
-            commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
-                If not specified, views from the currently checked out commit will be returned.
+            commit_id (str, optional): - Commit from which views should be returned.
+                - If not specified, views from current commit is returned.
+                - If not specified, views from the currently checked out commit will be returned.
 
         Returns:
-            List of ViewEntry instances
+            List of `hub.core.dataset.view_entry.ViewEntry` instances.
         """
         commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
@@ -2421,17 +2458,41 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, id: str) -> ViewEntry:
+    def get_view(self, view_id: str) -> ViewEntry:
+        """Returns the dataset view corresponding to `id`
+
+        Examples:
+            ```
+            # save view
+            ds[:100].save_view(id="first_100")
+
+            # load view
+            first_100 = ds.get_view("first_100").load()
+
+            # 100
+            print(len(first_100))
+            ```
+            See `Dataset.save_view` to learn more about saving views.
+
+        Args:
+            view_id (str): id of required view.
+
+        Returns:
+            `hub.core.dataset.view_entry.ViewEntry`
+
+        Raises:
+            KeyError: If no such view exists.
+        """
         queries = self._read_queries_json()
         for q in queries:
-            if q["id"] == id:
+            if q["id"] == view_id:
                 return ViewEntry(q, self)
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == id:
+                if q["id"] == view_id:
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def load_view(self, id: str):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
@@ -2444,12 +2505,20 @@ class Dataset:
         """
         return self.get_view(id).load()
 
-    def delete_view(self, id: str):
+    def delete_view(self, view_id: str):
+        """Deletes the view with given view id
+
+        Args:
+            view_id (str): Id of the view to delete
+
+        Raises:
+            KeyError: if view with given id does not exist.
+        """
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
                 for i, q in enumerate(qjson):
-                    if q["id"] == id:
+                    if q["id"] == view_id:
                         qjson.pop(i)
                         self.base_storage.subdir(
                             ".queries/" + (q.get("path") or q["id"])
@@ -2464,14 +2533,14 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if q["source-dataset"] == self.path and q["id"] == id:
+                        if q["source-dataset"] == self.path and q["id"] == view_id:
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
                             ).clear()
                             qds._write_queries_json(qjson)
                             return
-        raise KeyError(f"No view with id {id} found in the dataset.")
+        raise KeyError(f"No view with id {view_id} found in the dataset.")
 
     def _sub_ds(
         self,
@@ -2633,7 +2702,14 @@ class Dataset:
             token=token,
             overwrite=overwrite,
             public=public,
-            unlink=[t for t in self.tensors if self.tensors[t].base_htype != "video"]
+            unlink=[
+                t
+                for t in self.tensors
+                if (
+                    self.tensors[t].base_htype != "video"
+                    or hub.constants._UNLINK_VIDEOS
+                )
+            ]
             if unlink
             else False,
         )
@@ -2656,7 +2732,9 @@ class Dataset:
                         if len(self.index) > 1
                         else _copy_tensor_unlinked_full_sample
                     )
-                    if unlink and src.is_link and src.base_htype != "video"
+                    if unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or hub.constants._UNLINK_VIDEOS)
                     else _copy_tensor
                 )
                 if progressbar:
@@ -2729,7 +2807,9 @@ class Dataset:
     @invalid_view_op
     def reset(self):
         """Resets the uncommitted changes present in the branch.
-        Note: The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+
+        Note:
+            - The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
@@ -2829,7 +2909,34 @@ class Dataset:
         save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
 
     def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key."""
+        """Changes the management status of the creds key.
+
+        Args:
+            creds_key (str): The key whose management status is to be changed.
+            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
+            KeyError: If the creds key is not present in the dataset.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+
+            # Populate the name added with creds dictionary
+            # These creds are only present temporarily and will have to be repopulated on every reload
+            ds.populate_creds("my_s3_key", {})
+
+            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            ds.change_creds_management("my_s3_key", True)
+            ```
+        """
         raise ValueError(
             "Managed creds are not supported for datasets that are not connected to activeloop platform."
         )
