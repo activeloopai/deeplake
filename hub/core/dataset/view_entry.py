@@ -52,6 +52,9 @@ class ViewEntry:
         Args:
             unlink (bool): Unlink linked tensors by copying data from the links to the view.
 
+        Returns:
+            `hub.core.dataset.view_entry.ViewEntry`
+
         Examples:
             ```
             # save view
