@@ -1,4 +1,5 @@
 # type: ignore
+import os
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
@@ -2223,7 +2224,12 @@ class Dataset:
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
-        vds = hub.dataset(path, **ds_args)
+        if os.path.abspath(path) == os.path.abspath(self.path):
+            raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
+        try:
+            vds = hub.empty(path, **ds_args)
+        except Exception as e:
+            raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
         self._write_vds(vds, info, copy, num_workers)
         return vds
