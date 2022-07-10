@@ -2003,7 +2003,6 @@ class ChunkEngine:
             skip_dims += 1
         shape = list(shape)  # type: ignore
         squeeze_dims = set()
-        # assert len(idxs[skip_dims:]) <= len(shape), (len(idxs[skip_dims:]), len(shape), [e.value for e in idxs], skip_dims)
         for i, idx in enumerate(idxs[skip_dims:]):
             if idx.subscriptable():
                 shape[i] = idx.length(shape[i])  # type: ignore
