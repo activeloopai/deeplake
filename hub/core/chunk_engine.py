@@ -1381,7 +1381,10 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if self.tensor_meta.htype in {"text", "json", "list"}:
+                if (
+                    self.tensor_meta.htype in {"text", "json", "list"}
+                    or self.tensor_meta.is_link
+                ):
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
@@ -1675,9 +1678,16 @@ class ChunkEngine:
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(index)
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+
+            if (
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk_to_update.key  # type: ignore
+            ):
+                self.write_chunk_to_storage(self.active_updated_chunk)
+            self.active_updated_chunk = chunk_to_update
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 self.check_remove_active_chunks(chunk_key)
