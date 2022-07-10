@@ -14,10 +14,7 @@ def invalid_view_op(callable: Callable):
         isdel = callable.__name__ == "delete"
         if (
             not getattr(ds, "_allow_view_updates", False)
-            and (
-                not x.index.is_trivial()
-                or (getattr(ds, "_is_view", False) and not isdel)
-            )
+            and (not x.index.is_trivial())
             and not (hasattr(ds, "_vds") and isdel)
         ):
             raise InvalidOperationError(
