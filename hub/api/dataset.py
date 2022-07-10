@@ -430,7 +430,7 @@ class dataset:
             qtokens = ["/.queries/", "\\.queries\\"]
             for qt in qtokens:
                 if qt in path:
-                    raise NotImplementedError("Deleting managed views by path is not supported. Load the source dataset and do `ds.delte_view(id)` instead.")
+                    raise NotImplementedError("Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead.")
             ds = hub.load(path, verbose=False, token=token, creds=creds)
             ds.delete(large_ok=large_ok)
             if verbose:
