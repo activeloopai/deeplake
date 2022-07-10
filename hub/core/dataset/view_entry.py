@@ -32,6 +32,8 @@ class ViewEntry:
     def __str__(self):
         return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual})"
 
+    __repr__ = __str__
+
     @property
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
