@@ -2331,7 +2331,7 @@ class Dataset:
             if id is not None and vds_id != id:
                 vds = None
                 warnings.warn(
-                    "This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
+                    f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
         if vds is None:
             if path is None:
