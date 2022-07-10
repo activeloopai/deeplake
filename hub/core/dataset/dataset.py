@@ -2522,6 +2522,9 @@ class Dataset:
 
         Returns:
             Dataset: The loaded view.
+
+        Raises:
+            KeyError: if view with given id does not exist.
         """
         if optimize:
             return self.get_view(id).optimize().load()
