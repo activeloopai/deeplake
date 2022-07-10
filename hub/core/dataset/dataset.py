@@ -2037,7 +2037,7 @@ class Dataset:
             else:
                 if self._view_base:
                     self._waiting_for_view_base_commit = True
-                    uid = self._view_id
+                    uid = self._id
                     if uid not in self._update_hooks:
 
                         def update_hook():
@@ -2463,7 +2463,7 @@ class Dataset:
                 )
         return list(ret)
 
-    def get_view(self, view_id: str) -> ViewEntry:
+    def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to `id`
 
         Examples:
@@ -2480,7 +2480,7 @@ class Dataset:
             See `Dataset.save_view` to learn more about saving views.
 
         Args:
-            view_id (str): id of required view.
+            id (str): id of required view.
 
         Returns:
             `hub.core.dataset.view_entry.ViewEntry`
@@ -2490,20 +2490,21 @@ class Dataset:
         """
         queries = self._read_queries_json()
         for q in queries:
-            if q["id"] == view_id:
+            if q["id"] == id:
                 return ViewEntry(q, self)
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == f"[{self.org_id}][{self.ds_name}]{view_id}":
+                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                     return ViewEntry(q, qds, True)
-        raise KeyError(f"No view with id {view_id} found in the dataset.")
+        raise KeyError(f"No view with id {id} found in the dataset.")
 
-    def load_view(self, view_id: str):
+    def load_view(self, id: str, optimize: bool = False):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
-            view_id (str): id of the view to be loaded.
+            id (str): id of the view to be loaded.
+            optimize (bool): If True, the view is optimized before loading.
 
         Returns:
             Dataset: The loaded view.
@@ -2511,13 +2512,15 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
-        return self.get_view(view_id).load()
+        if optimize:
+            return self.get_view(id).optimize().load()
+        return self.get_view(id).load()
 
-    def delete_view(self, view_id: str):
+    def delete_view(self, id: str):
         """Deletes the view with given view id
 
         Args:
-            view_id (str): Id of the view to delete
+            id (str): Id of the view to delete
 
         Raises:
             KeyError: if view with given id does not exist.
@@ -2526,7 +2529,7 @@ class Dataset:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
                 for i, q in enumerate(qjson):
-                    if q["id"] == view_id:
+                    if q["id"] == id:
                         qjson.pop(i)
                         self.base_storage.subdir(
                             ".queries/" + (q.get("path") or q["id"])
@@ -2543,7 +2546,7 @@ class Dataset:
                     for i, q in enumerate(qjson):
                         if (
                             q["source-dataset"] == self.path
-                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{view_id}"
+                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{id}"
                         ):
                             qjson.pop(i)
                             qds.base_storage.subdir(
@@ -2551,7 +2554,7 @@ class Dataset:
                             ).clear()
                             qds._write_queries_json(qjson)
                             return
-        raise KeyError(f"No view with id {view_id} found in the dataset.")
+        raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
         self,
