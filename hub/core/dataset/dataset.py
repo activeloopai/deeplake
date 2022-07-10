@@ -2499,12 +2499,12 @@ class Dataset:
         """
         queries = self._read_queries_json()
         for q in queries:
-            if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
+            if q["id"] == id:
                 return ViewEntry(q, self)
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == id:
+                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
