@@ -1594,6 +1594,8 @@ class Dataset:
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
 
+        if hasattr(self, "_vds"):
+            return self._vds.delete(large_ok=large_ok)
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -2325,7 +2327,7 @@ class Dataset:
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only and not self._locked_out:
+                if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, hub.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, num_workers
