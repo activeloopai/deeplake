@@ -427,6 +427,10 @@ class dataset:
         feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
 
         try:
+            qtokens = ["/.queries/", "\\.queries\\"]
+            for qt in qtokens:
+                if qt in path:
+                    raise NotImplementedError("Deleting managed views by path is not supported. Load the source dataset and do `ds.delte_view(id)` instead.")
             ds = hub.load(path, verbose=False, token=token, creds=creds)
             ds.delete(large_ok=large_ok)
             if verbose:
