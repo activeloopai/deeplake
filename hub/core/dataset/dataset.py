@@ -2095,7 +2095,7 @@ class Dataset:
 
     def _write_queries_json(self, data: dict):
         read_only = self.base_storage.read_only
-        self.base_storage.disable_read_only()
+        self.base_storage.disable_readonly()
         try:
             self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
         finally:
