@@ -91,6 +91,7 @@ HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
+PYTEST_IPFS_PROVIDER_BASE_ROOT = "https://ipfs.infura.io:5001"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
 PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
     "gdrive://hubtest"  # TODO: personal folder, replace with hub's
@@ -141,7 +142,7 @@ PARTIAL_NUM_SAMPLES = 0.5
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
-ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://", "ipfs://")
 
 _ENABLE_HUB_SUB_DATASETS = False
 _ENABLE_RANDOM_ASSIGNMENT = True
