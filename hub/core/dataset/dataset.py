@@ -2174,6 +2174,8 @@ class Dataset:
         copy: bool,
         num_workers: int,
         username: Optional[str] = None,
+        creds: Optional[Dict] = None,
+        token: Optional[str] = None,
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2195,7 +2197,11 @@ class Dataset:
 
         try:
             queries_ds = hub.load(
-                queries_ds_path, verbose=False
+                queries_ds_path,
+                verbose=False,
+                read_only=False,
+                creds=creds,
+                token=token,
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
@@ -2207,7 +2213,7 @@ class Dataset:
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = hub.empty(path, overwrite=True)
+        vds = hub.empty(path, overwrite=True, creds=creds, token=token)
 
         self._write_vds(vds, info, copy, num_workers)
         queries_ds._append_to_queries_json(info)

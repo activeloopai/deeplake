@@ -18,7 +18,7 @@ class ViewEntry:
     @property
     def id(self) -> str:
         """Returns id of the view."""
-        return self.info["id"]
+        return self.info["id"].split("]")[-1]
 
     @property
     def query(self) -> Optional[str]:
