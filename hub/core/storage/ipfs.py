@@ -5,10 +5,11 @@ import logging
 import requests
 
 from requests.exceptions import HTTPError
+from hub.core.storage.provider import StorageProvider
 
 logger = logging.getLogger("ipfsspec")
 
-class IPFSProvider(hub.core.storage.provider.StorageProvider):
+class IPFSProvider(StorageProvider):
     def __init__(
         self,
         coreurl:str='', # Core URL to use
