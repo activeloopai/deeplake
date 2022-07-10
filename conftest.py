@@ -55,7 +55,7 @@ def pytest_addoption(parser):
         IPFS_PATH_OPT,
         type=str,
         help="CID to file stored on IPFS. Example: https://dweb.link/ipfs/cid",
-        default=PYTEST_S3_PROVIDER_BASE_ROOT,
+        default=PYTEST_IPFS_PROVIDER_BASE_ROOT,
     )
     parser.addoption(
         GDRIVE_PATH_OPT,
