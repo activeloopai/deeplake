@@ -1595,9 +1595,11 @@ class Dataset:
         """
 
         if hasattr(self, "_view_entry"):
-            return self._view_entry.delete()
+            self._view_entry.delete()
+            return
         if hasattr(self, "_vds"):
-            return self._vds.delete(large_ok=large_ok)
+            self._vds.delete(large_ok=large_ok)
+            return
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
