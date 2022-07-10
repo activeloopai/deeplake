@@ -39,7 +39,7 @@ class ViewEntry:
         ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
-        ds._is_view = True
+        ds._view_entry = self
         return ds
 
     def optimize(self, unlink=True):

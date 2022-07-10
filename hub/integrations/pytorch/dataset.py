@@ -1,6 +1,6 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
+from hub.integrations.pytorch.common import PytorchTransformFunction
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (
@@ -64,7 +64,7 @@ def _process(tensor, transform: PytorchTransformFunction):
         try:
             return cast_type(x.copy())
         except AttributeError:
-            return bytes(x)
+            return bytes(x) if isinstance(x, memoryview) else np.array(x)
 
     tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
