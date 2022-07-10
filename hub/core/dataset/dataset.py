@@ -2037,7 +2037,7 @@ class Dataset:
             else:
                 if self._view_base:
                     self._waiting_for_view_base_commit = True
-                    uid = self._id
+                    uid = self._view_id
                     if uid not in self._update_hooks:
 
                         def update_hook():
