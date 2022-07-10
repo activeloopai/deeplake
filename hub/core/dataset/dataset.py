@@ -1594,6 +1594,8 @@ class Dataset:
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
 
+        if hasattr(self, "_view_entry"):
+            return self._view_entry.delete()
         if hasattr(self, "_vds"):
             return self._vds.delete(large_ok=large_ok)
         if not large_ok:
