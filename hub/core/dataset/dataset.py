@@ -2159,7 +2159,8 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        self.flush()
+        if not self._read_only:
+            self.flush()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
