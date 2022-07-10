@@ -1594,6 +1594,12 @@ class Dataset:
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
 
+        if hasattr(self, "_view_entry"):
+            self._view_entry.delete()
+            return
+        if hasattr(self, "_vds"):
+            self._vds.delete(large_ok=large_ok)
+            return
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -2094,7 +2100,13 @@ class Dataset:
         return _LockQueriesJson()
 
     def _write_queries_json(self, data: dict):
-        self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        read_only = self.base_storage.read_only
+        self.base_storage.disable_readonly()
+        try:
+            self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        finally:
+            if read_only:
+                self.base_storage.enable_readonly()
 
     def _append_to_queries_json(self, info: dict):
         with self._lock_queries_json():
@@ -2149,7 +2161,6 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        self.flush()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2175,17 +2186,21 @@ class Dataset:
                 raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
-        hash = info["id"]
-
+        base = self._view_base or self
+        org_id, ds_name = base.org_id, base.ds_name
+        hash = f"[{org_id}][{ds_name}]{info['id']}"
+        info["id"] = hash
         queries_ds_path = f"hub://{username}/queries"
 
         try:
-            queries_ds = hub.dataset(
+            queries_ds = hub.load(
                 queries_ds_path, verbose=False
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
-            queries_ds = hub.dataset(queries_ds_path, verbose=False)
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
+        except DatasetHandlerError:
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
@@ -2311,7 +2326,7 @@ class Dataset:
             if id is not None and vds_id != id:
                 vds = None
                 warnings.warn(
-                    "This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
+                    f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
         if vds is None:
             if path is None:
@@ -2319,7 +2334,7 @@ class Dataset:
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only:
+                if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, hub.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, num_workers
@@ -2358,7 +2373,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(self.info["source-dataset"], verbose=False)
+            else hub.load(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
@@ -2493,11 +2508,12 @@ class Dataset:
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
-    def load_view(self, id: str):
+    def load_view(self, id: str, optimize: bool = False):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
             id (str): id of the view to be loaded.
+            optimize (bool): If True, the view is optimized before loading.
 
         Returns:
             Dataset: The loaded view.
@@ -2505,6 +2521,8 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        if optimize:
+            return self.get_view(id).optimize().load()
         return self.get_view(id).load()
 
     def delete_view(self, id: str):
@@ -2535,7 +2553,10 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if q["source-dataset"] == self.path and q["id"] == id:
+                        if (
+                            q["source-dataset"] == self.path
+                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{id}"
+                        ):
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
@@ -2550,6 +2571,7 @@ class Dataset:
         empty=False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        verbose=True,
     ):
         """Loads a nested dataset. Internal.
         Note: Virtual datasets are returned as such, they are not converted to views.
@@ -2559,6 +2581,7 @@ class Dataset:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
+            verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
             Sub dataset
@@ -2583,6 +2606,7 @@ class Dataset:
             ),
             path=path,
             token=self._token,
+            verbose=verbose,
         )
         ret._parent_dataset = self
         return ret
@@ -2986,10 +3010,10 @@ class Dataset:
                 # Already optimized
                 return info
             path = info.get("path", info["id"])
-            vds = self._sub_ds(".queries/" + path)
+            vds = self._sub_ds(".queries/" + path, verbose=False)
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
-            optimized = self._sub_ds(".queries/" + new_path)
+            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
             view._copy(optimized, overwrite=True, unlink=unlink)
             optimized.info.update(vds.info.__getstate__())
             optimized.info["virtual-datasource"] = False
@@ -2998,7 +3022,13 @@ class Dataset:
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)
-        vds.delete(large_ok=True)
+        vds.base_storage.disable_readonly()
+        try:
+            vds.base_storage.clear()
+        except Exception as e:
+            warnings.warn(
+                f"Error while deleting old view after writing optimized version: {e}"
+            )
         return info
 
     @property

@@ -18,8 +18,8 @@ import hub
 
 class HubCloudDataset(Dataset):
     def _first_load_init(self, verbose=True):
+        self._set_org_and_name()
         if self.is_first_load:
-            self._set_org_and_name()
             if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
