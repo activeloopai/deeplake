@@ -2159,8 +2159,6 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        if not self._read_only:
-            self.flush()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
@@ -2369,7 +2367,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(self.info["source-dataset"], verbose=False)
+            else hub.load(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
