@@ -4,6 +4,7 @@ from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
+from hub.core.storage.ipfs import IPFSProvider
 
 
 class LinkCreds(HubMemoryObject):
@@ -15,6 +16,7 @@ class LinkCreds(HubMemoryObject):
         self.used_creds_keys = set()  # keys which are used by one or more samples
         self.storage_providers = {}
         self.default_s3_provider = None
+        self.default_ipfs_provider = None
         self.default_gcs_provider = None
 
     def get_default_provider(self, provider_type):
@@ -22,6 +24,10 @@ class LinkCreds(HubMemoryObject):
             if self.default_s3_provider is None:
                 self.default_s3_provider = S3Provider("s3://bucket/path")
             return self.default_s3_provider
+        elif provider_type == "ipfs":
+            if self.default_ipfs_provider is None:
+                self.default_ipfs_provider = IPFSProvider("ipfs://bucket/path")
+            return self.default_ipfs_provider
         else:
             if self.default_gcs_provider is None:
                 from hub.core.storage.gcs import GCSProvider
@@ -30,7 +36,7 @@ class LinkCreds(HubMemoryObject):
             return self.default_gcs_provider
 
     def get_storage_provider(self, key: Optional[str], provider_type):
-        assert provider_type in {"s3", "gcs"}
+        assert provider_type in {"s3", "gcs", "ipfs"}
         if key in {"ENV", None}:
             return self.get_default_provider(provider_type)
         if key not in self.creds_keys:
@@ -50,6 +56,13 @@ class LinkCreds(HubMemoryObject):
                     return provider
 
             provider = S3Provider("s3://bucket/path", **creds)
+        elif provider_type == "ipfs":
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, IPFSProvider):
+                    return provider
+
+            provider = IPFSProvider("ipfs://bucket/path", **creds)
         else:
             from hub.core.storage.gcs import GCSProvider
 
@@ -170,6 +183,7 @@ class LinkCreds(HubMemoryObject):
         self.creds_mapping = {key: i + 1 for i, key in enumerate(self.creds_keys)}
         self.storage_providers = {}
         self.default_s3_provider = None
+        self.default_ipfs_provider = None
         self.default_gcs_provider = None
 
     def __len__(self):
