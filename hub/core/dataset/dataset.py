@@ -1961,6 +1961,7 @@ class Dataset:
         for i in range(n):
             self.append({k: v[i] for k, v in samples.items()})
 
+    @invalid_view_op
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
@@ -3048,6 +3049,17 @@ class Dataset:
 
     def _disable_padding(self):
         self._pad_tensors = False
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        if index is None:
+            index = 0
+            for tensor in self.tensors.values():
+                index = max(index, tensor.num_samples)
+
+        for tensor in self.tensors.values():
+            if tensor.num_samples > index:
+                tensor.pop(index)
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
