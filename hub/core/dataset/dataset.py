@@ -35,6 +35,7 @@ from hub.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
+    IPFSProvider,
 )
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
 
@@ -119,7 +120,7 @@ from hub.client.utils import get_user_name
 from itertools import chain
 import warnings
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, IPFSProvider}
 
 
 class Dataset:
