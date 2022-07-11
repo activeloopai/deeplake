@@ -1,4 +1,5 @@
 # type: ignore
+import os
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
@@ -738,7 +739,9 @@ class Dataset:
 
     @invalid_view_op
     @hub_reporter.record_call
-    def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
+    def create_tensor_like(
+        self, name: str, source: "Tensor", unlink: bool = False
+    ) -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
         Examples:
@@ -749,6 +752,7 @@ class Dataset:
         Args:
             name (str): Name for the new tensor.
             source (Tensor): Tensor who's meta/info will be copied. May or may not be contained in the same dataset.
+            unlink (bool): Whether to unlink linked tensors.
 
         Returns:
             Tensor: New Tensor object.
@@ -756,6 +760,8 @@ class Dataset:
 
         info = source.info.__getstate__().copy()
         meta = source.meta.__getstate__().copy()
+        if unlink:
+            meta["is_link"] = False
         del meta["min_shape"]
         del meta["max_shape"]
         del meta["length"]
@@ -889,7 +895,13 @@ class Dataset:
 
         self.storage.maybe_flush()
 
-    __getattr__ = __getitem__
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except KeyError as ke:
+            raise AttributeError(
+                f"'{self.__class__}' object has no attribute '{key}'"
+            ) from ke
 
     def __setattr__(self, name: str, value):
         if isinstance(value, (np.ndarray, np.generic)):
@@ -1422,7 +1434,7 @@ class Dataset:
             result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if `save_result` is True.
 
         Returns:
-            View on Dataset with elements, that satisfy filter function
+            View of Dataset with elements that satisfy filter function.
 
 
         Example:
@@ -1509,8 +1521,7 @@ class Dataset:
     ):
         """Converts the dataset into a tensorflow compatible format.
 
-        See:
-            https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+        See https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
         Args:
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
@@ -1584,6 +1595,12 @@ class Dataset:
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
 
+        if hasattr(self, "_view_entry"):
+            self._view_entry.delete()
+            return
+        if hasattr(self, "_vds"):
+            self._vds.delete(large_ok=large_ok)
+            return
         if not large_ok:
             size = self.size_approx()
             if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -1596,6 +1613,7 @@ class Dataset:
         self.storage.clear()
 
     def summary(self):
+        """Prints a summary of the dataset."""
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2045,7 +2063,7 @@ class Dataset:
                         self._view_base._commit_hooks[uid] = commit_hook
 
                 raise DatasetViewSavingError(
-                    "HEAD node has uncommited changes. Commit them before saving views."
+                    "HEAD node has uncommitted changes. Commit them before saving views."
                 )
         tm = getattr(self, "_created_at", time())
         id = self._view_hash() if id is None else id
@@ -2083,7 +2101,13 @@ class Dataset:
         return _LockQueriesJson()
 
     def _write_queries_json(self, data: dict):
-        self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        read_only = self.base_storage.read_only
+        self.base_storage.disable_readonly()
+        try:
+            self.base_storage[get_queries_key()] = json.dumps(data).encode("utf-8")
+        finally:
+            if read_only:
+                self.base_storage.enable_readonly()
 
     def _append_to_queries_json(self, info: dict):
         with self._lock_queries_json():
@@ -2111,58 +2135,73 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int):
+    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
         """Writes the indices of this view to a vds."""
-        with vds:
-            if copy:
-                self.copy(vds, num_workers=num_workers)
-            else:
-                vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                    list(self.index.values[0].indices(len(self)))
-                )
-                info["first-index-subscriptable"] = self.index.subscriptable_at(0)
-                if len(self.index) > 1:
-                    info["sub-sample-index"] = Index(self.index.values[1:]).to_json()
-            vds.info.update(info)
+        vds._allow_view_updates = True
+        try:
+            with vds:
+                if copy:
+                    self._copy(vds, num_workers=num_workers, unlink=unlink)
+                else:
+                    vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
+                        list(self.index.values[0].indices(len(self)))
+                    )
+                    info["first-index-subscriptable"] = self.index.subscriptable_at(0)
+                    if len(self.index) > 1:
+                        info["sub-sample-index"] = Index(
+                            self.index.values[1:]
+                        ).to_json()
+                vds.info.update(info)
+        finally:
+            vds._allow_view_updates = False
 
     def _save_view_in_subdir(
         self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
     ):
-        """Stores this view under ".queries" sub directory of same storage."""
+        """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        self.flush()
-        self.base_storage.subdir(path).clear()
         vds = self._sub_ds(path, empty=True)
         self._write_vds(vds, info, copy, num_workers)
         self._append_to_queries_json(info)
         return vds
 
     def _save_view_in_user_queries_dataset(
-        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
+        self,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        num_workers: int,
+        username: Optional[str] = None,
     ):
-        """Stores this view under hub://username/queries
+        """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
         """
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-        username = get_user_name()
-        if username == "public":
-            raise NotLoggedInError("Unable to save query result. Not logged in.")
+
+        if not username:
+            username = get_user_name()
+            if username == "public":
+                raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
-        hash = info["id"]
-
+        base = self._view_base or self
+        org_id, ds_name = base.org_id, base.ds_name
+        hash = f"[{org_id}][{ds_name}]{info['id']}"
+        info["id"] = hash
         queries_ds_path = f"hub://{username}/queries"
 
         try:
-            queries_ds = hub.dataset(
+            queries_ds = hub.load(
                 queries_ds_path, verbose=False
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
-            queries_ds = hub.dataset(queries_ds_path, verbose=False)
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
+        except DatasetHandlerError:
+            queries_ds = hub.empty(queries_ds_path, verbose=False)
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
@@ -2184,8 +2223,13 @@ class Dataset:
         num_workers: int,
         **ds_args,
     ):
-        """Stores this view at a given dataset path"""
-        vds = hub.dataset(path, **ds_args)
+        """Saves this view at a given dataset path"""
+        if os.path.abspath(path) == os.path.abspath(self.path):
+            raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
+        try:
+            vds = hub.empty(path, **ds_args)
+        except Exception as e:
+            raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
         self._write_vds(vds, info, copy, num_workers)
         return vds
@@ -2199,21 +2243,48 @@ class Dataset:
         num_workers: int = 0,
         **ds_args,
     ) -> str:
-        """Stores a dataset view as a virtual dataset (VDS)
+        """Saves a dataset view as a virtual dataset (VDS)
+
+        Examples:
+            ```
+            # Save to specified path
+            vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
+            # vds_path = views/first_10
+            ```
+
+                # Path unspecified
+                vds_path = ds[:100].save_view(id="first_100", message="first 100 samples")
+                # vds_path = path/to/dataset/.queries/first_100
+
+            ```
+            # Random id
+            vds_path = ds[:100].save_view()
+            # vds_path = "path/to/dataset/.queries/92f41922ed0471ec2d27690b7351fc96bea060e6c5ee22b14f7ffa5f291aa068"
+            ```
+
+            See `Dataset.get_view` to learn how to load views by id.
+            These virtual datasets can also be loaded from their path like normal datasets.
 
         Args:
             message (Optional, str): Custom user message.
-            path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path.
-                If not, the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
-                is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
-            id (Optional, str): Uniquie id for this view.
-            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
-            num_workers (int): Number of workers to be used if `copy` is True.
+            path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
+                - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
+                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
+            id (Optional, str): Unique id for this view. Random id will be generated if not specified.
+            optimize (bool): Whether the view should be optimized by copying the required data. Defaults to False.
+            num_workers (int): Number of workers to be used if `optimize` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+
+        Note:
+            Specifying `path` makes the view external. External views cannot be accessed using the parent dataset's `Dataset.get_view`,
+            `Dataset.load_view`, `Dataset.delete_view` methods. They have to be loaded using `hub.load(path)`.
 
         Returns:
             str: Path to the saved VDS.
+
+        Raises:
+            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
+            DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
             path, id, message, optimize, num_workers, False, **ds_args
@@ -2229,17 +2300,17 @@ class Dataset:
         _ret_ds: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
-        """Stores a dataset view as a virtual dataset (VDS)
+        """Saves a dataset view as a virtual dataset (VDS)
 
         Args:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
                 is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
-            id (Optional, str): Uniquie id for this view.
+            id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
-            num_workers (int): Number of workers to be used if copy=True.
+            num_workers (int): Number of workers to be used if `optimize` is True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2261,7 +2332,7 @@ class Dataset:
             if id is not None and vds_id != id:
                 vds = None
                 warnings.warn(
-                    "This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
+                    f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
         if vds is None:
             if path is None:
@@ -2269,7 +2340,7 @@ class Dataset:
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only:
+                if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, hub.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, num_workers
@@ -2308,7 +2379,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.dataset(path=self.info["source-dataset"], verbose=False)
+            else hub.load(self.info["source-dataset"], verbose=False)
         )
         try:
             orig_index = ds.index
@@ -2380,11 +2451,12 @@ class Dataset:
         """Returns list of views stored in this Dataset.
 
         Args:
-            commit_id (str, optional): Commit from which views should be returned. If not specified, views from current commit is returned.
-                If not specified, views from the currently checked out commit will be returned.
+            commit_id (str, optional): - Commit from which views should be returned.
+                - If not specified, views from current commit is returned.
+                - If not specified, views from the currently checked out commit will be returned.
 
         Returns:
-            List of ViewEntry instances
+            List of `hub.core.dataset.view_entry.ViewEntry` instances.
         """
         commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
@@ -2407,6 +2479,30 @@ class Dataset:
         return list(ret)
 
     def get_view(self, id: str) -> ViewEntry:
+        """Returns the dataset view corresponding to `id`
+
+        Examples:
+            ```
+            # save view
+            ds[:100].save_view(id="first_100")
+
+            # load view
+            first_100 = ds.get_view("first_100").load()
+
+            # 100
+            print(len(first_100))
+            ```
+            See `Dataset.save_view` to learn more about saving views.
+
+        Args:
+            id (str): id of required view.
+
+        Returns:
+            `hub.core.dataset.view_entry.ViewEntry`
+
+        Raises:
+            KeyError: If no such view exists.
+        """
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
@@ -2414,11 +2510,36 @@ class Dataset:
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
-                if q["id"] == id:
+                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
+    def load_view(self, id: str, optimize: bool = False):
+        """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
+
+        Args:
+            id (str): id of the view to be loaded.
+            optimize (bool): If True, the view is optimized before loading.
+
+        Returns:
+            Dataset: The loaded view.
+
+        Raises:
+            KeyError: if view with given id does not exist.
+        """
+        if optimize:
+            return self.get_view(id).optimize().load()
+        return self.get_view(id).load()
+
     def delete_view(self, id: str):
+        """Deletes the view with given view id
+
+        Args:
+            id (str): Id of the view to delete
+
+        Raises:
+            KeyError: if view with given id does not exist.
+        """
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
@@ -2438,7 +2559,10 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if q["source-dataset"] == self.path and q["id"] == id:
+                        if (
+                            q["source-dataset"] == self.path
+                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{id}"
+                        ):
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
@@ -2453,6 +2577,7 @@ class Dataset:
         empty=False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        verbose=True,
     ):
         """Loads a nested dataset. Internal.
         Note: Virtual datasets are returned as such, they are not converted to views.
@@ -2462,6 +2587,7 @@ class Dataset:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
+            verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
             Sub dataset
@@ -2486,6 +2612,7 @@ class Dataset:
             ),
             path=path,
             token=self._token,
+            verbose=verbose,
         )
         ret._parent_dataset = self
         return ret
@@ -2547,6 +2674,124 @@ class Dataset:
                 )
         return ret
 
+    def _copy(
+        self,
+        dest: Union[str, pathlib.Path],
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
+        unlink: bool = False,
+    ):
+        """Copies this dataset or dataset view to `dest`. Version control history is not included.
+
+        Args:
+            dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
+            token (str, Optional): token used to for fetching credentials to `dest`.
+            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Defaults to 'threaded'.
+            progressbar (bool): Displays a progress bar if True (default).
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
+            unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
+
+        Returns:
+            Dataset: New dataset object.
+
+        Raises:
+            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+        """
+        if isinstance(dest, str):
+            path = dest
+        else:
+            path = dest.path
+
+        report_params = {
+            "Tensors": tensors,
+            "Overwrite": overwrite,
+            "Num_Workers": num_workers,
+            "Scheduler": scheduler,
+            "Progressbar": progressbar,
+            "Public": public,
+        }
+
+        if path.startswith("hub://"):
+            report_params["Dest"] = path
+        feature_report_path(self.path, "copy", report_params)
+
+        dest_ds = hub.api.dataset.dataset._like(
+            dest,
+            self,
+            tensors=tensors,
+            creds=creds,
+            token=token,
+            overwrite=overwrite,
+            public=public,
+            unlink=[
+                t
+                for t in self.tensors
+                if (
+                    self.tensors[t].base_htype != "video"
+                    or hub.constants._UNLINK_VIDEOS
+                )
+            ]
+            if unlink
+            else False,
+        )
+
+        if not self.index.subscriptable_at(0):
+            old_first_index = self.index.values[0]
+            new_first_index = IndexEntry(
+                slice(old_first_index.value, old_first_index.value + 1)
+            )
+            self.index.values[0] = new_first_index
+            reset_index = True
+        else:
+            reset_index = False
+        try:
+            for tensor in dest_ds.tensors:
+                src = self[tensor]
+                copy_f = (
+                    (
+                        _copy_tensor_unlinked_partial_sample
+                        if len(self.index) > 1
+                        else _copy_tensor_unlinked_full_sample
+                    )
+                    if unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or hub.constants._UNLINK_VIDEOS)
+                    else _copy_tensor
+                )
+                if progressbar:
+                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
+                hub.compute(copy_f, name="tensor copy transform")(
+                    tensor_name=tensor
+                ).eval(
+                    self,
+                    dest_ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                )
+        finally:
+            if reset_index:
+                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
+                dest_ds.meta.is_dirty = True
+                dest_ds.flush()
+                dest_ds = dest_ds[0]
+                self.index.values[0] = old_first_index
+        dest_ds.flush()
+        return dest_ds
+
     def copy(
         self,
         dest: Union[str, pathlib.Path],
@@ -2579,74 +2824,24 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
-
-        if isinstance(dest, str):
-            path = dest
-        else:
-            path = dest.path
-
-        report_params = {
-            "Tensors": tensors,
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-
-        if path.startswith("hub://"):
-            report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params)
-
-        dest_ds = hub.api.dataset.dataset._like(
+        return self._copy(
             dest,
-            self,
-            tensors=tensors,
-            creds=creds,
-            token=token,
-            overwrite=overwrite,
-            public=public,
+            tensors,
+            overwrite,
+            creds,
+            token,
+            num_workers,
+            scheduler,
+            progressbar,
+            public,
         )
-        with dest_ds:
-            dest_ds.info.update(self.info)
-
-        if not self.index.subscriptable_at(0):
-            old_first_index = self.index.values[0]
-            new_first_index = IndexEntry(
-                slice(old_first_index.value, old_first_index.value + 1)
-            )
-            self.index.values[0] = new_first_index
-            reset_index = True
-        else:
-            reset_index = False
-        try:
-            for tensor in dest_ds.tensors:
-                if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                hub.compute(_copy_tensor, name="tensor copy transform")(
-                    tensor_name=tensor
-                ).eval(
-                    self,
-                    dest_ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                    skip_ok=True,
-                    check_lengths=False,
-                )
-        finally:
-            if reset_index:
-                dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
-                dest_ds.meta.is_dirty = True
-                dest_ds.flush()
-                dest_ds = dest_ds[0]
-                self.index.values[0] = old_first_index
-        return dest_ds
 
     @invalid_view_op
     def reset(self):
         """Resets the uncommitted changes present in the branch.
-        Note: The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+
+        Note:
+            - The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
@@ -2746,7 +2941,34 @@ class Dataset:
         save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
 
     def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key."""
+        """Changes the management status of the creds key.
+
+        Args:
+            creds_key (str): The key whose management status is to be changed.
+            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
+            KeyError: If the creds key is not present in the dataset.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+
+            # Populate the name added with creds dictionary
+            # These creds are only present temporarily and will have to be repopulated on every reload
+            ds.populate_creds("my_s3_key", {})
+
+            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            ds.change_creds_management("my_s3_key", True)
+            ```
+        """
         raise ValueError(
             "Managed creds are not supported for datasets that are not connected to activeloop platform."
         )
@@ -2779,7 +3001,7 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str, external=False):
+    def _optimize_saved_view(self, id: str, external=False, unlink=True):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
@@ -2794,15 +3016,25 @@ class Dataset:
                 # Already optimized
                 return info
             path = info.get("path", info["id"])
-            vds = self._sub_ds(".queries/" + path)
+            vds = self._sub_ds(".queries/" + path, verbose=False)
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
-            optimized = self._sub_ds(".queries/" + new_path)
-            view.copy(optimized, overwrite=True)
+            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
+            view._copy(optimized, overwrite=True, unlink=unlink)
+            optimized.info.update(vds.info.__getstate__())
+            optimized.info["virtual-datasource"] = False
+            optimized.info["path"] = new_path
+            optimized.flush()
             info["virtual-datasource"] = False
             info["path"] = new_path
             self._write_queries_json(qjson)
-        vds.delete(large_ok=True)
+        vds.base_storage.disable_readonly()
+        try:
+            vds.base_storage.clear()
+        except Exception as e:
+            warnings.warn(
+                f"Error while deleting old view after writing optimized version: {e}"
+            )
         return info
 
     @property
@@ -2820,3 +3052,15 @@ class Dataset:
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
+
+
+def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(
+        sample_in[tensor_name].chunk_engine.get_hub_read_sample(
+            sample_in.index.values[0].value
+        )
+    )
+
+
+def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
+    sample_out[tensor_name].append(sample_in[tensor_name].numpy())
