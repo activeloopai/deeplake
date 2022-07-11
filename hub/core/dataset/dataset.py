@@ -3053,9 +3053,13 @@ class Dataset:
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         if index is None:
-            index = 0
+            index = -1
             for tensor in self.tensors.values():
-                index = max(index, tensor.num_samples)
+                index = max(index, tensor.num_samples) - 1
+            if index == -1:
+                return
+        elif index < 0:
+            raise IndexError("Pop only supports indexes >= 0")
 
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
