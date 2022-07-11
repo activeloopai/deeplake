@@ -5,7 +5,9 @@ import logging
 import requests
 
 from requests.exceptions import HTTPError
+from typing import Optional, Set, Sequence
 from hub.core.storage.provider import StorageProvider
+
 
 logger = logging.getLogger("ipfsspec")
 
@@ -36,7 +38,8 @@ class IPFSProvider(StorageProvider):
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
-        return self.gw.apipost("add", path)
+        res = self.gw.apipost("add", path)
+        self.cids = [r['Hash'] for r in res]
 
 
     def __delitem__(self, path):
@@ -49,6 +52,37 @@ class IPFSProvider(StorageProvider):
 
         response = requests.post(f'{self.coreurl}/pin/rm', params=params)
         return response
+
+    def __iter__(self):
+        """Generator function that iterates over the keys of the provider.
+
+        Yields:
+            str: the path of the object that it is iterating over, relative to the root of the provider.
+        """
+        yield from self.cids
+
+    def __len__(self):
+        """Returns the number of files present inside the root of the provider.
+
+        Returns:
+            int: the number of files present inside the root.
+        """
+        return len(self.cids)
+
+    def _all_keys(self) -> Set[str]:
+        """Generator function that iterates over the keys of the provider.
+
+        Returns:
+            set: set of all keys present at the root of the provider.
+        """
+        return self.cids
+
+    def clear(self, prefix=""):
+        """Delete the contents of the provider."""
+        if self.cids:
+            self.cids = None
+        else:
+            super().clear()
 
 
 class IPFSGateway():
