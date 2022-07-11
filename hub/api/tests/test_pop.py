@@ -1,6 +1,7 @@
 import numpy as np
 import hub
 from hub.api.tests.test_api_tiling import compressions_paremetrized
+import pytest
 
 
 def pop_helper_basic(ds, pop_count):
@@ -189,6 +190,7 @@ def test_ds_pop(local_ds):
     with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")
+        ds.pop()
 
         for i in range(100):
             ds.images.append(i * np.ones((i + 1, i + 1, 3)))
@@ -206,3 +208,6 @@ def test_ds_pop(local_ds):
         ds.pop()  # only pops from the longest tensor
         assert len(ds.images) == 97
         assert len(ds.labels) == 49
+
+        with pytest.raises(IndexError):
+            ds.pop(-5)
