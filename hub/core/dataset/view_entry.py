@@ -47,8 +47,9 @@ class ViewEntry:
         return ds
 
     def optimize(self, unlink=True):
-        """Optimizes the view by copying and rechunking the required data. This is necessary to achieve fast streaming
-            speeds when training models using the dataset view. This might take a while for large datasets.
+        """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
+            speeds when training models using the dataset view. The optimization process will take some time, depending on
+            the size of the data.
 
         Args:
             unlink (bool): If True, this unlinks linked tensors (if any) by copying data from the links to the view.

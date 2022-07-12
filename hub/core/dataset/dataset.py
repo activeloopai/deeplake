@@ -2271,10 +2271,10 @@ class Dataset:
                 - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
                 - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
-            optimize (bool): - If True, the view will be optimized by copying and rechunking the required data. This is necessary
-                to achieve faster streaming speeds when training models using the dataset view. This might take a while for large
-                datasets.
-                - You can also optimize the view later: see `hub.core.dataset.view_entry.ViewEntry.optimize`.
+            optimize (bool): - If True, the dataset view will be optimized by copying and rechunking the required data. This is 
+                necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will 
+                take some time, depending on the size of the data.
+                - You can also choose to optimize the saved view later: See `hub.core.dataset.view_entry.ViewEntry.optimize`.
             num_workers (int): Number of workers to be used if `optimize` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
@@ -2522,9 +2522,9 @@ class Dataset:
 
         Args:
             id (str): id of the view to be loaded.
-            optimize (bool): If True, the view is optimized by copying and rechunkning the required data before loading. This is
-                necessary to achieve faster streaming speeds when training models using the dataset view. This might take a while
-                for large datasets.
+            optimize (bool): If True, the dataset view is optimized by copying and rechunking the required data before loading. This is
+                necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will 
+                take some time, depending on the size of the data.
 
         Returns:
             Dataset: The loaded view.
