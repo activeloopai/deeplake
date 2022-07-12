@@ -899,7 +899,7 @@ class Tensor:
                 sample_info_tensor[i].data()
                 for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
             ]
-        return sample_info_tensor[global_sample_index].data()
+        return sample_info_tensor[global_sample_index].data()["value"]
 
     def _sample_info(self, index: Index):
         sample_info_tensor = self._sample_info_tensor
