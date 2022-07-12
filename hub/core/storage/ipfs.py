@@ -27,6 +27,7 @@ class IPFSProvider(StorageProvider):
 
     def __getitem__(self, cid, **kwargs):
         """Gets the object present at the path."""
+        cid = cid[7:]
         res = self.gw.get(cid)
 
         if res.status_code == 200:
