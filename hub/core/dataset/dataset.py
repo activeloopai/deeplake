@@ -2214,7 +2214,6 @@ class Dataset:
             queries_ds = hub.load(
                 queries_ds_path,
                 verbose=False,
-                read_only=False,
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
