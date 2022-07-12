@@ -1,3 +1,5 @@
+from aifc import Error
+from distutils.log import error
 import hub
 import time
 import json
@@ -23,20 +25,23 @@ class IPFSProvider(StorageProvider):
         super().__init__()
         self.coreurl = coreurl
         self.cid = cid
+        self.links = self.get_links()
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
 
-    def __getitem__(self, **kwargs):
+    def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
-        res = self.gw.get(self.cid)
-
-        if res.status_code == 200:
-            return res, parse_response(res)
-
-        else:
-            raise HTTPError (parse_error_message(res))
-
+        try:
+            query = next(i for i in self.links if i['Name'] == path)
+            cid = query['Hash']['/']
+            res, content = self.gw.get(cid)
+            if res.status_code == 200:
+                return content
+            else:
+                raise HTTPError (parse_error_message(res))
+        except:
+            print(f"Path requested: {path}")
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
@@ -86,12 +91,68 @@ class IPFSProvider(StorageProvider):
         else:
             super().clear()
 
+    def dag_get(self):
+        """Get a DAG node from IPFS."""
+        
+        params = {}
+        params['arg'] = self.cid
+        params['output-codec'] = 'dag-json'
+        
+        response = requests.post(f'{self.coreurl}/dag/get', params=params)
+        
+        if response.status_code == 200:
+            return response, parse_response(response)
+
+        else:
+            raise HTTPError (parse_error_message(response))
+
+    def get_links(self):
+        if (self.coreurl is not None) and (self.cid is not None):
+            res = self.dag_get()
+            links = res[1]['Links']
+            return links
+        else:
+            raise Error("Coreurl or CID not defined.")
+
+def parse_error_message(
+    response, # Response object from requests
+    ):
+    """Parse error message for raising exceptions"""
+
+    sc = response.status_code
+
+    try:
+        message = response.json()['Message']
+
+    except:
+        message = response.text
+
+    return f"Response Status Code: {sc}; Error Message: {message}"
+
+def parse_response(
+        response, # Response object
+    ):
+    """Parse response object into JSON"""
+
+    if response.text.split('\n')[-1] == "":
+        try:
+            return [json.loads(each) for each in response.text.split('\n')[:-1]]
+
+        except:
+            pass
+
+    try:
+        return response.json()
+
+    except:
+        return response.text
+
 
 class IPFSGateway():
     def __init__(self, url):
         self.url = url
 
-        if self.url in ['http://127.0.0.1:5001', 'https://ipfs.infura.io:5001']: # hard coded because of limited number of post gateways
+        if self.url in ['http://127.0.0.1:5001', 'https://ipfs.infura.io:5001', 'https://ipfs.infura.io:5001/api/v0']: # hard coded because of limited number of post gateways
             self.reqtype = 'post' # local node and infura works on `post` request while public on `get`
         else:
             self.reqtype = 'get'
@@ -106,33 +167,23 @@ class IPFSGateway():
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
 
-    def get(self, path):
-        logger.debug("get %s via %s", path, self.url)
-        try:
-            res = self.session.get(self.url + "/ipfs/" + path)
-        except requests.ConnectionError as e:
-            logger.debug("Connection Error: %s", e)
-            self._backoff()
-            return None
-        # this is from https://blog.petrzemek.net/2018/04/22/on-incomplete-http-reads-and-the-requests-library-in-python/
-        expected_length = res.headers.get('Content-Length')
-        if expected_length is not None:
-            actual_length = res.raw.tell()
-            expected_length = int(expected_length)
-            if actual_length < expected_length:
-                # if less than the expected amount of data is delivered, just backoff which will will eiter trigger a
-                # retry on the same server or will fall back to another server later on.
-                logger.debug("received size of resource %s is %d, but %d was expected", path, actual_length, expected_length)
-                self._backoff()
-                return None
-
-        if res.status_code == 429:  # too many requests
-            self._backoff()
-            return None
-        elif res.status_code == 200:
-            self._speedup()
-        # res.raise_for_status() # moving the exception to filesystem level 
-        return res
+    def get(self, 
+        cid:str, # Path to the IPFS object
+        **kwargs
+    ):
+        'Get a file/directory from IPFS'
+        
+        params = {}
+        params['arg'] = cid
+        params.update(kwargs)
+        
+        res = self.session.post(f'{self.url}/get', params=params)
+            
+        if res.status_code == 200:
+            return res, parse_response(res)
+        
+        else:
+            raise HTTPError (parse_error_message(res))
 
     def head(self, path, headers=None):
         logger.debug("head %s via %s", path, self.url, headers=headers or {})
@@ -214,35 +265,3 @@ class IPFSGateway():
             return (self.state, None)
 
 
-def parse_error_message(
-    response, # Response object from requests
-):
-    'Parse error message for raising exceptions'
-
-    sc = response.status_code
-
-    try:
-        message = response.json()['Message']
-
-    except:
-        message = response.text
-
-    return f"Response Status Code: {sc}; Error Message: {message}"
-
-def parse_response(
-    response, # Response object
-):
-    "Parse response object into JSON"
-
-    if response.text.split('\n')[-1] == "":
-        try:
-            return [json.loads(each) for each in response.text.split('\n')[:-1]]
-
-        except:
-            pass
-
-    try:
-        return response.json()
-
-    except:
-        return response.text
