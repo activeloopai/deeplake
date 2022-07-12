@@ -1,5 +1,6 @@
 # type: ignore
 import os
+from tabnanny import verbose
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
@@ -2448,7 +2449,7 @@ class Dataset:
         if username == "public":
             return
         try:
-            return hub.load(f"hub://{username}/queries")
+            return hub.load(f"hub://{username}/queries", verbose=False)
         except DatasetHandlerError:
             return
 
