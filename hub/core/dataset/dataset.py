@@ -1,6 +1,5 @@
 # type: ignore
 import os
-from tabnanny import verbose
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
