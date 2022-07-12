@@ -718,10 +718,8 @@ class SampleHtypeMismatchError(Exception):
 
 
 class EmptyTensorError(Exception):
-    def __init__(self):
-        super().__init__(
-            "This tensor has only been populated with empty samples. Need to add at least one non-empty sample before retrieving data."
-        )
+    def __init__(self, message):
+        super().__init__(message)
 
 
 class DatasetViewSavingError(Exception):
@@ -732,13 +730,4 @@ class ManagedCredentialsNotFoundError(Exception):
     def __init__(self, org_id, creds_key):
         super().__init__(
             f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
-        )
-
-
-class EmptyTensorInTheDatasetError(Exception):
-    def __init__(self, tensor_name):
-        super().__init__(
-            f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
-            f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
-            f" tensor."
         )

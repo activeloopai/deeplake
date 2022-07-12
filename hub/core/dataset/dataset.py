@@ -77,7 +77,7 @@ from hub.util.exceptions import (
     EmptyCommitError,
     DatasetViewSavingError,
     DatasetHandlerError,
-    EmptyTensorInTheDatasetError,
+    EmptyTensorError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -1387,7 +1387,7 @@ class Dataset:
             A torch.utils.data.DataLoader object.
 
         Raises:
-            EmptyTensorInTheDatasetError - when one of the tensors is empty
+            EmptyTensorError - when one of the tensors is empty
         """
         from hub.integrations import dataset_to_pytorch as to_pytorch
 
@@ -1395,7 +1395,11 @@ class Dataset:
         tensor_names = self.tensors.keys()
         for tensor_name in tensor_names:
             if len(self.tensors[tensor_name]) == 0:
-                raise EmptyTensorInTheDatasetError(tensor_name)
+                raise EmptyTensorError(
+                    f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                    f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                    f" tensor."
+                )
 
         dataloader = to_pytorch(
             self,
