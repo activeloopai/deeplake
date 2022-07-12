@@ -46,11 +46,12 @@ class ViewEntry:
         ds._view_entry = self
         return ds
 
-    def optimize(self, unlink=True):
+    def optimize(self, unlink=True, progressbar=True):
         """Optimizes the view by copying the required data.
 
         Args:
             unlink (bool): Unlink linked tensors by copying data from the links to the view.
+            progressbar (bool): Whether to display a progressbar.
 
         Returns:
             `hub.core.dataset.view_entry.ViewEntry`
@@ -68,7 +69,10 @@ class ViewEntry:
             ```
         """
         self.info = self._ds._optimize_saved_view(
-            self.info["id"], external=self._external, unlink=unlink
+            self.info["id"],
+            external=self._external,
+            unlink=unlink,
+            progressbar=progressbar,
         )
         return self
 

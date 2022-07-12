@@ -2135,7 +2135,14 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
+    def _write_vds(
+        self,
+        vds,
+        info: dict,
+        copy: Optional[bool] = False,
+        num_workers: Optional[int] = 0,
+        unlink=True,
+    ):
         """Writes the indices of this view to a vds."""
         vds._allow_view_updates = True
         try:
@@ -2185,9 +2192,6 @@ class Dataset:
         message: Optional[str],
         copy: bool,
         num_workers: int,
-        username: Optional[str] = None,
-        creds: Optional[Dict] = None,
-        token: Optional[str] = None,
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2195,10 +2199,9 @@ class Dataset:
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
-        if not username:
-            username = get_user_name()
-            if username == "public":
-                raise NotLoggedInError("Unable to save query result. Not logged in.")
+        username = get_user_name()
+        if username == "public":
+            raise NotLoggedInError("Unable to save query result. Not logged in.")
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
@@ -2212,8 +2215,6 @@ class Dataset:
                 queries_ds_path,
                 verbose=False,
                 read_only=False,
-                creds=creds,
-                token=token,
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
@@ -2225,7 +2226,7 @@ class Dataset:
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = hub.empty(path, overwrite=True, creds=creds, token=token)
+        vds = hub.empty(path, overwrite=True)
 
         self._write_vds(vds, info, copy, num_workers)
         queries_ds._append_to_queries_json(info)
@@ -2532,12 +2533,18 @@ class Dataset:
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
-    def load_view(self, id: str, optimize: bool = False):
+    def load_view(
+        self,
+        id: str,
+        optimize: Optional[bool] = False,
+        progressbar: Optional[bool] = True,
+    ):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
             id (str): id of the view to be loaded.
             optimize (bool): If True, the view is optimized before loading.
+            progressbar (bool): Whether to use progressbar for optimization. Only applicable of optimize=True. Defaults to True.
 
         Returns:
             Dataset: The loaded view.
@@ -2546,7 +2553,7 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
         if optimize:
-            return self.get_view(id).optimize().load()
+            return self.get_view(id).optimize(progressbar=progressbar).load()
         return self.get_view(id).load()
 
     def delete_view(self, id: str):
@@ -3037,7 +3044,9 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str, external=False, unlink=True):
+    def _optimize_saved_view(
+        self, id: str, external=False, unlink=True, progressbar=True
+    ):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1

@@ -29,7 +29,7 @@ def storage_provider_from_path(
     Arguments:
         path (str): The full path to the Dataset.
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
-            This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+            This takes precedence over credentials present in the environment. Only used when url is provided.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         token (str): token for authentication into activeloop.
         is_hub_path (bool): whether the path points to a hub dataset.
@@ -71,7 +71,9 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only, token=token)
+        storage = storage_provider_from_hub_path(
+            path, read_only, token=token, creds=creds
+        )
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
