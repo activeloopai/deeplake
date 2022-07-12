@@ -15,20 +15,21 @@ class IPFSProvider(StorageProvider):
     def __init__(
         self,
         coreurl:str='', # Core URL to use
+        cid:str='',
         storage_type:str=None, # specify type of gateway (e.g. Infura, Estuary, Web3.Storage, local node...)
         api_key:str=None, # if applicable, api key for access to storage service
     ) -> None:
         """Initialize the object, assign credentials if required."""
         super().__init__()
-        self.coreurl = coreurl
+        self.coreurl = coreurl[7:]
+        self.cid = cid
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
 
-    def __getitem__(self, cid, **kwargs):
+    def __getitem__(self, **kwargs):
         """Gets the object present at the path."""
-        cid = cid[7:]
-        res = self.gw.get(cid)
+        res = self.gw.get(self.cid)
 
         if res.status_code == 200:
             return res, parse_response(res)

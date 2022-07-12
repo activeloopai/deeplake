@@ -73,10 +73,9 @@ def storage_provider_from_path(
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
-    elif path.startswith("https://ipfs.infura") or path.startswith("http://127") or path.startswith("https://api.web3.storage") or path.startswith("https://shuttle-5.estuary"):
-        storage_type = creds.get("storage_type")
-        key = creds.get("api_key")
-        storage = IPFSProvider(path, storage_type, key)
+    elif path.startswith("ipfs://"):
+        cid = creds.get("cid")
+        storage = IPFSProvider(coreurl=path, cid=cid)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
