@@ -1967,6 +1967,7 @@ class Dataset:
         for i in range(n):
             self.append({k: v[i] for k, v in samples.items()})
 
+    @invalid_view_op
     def append(self, sample: Dict[str, Any], skip_ok: bool = False):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
@@ -3106,6 +3107,36 @@ class Dataset:
 
     def _disable_padding(self):
         self._pad_tensors = False
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """
+        Removes a sample from all the tensors of the dataset.
+        For any tensor if the index >= len(tensor), the sample won't be popped from it.
+
+        Args:
+            index (int, Optional): The index of the sample to be removed. If it is None, the index becomes the length of the longest tensor - 1.
+
+        Raises:
+            IndexError: If the index is out of range.
+        """
+        max_len = max((t.num_samples for t in self.tensors.values()), default=0)
+        if max_len == 0:
+            raise IndexError("Can't pop from empty dataset.")
+
+        if index is None:
+            index = max_len - 1
+
+        if index < 0:
+            raise IndexError("Pop doesn't support negative indices.")
+        elif index >= max_len:
+            raise IndexError(
+                f"Index {index} is out of range. The longest tensor has {max_len} samples."
+            )
+
+        for tensor in self.tensors.values():
+            if tensor.num_samples > index:
+                tensor.pop(index)
 
     @property
     def is_view(self) -> bool:
