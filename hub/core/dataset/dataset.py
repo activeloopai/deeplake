@@ -3116,14 +3116,16 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
+        max_len = max((t.num_samples for t in self.tensors.values()), default=0)
+        if max_len == 0:
+            raise IndexError("Can't pop from empty dataset.")
+
         if index is None:
-            index = -1
-            for tensor in self.tensors.values():
-                index = max(index, tensor.num_samples - 1)
-            if index == -1:
-                return
-        elif index < 0:
-            raise IndexError("Pop only supports indexes >= 0")
+            index = max_len - 1
+        if index < 0 or index >= max_len:
+            raise IndexError(
+                f"Index {index} is out of range. The longest tensor has {max_len} samples."
+            )
 
         for tensor in self.tensors.values():
             if tensor.num_samples > index:

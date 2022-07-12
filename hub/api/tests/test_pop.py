@@ -190,7 +190,9 @@ def test_ds_pop(local_ds):
     with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")
-        ds.pop()
+
+        with pytest.raises(IndexError):
+            ds.pop()
 
         for i in range(100):
             ds.images.append(i * np.ones((i + 1, i + 1, 3)))
