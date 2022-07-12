@@ -118,6 +118,8 @@ from hub.core.dataset.view_entry import ViewEntry
 from hub.client.utils import get_user_name
 from itertools import chain
 import warnings
+import jwt
+
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -2199,9 +2201,7 @@ class Dataset:
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
-        username = get_user_name()
-        if username == "public":
-            raise NotLoggedInError("Unable to save query result. Not logged in.")
+        username = jwt.decode(ds.token, options={"verify_signature": False})['id']
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
