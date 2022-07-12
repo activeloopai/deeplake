@@ -77,6 +77,7 @@ from hub.util.exceptions import (
     EmptyCommitError,
     DatasetViewSavingError,
     DatasetHandlerError,
+    EmptyTensorError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -1384,6 +1385,9 @@ class Dataset:
 
         Returns:
             A torch.utils.data.DataLoader object.
+
+        Raises:
+            EmptyTensorError: If one or more tensors being passed to pytorch are empty.
         """
         from hub.integrations import dataset_to_pytorch as to_pytorch
 
