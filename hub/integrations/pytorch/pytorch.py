@@ -6,6 +6,7 @@ from .common import (
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
+from hub.util.exceptions import EmptyTensorError
 
 
 def create_dataloader_nesteddataloader(
@@ -124,6 +125,15 @@ def dataset_to_pytorch(
         transform = PytorchTransformFunction(transform_dict=transform)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
+
+    # check whether we have an empty tensor inside of tensors
+    for tensor_name in tensors:
+        if len(dataset[tensor_name]) == 0:
+            raise EmptyTensorError(
+                f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                f" tensor."
+            )
 
     if shuffle and num_workers > 0:
         return create_dataloader(
