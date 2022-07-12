@@ -3111,7 +3111,7 @@ class Dataset:
         For any tensor if the index >= len(tensor), the sample won't be popped from it.
 
         Args:
-            index (int, optional): The index of the sample to be removed. If it is None, the index becomes the length of the longest tensor - 1.
+            index (int, Optional): The index of the sample to be removed. If it is None, the index becomes the length of the longest tensor - 1.
 
         Raises:
             IndexError: If the index is out of range.
