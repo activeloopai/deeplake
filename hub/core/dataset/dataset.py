@@ -118,6 +118,8 @@ from hub.core.dataset.view_entry import ViewEntry
 from hub.client.utils import get_user_name
 from itertools import chain
 import warnings
+import jwt
+
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
@@ -2136,17 +2138,33 @@ class Dataset:
                 return info
         raise KeyError(f"View with id {id} not found.")
 
-    def _write_vds(self, vds, info: dict, copy: bool, num_workers: int, unlink=True):
+    def _write_vds(
+        self,
+        vds,
+        info: dict,
+        copy: Optional[bool] = False,
+        num_workers: Optional[int] = 0,
+        unlink=True,
+    ):
         """Writes the indices of this view to a vds."""
         vds._allow_view_updates = True
         try:
             with vds:
                 if copy:
-                    self._copy(vds, num_workers=num_workers, unlink=unlink)
-                else:
-                    vds.create_tensor("VDS_INDEX", dtype="uint64").extend(
-                        list(self.index.values[0].indices(len(self)))
+                    self._copy(
+                        vds,
+                        num_workers=num_workers,
+                        unlink=unlink,
+                        create_vds_index_tensor=True,
                     )
+                else:
+                    vds.create_tensor(
+                        "VDS_INDEX",
+                        dtype="uint64",
+                        create_shape_tensor=False,
+                        create_id_tensor=False,
+                        create_sample_info_tensor=False,
+                    ).extend(list(self.index.values[0].indices(len(self))))
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -2154,7 +2172,10 @@ class Dataset:
                         ).to_json()
                 vds.info.update(info)
         finally:
-            vds._allow_view_updates = False
+            try:
+                delattr(vds, "_allow_view_updates")
+            except AttributeError:  # Attribute already deleted by _copy()
+                pass
 
     def _save_view_in_subdir(
         self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
@@ -2174,7 +2195,6 @@ class Dataset:
         message: Optional[str],
         copy: bool,
         num_workers: int,
-        username: Optional[str] = None,
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2182,10 +2202,7 @@ class Dataset:
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
-        if not username:
-            username = get_user_name()
-            if username == "public":
-                raise NotLoggedInError("Unable to save query result. Not logged in.")
+        username = jwt.decode(self.token, options={"verify_signature": False})["id"]
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
@@ -2196,7 +2213,8 @@ class Dataset:
 
         try:
             queries_ds = hub.load(
-                queries_ds_path, verbose=False
+                queries_ds_path,
+                verbose=False,
             )  # create if doesn't exist
         except PathNotEmptyException:
             hub.delete(queries_ds_path, force=True)
@@ -2430,7 +2448,7 @@ class Dataset:
         if username == "public":
             return
         try:
-            return hub.load(f"hub://{username}/queries")
+            return hub.load(f"hub://{username}/queries", verbose=False)
         except DatasetHandlerError:
             return
 
@@ -2515,12 +2533,18 @@ class Dataset:
                     return ViewEntry(q, qds, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
-    def load_view(self, id: str, optimize: bool = False):
+    def load_view(
+        self,
+        id: str,
+        optimize: Optional[bool] = False,
+        progressbar: Optional[bool] = True,
+    ):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
             id (str): id of the view to be loaded.
             optimize (bool): If True, the view is optimized before loading.
+            progressbar (bool): Whether to use progressbar for optimization. Only applicable of optimize=True. Defaults to True.
 
         Returns:
             Dataset: The loaded view.
@@ -2529,7 +2553,7 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
         if optimize:
-            return self.get_view(id).optimize().load()
+            return self.get_view(id).optimize(progressbar=progressbar).load()
         return self.get_view(id).load()
 
     def delete_view(self, id: str):
@@ -2687,6 +2711,7 @@ class Dataset:
         progressbar=True,
         public: bool = False,
         unlink: bool = False,
+        create_vds_index_tensor: bool = False,
     ):
         """Copies this dataset or dataset view to `dest`. Version control history is not included.
 
@@ -2702,6 +2727,7 @@ class Dataset:
             progressbar (bool): Displays a progress bar if True (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to False.
             unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
+            create_vds_index_tensor (bool): If True, a hidden tensor called "VDS_INDEX" is created which contains the sample indices in the source view.
 
         Returns:
             Dataset: New dataset object.
@@ -2783,6 +2809,23 @@ class Dataset:
                     skip_ok=True,
                     check_lengths=False,
                 )
+
+            dest_ds.flush()
+            if create_vds_index_tensor:
+                with dest_ds:
+                    try:
+                        dest_ds._allow_view_updates = True
+                        dest_ds.create_tensor(
+                            "VDS_INDEX",
+                            dtype=np.uint64,
+                            hidden=True,
+                            create_shape_tensor=False,
+                            create_id_tensor=False,
+                            create_sample_info_tensor=False,
+                        )
+                        dest_ds.VDS_INDEX.extend(list(self.sample_indices))
+                    finally:
+                        delattr(dest_ds, "_allow_view_updates")
         finally:
             if reset_index:
                 dest_ds.meta.default_index = Index([IndexEntry(0)]).to_json()
@@ -2790,7 +2833,6 @@ class Dataset:
                 dest_ds.flush()
                 dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
-        dest_ds.flush()
         return dest_ds
 
     def copy(
@@ -3002,7 +3044,9 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
-    def _optimize_saved_view(self, id: str, external=False, unlink=True):
+    def _optimize_saved_view(
+        self, id: str, external=False, unlink=True, progressbar=True
+    ):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
             idx = -1
@@ -3021,7 +3065,13 @@ class Dataset:
             view = vds._get_view(not external)
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
-            view._copy(optimized, overwrite=True, unlink=unlink)
+            view._copy(
+                optimized,
+                overwrite=True,
+                unlink=unlink,
+                create_vds_index_tensor=True,
+                progressbar=progressbar,
+            )
             optimized.info.update(vds.info.__getstate__())
             optimized.info["virtual-datasource"] = False
             optimized.info["path"] = new_path
@@ -3038,11 +3088,15 @@ class Dataset:
             )
         return info
 
+    def _sample_indices(self, maxlen: int):
+        vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")
+        if vds_index:
+            return vds_index.numpy().reshape(-1).tolist()
+        return self.index.values[0].indices(maxlen)
+
     @property
     def sample_indices(self):
-        return self.index.values[0].indices(
-            min(t.num_samples for t in self.tensors.values())
-        )
+        return self._sample_indices(min(t.num_samples for t in self.tensors.values()))
 
     def _enable_padding(self):
         self._pad_tensors = True
@@ -3074,6 +3128,14 @@ class Dataset:
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
                 tensor.pop(index)
+
+    @property
+    def is_view(self) -> bool:
+        return (
+            not self.index.is_trivial()
+            or hasattr(self, "_vds")
+            or hasattr(self, "_view_entry")
+        )
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
