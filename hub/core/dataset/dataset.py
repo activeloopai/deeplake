@@ -3052,10 +3052,20 @@ class Dataset:
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
+        """
+        Removes a sample from all the tensors of the dataset.
+        For any tensor if the index >= len(tensor), the sample won't be popped from it.
+
+        Args:
+            index (int, optional): The index of the sample to be removed. If it is None, the index becomes the length of the longest tensor - 1.
+
+        Raises:
+            IndexError: If the index is out of range.
+        """
         if index is None:
             index = -1
             for tensor in self.tensors.values():
-                index = max(index, tensor.num_samples) - 1
+                index = max(index, tensor.num_samples - 1)
             if index == -1:
                 return
         elif index < 0:
