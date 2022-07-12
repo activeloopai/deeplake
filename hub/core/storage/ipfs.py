@@ -21,8 +21,8 @@ class IPFSProvider(StorageProvider):
     ) -> None:
         """Initialize the object, assign credentials if required."""
         super().__init__()
-        self.coreurl = coreurl[7:]
-        self.cid = cid
+        self.coreurl = coreurl
+        self.cid = cid[7:]
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key

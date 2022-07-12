@@ -74,8 +74,8 @@ def storage_provider_from_path(
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
     elif path.startswith("ipfs://"):
-        cid = creds.get("cid")
-        storage = IPFSProvider(coreurl=path, cid=cid)
+        gw = creds.get("gw")
+        storage = IPFSProvider(coreurl=gw, cid=path[7:])
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
