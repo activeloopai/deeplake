@@ -1315,6 +1315,30 @@ class ChunkEngine:
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
 
+    def _get_full_chunk(self, index) -> bool:
+        """Reads samples from chunks and returns as a boolean that says whether we need to fetch full chunks or only specified subset of it.
+        Args:
+            index (Index): Represents the samples to read from chunks. See `Index` for more information.
+        Returns:
+            bool: True/False, whether to fetch a full chunk or only a part of it.
+        """
+        threshold = 10
+
+        if type(index.values[0].value) == slice:
+            start = index.values[0].value.start or 0
+            stop = index.values[0].value.stop or self.num_samples
+            step = index.values[0].value.step or 1
+
+            if start < 0:
+                start = self.num_samples + start
+
+            if stop < 0:
+                stop = self.num_samples + start
+
+            numpy_array_length = (stop - start) // step
+            return numpy_array_length > threshold
+        return False
+
     def numpy(
         self,
         index: Index,
@@ -1342,6 +1366,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         self.check_link_ready()
+        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
