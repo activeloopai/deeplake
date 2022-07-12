@@ -3122,7 +3122,10 @@ class Dataset:
 
         if index is None:
             index = max_len - 1
-        if index < 0 or index >= max_len:
+
+        if index < 0:
+            raise IndexError("Pop doesn't support negative indices.")
+        elif index >= max_len:
             raise IndexError(
                 f"Index {index} is out of range. The longest tensor has {max_len} samples."
             )
