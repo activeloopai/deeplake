@@ -414,10 +414,10 @@ def test_groups(local_ds, compressed_image_paths):
         for _ in range(10):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
-    # dl = local_ds.pytorch(return_index=False)
-    # for cat, flower in dl:
-    #     np.testing.assert_array_equal(cat[0], img1.array)
-    #     np.testing.assert_array_equal(flower[0], img2.array)
+    dl = local_ds.pytorch(return_index=False)
+    for cat, flower in dl:
+        np.testing.assert_array_equal(cat[0], img1.array)
+        np.testing.assert_array_equal(flower[0], img2.array)
 
     with local_ds:
         local_ds.create_tensor(
