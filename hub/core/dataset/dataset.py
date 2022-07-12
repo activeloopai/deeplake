@@ -3066,7 +3066,11 @@ class Dataset:
             new_path = path + "_OPTIMIZED"
             optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
             view._copy(
-                optimized, overwrite=True, unlink=unlink, create_vds_index_tensor=True
+                optimized,
+                overwrite=True,
+                unlink=unlink,
+                create_vds_index_tensor=True,
+                progressbar=progressbar,
             )
             optimized.info.update(vds.info.__getstate__())
             optimized.info["virtual-datasource"] = False
