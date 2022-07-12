@@ -2201,7 +2201,7 @@ class Dataset:
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
-        username = jwt.decode(self.token, options={"verify_signature": False})['id']
+        username = jwt.decode(self.token, options={"verify_signature": False})["id"]
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
