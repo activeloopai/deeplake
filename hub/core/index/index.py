@@ -170,7 +170,7 @@ class IndexEntry:
             elif isinstance(item, (tuple, list)):
                 new_value = tuple(slice_at_int(self.value, idx) for idx in item)
                 return IndexEntry(new_value)
-        elif isinstance(self.value, tuple):
+        elif isinstance(self.value, (tuple, list)):
             if isinstance(item, int) or isinstance(item, slice):
                 return IndexEntry(self.value[item])
             elif isinstance(item, (tuple, list)):
