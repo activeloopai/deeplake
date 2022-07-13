@@ -1,3 +1,4 @@
+from hub.core.linked_sample import LinkedSample
 from hub.core.sample import Sample  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
@@ -64,15 +65,16 @@ class TransformTensor:
 
     def append(self, item):
         """Adds an item to the tensor."""
-        shape = getattr(item, "shape", None)
-        if shape is None:
-            item = np.asarray(item)
-            shape = item.shape
-        if self._ndim is None:
-            self._ndim = len(shape)
-        else:
-            if len(shape) != self._ndim:
-                raise TensorInvalidSampleShapeError(shape, self._ndim)
+        if not isinstance(item, LinkedSample):
+            shape = getattr(item, "shape", None)
+            if shape is None:
+                item = np.asarray(item)
+                shape = item.shape
+            if self._ndim is None:
+                self._ndim = len(shape)
+            else:
+                if len(shape) != self._ndim:
+                    raise TensorInvalidSampleShapeError(shape, self._ndim)
 
         self.items.append(item)
 
