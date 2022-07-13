@@ -27,12 +27,16 @@ from hub.util.exceptions import (
     BadRequestException,
     ReadOnlyModeError,
     EmptyTensorError,
+    InvalidTokenException,
+    TokenPermissionError,
+    UserNotLoggedInException,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import GDRIVE_OPT, MB
 
 from click.testing import CliRunner
+from hub.cli.auth import login, logout
 
 
 # need this for 32-bit and 64-bit systems to have correct tests

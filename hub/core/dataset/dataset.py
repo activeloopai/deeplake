@@ -3,7 +3,6 @@ import os
 import uuid
 import sys
 from hub.core.index.index import IndexEntry
-import numpy as np
 from time import time
 import json
 from tqdm import tqdm  # type: ignore
@@ -60,9 +59,6 @@ from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
-    InvalidTensorGroupNameError,
-    InvalidTensorNameError,
-    LockedException,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
     TensorAlreadyExistsError,

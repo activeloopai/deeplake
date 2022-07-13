@@ -35,6 +35,8 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     SamePathException,
     AuthorizationException,
+    UserNotLoggedInException,
+    TokenPermissionError,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
@@ -115,15 +117,32 @@ class dataset:
             creds = {}
 
         feature_report_path(path, "dataset", {"Overwrite": overwrite})
-
-        storage, cache_chain = get_storage_and_cache_chain(
-            path=path,
-            read_only=read_only,
-            creds=creds,
-            token=token,
-            memory_cache_size=memory_cache_size,
-            local_cache_size=local_cache_size,
-        )
+        try:
+            storage, cache_chain = get_storage_and_cache_chain(
+                path=path,
+                read_only=read_only,
+                creds=creds,
+                token=token,
+                memory_cache_size=memory_cache_size,
+                local_cache_size=local_cache_size,
+            )
+        except Exception as e:
+            if isinstance(e, UserNotLoggedInException):
+                message = (
+                    f"Please log in through the CLI in order to create this dataset, "
+                    "or create an API token in the UI and pass it to this method using "
+                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
+                    "‘activeloop register."
+                )
+                raise UserNotLoggedInException(message)
+            elif isinstance(e, TokenPermissionError):
+                message = (
+                    f"You can not load or create this dataset. You do not have sufficient "
+                    f"permissions. Please make sure that you have sufficient permissions "
+                    f"to the path provided."
+                )
+                raise TokenPermissionError(message)
+            raise
         ds_exists = dataset_exists(cache_chain)
         if overwrite and ds_exists:
             cache_chain.clear()
@@ -233,20 +252,38 @@ class dataset:
 
         feature_report_path(path, "empty", {"Overwrite": overwrite})
 
-        storage, cache_chain = get_storage_and_cache_chain(
-            path=path,
-            read_only=False,
-            creds=creds,
-            token=token,
-            memory_cache_size=memory_cache_size,
-            local_cache_size=local_cache_size,
-        )
+        try:
+            storage, cache_chain = get_storage_and_cache_chain(
+                path=path,
+                read_only=False,
+                creds=creds,
+                token=token,
+                memory_cache_size=memory_cache_size,
+                local_cache_size=local_cache_size,
+            )
+        except Exception as e:
+            if isinstance(e, UserNotLoggedInException):
+                message = (
+                    f"Please log in through the CLI in order to create this dataset, "
+                    f"or create an API token in the UI and pass it to this method using the "
+                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
+                )
+                raise UserNotLoggedInException(message)
+            elif isinstance(e, TokenPermissionError):
+                message = (
+                    "You do not have sufficient permissions to create a dataset at the specified path. "
+                    "Please make sure that you have write access to the path provided."
+                )
+                raise TokenPermissionError(message)
+            raise
 
         if overwrite and dataset_exists(cache_chain):
             cache_chain.clear()
         elif dataset_exists(cache_chain):
             raise DatasetHandlerError(
-                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use hub.load() instead."
+                f"A dataset already exists at the given path ({path}). If you want to create"
+                f" a new empty dataset, either specify another path or use overwrite=True. "
+                f"If you want to load the dataset that exists at this path, use hub.load() instead."
             )
 
         read_only = storage.read_only
@@ -304,6 +341,9 @@ class dataset:
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path.
             AgreementError: When agreement is rejected
+            UserNotLoggedInException: When user is not logged in
+            InvalidTokenException: If the specified toke is invalid
+            TokenPermissionError: when there are permission or other errors related to token
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
@@ -314,15 +354,31 @@ class dataset:
 
         feature_report_path(path, "load", {})
 
-        storage, cache_chain = get_storage_and_cache_chain(
-            path=path,
-            read_only=read_only,
-            creds=creds,
-            token=token,
-            memory_cache_size=memory_cache_size,
-            local_cache_size=local_cache_size,
-        )
-
+        try:
+            storage, cache_chain = get_storage_and_cache_chain(
+                path=path,
+                read_only=read_only,
+                creds=creds,
+                token=token,
+                memory_cache_size=memory_cache_size,
+                local_cache_size=local_cache_size,
+            )
+        except Exception as e:
+            if isinstance(e, UserNotLoggedInException):
+                message = (
+                    "Please log in through the CLI in order to load this dataset, "
+                    "or create an API token in the UI and pass it to this method using "
+                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
+                    "‘activeloop register’."
+                )
+                raise UserNotLoggedInException(message)
+            elif isinstance(e, TokenPermissionError):
+                message = (
+                    "You do not have sufficient permissions to load a dataset from the specified path. "
+                    "Please make sure that you have read access to the path provided."
+                )
+                raise TokenPermissionError(message)
+            raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."

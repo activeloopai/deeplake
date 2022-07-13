@@ -52,6 +52,11 @@ def hub_cloud_dev_token(hub_cloud_dev_credentials):
 
 
 @pytest.fixture(scope="session")
+def hub_cloud_dev_invalid_token():
+    return "invalid token"
+
+
+@pytest.fixture(scope="session")
 def hub_kaggle_credentials(request):
     if not is_opt_true(request, KAGGLE_OPT):
         pytest.skip()
