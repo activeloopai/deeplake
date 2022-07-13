@@ -29,6 +29,7 @@ class IPFSProvider(StorageProvider):
         self.coreurl = coreurl
         self.cid = cid
         self.links = self._get_links(cid)
+        self.ordered_links = self.get_hash(self.links, {})
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
@@ -179,6 +180,16 @@ class IPFSProvider(StorageProvider):
         root_struct[fol] = struct
 
         return root_struct
+
+    def get_hash(self, links_dict, ordered_links):
+        for link in links_dict:
+            if 'Hash' in links_dict[link].keys():
+                cid = links_dict[link]['Hash']
+                ordered_links[link[1:]] = cid
+            else:
+                ordered_links = self.get_hash(links_dict[link], ordered_links)
+        return ordered_links
+
 
 def parse_error_message(
     response, # Response object from requests
