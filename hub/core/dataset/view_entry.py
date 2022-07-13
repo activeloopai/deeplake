@@ -47,10 +47,13 @@ class ViewEntry:
         return ds
 
     def optimize(self, unlink=True, progressbar=True):
-        """Optimizes the view by copying the required data.
+        """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
+            speeds when training models using the dataset view. The optimization process will take some time, depending on
+            the size of the data.
 
         Args:
-            unlink (bool): Unlink linked tensors by copying data from the links to the view.
+            unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
             progressbar (bool): Whether to display a progressbar.
 
         Returns:
