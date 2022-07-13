@@ -37,20 +37,13 @@ class IPFSProvider(StorageProvider):
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
         try:
-            # query = next(i for i in self.links if i['Name'] == path)
-            # cid = query['Hash']['/']
             cid = self.ordered_links[path]
-            # res, content = self.gw.get(cid)
             res, content = self.gw.cat(cid)
-            # content = self.read_json(cid)
-            # assert 1==0, f'Content is {content}'
-            # cont = pd.read_json(StringIO(content))
             b = bytes(content,'utf-8')
             if res.status_code == 200:                
                 return b
             else:
-                assert 1==0
-                # raise HTTPError (parse_error_message(res))
+                raise HTTPError (parse_error_message(res))
         except StopIteration:
             print(f"Path requested: {path}")
         except FileNotFoundError:
@@ -60,14 +53,6 @@ class IPFSProvider(StorageProvider):
             print(f'Status code: {res.status_code}, Assertion error, content is {content}, path is {path}, cid query is {cid}, query is {query}, and in bytes we have {b}')
         except TypeError:
             print('Got type error.')
-        # try:
-        #     full_path = self._check_is_file(path)
-        #     with open(full_path, "rb") as file:
-        #         return file.read()
-        # except DirectoryAtPathException:
-        #     raise
-        # except FileNotFoundError:
-        #     raise KeyError(path)
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
