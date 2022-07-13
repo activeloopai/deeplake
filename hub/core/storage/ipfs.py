@@ -37,8 +37,9 @@ class IPFSProvider(StorageProvider):
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
         try:
-            query = next(i for i in self.links if i['Name'] == path)
-            cid = query['Hash']['/']
+            # query = next(i for i in self.links if i['Name'] == path)
+            # cid = query['Hash']['/']
+            cid = self.ordered_links[path]
             # res, content = self.gw.get(cid)
             res, content = self.gw.cat(cid)
             # content = self.read_json(cid)
