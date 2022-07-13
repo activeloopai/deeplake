@@ -112,6 +112,6 @@ def read_linked_sample(
         storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
         return hub.read(sample_path, storage=storage, verify=verify)
     elif sample_path.startswith(("http://", "https://")):
-        creds = link_creds.get(sample_creds_key)
+        creds = link_creds.get_creds(sample_creds_key)
         return hub.read(sample_path, verify=verify, jwt=creds)
     return hub.read(sample_path, verify=verify)
