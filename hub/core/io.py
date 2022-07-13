@@ -22,7 +22,6 @@ from hub.core.tiling.deserialize import combine_chunks
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
-    EmptyTensorInTheDatasetError,
 )
 from hub.util.keys import get_chunk_key, get_tensor_meta_key
 from hub.util.remove_cache import get_base_storage
