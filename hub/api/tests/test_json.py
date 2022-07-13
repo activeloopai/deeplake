@@ -23,6 +23,8 @@ def test_json_basic(memory_ds):
     assert ds.json.shape == (4, 1)
     for i in range(4):
         assert ds.json[i].data()["value"] == items[i % 2]
+        assert ds.json[i].json() == items[i % 2]
+    assert ds.json.json() == items * 2
 
 
 def test_json_with_numpy(memory_ds):

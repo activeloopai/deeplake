@@ -42,6 +42,9 @@ def test_text_update(memory_ds, args):
         ds.create_tensor("x", htype="text", **args)
         for _ in range(10):
             ds.x.append("cat")
+        assert ds.x[0].text() == "cat"
+
     for i in range(0, 10, 2):
         ds.x[i] = "flower"
     assert ds.x.data()["value"] == ["flower", "cat"] * 5
+    assert ds.x.text() == ["flower", "cat"] * 5

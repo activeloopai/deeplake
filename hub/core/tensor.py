@@ -1032,3 +1032,18 @@ class Tensor:
     @property
     def sample_indices(self):
         return self.dataset._sample_indices(self.num_samples)
+
+    def _extract_value(self, htype):
+        if self.base_htype != htype:
+            raise Exception(f"Only supported for {htype} tensors.")
+
+        if self.ndim == 1:
+            return self.numpy()[0]
+        else:
+            return [sample[0] for sample in self.numpy(aslist=True)]
+
+    def text(self):
+        return self._extract_value("text")
+
+    def json(self):
+        return self._extract_value("json")
