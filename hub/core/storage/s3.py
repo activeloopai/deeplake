@@ -183,9 +183,10 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3SetError(err) from err
 
-    def _get(self, path):
+    def _get(self, path, bucket=None):
+        bucket = bucket or self.bucket
         resp = self.client.get_object(
-            Bucket=self.bucket,
+            Bucket=bucket,
             Key=path,
         )
         return resp["Body"].read()
@@ -571,5 +572,23 @@ class S3Provider(StorageProvider):
         split_root = root.split("/", 1)
         bucket = split_root[0]
         path = split_root[1] if len(split_root) > 1 else ""
-        resp = self.client.get_object(Bucket=bucket, Key=path)
-        return resp["Body"].read()
+        try:
+            return self._get(path, bucket)
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "NoSuchKey":
+                raise KeyError(err) from err
+            reload = self.need_to_reload_creds(err)
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
+            with manager(self, S3GetError):  # type: ignore
+                return self._get(path, bucket)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    return self._get(path, bucket)
+                except Exception:
+                    pass
+            raise S3GetError(err) from err
+        except Exception as err:
+            raise S3GetError(err) from err
