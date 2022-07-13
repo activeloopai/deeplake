@@ -17,7 +17,18 @@ class LinkCreds(HubMemoryObject):
         self.default_s3_provider = None
         self.default_gcs_provider = None
 
-    def get_default_provider(self, provider_type):
+    def get_creds(self, key: Optional[str]):
+        if key in {"ENV", None}:
+            return {}
+        if key not in self.creds_keys:
+            raise KeyError(f"Creds key {key} does not exist")
+        if key not in self.creds_dict:
+            raise ValueError(
+                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
+            )
+        return self.creds_dict[key]
+
+    def get_default_provider(self, provider_type: str):
         if provider_type == "s3":
             if self.default_s3_provider is None:
                 self.default_s3_provider = S3Provider("s3://bucket/path")
@@ -29,19 +40,13 @@ class LinkCreds(HubMemoryObject):
                 self.default_gcs_provider = GCSProvider("gcs://bucket/path")
             return self.default_gcs_provider
 
-    def get_storage_provider(self, key: Optional[str], provider_type):
+    def get_storage_provider(self, key: Optional[str], provider_type: str):
         assert provider_type in {"s3", "gcs"}
         if key in {"ENV", None}:
             return self.get_default_provider(provider_type)
-        if key not in self.creds_keys:
-            raise KeyError(f"Creds key {key} does not exist")
-        if key not in self.creds_dict:
-            raise ValueError(
-                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
-            )
 
         provider: StorageProvider
-        creds = self.creds_dict[key]
+        creds = self.get_creds(key)
 
         if provider_type == "s3":
             if key in self.storage_providers:
