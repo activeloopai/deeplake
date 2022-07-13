@@ -2297,7 +2297,8 @@ class Dataset:
             optimize (bool): - If True, the dataset view will be optimized by copying and rechunking the required data. This is
                 necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
                 take some time, depending on the size of the data.
-                - You can also choose to optimize the saved view later: See `hub.core.dataset.view_entry.ViewEntry.optimize`.
+                - You can also choose to optimize the saved view later by calling its `optimize` method:
+                See `hub.core.dataset.view_entry.ViewEntry.optimize`.
             num_workers (int): Number of workers to be used if `optimize` is True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 

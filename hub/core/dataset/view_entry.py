@@ -52,7 +52,8 @@ class ViewEntry:
             the size of the data.
 
         Args:
-            unlink (bool): If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+            unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
             progressbar (bool): Whether to display a progressbar.
 
         Returns:
