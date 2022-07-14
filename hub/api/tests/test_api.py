@@ -816,6 +816,15 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ds = hub.load(new_path, token=hub_token)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
+    with pytest.raises(InvalidTokenException):
+        ds = hub.load(new_path, token="invalid token")
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty(new_path, token="invalid token")
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.dataset(new_path, token="invalid token")
+
     hub.delete(new_path, token=hub_token)
 
 
@@ -1936,3 +1945,15 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(x, i)
             target_y = i if i < 5 else []
             np.testing.assert_equal(y, target_y)
+
+
+@pytest.mark.parametrize(
+    "hub_token",
+    [
+        "hub_cloud_dev_token",
+    ],
+    indirect=True,
+)
+def test_hub_token_without_permission(hub_token):
+    with pytest.raises(TokenPermissionError):
+        hub.empty("hub://activeloop-test/sohas-weapons-train")

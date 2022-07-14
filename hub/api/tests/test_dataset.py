@@ -66,7 +66,13 @@ def test_update_privacy(hub_cloud_ds):
     hub_cloud_ds.make_private()
     assert not hub_cloud_ds.public
     with pytest.raises(UserNotLoggedInException):
+        hub.dataset(hub_cloud_ds.path)
+
+    with pytest.raises(UserNotLoggedInException):
         hub.load(hub_cloud_ds.path)
+
+    with pytest.raises(UserNotLoggedInException):
+        hub.empty(hub_cloud_ds.path)
 
 
 def test_persistence_bug(local_ds_generator):
