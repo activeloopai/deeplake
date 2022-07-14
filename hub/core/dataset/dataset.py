@@ -2395,6 +2395,7 @@ class Dataset:
         Args:
             inherit_creds (bool): Whether to inherit creds from the parent dataset in which this vds is stored. Default True.
             creds (optional, Dict): Creds for the source dataset. Used only if inherit_creds is False.
+
         Raises:
             Exception: If this is not a VDS.
         """
