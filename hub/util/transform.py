@@ -103,13 +103,14 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         group_index,
         tensors,
         visible_tensors,
+        label_temp_tensors,
         pipeline,
         version_state,
         link_creds,
         skip_ok,
     ) = inp
     all_chunk_engines = create_worker_chunk_engines(
-        tensors, output_storage, version_state, link_creds
+        tensors, label_temp_tensors, output_storage, version_state, link_creds
     )
 
     if isinstance(data_slice, hub.Dataset):
@@ -119,6 +120,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         data_slice,
         pipeline,
         visible_tensors,
+        label_temp_tensors,
         all_chunk_engines,
         group_index,
         pg_callback,
@@ -133,6 +135,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     all_chunk_sets = {}
     all_commit_diffs = {}
     all_creds_encoders = {}
+    all_hash_label_maps = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
@@ -143,6 +146,8 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
         all_commit_diffs[tensor] = chunk_engine.commit_diff
         all_creds_encoders[tensor] = chunk_engine.creds_encoder
+        if chunk_engine._is_temp_label_tensor:
+            all_hash_label_maps[tensor] = chunk_engine._hash_label_map
 
     return {
         "tensor_metas": all_tensor_metas,
@@ -152,6 +157,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         "commit_chunk_sets": all_chunk_sets,
         "commit_diffs": all_commit_diffs,
         "creds_encoders": all_creds_encoders,
+        "hash_label_maps": all_hash_label_maps,
     }
 
 
@@ -159,6 +165,7 @@ def _transform_sample_and_update_chunk_engines(
     sample,
     pipeline,
     tensors: List[str],
+    label_temp_tensors: Dict[str, str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     skip_ok: bool = False,
@@ -172,14 +179,17 @@ def _transform_sample_and_update_chunk_engines(
     result = result_resolved  # type: ignore
     result_keys = set(result.keys())
 
+    tensors_ = (set(tensors) - set(label_temp_tensors.values())).union(
+        set(label_temp_tensors.keys())
+    )
     if skip_ok:
-        if not result_keys.issubset(tensors):
-            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
-    elif set(result_keys) != set(tensors):
-        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+        if not result_keys.issubset(tensors_):
+            raise TensorMismatchError(list(tensors_), list(result_keys), skip_ok)
+    elif set(result_keys) != set(tensors_):
+        raise TensorMismatchError(list(tensors_), list(result_keys), skip_ok)
 
     for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[tensor]
+        chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
         callback = chunk_engine._transform_callback
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
 
@@ -188,6 +198,7 @@ def transform_data_slice_and_append(
     data_slice,
     pipeline,
     tensors: List[str],
+    label_temp_tensors: Dict[str, str],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     pg_callback=None,
@@ -200,7 +211,13 @@ def transform_data_slice_and_append(
     last_reported_num_samples = 0
     for i, sample in enumerate(data_slice):
         _transform_sample_and_update_chunk_engines(
-            sample, pipeline, tensors, all_chunk_engines, group_index, skip_ok
+            sample,
+            pipeline,
+            tensors,
+            label_temp_tensors,
+            all_chunk_engines,
+            group_index,
+            skip_ok,
         )
         if pg_callback is not None:
             curr_time = time.time()
@@ -215,7 +232,11 @@ def transform_data_slice_and_append(
 
 
 def create_worker_chunk_engines(
-    tensors: List[str], output_storage: StorageProvider, version_state, link_creds
+    tensors: List[str],
+    label_temp_tensors: List[str],
+    output_storage: StorageProvider,
+    version_state,
+    link_creds,
 ) -> Dict[str, ChunkEngine]:
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
@@ -266,6 +287,8 @@ def create_worker_chunk_engines(
                         tensor, storage_cache, version_state, memory_cache
                     )
                 storage_chunk_engine._all_chunk_engines = all_chunk_engines
+                if tensor in label_temp_tensors.values():
+                    storage_chunk_engine._is_temp_label_tensor = True
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
             except (JSONDecodeError, KeyError):

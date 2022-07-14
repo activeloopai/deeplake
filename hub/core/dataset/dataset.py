@@ -684,7 +684,7 @@ class Dataset:
             ):
                 self.delete_tensor(t_name)
 
-        self.storage.maybe_flush()
+        self.storage.flush()
 
     @invalid_view_op
     @hub_reporter.record_call
