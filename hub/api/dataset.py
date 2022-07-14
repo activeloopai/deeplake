@@ -108,6 +108,9 @@ class dataset:
 
         Raises:
             AgreementError: When agreement is rejected
+            UserNotLoggedInException: When user is not logged in
+            InvalidTokenException: If the specified toke is invalid
+            TokenPermissionError: when there are permission or other errors related to token
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
@@ -201,7 +204,7 @@ class dataset:
                 memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
                 local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
             )
-        except (AuthorizationException):
+        except (TokenPermissionError):
             # Cloud Dataset does not exist
             return False
         return dataset_exists(storage)
@@ -244,6 +247,9 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
+            UserNotLoggedInException: When user is not logged in
+            InvalidTokenException: If the specified toke is invalid
+            TokenPermissionError: when there are permission or other errors related to token
         """
         path = convert_pathlib_to_string_if_needed(path)
 

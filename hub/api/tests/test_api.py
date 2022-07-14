@@ -1659,6 +1659,7 @@ def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
     path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
+    # with pytest.raises(TokenPermissionError):
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
 
 
