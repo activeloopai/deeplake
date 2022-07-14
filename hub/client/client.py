@@ -180,7 +180,6 @@ class HubBackendClient:
         self,
         org_id: str,
         ds_name: str,
-        hub_method: str,
         mode: Optional[str] = None,
         no_cache: bool = False,
     ):
@@ -189,7 +188,6 @@ class HubBackendClient:
         Args:
             org_id (str): The name of the user/organization to which the dataset belongs.
             ds_name (str): The name of the dataset being accessed.
-            hub_method (str): Whether this method is used to load or create a dataset
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
             no_cache (bool): If True, cached creds are ignored and new creds are returned. Default False.
