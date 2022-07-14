@@ -2386,7 +2386,7 @@ class Dataset:
             return vds
         return vds.path
 
-    def _get_view(self, inherit_creds=True):
+    def _get_view(self, inherit_creds=True, creds: Optional[Dict] = None):
         """Returns a view for this VDS. Only works if this Dataset is a virtual dataset.
 
         Returns:
@@ -2394,6 +2394,7 @@ class Dataset:
 
         Args:
             inherit_creds (bool): Whether to inherit creds from the parent dataset in which this vds is stored. Default True.
+            creds (optional, Dict): Creds for the source dataset. Used only if inherit_creds is False.
 
         Raises:
             Exception: If this is not a VDS.
@@ -2406,7 +2407,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.load(self.info["source-dataset"], verbose=False)
+            else hub.load(self.info["source-dataset"], verbose=False, creds=creds)
         )
         try:
             orig_index = ds.index
