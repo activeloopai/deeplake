@@ -1045,5 +1045,5 @@ class Tensor:
     def text(self):
         return self._extract_value("text")
 
-    def json(self):
+    def dict(self):
         return self._extract_value("json")
