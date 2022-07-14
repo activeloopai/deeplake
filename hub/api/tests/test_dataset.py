@@ -1,4 +1,4 @@
-from hub.util.exceptions import DatasetHandlerError
+from hub.util.exceptions import DatasetHandlerError, UserNotLoggedInException
 from click.testing import CliRunner
 import pytest
 import hub
@@ -65,7 +65,7 @@ def test_update_privacy(hub_cloud_ds):
     assert hub_cloud_ds.public
     hub_cloud_ds.make_private()
     assert not hub_cloud_ds.public
-    with pytest.raises(hub.util.exceptions.AuthorizationException):
+    with pytest.raises(UserNotLoggedInException):
         hub.load(hub_cloud_ds.path)
 
 
