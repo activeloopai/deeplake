@@ -18,7 +18,7 @@ class ViewEntry:
     @property
     def id(self) -> str:
         """Returns id of the view."""
-        return self.info["id"]
+        return self.info["id"].split("]")[-1]
 
     @property
     def query(self) -> Optional[str]:
@@ -46,11 +46,15 @@ class ViewEntry:
         ds._view_entry = self
         return ds
 
-    def optimize(self, unlink=True):
-        """Optimizes the view by copying the required data.
+    def optimize(self, unlink=True, progressbar=True):
+        """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
+            speeds when training models using the dataset view. The optimization process will take some time, depending on
+            the size of the data.
 
         Args:
-            unlink (bool): Unlink linked tensors by copying data from the links to the view.
+            unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
+            progressbar (bool): Whether to display a progressbar.
 
         Returns:
             `hub.core.dataset.view_entry.ViewEntry`
@@ -68,7 +72,10 @@ class ViewEntry:
             ```
         """
         self.info = self._ds._optimize_saved_view(
-            self.info["id"], external=self._external, unlink=unlink
+            self.info["id"],
+            external=self._external,
+            unlink=unlink,
+            progressbar=progressbar,
         )
         return self
 

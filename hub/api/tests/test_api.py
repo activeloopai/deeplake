@@ -26,6 +26,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
+    EmptyTensorError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -141,6 +142,10 @@ def test_populate_dataset(local_ds):
 
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
+    assert len(local_ds.image.numpy()) == 16
+    assert len(local_ds.image[0:5].numpy()) == 5
+    assert len(local_ds.image[:-1].numpy()) == 15
+    assert len(local_ds.image[-5:].numpy()) == 5
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
@@ -266,6 +271,8 @@ def test_dynamic_tensor(local_ds):
 
 def test_empty_samples(local_ds: Dataset):
     tensor = local_ds.create_tensor("with_empty")
+    with pytest.raises(EmptyTensorError):
+        ds_pytorch = local_ds.pytorch()
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
