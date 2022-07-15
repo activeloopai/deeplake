@@ -817,13 +817,19 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.load("hub://activeloop-test/sohas-weapons-train", token="invalid token")
+        ds = hub.load(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.empty("hub://activeloop-test/sohas-weapons-train", token="invalid token")
+        ds = hub.empty(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.dataset("hub://activeloop-test/sohas-weapons-train", token="invalid token")
+        ds = hub.dataset(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
 
     hub.delete(new_path, token=hub_token)
 
