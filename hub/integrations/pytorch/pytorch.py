@@ -100,6 +100,7 @@ def dataset_to_pytorch(
     tensors: Optional[Sequence[str]] = None,
     tobytes: Union[bool, Sequence[str]] = False,
     return_index: bool = True,
+    multiple_transforms = False
 ):
 
     import torch
@@ -138,6 +139,7 @@ def dataset_to_pytorch(
             return_index,
         )
     else:
+        ############ Only making multiple_transforms it work for shuffle == False for now
         return torch.utils.data.DataLoader(
             TorchDataset(
                 dataset,
@@ -149,6 +151,7 @@ def dataset_to_pytorch(
                 shuffle=shuffle,
                 buffer_size=buffer_size,
                 return_index=return_index,
+                multiple_transforms = multiple_transforms,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

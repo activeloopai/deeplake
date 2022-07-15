@@ -1329,6 +1329,7 @@ class Dataset:
         use_local_cache: bool = False,
         use_progress_bar: bool = False,
         return_index: bool = True,
+        multiple_transforms = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1374,6 +1375,8 @@ class Dataset:
             buffer_size=buffer_size,
             use_local_cache=use_local_cache,
             return_index=return_index,
+            multiple_transforms=multiple_transforms,
+
         )
 
         if use_progress_bar:

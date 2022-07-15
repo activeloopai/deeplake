@@ -65,7 +65,7 @@ def _process(tensor, transform: PytorchTransformFunction):
             return cast_type(x.copy())
         except AttributeError:
             return bytes(x)
-
+    print(tensor)
     tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
     return tensor
@@ -401,6 +401,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         shuffle: bool = False,
         buffer_size: int = 0,
         return_index: bool = True,
+        multiple_transforms = False
     ) -> None:
         super().__init__()
 
