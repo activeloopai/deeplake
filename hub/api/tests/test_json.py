@@ -189,6 +189,8 @@ def test_json_transform(ds, compression, scheduler="threaded"):
 
     upload().eval(items, ds, num_workers=2, scheduler=scheduler)
     assert ds.json.data()["value"] == items
+    with pytest.raises(Exception):
+        ds.json.list()
 
 
 @enabled_non_gcs_gdrive_datasets
@@ -210,6 +212,3 @@ def test_list_transform(ds, scheduler="threaded"):
     assert ds.list.data()["value"] == items
     assert ds.list[0].list() == items[0]
     assert ds.list.list() == items
-
-    with pytest.raises(Exception):
-        ds.list.json()
