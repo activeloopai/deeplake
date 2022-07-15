@@ -93,31 +93,38 @@ def sync_labels(ds, label_temp_tensors, hash_label_maps, num_workers, scheduler)
     hash_label_maps = hl_maps
 
     @hub.compute
-    def upload(items, ds, tensor):
-        ds[tensor].append(items)
-        return ds
+    def upload(
+        ds_in,
+        ds_out,
+        label_tensor,
+        temp_tensor,
+        hash_label_map,
+        label_idx_map,
+        class_names,
+    ):
+        ds_out[label_tensor].append(ds_in[temp_tensor].numpy().tolist())
 
     for tensor, temp_tensor in label_temp_tensors.items():
         target_tensor = ds[tensor]
         hash_label_map = hash_label_maps[temp_tensor]
         class_names = target_tensor.info.class_names
         label_idx_map = {class_names[i]: i for i in range(len(class_names))}
-        start_idx = len(target_tensor)
-        items = ds[temp_tensor][start_idx:].numpy().tolist()
+        items = ds[temp_tensor].numpy().tolist()
         idxs = convert_hash_to_idx(items, hash_label_map, label_idx_map, class_names)
-        target_tensor.info.is_dirty = True
-        target_tensor.meta._disable_temp_transform = True
-        target_tensor.meta.is_dirty = True
+        target_tensor.extend(idxs)
+        # target_tensor.info.is_dirty = True
+        # target_tensor.meta._disable_temp_transform = True
+        # target_tensor.meta.is_dirty = True
 
-        upload(tensor=tensor).eval(
-            idxs,
-            ds,
-            num_workers=num_workers,
-            scheduler=scheduler,
-            progressbar=False,
-            check_lengths=False,
-            skip_ok=True,
-        )
-        target_tensor.meta._disable_temp_transform = False
-        target_tensor.meta.is_dirty = True
-        ds.delete_tensor(temp_tensor)
+        # upload(tensor=tensor).eval(
+        #     idxs,
+        #     ds,
+        #     num_workers=num_workers,
+        #     scheduler=scheduler,
+        #     progressbar=False,
+        #     check_lengths=False,
+        #     skip_ok=True,
+        # )
+        # target_tensor.meta._disable_temp_transform = False
+        # target_tensor.meta.is_dirty = True
+        ds.delete_tensor(temp_tensor, large_ok=True)

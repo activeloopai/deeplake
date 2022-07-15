@@ -179,6 +179,7 @@ def _transform_sample_and_update_chunk_engines(
     result = result_resolved  # type: ignore
     result_keys = set(result.keys())
 
+    # replace temporary tensors with actual ones for comparing
     tensors_ = (set(tensors) - set(label_temp_tensors.values())).union(
         set(label_temp_tensors.keys())
     )

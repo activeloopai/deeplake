@@ -682,7 +682,7 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name)
+                self.delete_tensor(t_name, large_ok=True)
 
         self.storage.flush()
 
