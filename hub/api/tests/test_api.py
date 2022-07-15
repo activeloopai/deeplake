@@ -1674,7 +1674,6 @@ def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
     path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
-    # with pytest.raises(TokenPermissionError):
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
 
 
@@ -1953,13 +1952,10 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-@pytest.mark.parametrize(
-    "hub_token",
-    [
-        "hub_cloud_dev_token",
-    ],
-    indirect=True,
-)
-def test_hub_token_without_permission(hub_token):
+def test_hub_token_without_permission(hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
