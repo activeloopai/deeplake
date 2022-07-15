@@ -788,10 +788,14 @@ class Tensor:
             if class_names:
                 data["text"] = convert_to_text(labels, self.info.class_names)
             return data
-        else:
+        elif htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
+            }
+        else:
+            return {
+                "value": self.numpy(aslist=aslist),
             }
 
     def tobytes(self) -> bytes:
@@ -1047,3 +1051,9 @@ class Tensor:
 
     def dict(self):
         return self._extract_value("json")
+
+    def list(self):
+        if self.ndim == 1:
+            return list(self.numpy())
+        else:
+            return list(map(list, self.numpy(aslist=True)))
