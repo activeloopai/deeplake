@@ -46,7 +46,9 @@ class ViewEntry:
         ds._view_entry = self
         return ds
 
-    def optimize(self, unlink=True, progressbar=True):
+    def optimize(
+        self, unlink=True, num_workers=0, scheduler="threaded", progressbar=True
+    ):
         """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
             speeds when training models using the dataset view. The optimization process will take some time, depending on
             the size of the data.
@@ -54,6 +56,9 @@ class ViewEntry:
         Args:
             unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
                     - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
+            num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
             progressbar (bool): Whether to display a progressbar.
 
         Returns:
@@ -75,6 +80,8 @@ class ViewEntry:
             self.info["id"],
             external=self._external,
             unlink=unlink,
+            num_workers=num_workers,
+            scheduler=scheduler,
             progressbar=progressbar,
         )
         return self
