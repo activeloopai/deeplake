@@ -388,7 +388,13 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
     def __len__(self):
         return sum(map(len, self.schedules))
 
-
+def get_transform_length(transform):
+    if not isinstance(transform, dict):
+        return 1
+    length = 0
+    for tensor in transform.keys():
+        length += len(transform[tensor])
+    return length
 class TorchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
@@ -453,12 +459,21 @@ class TorchDataset(torch.utils.data.IterableDataset):
             schedule.shuffle()
 
         stream = streaming.read(schedule)
-
-        for data in stream:
-            yield _process(data, self.transform)
-
+        if self.multiple_transforms == False:
+            for data in stream:
+                yield _process(data, self.transform)
+        else:
+            from hub.core.augment.augment import pipeline_image
+            transform = self.transform
+            for data in stream:
+                for tensor in transform.keys():
+                    tensor_pipes = transform[tensor]
+                    for transformation in tensor_pipes:
+                        transformed_sample = data
+                        transformed_sample[tensor] = pipeline_image(transformed_sample[tensor], transformation)
+                        yield transformed_sample
     def __len__(self):
-        return sum(map(len, self.schedules))
+        return sum(map(len, self.schedules))*get_transform_length(self.transform)
 
 
 class SubIterableDataset(torch.utils.data.IterableDataset):
