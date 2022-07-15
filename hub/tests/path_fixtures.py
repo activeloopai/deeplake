@@ -321,11 +321,6 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def hub_cloud_path_without_permission(request, hub_cloud_dev_token):
-    return "hub://adilkhan/invalid_path"
-
-
-@pytest.fixture
 def hub_cloud_vstream_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
