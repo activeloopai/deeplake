@@ -141,7 +141,7 @@ class Augmenter():    #used to be Pipeline
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
 
   def use_pytorch(self, ds):
-    pipe_dict = self.pipe_dict
+    pipe_dict = self.pipe_dict.copy()
     return ds.pytorch(transform=pipe_dict, multiple_transforms=True)
 
   def pipeline_image_sample(self, sample):  #meant for ds.pytorch
