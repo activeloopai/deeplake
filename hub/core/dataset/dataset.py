@@ -2351,6 +2351,8 @@ class Dataset:
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `optimize` is True.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2586,7 +2588,11 @@ class Dataset:
         if optimize:
             return (
                 self.get_view(id)
-                .optimize(num_workers=num_workers, scheduler=scheduler, progressbar=progressbar)
+                .optimize(
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                )
                 .load()
             )
         return self.get_view(id).load()
