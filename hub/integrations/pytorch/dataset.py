@@ -1,3 +1,4 @@
+from audioop import mul
 from typing import Callable, Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
 from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
@@ -439,6 +440,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.shuffle: bool = shuffle
         self.buffer_size: int = buffer_size * MB
         self.return_index: bool = return_index
+        self.multiple_transforms = multiple_transforms
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
