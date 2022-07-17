@@ -1,7 +1,19 @@
 from typing import Callable, Dict, List, Optional
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
-from hub.core.augment.augment import pipeline_image
+def pipeline_image(image, pipe):
+  updated_image = image.numpy()
+  if pipe is None:
+    return image
+  for fun in pipe:
+    if len(fun.args)!=0:
+      arr = [*fun.args]
+      arr.insert(0, updated_image)
+      args = tuple(arr)
+      updated_image = fun.func(*args)
+    else:
+      updated_image = fun.func(updated_image)
+  return updated_image
 
 
 def collate_fn(batch):
