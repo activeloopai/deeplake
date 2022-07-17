@@ -465,15 +465,11 @@ class TorchDataset(torch.utils.data.IterableDataset):
             for data in stream:
                 yield _process(data, self.transform)
         else:
-            from hub.core.augment.augment import pipeline_image
             transform = self.transform
             for data in stream:
-                for tensor in transform.keys():
-                    tensor_pipes = transform[tensor]
-                    for transformation in tensor_pipes:
-                        transformed_sample = data
-                        transformed_sample[tensor] = pipeline_image(transformed_sample[tensor], transformation)
-                        yield transformed_sample
+                transformed_samples = transform(data, multiple_transforms=True)
+                for sample in transformed_samples:
+                    yield sample
     def __len__(self):
         return sum(map(len, self.schedules))*get_transform_length(self.transform)
 
