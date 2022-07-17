@@ -57,27 +57,26 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
     ):
-        """Returns a Dataset object referencing either a new or existing dataset.
+        """Returns a ``Dataset`` object referencing either a new or existing dataset.
 
-        Important:
-            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
+        Warning:
+            Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
 
-        Examples:
-            ```
+        Examples::
+
             ds = hub.dataset("hub://username/dataset")
             ds = hub.dataset("s3://mybucket/my_dataset")
             ds = hub.dataset("./datasets/my_dataset", overwrite=True)
-            ```
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Hub cloud path of the form `hub://username/datasetname`. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form `s3://bucketname/path/to/dataset`. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form `./path/to/dataset` or `~/path/to/dataset` or `path/to/dataset`.
-                - a memory path of the form `mem://path/to/dataset` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                - a Hub cloud path of the form ``hub://username/datasetname``. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            overwrite (bool): If set to True this overwrites the dataset if it already exists. Defaults to False.
             public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.

@@ -1,3 +1,8 @@
+r"""
+The hub package provides a database which stores data as compressed chunked arrays that can be stored anywhere and 
+later streamed to deep learning models.
+"""
+
 import threading
 from queue import Queue
 from botocore.config import Config

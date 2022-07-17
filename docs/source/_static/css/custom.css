@@ -1,0 +1,91 @@
+@font-face {
+    font-family: IBMPlexMono;
+    src: url("../fonts/IBM_Plex_Mono/IBMPlexMono-Light.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: FreightSansBoldSC;
+    font-style: normal;
+    src: url("../fonts//Freight_Sans/Freight\ Sans\ Bold\ SC.otf") format("opentype");
+}
+
+@font-face {
+    font-family: FreightSansBold;
+    font-style: normal;
+    src: url("../fonts//Freight_Sans/Freight\ Sans\ Bold.otf") format("opentype");
+}
+
+@font-face {
+    font-family: FreightSansMedium;
+    src: url("../fonts/Freight_Sans/Freight\ Sans\ Medium.otf") format("opentype");
+}
+
+@font-face {
+    font-family: FreightSansLight;
+    src: url("../fonts/Freight_Sans/Freight\ Sans\ Light.otf") format("opentype");
+}
+
+body {
+    font-family: "Segoe UI";
+    background-color: #ffff;
+}
+
+.icon.icon-home {
+    color: #ff7744;
+}
+
+.wy-side-nav-search>a img.logo {
+    width: 50%;
+    height: 50%;
+}
+
+.wy-side-nav-search>a {
+    color: #ff7744;
+}
+
+.reference.internal {
+    color: #ff7744;
+}
+
+.section>h1 {
+    font-family: FreightSansBoldSC;
+}
+
+.caption-text {
+    font-size: smaller;
+    font-family: FreightSansLight;
+}
+
+.section>h2 {
+    font-family: FreightSansLight;
+}
+
+.pre {
+    color: rgb(66, 63, 63);
+    font-family: IBMPlexMono;
+}
+
+.sig-prename,
+.sig-name {
+    font-style: normal;
+}
+
+.wy-menu-vertical p.caption {
+    color: #ff7744;
+}
+
+.wy-side-nav-search input[type=text] {
+    border-color: #ff7744;
+}
+
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
+    display: table;
+    margin: 6px 0;
+    font-size: 90%;
+    line-height: normal;
+    background: #fcf6f4;
+    color: rgb(66, 63, 63);
+    border-top: 3px solid #ff7744;
+    padding: 6px;
+    position: relative
+}
