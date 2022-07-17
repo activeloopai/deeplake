@@ -1,7 +1,7 @@
 from typing import Callable, Dict, List, Optional
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
-def pipeline_image(image, pipe):
+def pipeline_image(image, pipe): #could not import due to circular impoet error
   if not isinstance(image, np.ndarray):
     updated_image = image.numpy()
   else:
@@ -50,7 +50,7 @@ def transform_sample(data, transform):
     for tensor in transform.keys():
         tensor_pipes = transform[tensor]
         for transformation in tensor_pipes:
-            transformed_sample = data
+            transformed_sample = data.copy()
             transformed_sample[tensor] = pipeline_image(data[tensor], transformation)
             transformed_samples.append(transformed_sample)
     return transformed_samples
