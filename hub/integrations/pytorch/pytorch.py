@@ -117,8 +117,11 @@ def dataset_to_pytorch(
         raise ValueError("index is not a tensor, to get index, pass return_index=True")
 
     tensors = map_tensor_keys(dataset, tensors)
-    if isinstance(transform, dict):
+    if isinstance(transform, dict) and multiple_transforms==False:
         tensors = [k for k in transform.keys() if k != "index"]
+        transform = PytorchTransformFunction(transform_dict=transform)
+    elif isinstance(transform, dict) and multiple_transforms==True:
+        tensors = list(dataset.tensors.keys())
         transform = PytorchTransformFunction(transform_dict=transform)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
