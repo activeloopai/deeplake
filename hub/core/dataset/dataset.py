@@ -2148,6 +2148,7 @@ class Dataset:
         info: dict,
         copy: Optional[bool] = False,
         num_workers: Optional[int] = 0,
+        scheduler: str = "threaded",
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
@@ -2158,6 +2159,7 @@ class Dataset:
                     self._copy(
                         vds,
                         num_workers=num_workers,
+                        scheduler=scheduler,
                         unlink=unlink,
                         create_vds_index_tensor=True,
                     )
@@ -2182,14 +2184,19 @@ class Dataset:
                 pass
 
     def _save_view_in_subdir(
-        self, id: Optional[str], message: Optional[str], copy: bool, num_workers: int
+        self,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        num_workers: int,
+        scheduler: str,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
         vds = self._sub_ds(path, empty=True)
-        self._write_vds(vds, info, copy, num_workers)
+        self._write_vds(vds, info, copy, num_workers, scheduler)
         self._append_to_queries_json(info)
         return vds
 
@@ -2199,6 +2206,7 @@ class Dataset:
         message: Optional[str],
         copy: bool,
         num_workers: int,
+        scheduler: str,
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of hub datasets.
@@ -2232,7 +2240,7 @@ class Dataset:
 
         vds = hub.empty(path, overwrite=True)
 
-        self._write_vds(vds, info, copy, num_workers)
+        self._write_vds(vds, info, copy, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
 
         return vds
@@ -2244,6 +2252,7 @@ class Dataset:
         message: Optional[str],
         copy: bool,
         num_workers: int,
+        scheduler: str,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
@@ -2254,7 +2263,7 @@ class Dataset:
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy, num_workers)
+        self._write_vds(vds, info, copy, num_workers, scheduler)
         return vds
 
     def save_view(
@@ -2264,6 +2273,7 @@ class Dataset:
         id: Optional[str] = None,
         optimize: bool = False,
         num_workers: int = 0,
+        scheduler: str = "threaded",
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -2299,7 +2309,9 @@ class Dataset:
                 take some time, depending on the size of the data.
                 - You can also choose to optimize the saved view later by calling its `optimize` method:
                 See `hub.core.dataset.view_entry.ViewEntry.optimize`.
-            num_workers (int): Number of workers to be used if `optimize` is True.
+            num_workers (int): Number of workers to be used for optimization process. Applicable only if `optimize=True`. Defaults to 0.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Note:
@@ -2314,7 +2326,7 @@ class Dataset:
             DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
-            path, id, message, optimize, num_workers, False, **ds_args
+            path, id, message, optimize, num_workers, scheduler, False, **ds_args
         )
 
     def _save_view(
@@ -2324,6 +2336,7 @@ class Dataset:
         message: Optional[str] = None,
         optimize: bool = False,
         num_workers: int = 0,
+        scheduler: str = "threaded",
         _ret_ds: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
@@ -2338,6 +2351,8 @@ class Dataset:
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             num_workers (int): Number of workers to be used if `optimize` is True.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2370,17 +2385,19 @@ class Dataset:
                 if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, hub.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
-                            id, message, optimize, num_workers
+                            id, message, optimize, num_workers, scheduler
                         )
                     else:
                         raise ReadOnlyModeError(
                             "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
                         )
                 else:
-                    vds = self._save_view_in_subdir(id, message, optimize, num_workers)
+                    vds = self._save_view_in_subdir(
+                        id, message, optimize, num_workers, scheduler
+                    )
             else:
                 vds = self._save_view_in_path(
-                    path, id, message, optimize, num_workers, **ds_args
+                    path, id, message, optimize, num_workers, scheduler, **ds_args
                 )
         if _ret_ds:
             return vds
@@ -2546,6 +2563,8 @@ class Dataset:
         self,
         id: str,
         optimize: Optional[bool] = False,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
         progressbar: Optional[bool] = True,
     ):
         """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
@@ -2555,7 +2574,10 @@ class Dataset:
             optimize (bool): If True, the dataset view is optimized by copying and rechunking the required data before loading. This is
                 necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
                 take some time, depending on the size of the data.
-            progressbar (bool): Whether to use progressbar for optimization. Only applicable if optimize=True. Defaults to True.
+            num_workers (int): Number of workers to be used for the optimization process. Only applicable if `optimize=True`. Defaults to 0.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
+            progressbar (bool): Whether to use progressbar for optimization. Only applicable if `optimize=True`. Defaults to True.
 
         Returns:
             Dataset: The loaded view.
@@ -2564,7 +2586,15 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
         if optimize:
-            return self.get_view(id).optimize(progressbar=progressbar).load()
+            return (
+                self.get_view(id)
+                .optimize(
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                )
+                .load()
+            )
         return self.get_view(id).load()
 
     def delete_view(self, id: str):
@@ -3056,7 +3086,13 @@ class Dataset:
         return tensor in self.tensors
 
     def _optimize_saved_view(
-        self, id: str, external=False, unlink=True, progressbar=True
+        self,
+        id: str,
+        external=False,
+        unlink=True,
+        num_workers=0,
+        scheduler="threaded",
+        progressbar=True,
     ):
         with self._lock_queries_json():
             qjson = self._read_queries_json()
@@ -3081,6 +3117,8 @@ class Dataset:
                 overwrite=True,
                 unlink=unlink,
                 create_vds_index_tensor=True,
+                num_workers=num_workers,
+                scheduler=scheduler,
                 progressbar=progressbar,
             )
             optimized.info.update(vds.info.__getstate__())
