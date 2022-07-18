@@ -7,6 +7,7 @@ from .common import (
     collate_fn as default_collate_fn,
 )
 from hub.util.exceptions import EmptyTensorError
+import re
 
 
 def create_dataloader_nesteddataloader(
@@ -128,6 +129,7 @@ def dataset_to_pytorch(
 
     # check whether we have an empty tensor inside of tensors
     for tensor_name in tensors:
+        tensor_name = _remove_group_index_from_name(tensor_name, dataset.group_index)
         if len(dataset[tensor_name]) == 0:
             raise EmptyTensorError(
                 f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
@@ -171,3 +173,7 @@ def dataset_to_pytorch(
             num_workers=num_workers,
             drop_last=drop_last,
         )
+
+
+def _remove_group_index_from_name(tensor_name, group_index):
+    return re.sub(group_index + "/", "", tensor_name)
