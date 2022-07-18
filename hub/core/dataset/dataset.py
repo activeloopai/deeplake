@@ -2320,6 +2320,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if `optimize=True`. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
+            verbose (bool): If True, logs will be printed. Defaults to True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Note:
@@ -2340,8 +2341,8 @@ class Dataset:
             optimize,
             num_workers,
             scheduler,
-            False,
             verbose,
+            False,
             **ds_args,
         )
 
@@ -2353,8 +2354,8 @@ class Dataset:
         optimize: bool = False,
         num_workers: int = 0,
         scheduler: str = "threaded",
-        _ret_ds: bool = False,
         verbose: bool = True,
+        _ret_ds: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -2370,6 +2371,7 @@ class Dataset:
             num_workers (int): Number of workers to be used if `optimize` is True.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
+            verbose (bool): If True, logs will be printed. Defaults to True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
