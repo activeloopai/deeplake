@@ -905,7 +905,7 @@ class Dataset:
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except KeyError as ke:
+        except TensorDoesNotExistError as ke:
             raise AttributeError(
                 f"'{self.__class__}' object has no attribute '{key}'"
             ) from ke
