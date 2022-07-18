@@ -60,12 +60,11 @@ class IPFSProvider(StorageProvider):
         self.cids = [r['Hash'] for r in res]
 
 
-    def __delitem__(self, path):
+    def __delitem__(self):
         """Delete the object present at the path."""
-        # test = f"/pinning/pins/{path}"
 
         params = {
-            'arg': path,
+            'arg': self.cid,
         }
 
         response = requests.post(f'{self.coreurl}/pin/rm', params=params)
