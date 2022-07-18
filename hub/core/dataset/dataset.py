@@ -2202,7 +2202,7 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        vds = self._sub_ds(path, empty=True)
+        vds = self._sub_ds(path, empty=True, verbose=False)
         self._write_vds(vds, info, copy, num_workers, scheduler)
         self._append_to_queries_json(info)
         return vds
