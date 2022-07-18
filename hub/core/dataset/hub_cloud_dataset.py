@@ -27,10 +27,29 @@ class HubCloudDataset(Dataset):
                 if self.verbose and verbose:
                     msg = "This dataset can be visualized in Jupyter Notebook by ds.visualize()"
                     url = f"https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
-                    if "/queries/" in url:
-                        logger.info(msg + ".")
-                    elif url.endswith("/queries"):
+                    if url.endswith("/queries"):  # Ignore user queries ds
                         pass
+                    elif "/.queries/" in url:  # Is a view
+                        if "/queries/" in url:  # Stored in user queries ds
+                            entry = getattr(self, "_view_entry")
+                            if entry:
+                                source_ds_url = entry.info["source-dataset"]
+                                if source_ds_url.startswith("hub://"):
+                                    view_id = url.split("/.queries/", 1)[1]
+                                    if view_id.endswith("_OPTIMIZED"):
+                                        view_id = view_id[: -len("_OPTIMIZED")]
+                                    url = source_ds_url + "?view=" + view_id
+                                    logger.info(msg + " or at " + url)
+                                else:
+                                    logger.info(msg + ".")
+                            else:
+                                logger.info(msg + ".")
+                        else:  # Stored in ds
+                            ds_url, view_id = url.split("/.queries/", 1)
+                            if view_id.endswith("_OPTIMIZED"):
+                                view_id = view_id[: -len("_OPTIMIZED")]
+                            url = ds_url + "?view=" + view_id
+                            logger.info(msg + " or at " + url)
                     else:
                         logger.info(msg + " or at " + url)
             else:

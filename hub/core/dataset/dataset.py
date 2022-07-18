@@ -3154,7 +3154,7 @@ class Dataset:
     def _sample_indices(self, maxlen: int):
         vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")
         if vds_index:
-            return vds_index.numpy().reshape(-1).tolist()
+            vds_index.numpy().reshape(-1).tolist()
         return self.index.values[0].indices(maxlen)
 
     @property
