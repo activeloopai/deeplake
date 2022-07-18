@@ -28,8 +28,6 @@ class IPFSProvider(StorageProvider):
         super().__init__()
         self.coreurl = coreurl
         self.cid = cid
-        self.links = self._get_links(cid)
-        self.ordered_links = self.get_hash(self.links, {})
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
@@ -37,6 +35,8 @@ class IPFSProvider(StorageProvider):
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
         try:
+            self.links = self._get_links(self.cid)
+            self.ordered_links = self.get_hash(self.links, {})
             cid = self.ordered_links[path]
             res, content = self.gw.cat(cid)
             b = bytes(content,'utf-8')
