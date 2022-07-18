@@ -54,7 +54,8 @@ from hub.util.htype import parse_complex_htype
 from hub.util.link import save_link_creds
 from hub.util.merge import merge
 from hub.util.notebook import is_colab
-from hub.util.path import convert_pathlib_to_string_if_needed
+from hub.util.path import convert_pathlib_to_string_if_needed, get_org_id_and_ds_name
+from hub.util.logging import log_visualizer_link
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -2280,6 +2281,7 @@ class Dataset:
         optimize: bool = False,
         num_workers: int = 0,
         scheduler: str = "threaded",
+        verbose: bool = True,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -2332,7 +2334,15 @@ class Dataset:
             DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
-            path, id, message, optimize, num_workers, scheduler, False, **ds_args
+            path,
+            id,
+            message,
+            optimize,
+            num_workers,
+            scheduler,
+            False,
+            verbose,
+            **ds_args,
         )
 
     def _save_view(
@@ -2344,6 +2354,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         _ret_ds: bool = False,
+        verbose: bool = True,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -2373,6 +2384,7 @@ class Dataset:
 
         path = convert_pathlib_to_string_if_needed(path)
 
+        ds_args["verbose"] = False
         vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
@@ -2405,6 +2417,9 @@ class Dataset:
                 vds = self._save_view_in_path(
                     path, id, message, optimize, num_workers, scheduler, **ds_args
                 )
+        if verbose:
+            org_id, ds_name = get_org_id_and_ds_name(vds.path)
+            log_visualizer_link(org_id, ds_name, self.path)
         if _ret_ds:
             return vds
         return vds.path

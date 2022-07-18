@@ -11,6 +11,7 @@ from hub.util.exceptions import RenameError
 from hub.util.link import save_link_creds, warn_missing_managed_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
+from hub.util.logging import log_visualizer_link
 from warnings import warn
 import time
 import hub
@@ -25,12 +26,7 @@ class HubCloudDataset(Dataset):
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
                 if self.verbose and verbose:
-                    msg = "This dataset can be visualized in Jupyter Notebook by ds.visualize()"
-                    url = f"https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
-                    if url.endswith("/queries"):  # Ignore user queries ds
-                        pass
-                    else:
-                        logger.info(msg + " or at " + url)
+                    log_visualizer_link(self.org_id, self.ds_name)
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
                 warn(
