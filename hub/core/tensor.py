@@ -1053,6 +1053,9 @@ class Tensor:
         return self._extract_value("json")
 
     def list(self):
+        if self.base_htype != "list":
+            raise Exception(f"Only supported for list tensors.")
+
         if self.ndim == 1:
             return list(self.numpy())
         else:
