@@ -1,6 +1,6 @@
 @font-face {
     font-family: IBMPlexMono;
-    src: url("../fonts/IBM_Plex_Mono/IBMPlexMono-Light.ttf") format("truetype");
+    src: url("../fonts/IBM_Plex_Mono/IBMPlexMono-SemiBold.ttf") format("truetype");
 }
 
 @font-face {
@@ -70,8 +70,12 @@ body {
     font-style: normal;
 }
 
-.wy-menu-vertical p.caption {
-    color: #ff7744;
+.wy-menu-vertical>p.caption {
+    font-size: large;
+}
+
+.toctree-l1>.reference.internal {
+    color: rgb(66, 63, 63);
 }
 
 .wy-side-nav-search input[type=text] {
@@ -81,11 +85,25 @@ body {
 html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
     display: table;
     margin: 6px 0;
-    font-size: 90%;
+    font-size: 80%;
     line-height: normal;
     background: #fcf6f4;
     color: rgb(66, 63, 63);
     border-top: 3px solid #ff7744;
     padding: 6px;
     position: relative
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list)>dt,
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list)>dt {
+    margin-bottom: 6px;
+    border: none;
+    border-left: 3px solid #00C1D6;
+    background: #f0f0f0;
+    color: #555
+}
+
+.wy-menu-vertical a:hover {
+    background-color: #cbcbcb;
+    cursor: pointer
 }

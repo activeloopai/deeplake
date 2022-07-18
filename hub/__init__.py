@@ -14,24 +14,8 @@ from hub.util.check_latest_version import warn_if_update_required
 if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
 
-__pdoc__ = {
-    "api": False,
-    "auto": False,
-    "cli": False,
-    "client": False,
-    "constants": False,
-    "config": False,
-    "integrations": False,
-    "tests": False,
-    "util": False,
-    "Dataset.clear_cache": False,
-    "Dataset.flush": False,
-    "Dataset.read_only": False,
-    "Dataset.size_approx": False,
-    "Dataset.token": False,
-    "Dataset.num_samples": False,
-}
-from .api.dataset import dataset as api_dataset
+
+from .api.dataset import dataset
 from .api.read import read
 from .api.link import link
 from .api.tiled import tiled
@@ -46,20 +30,20 @@ from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
-list = api_dataset.list
-exists = api_dataset.exists
-load = api_dataset.load
-empty = api_dataset.empty
-like = api_dataset.like
-delete = api_dataset.delete
-rename = api_dataset.rename
-copy = api_dataset.copy
-deepcopy = api_dataset.deepcopy
-ingest = api_dataset.ingest
-ingest_kaggle = api_dataset.ingest_kaggle
-ingest_dataframe = api_dataset.ingest_dataframe
+list = dataset.list
+exists = dataset.exists
+load = dataset.load
+empty = dataset.empty
+like = dataset.like
+delete = dataset.delete
+rename = dataset.rename
+copy = dataset.copy
+deepcopy = dataset.deepcopy
+ingest = dataset.ingest
+ingest_kaggle = dataset.ingest_kaggle
+ingest_dataframe = dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
-dataset = api_dataset.init
+dataset = dataset.init
 tensor = Tensor
 
 __all__ = [
