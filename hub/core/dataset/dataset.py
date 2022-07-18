@@ -140,6 +140,7 @@ class Dataset:
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
+        lock: bool = True,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -159,6 +160,7 @@ class Dataset:
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
+            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, hub and gcs datasets. No effect if read_only=True.
 
 
         Raises:
@@ -203,6 +205,7 @@ class Dataset:
         d["_commit_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
+        d["__lock"] = lock
 
         self.__dict__.update(d)
         try:
@@ -297,6 +300,7 @@ class Dataset:
             "_new_view_base_commit",
             "_parent_dataset",
             "_pad_tensors",
+            "__lock",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -964,6 +968,8 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False):
+        if not self.__lock:
+            return
         storage = self.base_storage
         if storage.read_only and not self._locked_out:
             if err:
@@ -2424,7 +2430,9 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.load(self.info["source-dataset"], verbose=False, creds=creds)
+            else hub.load(
+                self.info["source-dataset"], verbose=False, creds=creds, read_only=True
+            )
         )
         try:
             orig_index = ds.index
@@ -2643,6 +2651,8 @@ class Dataset:
         empty=False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        read_only=None,
+        lock=True,
         verbose=True,
     ):
         """Loads a nested dataset. Internal.
@@ -2653,6 +2663,8 @@ class Dataset:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
+            read_only (bool): Loads the sub dataset in read only mode if True. Default False.
+            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, hub and gcs datasets. No effect if read_only=True.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
@@ -2678,6 +2690,8 @@ class Dataset:
             ),
             path=path,
             token=self._token,
+            read_only=read_only,
+            lock=lock,
             verbose=verbose,
         )
         ret._parent_dataset = self

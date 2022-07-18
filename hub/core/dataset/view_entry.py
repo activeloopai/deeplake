@@ -40,7 +40,9 @@ class ViewEntry:
 
     def load(self):
         "Loads the view and returns the `hub.Dataset`."
-        ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
+        ds = self._ds._sub_ds(
+            ".queries/" + (self.info.get("path") or self.info["id"]), lock=False
+        )
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
