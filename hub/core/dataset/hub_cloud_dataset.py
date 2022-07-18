@@ -31,7 +31,7 @@ class HubCloudDataset(Dataset):
                         pass
                     elif "/.queries/" in url:  # Is a view
                         if "/queries/" in url:  # Stored in user queries ds
-                            entry = getattr(self, "_view_entry")
+                            entry = getattr(self, "_view_entry", None)
                             if entry:
                                 source_ds_url = entry.info["source-dataset"]
                                 if source_ds_url.startswith("hub://"):
