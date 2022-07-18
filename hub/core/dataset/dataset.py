@@ -2245,7 +2245,7 @@ class Dataset:
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = hub.empty(path, overwrite=True)
+        vds = hub.empty(path, overwrite=True, verbose=False)
 
         self._write_vds(vds, info, copy, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
