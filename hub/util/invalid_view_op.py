@@ -12,7 +12,7 @@ def invalid_view_op(callable: Callable):
         if not ds.__dict__.get("_allow_view_updates"):
             is_del = callable.__name__ == "delete"
             managed_view = "_view_entry" in ds.__dict__
-            has_vds = getattr(x, "_vds", False)
+            has_vds = "_vds" in ds.__dict__
             is_view = not x.index.is_trivial() or has_vds or managed_view
             if is_view and not (is_del and (has_vds or managed_view)):
                 raise InvalidOperationError(
