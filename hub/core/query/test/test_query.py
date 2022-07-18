@@ -26,10 +26,10 @@ def _populate_data_linked(ds, n, compressed_image_paths, labels):
             ds.create_tensor("images", htype="link[image]")
             if labels:
                 ds.create_tensor("labels", htype="class_label", class_names=class_names)
-            for _ in range(n):
+            for i in range(n):
                 ds.images.append(hub.link(compressed_image_paths["png"][0]))
                 if labels:
-                    ds.labels.append(rows[0]["labels"])
+                    ds.labels.append(rows[i % 2]["labels"])
 
 
 def _populate_data(ds, n=1, linked=False, paths=None, labels=True):
@@ -189,7 +189,7 @@ def test_dataset_view_save(optimize):
 @pytest.mark.parametrize(
     "stream,num_workers,read_only,progressbar,query_type,optimize,linked",
     [
-        (False, 2, True, True, "string", False, False),
+        (False, 2, True, True, "string", True, False),
         (True, 0, False, False, "function", False, True),
     ],
 )
@@ -210,19 +210,27 @@ def test_inplace_dataset_view_save(
         return
     id = str(uuid4())
     to_del = [id]
-    _populate_data(ds, n=2, linked=linked, paths=compressed_image_paths)
+    _populate_data(ds, n=10, linked=linked, paths=compressed_image_paths)
     ds.commit()
     ds.read_only = read_only
-    f = f"labels == 'dog'" if query_type == "string" else lambda s: s.labels == "dog"
+    f = (
+        f"labels == 'dog'"
+        if query_type == "string"
+        else lambda s: int(s.labels.numpy()) == 0
+    )
     view = ds.filter(
         f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
+    indices = list(view.sample_indices)
+    assert indices
+    assert list(view[:4:2].sample_indices) == indices[:4:2]
     if stream:
         to_del.append(view._vds.info["id"])
     assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(optimize=optimize, id=id)
     assert len(ds.get_views()) == 1 + int(stream)
     view2 = hub.dataset(vds_path)
+    assert indices == list(view2.sample_indices)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
         if read_only:
@@ -233,9 +241,15 @@ def test_inplace_dataset_view_save(
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     entry = ds.get_view(id)
     assert entry.virtual == (not optimize)
+    assert indices == list(entry.load().sample_indices)
     entry.optimize()
     assert not entry.virtual
     view3 = entry.load()
+    assert indices == list(view3.sample_indices)
+    assert list(view3[:4:2].sample_indices) == indices[:4:2], (
+        list(view3.sample_indices),
+        indices,
+    )
     with pytest.raises(InvalidOperationError):
         for t in view3.tensors:
             view3[t].append(np.zeros((1,)))
