@@ -205,7 +205,7 @@ class Dataset:
         d["_commit_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
-        d["__lock"] = lock
+        d["_locking_enabled"] = lock
 
         self.__dict__.update(d)
         try:
@@ -300,7 +300,7 @@ class Dataset:
             "_new_view_base_commit",
             "_parent_dataset",
             "_pad_tensors",
-            "__lock",
+            "_locking_enabled",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -968,8 +968,8 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False):
-        if not self.__lock:
-            return
+        if not self._locking_enabled:
+            return True
         storage = self.base_storage
         if storage.read_only and not self._locked_out:
             if err:
