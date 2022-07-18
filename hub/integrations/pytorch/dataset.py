@@ -1,6 +1,6 @@
-from typing import Callable, Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union
 from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction, collate_fn
+from hub.integrations.pytorch.common import PytorchTransformFunction
 
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.core.io import (

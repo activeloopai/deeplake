@@ -1343,6 +1343,30 @@ class ChunkEngine:
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
 
+    def _get_full_chunk(self, index) -> bool:
+        """Reads samples from chunks and returns as a boolean that says whether we need to fetch full chunks or only specified subset of it.
+        Args:
+            index (Index): Represents the samples to read from chunks. See `Index` for more information.
+        Returns:
+            bool: True/False, whether to fetch a full chunk or only a part of it.
+        """
+        threshold = 10
+
+        if type(index.values[0].value) == slice:
+            start = index.values[0].value.start or 0
+            stop = index.values[0].value.stop or self.num_samples
+            step = index.values[0].value.step or 1
+
+            if start < 0:
+                start = self.num_samples + start
+
+            if stop < 0:
+                stop = self.num_samples + start
+
+            numpy_array_length = (stop - start) // step
+            return numpy_array_length > threshold
+        return False
+
     def numpy(
         self,
         index: Index,
@@ -1370,6 +1394,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         self.check_link_ready()
+        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
@@ -1409,7 +1434,10 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if self.tensor_meta.htype in {"text", "json", "list"}:
+                if (
+                    self.tensor_meta.htype in {"text", "json", "list"}
+                    or self.tensor_meta.is_link
+                ):
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
@@ -1705,9 +1733,16 @@ class ChunkEngine:
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(index)
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+
+            if (
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk_to_update.key  # type: ignore
+            ):
+                self.write_chunk_to_storage(self.active_updated_chunk)
+            self.active_updated_chunk = chunk_to_update
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 self.check_remove_active_chunks(chunk_key)

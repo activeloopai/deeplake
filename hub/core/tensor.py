@@ -763,19 +763,19 @@ class Tensor:
                 if len(index.values) > 1:
                     data["timestamps"] = np.array(
                         [
-                            root[i, index.values[1].value].timestamp  # type: ignore
+                            root[i, index.values[1].value].timestamps  # type: ignore
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
                 else:
                     data["timestamps"] = np.array(
                         [
-                            root[i].timestamp
+                            root[i].timestamps
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
             else:
-                data["timestamps"] = self.timestamp
+                data["timestamps"] = self.timestamps
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
             return data
@@ -854,11 +854,17 @@ class Tensor:
 
     @property
     def _sample_info_tensor(self):
-        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.key))
+        )
 
     @property
     def _sample_shape_tensor(self):
-        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.key))
+        )
 
     @property
     def _sample_id_tensor(self):
@@ -956,7 +962,7 @@ class Tensor:
         [self.dataset[link].pop(index) for link in self.meta.links]
 
     @property
-    def timestamp(self) -> np.ndarray:
+    def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
 
         ## Examples:
@@ -1020,4 +1026,4 @@ class Tensor:
 
     @property
     def sample_indices(self):
-        return self.index.values[0].indices(self.num_samples)
+        return self.dataset._sample_indices(self.num_samples)

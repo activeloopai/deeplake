@@ -196,7 +196,10 @@ class ChunkCompressedChunk(BaseChunk):
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
         if self.is_empty_tensor:
-            raise EmptyTensorError
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
