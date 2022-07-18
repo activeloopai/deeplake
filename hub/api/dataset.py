@@ -196,6 +196,7 @@ class dataset:
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
+        verbose: bool = True,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -254,6 +255,7 @@ class dataset:
             read_only=read_only,
             public=public,
             token=token,
+            verbose=verbose,
         )
 
     @staticmethod
