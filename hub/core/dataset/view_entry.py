@@ -1,4 +1,9 @@
 from typing import Dict, Optional, Any
+from hub.client.log import logger
+
+from hub.util.tag import process_hub_path
+from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 
 
 class ViewEntry:
@@ -38,14 +43,46 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self):
+    def load(self, verbose=True):
         "Loads the view and returns the `hub.Dataset`."
         ds = self._ds._sub_ds(
-            ".queries/" + (self.info.get("path") or self.info["id"]), lock=False
+            ".queries/" + (self.info.get("path") or self.info["id"]),
+            lock=False,
+            verbose=False,
         )
+        url = ds.path
+        org_id, ds_name = get_org_id_and_ds_name(ds.path)
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
+        msg = "This dataset can be visualized in Jupyter Notebook by ds.visualize()"
+        url = f"https://app.activeloop.ai/{org_id}/{ds_name}"
+        if verbose:
+            if "/.queries/" in url:  # Is a view
+                if "/queries/" in url:  # Stored in user queries ds
+                    entry = getattr(ds, "_view_entry", None)
+                    if entry:
+                        source_ds_url = entry.info["source-dataset"]
+                        if is_hub_cloud_path(source_ds_url):
+                            org_id, ds_name = get_org_id_and_ds_name(source_ds_url)
+                            source_ds_url = (
+                                f"https://app.activeloop.ai/{org_id}/{ds_name}"
+                            )
+                            view_id = url.split("/.queries/", 1)[1]
+                            if view_id.endswith("_OPTIMIZED"):
+                                view_id = view_id[: -len("_OPTIMIZED")]
+                            url = source_ds_url + "?view=" + view_id
+                            logger.info(msg + " or at " + url)
+                        else:
+                            logger.info(msg + ".")
+                    else:
+                        logger.info(msg + ".")
+                else:  # Stored in ds
+                    ds_url, view_id = url.split("/.queries/", 1)
+                    if view_id.endswith("_OPTIMIZED"):
+                        view_id = view_id[: -len("_OPTIMIZED")]
+                    url = ds_url + "?view=" + view_id
+                    logger.info(msg + " or at " + url)
         return ds
 
     def optimize(
