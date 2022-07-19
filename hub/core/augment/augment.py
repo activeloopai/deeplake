@@ -11,7 +11,10 @@ import time
 
 
 def pipeline_image(image, pipe):
-  updated_image = image.numpy()
+  if not isinstance(image, np.ndarray):
+    updated_image = image.numpy()
+  else:
+    updated_image = image
   if pipe is None:
     return image
   for fun in pipe:

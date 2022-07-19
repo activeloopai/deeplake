@@ -33,7 +33,7 @@ def collate_fn(batch):
         batch = [it[0] for it in batch]
     return torch.utils.data._utils.collate.default_collate(batch)
 
-
+    
 def convert_fn(data):
     import torch
 
@@ -79,3 +79,4 @@ class PytorchTransformFunction:
             transformed_samples = transform_sample(data_in, self.transform_dict)
             return transformed_samples
         return data_in
+        

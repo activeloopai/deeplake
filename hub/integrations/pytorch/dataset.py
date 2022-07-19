@@ -396,6 +396,22 @@ def get_transform_length(transform):
     for tensor in transform.keys():
         length += len(transform[tensor])
     return length
+
+
+def get_incompatible_tensors(ds, tensors):
+  dic = {}
+  for tensor in tensors:
+    dtype = str(ds[tensor].dtype)
+    if dtype != "uint8" and dtype.startswith("u"):
+      dic[tensor] = dtype[1:]
+  return dic
+
+def change_incompatible_tensors(sample, tensors_dict):
+  for tensor in tensors_dict:
+    sample[tensor] = sample[tensor].astype(tensors_dict[tensor])
+  return sample
+
+
 class TorchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
@@ -441,7 +457,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.buffer_size: int = buffer_size * MB
         self.return_index: bool = return_index
         self.multiple_transforms = multiple_transforms
-
+        self.incompatible_tensors = get_incompatible_tensors(dataset, tensors)
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         schedule: Schedule = self.schedules[0]
@@ -467,6 +483,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         else:
             transform = self.transform
             for data in stream:
+                data = change_incompatible_tensors(data, self.incompatible_tensors)
                 transformed_samples = transform(data, multiple_transforms=True)
                 for sample in transformed_samples:
                     yield sample
