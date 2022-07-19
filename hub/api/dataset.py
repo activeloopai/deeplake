@@ -249,7 +249,7 @@ class dataset:
             DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
-            TokenPermissionError: when there are permission or other errors related to token
+            TokenPermissionError: When there are permission or other errors related to token
         """
         path = convert_pathlib_to_string_if_needed(path)
 
@@ -349,7 +349,7 @@ class dataset:
             AgreementError: When agreement is rejected
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
-            TokenPermissionError: when there are permission or other errors related to token
+            TokenPermissionError: When there are permission or other errors related to token
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
