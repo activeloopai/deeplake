@@ -10,7 +10,6 @@ def read(
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
     storage: Optional[StorageProvider] = None,
-    jwt: Optional[Dict] = None,
 ) -> Sample:
     """Utility that reads raw data from supported files into hub format.
 
@@ -47,10 +46,9 @@ def read(
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
-        creds (optional, Dict): Credentials for s3 and gcp for urls.
+        creds (optional, Dict): Credentials for s3, gcp and http urls.
         compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
         storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
-        jwt (optional, Dict): JWT token to be used while reading the data. Only valid for http urls.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
@@ -61,5 +59,4 @@ def read(
         compression=compression,
         creds=creds,
         storage=storage,
-        jwt=jwt,
     )

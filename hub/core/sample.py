@@ -58,7 +58,6 @@ class Sample:
         dtype: Optional[str] = None,
         creds: Optional[Dict] = None,
         storage: Optional[StorageProvider] = None,
-        jwt: Optional[Dict] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -75,9 +74,8 @@ class Sample:
             verify (bool): If a path is provided, verifies the sample if True.
             shape (Tuple[int]): Shape of the sample.
             dtype (optional, str): Data type of the sample.
-            creds (optional, Dict): Credentials for s3 and gcp for urls.
+            creds (optional, Dict): Credentials for s3, gcp and http urls.
             storage (optional, StorageProvider): Storage provider.
-            jwt (optional, Dict): JWT token to be used while reading the data. Only valid for http urls.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -97,7 +95,6 @@ class Sample:
         self._buffer = None
         self._creds = creds or {}
         self._verify = verify
-        self.jwt = jwt or {}
 
         if path is not None:
             self.path = path
@@ -409,9 +406,12 @@ class Sample:
         return gdrive.get_object_from_full_url(self.path)
 
     def _read_from_http(self) -> bytes:
-        # headers = {"Authorization": f"Bearer {self.jwt}"}
         assert self.path is not None
-        return requests.get(self.path, headers=self.jwt).content
+        if "Authorization" in self._creds:
+            headers = {"Authorization": self._creds["Authorization"]}
+        else:
+            headers = {}
+        return requests.get(self.path, headers=headers).content
 
     def _getexif(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
