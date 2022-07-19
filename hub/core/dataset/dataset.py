@@ -54,7 +54,8 @@ from hub.util.htype import parse_complex_htype
 from hub.util.link import save_link_creds
 from hub.util.merge import merge
 from hub.util.notebook import is_colab
-from hub.util.path import convert_pathlib_to_string_if_needed
+from hub.util.path import convert_pathlib_to_string_if_needed, get_org_id_and_ds_name
+from hub.util.logging import log_visualizer_link
 from hub.util.warnings import always_warn
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -140,6 +141,7 @@ class Dataset:
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
+        lock: bool = True,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -159,6 +161,7 @@ class Dataset:
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
+            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, hub and gcs datasets. No effect if read_only=True.
 
 
         Raises:
@@ -203,6 +206,7 @@ class Dataset:
         d["_commit_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
+        d["_locking_enabled"] = lock
 
         self.__dict__.update(d)
         try:
@@ -297,6 +301,7 @@ class Dataset:
             "_new_view_base_commit",
             "_parent_dataset",
             "_pad_tensors",
+            "_locking_enabled",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -901,7 +906,7 @@ class Dataset:
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except KeyError as ke:
+        except TensorDoesNotExistError as ke:
             raise AttributeError(
                 f"'{self.__class__}' object has no attribute '{key}'"
             ) from ke
@@ -964,6 +969,8 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False):
+        if not self._locking_enabled:
+            return True
         storage = self.base_storage
         if storage.read_only and not self._locked_out:
             if err:
@@ -2195,7 +2202,7 @@ class Dataset:
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
-        vds = self._sub_ds(path, empty=True)
+        vds = self._sub_ds(path, empty=True, verbose=False)
         self._write_vds(vds, info, copy, num_workers, scheduler)
         self._append_to_queries_json(info)
         return vds
@@ -2238,7 +2245,7 @@ class Dataset:
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = hub.empty(path, overwrite=True)
+        vds = hub.empty(path, overwrite=True, verbose=False)
 
         self._write_vds(vds, info, copy, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
@@ -2274,6 +2281,7 @@ class Dataset:
         optimize: bool = False,
         num_workers: int = 0,
         scheduler: str = "threaded",
+        verbose: bool = True,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -2312,6 +2320,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if `optimize=True`. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
+            verbose (bool): If True, logs will be printed. Defaults to True.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Note:
@@ -2326,7 +2335,15 @@ class Dataset:
             DatasetViewSavingError: If HEAD node has uncommitted changes.
         """
         return self._save_view(
-            path, id, message, optimize, num_workers, scheduler, False, **ds_args
+            path,
+            id,
+            message,
+            optimize,
+            num_workers,
+            scheduler,
+            verbose,
+            False,
+            **ds_args,
         )
 
     def _save_view(
@@ -2337,6 +2354,7 @@ class Dataset:
         optimize: bool = False,
         num_workers: int = 0,
         scheduler: str = "threaded",
+        verbose: bool = True,
         _ret_ds: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
@@ -2353,6 +2371,7 @@ class Dataset:
             num_workers (int): Number of workers to be used if `optimize` is True.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
+            verbose (bool): If True, logs will be printed. Defaults to True.
             _ret_ds (bool): If True, the VDS is retured as such without converting it to a view. If False, the VDS path is returned.
                 Default False.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
@@ -2367,6 +2386,7 @@ class Dataset:
 
         path = convert_pathlib_to_string_if_needed(path)
 
+        ds_args["verbose"] = False
         vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
@@ -2399,6 +2419,9 @@ class Dataset:
                 vds = self._save_view_in_path(
                     path, id, message, optimize, num_workers, scheduler, **ds_args
                 )
+        if verbose:
+            org_id, ds_name = get_org_id_and_ds_name(vds.path)
+            log_visualizer_link(org_id, ds_name, self.path)
         if _ret_ds:
             return vds
         return vds.path
@@ -2424,7 +2447,9 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.load(self.info["source-dataset"], verbose=False, creds=creds)
+            else hub.load(
+                self.info["source-dataset"], verbose=False, creds=creds, read_only=True
+            )
         )
         try:
             orig_index = ds.index
@@ -2643,6 +2668,8 @@ class Dataset:
         empty=False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        read_only=None,
+        lock=True,
         verbose=True,
     ):
         """Loads a nested dataset. Internal.
@@ -2653,6 +2680,8 @@ class Dataset:
             empty (bool): If True, all contents of the sub directory is cleared before initializing the sub dataset.
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
+            read_only (bool): Loads the sub dataset in read only mode if True. Default False.
+            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, hub and gcs datasets. No effect if read_only=True.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
         Returns:
@@ -2678,6 +2707,8 @@ class Dataset:
             ),
             path=path,
             token=self._token,
+            read_only=read_only,
+            lock=lock,
             verbose=verbose,
         )
         ret._parent_dataset = self

@@ -1,4 +1,10 @@
 from typing import Dict, Optional, Any
+from hub.client.log import logger
+
+from hub.util.tag import process_hub_path
+from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
+from hub.util.logging import log_visualizer_link
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 
 
 class ViewEntry:
@@ -38,12 +44,21 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self):
+    def load(self, verbose=True):
         "Loads the view and returns the `hub.Dataset`."
-        ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
+        ds = self._ds._sub_ds(
+            ".queries/" + (self.info.get("path") or self.info["id"]),
+            lock=False,
+            verbose=False,
+        )
+        org_id, ds_name = get_org_id_and_ds_name(ds.path)
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
+        if verbose:
+            log_visualizer_link(
+                org_id, ds_name, source_ds_url=self.info["source-dataset"]
+            )
         return ds
 
     def optimize(
