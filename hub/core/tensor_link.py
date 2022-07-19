@@ -107,11 +107,11 @@ def get_link_transform(fname: str):
 def read_linked_sample(
     sample_path: str, sample_creds_key: str, link_creds, verify: bool
 ):
-    if sample_path.startswith(("gcs://", "gcp://", "s3://")):
+    if sample_path.startswith(("gcs://", "gcp://", "gs://", "s3://")):
         provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
         storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
         return hub.read(sample_path, storage=storage, verify=verify)
     elif sample_path.startswith(("http://", "https://")):
         creds = link_creds.get_creds(sample_creds_key)
-        return hub.read(sample_path, verify=verify, jwt=creds)
+        return hub.read(sample_path, verify=verify, creds=creds)
     return hub.read(sample_path, verify=verify)

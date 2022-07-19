@@ -267,7 +267,7 @@ class HubBackendClient:
         for key, value in creds.items():
             if key == "access_token":
                 key = "Authorization"
-                value = f"Bearer {value}"        
+                value = f"Bearer {value}"
             elif key in key_mapping:
                 key = key_mapping[key]
             final_creds[key] = value

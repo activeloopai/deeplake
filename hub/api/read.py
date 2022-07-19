@@ -54,9 +54,5 @@ def read(
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
     return Sample(
-        path,
-        verify=verify,
-        compression=compression,
-        creds=creds,
-        storage=storage,
+        path, verify=verify, compression=compression, creds=creds, storage=storage
     )
