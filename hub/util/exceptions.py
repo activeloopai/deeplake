@@ -740,7 +740,9 @@ class ManagedCredentialsNotFoundError(Exception):
 
 class InvalidTokenException(Exception):
     def __init__(self):
-        super().__init__("Token is invalid. Please check its spelling and try again.")
+        super().__init__(
+            "Token is invalid. Make sure the full token string is included and try again."
+        )
 
 
 class TokenPermissionError(Exception):

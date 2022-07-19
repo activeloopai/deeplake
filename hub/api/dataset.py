@@ -109,8 +109,8 @@ class dataset:
         Raises:
             AgreementError: When agreement is rejected
             UserNotLoggedInException: When user is not logged in
-            InvalidTokenException: If the specified toke is invalid
-            TokenPermissionError: when there are permission or other errors related to token
+            InvalidTokenException: If the specified token is invalid
+            TokenPermissionError: When there are permission or other errors related to token
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
