@@ -4,6 +4,7 @@ from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
+from hub.util.token import expires_in_to_expires_at, is_expired_token
 
 
 class LinkCreds(HubMemoryObject):
@@ -16,6 +17,8 @@ class LinkCreds(HubMemoryObject):
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
+        self.client = None
+        self.org_id = None
 
     def get_creds(self, key: Optional[str]):
         if key in {"ENV", None}:
@@ -26,6 +29,14 @@ class LinkCreds(HubMemoryObject):
             raise ValueError(
                 f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
             )
+        value = self.creds_dict[key]
+        if (
+            self.client is not None
+            and key in self.managed_creds_keys
+            and is_expired_token(value)
+        ):
+            creds = self.fetch_managed_creds(key)
+            self.creds_dict[key] = creds
         return self.creds_dict[key]
 
     def get_default_provider(self, provider_type: str):
@@ -110,6 +121,7 @@ class LinkCreds(HubMemoryObject):
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
             raise KeyError(f"Creds key {creds_key} does not exist")
+        expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
 
     def add_to_used_creds(self, creds_key: str):
@@ -183,3 +195,15 @@ class LinkCreds(HubMemoryObject):
     @property
     def missing_keys(self) -> list:
         return [key for key in self.creds_keys if key not in self.creds_dict]
+
+    def populate_all_managed_creds(self):
+        assert self.client is not None
+        assert self.org_id is not None
+        for creds_key in self.managed_creds_keys:
+            creds = self.fetch_managed_creds(creds_key)
+            self.populate_creds(creds_key, creds)
+
+    def fetch_managed_creds(self, creds_key: str):
+        creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
+        return creds

@@ -38,10 +38,7 @@ class HubCloudDataset(Dataset):
                 warn(
                     f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
-            if self.link_creds.managed_creds_keys:
-                for creds_key in self.link_creds.managed_creds_keys:
-                    creds = self._fetch_managed_creds(creds_key)
-                    self.link_creds.populate_creds(creds_key, creds)
+            self.link_creds.populate_all_managed_creds()
 
     @property
     def client(self):
@@ -359,8 +356,10 @@ class HubCloudDataset(Dataset):
             self.link_creds, self.storage, managed_info=(managed, key_index)
         )
 
-    def _fetch_managed_creds(self, creds_key):
-        """Fetches creds from activeloop platform and populates the dataset with them."""
-        creds = self.client.get_managed_creds(self.org_id, creds_key)
-        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
-        return creds
+    def _load_link_creds(self):
+        """Loads the link creds from the storage."""
+        super()._load_link_creds()
+        if self.link_creds.client is None:
+            self._set_org_and_name()
+            self.link_creds.org_id = self.org_id
+            self.link_creds.client = self.client
