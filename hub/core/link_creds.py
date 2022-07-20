@@ -81,10 +81,13 @@ class LinkCreds(HubMemoryObject):
     def add_creds_key(self, creds_key: str, managed: bool = False):
         if creds_key in self.creds_keys:
             raise ValueError(f"Creds key {creds_key} already exists")
+        if managed:
+            creds = self.fetch_managed_creds(creds_key)
         self.creds_keys.append(creds_key)
         self.creds_mapping[creds_key] = len(self.creds_keys)
         if managed:
             self.managed_creds_keys.add(creds_key)
+            self.populate_creds(creds_key, creds)
 
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         if old_creds_key not in self.creds_keys:
@@ -207,3 +210,18 @@ class LinkCreds(HubMemoryObject):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
         print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds
+
+    def change_creds_management(self, creds_key: str, managed: bool) -> bool:
+        if creds_key not in self.creds_keys:
+            raise KeyError(f"Creds key {creds_key} not found.")
+        is_managed = creds_key in self.managed_creds_keys
+        if is_managed == managed:
+            return False
+        if managed:
+            creds = self.fetch_managed_creds(creds_key)
+            self.managed_creds_keys.add(creds_key)
+            self.populate_creds(creds_key, creds)
+        else:
+            self.managed_creds_keys.discard(creds_key)
+
+        return True

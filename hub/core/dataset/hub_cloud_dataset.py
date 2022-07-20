@@ -289,11 +289,7 @@ class HubCloudDataset(Dataset):
                 Note, this is only applicable for datasets that are connected to activeloop platform.
                 Defaults to False.
         """
-        if managed:
-            creds = self._fetch_managed_creds(creds_key)
         self.link_creds.add_creds_key(creds_key, managed=managed)
-        if managed:
-            self.link_creds.populate_creds(creds_key, creds)
         save_link_creds(self.link_creds, self.storage)
         warn_missing_managed_creds(self.link_creds)
 
@@ -339,22 +335,13 @@ class HubCloudDataset(Dataset):
             ds.change_creds_management("my_s3_key", True)
             ```
         """
-        if creds_key not in self.link_creds.creds_keys:
-            raise KeyError(f"Creds key {creds_key} not found.")
-        is_managed = creds_key in self.link_creds.managed_creds_keys
-        key_index = self.link_creds.creds_mapping[creds_key] - 1
-        if is_managed == managed:
-            return
-        if managed:
-            creds = self._fetch_managed_creds(creds_key)
-            self.link_creds.managed_creds_keys.add(creds_key)
-            self.link_creds.populate_creds(creds_key, creds)
-        else:
-            self.link_creds.managed_creds_keys.discard(creds_key)
 
-        save_link_creds(
-            self.link_creds, self.storage, managed_info=(managed, key_index)
-        )
+        key_index = self.link_creds.creds_mapping[creds_key] - 1
+        changed = self.link_creds.change_creds_management(creds_key, managed)
+        if changed:
+            save_link_creds(
+                self.link_creds, self.storage, managed_info=(managed, key_index)
+            )
 
     def _load_link_creds(self):
         """Loads the link creds from the storage."""
