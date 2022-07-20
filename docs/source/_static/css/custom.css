@@ -25,13 +25,18 @@
     src: url("../fonts/Freight_Sans/Freight\ Sans\ Light.otf") format("opentype");
 }
 
+@font-face {
+    font-family: ProximaNova;
+    src: url("../fonts/Proxima_Nova/Proxima\ Nova\ Font.otf") format("opentype");
+}
+
 body {
-    font-family: "Segoe UI";
+    font-family: ProximaNova;
     background-color: #ffff;
 }
 
 .icon.icon-home {
-    color: #ff7744;
+    color: #ff6d35;
 }
 
 .wy-side-nav-search>a img.logo {
@@ -40,29 +45,29 @@ body {
 }
 
 .wy-side-nav-search>a {
-    color: #ff7744;
+    color: #ff6d35;
 }
 
 .reference.internal {
-    color: #ff7744;
+    color: #ff6d35;
 }
 
 .section>h1 {
-    font-family: FreightSansBoldSC;
+    font-family: ProximaNova;
 }
 
 .caption-text {
     font-size: smaller;
-    font-family: FreightSansLight;
+    font-family: ProximaNova;
 }
 
 .section>h2 {
-    font-family: FreightSansLight;
+    font-family: ProximaNova;
 }
 
 .pre {
     color: rgb(66, 63, 63);
-    font-family: IBMPlexMono;
+    font-family: ProximaNova;
 }
 
 .sig-prename,
@@ -79,7 +84,7 @@ body {
 }
 
 .wy-side-nav-search input[type=text] {
-    border-color: #ff7744;
+    border-color: #ff6d35;
 }
 
 html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
@@ -89,7 +94,7 @@ html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(
     line-height: normal;
     background: #fcf6f4;
     color: rgb(66, 63, 63);
-    border-top: 3px solid #ff7744;
+    border-top: 3px solid #ff6d35;
     padding: 6px;
     position: relative
 }
@@ -98,7 +103,7 @@ html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list)>dt,
 html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list)>dt {
     margin-bottom: 6px;
     border: none;
-    border-left: 3px solid #00C1D6;
+    border-left: 3px solid #51ced2;
     background: #f0f0f0;
     color: #555
 }

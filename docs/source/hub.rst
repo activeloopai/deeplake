@@ -3,6 +3,10 @@ Hub
 .. automodule:: hub
 .. currentmodule:: hub
 
+Htype
+=====
+.. automodule:: hub.htype
+
 Dataset
 =======
 .. currentmodule:: hub.core.dataset.dataset
