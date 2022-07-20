@@ -12,6 +12,9 @@ from io import StringIO,BytesIO
 from requests.exceptions import HTTPError
 from typing import Optional, Set, Sequence
 from hub.core.storage.provider import StorageProvider
+from typing import Union, List
+
+from ipfshttpclient.multipart import stream_files, stream_directory
 
 
 logger = logging.getLogger("ipfsspec")
@@ -26,7 +29,7 @@ class IPFSProvider(StorageProvider):
     ) -> None:
         """Initialize the object, assign credentials if required."""
         super().__init__()
-        self.coreurl = coreurl
+        self.coreurl = coreurl if coreurl is not '' else 'https://ipfs.infura.io:5001'
         self.cid = cid
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
@@ -34,25 +37,29 @@ class IPFSProvider(StorageProvider):
 
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
-        try:
-            self.links = self._get_links(self.cid)
-            self.ordered_links = self.get_hash(self.links, {})
-            cid = self.ordered_links[path]
-            res, content = self.gw.cat(cid)
-            b = bytes(content,'utf-8')
-            if res.status_code == 200:                
-                return b
-            else:
-                raise HTTPError (parse_error_message(res))
-        except StopIteration:
-            print(f"Path requested: {path}")
-        except FileNotFoundError:
-            print(f"Path requested: {path}, filenotfound")
-            raise KeyError(path)
-        except AssertionError:
-            print(f'Status code: {res.status_code}, Assertion error, content is {content}, path is {path}, cid query is {cid}, query is {query}, and in bytes we have {b}')
-        except TypeError:
-            print('Got type error.')
+        if self.cid != '':
+            try:
+                self.links = self._get_links(self.cid)
+                self.ordered_links = self.get_hash(self.links, {})
+                cid = self.ordered_links[path]
+                res, content = self.gw.cat(cid)
+                b = bytes(content,'utf-8')
+                if res.status_code == 200:                
+                    return b
+                else:
+                    raise HTTPError (parse_error_message(res))
+            except StopIteration:
+                print(f"Path requested: {path}")
+            except FileNotFoundError:
+                print(f"Path requested: {path}, filenotfound")
+                raise KeyError(path)
+            except AssertionError:
+                print(f'Status code: {res.status_code}, Assertion error, content is {content}, path is {path}, cid query is {cid}, query is {query}, and in bytes we have {b}')
+            except TypeError:
+                print('Got type error.')
+        else:
+            r = self.gw.add_items(coreurl=self.coreurl, path=path, directory=True)
+            return r
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
@@ -262,6 +269,51 @@ class IPFSGateway():
             self._speedup()
         res.raise_for_status()
         return res.headers
+
+    def add_items(
+        coreurl:str, # Core URL to use
+        filepath:Union[str, List[str]], # Path to the file/directory to be added to IPFS
+        directory:bool=False, # Is filepath a directory
+        wrap_with_directory:str='false', # True if path is a directory
+        recursive:str='false', # Add directory paths recursively
+        chunker:str='size-262144', # Chunking algorithm, size-[bytes], rabin-[min]-[avg]-[max] or buzhash
+        pin:str='true', # Pin this object when adding
+        hash_:str='sha2-256', # Hash function to use. Implies CIDv1 if not sha2-256
+        progress:str='true', # Stream progress data
+        silent:str='false', # Write no output
+        cid_version:int=0, # CID version
+        **kwargs,
+        ):
+        "add file/directory to ipfs"
+
+        params = {}
+        params['wrap-with-directory'] = wrap_with_directory
+        params['chunker'] = chunker
+        params['pin'] = pin
+        params['hash'] = hash_
+        params['progress'] = progress
+        params['silent'] = silent
+        params['cid-version'] = cid_version
+        params.update(kwargs)
+
+        if not directory:
+            chunk_size = int(chunker.split('-')[1])
+            data, headers = stream_files(filepath, chunk_size=chunk_size)
+            
+        else:
+            chunk_size = int(chunker.split('-')[1])
+            data, headers = stream_directory(filepath, chunk_size=chunk_size)
+            
+        response = requests.post(f'{coreurl}/add', 
+                                params=params, 
+                                data=data,
+                                headers=headers)
+        
+        if response.status_code == 200:
+            return response, parse_response(response)
+
+        else:
+            raise HTTPError (parse_error_message(res))
 
     def cat(self, 
         cid:str, # Path to the IPFS object
