@@ -173,7 +173,7 @@ class LinkedChunkEngine(ChunkEngine):
             creds_encoder.register_samples((encoded_creds_key,), 1)
             if link_creds.add_to_used_creds(creds_key):
                 save_link_creds(self.link_creds, self.cache)
-                warn_missing_managed_creds(self.link_creds)
+                self.link_creds.warn_missing_managed_creds()
 
     def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
         link_creds = self.link_creds
@@ -182,7 +182,7 @@ class LinkedChunkEngine(ChunkEngine):
         self.creds_encoder[sample_index] = (encoded_creds_key,)
         if link_creds.add_to_used_creds(creds_key):
             save_link_creds(self.link_creds, self.cache)
-            warn_missing_managed_creds(self.link_creds)
+            self.link_creds.warn_missing_managed_creds()
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_hub_read_sample(global_sample_index)
