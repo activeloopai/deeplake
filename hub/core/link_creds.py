@@ -1,5 +1,6 @@
 import json
 from typing import Optional
+import warnings
 from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
@@ -225,3 +226,15 @@ class LinkCreds(HubMemoryObject):
             self.managed_creds_keys.discard(creds_key)
 
         return True
+
+    def warn_missing_managed_creds(self):
+        """Warns about any missing managed creds that were added in parallel by someone else."""
+        missing_creds = self.missing_keys
+
+        missing_managed_creds = [
+            creds for creds in missing_creds if creds in self.managed_creds_keys
+        ]
+        if missing_managed_creds:
+            warnings.warn(
+                f"There are some managed creds missing ({missing_managed_creds}) that were added after the dataset was loaded. Reload the dataset to load them."
+            )

@@ -8,7 +8,7 @@ from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import RenameError
-from hub.util.link import save_link_creds, warn_missing_managed_creds
+from hub.util.link import save_link_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from warnings import warn
@@ -291,7 +291,7 @@ class HubCloudDataset(Dataset):
         """
         self.link_creds.add_creds_key(creds_key, managed=managed)
         save_link_creds(self.link_creds, self.storage)
-        warn_missing_managed_creds(self.link_creds)
+        self.link_creds.warn_missing_managed_creds()
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
         """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
@@ -304,7 +304,7 @@ class HubCloudDataset(Dataset):
                 """
             )
         super().update_creds_key(old_creds_key, new_creds_key)
-        warn_missing_managed_creds(self.link_creds)
+        self.link_creds.warn_missing_managed_creds()
 
     def change_creds_management(self, creds_key: str, managed: bool):
         """Changes the management status of the creds key.
