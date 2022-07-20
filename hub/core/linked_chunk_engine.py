@@ -10,11 +10,7 @@ from hub.core.storage import LRUCache
 from hub.core.tensor_link import read_linked_sample
 from hub.util.exceptions import ReadOnlyModeError
 from hub.util.keys import get_creds_encoder_key
-from hub.util.link import (
-    get_path_creds_key,
-    save_link_creds,
-    warn_missing_managed_creds,
-)
+from hub.util.link import get_path_creds_key, save_link_creds
 from hub.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple

@@ -36,7 +36,7 @@ class LinkCreds(HubMemoryObject):
             and key in self.managed_creds_keys
             and is_expired_token(value)
         ):
-            creds = self.fetch_managed_creds(key)
+            creds = self.fetch_managed_creds(key)  # type: ignore
             self.creds_dict[key] = creds
         return self.creds_dict[key]
 
