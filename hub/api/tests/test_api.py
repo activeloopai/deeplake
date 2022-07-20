@@ -26,6 +26,7 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
+    EmptyTensorError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -141,6 +142,10 @@ def test_populate_dataset(local_ds):
 
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
+    assert len(local_ds.image.numpy()) == 16
+    assert len(local_ds.image[0:5].numpy()) == 5
+    assert len(local_ds.image[:-1].numpy()) == 15
+    assert len(local_ds.image[-5:].numpy()) == 5
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
@@ -266,6 +271,8 @@ def test_dynamic_tensor(local_ds):
 
 def test_empty_samples(local_ds: Dataset):
     tensor = local_ds.create_tensor("with_empty")
+    with pytest.raises(EmptyTensorError):
+        ds_pytorch = local_ds.pytorch()
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -1778,36 +1785,36 @@ def verify_label_data(ds):
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
     np_data = ds.abc.numpy()
     data = ds.abc.data()
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
     assert data["text"] == text_labels
 
     # xyz
     assert ds.xyz.info.class_names == []
     np_data = ds.xyz.numpy()
     data = ds.xyz.data()
-    assert set(data.keys()) == {"numeric"}
+    assert set(data.keys()) == {"value"}
     np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
 
     # nested
     assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
     np_data = ds.nested.numpy(aslist=True)
     data = ds.nested.data(aslist=True)
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     for i in range(2):
         np.testing.assert_array_equal(np_data[i], nested_arr[i])
-        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+        np.testing.assert_array_equal(data["value"][i], np_data[i])
     assert data["text"] == nested_text_labels
 
     # random
     assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
     np_data = ds.random.numpy()
     data = ds.random.data()
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     np.testing.assert_array_equal(np_data, random_arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
     assert data["text"] == random_text_labels
 
     # seq

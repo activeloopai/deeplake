@@ -113,19 +113,19 @@ class LinkedChunkEngine(ChunkEngine):
         return video_sample
 
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
-        sample = self.get_hub_read_sample(global_sample_index)
+        sample = self.get_hub_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
             return np.ones((0,))
         return sample.array[tuple(entry.value for entry in index.values[1:])]
 
-    def get_path(self, global_sample_index) -> str:
+    def get_path(self, global_sample_index, fetch_chunks=False) -> str:
         return super().get_basic_sample(
-            global_sample_index, Index(global_sample_index)
+            global_sample_index, Index(global_sample_index), fetch_chunks
         )[0]
 
-    def get_hub_read_sample(self, global_sample_index):
+    def get_hub_read_sample(self, global_sample_index, fetch_chunks=False):
         creds_encoder = self.creds_encoder
-        sample_path = self.get_path(global_sample_index)
+        sample_path = self.get_path(global_sample_index, fetch_chunks)
         if not sample_path:
             return None
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)

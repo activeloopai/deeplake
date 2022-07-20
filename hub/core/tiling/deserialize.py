@@ -53,7 +53,7 @@ def combine_chunks(
     layout_shape = tile_encoder.get_tile_layout_shape(sample_index)
 
     # index is always 0 within a chunk for tiled samples
-    tiled_arrays = [chunk.read_sample(0) for chunk in chunks]
+    tiled_arrays = [chunk.read_sample(0, is_tile=True) for chunk in chunks]
     return np_list_to_sample(tiled_arrays, shape, tile_shape, layout_shape, dtype)
 
 

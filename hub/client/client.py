@@ -260,6 +260,7 @@ class HubBackendClient:
             "access_key": "aws_access_key_id",
             "secret_key": "aws_secret_access_key",
             "session_token": "aws_session_token",
+            "token": "aws_session_token",
             "region": "aws_region",
         }
         final_creds = {}
