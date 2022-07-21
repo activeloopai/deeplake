@@ -30,6 +30,9 @@ class ShuffleBuffer:
         self.pbar = tqdm(
             total=self.size,
             desc="Please wait, filling up the shuffle buffer with samples.",
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
         )
         self.pbar_closed = False
 

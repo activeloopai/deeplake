@@ -414,6 +414,28 @@ def test_transform(local_ds, cat_path, flower_path):
     data_in.delete()
 
 
+@hub.compute
+def transform_path_link(sample_in, samples_out):
+    samples_out.images.append(hub.link(sample_in))
+
+
+def check_transformed_ds(ds):
+    assert ds.images[0].numpy().shape == ds.images[0].shape == (900, 900, 3)
+    assert ds.images[1].numpy().shape == ds.images[1].shape == (513, 464, 4)
+
+
+def test_transform_2(local_ds_generator, cat_path, flower_path):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("images", htype="link[image]")
+
+    transform_path_link().eval([cat_path, flower_path], ds)
+
+    check_transformed_ds(ds)
+    ds = local_ds_generator()
+    check_transformed_ds(ds)
+
+
 def test_link_managed(hub_cloud_ds_generator, cat_path):
     key_name = "CREDS_MANAGEMENT_TEST"
     with hub_cloud_ds_generator() as ds:

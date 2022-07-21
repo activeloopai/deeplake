@@ -1,4 +1,10 @@
 from typing import Dict, Optional, Any
+from hub.client.log import logger
+
+from hub.util.tag import process_hub_path
+from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
+from hub.util.logging import log_visualizer_link
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 
 
 class ViewEntry:
@@ -18,7 +24,7 @@ class ViewEntry:
     @property
     def id(self) -> str:
         """Returns id of the view."""
-        return self.info["id"]
+        return self.info["id"].split("]")[-1]
 
     @property
     def query(self) -> Optional[str]:
@@ -38,19 +44,37 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self):
+    def load(self, verbose=True):
         "Loads the view and returns the `hub.Dataset`."
-        ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
+        ds = self._ds._sub_ds(
+            ".queries/" + (self.info.get("path") or self.info["id"]),
+            lock=False,
+            verbose=False,
+        )
+        org_id, ds_name = get_org_id_and_ds_name(ds.path)
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
+        if verbose:
+            log_visualizer_link(
+                org_id, ds_name, source_ds_url=self.info["source-dataset"]
+            )
         return ds
 
-    def optimize(self, unlink=True):
-        """Optimizes the view by copying the required data.
+    def optimize(
+        self, unlink=True, num_workers=0, scheduler="threaded", progressbar=True
+    ):
+        """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
+            speeds when training models using the dataset view. The optimization process will take some time, depending on
+            the size of the data.
 
         Args:
-            unlink (bool): Unlink linked tensors by copying data from the links to the view.
+            unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
+            num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if `optimize=True`. Defaults to 'threaded'.
+            progressbar (bool): Whether to display a progressbar.
 
         Returns:
             `hub.core.dataset.view_entry.ViewEntry`
@@ -68,7 +92,12 @@ class ViewEntry:
             ```
         """
         self.info = self._ds._optimize_saved_view(
-            self.info["id"], external=self._external, unlink=unlink
+            self.info["id"],
+            external=self._external,
+            unlink=unlink,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=progressbar,
         )
         return self
 
