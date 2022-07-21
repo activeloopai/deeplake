@@ -119,8 +119,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -130,6 +128,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
@@ -257,8 +257,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -268,6 +266,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
@@ -359,8 +359,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "load", {}, token=token)
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -370,6 +368,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "load", {}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
