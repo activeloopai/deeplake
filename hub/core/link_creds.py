@@ -30,15 +30,19 @@ class LinkCreds(HubMemoryObject):
             raise ValueError(
                 f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
             )
-        value = self.creds_dict[key]
         if (
             self.client is not None
             and key in self.managed_creds_keys
-            and is_expired_token(value)
+            and is_expired_token(self.creds_dict[key])
         ):
-            creds = self.fetch_managed_creds(key)  # type: ignore
-            self.creds_dict[key] = creds
+            self.refresh_managed_creds(key)
         return self.creds_dict[key]
+
+    def refresh_managed_creds(self, creds_key: str):
+        if creds_key not in self.managed_creds_keys:
+            raise ValueError(f"Creds key {creds_key} is not managed")
+        creds = self.fetch_managed_creds(creds_key)
+        self.populate_creds(creds_key, creds)
 
     def get_default_provider(self, provider_type: str):
         if provider_type == "s3":

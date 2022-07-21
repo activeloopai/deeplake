@@ -20,7 +20,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-
+from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
@@ -411,7 +411,10 @@ class Sample:
             headers = {"Authorization": self._creds["Authorization"]}
         else:
             headers = {}
-        return requests.get(self.path, headers=headers).content
+        result = requests.get(self.path, headers=headers)
+        if result.status_code != 200:
+            raise UnableToReadFromUrlError(self.path, result.status_code)
+        return result.content
 
     def _getexif(self) -> dict:
         if self.path and get_path_type(self.path) == "local":

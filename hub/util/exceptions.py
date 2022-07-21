@@ -733,3 +733,8 @@ class ManagedCredentialsNotFoundError(Exception):
         super().__init__(
             f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
         )
+
+
+class UnableToReadFromUrlError(Exception):
+    def __init__(self, url, status_code):
+        super().__init__(f"Unable to read from url {url}. Status code: {status_code}")

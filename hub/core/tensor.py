@@ -806,8 +806,6 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         idx = self.index.values[0].value
-        if self.is_link:
-            return self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
         return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
 
     def _append_to_links(self, sample, flat: Optional[bool]):
