@@ -195,6 +195,11 @@ class LoginException(Exception):
         super().__init__(message)
 
 
+class UserNotLoggedInException(Exception):
+    def __init__(self, message=""):
+        super().__init__(message)
+
+
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
@@ -304,7 +309,7 @@ class UnexpectedStatusCodeException(Exception):
         super().__init__(message)
 
 
-class InvalidTokenException(Exception):
+class EmptyTokenException(Exception):
     def __init__(self, message="The authentication token is empty."):
         super().__init__(message)
 
@@ -731,3 +736,16 @@ class ManagedCredentialsNotFoundError(Exception):
         super().__init__(
             f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
         )
+
+
+class InvalidTokenException(Exception):
+    def __init__(self):
+        super().__init__(
+            "Token is invalid. Make sure the full token string is included and try again."
+        )
+
+
+class TokenPermissionError(Exception):
+    def __init__(self, message=""):
+
+        super().__init__(message)
