@@ -136,8 +136,8 @@ def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_path
     _populate_data(ds, linked=True, n=100, paths=compressed_image_paths, labels=False)
     with pytest.raises(DatasetViewSavingError):
         ds.save_view(optimize=optimize)
-    view = ds[10:77, 2:17, 19:31, :1]
-    arr = arr[10:77, 2:17, 19:31, :1]
+    view = ds[10:77:2, 2:17, 19:31, :1]
+    arr = arr[10:77:2, 2:17, 19:31, :1]
     if not idx_subscriptable:
         view = view[0]
         arr = arr[0]
