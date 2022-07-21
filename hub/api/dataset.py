@@ -119,7 +119,8 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "dataset", {"Overwrite": overwrite})
+        feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
+
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -256,7 +257,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "empty", {"Overwrite": overwrite})
+        feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -358,7 +359,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "load", {})
+        feature_report_path(path, "load", {}, token=token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -449,7 +450,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(old_path, "rename", {})
+        feature_report_path(old_path, "rename", {}, token=token)
 
         ds = hub.load(old_path, verbose=False, token=token, creds=creds)
         ds.rename(new_path)
@@ -490,7 +491,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
+        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok}, token=token)
 
         try:
             qtokens = ["/.queries/", "\\.queries\\"]
@@ -558,6 +559,7 @@ class dataset:
             path,
             "like",
             {"Overwrite": overwrite, "Public": public, "Tensors": tensors},
+            token=token
         )
         return dataset._like(dest, src, tensors, overwrite, creds, token, public)
 
@@ -606,7 +608,7 @@ class dataset:
                 public=public,
             )
         feature_report_path(
-            dest_path, "like", {"Overwrite": overwrite, "Public": public}
+            dest_path, "like", {"Overwrite": overwrite, "Public": public}, token=token
         )
         src = convert_pathlib_to_string_if_needed(src)
         if isinstance(src, str):
@@ -748,7 +750,7 @@ class dataset:
         }
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params)
+        feature_report_path(src, "deepcopy", report_params, token=dest_token)
 
         src_ds = hub.load(
             src, read_only=True, creds=src_creds, token=src_token, verbose=False

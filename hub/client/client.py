@@ -379,3 +379,11 @@ class HubBackendClient:
         ).json()
         presigned_url = response["data"]
         return presigned_url
+
+    def get_user_profile(self):
+        response = self.request(
+            "GET",
+            "/api/user/profile",
+            endpoint=self.endpoint(),
+        )
+        return response.json()
