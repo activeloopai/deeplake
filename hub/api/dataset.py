@@ -491,7 +491,9 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok}, token=token)
+        feature_report_path(
+            path, "delete", {"Force": force, "Large_OK": large_ok}, token=token
+        )
 
         try:
             qtokens = ["/.queries/", "\\.queries\\"]
@@ -559,7 +561,7 @@ class dataset:
             path,
             "like",
             {"Overwrite": overwrite, "Public": public, "Tensors": tensors},
-            token=token
+            token=token,
         )
         return dataset._like(dest, src, tensors, overwrite, creds, token, public)
 
