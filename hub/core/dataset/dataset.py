@@ -2819,7 +2819,7 @@ class Dataset:
 
         if path.startswith("hub://"):
             report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params)
+        feature_report_path(self.path, "copy", report_params, token=token)
 
         dest_ds = hub.api.dataset.dataset._like(
             dest,
