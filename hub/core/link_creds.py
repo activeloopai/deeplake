@@ -196,6 +196,8 @@ class LinkCreds(HubMemoryObject):
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
+        self.client = None
+        self.org_id = None
 
     def __len__(self):
         return len(self.creds_keys)
