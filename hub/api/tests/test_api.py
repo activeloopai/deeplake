@@ -1953,7 +1953,7 @@ def test_uneven_iteration(memory_ds):
 
 @pytest.mark.parametrize(
     "hub_token",
-    ["hub_cloud_user_token"],
+    ["hub_cloud_dev_token"],
     indirect=True,
 )
 def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
@@ -1964,5 +1964,6 @@ def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
-    ds = hub.empty("hub://adilkhan/test_hub_token", token=hub_token, overwrite=True)
-    hub.delete("hub://adilkhan/test_hub_token", token=hub_token)
+    runner.invoke(logout)
+    ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
+    # hub.delete("hub://testingacc/test_hub_token", token=hub_token)
