@@ -11,7 +11,11 @@ from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.s3 import S3Provider
 from hub.tests.common import is_opt_true
-from hub.util.exceptions import ManagedCredentialsNotFoundError, TensorMetaInvalidHtype, UnableToReadFromUrlError
+from hub.util.exceptions import (
+    ManagedCredentialsNotFoundError,
+    TensorMetaInvalidHtype,
+    UnableToReadFromUrlError,
+)
 
 from hub.util.htype import parse_complex_htype  # type: ignore
 
@@ -266,7 +270,7 @@ def test_jwt_link(local_ds):
         for i in range(3):
             assert ds.img[i].shape == (50, 50, 4)
             assert ds.img[i].numpy().shape == (50, 50, 4)
-        
+
         my_incorrect_jwt = {"Authorization": "12345"}
         ds.populate_creds("my_jwt_key", my_incorrect_jwt)
         with pytest.raises(UnableToReadFromUrlError):
@@ -274,7 +278,6 @@ def test_jwt_link(local_ds):
 
         with pytest.raises(UnableToReadFromUrlError):
             ds.img[0].shape
-
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
@@ -497,7 +500,6 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     ds.change_creds_management(key_name, True)
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
-
 
     new_key = "some_random_key"
     with pytest.raises(ManagedCredentialsNotFoundError):
