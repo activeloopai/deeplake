@@ -1964,5 +1964,5 @@ def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
-    # ds = hub.empty("hub://adilkhan/test_hub_token", token=hub_token, overwrite=True)
+    ds = hub.empty("hub://adilkhan/test_hub_token", token=hub_token, overwrite=True)
     hub.delete("hub://adilkhan/test_hub_token", token=hub_token)
