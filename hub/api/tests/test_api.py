@@ -809,7 +809,6 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
             ds.rename(ds.path)
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
-
     assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
@@ -1952,10 +1951,18 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def test_hub_token_without_permission(hub_cloud_dev_credentials):
+@pytest.mark.parametrize(
+    "hub_token",
+    ["hub_cloud_user_token"],
+    indirect=True,
+)
+def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
     username, password = hub_cloud_dev_credentials
     runner = CliRunner()
 
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
+
+    # ds = hub.empty("hub://adilkhan/test_hub_token", token=hub_token, overwrite=True)
+    hub.delete("hub://adilkhan/test_hub_token", token=hub_token)
