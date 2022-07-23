@@ -11,14 +11,12 @@ if sys.platform == "darwin":
 
 __pdoc__ = {
     "api": False,
-    "auto": False,
     "cli": False,
     "client": False,
     "constants": False,
     "config": False,
     "integrations": False,
     "tests": False,
-    "util": False,
     "Dataset.clear_cache": False,
     "Dataset.flush": False,
     "Dataset.read_only": False,
