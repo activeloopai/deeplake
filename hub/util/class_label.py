@@ -51,7 +51,32 @@ def convert_to_hash(samples, hash_label_map):
     return convert(samples)
 
 
-def convert_hash_to_idx(hashes, hash_label_map, label_idx_map, class_names):
+# def convert_hash_to_idx(hashes, hash_label_map, label_idx_map, class_names):
+#     def convert(hashes):
+#         idxs = []
+#         for hash in hashes:
+#             if isinstance(hash, list):
+#                 idxs_ = convert(hash)
+#                 idxs.extend(idxs_)
+#             else:
+#                 label = hash_label_map[hash]
+#                 if isinstance(label, str):
+#                     idx = label_idx_map.get(label)
+#                     if idx is not None:
+#                         idxs.append(idx)
+#                     else:
+#                         idx = len(class_names)
+#                         idxs.append(idx)
+#                         class_names.append(label)
+#                         label_idx_map[label] = idx
+#                 else:
+#                     idxs.append(label)
+#         return idxs
+
+#     return convert(hashes)
+
+
+def convert_hash_to_idx(hashes, hash_idx_map):
     def convert(hashes):
         idxs = []
         for hash in hashes:
@@ -59,18 +84,8 @@ def convert_hash_to_idx(hashes, hash_label_map, label_idx_map, class_names):
                 idxs_ = convert(hash)
                 idxs.extend(idxs_)
             else:
-                label = hash_label_map[hash]
-                if isinstance(label, str):
-                    idx = label_idx_map.get(label)
-                    if idx is not None:
-                        idxs.append(idx)
-                    else:
-                        idx = len(class_names)
-                        idxs.append(idx)
-                        class_names.append(label)
-                        label_idx_map[label] = idx
-                else:
-                    idxs.append(label)
+                idx = hash_idx_map[hash]
+                idxs.append(idx)
         return idxs
 
     return convert(hashes)
@@ -94,37 +109,39 @@ def sync_labels(ds, label_temp_tensors, hash_label_maps, num_workers, scheduler)
 
     @hub.compute
     def upload(
-        ds_in,
+        hash_tensor,
         ds_out,
-        label_tensor,
-        temp_tensor,
-        hash_label_map,
-        label_idx_map,
-        class_names,
+        label_tensor: str,
+        hash_idx_map,
     ):
-        ds_out[label_tensor].append(ds_in[temp_tensor].numpy().tolist())
+        hashes = hash_tensor.numpy().tolist()
+        idxs = convert_hash_to_idx(hashes, hash_idx_map)
+        ds_out[label_tensor].append(idxs)
 
     for tensor, temp_tensor in label_temp_tensors.items():
         target_tensor = ds[tensor]
         hash_label_map = hash_label_maps[temp_tensor]
         class_names = target_tensor.info.class_names
+        new_labels = list(set(hash_label_map.values()) - set(class_names))
+        class_names.extend(list(new_labels))
         label_idx_map = {class_names[i]: i for i in range(len(class_names))}
-        items = ds[temp_tensor].numpy().tolist()
-        idxs = convert_hash_to_idx(items, hash_label_map, label_idx_map, class_names)
-        target_tensor.extend(idxs)
-        # target_tensor.info.is_dirty = True
-        # target_tensor.meta._disable_temp_transform = True
-        # target_tensor.meta.is_dirty = True
+        hash_idx_map = {
+            hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
+        }
+        print(hash_idx_map, tensor)
+        target_tensor.info.is_dirty = True
+        target_tensor.meta._disable_temp_transform = True
+        target_tensor.meta.is_dirty = True
+        print(ds[temp_tensor].numpy().tolist())
 
-        # upload(tensor=tensor).eval(
-        #     idxs,
-        #     ds,
-        #     num_workers=num_workers,
-        #     scheduler=scheduler,
-        #     progressbar=False,
-        #     check_lengths=False,
-        #     skip_ok=True,
-        # )
-        # target_tensor.meta._disable_temp_transform = False
-        # target_tensor.meta.is_dirty = True
+        upload(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
+            ds[temp_tensor],
+            ds,
+            num_workers=num_workers,
+            scheduler=scheduler,
+            progressbar=True,
+            check_lengths=False,
+            skip_ok=True,
+        )
+        target_tensor.meta._disable_temp_transform = False
         ds.delete_tensor(temp_tensor, large_ok=True)
