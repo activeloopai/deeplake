@@ -417,7 +417,7 @@ class Dataset:
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
-                - To see all htypes and their correspondent arguments, check out :module:`hub.htype`.
+                - To see all htypes and their correspondent arguments, check out :ref:`Htype`.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
             create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via `tensor[i].sample_info`.
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
@@ -1107,6 +1107,25 @@ class Dataset:
 
         Raises:
             Exception: If the dataset is a filtered view.
+
+        Examples:
+
+            >>> ds = hub.empty("../test/test_ds")
+            >>> ds.create_tensor("abc")
+            Tensor(key='abc')
+            >>> ds.abc.append([1, 2, 3])
+            >>> first_commit = ds.commit()
+            >>> ds.checkout("alt", create=True)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.abc.append([4, 5, 6])
+            >>> ds.abc.numpy()
+            array([[1, 2, 3],
+                   [4, 5, 6]])
+            >>> ds.checkout(first_commit)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.abc.numpy()
+            array([[1, 2, 3]])
+
         """
         return self._checkout(address, create)
 
@@ -1424,14 +1443,14 @@ class Dataset:
         """Filters the dataset in accordance of filter function ``f(x: sample) -> bool``
 
         Args:
-            function (Callable, str): Filter function that takes sample as argument and returns True/False
+            function (Callable, str): Filter function that takes sample as argument and returns ``True`` / ``False``
                 if sample should be included in result. Also supports simplified expression evaluations.
                 See :class:`hub.core.query.query.DatasetQuery` for more details.
             num_workers (int): Level of parallelization of filter evaluations.
                 0 indicates in-place for-loop evaluation, multiprocessing is used otherwise.
             scheduler (str): Scheduler to use for multiprocessing evaluation.
-                "threaded" is default
-            progressbar (bool): Display progress bar while filtering. ``True`` is default
+                "threaded" is default.
+            progressbar (bool): Display progress bar while filtering. ``True`` is default.
             save_result (bool): If ``True``, result of the filter will be saved to a dataset asynchronously.
             result_path (Optional, str): Path to save the filter result. Only applicable if ``save_result`` is True.
             result_ds_args (Optional, dict): Additional args for result dataset. Only applicable if ``save_result`` is True.
@@ -1982,6 +2001,16 @@ class Dataset:
             ValueError: If all tensors being updated are not of the same length.
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
+
+        Examples:
+
+            >>> ds = hub.empty("../test/test_ds")
+            >>> ds.create_tensor('data')
+            Tensor(key='data')
+            >>> ds.create_tensor('labels')
+            Tensor(key='labels')
+            >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
+
         """
         if isinstance(sample, Dataset):
             sample = sample.tensors
@@ -2272,23 +2301,20 @@ class Dataset:
         """Saves a dataset view as a virtual dataset (VDS)
 
         Examples:
-            ```
-            # Save to specified path
-            vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
-            # vds_path = views/first_10
-            ```
+            >>> # Save to specified path
+            >>> vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
+            >>> vds_path
+            views/first_10
 
-                # Path unspecified
-                vds_path = ds[:100].save_view(id="first_100", message="first 100 samples")
-                # vds_path = path/to/dataset/.queries/first_100
+            >>> # Path unspecified
+            >>> vds_path = ds[:100].save_view(id="first_100", message="first 100 samples")
+            >>> # vds_path = path/to/dataset
 
-            ```
-            # Random id
-            vds_path = ds[:100].save_view()
-            # vds_path = "path/to/dataset/.queries/92f41922ed0471ec2d27690b7351fc96bea060e6c5ee22b14f7ffa5f291aa068"
-            ```
+            >>> # Random id
+            >>> vds_path = ds[:100].save_view()
+            >>> # vds_path = path/to/dataset/.queries/92f41922ed0471ec2d27690b7351fc96bea060e6c5ee22b14f7ffa5f291aa068
 
-            See `Dataset.get_view` to learn how to load views by id.
+            See :func:`Dataset.get_view` to learn how to load views by id.
             These virtual datasets can also be loaded from their path like normal datasets.
 
         Args:
@@ -2301,13 +2327,13 @@ class Dataset:
                 necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
                 take some time, depending on the size of the data.
                 - You can also choose to optimize the saved view later by calling its `optimize` method:
-                See `hub.core.dataset.view_entry.ViewEntry.optimize`.
+                See :func:`hub.core.dataset.view_entry.ViewEntry.optimize`.
             num_workers (int): Number of workers to be used if `optimize` is True.
-            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`hub.dataset()`)
 
         Note:
-            Specifying `path` makes the view external. External views cannot be accessed using the parent dataset's `Dataset.get_view`,
-            `Dataset.load_view`, `Dataset.delete_view` methods. They have to be loaded using `hub.\0load(path)`.
+            Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
+            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using `hub.\0load(path)`.
 
         Returns:
             str: Path to the saved VDS.
@@ -2513,23 +2539,20 @@ class Dataset:
         """Returns the dataset view corresponding to `id`
 
         Examples:
-            ```
-            # save view
-            ds[:100].save_view(id="first_100")
+            >>> # save view
+            >>> ds[:100].save_view(id="first_100")
+            >>> # load view
+            >>> first_100 = ds.get_view("first_100").load()
+            >>> # 100
+            >>> print(len(first_100))
 
-            # load view
-            first_100 = ds.get_view("first_100").load()
-
-            # 100
-            print(len(first_100))
-            ```
-            See `Dataset.save_view` to learn more about saving views.
+            See :func:`Dataset.save_view` to learn more about saving views.
 
         Args:
             id (str): id of required view.
 
         Returns:
-            `hub.core.dataset.view_entry.ViewEntry`
+            :class:`hub.core.dataset.view_entry.ViewEntry`
 
         Raises:
             KeyError: If no such view exists.
@@ -2551,7 +2574,7 @@ class Dataset:
         optimize: Optional[bool] = False,
         progressbar: Optional[bool] = True,
     ):
-        """Loads the view and returns the `hub.Dataset` by id. Equivalent to ds.get_view(id).load().
+        """Loads the view and returns the :class:`~hub.core.dataset.dataset.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
             id (str): id of the view to be loaded.
@@ -2951,7 +2974,7 @@ class Dataset:
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.dataset("path/to/dataset")
+            >>> ds = hub.empty("path/to/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
 
