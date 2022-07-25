@@ -22,7 +22,7 @@ logger = logging.getLogger("ipfsspec")
 class IPFSProvider(StorageProvider):
     def __init__(
         self,
-        coreurl:str='', # Core URL to use
+        coreurl:str=None, # Core URL to use
         cid:str='',
         storage_type:str=None, # specify type of gateway (e.g. Infura, Estuary, Web3.Storage, local node...)
         api_key:str=None, # if applicable, api key for access to storage service
@@ -30,13 +30,14 @@ class IPFSProvider(StorageProvider):
     ) -> None:
         """Initialize the object, assign credentials if required."""
         super().__init__()
-        self.coreurl = coreurl if coreurl is not '' else 'https://ipfs.infura.io:5001'
+        self.coreurl = coreurl if coreurl is not None else 'https://ipfs.infura.io:5001/api/v0'
         self.cid = cid
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
         self.cids = None
         self.fpath = fpath
+        self.stored = False
 
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
@@ -61,20 +62,22 @@ class IPFSProvider(StorageProvider):
             except TypeError:
                 print('Got type error.')
         else:
-            print('GOT HERE')
-            print(path)
             raise KeyError(path)
             # r = self.gw.add_items(coreurl=self.coreurl, path=path, directory=True)
             # return r
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
-        print(path)
         print('we are in setitem')
         print(f'fpath is {self.fpath}')
-        res = self.gw.add_items(self.coreurl, filepath=path, directory=True)
-        # res = self.gw.apipost("add", path)
-        self.cids = [r['Hash'] for r in res]
+        print(f'self.stored is {self.stored}')
+        if not self.stored:
+            print("got here again")
+            res = self.gw.add_items(filepath=self.fpath, directory=True)
+            self.stored = True
+            print(f'response is {res}')
+            return res
+        return True
 
 
     def __delitem__(self):
@@ -282,8 +285,7 @@ class IPFSGateway():
         res.raise_for_status()
         return res.headers
 
-    def add_items(
-        coreurl:str, # Core URL to use
+    def add_items(self,
         filepath:Union[str, List[str]], # Path to the file/directory to be added to IPFS
         directory:bool=False, # Is filepath a directory
         wrap_with_directory:str='false', # True if path is a directory
@@ -316,7 +318,7 @@ class IPFSGateway():
             chunk_size = int(chunker.split('-')[1])
             data, headers = stream_directory(filepath, chunk_size=chunk_size)
             
-        response = requests.post(f'{coreurl}/add', 
+        response = requests.post(f'{self.url}/add', 
                                 params=params, 
                                 data=data,
                                 headers=headers)
@@ -325,7 +327,7 @@ class IPFSGateway():
             return response, parse_response(response)
 
         else:
-            raise HTTPError (parse_error_message(res))
+            raise HTTPError (parse_error_message(response))
 
     def cat(self, 
         cid:str, # Path to the IPFS object
