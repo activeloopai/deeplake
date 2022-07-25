@@ -37,6 +37,7 @@ from hub.constants import GDRIVE_OPT, MB
 
 from click.testing import CliRunner
 from hub.cli.auth import login, logout
+from hub.util.bugout_reporter import feature_report_path
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -1966,4 +1967,7 @@ def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
 
     runner.invoke(logout)
     ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
-    # hub.delete("hub://testingacc/test_hub_token", token=hub_token)
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_token
+    )
