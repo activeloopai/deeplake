@@ -48,7 +48,7 @@ body {
     color: #ff6d35;
 }
 
-.reference.internal {
+a.reference.internal {
     color: #ff6d35;
 }
 
@@ -70,16 +70,15 @@ body {
     font-family: ProximaNova;
 }
 
-.sig-prename,
-.sig-name {
-    font-style: normal;
+.sig-paren {
+    font-style: italic;
 }
 
 .wy-menu-vertical>p.caption {
     font-size: large;
 }
 
-.toctree-l1>.reference.internal {
+.wy-menu-vertical .reference.internal {
     color: rgb(66, 63, 63);
 }
 
@@ -90,7 +89,7 @@ body {
 html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
     display: table;
     margin: 6px 0;
-    font-size: 80%;
+    font-size: 100%;
     line-height: normal;
     background: #fcf6f4;
     color: rgb(66, 63, 63);
@@ -115,4 +114,8 @@ html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(
 
 .wy-nav-content {
     max-width: none;
+}
+
+.docutils.literal.notranslate .pre {
+    font-size: 120%;
 }

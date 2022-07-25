@@ -55,7 +55,7 @@ Supported htypes and their respective defaults are:
 +----------------+-----------+---------------+
 
 Sequence htype
-==============
+~~~~~~~~~~~~~~
 
 - An htype for tensors where each sample is a sequence. The items in the sequence are samples of another htype.
 - It is a wrapper htype that can wrap other htypes like ``sequence[image]``, ``sequence[video]``, ``sequence[text]``, etc.
@@ -78,7 +78,7 @@ array([[[1],
 >>> ds.image_seq.append([hub.read("img01.jpg"), hub.read("img02.jpg")])
 
 Link htype
-==========
+~~~~~~~~~~
 
 - Link htype is a special htype that allows linking of external data (files) to the dataset, without storing the data in the dataset itself.
 - Moreover, there can be variations in this htype, such as ``link[image]``, ``link[video]``, ``link[audio]``, etc. that would enable the activeloop visualizer to correctly display the data.

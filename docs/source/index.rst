@@ -6,15 +6,19 @@
 :github_url: https://github.com/activeloopai/Hub
 
 Hub API Reference
-===============================
+=================
 
 Hub is an open-source database for AI.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Python API
 
    hub
+   hub.api
+   hub.auto
+   hub.cli
+   hub.core.dataset
 
 
 

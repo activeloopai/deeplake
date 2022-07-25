@@ -1,20 +1,10 @@
-Hub
+hub
 ===
 .. automodule:: hub
 .. currentmodule:: hub
 
-Htype
-=====
-.. automodule:: hub.htype
-
-Dataset
-=======
-.. currentmodule:: hub.core.dataset.dataset
-.. autoclass:: Dataset()
-    :members:
-
-Creation
-~~~~~~~~
+Dataset Creation
+~~~~~~~~~~~~~~~~
 .. currentmodule:: hub
 .. autosummary::
     :toctree: generated
@@ -22,14 +12,14 @@ Creation
 
     dataset
     empty
-    list
+    like
     ingest
     ingest_kaggle
     ingest_dataframe
     ingest_huggingface
 
-Copying
-~~~~~~~
+Copying Datasets
+~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -37,36 +27,39 @@ Copying
     copy
     deepcopy
 
-Loading
-~~~~~~~
+Loading Datasets
+~~~~~~~~~~~~~~~~
 .. autofunction:: load
 
-Deletion
-~~~~~~~~
+Deleting Datasets
+~~~~~~~~~~~~~~~~~
 .. autofunction:: delete
 
-Renaming
-~~~~~~~~
+Renaming Datasets
+~~~~~~~~~~~~~~~~~
 .. autofunction:: rename
 
-List
-~~~~
+List Datasets
+~~~~~~~~~~~~~
 .. autofunction:: list
 
+Htypes
+~~~~~~
 
-Tensor
-======
-.. currentmodule:: hub.core.tensor
-.. autoclass:: Tensor()
-    :members:
+.. automodule:: hub.htype
 
-Creation
-~~~~~~~~
-See :func: 
-.. currentmodule:: hub.core.dataset.dataset
-.. autosummary::
-    :toctree: generated
-    :nosignatures:
+Reading data
+~~~~~~~~~~~~
 
-    Dataset.create_tensor
-    Dataset.create_tensor_like
+.. autofunction:: hub.read
+
+Linked data
+~~~~~~~~~~~
+
+.. autofunction:: hub.link
+
+Parallelism
+~~~~~~~~~~~
+
+.. autofunction:: hub.compute
+.. autofunction:: hub.compose
