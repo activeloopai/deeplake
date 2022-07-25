@@ -26,6 +26,7 @@ class IPFSProvider(StorageProvider):
         cid:str='',
         storage_type:str=None, # specify type of gateway (e.g. Infura, Estuary, Web3.Storage, local node...)
         api_key:str=None, # if applicable, api key for access to storage service
+        fpath:str=None,
     ) -> None:
         """Initialize the object, assign credentials if required."""
         super().__init__()
@@ -35,6 +36,7 @@ class IPFSProvider(StorageProvider):
         self.storage_type = storage_type
         self.api_key = api_key
         self.cids = None
+        self.fpath = fpath
 
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
@@ -69,6 +71,7 @@ class IPFSProvider(StorageProvider):
         """Sets the object present at the path with the value"""
         print(path)
         print('we are in setitem')
+        print(f'fpath is {self.fpath}')
         res = self.gw.add_items(self.coreurl, filepath=path, directory=True)
         # res = self.gw.apipost("add", path)
         self.cids = [r['Hash'] for r in res]
