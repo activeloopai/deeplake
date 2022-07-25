@@ -343,6 +343,26 @@ class IPFSGateway():
             else:
                 raise HTTPError (parse_error_message(res))
 
+    def pin_rm(self,
+        cid:str, # Path to object(s) to be unpinned
+        recursive:str='true', #  Recursively unpin the object linked to by the specified object(s)
+        **kwargs,
+    ):
+        'List objects pinned to local storage.'
+
+        params = {}
+        params['arg'] = cid
+        params['recursive'] = recursive
+        params.update(kwargs)
+
+        response = self.apipost('pin/rm', params=params)
+
+        if response.status_code == 200:
+            return response, parse_response(response)
+
+        else:
+            raise HTTPError (parse_error_message(response))
+
 
     def apipost(self, call, **kwargs):
         logger.debug("post %s via %s", call, self.url)
