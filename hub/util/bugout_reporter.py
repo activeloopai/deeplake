@@ -122,7 +122,9 @@ def feature_report_path(
         if hub_user is None:
             hub_reporter.tags.append(f"username:{username}")
         else:
-            hub_reporter.tags[0] = f"username:{username}"
+            if f"username:{hub_user}" in hub_reporter.tags:
+                index = hub_reporter.tags.index(f"username:{hub_user}")
+                hub_reporter.tags[index] = f"username:{username}"
 
     hub_reporter.feature_report(
         feature_name=feature_name,
