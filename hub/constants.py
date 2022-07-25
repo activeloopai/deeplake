@@ -107,12 +107,10 @@ S3_OPT = "--s3"
 GCS_OPT = "--gcs"
 GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
-IPFS_OPT = "--ipfs"
 S3_PATH_OPT = "--s3-path"
 GDRIVE_PATH_OPT = "--gdrive-path"
 KEEP_STORAGE_OPT = "--keep-storage"
 KAGGLE_OPT = "--kaggle"
-IPFS_PATH_OPT = "--ipfs-path"
 
 
 EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"

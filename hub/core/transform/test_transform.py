@@ -117,7 +117,7 @@ def check_target_array(ds, index, target):
 @all_schedulers
 @pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "ipfs_ds"],
+    ["memory_ds", "local_ds", "s3_ds"],
     indirect=True,
 )
 def test_single_transform_hub_dataset(ds, scheduler):
