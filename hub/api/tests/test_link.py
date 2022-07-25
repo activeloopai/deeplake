@@ -4,13 +4,18 @@ import sys
 import pickle
 import hub
 import pytest
+from hub.client.client import HubBackendClient
 from hub.constants import GCS_OPT, S3_OPT
 from hub.core.link_creds import LinkCreds
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.s3 import S3Provider
 from hub.tests.common import is_opt_true
-from hub.util.exceptions import ManagedCredentialsNotFoundError, TensorMetaInvalidHtype
+from hub.util.exceptions import (
+    ManagedCredentialsNotFoundError,
+    TensorMetaInvalidHtype,
+    UnableToReadFromUrlError,
+)
 
 from hub.util.htype import parse_complex_htype  # type: ignore
 
@@ -251,6 +256,30 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         assert ds.linked_images_2[i].numpy().shape == shape_target
 
 
+def test_jwt_link(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("img", htype="link[image]", create_shape_tensor=False)
+        auth = HubBackendClient().auth_header
+        my_jwt = {"Authorization": auth}
+        ds.add_creds_key("my_jwt_key")
+        ds.populate_creds("my_jwt_key", my_jwt)
+        img_url = "https://app-dev.activeloop.dev/api/org/tim4/storage/image"
+        for _ in range(3):
+            ds.img.append(hub.link(img_url, creds_key="my_jwt_key"))
+
+        for i in range(3):
+            assert ds.img[i].shape == (50, 50, 4)
+            assert ds.img[i].numpy().shape == (50, 50, 4)
+
+        my_incorrect_jwt = {"Authorization": "12345"}
+        ds.populate_creds("my_jwt_key", my_incorrect_jwt)
+        with pytest.raises(UnableToReadFromUrlError):
+            ds.img[0].numpy()
+
+        with pytest.raises(UnableToReadFromUrlError):
+            ds.img[0].shape
+
+
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 @pytest.mark.skipif(
@@ -448,8 +477,13 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
 
     with pytest.raises(ValueError):
         # managed creds_key can't be updated
-        another_key = "something_else"
-        ds.update_creds_key(key_name, another_key)
+        ds.update_creds_key(key_name, "something_else")
+
+    with pytest.raises(KeyError):
+        ds.change_creds_management("random_key", False)
+
+    # this is a no-op
+    ds.change_creds_management(key_name, True)
 
     # no longer managed
     ds.change_creds_management(key_name, False)
@@ -459,6 +493,11 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
         ds.img[0].numpy()
 
     ds.populate_creds(key_name, {})
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    ds = hub_cloud_ds_generator()
+    ds.change_creds_management(key_name, True)
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
