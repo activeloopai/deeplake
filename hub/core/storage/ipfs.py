@@ -63,19 +63,12 @@ class IPFSProvider(StorageProvider):
                 print('Got type error.')
         else:
             raise KeyError(path)
-            # r = self.gw.add_items(coreurl=self.coreurl, path=path, directory=True)
-            # return r
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
-        print('we are in setitem')
-        print(f'fpath is {self.fpath}')
-        print(f'self.stored is {self.stored}')
         if not self.stored:
-            print("got here again")
             res = self.gw.add_items(filepath=self.fpath, directory=True)
             self.stored = True
-            print(f'response is {res}')
             return res
         return True
 
