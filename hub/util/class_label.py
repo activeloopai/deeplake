@@ -128,18 +128,16 @@ def sync_labels(ds, label_temp_tensors, hash_label_maps, num_workers, scheduler)
         hash_idx_map = {
             hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
         }
-        print(hash_idx_map, tensor)
         target_tensor.info.is_dirty = True
         target_tensor.meta._disable_temp_transform = True
         target_tensor.meta.is_dirty = True
-        print(ds[temp_tensor].numpy().tolist())
 
         upload(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
             ds[temp_tensor],
             ds,
             num_workers=num_workers,
             scheduler=scheduler,
-            progressbar=True,
+            progressbar=False,
             check_lengths=False,
             skip_ok=True,
         )
