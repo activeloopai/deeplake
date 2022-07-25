@@ -241,7 +241,6 @@ class GCSProvider(StorageProvider):
         )
         self._initialize_provider()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
-        self.hub_path: Optional[str] = None
         self.expiration: Optional[str] = None
 
     def subdir(self, path: str):
