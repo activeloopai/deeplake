@@ -75,13 +75,9 @@ class IPFSProvider(StorageProvider):
 
     def __delitem__(self):
         """Delete the object present at the path."""
+        res = self.gw.pin_rm(self.cid)
 
-        params = {
-            'arg': self.cid,
-        }
-
-        response = requests.post(f'{self.coreurl}/pin/rm', params=params)
-        return response
+        return res
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
