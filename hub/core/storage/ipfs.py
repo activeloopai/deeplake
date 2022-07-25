@@ -67,15 +67,18 @@ class IPFSProvider(StorageProvider):
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
         if not self.stored:
-            res = self.gw.add_items(filepath=self.fpath, directory=True)
+            _, res = self.gw.add_items(filepath=self.fpath, directory=True)
             self.stored = True
+            self.get_set_cid(res)
             return res
         return True
 
 
     def __delitem__(self):
         """Delete the object present at the path."""
+        print("got here")
         res = self.gw.pin_rm(self.cid)
+        print(res)
 
         return res
 
@@ -150,6 +153,14 @@ class IPFSProvider(StorageProvider):
         name
         ):
         return 'file' if len(name.split('.')) > 1 else 'dir'
+
+    def get_set_cid(self, res):
+        for i in res:
+            if i['Name'] in self.fpath:
+                self.cid = i['Hash']
+                self.links = self._get_links(self.cid)
+                self.ordered_links = self.get_hash(self.links, {})
+                self.cids = list(self.ordered_links.values())
 
     def _get_links(self,
         cid,
