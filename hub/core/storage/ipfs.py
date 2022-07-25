@@ -34,6 +34,7 @@ class IPFSProvider(StorageProvider):
         self.gw = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
+        self.cids = None
 
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path."""
@@ -58,12 +59,18 @@ class IPFSProvider(StorageProvider):
             except TypeError:
                 print('Got type error.')
         else:
-            r = self.gw.add_items(coreurl=self.coreurl, path=path, directory=True)
-            return r
+            print('GOT HERE')
+            print(path)
+            raise KeyError(path)
+            # r = self.gw.add_items(coreurl=self.coreurl, path=path, directory=True)
+            # return r
 
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
-        res = self.gw.apipost("add", path)
+        print(path)
+        print('we are in setitem')
+        res = self.gw.add_items(self.coreurl, filepath=path, directory=True)
+        # res = self.gw.apipost("add", path)
         self.cids = [r['Hash'] for r in res]
 
 
@@ -99,6 +106,8 @@ class IPFSProvider(StorageProvider):
         Returns:
             set: set of all keys present at the root of the provider.
         """
+        if self.cids is None:
+            return []
         return self.cids
 
     def clear(self, prefix=""):
