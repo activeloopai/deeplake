@@ -26,7 +26,7 @@ class HubCloudDataset(Dataset):
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
                 if self.verbose and verbose:
-                    log_visualizer_link(self.org_id, self.ds_name)
+                    log_visualizer_link(self.path)
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
                 warn(

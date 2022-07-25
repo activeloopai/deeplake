@@ -2416,8 +2416,7 @@ class Dataset:
                     path, id, message, optimize, num_workers, scheduler, **ds_args
                 )
         if verbose:
-            org_id, ds_name = get_org_id_and_ds_name(vds.path)
-            log_visualizer_link(org_id, ds_name, self.path)
+            log_visualizer_link(vds.path, self.path)
         if _ret_ds:
             return vds
         return vds.path
