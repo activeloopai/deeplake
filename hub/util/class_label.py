@@ -41,39 +41,17 @@ def convert_to_hash(samples, hash_label_map):
                 sample = sample.tolist()
             if isinstance(sample, list):
                 hashes_ = convert(sample)
-                hashes.extend(hashes_)
+                hashes.append(hashes_)
             else:
-                hash_ = hash_str_to_int32(sample) if isinstance(sample, str) else sample
-                hash_label_map[hash_] = sample
+                if isinstance(sample, str):
+                    hash_ = hash_str_to_int32(sample)
+                    hash_label_map[hash_] = sample
+                else:
+                    hash_ = sample
                 hashes.append(hash_)
         return hashes
 
     return convert(samples)
-
-
-# def convert_hash_to_idx(hashes, hash_label_map, label_idx_map, class_names):
-#     def convert(hashes):
-#         idxs = []
-#         for hash in hashes:
-#             if isinstance(hash, list):
-#                 idxs_ = convert(hash)
-#                 idxs.extend(idxs_)
-#             else:
-#                 label = hash_label_map[hash]
-#                 if isinstance(label, str):
-#                     idx = label_idx_map.get(label)
-#                     if idx is not None:
-#                         idxs.append(idx)
-#                     else:
-#                         idx = len(class_names)
-#                         idxs.append(idx)
-#                         class_names.append(label)
-#                         label_idx_map[label] = idx
-#                 else:
-#                     idxs.append(label)
-#         return idxs
-
-#     return convert(hashes)
 
 
 def convert_hash_to_idx(hashes, hash_idx_map):
@@ -84,8 +62,11 @@ def convert_hash_to_idx(hashes, hash_idx_map):
                 idxs_ = convert(hash)
                 idxs.extend(idxs_)
             else:
-                idx = hash_idx_map[hash]
-                idxs.append(idx)
+                try:
+                    idx = hash_idx_map[hash]
+                    idxs.append(idx)
+                except KeyError:
+                    idxs.append(hash)
         return idxs
 
     return convert(hashes)
