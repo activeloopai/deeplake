@@ -204,7 +204,7 @@ class dataset:
     ) -> Dataset:
         """Creates an empty dataset
 
-        Important:
+        Warning:
             Using ``overwrite`` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
@@ -600,7 +600,7 @@ class dataset:
             src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
-            overwrite (bool): If True and a dataset exists at ``destination``, it will be overwritten. Defaults to ``False``.
+            overwrite (bool): If True and a dataset exists at ``dest``, it will be overwritten. Defaults to ``False``.
             src_creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
