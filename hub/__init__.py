@@ -11,14 +11,12 @@ if sys.platform == "darwin":
 
 __pdoc__ = {
     "api": False,
-    "auto": False,
     "cli": False,
     "client": False,
     "constants": False,
     "config": False,
     "integrations": False,
     "tests": False,
-    "util": False,
     "Dataset.clear_cache": False,
     "Dataset.flush": False,
     "Dataset.read_only": False,
@@ -85,7 +83,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.6.1"
+__version__ = "2.7.2"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

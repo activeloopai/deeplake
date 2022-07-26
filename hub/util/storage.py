@@ -94,7 +94,9 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
+    url, creds, mode, expiration = client.get_dataset_credentials(
+        org_id, ds_name, mode=mode
+    )
 
     if mode == "r":
         read_only = True

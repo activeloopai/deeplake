@@ -8,9 +8,10 @@ from hub.client.log import logger
 from hub.util.agreement import handle_dataset_agreement
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import RenameError
-from hub.util.link import save_link_creds, warn_missing_managed_creds
+from hub.util.link import save_link_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
+from hub.util.logging import log_visualizer_link
 from warnings import warn
 import time
 import hub
@@ -18,25 +19,20 @@ import hub
 
 class HubCloudDataset(Dataset):
     def _first_load_init(self, verbose=True):
+        self._set_org_and_name()
         if self.is_first_load:
-            self._set_org_and_name()
             if self.is_actually_cloud:
                 handle_dataset_agreement(
                     self.agreement, self.path, self.ds_name, self.org_id
                 )
                 if self.verbose and verbose:
-                    logger.info(
-                        f"This dataset can be visualized in Jupyter Notebook by ds.visualize() or at https://app.activeloop.ai/{self.org_id}/{self.ds_name}"
-                    )
+                    log_visualizer_link(self.path)
             else:
                 # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
                 warn(
                     f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
-            if self.link_creds.managed_creds_keys:
-                for creds_key in self.link_creds.managed_creds_keys:
-                    creds = self._fetch_managed_creds(creds_key)
-                    self.link_creds.populate_creds(creds_key, creds)
+            self.link_creds.populate_all_managed_creds()
 
     @property
     def client(self):
@@ -287,13 +283,9 @@ class HubCloudDataset(Dataset):
                 Note, this is only applicable for datasets that are connected to activeloop platform.
                 Defaults to False.
         """
-        if managed:
-            creds = self._fetch_managed_creds(creds_key)
         self.link_creds.add_creds_key(creds_key, managed=managed)
-        if managed:
-            self.link_creds.populate_creds(creds_key, creds)
         save_link_creds(self.link_creds, self.storage)
-        warn_missing_managed_creds(self.link_creds)
+        self.link_creds.warn_missing_managed_creds()
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
         """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
@@ -306,29 +298,49 @@ class HubCloudDataset(Dataset):
                 """
             )
         super().update_creds_key(old_creds_key, new_creds_key)
-        warn_missing_managed_creds(self.link_creds)
+        self.link_creds.warn_missing_managed_creds()
 
     def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key."""
-        if creds_key not in self.link_creds.creds_keys:
-            raise KeyError(f"Creds key {creds_key} not found.")
-        is_managed = creds_key in self.link_creds.managed_creds_keys
+        """Changes the management status of the creds key.
+
+        Args:
+            creds_key (str): The key whose management status is to be changed.
+            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+
+        Raises:
+            ValueError: If the dataset is not connected to activeloop platform.
+            KeyError: If the creds key is not present in the dataset.
+
+        Examples:
+            ```
+            # create/load a dataset
+            ds = hub.dataset("path/to/dataset")
+
+            # add a new creds key
+            ds.add_creds_key("my_s3_key")
+
+            # Populate the name added with creds dictionary
+            # These creds are only present temporarily and will have to be repopulated on every reload
+            ds.populate_creds("my_s3_key", {})
+
+            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            ds.change_creds_management("my_s3_key", True)
+            ```
+        """
+
         key_index = self.link_creds.creds_mapping[creds_key] - 1
-        if is_managed == managed:
-            return
-        if managed:
-            creds = self._fetch_managed_creds(creds_key)
-            self.link_creds.managed_creds_keys.add(creds_key)
-            self.link_creds.populate_creds(creds_key, creds)
-        else:
-            self.link_creds.managed_creds_keys.discard(creds_key)
+        changed = self.link_creds.change_creds_management(creds_key, managed)
+        if changed:
+            save_link_creds(
+                self.link_creds, self.storage, managed_info=(managed, key_index)
+            )
 
-        save_link_creds(
-            self.link_creds, self.storage, managed_info=(managed, key_index)
-        )
-
-    def _fetch_managed_creds(self, creds_key):
-        """Fetches creds from activeloop platform and populates the dataset with them."""
-        creds = self.client.get_managed_creds(self.org_id, creds_key)
-        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
-        return creds
+    def _load_link_creds(self):
+        """Loads the link creds from the storage."""
+        super()._load_link_creds()
+        if self.link_creds.client is None:
+            self._set_org_and_name()
+            self.link_creds.org_id = self.org_id
+            self.link_creds.client = self.client

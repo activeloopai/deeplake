@@ -100,17 +100,27 @@ class UncompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         if self.is_empty_tensor:
-            raise EmptyTensorError
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        shape = self.shapes_encoder[local_index]
-        if not self.byte_positions_encoder.is_empty():
-            sb, eb = self.byte_positions_encoder[local_index]
+        if not is_tile and self.is_fixed_shape:
+            shape = tuple(self.tensor_meta.min_shape)
+            sb, eb = self.get_byte_positions(local_index)
             buffer = buffer[sb:eb]
+        else:
+            shape = self.shapes_encoder[local_index]
+            if not self.byte_positions_encoder.is_empty():
+                sb, eb = self.byte_positions_encoder[local_index]
+                buffer = buffer[sb:eb]
+
         if not decompress:
             if copy:
                 buffer = bytes(buffer)

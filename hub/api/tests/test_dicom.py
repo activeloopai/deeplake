@@ -16,6 +16,7 @@ def test_dicom_basic(memory_ds):
         assert dcm.dtype == "int16"
         assert dcm.shape == (64, 64, 1)
         ds.x.append(dcm)
+        assert ds.x.data()["value"].shape == (1, 64, 64, 1)
         dcm = hub.read(path, verify=True)
         assert dcm.dtype == "int16"
         assert dcm.shape == (64, 64, 1)

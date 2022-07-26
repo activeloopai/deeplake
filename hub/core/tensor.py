@@ -518,7 +518,7 @@ class Tensor:
         """
         if self.is_sequence:
             return self.chunk_engine._sequence_length
-        return self.meta.length
+        return self.chunk_engine.num_samples
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -742,14 +742,14 @@ class Tensor:
         if htype in ("json", "text"):
 
             if self.ndim == 1:
-                return self.numpy()[0]
+                return {"value": self.numpy()[0]}
             else:
-                return [sample[0] for sample in self.numpy(aslist=True)]
+                return {"value": [sample[0] for sample in self.numpy(aslist=True)]}
         elif htype == "list":
             if self.ndim == 1:
-                return list(self.numpy())
+                return {"value": list(self.numpy())}
             else:
-                return list(map(list, self.numpy(aslist=True)))
+                return {"value": list(map(list, self.numpy(aslist=True)))}
         elif self.htype == "video":
             data = {}
             data["frames"] = self.numpy(aslist=aslist)
@@ -759,31 +759,40 @@ class Tensor:
                 if len(index.values) > 1:
                     data["timestamps"] = np.array(
                         [
-                            root[i, index.values[1].value].timestamp  # type: ignore
+                            root[i, index.values[1].value].timestamps  # type: ignore
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
                 else:
                     data["timestamps"] = np.array(
                         [
-                            root[i].timestamp
+                            root[i].timestamps
                             for i in index.values[0].indices(self.num_samples)
                         ]
                     )
             else:
-                data["timestamps"] = self.timestamp
+                data["timestamps"] = self.timestamps
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+
+            data["sample_info"] = self.sample_info
             return data
         elif htype == "class_label":
             labels = self.numpy(aslist=aslist)
-            data = {"numeric": labels}
+            data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
                 data["text"] = convert_to_text(labels, self.info.class_names)
             return data
+        elif htype in ("image", "image.rgb", "image.gray", "dicom"):
+            return {
+                "value": self.numpy(aslist=aslist),
+                "sample_info": self.sample_info or {},
+            }
         else:
-            return self.numpy(aslist=aslist)
+            return {
+                "value": self.numpy(aslist=aslist),
+            }
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.
@@ -802,10 +811,7 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         idx = self.index.values[0].value
-        if self.is_link:
-            ret = self.chunk_engine.get_hub_read_sample(idx).buffer  # type: ignore
-        else:
-            ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
         dataset_read(self.dataset)
         return ret
 
@@ -853,11 +859,17 @@ class Tensor:
 
     @property
     def _sample_info_tensor(self):
-        return self.dataset._tensors().get(get_sample_info_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.key))
+        )
 
     @property
     def _sample_shape_tensor(self):
-        return self.dataset._tensors().get(get_sample_shape_tensor_key(self.key))
+        ds = self.dataset
+        return ds.version_state["full_tensors"].get(
+            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.key))
+        )
 
     @property
     def _sample_id_tensor(self):
@@ -887,7 +899,7 @@ class Tensor:
                 sample_info_tensor[i].data()
                 for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
             ]
-        return sample_info_tensor[global_sample_index].data()
+        return sample_info_tensor[global_sample_index].data()["value"]
 
     def _sample_info(self, index: Index):
         sample_info_tensor = self._sample_info_tensor
@@ -955,7 +967,7 @@ class Tensor:
         [self.dataset[link].pop(index) for link in self.meta.links]
 
     @property
-    def timestamp(self) -> np.ndarray:
+    def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
 
         ## Examples:
@@ -1019,4 +1031,28 @@ class Tensor:
 
     @property
     def sample_indices(self):
-        return self.index.values[0].indices(self.num_samples)
+        return self.dataset._sample_indices(self.num_samples)
+
+    def _extract_value(self, htype):
+        if self.base_htype != htype:
+            raise Exception(f"Only supported for {htype} tensors.")
+
+        if self.ndim == 1:
+            return self.numpy()[0]
+        else:
+            return [sample[0] for sample in self.numpy(aslist=True)]
+
+    def text(self):
+        return self._extract_value("text")
+
+    def dict(self):
+        return self._extract_value("json")
+
+    def list(self):
+        if self.base_htype != "list":
+            raise Exception(f"Only supported for list tensors.")
+
+        if self.ndim == 1:
+            return list(self.numpy())
+        else:
+            return list(map(list, self.numpy(aslist=True)))

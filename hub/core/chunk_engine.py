@@ -186,6 +186,9 @@ class ChunkEngine:
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
+        self._chunk_args = None
+        self._num_samples_per_chunk: Optional[int] = None
+
     @property
     def is_data_cachable(self):
         tensor_meta = self.tensor_meta
@@ -218,13 +221,15 @@ class ChunkEngine:
 
     @property
     def chunk_args(self):
-        return [
-            self.min_chunk_size,
-            self.max_chunk_size,
-            self.tiling_threshold,
-            self.tensor_meta,
-            self.compression,
-        ]
+        if self._chunk_args is None:
+            self._chunk_args = [
+                self.min_chunk_size,
+                self.max_chunk_size,
+                self.tiling_threshold,
+                self.tensor_meta,
+                self.compression,
+            ]
+        return self._chunk_args
 
     @property
     def min_chunk_size(self):
@@ -420,6 +425,9 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
+        """Returns the length of the primary axis of the tensor.
+        Ignores any applied indexing and returns the total length.
+        """
         return self.tensor_meta.length
 
     @property
@@ -874,7 +882,7 @@ class ChunkEngine:
         tiles = np.vectorize(
             lambda chunk_id: self.get_chunk_from_chunk_id(
                 chunk_id, copy=True
-            ).read_sample(0),
+            ).read_sample(0, is_tile=True),
             otypes=[object],
         )(required_tile_ids)
         current_sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
@@ -1301,6 +1309,20 @@ class ChunkEngine:
             )
         return tuple(map(int, chunk.shapes_encoder[local_sample_index]))
 
+    @property
+    def is_fixed_shape(self):
+        tensor_meta = self.tensor_meta
+        return tensor_meta.min_shape == tensor_meta.max_shape
+
+    @property
+    def num_samples_per_chunk(self):
+        # should only be called if self.is_fixed_shape
+        if self._num_samples_per_chunk is None:
+            self._num_samples_per_chunk = (
+                self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
+            )
+        return self._num_samples_per_chunk
+
     def read_sample_from_chunk(
         self,
         global_sample_index: int,
@@ -1310,10 +1332,40 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
+            num_samples_per_chunk = self.num_samples_per_chunk
+            local_sample_index = global_sample_index % num_samples_per_chunk
+        else:
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
         return chunk.read_sample(
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
+
+    def _get_full_chunk(self, index) -> bool:
+        """Reads samples from chunks and returns as a boolean that says whether we need to fetch full chunks or only specified subset of it.
+        Args:
+            index (Index): Represents the samples to read from chunks. See `Index` for more information.
+        Returns:
+            bool: True/False, whether to fetch a full chunk or only a part of it.
+        """
+        threshold = 10
+
+        if type(index.values[0].value) == slice:
+            start = index.values[0].value.start or 0
+            stop = index.values[0].value.stop or self.num_samples
+            step = index.values[0].value.step or 1
+
+            if start < 0:
+                start = self.num_samples + start
+
+            if stop < 0:
+                stop = self.num_samples + start
+
+            numpy_array_length = (stop - start) // step
+            return numpy_array_length > threshold
+        return False
 
     def numpy(
         self,
@@ -1342,6 +1394,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
         self.check_link_ready()
+        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
             index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
@@ -1381,7 +1434,10 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if self.tensor_meta.htype in {"text", "json", "list"}:
+                if (
+                    self.tensor_meta.htype in {"text", "json", "list"}
+                    or self.tensor_meta.is_link
+                ):
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
@@ -1436,7 +1492,9 @@ class ChunkEngine:
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
-            lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(0),
+            lambda chunk_id: self.get_chunk_from_chunk_id(chunk_id).read_sample(
+                0, is_tile=True
+            ),
             otypes=[object],
         )(required_tile_ids)
         sample = coalesce_tiles(tiles, tile_shape, None, self.tensor_meta.dtype)
@@ -1675,9 +1733,16 @@ class ChunkEngine:
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[index]
         elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk(self.get_chunk_key_for_id(chunk_ids[0]))
+            chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(index)
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+
+            if (
+                self.active_updated_chunk is not None
+                and self.active_updated_chunk.key != chunk_to_update.key  # type: ignore
+            ):
+                self.write_chunk_to_storage(self.active_updated_chunk)
+            self.active_updated_chunk = chunk_to_update
         if delete:
             for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
                 self.check_remove_active_chunks(chunk_key)

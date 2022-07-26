@@ -35,6 +35,8 @@ from hub.core.serialize import (
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.util.exceptions import TensorInvalidSampleShapeError
+from functools import reduce
+from operator import mul
 
 InputSample = Union[
     Sample,
@@ -100,6 +102,36 @@ class BaseChunk(HubMemoryObject):
         self._update_tensor_meta_length: bool = (
             True  # Note: tensor meta shape interval is updated regardless.
         )
+        self._item_size = None
+        self._sample_size = None
+
+    @property
+    def is_fixed_shape(self):
+        return (
+            self.tensor_meta.min_shape == self.tensor_meta.max_shape
+            and not self.is_text_like
+        )
+
+    @property
+    def item_size(self):
+        # should only be called if self.is_fixed_shape
+        if self._item_size is None:
+            if self.dtype is None:
+                raise ValueError("Can't get item size as dtype is not set.")
+            self._item_size = np.dtype(self.dtype).itemsize
+        return self._item_size
+
+    @property
+    def sample_size(self):
+        # should only be called if self.is_fixed_shape
+        shape = self.tensor_meta.max_shape
+        if self._sample_size is None:
+            self._sample_size = self.item_size * reduce(mul, shape, 1)
+        return self._sample_size
+
+    def get_byte_positions(self, local_index):
+        # should only be called if self.is_fixed_shape
+        return local_index * self.sample_size, (local_index + 1) * self.sample_size
 
     @property
     def is_partially_read_chunk(self):
@@ -172,6 +204,9 @@ class BaseChunk(HubMemoryObject):
         )
 
     def tobytes(self) -> memoryview:
+        if isinstance(self.data_bytes, PartialReader):
+            self._make_data_bytearray()
+
         assert isinstance(self.data_bytes, (memoryview, bytearray, bytes))
         return serialize_chunk(
             self.version,
@@ -211,6 +246,7 @@ class BaseChunk(HubMemoryObject):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         """Reads a sample from the chunk."""
 
@@ -221,10 +257,11 @@ class BaseChunk(HubMemoryObject):
     def _make_data_bytearray(self):
         """Copies `self.data_bytes` into a bytearray if it is a memoryview."""
         # data_bytes will be a memoryview if frombuffer is called.
-        if isinstance(self.data_bytes, memoryview):
+        if isinstance(self.data_bytes, PartialReader):
+            chunk_bytes = self.data_bytes.get_all_bytes()
+            self.data_bytes = bytearray(chunk_bytes[self.header_bytes :])
+        elif isinstance(self.data_bytes, memoryview):
             self.data_bytes = bytearray(self.data_bytes)
-        elif isinstance(self.data_bytes, PartialReader):
-            self.data_bytes = bytearray(self.data_bytes.get_all_bytes())
 
     def prepare_for_write(self):
         ffw_chunk(self)
