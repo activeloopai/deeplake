@@ -34,6 +34,7 @@ from hub.util.exceptions import (
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import GDRIVE_OPT, MB
+from hub.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
 from hub.cli.auth import login, logout
@@ -1952,24 +1953,33 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-@pytest.mark.parametrize(
-    "hub_token",
-    ["hub_cloud_dev_token"],
-    indirect=True,
-)
-def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
+def test_hub_token_without_permission(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    os.remove(REPORTING_CONFIG_FILE_PATH)
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
+
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
+    )
+
     username, password = hub_cloud_dev_credentials
     runner = CliRunner()
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token",
+        "empty",
+        parameters={},
+        token=hub_cloud_dev_token,
+    )
 
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
-    result = runner.invoke(login, f'''-u "adilkhan" -p "snarkai123"''')
-    ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
-    feature_report_path(
-        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_token
-    )
-
     runner.invoke(logout)
-    ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
+    ds = hub.empty(
+        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    )
