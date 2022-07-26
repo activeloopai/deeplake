@@ -45,7 +45,9 @@ def artifact_name_from_ds_path(ds) -> str:
         artifact_name = f"{pfix}"
     artifact_name += f"-commit-{ds.commit_id}"
     if ds.has_head_changes:
-        warnings.warn("Creating artifact for dataset with head changes. State of the dataset during artifact consumption will be differnt from the state when it was logged.")
+        warnings.warn(
+            "Creating artifact for dataset with head changes. State of the dataset during artifact consumption will be differnt from the state when it was logged."
+        )
         artifact_name += f"-has-head-changes"
     artifact_name += f"-{hash[:8]}"
     return artifact_name
@@ -53,6 +55,7 @@ def artifact_name_from_ds_path(ds) -> str:
 
 def artifact_from_ds(ds):
     import wandb
+
     path = ds.path
     name = artifact_name_from_ds_path(ds)
     artifact = wandb.Artifact(name, "dataset")
@@ -172,19 +175,18 @@ def dataset_read(ds):
             pass
 
 
-
 def viz_html(hub_path: str):
-#     return f"""
-#       <div id='container'></div>
-#   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-#   <script>
-#     let container = document.getElementById('container')
+    #     return f"""
+    #       <div id='container'></div>
+    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+    #   <script>
+    #     let container = document.getElementById('container')
 
-#     window.vis.visualize('{hub_path}', null, null, container, {{
-#       requireSignin: true
-#     }})
-#   </script>
-#     """
+    #     window.vis.visualize('{hub_path}', null, null, container, {{
+    #       requireSignin: true
+    #     }})
+    #   </script>
+    #     """
     return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 

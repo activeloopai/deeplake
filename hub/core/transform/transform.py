@@ -267,6 +267,7 @@ class Pipeline:
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
         dataset_written(target_ds)
 
+
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
     """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval
 
