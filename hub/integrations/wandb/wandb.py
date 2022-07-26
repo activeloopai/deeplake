@@ -85,7 +85,7 @@ def dataset_written(ds):
             except (KeyError, AttributeError):
                 output_datasets = []
             if path.startswith("hub://"):
-                plat_link = _plat_link(path)
+                plat_link = _plat_link(ds)
                 if plat_link not in output_datasets:
                     run.log(
                         {
@@ -140,7 +140,7 @@ def dataset_read(ds):
         except (KeyError, AttributeError):
             input_datasets = []
         if path.startswith("hub://"):
-            plat_link = _plat_link(path)
+            plat_link = _plat_link(ds)
             if plat_link not in input_datasets:
                 import wandb
 
@@ -190,8 +190,23 @@ def viz_html(hub_path: str):
     return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
-def _plat_link(hub_path: str):
-    return f"https://app.activeloop.ai/{hub_path[len('hub://'):]}/"
+def _plat_link(ds):
+    path = ds.path
+    if "/.queries/" in path:
+        if "/queries/" in path:
+            entry = getattr((ds._view_base or ds), "_view_entry")
+            if not entry:
+                _, org, ds_name, _ = process_hub_path(path)
+                return f"https://app.activeloop.ai/{org}/{ds_name}"
+            source_ds_path = entry.info["source-dataset"]
+            _, org, ds_name, _ = process_hub_path(source_ds_path)
+            return f"https://app.activeloop.ai/{org}/{ds_name}?view={entry.id}"
+        else:
+            _, org, ds_name, _ = process_hub_path(path)
+            vid = path.split("/.queries/")[1]
+            return f"https://app.activeloop.ai/{org}/{ds_name}?view={vid}"
+    _, org, ds_name, _ = process_hub_path(path)
+    return f"https://app.activeloop.ai/{org}/{ds_name}"
 
 
 def link_html(hub_path):
