@@ -58,6 +58,11 @@ Linked data
 
 .. autofunction:: hub.link
 
+Tiling
+~~~~~~
+
+.. autofunction:: hub.tiled
+
 Parallelism
 ~~~~~~~~~~~
 

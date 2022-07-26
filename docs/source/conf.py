@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
+    "sphinx_autopackagesummary",
 ]
 autosummary_generate = True
 
