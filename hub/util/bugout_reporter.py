@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 import uuid
+import re
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
 from hub.client.client import HubBackendClient
@@ -119,14 +120,22 @@ def feature_report_path(
         client = HubBackendClient(token=token)
         username = client.get_user_profile()["name"]
 
-        if hub_user is None:
+        index, current_username = find_current_username()
+
+        if current_username is None:
             hub_reporter.tags.append(f"username:{username}")
         else:
-            if f"username:{hub_user}" in hub_reporter.tags:
-                index = hub_reporter.tags.index(f"username:{hub_user}")
+            if f"username:{username}" != current_username:
                 hub_reporter.tags[index] = f"username:{username}"
 
     hub_reporter.feature_report(
         feature_name=feature_name,
         parameters=parameters,
     )
+
+
+def find_current_username():
+    for index, tag in enumerate(hub_reporter.tags):
+        if "username" in tag:
+            return index, tag
+    return None, None
