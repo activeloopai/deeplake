@@ -8,16 +8,33 @@ from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage import LRUCache
 from hub.core.tensor_link import read_linked_sample
-from hub.util.exceptions import ReadOnlyModeError
+from hub.util.exceptions import ReadOnlyModeError, UnableToReadFromUrlError
 from hub.util.keys import get_creds_encoder_key
-from hub.util.link import (
-    get_path_creds_key,
-    save_link_creds,
-    warn_missing_managed_creds,
-)
+from hub.util.link import get_path_creds_key, save_link_creds
 from hub.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
+
+
+def retry_refresh_managed_creds(fn):
+    def wrapper(chunk_engine, global_sample_index, *args, **kwargs):
+        try:
+            return fn(chunk_engine, global_sample_index, *args, **kwargs)
+        except UnableToReadFromUrlError:
+            sample_creds_encoded = chunk_engine.creds_encoder.get_encoded_creds_key(
+                global_sample_index
+            )
+
+            link_creds: LinkCreds = chunk_engine.link_creds
+            sample_creds_key = link_creds.get_creds_key(sample_creds_encoded)
+
+            if sample_creds_key in link_creds.managed_creds_keys:
+                link_creds.refresh_managed_creds(sample_creds_key)
+            else:
+                raise
+            return fn(chunk_engine, global_sample_index, *args, **kwargs)
+
+    return wrapper
 
 
 class LinkedChunkEngine(ChunkEngine):
@@ -112,6 +129,7 @@ class LinkedChunkEngine(ChunkEngine):
             video_sample.squeeze(0)
         return video_sample
 
+    @retry_refresh_managed_creds
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_hub_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
@@ -177,7 +195,7 @@ class LinkedChunkEngine(ChunkEngine):
             creds_encoder.register_samples((encoded_creds_key,), 1)
             if link_creds.add_to_used_creds(creds_key):
                 save_link_creds(self.link_creds, self.cache)
-                warn_missing_managed_creds(self.link_creds)
+                self.link_creds.warn_missing_managed_creds()
 
     def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
         link_creds = self.link_creds
@@ -186,8 +204,9 @@ class LinkedChunkEngine(ChunkEngine):
         self.creds_encoder[sample_index] = (encoded_creds_key,)
         if link_creds.add_to_used_creds(creds_key):
             save_link_creds(self.link_creds, self.cache)
-            warn_missing_managed_creds(self.link_creds)
+            self.link_creds.warn_missing_managed_creds()
 
+    @retry_refresh_managed_creds
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_hub_read_sample(global_sample_index)
         if sample is None:
@@ -230,3 +249,8 @@ class LinkedChunkEngine(ChunkEngine):
 
     def get_empty_sample(self):
         return np.ones((0,))
+
+    @retry_refresh_managed_creds
+    def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
+        sample = self.get_hub_read_sample(global_sample_index)
+        return sample.buffer

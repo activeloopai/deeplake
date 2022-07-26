@@ -6,6 +6,9 @@ from hub.util.exceptions import (
     InvalidPasswordException,
     ManagedCredentialsNotFoundError,
     ResourceNotFoundException,
+    InvalidTokenException,
+    UserNotLoggedInException,
+    TokenPermissionError,
 )
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
@@ -27,6 +30,7 @@ from hub.client.config import (
     GET_PRESIGNED_URL_SUFFIX,
 )
 from hub.client.log import logger
+import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
 retry_status_codes = {502}
@@ -146,7 +150,9 @@ class HubBackendClient:
             string: The auth token corresponding to the accound.
 
         Raises:
+            UserNotLoggedInException: if user is not authorised
             LoginException: If there is an issue retrieving the auth token.
+
         """
         json = {"username": username, "password": password}
         response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
@@ -188,14 +194,30 @@ class HubBackendClient:
 
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
+
+        Raises:
+            UserNotLoggedInException: When user is not logged in
+            InvalidTokenException: If the specified toke is invalid
+            TokenPermissionError: when there are permission or other errors related to token
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
-        response = self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"mode": mode, "no_cache": no_cache},
-        ).json()
+        try:
+            response = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"mode": mode, "no_cache": no_cache},
+            ).json()
+        except Exception:
+            try:
+                decoded_token = jwt.decode(
+                    self.token, options={"verify_signature": False}
+                )
+            except Exception:
+                raise InvalidTokenException
+            if decoded_token["id"] == "public":
+                raise UserNotLoggedInException()
+            raise TokenPermissionError()
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -265,7 +287,10 @@ class HubBackendClient:
         }
         final_creds = {}
         for key, value in creds.items():
-            if key in key_mapping:
+            if key == "access_token":
+                key = "Authorization"
+                value = f"Bearer {value}"
+            elif key in key_mapping:
                 key = key_mapping[key]
             final_creds[key] = value
         return final_creds

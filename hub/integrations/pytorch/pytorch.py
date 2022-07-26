@@ -127,8 +127,9 @@ def dataset_to_pytorch(
         transform = PytorchTransformFunction(composite_transform=transform)
 
     # check whether we have an empty tensor inside of tensors
-    for tensor_name in dataset.tensors:
-        if len(dataset[tensor_name]) == 0:
+    for tensor_name in tensors:
+        tensor = dataset._get_tensor_from_root(tensor_name)
+        if len(tensor) == 0:
             raise EmptyTensorError(
                 f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
                 f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
