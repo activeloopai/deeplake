@@ -1965,9 +1965,11 @@ def test_hub_token_without_permission(hub_cloud_dev_credentials, hub_token):
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
-    runner.invoke(logout)
+    result = runner.invoke(login, f'''-u "adilkhan" -p "snarkai123"''')
     ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
-
     feature_report_path(
         "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_token
     )
+
+    runner.invoke(logout)
+    ds = hub.empty("hub://testingacc/test_hub_token", token=hub_token, overwrite=True)
