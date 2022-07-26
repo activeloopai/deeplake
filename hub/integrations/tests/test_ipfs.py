@@ -14,10 +14,3 @@ def test_copy():
     ds_copy = hub.copy('./test', 'ipfs://', dest_creds={"fpath": p})
     assert ds.path == 'ipfs://'
     return
-
-def test_delete():
-    ds = hub.dataset('./test/')
-    p = os.path.abspath("./test/")
-    ds_copy = hub.copy('./test', 'ipfs://', dest_creds={"fpath": p})
-    ds_copy.delete()
-    return
