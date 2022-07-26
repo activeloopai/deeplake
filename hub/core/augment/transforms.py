@@ -34,7 +34,6 @@ def trivial_augment(image):
   shape_new.insert(0, shape_initial[-1])
   image = image.reshape(shape_new)
   image = torch.from_numpy(image)
-  print(image.size())
   return trivial_augmenter.forward(image).numpy().reshape(shape_initial)
 
 
