@@ -1,17 +1,21 @@
-from pickletools import optimize
 import numpy as np
 import os
 import sys
 import pickle
 import hub
 import pytest
+from hub.client.client import HubBackendClient
 from hub.constants import GCS_OPT, S3_OPT
 from hub.core.link_creds import LinkCreds
 from hub.core.meta.encode.creds import CredsEncoder
 from hub.core.storage.gcs import GCSProvider
 from hub.core.storage.s3 import S3Provider
 from hub.tests.common import is_opt_true
-from hub.util.exceptions import TensorMetaInvalidHtype
+from hub.util.exceptions import (
+    ManagedCredentialsNotFoundError,
+    TensorMetaInvalidHtype,
+    UnableToReadFromUrlError,
+)
 
 from hub.util.htype import parse_complex_htype  # type: ignore
 
@@ -75,11 +79,11 @@ def test_complex_htype_parsing():
 
 def test_link_creds(request):
     link_creds = LinkCreds()
-    link_creds.add_creds("abc")
-    link_creds.add_creds("def")
+    link_creds.add_creds_key("abc")
+    link_creds.add_creds_key("def")
 
     with pytest.raises(ValueError):
-        link_creds.add_creds("abc")
+        link_creds.add_creds_key("abc")
 
     link_creds.populate_creds("abc", {})
     link_creds.populate_creds("def", {})
@@ -89,6 +93,8 @@ def test_link_creds(request):
 
     assert link_creds.get_encoding("ENV") == 0
     assert link_creds.get_encoding(None) == 0
+    with pytest.raises(ValueError):
+        link_creds.get_encoding(None, "s3://my_bucket/my_key")
     assert link_creds.get_encoding("abc") == 1
     assert link_creds.get_encoding("def") == 2
     with pytest.raises(ValueError):
@@ -103,7 +109,7 @@ def test_link_creds(request):
     assert len(link_creds) == 2
     assert link_creds.missing_keys == []
 
-    link_creds.add_creds("ghi")
+    link_creds.add_creds_key("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
     with pytest.raises(KeyError):
@@ -132,7 +138,6 @@ def test_link_creds(request):
 
     bts = link_creds.tobytes()
     assert len(bts) == link_creds.nbytes
-    assert bts == b"abc,def,ghi"
 
     from_buffer_link_creds = LinkCreds.frombuffer(bts)
     assert len(from_buffer_link_creds) == 3
@@ -168,8 +173,8 @@ def test_creds_encoder():
 def test_add_populate_creds(local_ds_generator):
     local_ds = local_ds_generator()
     with local_ds as ds:
-        ds.add_creds("my_s3_key")
-        ds.add_creds("my_gcs_key")
+        ds.add_creds_key("my_s3_key")
+        ds.add_creds_key("my_gcs_key")
         ds.populate_creds("my_s3_key", {})
         ds.populate_creds("my_gcs_key", {})
 
@@ -251,6 +256,30 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         assert ds.linked_images_2[i].numpy().shape == shape_target
 
 
+def test_jwt_link(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("img", htype="link[image]", create_shape_tensor=False)
+        auth = HubBackendClient().auth_header
+        my_jwt = {"Authorization": auth}
+        ds.add_creds_key("my_jwt_key")
+        ds.populate_creds("my_jwt_key", my_jwt)
+        img_url = "https://app-dev.activeloop.dev/api/org/tim4/storage/image"
+        for _ in range(3):
+            ds.img.append(hub.link(img_url, creds_key="my_jwt_key"))
+
+        for i in range(3):
+            assert ds.img[i].shape == (50, 50, 4)
+            assert ds.img[i].numpy().shape == (50, 50, 4)
+
+        my_incorrect_jwt = {"Authorization": "12345"}
+        ds.populate_creds("my_jwt_key", my_incorrect_jwt)
+        with pytest.raises(UnableToReadFromUrlError):
+            ds.img[0].numpy()
+
+        with pytest.raises(UnableToReadFromUrlError):
+            ds.img[0].shape
+
+
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 @pytest.mark.skipif(
@@ -277,7 +306,9 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[i][:5].numpy().shape == (5, 720, 1280, 3)
 
         if is_opt_true(request, GCS_OPT):
-            sample = hub.link("gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4")
+            sample = hub.link(
+                "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", creds_key="ENV"
+            )
             ds.linked_videos.append(sample)
             assert len(ds.linked_videos) == 4
             assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
@@ -302,10 +333,10 @@ def test_complex_creds(local_ds_generator):
             create_sample_info_tensor=False,
         )
         ds.create_tensor("xyz")
-        ds.add_creds("my_first_key")
-        ds.add_creds("my_second_key")
+        ds.add_creds_key("my_first_key")
+        ds.add_creds_key("my_second_key")
 
-        assert ds.get_creds() == ["my_first_key", "my_second_key"]
+        assert ds.get_creds_keys() == ["my_first_key", "my_second_key"]
 
         ds.populate_creds("my_first_key", {})
         ds.populate_creds("my_second_key", {})
@@ -393,6 +424,121 @@ def test_transform(local_ds, cat_path, flower_path):
         assert ds.linked_images[i].numpy().shape == shape_target
 
     data_in.delete()
+
+
+@hub.compute
+def transform_path_link(sample_in, samples_out):
+    samples_out.images.append(hub.link(sample_in))
+
+
+def check_transformed_ds(ds):
+    assert ds.images[0].numpy().shape == ds.images[0].shape == (900, 900, 3)
+    assert ds.images[1].numpy().shape == ds.images[1].shape == (513, 464, 4)
+
+
+def test_transform_2(local_ds_generator, cat_path, flower_path):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("images", htype="link[image]")
+
+    transform_path_link().eval([cat_path, flower_path], ds)
+
+    check_transformed_ds(ds)
+    ds = local_ds_generator()
+    check_transformed_ds(ds)
+
+
+def test_link_managed(hub_cloud_ds_generator, cat_path):
+    key_name = "CREDS_MANAGEMENT_TEST"
+    with hub_cloud_ds_generator() as ds:
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+        )
+        ds.add_creds_key(key_name, managed=True)
+        assert key_name in ds.link_creds.creds_dict
+        assert key_name in ds.link_creds.managed_creds_keys
+        assert key_name not in ds.link_creds.used_creds_keys
+
+        ds.img.append(hub.link(cat_path, creds_key=key_name))
+        assert key_name in ds.link_creds.used_creds_keys
+
+    ds = hub_cloud_ds_generator()
+    assert key_name in ds.link_creds.creds_dict
+    assert key_name in ds.link_creds.managed_creds_keys
+    assert key_name in ds.link_creds.used_creds_keys
+
+    shape_target = (900, 900, 3)
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    with pytest.raises(ValueError):
+        # managed creds_key can't be updated
+        ds.update_creds_key(key_name, "something_else")
+
+    with pytest.raises(KeyError):
+        ds.change_creds_management("random_key", False)
+
+    # this is a no-op
+    ds.change_creds_management(key_name, True)
+
+    # no longer managed
+    ds.change_creds_management(key_name, False)
+
+    ds = hub_cloud_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+
+    ds.populate_creds(key_name, {})
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    ds = hub_cloud_ds_generator()
+    ds.change_creds_management(key_name, True)
+    assert ds.img[0].shape == shape_target
+    assert ds.img[0].numpy().shape == shape_target
+
+    new_key = "some_random_key"
+    with pytest.raises(ManagedCredentialsNotFoundError):
+        ds.add_creds_key(new_key, managed=True)
+
+    # even after failure one can simply add a new key, setting managed to False
+    ds.add_creds_key(new_key)
+
+
+def test_link_ready(local_ds_generator, cat_path):
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+        )
+        ds.add_creds_key("def")
+        ds.add_creds_key("abc")
+        ds.populate_creds("abc", {})
+        ds.img.append(hub.link(cat_path, creds_key="abc"))
+
+    ds = local_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+    ds.populate_creds("abc", {})
+    assert ds.img[0].numpy().shape == (900, 900, 3)
+    with pytest.raises(KeyError):
+        ds.update_creds_key("xyz", "ghi")
+    with pytest.raises(ValueError):
+        ds.update_creds_key("abc", "def")
+    ds.update_creds_key("abc", "new")
+    assert ds.img[0].numpy().shape == (900, 900, 3)
+    ds = local_ds_generator()
+    with pytest.raises(ValueError):
+        ds.img[0].numpy()
+    ds.populate_creds("new", {})
+    assert ds.img[0].numpy().shape == (900, 900, 3)
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])

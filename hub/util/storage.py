@@ -52,7 +52,7 @@ def storage_provider_from_path(
         secret = creds.get("aws_secret_access_key")
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
-        region = creds.get("region")
+        region = creds.get("aws_region")
         profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
             path,
@@ -98,7 +98,9 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
+    url, creds, mode, expiration = client.get_dataset_credentials(
+        org_id, ds_name, mode=mode
+    )
 
     if mode == "r":
         read_only = True

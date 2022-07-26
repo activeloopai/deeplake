@@ -30,6 +30,7 @@ logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.install",
+    "https://www.googleapis.com/auth/drive.readonly",
 ]
 FOLDER = "application/vnd.google-apps.folder"
 FILE = "application/octet-stream"
@@ -83,8 +84,8 @@ class GoogleDriveIDManager:
             )
             .execute()["files"]
         )
+        prefix = "" if root_path == self.root_path else root_path
         for file in file_list:
-            prefix = "" if root_path == self.root_path else root_path
             path = posixpath.join(prefix, file["name"])
             self.path_id_map[path] = file["id"]
             self.makemap(file["id"], path)
@@ -98,7 +99,9 @@ class GDriveProvider(StorageProvider):
     client_secret = None
     refresh_token = None
 
-    def __init__(self, root: str, token: Optional[Union[str, Dict]] = None):
+    def __init__(
+        self, root: str, token: Optional[Union[str, Dict]] = None, makemap: bool = True
+    ):
         """Initializes the GDriveProvider
 
         Example:
@@ -107,6 +110,7 @@ class GDriveProvider(StorageProvider):
         Args:
             root(str): The root of the provider. All read/write request keys will be appended to root.
             token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
+            makemap(bool): Creates path to id map if True.
 
         Note:
             - Requires `client_secrets.json` in working directory if `token` is not provided.
@@ -163,11 +167,13 @@ class GDriveProvider(StorageProvider):
             self.client_secret = creds.client_secret
             self.refresh_token = creds.refresh_token
 
-        self._init_provider(creds)
+        self._init_provider(creds, makemap=makemap)
 
-    def _init_provider(self, creds):
+    def _init_provider(self, creds, makemap=True):
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root_path = self.root.replace("gdrive://", "")
+        if self.root_path == "":
+            self.root_id = "root"
         if hasattr(self, "root_id"):
             self.gid = GoogleDriveIDManager(self.drive, self.root_path, self.root_id)  # type: ignore
         else:
@@ -181,7 +187,8 @@ class GDriveProvider(StorageProvider):
                 self.gid.path_id_map.pop(
                     self.root_path.split("/", i)[0], None
                 )  # Remove root dir components from map
-        self.gid.makemap(self.root_id, self.root_path)
+        if makemap:
+            self.gid.makemap(self.root_id, self.root_path)
 
     def _init_from_state(self):
         token = {
@@ -253,11 +260,7 @@ class GDriveProvider(StorageProvider):
         """Sync provider keys with actual storage"""
         self.gid.makemap(self.root_id, self.root_path)
 
-    def __getitem__(self, path):
-        id = self._get_id(path)
-        if not id:
-            raise KeyError(path)
-
+    def get_object_by_id(self, id):
         request = self.drive.files().get_media(fileId=id)
         file = BytesIO()
         downloader = MediaIoBaseDownload(file, request)
@@ -267,6 +270,18 @@ class GDriveProvider(StorageProvider):
 
         file.seek(0)
         return file.read()
+
+    def __getitem__(self, path):
+        id = self._get_id(path)
+        if not id:
+            raise KeyError(path)
+
+        return self.get_object_by_id(id)
+
+    def get_object_from_full_url(self, url: str):
+        url = url.replace("gdrive://", "")
+        id = self.gid.find_id(url)
+        return self.get_object_by_id(id)
 
     def _lock_creation(self, path):
         # lock creation of folder, otherwise multiple workers can create folders of the same name.

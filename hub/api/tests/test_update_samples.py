@@ -237,7 +237,9 @@ def test_failures(memory_ds):
 
 
 def test_warnings(memory_ds):
-    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
+    tensor = memory_ds.create_tensor(
+        "tensor", max_chunk_size=8 * KB, tiling_threshold=4 * KB
+    )
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 

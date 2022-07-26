@@ -100,6 +100,13 @@ def inplace_transform(sample_in, samples_out):
     samples_out.label.append(3 * sample_in.label.numpy())
 
 
+@hub.compute
+def unequal_transform(sample_in, samples_out):
+    samples_out.x.append(sample_in.x.numpy() * 2)
+    if sample_in.y.numpy().size > 0:
+        samples_out.y.append(sample_in.y.numpy() * 2)
+
+
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
@@ -347,11 +354,13 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "label": {
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     if do_commit:
@@ -629,6 +638,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
             "label": {
                 "created": False,
@@ -637,6 +647,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
         }
         assert diff == change
@@ -907,3 +918,30 @@ def test_htype_dtype_after_transform(local_ds):
         fn3().eval(list(range(10)), ds, TRANSFORM_TEST_NUM_WORKERS)
     assert ds.image.htype == "generic"
     assert ds.image.dtype == np.ones(1).dtype
+
+
+def test_transform_pad_data_in(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+    ds2 = hub.dataset("./data/unequal2", overwrite=True)
+    ds2.create_tensor("x")
+    ds2.create_tensor("y")
+
+    unequal_transform().eval(ds, ds2, pad_data_in=True, skip_ok=True)
+    assert len(ds2.x) == 10
+    assert len(ds2.y) == 5
+    assert len(ds2) == 5
+    for i in range(10):
+        x = ds2[i].x.numpy()
+        np.testing.assert_equal(x, 2 * i)
+        if i < 5:
+            y = ds2[i].y.numpy()
+            np.testing.assert_equal(y, 2 * i)
+
+    for i, dsv in enumerate(ds2):
+        x, y = dsv.x.numpy(), dsv.y.numpy()
+        np.testing.assert_equal(x, 2 * i)
+        np.testing.assert_equal(y, 2 * i)

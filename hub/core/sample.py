@@ -1,3 +1,4 @@
+import requests
 from hub.core.compression import (
     compress_array,
     decompress_array,
@@ -19,7 +20,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-
+from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
@@ -72,8 +73,8 @@ class Sample:
             compression (str): Specify in case of byte buffer.
             verify (bool): If a path is provided, verifies the sample if True.
             shape (Tuple[int]): Shape of the sample.
-            dtype (str, optional): Data type of the sample.
-            creds (optional, Dict): Credentials for s3 and gcp for urls.
+            dtype (optional, str): Data type of the sample.
+            creds (optional, Dict): Credentials for s3, gcp and http urls.
             storage (optional, StorageProvider): Storage provider.
 
         Raises:
@@ -400,13 +401,20 @@ class Sample:
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
-        path = self.path.replace("gdrive://", "")  # type: ignore
-        root, key = self._get_root_and_key(path)
-        gdrive = GDriveProvider("gdrive://" + root, token=self._creds)
-        return gdrive[key]
+        assert self.path is not None
+        gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
+        return gdrive.get_object_from_full_url(self.path)
 
     def _read_from_http(self) -> bytes:
-        return urlopen(self.path).read()  # type: ignore
+        assert self.path is not None
+        if "Authorization" in self._creds:
+            headers = {"Authorization": self._creds["Authorization"]}
+        else:
+            headers = {}
+        result = requests.get(self.path, headers=headers)
+        if result.status_code != 200:
+            raise UnableToReadFromUrlError(self.path, result.status_code)
+        return result.content
 
     def _getexif(self) -> dict:
         if self.path and get_path_type(self.path) == "local":

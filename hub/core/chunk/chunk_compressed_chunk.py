@@ -189,24 +189,33 @@ class ChunkCompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         if not decompress:
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
         if self.is_empty_tensor:
-            raise EmptyTensorError
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
-        shape = self.shapes_encoder[local_index]
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        if not self.byte_positions_encoder.is_empty():
-            sb, eb = self.byte_positions_encoder[local_index]
+        if not is_tile and self.is_fixed_shape:
+            shape = tuple(self.tensor_meta.min_shape)
+            sb, eb = self.get_byte_positions(local_index)
             decompressed = decompressed[sb:eb]
+        else:
+            shape = self.shapes_encoder[local_index]
+            if not self.byte_positions_encoder.is_empty():
+                sb, eb = self.byte_positions_encoder[local_index]
+                decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
@@ -318,22 +327,24 @@ class ChunkCompressedChunk(BaseChunk):
 
         return sample, shape
 
-    def _pop_sample(self):
+    def pop(self, index):
+        self.prepare_for_write()
         if self.is_byte_compression:
-            self.decompressed_bytes = self.decompressed_bytes[
-                : self.byte_positions_encoder[-1][0]
-            ]
+            sb, eb = self.byte_positions_encoder[index]
+            self.decompressed_bytes = (
+                self.decompressed_bytes[:sb] + self.decompressed_bytes[eb:]
+            )
             self._data_bytes = compress_bytes(self.decompressed_bytes, self.compression)
         else:
-            self.decompressed_samples.pop()
+            self.decompressed_samples.pop(index)
             self._data_bytes = compress_multiple(
                 self.decompressed_samples, self.compression
             )
         if not self.shapes_encoder.is_empty():
-            self.shapes_encoder._pop()
+            self.shapes_encoder.pop(index)
         if not self.byte_positions_encoder.is_empty():
-            self.byte_positions_encoder._pop()
-        self._changed = False
+            self.byte_positions_encoder.pop(index)
+        self._changed = True
 
     def pop_multiple(self, num_samples):
         if self.is_byte_compression:
@@ -351,9 +362,9 @@ class ChunkCompressedChunk(BaseChunk):
 
         for _ in range(num_samples):
             if not self.shapes_encoder.is_empty():
-                self.shapes_encoder._pop()
+                self.shapes_encoder.pop()
             if not self.byte_positions_encoder.is_empty():
-                self.byte_positions_encoder._pop()
+                self.byte_positions_encoder.pop()
         self._changed = False
 
     def _compress(self):

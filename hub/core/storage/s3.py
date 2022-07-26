@@ -183,9 +183,10 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3SetError(err) from err
 
-    def _get(self, path):
+    def _get(self, path, bucket=None):
+        bucket = bucket or self.bucket
         resp = self.client.get_object(
-            Bucket=self.bucket,
+            Bucket=bucket,
             Key=path,
         )
         return resp["Body"].read()
@@ -304,6 +305,19 @@ class S3Provider(StorageProvider):
     def num_tries(self):
         return min(ceil((time.time() - self.start_time) / 300), 5)
 
+    def _keys_iterator(self):
+        self._check_update_creds()
+        prefix = self.path
+        start_after = ""
+        prefix = prefix[1:] if prefix.startswith("/") else prefix
+        start_after = (start_after or prefix) if prefix.endswith("/") else start_after
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=self.bucket, Prefix=prefix, StartAfter=start_after
+        ):
+            for content in page.get("Contents", ()):
+                yield content["Key"]
+
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
 
@@ -313,28 +327,8 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        self._check_update_creds()
-        try:
-            # TODO boto3 list_objects only returns first 1000 objects
-            items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
-        except botocore.exceptions.ClientError as err:
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3ListError):
-                items = self.client.list_objects_v2(
-                    Bucket=self.bucket, Prefix=self.path
-                )
-        except Exception as err:
-            raise S3ListError(err) from err
-
-        if items["KeyCount"] <= 0:
-            return set()
-        items = items["Contents"]
-        names = [item["Key"] for item in items]
-        # removing the prefix from the names
         len_path = len(self.path.split("/")) - 1
-        names = {"/".join(name.split("/")[len_path:]) for name in names}
-        return names
+        return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
 
     def __len__(self):
         """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
@@ -345,7 +339,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        return len(self._all_keys())
+        return sum(1 for _ in self._keys_iterator())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the S3Provider.
@@ -578,5 +572,23 @@ class S3Provider(StorageProvider):
         split_root = root.split("/", 1)
         bucket = split_root[0]
         path = split_root[1] if len(split_root) > 1 else ""
-        resp = self.client.get_object(Bucket=bucket, Key=path)
-        return resp["Body"].read()
+        try:
+            return self._get(path, bucket)
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "NoSuchKey":
+                raise KeyError(err) from err
+            reload = self.need_to_reload_creds(err)
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
+            with manager(self, S3GetError):  # type: ignore
+                return self._get(path, bucket)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    return self._get(path, bucket)
+                except Exception:
+                    pass
+            raise S3GetError(err) from err
+        except Exception as err:
+            raise S3GetError(err) from err

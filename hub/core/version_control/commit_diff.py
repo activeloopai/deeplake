@@ -10,6 +10,7 @@ class CommitDiff(HubMemoryObject):
         self.created = created
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
+        self.data_deleted: Set[int] = set()
         self.info_updated = False
         self.cleared = False
 
@@ -26,7 +27,9 @@ class CommitDiff(HubMemoryObject):
         4. The next 8 + 8 bytes are the two elements of the data_added list.
         5. The next 8 bytes are the number of elements in the data_updated set, let's call this m.
         6. The next 8 * m bytes are the elements of the data_updated set.
-        7. The last byte is a boolean value indicating whether the tensor was cleared in the commit or not.
+        7. The next byte is a boolean value indicating whether the tensor was cleared in the commit or not.
+        8. The next 8 bytes are the number of elements in the data_deleted set, let's call this n.
+        9. The next 8 * n bytes are the elements of the data_deleted set.
         """
         return b"".join(
             [
@@ -38,6 +41,8 @@ class CommitDiff(HubMemoryObject):
                 len(self.data_updated).to_bytes(8, "big"),
                 *(idx.to_bytes(8, "big") for idx in self.data_updated),
                 self.cleared.to_bytes(1, "big"),
+                len(self.data_deleted).to_bytes(8, "big"),
+                *(idx.to_bytes(8, "big") for idx in self.data_deleted),
             ]
         )
 
@@ -61,12 +66,22 @@ class CommitDiff(HubMemoryObject):
         pos = 35 + (num_updates - 1) * 8
         commit_diff.cleared = bool(int.from_bytes(data[pos : pos + 1], "big"))
         commit_diff.is_dirty = False
+        pos += 1
+        if len(data) > pos:
+            num_deletes = int.from_bytes(data[pos : pos + 8], "big")
+            pos += 8
+            commit_diff.data_deleted = {
+                int.from_bytes(data[pos + i * 8 : pos + i * 8 + 8], "big")
+                for i in range(num_deletes)
+            }
+        else:
+            commit_diff.data_deleted = set()
         return commit_diff
 
     @property
     def nbytes(self):
         """Returns number of bytes required to store the commit diff"""
-        return 27 + 8 * len(self.data_updated)
+        return 36 + 8 * (len(self.data_updated) + len(self.data_deleted))
 
     @property
     def num_samples_added(self) -> int:
@@ -85,6 +100,7 @@ class CommitDiff(HubMemoryObject):
 
     def update_data(self, global_index: int) -> None:
         """Adds new indexes to data updated"""
+        global_index = self.translate_index(global_index)
         if global_index not in self.data_added:
             self.data_updated.add(global_index)
             self.is_dirty = True
@@ -93,6 +109,7 @@ class CommitDiff(HubMemoryObject):
         """Clears data"""
         self.data_added = [0, 0]
         self.data_updated = set()
+        self.data_deleted = set()
         self.info_updated = False
         self.cleared = True
         self.is_dirty = True
@@ -102,11 +119,23 @@ class CommitDiff(HubMemoryObject):
         self.data_transformed = True
         self.is_dirty = True
 
-    def _pop(self) -> None:
-        """Remove index for the last data added. Used by ChunkEngine._pop()"""
-        if self.data_added[1] == self.data_added[0]:
-            raise NotImplementedError(
-                "Cannot pop sample which was added in a previous commit."
-            )
+    def pop(self, index) -> None:
+        index = self.translate_index(index)
+        if index not in range(*self.data_added):
+            self.data_deleted.add(index)
+            self.data_added[0] -= 1
         self.data_added[1] -= 1
+
+        if index in self.data_updated:
+            self.data_updated.remove(index)
+
+        self.data_updated = {
+            idx - 1 if idx > index else idx for idx in self.data_updated
+        }
         self.is_dirty = True
+
+    def translate_index(self, index):
+        if not self.data_deleted:
+            return index
+        offset = sum(i < index for i in self.data_deleted)
+        return index + offset

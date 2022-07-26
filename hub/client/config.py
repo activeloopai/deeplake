@@ -7,7 +7,7 @@ ALL_AGREEMENTS_PATH = os.path.expanduser("~/.activeloop/agreements")
 
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
 HUB_REST_ENDPOINT_STAGING = "https://app-staging.activeloop.dev"
-HUB_REST_ENDPOINT_DEV = "https://app.dev.activeloop.ai"
+HUB_REST_ENDPOINT_DEV = "https://app-dev.activeloop.dev"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:7777"
 USE_LOCAL_HOST = False
 USE_DEV_ENVIRONMENT = False
@@ -21,6 +21,7 @@ CREATE_DATASET_SUFFIX = "/api/dataset/create"
 SEND_EVENT_SUFFIX = "/api/event"
 DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
+GET_MANAGED_CREDS_SUFFIX = "/api/org/{}/storage/name"
 LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
 

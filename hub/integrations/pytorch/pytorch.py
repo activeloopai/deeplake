@@ -6,6 +6,7 @@ from .common import (
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
+from hub.util.exceptions import EmptyTensorError
 
 
 def create_dataloader_nesteddataloader(
@@ -21,6 +22,7 @@ def create_dataloader_nesteddataloader(
     pin_memory,
     drop_last,
     return_index,
+    pad_tensors,
 ):
     import torch
     import torch.utils.data
@@ -39,6 +41,7 @@ def create_dataloader_nesteddataloader(
             num_workers=num_workers,
             buffer_size=buffer_size,
             return_index=return_index,
+            pad_tensors=pad_tensors,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
@@ -100,6 +103,7 @@ def dataset_to_pytorch(
     tensors: Optional[Sequence[str]] = None,
     tobytes: Union[bool, Sequence[str]] = False,
     return_index: bool = True,
+    pad_tensors: bool = True,
 ):
 
     import torch
@@ -122,6 +126,16 @@ def dataset_to_pytorch(
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
+    # check whether we have an empty tensor inside of tensors
+    for tensor_name in tensors:
+        tensor = dataset._get_tensor_from_root(tensor_name)
+        if len(tensor) == 0:
+            raise EmptyTensorError(
+                f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                f" tensor."
+            )
+
     if shuffle and num_workers > 0:
         return create_dataloader(
             dataset,
@@ -136,6 +150,7 @@ def dataset_to_pytorch(
             pin_memory,
             drop_last,
             return_index,
+            pad_tensors,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -149,6 +164,7 @@ def dataset_to_pytorch(
                 shuffle=shuffle,
                 buffer_size=buffer_size,
                 return_index=return_index,
+                pad_tensors=pad_tensors,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

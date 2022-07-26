@@ -82,6 +82,7 @@ def tensor_diff_helper(
     cleared=False,
     info_updated=False,
     data_transformed_in_place=False,
+    data_deleted=set(),
 ):
     return {
         "data_added": data_added,
@@ -90,6 +91,7 @@ def tensor_diff_helper(
         "cleared": cleared,
         "info_updated": info_updated,
         "data_transformed_in_place": data_transformed_in_place,
+        "data_deleted": data_deleted,
     }
 
 
@@ -1018,6 +1020,7 @@ def test_diff_linear(local_ds, capsys):
             "cleared": False,
             "info_updated": True,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "pqr": {
             "data_added": [3, 3],
@@ -1026,6 +1029,7 @@ def test_diff_linear(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "abc": {
             "data_added": [0, 3],
@@ -1034,6 +1038,7 @@ def test_diff_linear(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     message0 = NO_COMMIT_PASSED_DIFF
@@ -1193,6 +1198,7 @@ def test_diff_branch(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "pqr": {
             "data_added": [0, 3],
@@ -1201,6 +1207,7 @@ def test_diff_branch(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     changes_main_from_branch_off = {
@@ -1211,6 +1218,7 @@ def test_diff_branch(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     message0 = NO_COMMIT_PASSED_DIFF
@@ -1481,6 +1489,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     changes_g_from_x = {
@@ -1491,6 +1500,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "tuv": {
             "data_added": [0, 3],
@@ -1499,6 +1509,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "xyz": {
             "data_added": [3, 3],
@@ -1507,6 +1518,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     empty_changes = {}
@@ -1573,6 +1585,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "pqr": {
             "data_added": [0, 0],
@@ -1581,6 +1594,7 @@ def test_complex_diff(local_ds, capsys):
             "cleared": False,
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
 
