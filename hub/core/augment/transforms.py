@@ -1,6 +1,8 @@
 import hub
 import cv2 as cv
 import numpy as np
+from torchvision.transforms import TrivialAugmentWide
+import torch
 
 def preserve_shape(func):
     """
@@ -22,7 +24,18 @@ def is_grayscale_image(image):
 
 
 
-###########################################################################################################
+###########################################################################################################      
+trivial_augmenter = TrivialAugmentWide()
+
+@hub.compute
+def trivial_augment(image):
+  shape_initial = list(image.shape)
+  shape_new = shape_initial[:-1]
+  shape_new.insert(0, shape_initial[-1])
+  image = image.reshape(shape_new)
+  image = torch.from_numpy(image)
+  print(image.size())
+  return trivial_augmenter.forward(image).numpy().reshape(shape_initial)
 
 
 @hub.compute
