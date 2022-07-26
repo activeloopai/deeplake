@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 import uuid
-import re
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
 from hub.client.client import HubBackendClient
