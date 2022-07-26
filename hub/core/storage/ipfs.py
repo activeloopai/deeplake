@@ -75,11 +75,23 @@ class IPFSProvider(StorageProvider):
 
 
     def __delitem__(self):
-        """Delete the object present at the path."""
-        print("got here")
-        res = self.gw.pin_rm(self.cid)
-        print(res)
+        """Remove pin of the object present at the CID.
 
+        Example:
+            ipfs_provider = IPFSProvider("https://ipfs.infura.io:5001/api/v0", cid="insert_cid")
+            del ipfs_provider
+
+        Args:
+            coreurl (str): gateway URL to access IPFS
+            cid (str): CID of the dataset stored on IPFS
+
+        Raises:
+            KeyError: If an incompatible gateway is provided. (removing pins is only available on local/Infura gateways)
+            HTTPError: If incorrect CID.
+        """
+        if self.coreurl != "https://ipfs.infura.io:5001/api/v0":
+            raise KeyError(self.coreurl)
+        res = self.gw.pin_rm(self.cid)
         return res
 
     def __iter__(self):
@@ -262,7 +274,7 @@ class IPFSGateway():
         params.update(kwargs)
         
         res = self.session.post(f'{self.url}/get', params=params)
-            
+        
         if res.status_code == 200:
             return res, parse_response(res)
         
