@@ -234,7 +234,7 @@ def transform_data_slice_and_append(
 
 def create_worker_chunk_engines(
     tensors: List[str],
-    label_temp_tensors: List[str],
+    label_temp_tensors: Dict[str, str],
     output_storage: StorageProvider,
     version_state,
     link_creds,
