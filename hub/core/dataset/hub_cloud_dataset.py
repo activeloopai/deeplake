@@ -1,7 +1,7 @@
 import posixpath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 from hub.client.utils import get_user_name
-from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.util.bugout_reporter import hub_reporter
@@ -229,18 +229,6 @@ class HubCloudDataset(Dataset):
 
         self.ds_name = new_name
         self.path = path
-
-    @property
-    def agreement(self) -> Optional[str]:
-        try:
-            agreement_bytes = self.storage[AGREEMENT_FILENAME]  # type: ignore
-            return agreement_bytes.decode("utf-8")
-        except KeyError:
-            return None
-
-    def add_agreeement(self, agreement: str):
-        self.storage.check_readonly()  # type: ignore
-        self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")  # type: ignore
 
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()
