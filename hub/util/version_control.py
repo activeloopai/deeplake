@@ -224,15 +224,11 @@ def copy_metas(
     tensor_list = list(tensors.keys())
 
     for tensor in tensor_list:
-        try:
-            src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
-            dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
-            src_tensor_meta = storage[src_tensor_meta_key]
-            dest_tensor_meta = convert_to_bytes(src_tensor_meta)
-            storage[dest_tensor_meta_key] = dest_tensor_meta
-        except KeyError:
-            # tensor does not exist in src commit, don't copy anything
-            continue
+        src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
+        dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
+        src_tensor_meta = storage[src_tensor_meta_key]
+        dest_tensor_meta = convert_to_bytes(src_tensor_meta)
+        storage[dest_tensor_meta_key] = dest_tensor_meta
 
         try:
             src_chunk_id_encoder_key = get_chunk_id_encoder_key(tensor, src_commit_id)
