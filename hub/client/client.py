@@ -217,13 +217,12 @@ class HubBackendClient:
             if isinstance(e, AuthorizationException):
                 response_data = e.response.json()
                 code = response_data.get("code")
-                if code is not None:
+                if code == 1:
                     agreements = response_data["agreements"]
-                    agreements = [agreements["text"] for agreements in agreements]
-                    if code == 1:
-                        raise AgreementNotAcceptedError(agreements) from e
-                    elif code == 2:
-                        raise NotLoggedInAgreementError from e
+                    agreements = [agreement["text"] for agreement in agreements]]
+                    raise AgreementNotAcceptedError(agreements) from e
+                elif code == 2:
+                    raise NotLoggedInAgreementError from e
             try:
                 decoded_token = jwt.decode(
                     self.token, options={"verify_signature": False}
