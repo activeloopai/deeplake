@@ -2,9 +2,12 @@ import hub
 import requests
 from typing import Optional
 from hub.util.exceptions import (
+    AgreementNotAcceptedError,
+    AuthorizationException,
     LoginException,
     InvalidPasswordException,
     ManagedCredentialsNotFoundError,
+    NotLoggedInAgreementError,
     ResourceNotFoundException,
     InvalidTokenException,
     UserNotLoggedInException,
@@ -12,6 +15,8 @@ from hub.util.exceptions import (
 )
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    ACCEPT_AGREEMENTS_SUFFIX,
+    REJECT_AGREEMENTS_SUFFIX,
     GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -208,7 +213,17 @@ class HubBackendClient:
                 endpoint=self.endpoint(),
                 params={"mode": mode, "no_cache": no_cache},
             ).json()
-        except Exception:
+        except Exception as e:
+            if isinstance(e, AuthorizationException):
+                response_data = e.response.json()
+                code = response_data.get("code")
+                if code is not None:
+                    agreements = response_data["agreements"]
+                    agreements = [agreements["text"] for agreements in agreements]
+                    if code == 1:
+                        raise AgreementNotAcceptedError(agreements) from e
+                    elif code == 2:
+                        raise NotLoggedInAgreementError from e
             try:
                 decoded_token = jwt.decode(
                     self.token, options={"verify_signature": False}
@@ -301,6 +316,34 @@ class HubBackendClient:
         self.request(
             "DELETE",
             suffix,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def accept_agreements(self, org_id, ds_name):
+        """Accepts the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = ACCEPT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def reject_agreements(self, org_id, ds_name):
+        """Rejects the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = REJECT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
             endpoint=self.endpoint(),
         ).json()
 

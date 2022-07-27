@@ -1,6 +1,8 @@
 from hub.core.storage.gcs import GCSProvider
+from hub.util.agreement import handle_dataset_agreements
 from hub.util.cache_chain import generate_chain
 from hub.constants import LOCAL_CACHE_PREFIX, MB
+from hub.util.exceptions import AgreementNotAcceptedError
 from hub.util.tag import process_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
@@ -10,7 +12,6 @@ from hub.core.storage import (
     S3Provider,
     MemoryProvider,
     GDriveProvider,
-    LRUCache,
 )
 from hub.client.client import HubBackendClient
 import posixpath
@@ -94,9 +95,15 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    url, creds, mode, expiration = client.get_dataset_credentials(
-        org_id, ds_name, mode=mode
-    )
+    try:
+        url, creds, mode, expiration = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode
+        )
+    except AgreementNotAcceptedError as e:
+        handle_dataset_agreements(client, e.agreements, org_id, ds_name)
+        url, creds, mode, expiration = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode
+        )
 
     if mode == "r":
         read_only = True

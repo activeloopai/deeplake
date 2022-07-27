@@ -229,7 +229,9 @@ class AuthorizationException(Exception):
     def __init__(
         self,
         message="You are not authorized to access this resource on Activeloop Server.",
+        response=None,
     ):
+        self.response = response
         super().__init__(message)
 
 
@@ -677,9 +679,17 @@ class AgreementError(Exception):
 
 
 class AgreementNotAcceptedError(AgreementError):
-    def __init__(self):
+    def __init__(self, agreements):
+        self.agreements = agreements
         super().__init__(
             "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInAgreementError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You are not logged in. Please log in to accept the agreement."
         )
 
 
