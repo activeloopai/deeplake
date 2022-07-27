@@ -204,6 +204,8 @@ class HubBackendClient:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: when there are permission or other errors related to token
+            AgreementNotAcceptedError: when user has not accepted the agreement
+            NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         try:
