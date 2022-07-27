@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from click.testing import CliRunner
 from hub.cli.auth import login, logout
 from hub.client.client import HubBackendClient
-from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInAgreementError, NotLoggedInError
+from hub.util.exceptions import AgreementNotAcceptedError, NotLoggedInAgreementError
 
 
 @contextmanager
@@ -33,10 +33,12 @@ def agree(path):
         ds = hub.load(path)
     ds.images[0].numpy()
 
+
 def reject(path):
     client = HubBackendClient()
     org_id, ds_name = path.split("/")[-2:]
     client.reject_agreements(org_id, ds_name)
+
 
 def test_agreement_logged_out(hub_cloud_dev_credentials):
     runner = CliRunner()
