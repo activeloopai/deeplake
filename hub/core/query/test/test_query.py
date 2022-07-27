@@ -136,8 +136,8 @@ def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_path
     _populate_data(ds, linked=True, n=100, paths=compressed_image_paths, labels=False)
     with pytest.raises(DatasetViewSavingError):
         ds.save_view(optimize=optimize)
-    view = ds[10:77, 2:17, 19:31, :1]
-    arr = arr[10:77, 2:17, 19:31, :1]
+    view = ds[10:77:2, 2:17, 19:31, :1]
+    arr = arr[10:77:2, 2:17, 19:31, :1]
     if not idx_subscriptable:
         view = view[0]
         arr = arr[0]
@@ -386,7 +386,7 @@ def test_query_view_union(local_ds):
 def test_view_saving_with_path(local_ds):
     with local_ds as ds:
         ds.create_tensor("nums")
-        ds.nums.extend([i for i in range(100)])
+        ds.nums.extend(list(range(100)))
         ds.commit()
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=local_ds.path)
@@ -396,3 +396,14 @@ def test_view_saving_with_path(local_ds):
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=vds_path)
         hub.delete(vds_path, force=True)
+
+
+def test_strided_view_bug(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("nums")
+        ds.nums.extend(list(range(200)))
+        ds.commit()
+    view = ds[:100:2]
+    view.save_view()
+    view2 = ds.get_views()[0].load()
+    np.testing.assert_array_equal(view.nums.numpy(), view2.nums.numpy())

@@ -119,7 +119,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "dataset", {"Overwrite": overwrite})
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -129,6 +128,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
@@ -256,8 +257,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "empty", {"Overwrite": overwrite})
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -267,6 +266,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
@@ -358,8 +359,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "load", {})
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -369,6 +368,8 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
+
+            feature_report_path(path, "load", {}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 message = (
@@ -449,7 +450,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(old_path, "rename", {})
+        feature_report_path(old_path, "rename", {}, token=token)
 
         ds = hub.load(old_path, verbose=False, token=token, creds=creds)
         ds.rename(new_path)
@@ -490,7 +491,9 @@ class dataset:
         if creds is None:
             creds = {}
 
-        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
+        feature_report_path(
+            path, "delete", {"Force": force, "Large_OK": large_ok}, token=token
+        )
 
         try:
             qtokens = ["/.queries/", "\\.queries\\"]
@@ -558,6 +561,7 @@ class dataset:
             path,
             "like",
             {"Overwrite": overwrite, "Public": public, "Tensors": tensors},
+            token=token,
         )
         return dataset._like(dest, src, tensors, overwrite, creds, token, public)
 
@@ -606,7 +610,7 @@ class dataset:
                 public=public,
             )
         feature_report_path(
-            dest_path, "like", {"Overwrite": overwrite, "Public": public}
+            dest_path, "like", {"Overwrite": overwrite, "Public": public}, token=token
         )
         src = convert_pathlib_to_string_if_needed(src)
         if isinstance(src, str):
@@ -748,7 +752,7 @@ class dataset:
         }
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params)
+        feature_report_path(src, "deepcopy", report_params, token=dest_token)
 
         src_ds = hub.load(
             src, read_only=True, creds=src_creds, token=src_token, verbose=False
