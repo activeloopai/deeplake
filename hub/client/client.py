@@ -219,7 +219,7 @@ class HubBackendClient:
                 code = response_data.get("code")
                 if code == 1:
                     agreements = response_data["agreements"]
-                    agreements = [agreement["text"] for agreement in agreements]]
+                    agreements = [agreement["text"] for agreement in agreements]
                     raise AgreementNotAcceptedError(agreements) from e
                 elif code == 2:
                     raise NotLoggedInAgreementError from e
