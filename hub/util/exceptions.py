@@ -679,7 +679,7 @@ class AgreementError(Exception):
 
 
 class AgreementNotAcceptedError(AgreementError):
-    def __init__(self, agreements):
+    def __init__(self, agreements=None):
         self.agreements = agreements
         super().__init__(
             "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
