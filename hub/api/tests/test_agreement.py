@@ -33,6 +33,10 @@ def agree(path):
         ds = hub.load(path)
     ds.images[0].numpy()
 
+    # next load should work without agreeing
+    ds = hub.load(path)
+    ds.images[0].numpy()
+
 
 def reject(path):
     client = HubBackendClient()
