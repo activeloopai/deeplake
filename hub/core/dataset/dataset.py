@@ -2972,6 +2972,8 @@ class Dataset:
             prefix = "/".join(("versions", self.pending_commit_id))
             storage.clear(prefix=prefix)
             src_id, dest_id = self.commit_id, self.pending_commit_id
+
+            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
             self.checkout(src_id)
             copy_metas(src_id, dest_id, storage, version_state)
             create_commit_chunk_sets(dest_id, storage, version_state)
