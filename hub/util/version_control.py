@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
@@ -199,13 +199,12 @@ def copy_metas(
     src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
+    src_tensors: List[str],
 ) -> None:
     """Copies meta data from one commit to another."""
     initial_autoflush = storage.autoflush
     storage.autoflush = False
 
-    tensors = version_state["full_tensors"]
     src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
     src_dataset_meta = storage[src_dataset_meta_key]
@@ -221,9 +220,7 @@ def copy_metas(
     except KeyError:
         pass
 
-    tensor_list = list(tensors.keys())
-
-    for tensor in tensor_list:
+    for tensor in src_tensors:
         try:
             src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
             dest_tensor_meta_key = get_tensor_meta_key(tensor, dest_commit_id)
@@ -232,7 +229,6 @@ def copy_metas(
             storage[dest_tensor_meta_key] = dest_tensor_meta
         except KeyError:
             # tensor does not exist in src commit, don't copy anything
-            version_state["full_tensors"].pop(tensor)
             continue
 
         try:
@@ -287,11 +283,10 @@ def copy_metas(
 def create_commit_chunk_sets(
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
+    src_tensors: List[str],
 ) -> None:
     """Creates commit chunk sets for all tensors in new commit."""
-    tensor_list = version_state["full_tensors"].keys()
-    for tensor in tensor_list:
+    for tensor in src_tensors:
         key = get_tensor_commit_chunk_set_key(tensor, dest_commit_id)
         storage[key] = CommitChunkSet()
 

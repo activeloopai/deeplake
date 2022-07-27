@@ -2971,8 +2971,12 @@ class Dataset:
         else:
             prefix = "/".join(("versions", self.pending_commit_id))
             storage.clear(prefix=prefix)
-            copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
-            create_commit_chunk_sets(self.pending_commit_id, storage, version_state)
+            src_id, dest_id = self.commit_id, self.pending_commit_id
+            self.checkout(src_id)
+            src_tensors = self.tensors.keys()
+            copy_metas(src_id, dest_id, storage, src_tensors)
+            create_commit_chunk_sets(dest_id, storage, src_tensors)
+            self.checkout(dest_id)
         load_meta(self)
         self._info = None
         self._ds_diff = None
