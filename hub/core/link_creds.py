@@ -1,10 +1,12 @@
 import json
 from typing import Optional
+import warnings
 from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.ipfs import IPFSProvider
+from hub.util.token import expires_in_to_expires_at, is_expired_token
 
 
 class LinkCreds(HubMemoryObject):
@@ -18,8 +20,33 @@ class LinkCreds(HubMemoryObject):
         self.default_s3_provider = None
         self.default_ipfs_provider = None
         self.default_gcs_provider = None
+        self.client = None
+        self.org_id = None
 
-    def get_default_provider(self, provider_type):
+    def get_creds(self, key: Optional[str]):
+        if key in {"ENV", None}:
+            return {}
+        if key not in self.creds_keys:
+            raise KeyError(f"Creds key {key} does not exist")
+        if key not in self.creds_dict:
+            raise ValueError(
+                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
+            )
+        if (
+            self.client is not None
+            and key in self.managed_creds_keys
+            and is_expired_token(self.creds_dict[key])
+        ):
+            self.refresh_managed_creds(key)  # type: ignore
+        return self.creds_dict[key]
+
+    def refresh_managed_creds(self, creds_key: str):
+        if creds_key not in self.managed_creds_keys:
+            raise ValueError(f"Creds key {creds_key} is not managed")
+        creds = self.fetch_managed_creds(creds_key)
+        self.populate_creds(creds_key, creds)
+
+    def get_default_provider(self, provider_type: str):
         if provider_type == "s3":
             if self.default_s3_provider is None:
                 self.default_s3_provider = S3Provider("s3://bucket/path")
@@ -37,17 +64,12 @@ class LinkCreds(HubMemoryObject):
 
     def get_storage_provider(self, key: Optional[str], provider_type):
         assert provider_type in {"s3", "gcs", "ipfs"}
+
         if key in {"ENV", None}:
             return self.get_default_provider(provider_type)
-        if key not in self.creds_keys:
-            raise KeyError(f"Creds key {key} does not exist")
-        if key not in self.creds_dict:
-            raise ValueError(
-                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
-            )
 
         provider: StorageProvider
-        creds = self.creds_dict[key]
+        creds = self.get_creds(key)
 
         if provider_type == "s3":
             if key in self.storage_providers:
@@ -78,10 +100,13 @@ class LinkCreds(HubMemoryObject):
     def add_creds_key(self, creds_key: str, managed: bool = False):
         if creds_key in self.creds_keys:
             raise ValueError(f"Creds key {creds_key} already exists")
+        if managed:
+            creds = self.fetch_managed_creds(creds_key)
         self.creds_keys.append(creds_key)
         self.creds_mapping[creds_key] = len(self.creds_keys)
         if managed:
             self.managed_creds_keys.add(creds_key)
+            self.populate_creds(creds_key, creds)
 
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         if old_creds_key not in self.creds_keys:
@@ -118,6 +143,7 @@ class LinkCreds(HubMemoryObject):
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
             raise KeyError(f"Creds key {creds_key} does not exist")
+        expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
 
     def add_to_used_creds(self, creds_key: str):
@@ -185,6 +211,8 @@ class LinkCreds(HubMemoryObject):
         self.default_s3_provider = None
         self.default_ipfs_provider = None
         self.default_gcs_provider = None
+        self.client = None
+        self.org_id = None
 
     def __len__(self):
         return len(self.creds_keys)
@@ -192,3 +220,42 @@ class LinkCreds(HubMemoryObject):
     @property
     def missing_keys(self) -> list:
         return [key for key in self.creds_keys if key not in self.creds_dict]
+
+    def populate_all_managed_creds(self):
+        assert self.client is not None
+        assert self.org_id is not None
+        for creds_key in self.managed_creds_keys:
+            creds = self.fetch_managed_creds(creds_key)
+            self.populate_creds(creds_key, creds)
+
+    def fetch_managed_creds(self, creds_key: str):
+        creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
+        return creds
+
+    def change_creds_management(self, creds_key: str, managed: bool) -> bool:
+        if creds_key not in self.creds_keys:
+            raise KeyError(f"Creds key {creds_key} not found.")
+        is_managed = creds_key in self.managed_creds_keys
+        if is_managed == managed:
+            return False
+        if managed:
+            creds = self.fetch_managed_creds(creds_key)
+            self.managed_creds_keys.add(creds_key)
+            self.populate_creds(creds_key, creds)
+        else:
+            self.managed_creds_keys.discard(creds_key)
+
+        return True
+
+    def warn_missing_managed_creds(self):
+        """Warns about any missing managed creds that were added in parallel by someone else."""
+        missing_creds = self.missing_keys
+
+        missing_managed_creds = [
+            creds for creds in missing_creds if creds in self.managed_creds_keys
+        ]
+        if missing_managed_creds:
+            warnings.warn(
+                f"There are some managed creds missing ({missing_managed_creds}) that were added after the dataset was loaded. Reload the dataset to load them."
+            )

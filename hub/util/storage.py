@@ -65,7 +65,11 @@ def storage_provider_from_path(
             profile_name=profile,
             token=token,
         )
-    elif path.startswith("gcp://") or path.startswith("gcs://"):
+    elif (
+        path.startswith("gcp://")
+        or path.startswith("gcs://")
+        or path.startswith("gs://")
+    ):
         storage = GCSProvider(path, creds)
     elif path.startswith("gdrive://"):
         storage = GDriveProvider(path, creds)
@@ -99,7 +103,9 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
+    url, creds, mode, expiration = client.get_dataset_credentials(
+        org_id, ds_name, mode=mode
+    )
 
     if mode == "r":
         read_only = True

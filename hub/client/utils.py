@@ -20,14 +20,14 @@ from hub.util.exceptions import (
     ResourceNotFoundException,
     ServerException,
     UnexpectedStatusCodeException,
-    InvalidTokenException,
+    EmptyTokenException,
 )
 
 
 def write_token(token: str):
     """Writes the auth token to the token file."""
     if not token:
-        raise InvalidTokenException
+        raise EmptyTokenException
     path = Path(TOKEN_FILE_PATH)
     os.makedirs(path.parent, exist_ok=True)
     with open(TOKEN_FILE_PATH, "w") as f:

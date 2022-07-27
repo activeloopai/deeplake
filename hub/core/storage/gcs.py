@@ -32,6 +32,10 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 
 
+def _remove_protocol_from_path(path: str) -> str:
+    return path.replace("gcp://", "").replace("gcs://", "").replace("gs://", "")
+
+
 class GCloudCredentials:
     def __init__(self, token: Union[str, Dict] = None, project: str = None):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
@@ -237,6 +241,7 @@ class GCSProvider(StorageProvider):
         )
         self._initialize_provider()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
+        self.expiration: Optional[str] = None
 
     def subdir(self, path: str):
         return self.__class__(
@@ -261,7 +266,7 @@ class GCSProvider(StorageProvider):
         return self._client_bucket
 
     def _set_bucket_and_path(self):
-        root = self.root.replace("gcp://", "").replace("gcs://", "")
+        root = _remove_protocol_from_path(self.root)
         split_root = root.split("/", 1)
         self.bucket = split_root[0]
         if len(split_root) > 1:
@@ -278,6 +283,18 @@ class GCSProvider(StorageProvider):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
+    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+        """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
+        This info is used to fetch new credentials when the temporary 12 hour credentials expire.
+
+        Args:
+            hub_path (str): The hub cloud path to the dataset.
+            expiration (str): The time at which the credentials expire.
+        """
+        self.hub_path = hub_path
+        self.tag = hub_path[6:]  # removing the hub:// part from the path
+        self.expiration = expiration
+
     def clear(self, prefix=""):
         """Remove all keys with given prefix below root - empties out mapping"""
         self.check_readonly()
@@ -292,7 +309,7 @@ class GCSProvider(StorageProvider):
     def rename(self, root):
         """Rename root folder"""
         self.check_readonly()
-        path = root.replace("gcs://", "").replace("gcp://", "")
+        path = _remove_protocol_from_path(root)
         new_bucket, new_path = path.split("/", 1)
         if new_bucket != self.client_bucket.name:
             raise RenameError
@@ -401,7 +418,7 @@ class GCSProvider(StorageProvider):
 
     def get_presigned_url(self, key, full=False):
         if full:
-            root = key.replace("gcp://", "").replace("gcs://", "")
+            root = _remove_protocol_from_path(key)
             split_root = root.split("/", 1)
             bucket = split_root[0]
             key = split_root[1] if len(split_root) > 1 else ""
@@ -437,7 +454,7 @@ class GCSProvider(StorageProvider):
         return blob.size
 
     def get_object_from_full_url(self, url: str):
-        root = url.replace("gcp://", "").replace("gcs://", "")
+        root = _remove_protocol_from_path(url)
         split_root = root.split("/", 1)
         bucket = split_root[0]
         path = split_root[1] if len(split_root) > 1 else ""
