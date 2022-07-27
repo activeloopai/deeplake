@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import warnings
 from hub.client.log import logger
 from hub.constants import FIRST_COMMIT_ID
