@@ -2973,9 +2973,8 @@ class Dataset:
             storage.clear(prefix=prefix)
             src_id, dest_id = self.commit_id, self.pending_commit_id
             self.checkout(src_id)
-            src_tensors = self.tensors.keys()
-            copy_metas(src_id, dest_id, storage, src_tensors)
-            create_commit_chunk_sets(dest_id, storage, src_tensors)
+            copy_metas(src_id, dest_id, storage, version_state)
+            create_commit_chunk_sets(dest_id, storage, version_state)
             self.checkout(dest_id)
         load_meta(self)
         self._info = None
