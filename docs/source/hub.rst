@@ -39,9 +39,11 @@ Renaming Datasets
 ~~~~~~~~~~~~~~~~~
 .. autofunction:: rename
 
-List Datasets
-~~~~~~~~~~~~~
+Helper Functions
+~~~~~~~~~~~~~~~~
 .. autofunction:: list
+
+.. autofunction:: exists
 
 Htypes
 ~~~~~~
@@ -68,3 +70,16 @@ Parallelism
 
 .. autofunction:: hub.compute
 .. autofunction:: hub.compose
+
+Dataset
+~~~~~~~
+.. class::  Dataset
+    
+    Alias for :class:`hub.core.dataset.dataset.Dataset`
+
+Tensor
+~~~~~~
+
+.. class:: Tensor
+
+    Alias for :class:`hub.core.tensor.Tensor`

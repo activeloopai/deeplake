@@ -11,14 +11,15 @@ Hub API Reference
 Hub is an open-source database for AI.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Python API
 
    hub
+   hub.core
+   hub.core.dataset
+   hub.core.tensor
    hub.api
    hub.auto
-   hub.cli
-   hub.core.dataset
 
 
 

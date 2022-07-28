@@ -2,7 +2,6 @@ hub.api
 =======
 .. toctree::
     :maxdepth: 2
-    :caption: hub.api
 
     hub.api.dataset
     hub.api.info

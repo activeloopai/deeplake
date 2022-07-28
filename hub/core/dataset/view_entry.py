@@ -39,7 +39,7 @@ class ViewEntry:
         return self.info["virtual-datasource"]
 
     def load(self):
-        "Loads the view and returns the `hub.Dataset`."
+        "Loads the view and returns the :class:`~hub.core.dataset.dataset.Dataset`."
         ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
@@ -52,24 +52,20 @@ class ViewEntry:
             the size of the data.
 
         Args:
-            unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
-                    - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
+            unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
             progressbar (bool): Whether to display a progressbar.
 
         Returns:
-            `hub.core.dataset.view_entry.ViewEntry`
+            :class:`ViewEntry`
 
         Examples:
-            ```
-            # save view
-            ds[:10].save_view(view_id="first_10")
-
-            # optimize view
-            ds.get_view("first_10").optimize()
-
-            # load optimized view
-            ds.load_view("first_10")
-            ```
+            >>> # save view
+            >>> ds[:10].save_view(view_id="first_10")
+            >>> # optimize view
+            >>> ds.get_view("first_10").optimize()
+            >>> # load optimized view
+            >>> ds.load_view("first_10")
         """
         self.info = self._ds._optimize_saved_view(
             self.info["id"],

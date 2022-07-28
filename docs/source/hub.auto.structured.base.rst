@@ -1,3 +1,5 @@
 hub.auto.structured.base
 ========================
-.. automodule:: hub.auto.structured.base
+.. currentmodule:: hub.auto.structured.base
+.. autoclass:: StructuredDataset
+    :members:

@@ -1,4 +1,7 @@
 hub.auto
 ========
-.. autopackagesummary:: hub.auto
-    :toctree: generated
+.. toctree::
+    :maxdepth: 2
+
+    hub.auto.structured
+    hub.auto.unstructured

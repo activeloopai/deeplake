@@ -372,6 +372,7 @@ class dataset:
         token: Optional[str] = None,
     ) -> Dataset:
         """Renames dataset at ``old_path`` to ``new_path``.
+
         Examples:
 
             >>> hub.rename("hub://username/image_ds", "hub://username/new_ds")
