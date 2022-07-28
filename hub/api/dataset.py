@@ -59,7 +59,7 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
     ):
-        """Returns a ``Dataset`` object referencing either a new or existing dataset.
+        """Returns a :class:`Dataset` object referencing either a new or existing dataset.
 
         Warning:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
@@ -903,7 +903,7 @@ class dataset:
         summary: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset from a source and stores it as a structured dataset to destination
+        """Ingests a dataset from a source and stores it as a structured dataset to destination.
 
         Note:
             - Currently only local source paths and image classification datasets / csv files are supported for automatic ingestion.
@@ -943,8 +943,7 @@ class dataset:
                     ...
 
             - Classes defined as sub-directories can be accessed at ``ds["test/labels"].info.class_names``.
-            - Support for train and test sub directories is present under ``ds["train/images"]``, ``ds["train/labels"]``
-            and ``ds["test/images"]``, ``ds["test/labels"]``
+            - Support for train and test sub directories is present under ``ds["train/images"]``, ``ds["train/labels"]`` and ``ds["test/images"]``, ``ds["test/labels"]``.
             - Mapping filenames to classes from an external file is currently not supported.
 
         Args:
@@ -954,6 +953,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.

@@ -45,7 +45,7 @@ class ViewEntry:
         return self.info["virtual-datasource"]
 
     def load(self, verbose=True):
-        """Loads the view and returns the :class:`~hub.Dataset`.
+        """Loads the view and returns the :class:`~hub.core.dataset.Dataset`.
 
         Args:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
@@ -67,32 +67,28 @@ class ViewEntry:
         self, unlink=True, num_workers=0, scheduler="threaded", progressbar=True
     ):
         """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
-                    speeds when training models using the dataset view. The optimization process will take some time, depending on
-                    the size of the data.
+        speeds when training models using the dataset view. The optimization process will take some time, depending on
+        the size of the data.
 
-                Args:
-        <<<<<<< HEAD
-                    unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
-                            - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
-        =======
-                    unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
-                            - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
-                    num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
-                    scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                        Only applicable if `optimize=True`. Defaults to 'threaded'.
-        >>>>>>> 488de41a3d5063f9cafcbfcf73373abaf1493b94
-                    progressbar (bool): Whether to display a progressbar.
+        Example:
 
-                Returns:
-                    :class:`ViewEntry`
+            >>> # save view
+            >>> ds[:10].save_view(view_id="first_10")
+            >>> # optimize view
+            >>> ds.get_view("first_10").optimize()
+            >>> # load optimized view
+            >>> ds.load_view("first_10")
 
-                Examples:
-                    >>> # save view
-                    >>> ds[:10].save_view(view_id="first_10")
-                    >>> # optimize view
-                    >>> ds.get_view("first_10").optimize()
-                    >>> # load optimized view
-                    >>> ds.load_view("first_10")
+        Args:
+            unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
+                    - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
+            num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                Only applicable if ``optimize=True``. Defaults to 'threaded'.
+            progressbar (bool): Whether to display a progressbar.
+
+        Returns:
+            :class:`ViewEntry`
         """
         self.info = self._ds._optimize_saved_view(
             self.info["id"],

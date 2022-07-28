@@ -73,22 +73,22 @@ def ingest_huggingface(
 
     Note:
         - if DatasetDict looks like:
-        ```
-            {
-                train: Dataset({
-                    features: ['data']
-                }),
-                validation: Dataset({
-                    features: ['data']
-                }),
-                test: Dataset({
-                    features: ['data']
-                }),
-            }
-        ```
-        it will be converted to a Hub `Dataset` with tensors `['train/data', 'validation/data', 'test/data']`.
 
-        Features of the type `Sequence(feature=Value(dtype='string'))` are not supported. Columns of such type are skipped.
+            >>> {
+            ...    train: Dataset({
+            ...        features: ['data']
+            ...    }),
+            ...    validation: Dataset({
+            ...        features: ['data']
+            ...    }),
+            ...    test: Dataset({
+            ...        features: ['data']
+            ...    }),
+            ... }
+
+        it will be converted to a Hub :class:`Dataset` with tensors ``['train/data', 'validation/data', 'test/data']``.
+
+        Features of the type ``Sequence(feature=Value(dtype='string'))`` are not supported. Columns of such type are skipped.
 
     Args:
         src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a

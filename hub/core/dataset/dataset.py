@@ -414,22 +414,22 @@ class Dataset:
                 - For example, ``htype="image"`` would have ``dtype`` default to ``uint8``.
                 - These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 - May also modify the defaults for other parameters.
+
             dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``.
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
+            hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
+            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via tensor[i].:attr:`~Tensor.sample_info`.
+            create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
+            create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
+            verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
+            exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
-                - To see all htypes and their correspondent arguments, check out :ref:`Htype`.
-            hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
-            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via `tensor[i].sample_info`.
-            create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
-            create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created.
-                This is useful for merge operations.
-            verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
-            exist_ok: If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
+                - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
 
         Returns:
-            The new tensor, which can also be accessed by ``dataset[name]``.
+            Tensor: The new tensor, which can be accessed by ``dataset[name]`` or ``dataset.name``.
 
         Raises:
             TensorAlreadyExistsError: If the tensor already exists and ``exist_ok`` is ``False``.
@@ -1034,17 +1034,17 @@ class Dataset:
 
         Args:
             target_id (str): The commit_id or branch to merge.
-            conflict_resolution (str, Optional): The strategy to use to resolve merge conflicts.
-                -
+            conflict_resolution (str, Optional):
+                - The strategy to use to resolve merge conflicts.
                 - Conflicts are scenarios where both the current dataset and the target id have made changes to the same sample/s since their common ancestor.
                 - Must be one of the following
                     - None - this is the default value, will raise an exception if there are conflicts.
                     - "ours" - during conflicts, values from the current dataset will be used.
                     - "theirs" - during conflicts, values from target id will be used.
             delete_removed_tensors (bool): If ``True``, deleted tensors will be deleted from the dataset.
-            force (bool): Forces merge.
-                -
-                - `force` = True will have these effects in the following cases of merge conflicts:
+            force (bool):
+                - Forces merge.
+                - ``force=True`` will have these effects in the following cases of merge conflicts:
                     - If tensor is renamed on target but is missing from HEAD, renamed tensor will be registered as a new tensor on current branch.
                     - If tensor is renamed on both target and current branch, tensor on target will be registered as a new tensor on current branch.
                     - If tensor is renamed on target and a new tensor of the new name was created on the current branch, they will be merged.
@@ -1443,7 +1443,7 @@ class Dataset:
         save_result: bool = False,
         result_path: Optional[str] = None,
         result_ds_args: Optional[dict] = None,
-    ) -> hub.Dataset:
+    ):
         """Filters the dataset in accordance of filter function ``f(x: sample) -> bool``
 
         Args:
@@ -1749,6 +1749,11 @@ class Dataset:
         return commits
 
     def get_commit_details(self, commit_id) -> Dict:
+        """Get details of a particular commit.
+
+        Args:
+            commit_id (str): commit id of the commit.
+        """
         commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
         if commit_node is None:
             raise KeyError(f"Commit {commit_id} not found in dataset.")
@@ -2315,6 +2320,7 @@ class Dataset:
         """Saves a dataset view as a virtual dataset (VDS)
 
         Examples:
+
             >>> # Save to specified path
             >>> vds_path = ds[:10].save_view(path="views/first_10", id="first_10")
             >>> vds_path
@@ -2337,14 +2343,12 @@ class Dataset:
                 - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
                 - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
-            optimize (bool): - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is
-                necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
-                take some time, depending on the size of the data.
-                - You can also choose to optimize the saved view later by calling its `optimize` method:
-                See :func:`hub.core.dataset.view_entry.ViewEntry.optimize`.
+            optimize (bool):
+                - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
+                - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
+
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Only applicable if ``optimize=True``. Defaults to 'threaded'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`hub.dataset()`)
 
@@ -2573,7 +2577,7 @@ class Dataset:
         return list(ret)
 
     def get_view(self, id: str) -> ViewEntry:
-        """Returns the dataset view corresponding to `id`
+        """Returns the dataset view corresponding to ``id``.
 
         Examples:
             >>> # save view
@@ -3231,6 +3235,7 @@ class Dataset:
 
     @property
     def is_view(self) -> bool:
+        """Returns ``True`` if this dataset is a view and ``False`` otherwise."""
         return (
             not self.index.is_trivial()
             or hasattr(self, "_vds")

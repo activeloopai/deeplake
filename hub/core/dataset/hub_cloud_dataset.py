@@ -18,8 +18,8 @@ import hub
 
 
 class HubCloudDataset(Dataset):
-    """Hub cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
-    ``hub://username/dataset_name``"""
+    """Subclass of :class:`Dataset`. Hub cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
+    ``hub://username/dataset_name``."""
 
     def _first_load_init(self, verbose=True):
         self._set_org_and_name()

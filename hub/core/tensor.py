@@ -14,7 +14,7 @@ from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.compression import _read_timestamps
 from hub.core.tensor_link import get_link_transform
-from hub.api.info import load_info
+from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -313,11 +313,24 @@ class Tensor:
         )
 
     @property
-    def info(self):
-        """Returns the information about the tensor.
+    def info(self) -> Info:
+        """Returns the information about the tensor. User can set info of tensor.
 
         Returns:
-            TensorInfo: Information about the tensor.
+            Info: Information about the tensor.
+
+        Example:
+
+            >>> # update info
+            >>> ds.images.info.update(large=True, gray=False)
+            >>> # get info
+            >>> ds.images.info
+            {'large': True, 'gray': False}
+
+            >>> ds.images.info = {"complete": True}
+            >>> ds.images.info
+            {'complete': True}
+
         """
         commit_id = self.version_state["commit_id"]
         chunk_engine = self.chunk_engine
@@ -407,6 +420,7 @@ class Tensor:
 
     @property
     def meta(self):
+        """Metadata of the tensor."""
         return self.chunk_engine.tensor_meta
 
     @property
@@ -418,14 +432,14 @@ class Tensor:
             use :attr:`shape_interval` instead.
 
         Example:
+
             >>> tensor.append(np.zeros((10, 10)))
             >>> tensor.append(np.zeros((10, 15)))
             >>> tensor.shape
             (2, 10, None)
 
         Returns:
-            tuple: Tuple where each value is either ``None`` (if that axis is dynamic) or
-                an int (if that axis is fixed).
+            tuple: Tuple where each value is either ``None`` (if that axis is dynamic) or an int (if that axis is fixed).
         """
         sample_shape_tensor = self._sample_shape_tensor
         sample_shape_provider = (
@@ -454,10 +468,12 @@ class Tensor:
 
     @property
     def ndim(self) -> int:
+        """Number of dimensions of the tensor."""
         return self.chunk_engine.ndim(self.index)
 
     @property
     def dtype(self) -> Optional[np.dtype]:
+        """Dtype of the tensor."""
         if self.base_htype in ("json", "list"):
             return np.dtype(str)
         if self.meta.dtype:
@@ -466,18 +482,22 @@ class Tensor:
 
     @property
     def is_sequence(self):
+        """Whether this tensor is a sequence tensor."""
         return self.meta.is_sequence
 
     @property
     def is_link(self):
+        """Whether this tensor is a link tensor."""
         return self.meta.is_link
 
     @property
     def verify(self):
+        """Whether linked data will be verified when samples are added. Applicable only to tensors with htype ``link[htype]``."""
         return self.is_link and self.meta.verify
 
     @property
     def htype(self):
+        """Htype of the tensor."""
         htype = self.meta.htype
         if self.is_sequence:
             htype = f"sequence[{htype}]"
@@ -487,15 +507,26 @@ class Tensor:
 
     @property
     def hidden(self) -> bool:
+        """Whether this tensor is a hidden tensor."""
         return self.meta.hidden
 
     @property
     def base_htype(self):
+        """Base htype of the tensor.
+
+        Example:
+
+            >>> ds.create_tensor("video_seq", htype="sequence[video]", sample_compression="mp4")
+            >>> ds.video_seq.htype
+            sequence[video]
+            >>> ds.video_seq.base_htype
+            video
+        """
         return self.meta.htype
 
     @property
     def shape_interval(self) -> ShapeInterval:
-        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+        """Returns a :class:`ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Note:
             If you are expecting a tuple, use :attr:`shape` instead.
@@ -516,7 +547,7 @@ class Tensor:
 
     @property
     def is_dynamic(self) -> bool:
-        """Will return True if samples in this tensor have shapes that are unequal."""
+        """Will return ``True`` if samples in this tensor have shapes that are unequal."""
         return self.shape_interval.is_dynamic
 
     @property
@@ -661,6 +692,7 @@ class Tensor:
                 an error is raised.
             fetch_chunks (bool): If ``True``, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
                 This will always be ``True`` even if specified as ``False`` in the following cases:
+
                 - The tensor is ChunkCompressed.
                 - The chunk which is being accessed has more than 128 samples.
 
@@ -679,6 +711,7 @@ class Tensor:
         )
 
     def summary(self):
+        """Prints a summary of the tensor."""
         pretty_print = summary_tensor(self)
 
         print(self)
@@ -744,19 +777,40 @@ class Tensor:
         pass
 
     def data(self, aslist: bool = False) -> Any:
-        htype = self.base_htype
-        if htype in ("json", "text"):
+        """Returns data in the tensor in a format based on the tensor's base htype.
 
-            if self.ndim == 1:
-                return {"value": self.numpy()[0]}
-            else:
-                return {"value": [sample[0] for sample in self.numpy(aslist=True)]}
-        elif htype == "list":
-            if self.ndim == 1:
-                return {"value": list(self.numpy())}
-            else:
-                return {"value": list(map(list, self.numpy(aslist=True)))}
-        elif self.htype == "video":
+        - Equivalent to :meth:`text` for tensors with base htype of 'text'.
+
+        - Equivalent to :meth:`json` for tensors with base htype of 'json'.
+
+        - Equivalent to :meth:`list` for tensors with base htype of 'list'.
+
+        - For video tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
+
+            - Value of dict["frames"] will be same as :meth:`numpy`.
+            - Value of dict["timestamps"] will be same as :attr:`timestamps` corresponding to the frames.
+            - Value of dict["sample_info"] will be same as :attr:`sample_info`.
+
+        - For class_label tensors, returns a dict with keys "value" and "text".
+
+            - Value of dict["value"] will be same as :meth:`numpy`.
+            - Value of dict["text"] will be list of class labels as strings.
+
+        - For image or dicom tensors, returns dict with keys "value" and "sample_info".
+
+            - Value of dict["value"] will be same as :meth:`numpy`.
+            - Value of dict["sample_info"] will be same as :attr:`sample_info`.
+
+        - For all else, returns dict with key "value" with value same as :meth:`numpy`.
+        """
+        htype = self.base_htype
+        if htype == "text":
+            return self.text()
+        if htype == "json":
+            return self.json()
+        if htype == "list":
+            return self.list()
+        if self.htype == "video":
             data = {}
             data["frames"] = self.numpy(aslist=aslist)
             index = self.index
@@ -783,22 +837,21 @@ class Tensor:
 
             data["sample_info"] = self.sample_info
             return data
-        elif htype == "class_label":
+        if htype == "class_label":
             labels = self.numpy(aslist=aslist)
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
                 data["text"] = convert_to_text(labels, self.info.class_names)
             return data
-        elif htype in ("image", "image.rgb", "image.gray", "dicom"):
+        if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
             }
-        else:
-            return {
-                "value": self.numpy(aslist=aslist),
-            }
+        return {
+            "value": self.numpy(aslist=aslist),
+        }
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.
@@ -922,7 +975,17 @@ class Tensor:
         return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
 
     @property
-    def sample_info(self):
+    def sample_info(self) -> Union[Dict, List[Dict]]:
+        """Returns info about particular samples in a tensor. Returns dict in case of single sample, otherwise list of dicts.
+        Data in returned dict would depend on the tensor's htype and the sample itself.
+
+        Example:
+
+            >>> ds.videos[0].sample_info
+            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../hub/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
+            >>> ds.images[:2].sample_info
+            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/car.jpg', 'modified': False}]
+        """
         return self._sample_info(self.index)
 
     def _linked_sample(self):
@@ -941,6 +1004,17 @@ class Tensor:
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
+        """Play video sample. Plays video in Jupyter notebook or plays in web browser. Video is streamed directly from storage.
+
+        Note:
+            Video streaming is not yet supported on colab.
+
+        Example:
+
+            >>> ds = hub.load("./test/my_video_ds")
+            >>> # play second sample
+            >>> ds.videos[2].play()
+        """
         if (
             get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
             and self.htype != "link[video]"
@@ -974,15 +1048,15 @@ class Tensor:
     def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
 
-        Examples:
+        Example:
 
-        >>> #Return timestamps for all frames of first video sample
-        >>> ds.video[0].timestamp
-
-        >>> #Return timestamps for 5th to 10th frame of first video sample
-        >>> ds.video[0, 5:10].timestamp
-        array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
-        dtype=float32)
+            >>> # Return timestamps for all frames of first video sample
+            >>> ds.videos[0].timestamps.shape
+            (400,)
+            >>> # Return timestamps for 5th to 10th frame of first video sample
+            >>> ds.videos[0, 5:10].timestamps
+            array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
+            dtype=float32)
 
         """
         if (
@@ -1029,6 +1103,7 @@ class Tensor:
 
     @property
     def sample_indices(self):
+        """Returns all the indices pointed to by this tensor in the dataset view."""
         return self.dataset._sample_indices(self.num_samples)
 
     def _extract_value(self, htype):
@@ -1041,12 +1116,15 @@ class Tensor:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
     def text(self):
+        """Return text data. Only applicable for tensors with 'text' base htype."""
         return self._extract_value("text")
 
     def dict(self):
+        """Return json data. Only applicable for tensors with 'json' base htype."""
         return self._extract_value("json")
 
     def list(self):
+        """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
             raise Exception(f"Only supported for list tensors.")
 
