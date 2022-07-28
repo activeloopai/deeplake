@@ -46,7 +46,7 @@ def save_reporting_config(
         reporting_config["client_id"] = str(uuid.uuid4())
 
     if username is not None:
-        reporting_config["username"] = username
+        reporting_config["client_id"] = username
 
     reporting_config["consent"] = consent
 
