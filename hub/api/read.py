@@ -46,7 +46,7 @@ def read(
     Args:
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
-        creds (optional, Dict): Credentials for s3 and gcp for urls.
+        creds (optional, Dict): Credentials for s3, gcp and http urls.
         compression (optional, str): Format of the file. Only required if path does not have an extension.
         storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
 

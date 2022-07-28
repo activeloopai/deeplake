@@ -1,4 +1,10 @@
 from typing import Dict, Optional, Any
+from hub.client.log import logger
+
+from hub.util.tag import process_hub_path
+from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
+from hub.util.logging import log_visualizer_link
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 
 
 class ViewEntry:
@@ -38,39 +44,62 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self):
-        "Loads the view and returns the :class:`~hub.core.dataset.dataset.Dataset`."
-        ds = self._ds._sub_ds(".queries/" + (self.info.get("path") or self.info["id"]))
+    def load(self, verbose=True):
+        """Loads the view and returns the :class:`~hub.Dataset`.
+
+        Args:
+            verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+        """
+        ds = self._ds._sub_ds(
+            ".queries/" + (self.info.get("path") or self.info["id"]),
+            lock=False,
+            verbose=False,
+        )
+        sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
+        if verbose:
+            log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])
         return ds
 
-    def optimize(self, unlink=True, progressbar=True):
+    def optimize(
+        self, unlink=True, num_workers=0, scheduler="threaded", progressbar=True
+    ):
         """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
-            speeds when training models using the dataset view. The optimization process will take some time, depending on
-            the size of the data.
+                    speeds when training models using the dataset view. The optimization process will take some time, depending on
+                    the size of the data.
 
-        Args:
-            unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
-                    - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
-            progressbar (bool): Whether to display a progressbar.
+                Args:
+        <<<<<<< HEAD
+                    unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
+                            - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
+        =======
+                    unlink (bool): - If True, this unlinks linked tensors (if any) by copying data from the links to the view.
+                            - This does not apply to linked videos. Set `hub.\0constants._UNLINK_VIDEOS` to `True` to change this behavior.
+                    num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
+                    scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+                        Only applicable if `optimize=True`. Defaults to 'threaded'.
+        >>>>>>> 488de41a3d5063f9cafcbfcf73373abaf1493b94
+                    progressbar (bool): Whether to display a progressbar.
 
-        Returns:
-            :class:`ViewEntry`
+                Returns:
+                    :class:`ViewEntry`
 
-        Examples:
-            >>> # save view
-            >>> ds[:10].save_view(view_id="first_10")
-            >>> # optimize view
-            >>> ds.get_view("first_10").optimize()
-            >>> # load optimized view
-            >>> ds.load_view("first_10")
+                Examples:
+                    >>> # save view
+                    >>> ds[:10].save_view(view_id="first_10")
+                    >>> # optimize view
+                    >>> ds.get_view("first_10").optimize()
+                    >>> # load optimized view
+                    >>> ds.load_view("first_10")
         """
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
             external=self._external,
             unlink=unlink,
+            num_workers=num_workers,
+            scheduler=scheduler,
             progressbar=progressbar,
         )
         return self
