@@ -1740,14 +1740,12 @@ class ChunkEngine:
 
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk_ids, rows, delete = enc.pop(global_sample_index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[global_sample_index]
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
             chunk_to_update.pop(local_sample_index)
 
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
