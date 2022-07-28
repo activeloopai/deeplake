@@ -1150,6 +1150,8 @@ class ChunkEngine:
 
     def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
+        if not self.is_rechunkable:
+            return
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
@@ -1748,8 +1750,7 @@ class ChunkEngine:
             )
             chunk_to_update.pop(local_sample_index)
 
-            if self.is_rechunkable:
-                self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
 
             if (
                 self.active_updated_chunk is not None
