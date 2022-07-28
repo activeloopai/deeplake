@@ -1,5 +1,5 @@
 hub.auto.unstructured
-===================
+=====================
 .. toctree::
     :maxdepth: 2
     :caption: hub.auto.unstructured

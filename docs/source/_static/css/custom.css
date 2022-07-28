@@ -65,6 +65,10 @@ a.reference.internal {
     font-family: ProximaNova;
 }
 
+.section>h3 {
+    font-family: ProximaNova;
+}
+
 .pre {
     color: rgb(66, 63, 63);
     font-family: ProximaNova;

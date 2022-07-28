@@ -1,3 +1,0 @@
-Htype
-=====
-.. automodule:: hub.htype
