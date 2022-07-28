@@ -1439,7 +1439,7 @@ class Dataset:
         save_result: bool = False,
         result_path: Optional[str] = None,
         result_ds_args: Optional[dict] = None,
-    ):
+    ) -> hub.Dataset:
         """Filters the dataset in accordance of filter function ``f(x: sample) -> bool``
 
         Args:
@@ -1547,7 +1547,7 @@ class Dataset:
         See https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
         Args:
-            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
             tobytes (bool): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
@@ -1590,16 +1590,15 @@ class Dataset:
         """Renames the dataset to `path`.
 
         Example:
-            ```
+
             ds = hub.load("hub://username/dataset")
             ds.rename("hub://username/renamed_dataset")
-            ```
 
         Args:
             path (str, pathlib.Path): New path to the dataset.
 
         Raises:
-            RenameError: If `path` points to a different directory.
+            RenameError: If ``path`` points to a different directory.
         """
         path = convert_pathlib_to_string_if_needed(path)
         path = path.rstrip("/")
@@ -1672,7 +1671,7 @@ class Dataset:
 
     def _has_group_in_root(self, name: str) -> bool:
         """Checks if a group exists in the root dataset.
-        This is faster than checking `if group in self._groups:`
+        This is faster than checking ``if group in self._groups:``
         """
         return name in self.version_state["meta"].groups
 
@@ -2884,7 +2883,7 @@ class Dataset:
         progressbar=True,
         public: bool = False,
     ):
-        """Copies this dataset or dataset view to `dest`. Version control history is not included.
+        """Copies this dataset or dataset view to ``dest``. Version control history is not included.
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
@@ -3126,6 +3125,7 @@ class Dataset:
 
     @property
     def sample_indices(self):
+        """Returns all the indices pointed to by this dataset view."""
         return self._sample_indices(min(t.num_samples for t in self.tensors.values()))
 
     def _enable_padding(self):
@@ -3141,7 +3141,7 @@ class Dataset:
         For any tensor if the index >= len(tensor), the sample won't be popped from it.
 
         Args:
-            index (int, Optional): The index of the sample to be removed. If it is None, the index becomes the length of the longest tensor - 1.
+            index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
 
         Raises:
             IndexError: If the index is out of range.
