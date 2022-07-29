@@ -1918,16 +1918,18 @@ def test_text_labels_transform(local_ds_generator, num_workers):
 
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
-        assert set(class_names) == {"car", "ship", "train"}
         label_idx_map = {class_names[i]: i for i in range(len(class_names))}
         if tensor == "labels":
             arr = ds[tensor].numpy()
+            assert class_names == ["car", "ship", "train"]
             expected = np.array(convert_to_idx(labels, label_idx_map)).reshape((3, 1))
         elif tensor == "multiple_labels":
             arr = ds[tensor].numpy()
+            assert class_names == ["car", "train", "ship"]
             expected = np.array(convert_to_idx(multiple_labels, label_idx_map))
         else:
             arr = ds[tensor].numpy(aslist=True)
+            assert class_names == ["ship", "train", "car"]
             expected = convert_to_idx(seq_labels, label_idx_map)
             expected = [np.array(seq).reshape(-1, 1).tolist() for seq in expected]
         np.testing.assert_array_equal(arr, expected)

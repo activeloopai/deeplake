@@ -299,6 +299,7 @@ class Pipeline:
                 result["hash_label_maps"],
                 num_workers=num_workers,
                 scheduler=scheduler,
+                verbose=progressbar,
             )
 
 

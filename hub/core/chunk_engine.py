@@ -2,7 +2,17 @@ from hub.client.log import logger
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
-from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    OrderedDict,
+    Sequence,
+    Union,
+    List,
+    Tuple,
+)
 from hub.api.info import Info
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.serialize import HEADER_SIZE_BYTES
@@ -172,7 +182,7 @@ class ChunkEngine:
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
         self._is_temp_label_tensor: bool = False
-        self._hash_label_map: Dict[int, str] = {}
+        self._hash_label_map: Dict[int, str] = OrderedDict()
 
         tensor_meta = self.tensor_meta
 

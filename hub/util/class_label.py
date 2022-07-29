@@ -1,7 +1,8 @@
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from typing import List
 
 from hub.util.hash import hash_str_to_int32
+from hub.client.log import logger
 import numpy as np
 import hub
 
@@ -81,8 +82,10 @@ def convert_to_text(inp, class_names: List[str]):
     return [convert_to_text(item, class_names) for item in inp]
 
 
-def sync_labels(ds, label_temp_tensors, hash_label_maps, num_workers, scheduler):
-    hl_maps = defaultdict(dict)
+def sync_labels(
+    ds, label_temp_tensors, hash_label_maps, num_workers, scheduler, verbose=True
+):
+    hl_maps = defaultdict(OrderedDict)
     for map in hash_label_maps:
         for tensor in map:
             hl_maps[tensor].update(map[tensor])
@@ -100,27 +103,37 @@ def sync_labels(ds, label_temp_tensors, hash_label_maps, num_workers, scheduler)
         ds_out[label_tensor].append(idxs)
 
     for tensor, temp_tensor in label_temp_tensors.items():
-        target_tensor = ds[tensor]
-        hash_label_map = hash_label_maps[temp_tensor]
-        class_names = target_tensor.info.class_names
-        new_labels = list(set(hash_label_map.values()) - set(class_names))
-        class_names.extend(list(new_labels))
-        label_idx_map = {class_names[i]: i for i in range(len(class_names))}
-        hash_idx_map = {
-            hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
-        }
-        target_tensor.info.is_dirty = True
-        target_tensor.meta._disable_temp_transform = True
-        target_tensor.meta.is_dirty = True
+        try:
+            target_tensor = ds[tensor]
+            hash_label_map = hash_label_maps[temp_tensor]
+            class_names = target_tensor.info.class_names
+            new_labels = [
+                label for label in hash_label_map.values() if label not in class_names
+            ]
+            if verbose:
+                N = len(class_names)
+                for i in range(len(new_labels)):
+                    logger.info(
+                        f"'{new_labels[i]}' added to {tensor}.info.class_names at index {N + i}"
+                    )
+            class_names.extend(new_labels)
+            label_idx_map = {class_names[i]: i for i in range(len(class_names))}
+            hash_idx_map = {
+                hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
+            }
+            target_tensor.info.is_dirty = True
+            target_tensor.meta._disable_temp_transform = True
+            target_tensor.meta.is_dirty = True
 
-        upload(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
-            ds[temp_tensor],
-            ds,
-            num_workers=num_workers,
-            scheduler=scheduler,
-            progressbar=False,
-            check_lengths=False,
-            skip_ok=True,
-        )
-        target_tensor.meta._disable_temp_transform = False
-        ds.delete_tensor(temp_tensor, large_ok=True)
+            upload(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
+                ds[temp_tensor],
+                ds,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=False,
+                check_lengths=False,
+                skip_ok=True,
+            )
+            target_tensor.meta._disable_temp_transform = False
+        finally:
+            ds.delete_tensor(temp_tensor, large_ok=True)
