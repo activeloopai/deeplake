@@ -182,6 +182,8 @@ def _transform_sample_and_update_chunk_engines(
         chunk_engine = all_chunk_engines[tensor]
         callback = chunk_engine._transform_callback
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
+        value.clear()
+    # result.clear()
 
 
 def transform_data_slice_and_append(

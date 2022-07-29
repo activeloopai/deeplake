@@ -82,3 +82,7 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         for item in items:
             self.append(item)
+
+    def clear(self):
+        """Clears all the items in the tensor."""
+        self.items.clear()
