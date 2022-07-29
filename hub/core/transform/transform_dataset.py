@@ -7,7 +7,6 @@ class TransformDataset:
         """Creates a Dataset like object that supports "." access of tensors and appends/extends to the tensors.
         This is used as sample_out in hub transforms.
         """
-        print("creating")
         self.tensors = all_tensors or {}
         self.slice_list = slice_list or []
 
@@ -39,9 +38,6 @@ class TransformDataset:
             raise ValueError("All tensors are expected to have the same length.")
         for k, v in sample.items():
             self[k].append(v)
-
-    # def __del__(self):
-    #     print("deleting")
 
     def clear(self):
         for tensor in self.tensors:
