@@ -75,6 +75,7 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
     for ds in datasets:
         for tensor in ds.tensors:
             final_ds[tensor].extend(ds[tensor].numpy())
+        ds.clear()
     return final_ds
 
 
