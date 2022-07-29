@@ -2,7 +2,7 @@ from hub.core.linked_sample import LinkedSample
 from hub.core.sample import Sample  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
-
+import gc
 
 class TransformTensor:
     def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
@@ -86,3 +86,4 @@ class TransformTensor:
     def clear(self):
         """Clears all the items in the tensor."""
         self.items.clear()
+        gc.collect()
