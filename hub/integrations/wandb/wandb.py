@@ -70,6 +70,7 @@ def get_ds_key(ds):
 def dataset_written(ds):
     path = ds.path
     run = wandb_run()
+    key = get_ds_key(ds)
     if run:
         import wandb
 
@@ -77,7 +78,6 @@ def dataset_written(ds):
             _WRITTEN_DATASETS.clear()
             _WRITTEN_DATASETS[run.id] = {}
         keys = _WRITTEN_DATASETS[run.id]
-        key = get_ds_key(ds)
         if key not in keys:
             keys[key] = None
             try:
