@@ -2176,7 +2176,7 @@ class Dataset:
                         create_shape_tensor=False,
                         create_id_tensor=False,
                         create_sample_info_tensor=False,
-                    ).extend(list(self.index.values[0].indices(len(self))))
+                    ).extend(list(self.index.values[0].indices(self.num_samples)))
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -2821,7 +2821,7 @@ class Dataset:
 
         if path.startswith("hub://"):
             report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params)
+        feature_report_path(self.path, "copy", report_params, token=token)
 
         dest_ds = hub.api.dataset.dataset._like(
             dest,
