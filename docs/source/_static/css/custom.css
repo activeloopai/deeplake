@@ -4,28 +4,6 @@
 }
 
 @font-face {
-    font-family: FreightSansBoldSC;
-    font-style: normal;
-    src: url("../fonts//Freight_Sans/Freight\ Sans\ Bold\ SC.otf") format("opentype");
-}
-
-@font-face {
-    font-family: FreightSansBold;
-    font-style: normal;
-    src: url("../fonts//Freight_Sans/Freight\ Sans\ Bold.otf") format("opentype");
-}
-
-@font-face {
-    font-family: FreightSansMedium;
-    src: url("../fonts/Freight_Sans/Freight\ Sans\ Medium.otf") format("opentype");
-}
-
-@font-face {
-    font-family: FreightSansLight;
-    src: url("../fonts/Freight_Sans/Freight\ Sans\ Light.otf") format("opentype");
-}
-
-@font-face {
     font-family: ProximaNova;
     src: url("../fonts/Proxima_Nova/Proxima\ Nova\ Font.otf") format("opentype");
 }
@@ -74,8 +52,9 @@ a.reference.internal {
     font-family: ProximaNova;
 }
 
-.sig-paren {
-    font-style: italic;
+.sig-param {
+    font: IBMPlexMono;
+    font-size: 94%;
 }
 
 .wy-menu-vertical>p.caption {
