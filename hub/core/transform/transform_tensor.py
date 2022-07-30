@@ -5,11 +5,10 @@ import numpy as np
 
 
 class TransformTensor:
-    def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
+    def __init__(self, name, dataset, items=None, slice_list=None) -> None:
         self.name = name
         self.dataset = dataset
-        self.items = [] if base_tensor is None else base_tensor.items
-        self.base_tensor = base_tensor or self
+        self.items = items or []
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
@@ -27,7 +26,7 @@ class TransformTensor:
 
     def numpy_compressed(self):
         """Returns all the items stored in the slice of the tensor. Samples stored using hub.read are not converted to numpy arrays in this."""
-        value = self.items
+        value = self.items[:]
         for slice_ in self.slice_list:
             value = value[slice_]
         self.length = len(value) if isinstance(value, list) else 1
@@ -59,7 +58,7 @@ class TransformTensor:
         return TransformTensor(
             name=self.name,
             dataset=self.dataset,
-            base_tensor=self.base_tensor,
+            items=self.items,
             slice_list=new_slice_list,
         )
 
