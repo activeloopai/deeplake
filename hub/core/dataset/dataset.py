@@ -2340,8 +2340,8 @@ class Dataset:
         Args:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
-                - If not specified, the VDS is saved under `.queries` subdirectory of the source dataset's storage.
-                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using `hub.load(f"hub://{username}/queries/{query_hash}")`.
+                - If not specified, the VDS is saved under ``.queries`` subdirectory of the source dataset's storage.
+                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using ``hub.load(f"hub://{username}/queries/{query_hash}")``.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
@@ -2354,7 +2354,7 @@ class Dataset:
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
-            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using `hub.\0load(path)`.
+            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`hub.load`.
 
         Returns:
             str: Path to the saved VDS.
@@ -2406,7 +2406,7 @@ class Dataset:
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
 
         Returns:
-            If _ret_ds is True, the VDS is returned, else path to the VDS is returned.
+            If ``_ret_ds`` is ``True``, the VDS is returned, else path to the VDS is returned.
 
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
@@ -2554,7 +2554,7 @@ class Dataset:
                 - If not specified, views from the currently checked out commit will be returned.
 
         Returns:
-            List of `hub.core.dataset.view_entry.ViewEntry` instances.
+            List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
         commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
@@ -2593,7 +2593,7 @@ class Dataset:
             id (str): id of required view.
 
         Returns:
-            :class:`hub.core.dataset.view_entry.ViewEntry`
+            ViewEntry
 
         Raises:
             KeyError: If no such view exists.

@@ -20,7 +20,8 @@ Hub is an open-source database for AI.
    hub.core
    hub.api
    hub.auto
-
+   hub.util
+   hub.client.log
 
 
 Indices and tables

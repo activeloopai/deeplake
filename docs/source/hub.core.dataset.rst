@@ -125,6 +125,7 @@ PyTorch and Tensorflow support
 HubCloudDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: HubCloudDataset()
+    :show-inheritance:
     :members:
 
 ViewEntry

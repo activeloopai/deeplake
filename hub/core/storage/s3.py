@@ -94,7 +94,8 @@ class S3Provider(StorageProvider):
         """Initializes the S3Provider
 
         Example:
-            s3_provider = S3Provider("snark-test/benchmarks")
+
+            >>> s3_provider = S3Provider("snark-test/benchmarks")
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
@@ -230,14 +231,14 @@ class S3Provider(StorageProvider):
 
         Args:
             path (str): The path relative to the root of the provider.
-            start_byte (int, optional): If only specific bytes starting from start_byte are required.
+            start_byte (int, optional): If only specific bytes starting from ``start_byte`` are required.
             end_byte (int, optional): If only specific bytes up to end_byte are required.
 
         Returns:
             bytes: The bytes of the object present at the path within the given byte range.
 
         Raises:
-            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            InvalidBytesRequestedError: If ``start_byte`` > ``end_byte`` or ``start_byte`` < 0 or ``end_byte`` < 0.
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
         """
@@ -273,9 +274,11 @@ class S3Provider(StorageProvider):
         Args:
             path (str): the path to the object relative to the root of the S3Provider.
 
+        Note:
+            If the object is not found, s3 won't raise KeyError.
+
         Raises:
-            S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
-                won't raise KeyError.
+            S3DeletionError: Any S3 error encountered while deleting the object.
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
@@ -331,7 +334,10 @@ class S3Provider(StorageProvider):
         return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
 
     def __len__(self):
-        """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
+        """Returns the number of files present at the root of the S3Provider.
+
+        Note:
+            This is an expensive operation.
 
         Returns:
             int: the number of files present inside the root.
@@ -351,7 +357,11 @@ class S3Provider(StorageProvider):
         yield from self._all_keys()
 
     def clear(self, prefix=""):
-        """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root). Exercise caution!"""
+        """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root).
+
+        Warning:
+            Exercise caution!
+        """
         self.check_readonly()
         self._check_update_creds()
         path = posixpath.join(self.path, prefix) if prefix else self.path
@@ -370,7 +380,7 @@ class S3Provider(StorageProvider):
             super().clear()
 
     def rename(self, root):
-        """Rename root folder"""
+        """Rename root folder."""
         self.check_readonly()
         self._check_update_creds()
         items = []
