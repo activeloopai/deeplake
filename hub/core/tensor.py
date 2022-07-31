@@ -807,7 +807,7 @@ class Tensor:
         if htype == "text":
             return self.text()
         if htype == "json":
-            return self.json()
+            return self.dict()
         if htype == "list":
             return self.list()
         if self.htype == "video":
@@ -835,7 +835,7 @@ class Tensor:
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
 
-            data["sample_info"] = self.sample_info
+            data["sample_info"] = self.sample_info  # type: ignore
             return data
         if htype == "class_label":
             labels = self.numpy(aslist=aslist)

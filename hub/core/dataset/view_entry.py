@@ -6,6 +6,8 @@ from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
 from hub.util.logging import log_visualizer_link
 from hub.constants import HUB_CLOUD_DEV_USERNAME
 
+from hub.core.dataset import Dataset # type: ignore
+
 
 class ViewEntry:
     """Represents a view saved inside a dataset."""
@@ -44,11 +46,14 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self, verbose=True):
+    def load(self, verbose=True) -> Dataset:
         """Loads the view and returns the :class:`~hub.core.dataset.Dataset`.
 
         Args:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+
+        Returns:
+            Dataset: Loaded dataset view.
         """
         ds = self._ds._sub_ds(
             ".queries/" + (self.info.get("path") or self.info["id"]),

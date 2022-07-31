@@ -158,7 +158,7 @@ class Info(HubMemoryObject):
         return None
 
 
-def load_info(path, dataset, key=None):
+def load_info(path, dataset, key=None) -> Info:
     storage: LRUCache = dataset.storage
 
     try:

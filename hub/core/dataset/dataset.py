@@ -414,7 +414,6 @@ class Dataset:
                 - For example, ``htype="image"`` would have ``dtype`` default to ``uint8``.
                 - These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 - May also modify the defaults for other parameters.
-
             dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``.
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
@@ -1753,6 +1752,12 @@ class Dataset:
 
         Args:
             commit_id (str): commit id of the commit.
+
+        Returns:
+            Dict: Dictionary of details with keys - ``commit``, ``author``, ``time``, ``message``.
+
+        Raises:
+            KeyError: If given ``commit_id`` is was not found in the dataset.
         """
         commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
         if commit_node is None:
@@ -2346,7 +2351,6 @@ class Dataset:
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
                 - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
-
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.

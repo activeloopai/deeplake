@@ -898,7 +898,7 @@ class dataset:
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         images_compression: str = "auto",
-        dest_creds: dict = None,
+        dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         summary: bool = True,
         **dataset_kwargs,
@@ -953,9 +953,8 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
-            dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
@@ -1026,7 +1025,7 @@ class dataset:
         dest: Union[str, pathlib.Path],
         exist_ok: bool = False,
         images_compression: str = "auto",
-        dest_creds: dict = None,
+        dest_creds: Optional[Dict] = None,
         kaggle_credentials: dict = None,
         progressbar: bool = True,
         summary: bool = True,
@@ -1047,7 +1046,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and ``exist_ok`` is ``True``, ingestion will proceed without error.
             images_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
-            dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
@@ -1108,14 +1107,21 @@ class dataset:
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path): - The full path to the dataset. Can be:
+            dest (str, pathlib.Path):
+                - The full path to the dataset. Can be:
                 - a Hub cloud path of the form ``hub://username/datasetname``. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            dest_creds (Optional[dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`hub.dataset`.
+
+        Returns:
+            Dataset: New dataset created from the dataframe.
+
+        Raises:
+            Exception: If ``src`` is not a valid pandas dataframe object.
         """
         import pandas as pd
         from hub.auto.structured.dataframe import DataFrame
