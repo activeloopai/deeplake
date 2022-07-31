@@ -2220,7 +2220,9 @@ class Dataset:
         username = jwt.decode(self.token, options={"verify_signature": False})["id"]
 
         if username == "public":
-            raise DatasetViewSavingError("Unable to save view for read only dataset. Login to save the view to your user account.")
+            raise DatasetViewSavingError(
+                "Unable to save view for read only dataset. Login to save the view to your user account."
+            )
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
