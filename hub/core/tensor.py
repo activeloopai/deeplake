@@ -779,11 +779,11 @@ class Tensor:
     def data(self, aslist: bool = False) -> Any:
         """Returns data in the tensor in a format based on the tensor's base htype.
 
-        - Equivalent to :meth:`text` for tensors with base htype of 'text'.
+        - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
 
-        - Equivalent to :meth:`json` for tensors with base htype of 'json'.
+        - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>` for tensors with base htype of 'json'.
 
-        - Equivalent to :meth:`list` for tensors with base htype of 'list'.
+        - Returns dict with dict["value"] = :meth:`Tensor.list() <list>` for tensors with base htype of 'list'.
 
         - For video tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
 
@@ -805,11 +805,11 @@ class Tensor:
         """
         htype = self.base_htype
         if htype == "text":
-            return self.text()
+            return {"value": self.text()}
         if htype == "json":
-            return self.dict()
+            return {"value": self.dict()}
         if htype == "list":
-            return self.list()
+            return {"value": self.list()}
         if self.htype == "video":
             data = {}
             data["frames"] = self.numpy(aslist=aslist)
