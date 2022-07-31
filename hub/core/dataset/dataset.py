@@ -319,6 +319,7 @@ class Dataset:
         state["_update_hooks"] = {}
         state["_commit_hooks"] = {}
         state["_waiting_for_view_base_commit"] = False
+        state["_client"] = state["org_id"] = state["ds_name"] = None
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
@@ -2173,7 +2174,7 @@ class Dataset:
                         create_shape_tensor=False,
                         create_id_tensor=False,
                         create_sample_info_tensor=False,
-                    ).extend(list(self.index.values[0].indices(len(self))))
+                    ).extend(list(self.index.values[0].indices(self.num_samples)))
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -2416,8 +2417,7 @@ class Dataset:
                     path, id, message, optimize, num_workers, scheduler, **ds_args
                 )
         if verbose:
-            org_id, ds_name = get_org_id_and_ds_name(vds.path)
-            log_visualizer_link(org_id, ds_name, self.path)
+            log_visualizer_link(vds.path, self.path)
         if _ret_ds:
             return vds
         return vds.path
@@ -2819,7 +2819,7 @@ class Dataset:
 
         if path.startswith("hub://"):
             report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params)
+        feature_report_path(self.path, "copy", report_params, token=token)
 
         dest_ds = hub.api.dataset.dataset._like(
             dest,

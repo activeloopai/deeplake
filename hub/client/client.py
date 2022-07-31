@@ -287,7 +287,10 @@ class HubBackendClient:
         }
         final_creds = {}
         for key, value in creds.items():
-            if key in key_mapping:
+            if key == "access_token":
+                key = "Authorization"
+                value = f"Bearer {value}"
+            elif key in key_mapping:
                 key = key_mapping[key]
             final_creds[key] = value
         return final_creds
@@ -376,3 +379,11 @@ class HubBackendClient:
         ).json()
         presigned_url = response["data"]
         return presigned_url
+
+    def get_user_profile(self):
+        response = self.request(
+            "GET",
+            "/api/user/profile",
+            endpoint=self.endpoint(),
+        )
+        return response.json()
