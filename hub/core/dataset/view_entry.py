@@ -1,12 +1,6 @@
 from typing import Dict, Optional, Any
-from hub.client.log import logger
 
-from hub.util.tag import process_hub_path
-from hub.util.path import get_org_id_and_ds_name, is_hub_cloud_path
 from hub.util.logging import log_visualizer_link
-from hub.constants import HUB_CLOUD_DEV_USERNAME
-
-from hub.core.dataset import Dataset # type: ignore
 
 
 class ViewEntry:
@@ -46,7 +40,7 @@ class ViewEntry:
     def virtual(self) -> bool:
         return self.info["virtual-datasource"]
 
-    def load(self, verbose=True) -> Dataset:
+    def load(self, verbose=True):
         """Loads the view and returns the :class:`~hub.core.dataset.Dataset`.
 
         Args:

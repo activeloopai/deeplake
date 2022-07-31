@@ -3125,7 +3125,7 @@ class Dataset:
             height: Union[int, str, None] Optional height of the visualizer canvas.
 
         Raises:
-            Exception: If a dataset is not hub cloud dataset and the visualization happens in colab.
+            Exception: If the dataset is not a hub cloud dataset and the visualization is attempted in colab.
         """
         from hub.visualizer import visualize
 

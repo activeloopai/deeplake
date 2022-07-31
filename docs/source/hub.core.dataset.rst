@@ -28,6 +28,7 @@ Dataset Operations
     :nosignatures:
 
     ~Dataset.summary
+    ~Dataset.visualize
     ~Dataset.append
     ~Dataset.extend
     ~Dataset.copy
