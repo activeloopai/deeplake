@@ -73,7 +73,7 @@ def get_path_type(path: Optional[str]) -> str:
         return "s3"
     elif path.startswith("gdrive://"):
         return "gdrive"
-    elif path.startswith("https://ipfs.infura") or path.startswith("http://127") or path.startswith("https://api.web3.storage") or path.startswith("https://shuttle-5.estuary"):
+    elif path.startswith("ipfs://"):
         return "ipfs"
     else:
         return "local"
