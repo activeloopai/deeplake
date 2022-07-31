@@ -17,7 +17,7 @@ def read(
     - Simply copies the data in the file if file format matches sample_compression of the tensor, thus maximizing upload speeds.
 
     Note:
-        No data is actually loaded until you try to get a property of the returned ``Sample``. This is useful for passing along to :func:`hub.core.tensor.append` and :func:`hub.core.tensor.extend`.
+        No data is actually loaded until you try to get a property of the returned :class:`Sample`. This is useful for passing along to :func:`Tensor.append <hub.core.tensor.Tensor.append>` and :func:`Tensor.extend <hub.core.tensor.Tensor.extend>`.
 
     Examples:
 

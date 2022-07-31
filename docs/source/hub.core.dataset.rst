@@ -28,7 +28,6 @@ Dataset Operations
     :nosignatures:
 
     ~Dataset.summary
-    ~Dataset.visualize
     ~Dataset.append
     ~Dataset.extend
     ~Dataset.copy
@@ -40,6 +39,14 @@ Dataset Operations
     ~Dataset.flush
     ~Dataset.clear_cache
     ~Dataset.size_approx
+
+Dataset Visualization
+---------------------
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    ~Dataset.visualize
     
 Dataset Credentials
 -------------------
