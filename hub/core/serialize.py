@@ -415,7 +415,7 @@ def serialize_numpy_and_base_types(
         if approx_compressed_size > min_chunk_size and break_into_tiles:
             out = SampleTiles(out, tile_compression, min_chunk_size, store_tiles, htype)  # type: ignore
         else:
-            compressed_bytes = compress_array(out, sample_compression)
+            compressed_bytes = b"abc"#= compress_array(out, sample_compression)
             out = compressed_bytes  # type: ignore
 
     return out, shape
