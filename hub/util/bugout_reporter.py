@@ -71,10 +71,15 @@ def get_reporting_config() -> Dict[str, Any]:
         else:
             with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
                 reporting_config = json.load(ifp)
+
+        # Replace client_id with username if the username is available. Does NOT mutate config on file system.
+        if reporting_config.get("username") is not None and reporting_config["client_id"] != reporting_config["username"]:
+            reporting_config["client_id"] = reporting_config["username"]
     except Exception:
         # Not being able to load reporting consent should not get in the user's way. We will just
         # return the default reporting_config object in which consent is set to False.
         pass
+
     return reporting_config
 
 
