@@ -57,6 +57,7 @@ from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
+from hub.util.point_cloud import POINT_CLOUD_FIELD_NAME_TO_TYPESTR
 import warnings
 import webbrowser
 
@@ -647,6 +648,31 @@ class Tensor:
     def __iter__(self):
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
+	def get_full_point_cloud_numpy(
+        self, aslist=False, fetch_chunks=False
+    ) -> Union[np.ndarray, List[np.ndarray]]:
+        """Computes the contents of the tensor in numpy format.
+
+        Args:
+            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
+                If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
+                an error is raised.
+            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be True even if specified as False in the following cases:
+                - The tensor is ChunkCompressed
+                - The chunk which is being accessed has more than 128 samples.
+
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            ValueError: If the tensor is a link and the credentials are not populated.
+
+        Returns:
+            A numpy array containing the data represented by this tensor.
+        """
+        self.check_link_ready()
+        return self.chunk_engine.numpy(
+            self.index, aslist=aslist, fetch_chunks=fetch_chunks
+        )
 
     def numpy(
         self, aslist=False, fetch_chunks=False
@@ -669,6 +695,26 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
+        if self.htype == "point_cloud":
+            full_numpy_arr = self.get_full_point_cloud_numpy(
+                aslist=aslist, fetch_chunks=fetch_chunks
+            )
+            if len(full_numpy_arr.dtype) > 1:
+                return np.concatenate(
+                    [
+                        np.expand_dims(
+                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["X"]], -1
+                        ),
+                        np.expand_dims(
+                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["Y"]], -1
+                        ),
+                        np.expand_dims(
+                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["Z"]], -1
+                        ),
+                    ],
+                    axis=-1,
+                )
+            return full_numpy_arr[..., :3]
         return self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
@@ -793,6 +839,31 @@ class Tensor:
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
             }
+		elif htype == "point_cloud":
+            full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
+
+            if self.ndim == 2:
+                self._check_whether_sample_info_is_empty(self.sample_info)
+
+                meta = {}
+                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
+                    typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
+                    meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))
+                return meta
+
+            meta = []
+            for i in range(len(full_arr)):
+                meta_dict = {}
+                self._check_whether_sample_info_is_empty(self.sample_info[i])
+
+                for j, dimension_name in enumerate(
+                    self.sample_info[i]["dimension_names"]
+                ):
+                    dtype = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
+                    meta_dict[dimension_name] = full_arr[..., i].astype(np.dtype(dtype))
+                meta.append(meta_dict)
+            return meta
+
         else:
             return {
                 "value": self.numpy(aslist=aslist),

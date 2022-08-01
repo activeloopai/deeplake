@@ -8,17 +8,14 @@ from hub.core.compression import (
     _open_video,
     _read_metadata_from_vstream,
     _read_audio_meta,
+    _read_point_cloud_meta,
 )
 from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
-)
-from hub.compression import (
-    get_compression_type,
-    AUDIO_COMPRESSION,
-    IMAGE_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
 )
 from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
@@ -90,6 +87,7 @@ class Sample:
         self._typestr = None
         self._shape = shape or None
         self._dtype = dtype or None
+
         self.path = None
         self.storage = storage
         self._buffer = None
@@ -110,8 +108,6 @@ class Sample:
         if array is not None:
             self._array = array
             self._shape = array.shape  # type: ignore
-            self._typestr = array.__array_interface__["typestr"]
-            self._dtype = np.dtype(self._typestr).name
             self._compression = None
 
         if buffer is not None:
@@ -229,6 +225,13 @@ class Sample:
             info = _read_audio_meta(self.path)
         else:
             info = _read_audio_meta(self.buffer)
+        return info
+
+    def _get_point_cloud_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_point_cloud_meta(self.path)
+        else:
+            info = _read_point_cloud_meta(self.buffer)
         return info
 
     @property
@@ -442,6 +445,8 @@ class Sample:
             meta.update(self._get_video_meta())
         elif compression_type == AUDIO_COMPRESSION:
             meta.update(self._get_audio_meta())
+        elif compression_type == POINT_CLOUD_COMPRESSION:
+            meta.update(self._get_point_cloud_meta())
         meta["shape"] = self.shape
         meta["format"] = self.compression
         if self.path:

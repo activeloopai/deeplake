@@ -2,6 +2,7 @@ from hub.core.sample import Sample  # type: ignore
 from typing import Optional, Dict
 
 from hub.core.storage.provider import StorageProvider
+from hub.util.path import convert_pathlib_to_string_if_needed
 
 
 def read(
@@ -53,6 +54,7 @@ def read(
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
+    path = convert_pathlib_to_string_if_needed(path)
     return Sample(
         path, verify=verify, compression=compression, creds=creds, storage=storage
     )

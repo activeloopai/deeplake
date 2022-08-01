@@ -16,3 +16,4 @@ pydicom
 IPython
 flask
 pyjwt
+laspy

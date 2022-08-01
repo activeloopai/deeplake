@@ -1465,7 +1465,8 @@ class ChunkEngine:
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
         return chunk.read_sample(
-            local_sample_index, cast=self.tensor_meta.htype != "dicom"
+            local_sample_index,
+            cast=self.tensor_meta.htype not in ["dicom", "point_cloud"],
         )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
