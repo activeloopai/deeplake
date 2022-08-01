@@ -403,6 +403,7 @@ class Dataset:
             ds.create_tensor("images", htype="image", sample_compression="jpg")
             ds.create_tensor("videos", htype="video", sample_compression="mp4")
             ds.create_tensor("data")
+            ds.create_tensor("point_clouds", htype="point_cloud")
 
             # append data
             ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
@@ -552,7 +553,13 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video", "dicom"):
+        if create_sample_info_tensor and htype in (
+            "image",
+            "audio",
+            "video",
+            "dicom",
+            "point_cloud",
+        ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)

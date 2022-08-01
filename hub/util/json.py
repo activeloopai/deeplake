@@ -3,15 +3,39 @@ import numpy as np
 from numpy import ndarray
 import json
 import base64
-
+import pickle
+import uuid
+import laspy
 from hub.core.sample import Sample  # type: ignore
-
+import datetime
 
 Schema = Any
 
 
 scalars = ["int", "float", "bool", "str", "list", "dict", "ndarray", "Sample"]
 types = ["Any", "Dict", "List", "Optional", "Union"]
+
+POINT_CLOUD_HEADER_TYPES = (
+    laspy.header.Version,
+    datetime.date,
+    laspy.header.Version,
+    laspy.point.format.PointFormat,
+    uuid.UUID,
+    bytes,
+    laspy.header.GlobalEncoding,
+    laspy.vlrs.vlrlist.VLRList,
+)
+
+POINT_CLOUD_HEADER_TYPE_STR = (
+    f"{laspy.header.Version}",
+    f"{datetime.date}",
+    f"{laspy.header.Version}",
+    f"{laspy.point.format.PointFormat}",
+    f"{uuid.UUID}",
+    f"{bytes}",
+    f"{laspy.header.GlobalEncoding}",
+    f"{laspy.vlrs.vlrlist.VLRList}",
+)
 
 
 def _norm_type(typ: str):
@@ -194,6 +218,13 @@ class HubJsonEncoder(json.JSONEncoder):
                 "shape": obj.shape,
                 "dtype": obj.dtype.name,
             }
+        elif isinstance(obj, POINT_CLOUD_HEADER_TYPES):
+            return {
+                "_hub_custom_type": f"{type(obj)}",
+                "data": base64.b64encode(pickle.dumps(obj)).decode(),
+                "shape": None,
+                "dtype": None,
+            }
         elif isinstance(obj, Sample):
             if obj.compression:
                 return {
@@ -216,6 +247,8 @@ class HubJsonDecoder(json.JSONDecoder):
             return np.frombuffer(
                 base64.b64decode(obj["data"]), dtype=obj["dtype"]
             ).reshape(obj["shape"])
+        elif hub_custom_type in POINT_CLOUD_HEADER_TYPE_STR:
+            return pickle.loads(base64.b64decode(obj["data"]))
         elif hub_custom_type == "Sample":
             return Sample(
                 buffer=base64.b64decode(obj["data"]), compression=obj["compression"]

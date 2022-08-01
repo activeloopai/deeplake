@@ -125,6 +125,7 @@ from hub.compression import (
     AUDIO_COMPRESSIONS,
     BYTE_COMPRESSIONS,
     COMPRESSION_ALIASES,
+    POINT_CLOUD_COMPRESSIONS,
 )
 
 
@@ -190,6 +191,8 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.LIST: {"dtype": "List"},
     htype.TEXT: {"dtype": "str"},
     htype.DICOM: {"sample_compression": "dcm"},
+	htype.POINT_CLOUD: {"sample_compression": "las"},
+    htype.POINT_CLOUD.CALIBRATION_MATRIX: {"dtype": "float32"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
@@ -210,6 +213,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.TEXT: BYTE_COMPRESSIONS[:],
     htype.LIST: BYTE_COMPRESSIONS[:],
     htype.JSON: BYTE_COMPRESSIONS[:],
+	htype.POINT_CLOUD: POINT_CLOUD_COMPRESSIONS[:],
     htype.DICOM: ["dcm"],
 }
 
