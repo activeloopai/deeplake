@@ -5,16 +5,14 @@ import numpy as np
 
 
 class TransformTensor:
-    def __init__(self, name, dataset, slice_list=None) -> None:
+    def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
         self.name = name
         self.dataset = dataset
+        self.items = [] if base_tensor is None else base_tensor.items
+        self.base_tensor = base_tensor or self
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
-
-    @property
-    def items(self):
-        return self.dataset.data[self.name]
 
     def numpy(self) -> None:
         """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using hub.read are converted to numpy arrays in this."""
@@ -48,10 +46,7 @@ class TransformTensor:
             # Samples appended to this tensor, which means this is not a tensor group
             raise AttributeError(name)
         del self.dataset.tensors[self.name]
-        del self.dataset.data[self.name]
-        ret = self.dataset["/".join((self.name, name))]
-        del self.dataset
-        return ret
+        return self.dataset["/".join((self.name, name))]
 
     def __getitem__(self, index):
         if isinstance(index, str):
@@ -64,6 +59,7 @@ class TransformTensor:
         return TransformTensor(
             name=self.name,
             dataset=self.dataset,
+            base_tensor=self.base_tensor,
             slice_list=new_slice_list,
         )
 
@@ -86,6 +82,3 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         for item in items:
             self.append(item)
-
-    def clear(self):
-        self.items.clear()
