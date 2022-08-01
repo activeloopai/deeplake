@@ -9,12 +9,14 @@ class TransformDataset:
         """
         self.tensors = all_tensors or {}
         self.slice_list = slice_list or []
+        self.data = {}
 
     def __len__(self):
         return min(len(self[tensor]) for tensor in self.tensors)
 
     def __getattr__(self, name):
         if name not in self.tensors:
+            self.data[name] = []
             self.tensors[name] = TransformTensor(name=name, dataset=self)
         return self.tensors[name][self.slice_list]
 
@@ -38,3 +40,4 @@ class TransformDataset:
             raise ValueError("All tensors are expected to have the same length.")
         for k, v in sample.items():
             self[k].append(v)
+
