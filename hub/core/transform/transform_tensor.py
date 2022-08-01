@@ -4,6 +4,7 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
 import gc
 
+
 class TransformTensor:
     def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
         self.name = name
