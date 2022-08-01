@@ -86,4 +86,3 @@ class TransformTensor:
     def clear(self):
         """Clears all the items in the tensor."""
         self.items.clear()
-        gc.collect()

@@ -22,6 +22,7 @@ from hub.util.exceptions import (
 
 import posixpath
 import time
+import gc
 
 
 def transform_sample(
@@ -76,6 +77,7 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
         for tensor in ds.tensors:
             final_ds[tensor].extend(ds[tensor].numpy())
         ds.clear()
+    gc.collect()
     return final_ds
 
 
@@ -184,7 +186,7 @@ def _transform_sample_and_update_chunk_engines(
         callback = chunk_engine._transform_callback
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
         value.clear()
-    # result.clear()
+    gc.collect()
 
 
 def transform_data_slice_and_append(
