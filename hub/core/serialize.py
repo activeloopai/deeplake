@@ -469,8 +469,7 @@ def serialize_sample_object(
         compressed_bytes = out.compressed_bytes(sample_compression)
 
         if (
-            compression_type
-            not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION, POINT_CLOUD_COMPRESSION)
+            compression_type not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION)
             and len(compressed_bytes) > min_chunk_size
             and break_into_tiles
         ):

@@ -108,6 +108,8 @@ class Sample:
         if array is not None:
             self._array = array
             self._shape = array.shape  # type: ignore
+            self._typestr = array.__array_interface__["typestr"]
+            self._dtype = np.dtype(self._typestr).name
             self._compression = None
 
         if buffer is not None:

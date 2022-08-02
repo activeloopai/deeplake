@@ -648,7 +648,8 @@ class Tensor:
     def __iter__(self):
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
-	def get_full_point_cloud_numpy(
+
+    def get_full_point_cloud_numpy(
         self, aslist=False, fetch_chunks=False
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
@@ -669,7 +670,6 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        self.check_link_ready()
         return self.chunk_engine.numpy(
             self.index, aslist=aslist, fetch_chunks=fetch_chunks
         )
@@ -839,7 +839,7 @@ class Tensor:
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
             }
-		elif htype == "point_cloud":
+        elif htype == "point_cloud":
             full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
 
             if self.ndim == 2:
@@ -1129,3 +1129,11 @@ class Tensor:
             return list(self.numpy())
         else:
             return list(map(list, self.numpy(aslist=True)))
+
+    @staticmethod
+    def _check_whether_sample_info_is_empty(sample_info):
+        if len(sample_info) == 0:
+            raise NotImplementedError(
+                "In order to store point cloud data, you should use `hub.read(path_to_file)`. "
+                "Running .data() on raw data is not yet supported."
+            )

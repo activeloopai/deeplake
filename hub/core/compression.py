@@ -7,25 +7,18 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.util.las import (
-    convert_version_to_dict,
-    convert_creation_date_to_dict,
-)
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
-from numpy.lib import recfunctions as rfn
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
-import os
 
 import mmap
 import struct
@@ -95,9 +88,6 @@ _JPEG_SKIP_MARKERS = set(_JPEG_SOFS[14:])
 _JPEG_SOFS_RE = re.compile(b"|".join(_JPEG_SOFS))
 _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
-
-_LIDAR_COMPRESSIONS = [".las"]
-_LIDAR_SIGNATURE = b"LASF"
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -365,11 +355,13 @@ def compress_multiple(
             b"".join(arr.tobytes() for arr in arrays), compression
         )  # Note: shape and dtype info not included
     elif compr_type == AUDIO_COMPRESSION:
-        raise NotImplementedError(
-            "compress_multiple does not support point cloud data samples."
-        )
+        raise NotImplementedError("compress_multiple does not support audio samples.")
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support video samples.")
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        raise NotImplementedError(
+            "compress_multiple does not support point cloud samples."
+        )
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
