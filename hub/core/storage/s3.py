@@ -175,6 +175,9 @@ class S3Provider(StorageProvider):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._set(path, content)
+                    always_warn(
+                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                    )
                     return
                 except Exception:
                     pass
@@ -256,7 +259,11 @@ class S3Provider(StorageProvider):
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
-                    return self._get_bytes(path, start_byte, end_byte)
+                    ret = self._get_bytes(path, start_byte, end_byte)
+                    always_warn(
+                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                    )
+                    return ret
                 except Exception:
                     pass
             raise S3GetError(err) from err
@@ -293,6 +300,9 @@ class S3Provider(StorageProvider):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._del(path)
+                    always_warn(
+                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                    )
                     return
                 except Exception:
                     pass
