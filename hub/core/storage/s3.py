@@ -595,7 +595,11 @@ class S3Provider(StorageProvider):
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
-                    return self._get(path, bucket)
+                    ret = self._get(path, bucket)
+                    always_warn(
+                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                    )
+                    return ret
                 except Exception:
                     pass
             raise S3GetError(err) from err
