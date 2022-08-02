@@ -526,7 +526,7 @@ class Tensor:
 
     @property
     def shape_interval(self) -> ShapeInterval:
-        """Returns a :class:`ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+        """Returns a :class:`~hub.util.shape_interval.ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Note:
             If you are expecting a tuple, use :attr:`shape` instead.

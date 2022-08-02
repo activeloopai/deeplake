@@ -19,20 +19,6 @@ array([[1, 2, 3, 4]])
 >>> ds['abc'].numpy()
 array([[1, 2, 3, 4]])
 
-.. autoclass:: Tensor()
-
-    .. autoattribute:: htype
-    .. autoattribute:: base_htype
-    .. autoattribute:: dtype
-    .. autoattribute:: shape
-    .. autoattribute:: shape_interval
-    .. autoattribute:: ndim
-    .. autoattribute:: num_samples
-    .. autoattribute:: is_dynamic
-    .. autoattribute:: is_sequence
-    .. autoattribute:: is_link
-    .. autoattribute:: verify
-    .. autoattribute:: meta
 
 Adding and deleting samples
 ---------------------------
@@ -58,6 +44,25 @@ Retrieving samples
     ~Tensor.text
     ~Tensor.dict
     ~Tensor.list
+
+Tensor Properties
+-----------------
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    ~Tensor.htype
+    ~Tensor.base_htype
+    ~Tensor.dtype
+    ~Tensor.shape
+    ~Tensor.shape_interval
+    ~Tensor.ndim
+    ~Tensor.num_samples
+    ~Tensor.is_dynamic
+    ~Tensor.is_sequence
+    ~Tensor.is_link
+    ~Tensor.verify
+    ~Tensor.meta
 
 Info
 ----
