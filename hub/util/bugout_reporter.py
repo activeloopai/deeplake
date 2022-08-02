@@ -77,7 +77,10 @@ def get_reporting_config() -> Dict[str, Any]:
         # while tracking the existing client_id as a machine_id.
         reporting_config["machine_id"] = reporting_config["client_id"]
 
-        if reporting_config.get("username") is not None and reporting_config["client_id"] != reporting_config["username"]:
+        if (
+            reporting_config.get("username") is not None
+            and reporting_config["client_id"] != reporting_config["username"]
+        ):
             reporting_config["client_id"] = reporting_config["username"]
 
     except Exception:
@@ -92,6 +95,7 @@ def consent_from_reporting_config_file() -> bool:
     """Get consent settings from the existing reporting config"""
     reporting_config = get_reporting_config()
     return reporting_config.get("consent", False)
+
 
 consent = HumbugConsent(consent_from_reporting_config_file)
 
@@ -115,6 +119,7 @@ if hub_user is not None:
 machine_id = bugout_reporting_config.get("machine_id")
 if machine_id is not None:
     hub_reporter.tags.append(f"machine_id:{machine_id}")
+
 
 def feature_report_path(
     path: str,
