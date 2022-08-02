@@ -51,14 +51,12 @@ class ViewEntry:
             lock=False,
             verbose=False,
         )
-        org_id, ds_name = get_org_id_and_ds_name(ds.path)
+        sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
         ds._view_entry = self
         if verbose:
-            log_visualizer_link(
-                org_id, ds_name, source_ds_url=self.info["source-dataset"]
-            )
+            log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])
         return ds
 
     def optimize(

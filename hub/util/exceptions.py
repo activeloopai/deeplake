@@ -738,6 +738,11 @@ class ManagedCredentialsNotFoundError(Exception):
         )
 
 
+class UnableToReadFromUrlError(Exception):
+    def __init__(self, url, status_code):
+        super().__init__(f"Unable to read from url {url}. Status code: {status_code}")
+
+
 class InvalidTokenException(Exception):
     def __init__(self):
         super().__init__(
