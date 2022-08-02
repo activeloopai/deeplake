@@ -59,7 +59,7 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
     ):
-        """Returns a :class:`Dataset` object referencing either a new or existing dataset.
+        """Returns a :class:`~hub.core.dataset.Dataset` object referencing either a new or existing dataset.
 
         Warning:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.

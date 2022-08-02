@@ -1,9 +1,9 @@
-hub.core.tensor
-===============
+Tensor
+======
+
 .. currentmodule:: hub.core.tensor
 
-Tensor
-~~~~~~
+.. autoclass:: Tensor()
 
 Data is stored in tensors within datasets. They are created using Dataset's :meth:`Dataset.create_tensor <hub.core.dataset.Dataset.create_tensor>` method 
 and can be accessed by ``__getitem__`` or ``__getattr__`` of datasets. Tensors can be indexed just like numpy arrays. 
@@ -21,7 +21,7 @@ array([[1, 2, 3, 4]])
 
 
 Adding and deleting samples
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -33,7 +33,7 @@ Adding and deleting samples
     ~Tensor.__setitem__
 
 Retrieving samples
-------------------
+~~~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -46,7 +46,7 @@ Retrieving samples
     ~Tensor.list
 
 Tensor Properties
------------------
+~~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -65,7 +65,7 @@ Tensor Properties
     ~Tensor.meta
 
 Info
-----
+~~~~
 
 .. autosummary::
     :toctree: generated
@@ -75,7 +75,7 @@ Info
     ~Tensor.sample_info
 
 Video features
---------------
+~~~~~~~~~~~~~~
 
 .. autosummary::
     :toctree: generated
