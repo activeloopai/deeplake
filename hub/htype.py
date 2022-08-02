@@ -183,9 +183,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BINARY_MASK: {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
-    htype.BINARY_MASK_3D: {
-        "dtype": "bool"
-    },
+    htype.BINARY_MASK_3D: {"dtype": "bool"},
     htype.SEGMENT_MASK: {
         "dtype": "uint32",
         "class_names": [],
