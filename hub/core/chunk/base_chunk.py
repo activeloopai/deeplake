@@ -283,6 +283,8 @@ class BaseChunk(HubMemoryObject):
             self.min_chunk_size,
             self.tiling_threshold,
         )
+        if incoming_sample == []:
+            incoming_sample = None
         if tiling_threshold < 0:
             break_into_tiles = False
         if self.is_text_like:
