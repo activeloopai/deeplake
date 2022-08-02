@@ -176,7 +176,7 @@ class S3Provider(StorageProvider):
                 try:
                     self._set(path, content)
                     always_warn(
-                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
                     return
                 except Exception:
@@ -261,7 +261,7 @@ class S3Provider(StorageProvider):
                 try:
                     ret = self._get_bytes(path, start_byte, end_byte)
                     always_warn(
-                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
                     return ret
                 except Exception:
@@ -301,7 +301,7 @@ class S3Provider(StorageProvider):
                 try:
                     self._del(path)
                     always_warn(
-                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
                     return
                 except Exception:
@@ -597,7 +597,7 @@ class S3Provider(StorageProvider):
                 try:
                     ret = self._get(path, bucket)
                     always_warn(
-                        f"Connection re-established after {i} {['retry', 'retries'][i==1]}."
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
                     return ret
                 except Exception:
