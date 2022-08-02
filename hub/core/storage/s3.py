@@ -1,4 +1,3 @@
-import warnings
 import hub
 from math import ceil
 import time
@@ -12,11 +11,11 @@ from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import (
     S3DeletionError,
     S3GetError,
-    S3ListError,
     S3SetError,
     S3Error,
     PathNotEmptyException,
 )
+from hub.util.warnings import always_warn
 from botocore.exceptions import (
     ReadTimeoutError,
     ConnectionError,
@@ -173,7 +172,7 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._set(path, content)
                     return
@@ -255,7 +254,7 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     return self._get_bytes(path, start_byte, end_byte)
                 except Exception:
@@ -291,7 +290,7 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._del(path)
                     return
@@ -584,7 +583,7 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     return self._get(path, bucket)
                 except Exception:
