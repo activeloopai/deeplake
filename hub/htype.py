@@ -136,9 +136,12 @@ class htype:
     IMAGE_GRAY = "image.gray"
     CLASS_LABEL = "class_label"
     BBOX = "bbox"
+    BBOX_3D = "bbox.3d"
     VIDEO = "video"
     BINARY_MASK = "binary_mask"
+    BINARY_MASK_3D = "binary_mask.3d"
     SEGMENT_MASK = "segment_mask"
+    SEGMENT_MASK_3D = "segment_mask.3d"
     KEYPOINTS_COCO = "keypoints_coco"
     POINT = "point"
     AUDIO = "audio"
@@ -174,12 +177,21 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
+    htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
     htype.VIDEO: {"dtype": "uint8"},
     htype.BINARY_MASK: {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
+    htype.BINARY_MASK_3D: {
+        "dtype": "bool"
+    },
     htype.SEGMENT_MASK: {
+        "dtype": "uint32",
+        "class_names": [],
+        "_info": ["class_names"],
+    },
+    htype.SEGMENT_MASK_3D: {
         "dtype": "uint32",
         "class_names": [],
         "_info": ["class_names"],
