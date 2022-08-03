@@ -1594,8 +1594,8 @@ class Dataset:
 
         Example:
 
-            ds = hub.load("hub://username/dataset")
-            ds.rename("hub://username/renamed_dataset")
+            >>> ds = hub.load("hub://username/dataset")
+            >>> ds.rename("hub://username/renamed_dataset")
 
         Args:
             path (str, pathlib.Path): New path to the dataset.
