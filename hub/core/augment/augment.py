@@ -140,14 +140,14 @@ class Augmenter():    #used to be Pipeline
       else:
         self.pipe_dict[tensor].append(step_transform)
   
-  def augment(self, loader, batch_size=1):
+  def augment_old(self, loader, batch_size=1):
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
 
-  def use_pytorch(self, ds):
+  def augment(self, ds):
     pipe_dict = self.pipe_dict.copy()
     return ds.pytorch(transform=pipe_dict, multiple_transforms=True)
 
-  def pipeline_image_sample(self, sample):  #meant for ds.pytorch
+  def pipeline_image_sample(self, sample):  #meant for ds.pytorch #depricated 
     pipe = self.pipe
     images = sample[self.tensor]
     new_sample_images = []
@@ -157,7 +157,7 @@ class Augmenter():    #used to be Pipeline
     sample[images] = new_sample_images
     return sample
 
-  def return_generator(self, ds: Dataset, batch_size=1, num_workers=None):
+  def return_generator(self, ds: Dataset, batch_size=1, num_workers=None):#depricated
     pipes = self.pipe_dict
     for tensor in pipes:
       self.tensor = tensor
@@ -177,8 +177,6 @@ class Augmenter():    #used to be Pipeline
 
 
 class Policy():
-
-
   def __init__(self, policy_input="image net"):#policy_name="image net"
     if isinstance(policy_input,str):
       self.policy_set = self.get_policies(policy_input)
