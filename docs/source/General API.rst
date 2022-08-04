@@ -1,5 +1,5 @@
-hub
-===
+General API
+===========
 .. automodule:: hub
 .. currentmodule:: hub
 

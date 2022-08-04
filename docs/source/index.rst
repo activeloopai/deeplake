@@ -14,7 +14,7 @@ Hub is an open-source database for AI.
    :maxdepth: 2
    :caption: Python API
 
-   hub
+   General API
    Dataset
    Tensor
    hub.core.dataset
