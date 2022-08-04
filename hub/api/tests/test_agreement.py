@@ -58,8 +58,8 @@ def test_agreement_logged_in(hub_cloud_dev_credentials):
     runner.invoke(login, f"-u {username} -p {password}")
     path = "hub://activeloop/imagenet-test"
     agree(path)
-    runner.invoke(logout)
     reject(path)
+    runner.invoke(logout)
 
 
 def test_not_agreement_logged_in(hub_cloud_dev_credentials):
