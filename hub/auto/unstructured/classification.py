@@ -19,30 +19,8 @@ from .base import UnstructuredDataset
 
 import hub
 
-IMAGES_TENSOR_NAME = "auto"
 LABELS_TENSOR_NAME = "labels"
 
-
-IMAGE_FORMAT_NAME = [
-    "bmp",
-    "dib",
-    "gif",
-    "ico",
-    "jpeg",
-    "jpeg2000",
-    "pcx",
-    "png",
-    "ppm",
-    "sgi",
-    "tga",
-    "tiff",
-    "webp",
-    "wmf",
-    "xbm",
-    "jpg",
-]
-AUDIO_FORMAT_NAME = ["flac", "mp3", "wav"]
-VIDEO_FORMAT_NAME = ["mp4", "mkv", "avi"]
 
 
 def _get_file_paths(directory: Path, relative_to: Union[str, Path] = "") -> List[Path]:
@@ -67,8 +45,8 @@ def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
 
 
-class ImageClassification(UnstructuredDataset):
-    def __init__(self, source: str, sample_compression: str):
+class Classification(UnstructuredDataset):
+    def __init__(self, source: str, htype: str):
         """Convert an unstructured dataset to a structured dataset.
 
         Note:
@@ -95,13 +73,7 @@ class ImageClassification(UnstructuredDataset):
                 f"No files found in {self.source}. Please ensure that the source path is correct."
             )
 
-        if sample_compression in IMAGE_FORMAT_NAME:
-            self.htype = "image"
-        elif sample_compression in AUDIO_FORMAT_NAME:
-            self.htype = "audio"
-        elif sample_compression in VIDEO_FORMAT_NAME:
-            self.htype = "video"
-
+        self.htype = htype
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
@@ -126,7 +98,7 @@ class ImageClassification(UnstructuredDataset):
         ds: Dataset,
         use_progress_bar: bool = True,
         generate_summary: bool = True,
-        image_tensor_args: dict = {},
+        tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
 
@@ -134,14 +106,14 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset) : A Hub dataset object.
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
-            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+            tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
             A hub dataset.
 
         """
 
-        images_tensor_map = {}
+        tensor_map = {}
         labels_tensor_map = {}
 
         use_set_prefix = len(self.set_names) > 1
@@ -150,16 +122,16 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, self.htype)
+            tensor_name = os.path.join(set_name, self.htype)
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
-            images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
+            tensor_map[set_name] = tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
             # TODO: infer sample_compression
             ds.create_tensor(
-                images_tensor_name.replace("\\", "/"),
+                tensor_name.replace("\\", "/"),
                 htype=self.htype,
-                **image_tensor_args,
+                **tensor_args,
             )
             ds.create_tensor(
                 labels_tensor_name.replace("\\", "/"),
@@ -199,12 +171,12 @@ class ImageClassification(UnstructuredDataset):
                 # TODO: try to get all len(shape)s to match.
                 # if appending fails because of a shape mismatch, expand dims (might also fail)
                 try:
-                    ds[images_tensor_map[set_name]].append(image)
+                    ds[tensor_map[set_name]].append(image)
 
                 except TensorInvalidSampleShapeError:
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
-                    ds[images_tensor_map[set_name]].append(reshaped_image)
+                    ds[tensor_map[set_name]].append(reshaped_image)
 
                 except Exception:
                     skipped_files.append(file_path.name)
@@ -219,3 +191,18 @@ class ImageClassification(UnstructuredDataset):
             if generate_summary:
                 ingestion_summary(str(self.source), skipped_files)
             return ds
+
+
+
+
+class ImageClassification(Classification):
+    def __init__(self, source: str, htype: str): 
+        super().__init__(source, htype)
+
+class AudioClassification(Classification):
+    def __init__(self, source: str, htype: str): 
+        super().__init__(source, htype)
+
+class VideoClassification(Classification):
+    def __init__(self, source: str, htype: str): 
+        super().__init__(source, htype)
