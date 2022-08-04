@@ -139,7 +139,7 @@ class htype:
     BBOX_3D = "bbox.3d"
     VIDEO = "video"
     BINARY_MASK = "binary_mask"
-    BINARY_MASK_3D = "binary_mask.3d"
+    INSTANCE_MASK_3D = "instance_mask.3d"
     SEGMENT_MASK = "segment_mask"
     SEGMENT_MASK_3D = "segment_mask.3d"
     KEYPOINTS_COCO = "keypoints_coco"
@@ -183,7 +183,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BINARY_MASK: {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
-    htype.BINARY_MASK_3D: {"dtype": "bool"},
+    htype.INSTANCE_MASK_3D: {"dtype": "uint32"},
     htype.SEGMENT_MASK: {
         "dtype": "uint32",
         "class_names": [],
