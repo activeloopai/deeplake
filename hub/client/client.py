@@ -202,7 +202,7 @@ class HubBackendClient:
 
         Raises:
             UserNotLoggedInException: When user is not logged in
-            InvalidTokenException: If the specified toke is invalid
+            InvalidTokenException: If the specified token is invalid
             TokenPermissionError: when there are permission or other errors related to token
             AgreementNotAcceptedError: when user has not accepted the agreement
             NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
@@ -225,7 +225,6 @@ class HubBackendClient:
                     raise AgreementNotAcceptedError(agreements) from e
                 elif code == 2:
                     raise NotLoggedInAgreementError from e
-                raise TokenPermissionError()
             try:
                 decoded_token = jwt.decode(
                     self.token, options={"verify_signature": False}
@@ -234,6 +233,8 @@ class HubBackendClient:
                 raise InvalidTokenException
             if decoded_token["id"] == "public":
                 raise UserNotLoggedInException()
+            if isinstance(e, AuthorizationException):
+                raise TokenPermissionError()
             raise
 
         full_url = response.get("path")
