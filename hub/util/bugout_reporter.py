@@ -1,11 +1,11 @@
 import json
+import jwt
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 import uuid
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
-from hub.client.client import HubBackendClient
 from hub.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
@@ -116,8 +116,7 @@ def feature_report_path(
         parameters["Path"] = path
 
     if token is not None:
-        client = HubBackendClient(token=token)
-        username = client.get_user_profile()["name"]
+        username = jwt.decode(token, options={"verify_signature": False})
 
         index, current_username = find_current_username()
 
