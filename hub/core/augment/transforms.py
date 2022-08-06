@@ -27,31 +27,32 @@ def is_grayscale_image(image):
 ###########################################################################################################      
 trivial_augmenter = TrivialAugmentWide()
 class TrivialAugment(TrivialAugmentWide):
-  def __init__(self, color_transforms, geometrical_transforms):
+  def __init__(self,leave_transforms=[]):
     super().__init__()
-    self.color_transforms = color_transforms
-    self.geometrical_transforms = geometrical_transforms
-  def _augmentation_space(self, num_bins: int) -> Dict[str, Tuple[Tensor, bool]]:
-    if self.color_transforms == False:
-      return {
-        # op_name: (magnitudes, signed)
-        "Identity": (torch.tensor(0.0), False),
-        "ShearX": (torch.linspace(0.0, 0.99, num_bins), True),
-        "ShearY": (torch.linspace(0.0, 0.99, num_bins), True),
-        "TranslateX": (torch.linspace(0.0, 32.0, num_bins), True),
-        "TranslateY": (torch.linspace(0.0, 32.0, num_bins), True),
-        "Rotate": (torch.linspace(0.0, 135.0, num_bins), True),
-        "Brightness": (torch.linspace(0.0, 0.99, num_bins), True),
-        "Color": (torch.linspace(0.0, 0.99, num_bins), True),
-        "Contrast": (torch.linspace(0.0, 0.99, num_bins), True),
-        "Sharpness": (torch.linspace(0.0, 0.99, num_bins), True),
-        "Posterize": (8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(), False),
-        "Solarize": (torch.linspace(255.0, 0.0, num_bins), False),
-        "AutoContrast": (torch.tensor(0.0), False),
-        "Equalize": (torch.tensor(0.0), False),
-      }
-    elif self.geometrical_transforms == False:
-      pass
+    self.leave_transforms = leave_transforms
+    # self.color_transforms = color_transforms
+    # self.geometrical_transforms = geometrical_transforms
+  def _augmentation_space(self, num_bins: int):
+    aug_space =  {
+      # op_name: (magnitudes, signed)
+      "Identity": (torch.tensor(0.0), False),
+      "ShearX": (torch.linspace(0.0, 0.99, num_bins), True),
+      "ShearY": (torch.linspace(0.0, 0.99, num_bins), True),
+      "TranslateX": (torch.linspace(0.0, 32.0, num_bins), True),
+      "TranslateY": (torch.linspace(0.0, 32.0, num_bins), True),
+      "Rotate": (torch.linspace(0.0, 135.0, num_bins), True),
+      "Brightness": (torch.linspace(0.0, 0.99, num_bins), True),
+      "Color": (torch.linspace(0.0, 0.99, num_bins), True),
+      "Contrast": (torch.linspace(0.0, 0.99, num_bins), True),
+      "Sharpness": (torch.linspace(0.0, 0.99, num_bins), True),
+      "Posterize": (8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(), False),
+      "Solarize": (torch.linspace(255.0, 0.0, num_bins), False),
+      "AutoContrast": (torch.tensor(0.0), False),
+      "Equalize": (torch.tensor(0.0), False),
+    }
+    for transform_name in self.leave_transforms:
+      del aug_space[transform_name]
+    return aug_space
 
 @hub.compute
 def trivial_augment(image):
