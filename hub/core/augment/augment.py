@@ -143,7 +143,7 @@ class Augmenter():    #used to be Pipeline
   def augment_old(self, loader, batch_size=1):
     return Hubloader(loader, self.pipe_dict, batch_size, pipe_type="sequential")
 
-  def augment(self, ds, num_workers=None):
+  def augment(self, ds, num_workers=1):
     pipe_dict = self.pipe_dict.copy()
     return ds.pytorch(transform=pipe_dict, multiple_transforms=True, num_workers=num_workers)
 
