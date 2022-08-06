@@ -25,7 +25,6 @@ def is_grayscale_image(image):
 
 
 ###########################################################################################################      
-trivial_augmenter = TrivialAugmentWide()
 class TrivialAugment(TrivialAugmentWide):
   def __init__(self,leave_transforms=[]):
     super().__init__()
@@ -53,7 +52,7 @@ class TrivialAugment(TrivialAugmentWide):
     for transform_name in self.leave_transforms:
       del aug_space[transform_name]
     return aug_space
-
+trivial_augmenter = TrivialAugment()
 @hub.compute
 def trivial_augment(image):
   shape_initial = list(image.shape)
