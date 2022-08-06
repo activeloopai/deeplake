@@ -2,7 +2,7 @@ from collections import defaultdict
 import math
 import warnings
 import hub
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from json.decoder import JSONDecodeError
 from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.tensor_meta import TensorMeta
@@ -104,6 +104,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         tensors,
         visible_tensors,
         label_temp_tensors,
+        actual_tensors,
         pipeline,
         version_state,
         link_creds,
@@ -121,6 +122,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         pipeline,
         visible_tensors,
         label_temp_tensors,
+        actual_tensors,
         all_chunk_engines,
         group_index,
         pg_callback,
@@ -166,6 +168,7 @@ def _transform_sample_and_update_chunk_engines(
     pipeline,
     tensors: List[str],
     label_temp_tensors: Dict[str, str],
+    actual_tensors: Optional[List[str]],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     skip_ok: bool = False,
@@ -179,15 +182,13 @@ def _transform_sample_and_update_chunk_engines(
     result = result_resolved  # type: ignore
     result_keys = set(result.keys())
 
-    # replace temporary tensors with actual ones for comparing
-    tensors_ = (set(tensors) - set(label_temp_tensors.values())).union(
-        set(label_temp_tensors.keys())
-    )
+    # compare with actual tensors if there are temporary tensors
+    actual_tensors = actual_tensors or tensors
     if skip_ok:
-        if not result_keys.issubset(tensors_):
-            raise TensorMismatchError(list(tensors_), list(result_keys), skip_ok)
-    elif set(result_keys) != set(tensors_):
-        raise TensorMismatchError(list(tensors_), list(result_keys), skip_ok)
+        if not result_keys.issubset(actual_tensors):
+            raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(actual_tensors):
+        raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
 
     for tensor, value in result.items():
         chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
@@ -200,6 +201,7 @@ def transform_data_slice_and_append(
     pipeline,
     tensors: List[str],
     label_temp_tensors: Dict[str, str],
+    actual_tensors: Optional[List[str]],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     pg_callback=None,
@@ -216,6 +218,7 @@ def transform_data_slice_and_append(
             pipeline,
             tensors,
             label_temp_tensors,
+            actual_tensors,
             all_chunk_engines,
             group_index,
             skip_ok,

@@ -224,6 +224,11 @@ class Pipeline:
             and not tensor.meta._disable_temp_transform
         ]
         label_temp_tensors = {}
+        actual_tensors = (
+            None
+            if not class_label_tensors
+            else [target_ds[t].key for t in target_ds.tensors]
+        )
 
         for tensor in class_label_tensors:
             temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
@@ -257,6 +262,7 @@ class Pipeline:
             tensors,
             visible_tensors,
             label_temp_tensors,
+            actual_tensors,
             self,
             version_state,
             target_ds.link_creds,

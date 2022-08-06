@@ -35,42 +35,27 @@ def convert_to_idx(samples, class_names: List[str]):
 
 
 def convert_to_hash(samples, hash_label_map):
-    def convert(samples):
-        hashes = []
-        for sample in samples:
-            if isinstance(sample, np.ndarray):
-                sample = sample.tolist()
-            if isinstance(sample, list):
-                hashes_ = convert(sample)
-                hashes.append(hashes_)
-            else:
-                if isinstance(sample, str):
-                    hash_ = hash_str_to_int32(sample)
-                    hash_label_map[hash_] = sample
-                else:
-                    hash_ = sample
-                hashes.append(hash_)
-        return hashes
-
-    return convert(samples)
+    if isinstance(samples, np.ndarray):
+        samples = samples.tolist()
+    if isinstance(samples, list):
+        return [convert_to_hash(sample, hash_label_map) for sample in samples]
+    else:
+        if isinstance(samples, str):
+            hash_ = hash_str_to_int32(samples)
+            hash_label_map[hash_] = samples
+        else:
+            hash_ = samples
+        return hash_
 
 
 def convert_hash_to_idx(hashes, hash_idx_map):
-    def convert(hashes):
-        idxs = []
-        for hash in hashes:
-            if isinstance(hash, list):
-                idxs_ = convert(hash)
-                idxs.extend(idxs_)
-            else:
-                try:
-                    idx = hash_idx_map[hash]
-                    idxs.append(idx)
-                except KeyError:
-                    idxs.append(hash)
-        return idxs
-
-    return convert(hashes)
+    if isinstance(hashes, list):
+        return [convert_hash_to_idx(hash, hash_idx_map) for hash in hashes]
+    else:
+        try:
+            return hash_idx_map[hashes]
+        except KeyError:
+            return hashes
 
 
 def convert_to_text(inp, class_names: List[str]):
@@ -93,14 +78,14 @@ def sync_labels(
 
     @hub.compute
     def upload(
-        hash_tensor,
-        ds_out,
+        hash_tensor_sample,
+        samples_out,
         label_tensor: str,
         hash_idx_map,
     ):
-        hashes = hash_tensor.numpy().tolist()
+        hashes = hash_tensor_sample.numpy().tolist()
         idxs = convert_hash_to_idx(hashes, hash_idx_map)
-        ds_out[label_tensor].append(idxs)
+        samples_out[label_tensor].append(idxs)
 
     for tensor, temp_tensor in label_temp_tensors.items():
         try:
