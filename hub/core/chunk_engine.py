@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from hub.client.log import logger
 import hub
 import numpy as np
@@ -7,7 +8,6 @@ from typing import (
     Callable,
     Dict,
     Optional,
-    OrderedDict,
     Sequence,
     Union,
     List,
