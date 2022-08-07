@@ -32,7 +32,9 @@ image_compressions.remove("wmf")
 image_compressions.remove("apng")
 image_compressions.remove("dcm")
 
-image_compressions = list(filter(lambda c: is_readonly_compression(c), image_compressions))
+image_compressions = list(
+    filter(lambda c: is_readonly_compression(c), image_compressions)
+)
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
