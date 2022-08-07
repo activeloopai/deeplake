@@ -30,7 +30,6 @@ from PIL import Image  # type: ignore
 image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
-image_compressions.remove("dcm")
 
 image_compressions = list(filter(lambda c: is_readonly_compression(c), image_compressions))
 
