@@ -407,8 +407,11 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         assert self.path is not None
+        headers = {}
         if "Authorization" in self._creds:
-            headers = {"Authorization": self._creds["Authorization"]}
+            headers |= {"Authorization": self._creds["Authorization"]}
+        if "requestHeaders" in self._creds:
+            headers |= self._creds["requestHeaders"]
         else:
             headers = {}
         result = requests.get(self.path, headers=headers)
