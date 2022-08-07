@@ -117,7 +117,8 @@ def feature_report_path(
         parameters["Path"] = path
 
     if token is not None:
-        username = get_user_name()
+        client = HubBackendClient(token=token)
+        username = client.get_user_profile()["name"]
 
         index, current_username = find_current_username()
 
