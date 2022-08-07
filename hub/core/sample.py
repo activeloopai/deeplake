@@ -25,7 +25,7 @@ from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
 from hub.util.path import get_path_type, is_remote_path
 import numpy as np
-from typing import Optional, Tuple, Union, Dict
+from typing import Any, Optional, Tuple, Union, Dict
 
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
@@ -407,7 +407,7 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         assert self.path is not None
-        headers = {}
+        headers: Dict[str, Any]= {}
         if "Authorization" in self._creds:
             headers |= {"Authorization": self._creds["Authorization"]}
         if "requestHeaders" in self._creds:
