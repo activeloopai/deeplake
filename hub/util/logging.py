@@ -17,6 +17,7 @@ def log_visualizer_link(ds_path, source_ds_url=""):
                     view_id = url.split("/.queries/", 1)[1]
                     if view_id.endswith("_OPTIMIZED"):
                         view_id = view_id[: -len("_OPTIMIZED")]
+                    view_id = view_id[len(f"[{org_id}][{ds_name}]"):]
                     url = source_ds_url + "?view=" + view_id
                     logger.info(msg + " or at " + url)
                 else:
