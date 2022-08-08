@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import uuid
 
 from hub.client.config import REPORTING_CONFIG_FILE_PATH
+from hub.client.client import HubBackendClient
 from hub.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
@@ -102,7 +103,11 @@ if hub_user is not None:
 
 
 def feature_report_path(
-    path: str, feature_name: str, parameters: dict, starts_with: str = "hub://"
+    path: str,
+    feature_name: str,
+    parameters: dict,
+    starts_with: str = "hub://",
+    token: str = None,
 ):
     """Helper function for generating humbug feature reports depending on the path"""
     if not isinstance(path, str):
@@ -110,7 +115,26 @@ def feature_report_path(
     if path.startswith(starts_with):
         parameters["Path"] = path
 
+    if token is not None:
+        client = HubBackendClient(token=token)
+        username = client.get_user_profile()["name"]
+
+        index, current_username = find_current_username()
+
+        if current_username is None:
+            hub_reporter.tags.append(f"username:{username}")
+        else:
+            if f"username:{username}" != current_username:
+                hub_reporter.tags[index] = f"username:{username}"
+
     hub_reporter.feature_report(
         feature_name=feature_name,
         parameters=parameters,
     )
+
+
+def find_current_username():
+    for index, tag in enumerate(hub_reporter.tags):
+        if "username" in tag:
+            return index, tag
+    return None, None
