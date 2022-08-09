@@ -284,13 +284,11 @@ class HubBackendClient:
             "session_token": "aws_session_token",
             "token": "aws_session_token",
             "region": "aws_region",
+            "requestHeaders": "headers",
         }
         final_creds = {}
         for key, value in creds.items():
-            if key == "access_token":
-                key = "Authorization"
-                value = f"Bearer {value}"
-            elif key in key_mapping:
+            if key in key_mapping:
                 key = key_mapping[key]
             final_creds[key] = value
         return final_creds
