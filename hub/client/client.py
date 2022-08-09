@@ -2,9 +2,12 @@ import hub
 import requests
 from typing import Optional
 from hub.util.exceptions import (
+    AgreementNotAcceptedError,
+    AuthorizationException,
     LoginException,
     InvalidPasswordException,
     ManagedCredentialsNotFoundError,
+    NotLoggedInAgreementError,
     ResourceNotFoundException,
     InvalidTokenException,
     UserNotLoggedInException,
@@ -12,6 +15,8 @@ from hub.util.exceptions import (
 )
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    ACCEPT_AGREEMENTS_SUFFIX,
+    REJECT_AGREEMENTS_SUFFIX,
     GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -197,8 +202,10 @@ class HubBackendClient:
 
         Raises:
             UserNotLoggedInException: When user is not logged in
-            InvalidTokenException: If the specified toke is invalid
+            InvalidTokenException: If the specified token is invalid
             TokenPermissionError: when there are permission or other errors related to token
+            AgreementNotAcceptedError: when user has not accepted the agreement
+            NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         try:
@@ -208,7 +215,16 @@ class HubBackendClient:
                 endpoint=self.endpoint(),
                 params={"mode": mode, "no_cache": no_cache},
             ).json()
-        except Exception:
+        except Exception as e:
+            if isinstance(e, AuthorizationException):
+                response_data = e.response.json()
+                code = response_data.get("code")
+                if code == 1:
+                    agreements = response_data["agreements"]
+                    agreements = [agreement["text"] for agreement in agreements]
+                    raise AgreementNotAcceptedError(agreements) from e
+                elif code == 2:
+                    raise NotLoggedInAgreementError from e
             try:
                 decoded_token = jwt.decode(
                     self.token, options={"verify_signature": False}
@@ -217,7 +233,10 @@ class HubBackendClient:
                 raise InvalidTokenException
             if decoded_token["id"] == "public":
                 raise UserNotLoggedInException()
-            raise TokenPermissionError()
+            if isinstance(e, AuthorizationException):
+                raise TokenPermissionError()
+            raise
+
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -301,6 +320,34 @@ class HubBackendClient:
         self.request(
             "DELETE",
             suffix,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def accept_agreements(self, org_id, ds_name):
+        """Accepts the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = ACCEPT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def reject_agreements(self, org_id, ds_name):
+        """Rejects the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = REJECT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
             endpoint=self.endpoint(),
         ).json()
 

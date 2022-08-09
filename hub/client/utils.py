@@ -80,7 +80,7 @@ def check_response_status(response: requests.Response):
     elif response.status_code == 401:
         raise AuthenticationException
     elif response.status_code == 403:
-        raise AuthorizationException(message)
+        raise AuthorizationException(message, response=response)
     elif response.status_code == 404:
         if message != " ":
             raise ResourceNotFoundException(message)
