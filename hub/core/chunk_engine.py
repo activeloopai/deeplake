@@ -1,8 +1,18 @@
+from collections import OrderedDict
 from hub.client.log import logger
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
-from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Sequence,
+    Union,
+    List,
+    Tuple,
+)
 from hub.api.info import Info
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.serialize import HEADER_SIZE_BYTES
@@ -66,7 +76,7 @@ from hub.util.exceptions import (
 )
 from hub.util.remove_cache import get_base_storage
 from hub.util.image import convert_sample, convert_img_arr
-from hub.util.class_label import convert_to_idx
+from hub.util.class_label import convert_to_idx, convert_to_hash
 from hub.compression import VIDEO_COMPRESSIONS
 from hub.core.sample import Sample
 from itertools import chain, repeat
@@ -171,6 +181,8 @@ class ChunkEngine:
         self._info_commit_id: Optional[str] = None
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
+        self._is_temp_label_tensor: bool = False
+        self._hash_label_map: Dict[int, str] = OrderedDict()
 
         tensor_meta = self.tensor_meta
 
@@ -606,7 +618,9 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        if tensor_meta.htype in ("image.gray", "image.rgb"):
+        if self._is_temp_label_tensor:
+            samples = verified_samples = convert_to_hash(samples, self._hash_label_map)
+        elif tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
             converted = []
             for sample in samples:
