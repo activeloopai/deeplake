@@ -684,9 +684,9 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name)
+                self.delete_tensor(t_name, large_ok=True)
 
-        self.storage.maybe_flush()
+        self.storage.flush()
 
     @invalid_view_op
     @hub_reporter.record_call
@@ -2219,6 +2219,11 @@ class Dataset:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
 
         username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+
+        if username == "public":
+            raise DatasetViewSavingError(
+                "Unable to save view for read only dataset. Login to save the view to your user account."
+            )
 
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
