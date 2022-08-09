@@ -1,5 +1,5 @@
-Tensor
-======
+Tensor Objects
+==============
 
 .. currentmodule:: hub.core.tensor
 

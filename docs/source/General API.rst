@@ -27,74 +27,48 @@ Copying Datasets
     copy
     deepcopy
 
-Loading Datasets
-~~~~~~~~~~~~~~~~
+Parallelism
+~~~~~~~~~~~
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+    
+    compute
+    compose
 
 hub.load
---------
-
+~~~~~~~~
 .. autofunction:: load
 
-Deleting Datasets
-~~~~~~~~~~~~~~~~~
-
 hub.delete
-----------
-
+~~~~~~~~~~
 .. autofunction:: delete
 
-Renaming Datasets
-~~~~~~~~~~~~~~~~~
-
 hub.rename
-----------
-
+~~~~~~~~~~
 .. autofunction:: rename
 
-Helper Functions
-~~~~~~~~~~~~~~~~
-
 hub.list
---------
+~~~~~~~~~~~~~~~~
 .. autofunction:: list
 
 hub.exists
-----------
+~~~~~~~~~~
 .. autofunction:: exists
 
 Htypes
 ~~~~~~
-
 .. automodule:: hub.htype
 
-Reading data
-~~~~~~~~~~~~
-
 hub.read
---------
+~~~~~~~~
 .. autofunction:: hub.read
 
-Linked data
-~~~~~~~~~~~
 
 hub.link
---------
+~~~~~~~~
 .. autofunction:: hub.link
 
-Tiling
-~~~~~~
-
 hub.tiled
----------
+~~~~~~~~~
 .. autofunction:: hub.tiled
-
-Parallelism
-~~~~~~~~~~~
-
-hub.compute
------------
-.. autofunction:: hub.compute
-
-hub.compose
------------
-.. autofunction:: hub.compose

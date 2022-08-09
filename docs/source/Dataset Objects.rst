@@ -1,5 +1,5 @@
-Dataset
-=======
+Dataset Objects
+===============
 .. currentmodule:: hub.core.dataset
 
 .. autoclass:: Dataset()
