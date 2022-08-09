@@ -12,13 +12,22 @@ Hub is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Python API
+   :caption: Key Concepts
 
-   General API
-   Dataset Objects
-   Tensor Objects
-   hub.core.dataset
+   General Functions
+   Htypes
+   Datasets
+   Tensors
+   PyTorch and Tensorflow Support
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
+
+   hub
    hub.core
+   hub.core.dataset
+   hub.core.tensor
    hub.api
    hub.auto
    hub.util

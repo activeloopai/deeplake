@@ -2,6 +2,11 @@ hub.core.dataset
 ================
 .. currentmodule:: hub.core.dataset
 
+Dataset
+~~~~~~~
+.. autoclass:: Dataset()
+    :members:
+
 HubCloudDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: HubCloudDataset()

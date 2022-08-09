@@ -37,7 +37,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
 ]
-autosummary_generate = True
+autosummary_generate = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
