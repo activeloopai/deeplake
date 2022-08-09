@@ -326,7 +326,7 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
         pytest.skip()
         return
 
-    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test_dataset"
 
     yield path
 
