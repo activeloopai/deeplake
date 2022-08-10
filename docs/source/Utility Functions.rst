@@ -1,9 +1,9 @@
-General Functions
+Utility Functions
 =================
 .. currentmodule:: hub
 
 
-Utility Functions
+General Functions
 ~~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree:
