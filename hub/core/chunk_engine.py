@@ -1754,7 +1754,8 @@ class ChunkEngine:
 
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if not self._is_tiled_sample(global_sample_index):
+            local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk_ids, rows, delete = enc.pop(global_sample_index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             del self.tile_encoder[global_sample_index]
