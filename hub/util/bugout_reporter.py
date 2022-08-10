@@ -88,7 +88,6 @@ def get_reporting_config() -> Dict[str, Any]:
         # Not being able to load reporting consent should not get in the user's way. We will just
         # return the default reporting_config object in which consent is set to False.
         pass
-
     return reporting_config
 
 
