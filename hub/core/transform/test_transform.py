@@ -107,6 +107,16 @@ def unequal_transform(sample_in, samples_out):
         samples_out.y.append(sample_in.y.numpy() * 2)
 
 
+@hub.compute
+def add_text(sample_in, samples_out):
+    samples_out.abc.append(sample_in)
+
+
+@hub.compute
+def add_link(sample_in, samples_out):
+    samples_out.abc.append(hub.link(sample_in))
+
+
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
@@ -945,3 +955,30 @@ def test_transform_pad_data_in(local_ds):
         x, y = dsv.x.numpy(), dsv.y.numpy()
         np.testing.assert_equal(x, 2 * i)
         np.testing.assert_equal(y, 2 * i)
+
+
+def test_transform_bug_text(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="text")
+        ls = ["hello"] * 10
+        add_text().eval(ls, ds, num_workers=2)
+        assert len(ds) == 10
+        ds.pop(6)
+        assert len(ds) == 9
+
+        for i in range(9):
+            assert ds[i].abc.numpy() == "hello"
+
+
+def test_transform_bug_link(local_ds, cat_path):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="link")
+        ls = [cat_path] * 10
+        add_link().eval(ls, ds, num_workers=2)
+        assert len(ds) == 10
+        ds.pop(6)
+        assert len(ds) == 9
+
+        for i in range(9):
+            assert ds[i].abc.numpy().shape == (900, 900, 3)
+            assert ds[i].abc.shape == (900, 900, 3)
