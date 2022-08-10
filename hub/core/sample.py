@@ -407,8 +407,7 @@ class Sample:
 
     def _read_from_http(self) -> bytes:
         assert self.path is not None
-        if "headers" in self._creds:
-            headers = self._creds["headers"]
+        headers = self._creds.get("headers")
         result = requests.get(self.path, headers=headers)
         if result.status_code != 200:
             raise UnableToReadFromUrlError(self.path, result.status_code)
