@@ -598,7 +598,7 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
-        samples = [self.convert_empty_list_to_none(sample) for sample in samples]
+        samples = [None if is_empty_list(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -777,7 +777,7 @@ class ChunkEngine:
                 if link_callback:
                     link_callback(ls, flat=False)
                     for s in ls:
-                        s = self.convert_empty_list_to_none(s)
+                        s = None if is_empty_list(s) else s
                         link_callback(s, flat=True)
 
         else:
@@ -785,7 +785,7 @@ class ChunkEngine:
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:
-                    sample = self.convert_empty_list_to_none(sample)
+                    sample = None if is_empty_list(sample) else sample
                     link_callback(sample, flat=None)
 
         self.cache.autoflush = initial_autoflush
@@ -1168,11 +1168,6 @@ class ChunkEngine:
             self.__rechunk(chunk, chunk_row)
             return
 
-    def convert_empty_list_to_none(self, sample):
-        if is_empty_list(sample) and self.tensor_meta.htype != "list":
-            return None
-        return sample
-
     def _update(
         self,
         index: Index,
@@ -1200,7 +1195,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
         for i, sample in enumerate(samples):  # type: ignore
-            sample = self.convert_empty_list_to_none(sample)
+            sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
