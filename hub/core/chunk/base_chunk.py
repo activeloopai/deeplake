@@ -31,6 +31,7 @@ from hub.core.serialize import (
     serialize_tensor,
     serialize_partial_sample_object,
     get_header_from_url,
+    serialize_text_sample_object,
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -293,9 +294,20 @@ class BaseChunk(HubMemoryObject):
                 empty_mapping = {"text": "", "list": [], "json": {}}
                 incoming_sample = empty_mapping[htype]
 
-            incoming_sample, shape = serialize_text(
-                incoming_sample, sample_compression, dt, ht  # type: ignore
-            )
+            if isinstance(incoming_sample, Sample):
+                if incoming_sample.is_text_like:
+                    incoming_sample, shape = serialize_text_sample_object(  # type: ignore
+                        incoming_sample, sample_compression
+                    )
+                else:
+                    htype = "Linked" if self.tensor_meta.is_link else self.htype
+                    raise TypeError(
+                        f"Cannot append to {htype} tensor with Sample object"
+                    )
+            else:
+                incoming_sample, shape = serialize_text(
+                    incoming_sample, sample_compression, dt, ht  # type: ignore
+                )
         elif incoming_sample is None:
             shape = (0,) * self.num_dims if self.num_dims else None
             incoming_sample = b""

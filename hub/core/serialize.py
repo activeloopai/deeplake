@@ -443,6 +443,15 @@ def serialize_partial_sample_object(
     )
 
 
+def serialize_text_sample_object(
+    incoming_sample: Sample, sample_compression: Optional[str]
+):
+    shape = incoming_sample.shape
+    out = incoming_sample
+    out = out.compressed_bytes(sample_compression)
+    return out, shape
+
+
 def serialize_sample_object(
     incoming_sample: Sample,
     sample_compression: Optional[str],

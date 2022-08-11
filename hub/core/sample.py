@@ -20,6 +20,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
+from hub.core.linked_sample import LinkedSample
 from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
@@ -30,8 +31,6 @@ from typing import Optional, Tuple, Union, Dict
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
-
-from urllib.request import urlopen
 
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.google_drive import GDriveProvider
@@ -124,6 +123,8 @@ class Sample:
                 if self._verify:
                     self._shape, self._typestr = verify_compressed_file(buffer, self._compression)  # type: ignore
 
+        self.htype = None
+
     @property
     def buffer(self):
         if self._buffer is None and self.path is not None:
@@ -131,6 +132,10 @@ class Sample:
         if self._buffer is not None:
             return self._buffer
         return self.compressed_bytes(self.compression)
+
+    @property
+    def is_text_like(self):
+        return self.htype in {"text", "list", "json", "link"}
 
     @property
     def dtype(self):
@@ -300,9 +305,19 @@ class Sample:
             return
         compression = self.compression
         if compression is None and self._buffer is not None:
-            self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
-                self.shape
-            )
+            if self.is_text_like:
+                from hub.core.serialize import bytes_to_text
+
+                buffer = bytes(self._buffer)
+                htype = "text" if self.htype == "link" else self.htype
+                self._array = bytes_to_text(buffer, htype)
+                if self.htype == "link":
+                    self._array = LinkedSample(self._array)
+            else:
+                self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                    self.shape
+                )
+
         else:
             if self.path and get_path_type(self.path) == "local":
                 compressed = self.path

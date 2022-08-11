@@ -1011,14 +1011,20 @@ class ChunkEngine:
         self, sample_data, sample_shape, compression, dtype, decompress
     ):
         if decompress:
-            return Sample(array=sample_data, shape=sample_shape)
+            sample = Sample(array=sample_data, shape=sample_shape)
         else:
-            return Sample(
+            sample = Sample(
                 buffer=sample_data,
                 shape=sample_shape,
                 compression=compression,
                 dtype=dtype,
             )
+
+        if self.tensor_meta.htype in ("json", "text", "list"):
+            sample.htype = self.tensor_meta.htype
+        elif self.tensor_meta.is_link:
+            sample.htype = "link"
+        return sample
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
         samples_to_move = self._get_samples_to_move(chunk=chunk)
@@ -1146,8 +1152,6 @@ class ChunkEngine:
 
     def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
-        if not self.is_rechunkable:
-            return
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
@@ -1429,10 +1433,7 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if (
-                    self.tensor_meta.htype in {"text", "json", "list"}
-                    or self.tensor_meta.is_link
-                ):
+                if self.is_text_like:
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
@@ -1722,14 +1723,6 @@ class ChunkEngine:
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
-
-    @property
-    def is_rechunkable(self) -> bool:
-        # don't rechunk for text-like + links
-        return (
-            self.tensor_meta.htype not in ("json", "text", "list")
-            and not self.tensor_meta.is_link
-        )
 
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
@@ -2146,6 +2139,13 @@ class ChunkEngine:
             ndim += 1
         shape = (0,) * ndim
         return np.ones(shape, dtype=dtype)
+
+    @property
+    def is_text_like(self):
+        return (
+            self.tensor_meta.htype in {"text", "json", "list"}
+            or self.tensor_meta.is_link
+        )
 
     def check_remove_active_chunks(self, chunk_key):
         if (
