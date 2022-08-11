@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from platform import machine
 from typing import Any, Dict, Optional
 import uuid
 
@@ -71,6 +72,18 @@ def get_reporting_config() -> Dict[str, Any]:
         else:
             with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
                 reporting_config = json.load(ifp)
+
+        # The following changes do NOT mutate the reporting_config.json file on the file system, but
+        # they provide a means to report the username as the client_id (if the username is available)
+        # while tracking the existing client_id as a machine_id.
+        reporting_config["machine_id"] = reporting_config["client_id"]
+
+        if (
+            reporting_config.get("username") is not None
+            and reporting_config["client_id"] != reporting_config["username"]
+        ):
+            reporting_config["client_id"] = reporting_config["username"]
+
     except Exception:
         # Not being able to load reporting consent should not get in the user's way. We will just
         # return the default reporting_config object in which consent is set to False.
@@ -84,10 +97,11 @@ def consent_from_reporting_config_file() -> bool:
     return reporting_config.get("consent", False)
 
 
-session_id = str(uuid.uuid4())
-client_id = get_reporting_config().get("client_id")
-
 consent = HumbugConsent(consent_from_reporting_config_file)
+
+session_id = str(uuid.uuid4())
+bugout_reporting_config = get_reporting_config()
+client_id = bugout_reporting_config.get("client_id")
 
 hub_reporter = HumbugReporter(
     name="activeloopai/Hub",
@@ -98,9 +112,13 @@ hub_reporter = HumbugReporter(
     tags=[],
 )
 
-hub_user = get_reporting_config().get("username")
+hub_user = bugout_reporting_config.get("username")
 if hub_user is not None:
     hub_reporter.tags.append(f"username:{hub_user}")
+
+machine_id = bugout_reporting_config.get("machine_id")
+if machine_id is not None:
+    hub_reporter.tags.append(f"machine_id:{machine_id}")
 
 
 def feature_report_path(
