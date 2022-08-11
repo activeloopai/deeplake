@@ -23,7 +23,7 @@ class IPFSProvider(StorageProvider):
     def __init__(
         self,
         coreurl:str=None, # Core URL to use
-        cid:str='',
+        cid:str='', # CID of the dataset stored on IPFS
         storage_type:str=None, # specify type of gateway (e.g. Infura, Estuary, Web3.Storage, local node...)
         api_key:str=None, # if applicable, api key for access to storage service
         fpath:str=None,
@@ -32,7 +32,7 @@ class IPFSProvider(StorageProvider):
         super().__init__()
         self.coreurl = coreurl if coreurl is not None else 'https://ipfs.infura.io:5001/api/v0'
         self.cid = cid
-        self.gw = IPFSGateway(url=self.coreurl)
+        self.gateway = IPFSGateway(url=self.coreurl)
         self.storage_type = storage_type
         self.api_key = api_key
         self.cids = None
@@ -46,7 +46,7 @@ class IPFSProvider(StorageProvider):
                 self.links = self._get_links(self.cid)
                 self.ordered_links = self.get_hash(self.links, {})
                 cid = self.ordered_links[path]
-                res, content = self.gw.cat(cid)
+                res, content = self.gateway.cat(cid)
                 b = bytes(content,'utf-8')
                 if res.status_code == 200:                
                     return b
@@ -67,7 +67,7 @@ class IPFSProvider(StorageProvider):
     def __setitem__(self, path, value):
         """Sets the object present at the path with the value"""
         if not self.stored:
-            _, res = self.gw.add_items(filepath=self.fpath, directory=True)
+            _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
             self.stored = True
             self.get_set_cid(res)
             return res
@@ -91,7 +91,7 @@ class IPFSProvider(StorageProvider):
         """
         if self.coreurl != "https://ipfs.infura.io:5001/api/v0":
             raise KeyError(self.coreurl)
-        res = self.gw.pin_rm(self.cid)
+        res = self.gateway.pin_rm(self.cid)
         return res
 
     def __iter__(self):
@@ -157,7 +157,7 @@ class IPFSProvider(StorageProvider):
     def read_json(self, 
         cid:str, 
     ):
-        r, data = self.gw.cat(cid)      
+        r, data = self.gateway.cat(cid)
         
         return pd.read_json(StringIO(data))
 
