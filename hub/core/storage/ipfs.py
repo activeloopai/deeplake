@@ -46,7 +46,6 @@ class IPFSProvider(StorageProvider):
         self.api_key = api_key
         self.cids = None
         self.fpath = fpath
-        self.stored = False
 
     def __getitem__(self, path, **kwargs):
         """Gets the object present at the path.
@@ -85,12 +84,10 @@ class IPFSProvider(StorageProvider):
         Args:
             path (str): the path of the object to be set.
         """
-        if not self.stored:
-            _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
-            self.stored = True
-            self.get_set_cid(res)
-            return res
-        return True
+        _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
+        self.stored = True
+        self.get_set_cid(res)
+        return res
 
 
     def __delitem__(self):
