@@ -20,27 +20,44 @@ from ipfshttpclient.multipart import stream_files, stream_directory
 logger = logging.getLogger("ipfsspec")
 
 class IPFSProvider(StorageProvider):
+    """Provider class for IPFS"""
     def __init__(
         self,
-        coreurl:str=None, # Core URL to use
-        cid:str='', # CID of the dataset stored on IPFS
-        storage_type:str=None, # specify type of gateway (e.g. Infura, Estuary, Web3.Storage, local node...)
-        api_key:str=None, # if applicable, api key for access to storage service
+        coreurl:str=None,
+        cid:str='',
+        api_key:str=None,
         fpath:str=None,
     ) -> None:
-        """Initialize the object, assign credentials if required."""
+        """Initialize the IPFSProvider, assign credentials if required.
+        
+        Example:
+            ipfs_provider = IPFSProvider("https://ipfs.infura.io:5001/api/v0", cid="QmaAgd3ecH3k9fPPwpBAd9pUhgN5TtjdfRLCtCTMdwcfkS")
+        
+        Args:
+            coreurl (str): gateway URL to access IPFS
+            cid (str): CID of the dataset stored on IPFS
+            api_key (str): if applicable, api key for access to storage service
+            fpath (str): path to the file to be uploaded to IPFS
+        """
         super().__init__()
         self.coreurl = coreurl if coreurl is not None else 'https://ipfs.infura.io:5001/api/v0'
         self.cid = cid
         self.gateway = IPFSGateway(url=self.coreurl)
-        self.storage_type = storage_type
         self.api_key = api_key
         self.cids = None
         self.fpath = fpath
         self.stored = False
 
     def __getitem__(self, path, **kwargs):
-        """Gets the object present at the path."""
+        """Gets the object present at the path.
+        
+        Args:
+            path (str): the path of the object to be retrieved.
+
+        Raises:
+            KeyError: If an incompatible gateway is provided. (removing pins is only available on local/Infura gateways)
+            HTTPError: If incorrect CID.
+        """
         if self.cid != '':
             try:
                 self.links = self._get_links(self.cid)
@@ -57,15 +74,17 @@ class IPFSProvider(StorageProvider):
             except FileNotFoundError:
                 print(f"Path requested: {path}, filenotfound")
                 raise KeyError(path)
-            except AssertionError:
-                print(f'Status code: {res.status_code}, Assertion error, content is {content}, path is {path}, cid query is {cid}, query is {query}, and in bytes we have {b}')
             except TypeError:
                 print('Got type error.')
         else:
             raise KeyError(path)
 
     def __setitem__(self, path, value):
-        """Sets the object present at the path with the value"""
+        """Sets the object present at the path with the value
+        
+        Args:
+            path (str): the path of the object to be set.
+        """
         if not self.stored:
             _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
             self.stored = True
