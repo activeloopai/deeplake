@@ -41,10 +41,10 @@ class IPFSProvider(StorageProvider):
         """
         super().__init__()
         self.coreurl = coreurl if coreurl is not None else 'https://ipfs.infura.io:5001/api/v0'
-        self.cid = cid
+        self.content_id = cid
         self.gateway = IPFSGateway(url=self.coreurl)
         self.api_key = api_key
-        self.cids = None
+        self.content_ids = None
         self.fpath = fpath
 
     def __getitem__(self, path, **kwargs):
@@ -57,9 +57,9 @@ class IPFSProvider(StorageProvider):
             KeyError: If an incompatible gateway is provided. (removing pins is only available on local/Infura gateways)
             HTTPError: If incorrect CID.
         """
-        if self.cid != '':
+        if self.content_id != '':
             try:
-                self.links = self._get_links(self.cid)
+                self.links = self._get_links(self.content_id)
                 self.ordered_links = self.get_hash(self.links, {})
                 cid = self.ordered_links[path]
                 res, content = self.gateway.cat(cid)
@@ -85,10 +85,8 @@ class IPFSProvider(StorageProvider):
             path (str): the path of the object to be set.
         """
         _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
-        self.stored = True
         self.get_set_cid(res)
         return res
-
 
     def __delitem__(self):
         """Remove pin of the object present at the CID.
@@ -107,7 +105,7 @@ class IPFSProvider(StorageProvider):
         """
         if self.coreurl != "https://ipfs.infura.io:5001/api/v0":
             raise KeyError(self.coreurl)
-        res = self.gateway.pin_rm(self.cid)
+        res = self.gateway.pin_rm(self.content_id)
         return res
 
     def __iter__(self):
@@ -116,7 +114,7 @@ class IPFSProvider(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self.cids
+        yield from self.content_ids
 
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
@@ -124,7 +122,7 @@ class IPFSProvider(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self.cids)
+        return len(self.content_ids)
 
     def _all_keys(self) -> Set[str]:
         """Generator function that iterates over the keys of the provider.
@@ -132,14 +130,14 @@ class IPFSProvider(StorageProvider):
         Returns:
             set: set of all keys present at the root of the provider.
         """
-        if self.cids is None:
+        if self.content_ids is None:
             return []
-        return self.cids
+        return self.content_ids
 
     def clear(self, prefix=""):
         """Delete the contents of the provider."""
-        if self.cids:
-            self.cids = None
+        if self.content_ids:
+            self.content_ids = None
         else:
             super().clear()
 
@@ -159,7 +157,7 @@ class IPFSProvider(StorageProvider):
                 raise HTTPError (parse_error_message(response))
         else:
             params = {}
-            params['arg'] = self.cid
+            params['arg'] = self.content_id
             params['output-codec'] = 'dag-json'
             
             response = requests.post(f'{self.coreurl}/dag/get', params=params)
@@ -185,10 +183,10 @@ class IPFSProvider(StorageProvider):
     def get_set_cid(self, res):
         for i in res:
             if i['Name'] in self.fpath:
-                self.cid = i['Hash']
-                self.links = self._get_links(self.cid)
+                self.content_id = i['Hash']
+                self.links = self._get_links(self.content_id)
                 self.ordered_links = self.get_hash(self.links, {})
-                self.cids = list(self.ordered_links.values())
+                self.content_ids = list(self.ordered_links.values())
 
     def _get_links(self,
         cid,
