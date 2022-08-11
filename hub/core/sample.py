@@ -20,7 +20,6 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
 )
-from hub.core.linked_sample import LinkedSample
 from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
 from hub.core.storage.provider import StorageProvider
@@ -135,7 +134,7 @@ class Sample:
 
     @property
     def is_text_like(self):
-        return self.htype in {"text", "list", "json", "link"}
+        return self.htype in {"text", "list", "json"}
 
     @property
     def dtype(self):
@@ -309,10 +308,7 @@ class Sample:
                 from hub.core.serialize import bytes_to_text
 
                 buffer = bytes(self._buffer)
-                htype = "text" if self.htype == "link" else self.htype
-                self._array = bytes_to_text(buffer, htype)
-                if self.htype == "link":
-                    self._array = LinkedSample(self._array)
+                self._array = bytes_to_text(buffer, self.htype)
             else:
                 self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
                     self.shape

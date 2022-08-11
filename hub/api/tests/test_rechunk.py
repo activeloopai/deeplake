@@ -192,3 +192,27 @@ def test_rechunk_list(local_ds_generator):
     np.testing.assert_array_equal(ds.abc[1].numpy(), np.array(["abc", "def", "ghi"]))
     np.testing.assert_array_equal(ds.abc[2].numpy(), np.array(["yo"]))
     assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+
+def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_paths):
+    dog_path = color_image_paths["jpeg"]
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", "link")
+        add_sample_in().eval(
+            [hub.link(dog_path), hub.link(flower_path), hub.link(cat_path)],
+            ds,
+            num_workers=2,
+        )
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = hub.link(cat_path)
+
+        assert ds.abc[0].numpy().shape == (900, 900, 3)
+        assert ds.abc[1].numpy().shape == (513, 464, 4)
+        assert ds.abc[2].numpy().shape == (900, 900, 3)
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+    ds = local_ds_generator()
+    assert ds.abc[0].numpy().shape == (900, 900, 3)
+    assert ds.abc[1].numpy().shape == (513, 464, 4)
+    assert ds.abc[2].numpy().shape == (900, 900, 3)
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1

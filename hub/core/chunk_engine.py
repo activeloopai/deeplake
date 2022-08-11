@@ -14,6 +14,7 @@ from typing import (
     Tuple,
 )
 from hub.api.info import Info
+from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.serialize import HEADER_SIZE_BYTES
 from hub.core.tensor_link import get_link_transform
@@ -1022,8 +1023,9 @@ class ChunkEngine:
 
         if self.tensor_meta.htype in ("json", "text", "list"):
             sample.htype = self.tensor_meta.htype
-        elif self.tensor_meta.is_link:
-            sample.htype = "link"
+        if self.tensor_meta.is_link:
+            sample.htype = "text"
+            sample = LinkedSample(sample.array[0])
         return sample
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
