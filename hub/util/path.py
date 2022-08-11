@@ -1,6 +1,8 @@
 import pathlib
 from typing import Optional, Union
 from hub.core.storage.provider import StorageProvider
+from hub.util.tag import process_hub_path
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 import glob
 import os
 
@@ -71,7 +73,7 @@ def get_path_type(path: Optional[str]) -> str:
         return "s3"
     elif path.startswith("gdrive://"):
         return "gdrive"
-    elif path.startswith("https://ipfs.infura") or path.startswith("http://127") or path.startswith("https://api.web3.storage") or path.startswith("https://shuttle-5.estuary"):
+    elif path.startswith("ipfs://"):
         return "ipfs"
     else:
         return "local"
@@ -92,3 +94,15 @@ def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
     if isinstance(path, pathlib.Path):
         path = str(path)
     return path
+
+
+def get_org_id_and_ds_name(path):
+    if is_hub_cloud_path(path):
+        _, org_id, ds_name, subdir = process_hub_path(path)
+        if subdir:
+            ds_name += "/" + subdir
+    else:
+        org_id = HUB_CLOUD_DEV_USERNAME
+        ds_name = path.replace("/", "_").replace(".", "")
+
+    return org_id, ds_name

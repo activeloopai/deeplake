@@ -30,7 +30,7 @@ def test_video_playback(local_ds_generator, video_paths):
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
-def test_linked_video_playback(local_ds_generator):
+def test_linked_video_playback(local_ds_generator, gcs_path):
     with local_ds_generator() as ds:
         ds.create_tensor("video_links", htype="link[video]")
         ds.video_links.append(

@@ -27,12 +27,18 @@ from hub.util.exceptions import (
     BadRequestException,
     ReadOnlyModeError,
     EmptyTensorError,
+    InvalidTokenException,
+    TokenPermissionError,
+    UserNotLoggedInException,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
 from hub.constants import GDRIVE_OPT, MB
+from hub.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
+from hub.cli.auth import login, logout
+from hub.util.bugout_reporter import feature_report_path
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -805,12 +811,26 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
             ds.rename(ds.path)
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
-
     assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     ds = hub.load(new_path, token=hub_token)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.load(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.dataset(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
 
     hub.delete(new_path, token=hub_token)
 
@@ -1785,36 +1805,36 @@ def verify_label_data(ds):
     assert ds.abc.info.class_names == ["airplane", "boat", "car"]
     np_data = ds.abc.numpy()
     data = ds.abc.data()
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
     assert data["text"] == text_labels
 
     # xyz
     assert ds.xyz.info.class_names == []
     np_data = ds.xyz.numpy()
     data = ds.xyz.data()
-    assert set(data.keys()) == {"numeric"}
+    assert set(data.keys()) == {"value"}
     np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
 
     # nested
     assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
     np_data = ds.nested.numpy(aslist=True)
     data = ds.nested.data(aslist=True)
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     for i in range(2):
         np.testing.assert_array_equal(np_data[i], nested_arr[i])
-        np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+        np.testing.assert_array_equal(data["value"][i], np_data[i])
     assert data["text"] == nested_text_labels
 
     # random
     assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
     np_data = ds.random.numpy()
     data = ds.random.data()
-    assert set(data.keys()) == {"numeric", "text"}
+    assert set(data.keys()) == {"value", "text"}
     np.testing.assert_array_equal(np_data, random_arr)
-    np.testing.assert_array_equal(data["numeric"], np_data)
+    np.testing.assert_array_equal(data["value"], np_data)
     assert data["text"] == random_text_labels
 
     # seq
@@ -1931,3 +1951,35 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(x, i)
             target_y = i if i < 5 else []
             np.testing.assert_equal(y, target_y)
+
+
+def test_hub_token_without_permission(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    os.remove(REPORTING_CONFIG_FILE_PATH)
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
+
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
+    )
+
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token",
+        "empty",
+        parameters={},
+        token=hub_cloud_dev_token,
+    )
+
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(TokenPermissionError):
+        hub.empty("hub://activeloop-test/sohas-weapons-train")
+
+    runner.invoke(logout)
+    ds = hub.empty(
+        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    )

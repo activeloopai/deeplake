@@ -22,7 +22,9 @@ def test_json_basic(memory_ds):
         ds.json.extend(items)
     assert ds.json.shape == (4, 1)
     for i in range(4):
-        assert ds.json[i].data() == items[i % 2]
+        assert ds.json[i].data()["value"] == items[i % 2]
+        assert ds.json[i].dict() == items[i % 2]
+    assert ds.json.dict() == items * 2
 
 
 def test_json_with_numpy(memory_ds):
@@ -37,8 +39,10 @@ def test_json_with_numpy(memory_ds):
             ds.json.append(x)
         ds.json.extend(items)
     for i in range(4):
-        assert ds.json[i].data()["y"] == items[i % 2]["y"]
-        np.testing.assert_array_equal(ds.json[i].data()["x"], items[i % 2]["x"])
+        assert ds.json[i].data()["value"]["y"] == items[i % 2]["y"]
+        np.testing.assert_array_equal(
+            ds.json[i].data()["value"]["x"], items[i % 2]["x"]
+        )
 
 
 def test_json_with_hub_sample(memory_ds, compressed_image_paths):
@@ -62,7 +66,7 @@ def test_json_with_hub_sample(memory_ds, compressed_image_paths):
         ds.json.extend(items)
     assert ds.json.shape == (4, 1)
     for i in range(4):
-        assert ds.json[i].data() == items[i % 2]
+        assert ds.json[i].data()["value"] == items[i % 2]
 
 
 def test_json_list_basic(memory_ds):
@@ -78,8 +82,8 @@ def test_json_list_basic(memory_ds):
         ds.list.extend(items)
     assert ds.list.shape == (4, 3)
     for i in range(4):
-        assert ds.list[i].data() == items[i % 2]
-    for i, x in enumerate(ds.list.data()):
+        assert ds.list[i].data()["value"] == items[i % 2]
+    for i, x in enumerate(ds.list.data()["value"]):
         assert x == items[i % 2]
 
 
@@ -101,7 +105,7 @@ def test_list_with_numpy(memory_ds):
         ds.list.extend(items)
     assert ds.list.shape == (4, 4)
     for i in range(4):
-        actual, expected = ds.list[i].data(), items[i % 2]
+        actual, expected = ds.list[i].data()["value"], items[i % 2]
         np.testing.assert_array_equal(actual[0], expected[0])
         assert actual[1:] == expected[1:]
 
@@ -130,7 +134,7 @@ def test_list_with_hub_sample(memory_ds, compressed_image_paths):
         ds.list.extend(items)
     assert ds.list.shape == (4, 3)
     for i in range(4):
-        assert ds.list[i].data() == items[i % 2]
+        assert ds.list[i].data()["value"] == items[i % 2]
 
 
 def test_json_with_schema(memory_ds):
@@ -153,7 +157,11 @@ def test_json_with_schema(memory_ds):
     ]
     ds.json2.extend(items)
     for i in range(len(items)):
-        assert ds.json2[i].data() == ds.json2.data()[i] == (items[i] or {})
+        assert (
+            ds.json2[i].data()["value"]
+            == ds.json2.data()["value"][i]
+            == (items[i] or {})
+        )
 
 
 @enabled_non_gcs_datasets
@@ -180,7 +188,9 @@ def test_json_transform(ds, compression, scheduler="threaded"):
         return ds
 
     upload().eval(items, ds, num_workers=2, scheduler=scheduler)
-    assert ds.json.data() == items
+    assert ds.json.data()["value"] == items
+    with pytest.raises(Exception):
+        ds.json.list()
 
 
 @enabled_non_gcs_gdrive_datasets
@@ -199,4 +209,6 @@ def test_list_transform(ds, scheduler="threaded"):
         return ds
 
     upload().eval(items, ds, num_workers=2, scheduler=scheduler)
-    assert ds.list.data() == items
+    assert ds.list.data()["value"] == items
+    assert ds.list[0].list() == items[0]
+    assert ds.list.list() == items

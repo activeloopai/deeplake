@@ -189,6 +189,7 @@ class ChunkCompressedChunk(BaseChunk):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
         if not decompress:
             raise NotImplementedError(
@@ -205,11 +206,16 @@ class ChunkCompressedChunk(BaseChunk):
         if self.is_image_compression:
             return self.decompressed_samples[local_index]  # type: ignore
 
-        shape = self.shapes_encoder[local_index]
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
-        if not self.byte_positions_encoder.is_empty():
-            sb, eb = self.byte_positions_encoder[local_index]
+        if not is_tile and self.is_fixed_shape:
+            shape = tuple(self.tensor_meta.min_shape)
+            sb, eb = self.get_byte_positions(local_index)
             decompressed = decompressed[sb:eb]
+        else:
+            shape = self.shapes_encoder[local_index]
+            if not self.byte_positions_encoder.is_empty():
+                sb, eb = self.byte_positions_encoder[local_index]
+                decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
