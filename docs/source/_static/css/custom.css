@@ -49,12 +49,12 @@ a.reference.internal {
 
 .pre {
     color: rgb(66, 63, 63);
-    font-family: ProximaNova;
 }
 
-.sig-param {
-    font: IBMPlexMono;
+dt.sig {
+    font-family: IBMPlexMono;
     font-size: 94%;
+    color: rgb(66, 63, 63);
 }
 
 .wy-menu-vertical>p.caption {
