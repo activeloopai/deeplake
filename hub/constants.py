@@ -70,8 +70,6 @@ ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
 UNSHARDED_ENCODER_FILENAME = "unsharded"
 
-AGREEMENT_FILENAME = "agreement.txt"
-
 ENCODING_DTYPE = np.uint32
 
 # environment variables
