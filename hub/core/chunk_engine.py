@@ -986,17 +986,9 @@ class ChunkEngine:
             if sum_bytes > int(RANDOM_MAX_ALLOWED_CHUNK_SIZE / 2):
                 break
             sample_shape = chunk.shapes_encoder[idx]
-
-            if decompress:
-                new_sample = Sample(array=sample_data, shape=sample_shape)
-            else:
-                new_sample = Sample(
-                    buffer=sample_data,
-                    shape=sample_shape,
-                    compression=chunk.compression,
-                    dtype=chunk.dtype,
-                )
-
+            new_sample = self._get_sample_object(
+                sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
+            )
             samples_to_move.append(new_sample)
         samples_to_move.reverse()
         return samples_to_move
@@ -1004,33 +996,30 @@ class ChunkEngine:
     def _get_chunk_samples(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
 
-        samples_to_move: List[Sample] = []
+        all_samples_in_chunk: List[Sample] = []
 
-        for idx in range(0, chunk.num_samples):
-            sample_bytes = chunk.read_sample(idx, decompress=decompress)
+        for idx in range(chunk.num_samples):
+            sample_data = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
+            new_sample = self._get_sample_object(
+                sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
+            )
+            all_samples_in_chunk.append(new_sample)
 
-            if not decompress:
-                samples_to_move = [
-                    Sample(
-                        buffer=sample_bytes,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                        dtype=chunk.dtype,
-                    )
-                ] + samples_to_move
-            else:
-                samples_to_move = [
-                    Sample(
-                        array=sample_bytes,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                    )
-                ] + samples_to_move
+        return all_samples_in_chunk
 
-        samples_to_move.reverse()
-
-        return samples_to_move
+    def _get_sample_object(
+        self, sample_data, sample_shape, compression, dtype, decompress
+    ):
+        if decompress:
+            return Sample(array=sample_data, shape=sample_shape)
+        else:
+            return Sample(
+                buffer=sample_data,
+                shape=sample_shape,
+                compression=compression,
+                dtype=dtype,
+            )
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
         samples_to_move = self._get_samples_to_move(chunk=chunk)
