@@ -53,8 +53,10 @@ a.reference.internal {
 
 dt.sig {
     font-family: IBMPlexMono;
-    font-size: 94%;
-    color: rgb(66, 63, 63);
+}
+
+.sig .pre {
+    font-size: 94%
 }
 
 .wy-menu-vertical>p.caption {
