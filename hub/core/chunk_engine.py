@@ -995,7 +995,6 @@ class ChunkEngine:
 
     def _get_chunk_samples(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
-
         all_samples_in_chunk: List[Sample] = []
 
         for idx in range(chunk.num_samples):
@@ -1154,14 +1153,12 @@ class ChunkEngine:
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
             self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
-            return
 
-        if (
+        elif (
             chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE
             or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
         ):
             self.__rechunk(chunk, chunk_row)
-            return
 
     def _update(
         self,
@@ -1195,7 +1192,6 @@ class ChunkEngine:
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-                row = self.chunk_id_encoder.__getitem__(global_sample_index, True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
