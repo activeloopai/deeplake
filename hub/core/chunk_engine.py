@@ -987,24 +987,18 @@ class ChunkEngine:
                 break
             sample_shape = chunk.shapes_encoder[idx]
 
-            if not decompress:
-                samples_to_move = [
-                    Sample(
-                        buffer=sample_data,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                        dtype=chunk.dtype,
-                    )
-                ] + samples_to_move
+            if decompress:
+                new_sample = Sample(array=sample_data, shape=sample_shape)
             else:
-                samples_to_move = [
-                    Sample(
-                        array=sample_data,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                    )
-                ] + samples_to_move
+                new_sample = Sample(
+                    buffer=sample_data,
+                    shape=sample_shape,
+                    compression=chunk.compression,
+                    dtype=chunk.dtype,
+                )
 
+            samples_to_move.append(new_sample)
+        samples_to_move.reverse()
         return samples_to_move
 
     def _get_chunk_samples(self, chunk) -> List[Sample]:
