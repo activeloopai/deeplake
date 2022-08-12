@@ -699,22 +699,10 @@ class Tensor:
             full_numpy_arr = self.get_full_point_cloud_numpy(
                 aslist=aslist, fetch_chunks=fetch_chunks
             )
-            if len(full_numpy_arr.dtype) > 1:
-                return np.concatenate(
-                    [
-                        np.expand_dims(
-                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["X"]], -1
-                        ),
-                        np.expand_dims(
-                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["Y"]], -1
-                        ),
-                        np.expand_dims(
-                            full_numpy_arr[POINT_CLOUD_FIELD_NAME_TO_TYPESTR["Z"]], -1
-                        ),
-                    ],
-                    axis=-1,
-                )
+            if isinstance(full_numpy_arr, list):
+                return [arr[..., :3] for arr in full_numpy_arr]
             return full_numpy_arr[..., :3]
+
         return self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
@@ -848,26 +836,38 @@ class Tensor:
                 meta = {}
                 for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
                     typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
-                    meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))
+                    meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
                 return meta
 
-            meta = []
-            for i in range(len(full_arr)):
+            meta = []  # type: ignore
+            for sample_index in range(len(full_arr)):
                 meta_dict = {}
-                self._check_whether_sample_info_is_empty(self.sample_info[i])
+                self._check_whether_sample_info_is_empty(self.sample_info[sample_index])
 
-                for j, dimension_name in enumerate(
-                    self.sample_info[i]["dimension_names"]
+                for dimension_index, dimension_name in enumerate(
+                    self.sample_info[sample_index]["dimension_names"]
                 ):
                     dtype = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
-                    meta_dict[dimension_name] = full_arr[..., i].astype(np.dtype(dtype))
-                meta.append(meta_dict)
+                    meta_dict[
+                        dimension_name
+                    ] = self._cast_point_cloud_array_to_proper_dtype(
+                        full_arr, sample_index, dimension_index, dtype
+                    )
+                meta.append(meta_dict)  # type: ignore
             return meta
 
         else:
             return {
                 "value": self.numpy(aslist=aslist),
             }
+
+    @staticmethod
+    def _cast_point_cloud_array_to_proper_dtype(
+        full_arr, sample_index, dimension_index, dtype
+    ):
+        if isinstance(full_arr, List):
+            return full_arr[sample_index][:, dimension_index].astype(np.dtype(dtype))
+        return full_arr[sample_index, :, dimension_index].astype(np.dtype(dtype))
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.

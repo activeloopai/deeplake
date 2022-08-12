@@ -1,4 +1,7 @@
-POINT_CLOUD_FIELD_NAME_TO_TYPESTR = {
+from typing import Dict
+
+
+POINT_CLOUD_FIELD_NAME_TO_TYPESTR: Dict = {
     "X": "<i4",
     "Y": "<i4",
     "Z": "<i4",

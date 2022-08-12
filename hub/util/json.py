@@ -5,7 +5,7 @@ import json
 import base64
 import pickle
 import uuid
-import laspy
+import laspy  # type: ignore
 from hub.core.sample import Sample  # type: ignore
 import datetime
 
