@@ -27,6 +27,7 @@ from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_text_like_sample, intelligent_cast
+from hub.util.empty_sample import is_empty_list
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
@@ -609,6 +610,7 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
+        samples = [None if is_empty_list(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -789,6 +791,7 @@ class ChunkEngine:
                 if link_callback:
                     link_callback(ls, flat=False)
                     for s in ls:
+                        s = None if is_empty_list(s) else s
                         link_callback(s, flat=True)
 
         else:
@@ -796,6 +799,7 @@ class ChunkEngine:
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:
+                    sample = None if is_empty_list(sample) else sample
                     link_callback(sample, flat=None)
 
         self.cache.autoflush = initial_autoflush
@@ -1207,6 +1211,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
         for i, sample in enumerate(samples):  # type: ignore
+            sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
