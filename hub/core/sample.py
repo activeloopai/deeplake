@@ -255,7 +255,7 @@ class Sample:
             self._uncompressed_bytes = img.tobytes()
         return compress_array(self.array, compression)
 
-    def compressed_bytes(self, compression: str) -> bytes:
+    def compressed_bytes(self, compression: Optional[str]) -> bytes:
         """Returns this sample as compressed bytes.
 
         Note:
@@ -263,7 +263,7 @@ class Sample:
                 returned without re-compressing.
 
         Args:
-            compression (str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
+            compression (optional, str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.

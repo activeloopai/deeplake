@@ -448,8 +448,8 @@ def serialize_text_sample_object(
 ):
     shape = incoming_sample.shape
     out = incoming_sample
-    out = out.compressed_bytes(sample_compression)
-    return out, shape
+    result = out.compressed_bytes(sample_compression)
+    return result, shape
 
 
 def serialize_sample_object(
