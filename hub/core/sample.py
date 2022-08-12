@@ -273,7 +273,7 @@ class Sample:
         """
 
         if compression is None:
-            return self.uncompressed_bytes()
+            return self.uncompressed_bytes()  # type: ignore
 
         compressed_bytes = self._compressed_bytes.get(compression)
         if compressed_bytes is None:
