@@ -14,4 +14,3 @@ types-click
 boto3-stubs[essential]
 
 lz4
-numpy>1.20.0

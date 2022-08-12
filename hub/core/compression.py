@@ -1165,9 +1165,8 @@ def _decompress_full_point_cloud(file: Union[bytes, memoryview, str]):
                 for dim_name in meta["dimension_names"]
             ],
             axis=1,
-            dtype=np.float32,
         )
-
+        decompressed_point_cloud = decompressed_point_cloud.astype(np.float32)
         return decompressed_point_cloud
 
     return decompressed_point_cloud

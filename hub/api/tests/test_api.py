@@ -1009,7 +1009,6 @@ def test_htypes_list():
     assert hub.htypes == [
         "audio",
         "bbox",
-        "bbox.3d",
         "binary_mask",
         "binary_mask.3d",
         "class_label",
@@ -1018,6 +1017,7 @@ def test_htypes_list():
         "image",
         "image.gray",
         "image.rgb",
+        "instance_label",
         "json",
         "keypoints_coco",
         "list",
@@ -1025,7 +1025,6 @@ def test_htypes_list():
         "point_cloud",
         "point_cloud.calibration_matrix",
         "segment_mask",
-        "segment_mask.3d",
         "text",
         "video",
     ]
