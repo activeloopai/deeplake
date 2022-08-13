@@ -2028,3 +2028,11 @@ def test_hub_token_without_permission(
     ds = hub.empty(
         "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
     )
+
+
+def test_incompat_dtype_msg(local_ds, capsys):
+    local_ds.create_tensor("abc", dtype="uint32")
+    with pytest.raises(TensorDtypeMismatchError):
+        local_ds.abc.append([0.0])
+    captured = capsys.readouterr()
+    assert "True" not in captured
