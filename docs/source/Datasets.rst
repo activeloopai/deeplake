@@ -97,8 +97,10 @@ Dataset Properties
 
 Dataset Views
 ~~~~~~~~~~~~~
-A dataset can be a view of an existing dataset. Views point to the samples of the existing dataset in a specific commit.
-They can be created and saved by indexing or querying a dataset through :func:`~Dataset.filter`.
+A dataset view is a subset of a dataset that points to specific samples (indices) in an existing dataset. Dataset views
+can be created using indexing or querying a dataset using :func:`~Dataset.filter`. Dataset views can only be saved when a dataset
+has been committed and has no changes on the HEAD node, in order to preserve data lineage and prevent the underlying data from
+changing after the query or filter conditions have been evaluated.
 
     >>> import hub
     >>> # load dataset
