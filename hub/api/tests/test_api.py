@@ -1406,6 +1406,15 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
+    with pytest.raises(Exception):
+        ds1.append(np.zeros((416, 416, 3)))
+
+    with pytest.raises(Exception):
+        ds1.append(set())
+
+    with pytest.raises(Exception):
+        ds1.append([1, 2, 3])
+
 
 def test_extend_with_tensor():
     ds1 = hub.dataset("mem://ds1")
