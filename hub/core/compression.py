@@ -7,6 +7,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
+from hub.util.point_cloud import LAS_HEADER_FILED_NAME_TO_PARSER
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
@@ -1118,29 +1119,25 @@ def _read_point_cloud_meta(file):
         meta_data.update(
             {
                 "las_header": {
-                    "DEFAULT_VERSION": point_cloud.header.DEFAULT_VERSION,
+                    "DEFAULT_VERSION": LAS_HEADER_FILED_NAME_TO_PARSER["DEFAULT_VERSION"](point_cloud),
                     "file_source_id": point_cloud.header.file_source_id,
                     "system_identifier": point_cloud.header.system_identifier,
                     "generating_software": point_cloud.header.generating_software,
-                    "creation_date": point_cloud.header.creation_date,
-                    "point_count": point_cloud.header.point_count,  # think about ways to add it to meta
+                    "creation_date": LAS_HEADER_FILED_NAME_TO_PARSER["creation_date"](point_cloud),
+                    "point_count": point_cloud.header.point_count,
                     "scales": point_cloud.header.scales.tolist(),
                     "offsets": point_cloud.header.offsets.tolist(),
                     "number_of_points_by_return": point_cloud.header.number_of_points_by_return.tolist(),
                     "start_of_waveform_data_packet_record": point_cloud.header.start_of_waveform_data_packet_record,
                     "start_of_first_evlr": point_cloud.header.start_of_first_evlr,
                     "number_of_evlrs": point_cloud.header.number_of_evlrs,
-                    "version": point_cloud.header.version,
+                    "version": LAS_HEADER_FILED_NAME_TO_PARSER["version"](point_cloud),
                     "maxs": point_cloud.header.maxs.tolist(),
                     "mins": point_cloud.header.mins.tolist(),
                     "major_version": point_cloud.header.major_version,
                     "minor_version": point_cloud.header.minor_version,
-                    "uuid": point_cloud.header.uuid,
-                    "DEFAULT_POINT_FORMAT": point_cloud.header.DEFAULT_POINT_FORMAT,
-                    "extra_header_bytes": point_cloud.header.extra_header_bytes,
-                    "extra_vlr_bytes": point_cloud.header.extra_vlr_bytes,
-                    "point_format": point_cloud.header.point_format,
-                    "global_encoding": point_cloud.header.global_encoding,
+                    "global_encoding": LAS_HEADER_FILED_NAME_TO_PARSER["global_encoding"](point_cloud),
+                    "uuid": str(point_cloud.header.uuid),
                 },
                 "vlrs": point_cloud.vlrs,
             }

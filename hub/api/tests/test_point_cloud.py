@@ -11,12 +11,19 @@ def test_point_cloud(local_ds, point_cloud_paths):
                 f"point_cloud_{i}", htype="point_cloud", sample_compression=compression
             )
             sample = hub.read(path)
-            if "dummy_data" in path:  # check shape only for internal test point_clouds
+
+            if "point_cloud" in path:  # check shape only for internal test point_clouds
                 assert sample.shape[0] == 20153
 
             assert len(sample.meta) == 6
             assert len(sample.meta["dimension_names"]) == 18
-            assert len(sample.meta["las_header"]) == 23
+            assert len(sample.meta["las_header"]) == 19
+
+            assert sample.meta["las_header"]["DEFAULT_VERSION"] == {"major": 1, "minor": 2}
+            assert sample.meta["las_header"]["creation_date"] == {"year": 2022, "month": 5, "day": 24}
+            assert sample.meta["las_header"]["version"] == {"major": 1, "minor": 2}
+            assert sample.meta["las_header"]["uuid"] == "00000000-0000-0000-0000-000000000000"
+
             tensor.append(sample)
             tensor.append(sample)
             tensor.append(sample)
