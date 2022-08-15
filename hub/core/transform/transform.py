@@ -233,13 +233,14 @@ class Pipeline:
         for tensor in class_label_tensors:
             temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
             with target_ds:
-                target_ds.create_tensor(
+                temp_tensor_obj = target_ds.create_tensor(
                     temp_tensor,
-                    dtype=np.uint32,
+                    htype="class_label",
                     create_sample_info_tensor=False,
                     create_shape_tensor=False,
                     create_id_tensor=False,
                 )
+                temp_tensor_obj.meta._disable_temp_transform = True
                 label_temp_tensors[tensor] = temp_tensor
             target_ds.flush()
 
