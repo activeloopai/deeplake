@@ -80,8 +80,9 @@ def storage_provider_from_path(
     elif path.startswith("ipfs://"):
         gw = creds.get("gw")
         fpath = creds.get("fpath")
-        api_key = creds.get("api_key")
-        storage = IPFSProvider(coreurl=gw, cid=path[7:], fpath=fpath, api_key=api_key)
+        auth = creds.get("auth")
+        gw_type = creds.get("gw_type")
+        storage = IPFSProvider(coreurl=gw, cid=path[7:], fpath=fpath, auth=auth, gw_type=gw_type)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
