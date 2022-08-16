@@ -1,7 +1,6 @@
 from copy import deepcopy
 from typing import Callable, List, Optional
-from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3
-
+from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from hub.integrations.hub3.util import raise_indra_installation_error  # type: ignore
 from hub.integrations.hub3.util import collate_fn as default_collate  # type: ignore
 
