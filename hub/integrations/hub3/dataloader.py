@@ -5,7 +5,7 @@ from hub.integrations.hub3.util import raise_indra_installation_error
 from hub.integrations.hub3.util import collate_fn as default_collate
 
 try:
-    from indra import Loader
+    from indra import Loader  # type: ignore
 
     INDRA_INSTALLED = True
 except ImportError:

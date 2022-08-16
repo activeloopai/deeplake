@@ -2,7 +2,7 @@ import hub
 from hub.integrations.hub3.util import raise_indra_installation_error
 
 try:
-    from indra import api
+    from indra import api  # type: ignore
 
     INDRA_INSTALLED = True
 except ImportError:
