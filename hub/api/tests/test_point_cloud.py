@@ -19,10 +19,20 @@ def test_point_cloud(local_ds, point_cloud_paths):
             assert len(sample.meta["dimension_names"]) == 18
             assert len(sample.meta["las_header"]) == 19
 
-            assert sample.meta["las_header"]["DEFAULT_VERSION"] == {"major": 1, "minor": 2}
-            assert sample.meta["las_header"]["creation_date"] == {"year": 2022, "month": 5, "day": 24}
+            assert sample.meta["las_header"]["DEFAULT_VERSION"] == {
+                "major": 1,
+                "minor": 2,
+            }
+            assert sample.meta["las_header"]["creation_date"] == {
+                "year": 2022,
+                "month": 5,
+                "day": 24,
+            }
             assert sample.meta["las_header"]["version"] == {"major": 1, "minor": 2}
-            assert sample.meta["las_header"]["uuid"] == "00000000-0000-0000-0000-000000000000"
+            assert (
+                sample.meta["las_header"]["uuid"]
+                == "00000000-0000-0000-0000-000000000000"
+            )
 
             tensor.append(sample)
             tensor.append(sample)
