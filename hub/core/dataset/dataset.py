@@ -3246,11 +3246,18 @@ class Dataset:
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
+
+        Returns:
+            Dataloader: A Dataloader object.
         """
         return Hub3DataLoader(self, _batch_size=batch_size, _drop_last=drop_last)
 
     def shuffle(self):
-        """Returns a shuffled Dataloader object."""
+        """Returns a shuffled Dataloader object.
+
+        Returns:
+            Dataloader: A Dataloader object.
+        """
         return Hub3DataLoader(self, _shuffle=True)
 
     def transform(self, transform_fn: Callable):
@@ -3258,6 +3265,9 @@ class Dataset:
 
         Args:
             transform_fn (Callable): A function that takes a sample as input and returns a transformed sample.
+
+        Returns:
+            Dataloader: A Dataloader object.
         """
         return Hub3DataLoader(self, _transform=transform_fn)
 
@@ -3279,6 +3289,9 @@ class Dataset:
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
+
+        Returns:
+            Dataloader: A Dataloader object.
         """
         return Hub3DataLoader(
             self,
@@ -3305,6 +3318,9 @@ class Dataset:
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+
+        Returns:
+            Dataloader: A Dataloader object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
