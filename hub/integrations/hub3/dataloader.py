@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Callable, List, Optional
+from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3
 
 from hub.integrations.hub3.util import raise_indra_installation_error
 from hub.integrations.hub3.util import collate_fn as default_collate
@@ -112,6 +113,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def __iter__(self):
+        dataset = dataset_to_hub3(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
 
@@ -128,7 +130,7 @@ class Hub3DataLoader:
         distributed = self._distributed or False
 
         return Loader(
-            self.dataset,
+            dataset,
             batch_size=batch_size,
             num_threads=num_threads,
             shuffle=shuffle,
