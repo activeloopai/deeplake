@@ -3,6 +3,7 @@ from distutils.log import error
 import hub
 import time
 import json
+import base64
 import logging
 import dag_cbor
 import requests
@@ -25,8 +26,9 @@ class IPFSProvider(StorageProvider):
         self,
         coreurl:str=None,
         cid:str='',
-        api_key:str=None,
+        auth:str=None,
         fpath:str=None,
+        gw_type:str='local',
     ) -> None:
         """Initialize the IPFSProvider, assign credentials if required.
         
@@ -36,14 +38,13 @@ class IPFSProvider(StorageProvider):
         Args:
             coreurl (str): gateway URL to access IPFS
             cid (str): CID of the dataset stored on IPFS
-            api_key (str): if applicable, api key for access to storage service
+            auth (str): if applicable, api key for access to storage service
             fpath (str): path to the file to be uploaded to IPFS
         """
         super().__init__()
         self.coreurl = coreurl if coreurl is not None else 'https://ipfs.infura.io:5001/api/v0'
         self.content_id = cid
-        self.gateway = IPFSGateway(url=self.coreurl)
-        self.api_key = api_key
+        self.gateway = IPFSGateway(url=self.coreurl, gw_type=gw_type, auth=auth)
         self.content_ids = None
         self.fpath = fpath
 
@@ -64,7 +65,7 @@ class IPFSProvider(StorageProvider):
                 cid = self.ordered_links[path]
                 res, content = self.gateway.cat(cid)
                 b = bytes(content,'utf-8')
-                if res.status_code == 200:                
+                if res.status_code == 200:
                     return b
                 else:
                     raise HTTPError (parse_error_message(res))
@@ -84,8 +85,12 @@ class IPFSProvider(StorageProvider):
         Args:
             path (str): the path of the object to be set.
         """
+        # if self.auth is not None:
+        #     res = self.gateway.upload(self.fpath, self.auth)
+        # else:
         _, res = self.gateway.add_items(filepath=self.fpath, directory=True)
         self.get_set_cid(res)
+        print(f'Dataset stored at {self.content_id}')
         return res
 
     def __delitem__(self):
@@ -147,8 +152,8 @@ class IPFSProvider(StorageProvider):
             params = {}
             params['arg'] = cid
             params['output-codec'] = 'dag-json'
-            
-            response = requests.post(f'{url}/dag/get', params=params)
+            headers = self.gateway.make_infura_auth()
+            response = requests.post(f'{url}dag/get', params=params, headers=headers)
             
             if response.status_code == 200:
                 return response, parse_response(response)
@@ -160,7 +165,7 @@ class IPFSProvider(StorageProvider):
             params['arg'] = self.content_id
             params['output-codec'] = 'dag-json'
             
-            response = requests.post(f'{self.coreurl}/dag/get', params=params)
+            response = requests.post(f'{self.coreurl}/dag/get', params=params, headers=headers)
             
             if response.status_code == 200:
                 return response, parse_response(response)
@@ -259,8 +264,11 @@ def parse_response(
 
 
 class IPFSGateway():
-    def __init__(self, url):
+    def __init__(self, url, gw_type, auth):
         self.url = url
+        self.gateway_type = gw_type
+        assert self.gateway_type in ['local', 'infura'], f"Invalid gateway type: {self.gateway_type}"
+        self.auth = auth
 
         if self.url in ['http://127.0.0.1:5001', 'https://ipfs.infura.io:5001', 'https://ipfs.infura.io:5001/api/v0']: # hard coded because of limited number of post gateways
             self.reqtype = 'post' # local node and infura works on `post` request while public on `get`
@@ -276,6 +284,12 @@ class IPFSGateway():
         adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
+    def make_infura_auth(self):
+        if self.gateway_type != 'infura':
+            return {}
+        creds = f"{self.auth[0]}:{self.auth[1]}"
+        creds = base64.b64encode(bytes(creds, 'ascii')).decode("ascii")
+        return {'Authorization': f'Basic {creds}'}
 
     def get(self, 
         cid:str, # Path to the IPFS object
@@ -311,6 +325,7 @@ class IPFSGateway():
         res.raise_for_status()
         return res.headers
 
+
     def add_items(self,
         filepath:Union[str, List[str]], # Path to the file/directory to be added to IPFS
         directory:bool=False, # Is filepath a directory
@@ -325,8 +340,8 @@ class IPFSGateway():
         **kwargs,
         ):
         "add file/directory to ipfs"
-
         params = {}
+        # params['file'] = filepath
         params['wrap-with-directory'] = wrap_with_directory
         params['chunker'] = chunker
         params['pin'] = pin
@@ -335,7 +350,7 @@ class IPFSGateway():
         params['silent'] = silent
         params['cid-version'] = cid_version
         params.update(kwargs)
-
+        
         if not directory:
             chunk_size = int(chunker.split('-')[1])
             data, headers = stream_files(filepath, chunk_size=chunk_size)
@@ -343,9 +358,11 @@ class IPFSGateway():
         else:
             chunk_size = int(chunker.split('-')[1])
             data, headers = stream_directory(filepath, chunk_size=chunk_size)
-            
-        response = requests.post(f'{self.url}/add', 
-                                params=params, 
+        auth = self.make_infura_auth()
+        headers.update(auth)
+
+        response = requests.post(f'{self.url}add', 
+                                params=params,
                                 data=data,
                                 headers=headers)
         
@@ -364,8 +381,8 @@ class IPFSGateway():
         params = {}
         params['arg'] = cid
         params.update(kwargs)
-        
-        res = self.session.post(f'{self.url}/cat', params=params)
+        headers = self.make_infura_auth()
+        res = self.session.post(f'{self.url}cat', params=params, headers=headers)
         
         if res.status_code == 200:
             return res, res.text
