@@ -42,6 +42,15 @@ class Hub3DataLoader:
         self._mode = _mode
 
     def batch(self, batch_size: int, drop_last: bool = False):
+        """Returns a batched DataLoader object.
+
+        Args:
+            batch_size (int): Number of samples in each batch.
+            drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
+
+        Raises:
+            ValueError: If .batch() has already been called.
+        """
         if self._batch_size is not None:
             raise ValueError("batch size is already set")
 
@@ -50,14 +59,27 @@ class Hub3DataLoader:
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
 
-    def shuffle(self, shuffle: bool):
+    def shuffle(self):
+        """Returns a shuffled Dataloader object.
+
+        Raises:
+            ValueError: If .shuffle() has already been called.
+        """
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = deepcopy(self.__dict__)
-        all_vars["_shuffle"] = shuffle
+        all_vars["_shuffle"] = True
         return self.__class__(**all_vars)
 
     def transform(self, transform_fn: Callable):
+        """Returns a transformed Dataloader object.
+
+        Args:
+            transform_fn (Callable): A function that takes a sample as input and returns a transformed sample.
+
+        Raises:
+            ValueError: If .transform() has already been called.
+        """
         if self._transform is not None:
             raise ValueError("transform is already set")
         all_vars = deepcopy(self.__dict__)
@@ -78,6 +100,19 @@ class Hub3DataLoader:
         prefetch_factor: int = 10,
         distributed: bool = False,
     ):
+        """Returns a pytorch Dataloader object.
+
+        Args:
+            num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
+            collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
+            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
+            num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+            distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
+
+        Raises:
+            ValueError: If .to_pytorch() or .to_numpy() has already been called.
+        """
         if self._mode is not None:
             if self._mode == "numpy":
                 raise ValueError("Can't call .to_pytorch after .to_numpy()")
@@ -99,6 +134,17 @@ class Hub3DataLoader:
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
     ):
+        """Returns a numpy Dataloader object.
+
+        Args:
+            num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
+            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
+            num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+
+        Raises:
+            ValueError: If .to_pytorch() or .to_numpy() has already been called.
+        """
         if self._mode is not None:
             if self._mode == "pytorch":
                 raise ValueError("Can't call .to_numpy after .to_pytorch()")
