@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from hub.integrations.hub3.util import raise_indra_installation_error
 from hub.integrations.hub3.util import collate_fn as default_collate
@@ -57,7 +57,7 @@ class Hub3DataLoader:
         all_vars["_shuffle"] = shuffle
         return self.__class__(**all_vars)
 
-    def transform(self, transform_fn: callable):
+    def transform(self, transform_fn: Callable):
         if self._transform is not None:
             raise ValueError("transform is already set")
         all_vars = deepcopy(self.__dict__)
@@ -72,7 +72,7 @@ class Hub3DataLoader:
     def to_pytorch(
         self,
         num_workers: int = 0,
-        collate_fn: callable = None,
+        collate_fn: Callable = None,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,

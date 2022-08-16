@@ -3246,13 +3246,13 @@ class Dataset:
     def shuffle(self, shuffle: bool):
         return Hub3DataLoader(self, _shuffle=shuffle)
 
-    def transform(self, transform_fn: callable):
+    def transform(self, transform_fn: Callable):
         return Hub3DataLoader(self, _transform_fn=transform_fn)
 
     def to_pytorch(
         self,
         num_workers: int = 0,
-        collate_fn: callable = None,
+        collate_fn: Callable = None,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
