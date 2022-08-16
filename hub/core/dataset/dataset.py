@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
 import hub
 from hub.core.link_creds import LinkCreds
+from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3
+from hub.integrations.hub3.dataloader import Hub3DataLoader
 from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
@@ -1416,6 +1418,16 @@ class Dataset:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
 
         return dataloader
+
+    @hub_reporter.record_call
+    def query(self, query_string: str):
+        """
+        Query the dataset.
+        """
+        ds = dataset_to_hub3(self)
+        dsv = ds.query(query_string)
+        indexes = dsv.indexes  # TODO: enable this in indra
+        return self[indexes]
 
     @hub_reporter.record_call
     def filter(
@@ -3226,6 +3238,51 @@ class Dataset:
             not self.index.is_trivial()
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
+        )
+
+    def batch(self, batch_size: int, drop_last: bool = False):
+        return Hub3DataLoader(self, _batch_size=batch_size, _drop_last=drop_last)
+
+    def shuffle(self, shuffle: bool):
+        return Hub3DataLoader(self, _shuffle=shuffle)
+
+    def transform(self, transform_fn: callable):
+        return Hub3DataLoader(self, _transform_fn=transform_fn)
+
+    def to_pytorch(
+        self,
+        num_workers: int = 0,
+        collate_fn: callable = None,
+        tensors: Optional[List[str]] = None,
+        num_threads: Optional[int] = None,
+        prefetch_factor: int = 10,
+        distributed: bool = False,
+    ):
+        return Hub3DataLoader(
+            self,
+            _mode="pytorch",
+            _num_workers=num_workers,
+            _collate_fn=collate_fn,
+            _tensors=tensors,
+            _num_threads=num_threads,
+            _prefetch_factor=prefetch_factor,
+            _distributed=distributed,
+        )
+
+    def to_numpy(
+        self,
+        num_workers: int = 0,
+        tensors: Optional[List[str]] = None,
+        num_threads: Optional[int] = None,
+        prefetch_factor: int = 10,
+    ):
+        return Hub3DataLoader(
+            self,
+            _mode="numpy",
+            _num_workers=num_workers,
+            _tensors=tensors,
+            _num_threads=num_threads,
+            _prefetch_factor=prefetch_factor,
         )
 
 
