@@ -20,7 +20,7 @@ class VisionClassifierNet(NeuralNet):
         self.images_tensor = images_tensor
         self.labels_tensor = labels_tensor
 
-    def get_dataset(self, dataset):
+    def get_dataset(self, dataset, y=None):
         return dataset
 
     def get_iterator(self, dataset, training=False):
