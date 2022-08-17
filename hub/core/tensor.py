@@ -834,7 +834,7 @@ class Tensor:
                 sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
                     self.sample_info
                 )
-                meta = {}
+                meta = {}  # type: ignore
 
                 if sample_info_tensor_is_empty:
                     return meta
@@ -846,13 +846,13 @@ class Tensor:
 
             meta = []  # type: ignore
             for sample_index in range(len(full_arr)):
-                meta_dict = {}
+                meta_dict = {}  # type: ignore
                 sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
                     self.sample_info[sample_index]
                 )
 
                 if sample_info_tensor_is_empty:
-                    meta.append(meta_dict)
+                    meta.append(meta_dict)  # type: ignore
                     continue
 
                 for dimension_index, dimension_name in enumerate(
@@ -867,7 +867,7 @@ class Tensor:
                 meta.append(meta_dict)  # type: ignore
 
             if len(full_arr) == 1:
-                meta = meta[0]
+                meta = meta[0]  # type: ignore
             return meta
 
         else:
