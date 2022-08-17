@@ -2072,9 +2072,7 @@ class Dataset:
         """
         if isinstance(sample, Dataset):
             sample = sample.tensors
-        if not isinstance(sample, Iterable) or (
-            isinstance(sample, Iterable) and not isinstance(sample, dict)
-        ):
+        if not isinstance(sample, dict):
             raise Exception(
                 """Can not append sample because tensor name is not specified. If you want to append sample you need to either specify the tensor name and append sample as a dictionary, like: `ds.append({"tensor_name": sample})` or you need to call tensor method from the dataset like: `ds.tensor_name.append(sample)`"""
             )
