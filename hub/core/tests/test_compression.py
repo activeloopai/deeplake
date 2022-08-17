@@ -169,9 +169,6 @@ def test_point_cloud(point_cloud_paths, compression):
     arr = np.array(sample)
     if compression == "las":
         assert len(arr[0]) == 18
-    else:
-        assert arr.shape[-1] == 4
-        assert arr.dtype == "float32"
 
 
 def test_apng(memory_ds):

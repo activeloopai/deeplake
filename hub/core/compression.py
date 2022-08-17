@@ -1119,11 +1119,15 @@ def _read_point_cloud_meta(file):
         meta_data.update(
             {
                 "las_header": {
-                    "DEFAULT_VERSION": LAS_HEADER_FILED_NAME_TO_PARSER["DEFAULT_VERSION"](point_cloud),
+                    "DEFAULT_VERSION": LAS_HEADER_FILED_NAME_TO_PARSER[
+                        "DEFAULT_VERSION"
+                    ](point_cloud),
                     "file_source_id": point_cloud.header.file_source_id,
                     "system_identifier": point_cloud.header.system_identifier,
                     "generating_software": point_cloud.header.generating_software,
-                    "creation_date": LAS_HEADER_FILED_NAME_TO_PARSER["creation_date"](point_cloud),
+                    "creation_date": LAS_HEADER_FILED_NAME_TO_PARSER["creation_date"](
+                        point_cloud
+                    ),
                     "point_count": point_cloud.header.point_count,
                     "scales": point_cloud.header.scales.tolist(),
                     "offsets": point_cloud.header.offsets.tolist(),
@@ -1136,7 +1140,9 @@ def _read_point_cloud_meta(file):
                     "mins": point_cloud.header.mins.tolist(),
                     "major_version": point_cloud.header.major_version,
                     "minor_version": point_cloud.header.minor_version,
-                    "global_encoding": LAS_HEADER_FILED_NAME_TO_PARSER["global_encoding"](point_cloud),
+                    "global_encoding": LAS_HEADER_FILED_NAME_TO_PARSER[
+                        "global_encoding"
+                    ](point_cloud),
                     "uuid": str(point_cloud.header.uuid),
                 },
                 "vlrs": point_cloud.vlrs,
@@ -1153,17 +1159,14 @@ def _read_point_cloud_shape_and_dtype(file):
 
 def _decompress_full_point_cloud(file: Union[bytes, memoryview, str]):
     decompressed_point_cloud, _ = _open_point_cloud_data(file)
-    if type(decompressed_point_cloud) is not np.ndarray:
-        meta = _read_point_cloud_meta(file)
+    meta = _read_point_cloud_meta(file)
 
-        decompressed_point_cloud = np.concatenate(
-            [
-                np.expand_dims(decompressed_point_cloud[dim_name], -1)
-                for dim_name in meta["dimension_names"]
-            ],
-            axis=1,
-        )
-        decompressed_point_cloud = decompressed_point_cloud.astype(np.float32)
-        return decompressed_point_cloud
-
+    decompressed_point_cloud = np.concatenate(
+        [
+            np.expand_dims(decompressed_point_cloud[dim_name], -1)
+            for dim_name in meta["dimension_names"]
+        ],
+        axis=1,
+    )
+    decompressed_point_cloud = decompressed_point_cloud.astype(np.float32)
     return decompressed_point_cloud

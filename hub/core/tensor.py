@@ -831,9 +831,14 @@ class Tensor:
             full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
 
             if self.ndim == 2:
-                self._check_whether_sample_info_is_empty(self.sample_info)
-
+                sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
+                    self.sample_info
+                )
                 meta = {}
+
+                if sample_info_tensor_is_empty:
+                    return meta
+
                 for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
                     typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
                     meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
@@ -842,7 +847,13 @@ class Tensor:
             meta = []  # type: ignore
             for sample_index in range(len(full_arr)):
                 meta_dict = {}
-                self._check_whether_sample_info_is_empty(self.sample_info[sample_index])
+                sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
+                    self.sample_info[sample_index]
+                )
+
+                if sample_info_tensor_is_empty:
+                    meta.append(meta_dict)
+                    continue
 
                 for dimension_index, dimension_name in enumerate(
                     self.sample_info[sample_index]["dimension_names"]
@@ -854,6 +865,9 @@ class Tensor:
                         full_arr, sample_index, dimension_index, dtype
                     )
                 meta.append(meta_dict)  # type: ignore
+
+            if len(full_arr) == 1:
+                meta = meta[0]
             return meta
 
         else:
@@ -1133,7 +1147,5 @@ class Tensor:
     @staticmethod
     def _check_whether_sample_info_is_empty(sample_info):
         if len(sample_info) == 0:
-            raise NotImplementedError(
-                "In order to store point cloud data, you should use `hub.read(path_to_file)`. "
-                "Running .data() on raw data is not yet supported."
-            )
+            return True
+        return False

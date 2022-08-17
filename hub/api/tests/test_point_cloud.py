@@ -1,5 +1,10 @@
+import pytest
+
 import hub
 from hub.core.dataset import Dataset
+from hub.core.compression import compress_multiple
+from hub.tests.common import get_dummy_data_path
+from hub.util.exceptions import CorruptedSampleError
 
 import numpy as np
 
@@ -41,6 +46,10 @@ def test_point_cloud(local_ds, point_cloud_paths):
 
             shape_tester(local_ds, path, sample, tensor, feature_size=18)
 
+            with pytest.raises(NotImplementedError):
+                arrays = np.zeros((5, 1000, 3))
+                compress_multiple(arrays, compression)
+
     local_ds.create_tensor(
         "point_cloud_without_sample_compression",
         htype="point_cloud",
@@ -53,12 +62,33 @@ def test_point_cloud(local_ds, point_cloud_paths):
         local_ds.point_cloud_without_sample_compression[0].numpy(),
         np.zeros((1000, 3), dtype=np.float32),
     )
+    local_ds.point_cloud_without_sample_compression.data()
+    assert len(local_ds.point_cloud_without_sample_compression.data()) == 0
 
     local_ds.point_cloud_without_sample_compression.append(hub.read(path))
     assert local_ds.point_cloud_without_sample_compression[1].numpy().shape == (
         20153,
         3,
     )
+    assert len(local_ds.point_cloud_without_sample_compression.numpy(aslist=True)) == 2
+    assert len(local_ds.point_cloud_without_sample_compression.data(aslist=True)) == 2
+    local_ds.create_tensor(
+        "point_cloud_with_sample_compression",
+        htype="point_cloud",
+        sample_compression="las",
+    )
+    with pytest.raises(NotImplementedError):
+        local_ds.point_cloud_with_sample_compression.append(
+            np.zeros((1000, 3), dtype=np.float32)
+        )
+
+    with pytest.raises(CorruptedSampleError):
+        local_ds.point_cloud_with_sample_compression.append(
+            hub.read(get_dummy_data_path("point_cloud/corrupted_point_cloud.las"))
+        )
+
+    local_ds.point_cloud_with_sample_compression.append(hub.read(path, verify=True))
+    assert local_ds.point_cloud_with_sample_compression == (1, 20153, 18)
 
 
 def shape_tester(local_ds, path, sample, tensor, feature_size):
