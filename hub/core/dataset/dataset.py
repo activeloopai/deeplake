@@ -1343,7 +1343,7 @@ class Dataset:
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
-    def clean_labels(
+    def cleanlab(
         self,
         module = None,
         criterion = None,
@@ -1360,8 +1360,8 @@ class Dataset:
         # skorch_kwargs: Optional[dict] = None,
     ):
         """
-        Cleans the labels of the dataset. Computes out-of-sample predictions and uses Confident Learning (CL) algorithm to clean the labels.
-        Creates a set of tensors under label_issues group for the entire dataset.
+        Cleans the labels of the dataset. Computes out-of-sample predictions and uses Cleanlab (github.com/cleanlab/cleanlab) open-source library
+        to automatically find label errors in machine learning datasets.Then, creates a set of tensors under label_issues group for the entire dataset.
 
         Note:
             Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
@@ -1386,7 +1386,7 @@ class Dataset:
             label_quality_scores: Returns label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
         """
 
-        from hub.core.experimental.labels import clean_labels
+        from hub.core.experimental import clean_labels
 
         label_issues, label_quality_scores = clean_labels(
             self,
