@@ -77,7 +77,7 @@ def sync_labels(
     hash_label_maps = hl_maps
 
     @hub.compute
-    def upload(
+    def class_label_sync(
         hash_tensor_sample,
         samples_out,
         label_tensor: str,
@@ -110,12 +110,13 @@ def sync_labels(
             target_tensor.meta._disable_temp_transform = True
             target_tensor.meta.is_dirty = True
 
-            upload(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
+            logger.info("Synchronizing class labels...")
+            class_label_sync(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
                 ds[temp_tensor],
                 ds,
                 num_workers=num_workers,
                 scheduler=scheduler,
-                progressbar=False,
+                progressbar=True,
                 check_lengths=False,
                 skip_ok=True,
             )
