@@ -19,22 +19,15 @@ from hub.constants import (
 )
 from hub.compression import (
     COMPRESSION_ALIASES,
-    get_compression_type,
-    AUDIO_COMPRESSION,
-    BYTE_COMPRESSION,
-    VIDEO_COMPRESSION,
 )
-from hub.htype import (
-    HTYPE_CONFIGURATIONS,
-    DEFAULT_HTYPE,
-    HTYPE_SUPPORTED_COMPRESSIONS,
-)
+from hub.htype import HTYPE_CONFIGURATIONS, HTYPE_SUPPORTED_COMPRESSIONS, htype as HTYPE
 from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
 from hub.core.tensor_link import get_link_transform
 
 
 class TensorMeta(Meta):
+    name: Optional[str] = None
     htype: str
     dtype: str
     min_shape: List[int]
@@ -43,9 +36,12 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
     max_chunk_size: int
+    tiling_threshold: int
     hidden: bool
     links: Dict[str, Dict[str, Union[str, bool]]]
     is_sequence: bool
+    is_link: bool
+    verify: bool
 
     def __init__(
         self,
@@ -64,10 +60,10 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-        if htype and htype != UNSPECIFIED:
+        if htype and htype not in [UNSPECIFIED, HTYPE.DEFAULT]:
             self.set_htype(htype, **kwargs)
         else:
-            self.set_htype(DEFAULT_HTYPE, **kwargs)
+            self.set_htype(HTYPE.DEFAULT, **kwargs)
             self.htype = None  # type: ignore
 
     def add_link(
@@ -79,26 +75,22 @@ class TensorMeta(Meta):
         }
         if update_f is not None:
             link["update"] = update_f
-        _validate_links({"name": link})
-        self.links[name] = link  # type: ignore
+        d = {name: link}
+        _validate_links(d)
+        self.links.update(d)  # type: ignore
         self.is_dirty = True
 
     def set_hidden(self, val: bool):
-        ffw_tensor_meta(self)
         self.hidden = val
         self.is_dirty = True
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
-        ffw_tensor_meta(self)
 
         if self.dtype is not None:
             raise ValueError(
                 f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}."
             )
-
-        if self.length > 0:
-            raise ValueError("Dtype was None, but length was > 0.")
 
         self.dtype = dtype.name
         self.is_dirty = True
@@ -109,15 +101,11 @@ class TensorMeta(Meta):
 
     def set_htype(self, htype: str, **kwargs):
         """Should only be called once."""
-        ffw_tensor_meta(self)
 
         if getattr(self, "htype", None) is not None:
             raise ValueError(
                 f"Tensor meta already has a htype ({self.htype}). Incoming: {htype}."
             )
-
-        if getattr(self, "length", 0) > 0:
-            raise ValueError("Htype was None, but length was > 0.")
 
         if not kwargs:
             kwargs = HTYPE_CONFIGURATIONS[htype]
@@ -144,7 +132,6 @@ class TensorMeta(Meta):
         _validate_links(self.links)
 
     def update_shape_interval(self, shape: Sequence[int]):
-        ffw_tensor_meta(self)
         initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
         initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
@@ -165,13 +152,11 @@ class TensorMeta(Meta):
             self.is_dirty = True
 
     def update_length(self, length: int):
-        ffw_tensor_meta(self)
         self.length += length
         if length != 0:
             self.is_dirty = True
 
-    def _pop(self):
-        ffw_tensor_meta(self)
+    def pop(self, index):
         self.length -= 1
         if self.length == 0:
             self.min_shape = []
@@ -183,6 +168,7 @@ class TensorMeta(Meta):
 
         for key in self._required_meta_keys:
             d[key] = getattr(self, key)
+        d["name"] = self.name
 
         return d
 
@@ -193,6 +179,7 @@ class TensorMeta(Meta):
             state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
+        ffw_tensor_meta(self)
 
     @property
     def nbytes(self):
@@ -270,17 +257,19 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     sc = htype_overwrite["sample_compression"]
     cc = htype_overwrite["chunk_compression"]
     compr = sc if cc in (None, UNSPECIFIED) else cc
-    if htype == "image" and sc == UNSPECIFIED and cc == UNSPECIFIED:
-        raise TensorMetaMissingRequiredValue(
-            htype, ["chunk_compression", "sample_compression"]  # type: ignore
-        )
+    if htype.startswith("image") and sc == UNSPECIFIED and cc == UNSPECIFIED:
+        if not htype_overwrite["is_link"]:
+            raise TensorMetaMissingRequiredValue(
+                htype, ["chunk_compression", "sample_compression"]  # type: ignore
+            )
     if htype in ("audio", "video"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
-            raise TensorMetaMissingRequiredValue(
-                htype, "sample_compression"  # type: ignore
-            )
+            if not htype_overwrite["is_link"]:
+                raise TensorMetaMissingRequiredValue(
+                    htype, "sample_compression"  # type: ignore
+                )
     supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
     if (
         compr

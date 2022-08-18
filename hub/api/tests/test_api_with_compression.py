@@ -1,19 +1,20 @@
+import os
+import sys
 from hub.constants import KB, MB
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
+    SampleHtypeMismatchError,
 )
 import pytest
 from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_images_close
-from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
 from hub.core.dataset import Dataset
-from miniaudio import mp3_read_file_f32, flac_read_file_f32, wav_read_file_f32  # type: ignore
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
@@ -35,7 +36,11 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
 def test_populate_compressed_samples(local_ds, cat_path, flower_path):
     images = local_ds.create_tensor(
-        TENSOR_KEY, htype="image", sample_compression="png", max_chunk_size=2 * MB
+        TENSOR_KEY,
+        htype="image",
+        sample_compression="png",
+        max_chunk_size=2 * MB,
+        tiling_threshold=1 * MB,
     )
 
     assert images.meta.dtype == "uint8"
@@ -177,7 +182,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
     chunk_size = 600 * KB
     with ds:
         images = ds.create_tensor(
-            "images", htype="image", chunk_compression="jpg", max_chunk_size=chunk_size
+            "images",
+            htype="image",
+            chunk_compression="jpg",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         images.extend([hub.read(cat_path)] * im_ct)
         expected_arr = np.random.randint(0, 10, (500, 450, 3)).astype("uint8")
@@ -192,7 +201,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             assert_images_close(img.numpy(), expected_img)
     with ds:
         images = ds.create_tensor(
-            "images2", htype="image", chunk_compression="png", max_chunk_size=chunk_size
+            "images2",
+            htype="image",
+            chunk_compression="png",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         images.extend([hub.read(flower_path)] * im_ct)
         expected_arr = np.random.randint(0, 256, (200, 250, 4)).astype("uint8")
@@ -207,7 +220,10 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             assert_images_close(img.numpy(), expected_img)
     with ds:
         labels = ds.create_tensor(
-            "labels", chunk_compression="lz4", max_chunk_size=chunk_size
+            "labels",
+            chunk_compression="lz4",
+            max_chunk_size=chunk_size,
+            tiling_threshold=chunk_size,
         )
         data = [
             np.random.randint(0, 256, (150, 150)).astype("uint8") for _ in range(20)
@@ -226,21 +242,106 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
         np.testing.assert_array_equal(data[i], ds.labels[20 + i].numpy())
 
 
+def _decompress_audio_helper(path):
+    import av  # type: ignore
+
+    container = av.open(path)
+    for frame in container.decode(audio=0):
+        if not frame.is_corrupt:
+            audio = frame.to_ndarray().astype("<f4")
+            break
+
+    for frame in container.decode(audio=0):
+        audio = np.concatenate((audio, frame.to_ndarray().astype("<f4")), axis=1)
+
+    return np.transpose(audio)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
+)
 @pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
 def test_audio(local_ds, compression, audio_paths):
     path = audio_paths[compression]
-    if path.endswith(".mp3"):
-        audio = mp3_read_file_f32(path)
-    elif path.endswith(".flac"):
-        audio = flac_read_file_f32(path)
-    elif path.endswith(".wav"):
-        audio = wav_read_file_f32(path)
-    arr = np.frombuffer(audio.samples, dtype=np.float32).reshape(
-        audio.num_frames, audio.nchannels
-    )
+    arr = _decompress_audio_helper(path)
     local_ds.create_tensor("audio", htype="audio", sample_compression=compression)
     with local_ds:
         for _ in range(10):
             local_ds.audio.append(hub.read(path))  # type: ignore
     for i in range(10):
-        np.testing.assert_array_equal(local_ds.audio[i].numpy(), arr)  # type: ignore
+        decompressed = local_ds.audio[i].numpy()
+        np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
+
+
+def test_exif(memory_ds, compressed_image_paths):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpeg")
+        for path in compressed_image_paths["jpeg"]:
+            ds.images.append(hub.read(path))
+    for image in ds.images:
+        assert isinstance(image.sample_info["exif"], dict), (
+            type(image.sample_info["exif"]),
+            path,
+        )
+
+
+def test_forced_htypes(
+    memory_ds, grayscale_image_paths, color_image_paths, flower_path
+):
+    with memory_ds as ds:
+        gray = ds.create_tensor("gray", htype="image.gray", sample_compression="jpeg")
+        rgb = ds.create_tensor("rgb", htype="image.rgb", sample_compression="jpeg")
+
+        gray.append(hub.read(grayscale_image_paths["jpeg"]))
+        gray.append(hub.read(color_image_paths["jpeg"]))
+        gray.append(hub.read(flower_path))
+        gray.extend(np.ones((4, 10, 10, 3), dtype=np.uint8))
+        gray.extend(
+            [hub.read(color_image_paths["jpeg"]), np.ones((10, 10), dtype=np.uint8)]
+        )
+
+        rgb.append(hub.read(grayscale_image_paths["jpeg"]))
+        rgb.append(hub.read(color_image_paths["jpeg"]))
+        rgb.append(hub.read(flower_path))
+        rgb.extend(np.ones((4, 10, 10), dtype=np.uint8))
+        rgb.extend(
+            [
+                hub.read(grayscale_image_paths["jpeg"]),
+                np.ones((10, 10, 3), dtype=np.uint8),
+            ]
+        )
+
+        gray_png = ds.create_tensor(
+            "gray_png", htype="image.gray", sample_compression="png"
+        )
+        rgb_png = ds.create_tensor(
+            "rgb_png", htype="image.rgb", sample_compression="png"
+        )
+
+        gray_png.append(hub.read(flower_path))
+        gray_png.append(np.ones((10, 10, 4), dtype=np.uint8))
+
+        rgb_png.append(hub.read(flower_path))
+        rgb_png.append(np.ones((10, 10, 4), dtype=np.uint8))
+
+        with pytest.raises(SampleHtypeMismatchError):
+            rgb_png.append(1)
+
+        with pytest.raises(TensorMetaMissingRequiredValue):
+            ds.create_tensor("abc", htype="image.rgb")
+
+        with pytest.raises(TensorMetaMissingRequiredValue):
+            ds.create_tensor("abc", htype="image.gray")
+
+    for sample in gray:
+        assert len(sample.shape) == 2
+
+    for sample in rgb:
+        assert len(sample.shape) == 3
+
+    for sample in gray_png:
+        assert len(sample.shape) == 2
+
+    for sample in rgb_png:
+        assert len(sample.shape) == 3

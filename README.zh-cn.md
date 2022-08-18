@@ -80,7 +80,6 @@ pip3 install hub
 
 **默认情况下，Hub 不安装音频、视频和谷歌云(GCS)支持的依赖项。它们可以使用以下方式安装：**
 ```sh
-pip3 install hub[audio]  -> 通过 miniaudio 支持音频
 pip3 install hub[video]  -> 通过 pyav 支持视频
 pip3 install hub[gcp]    -> 通过 google-* 依赖支持GCS
 pip3 install hub[all]    -> 安装所有东西 - 音频、视频和GCS支持

@@ -102,8 +102,8 @@ def test(local_ds_generator, compression):
 
     # update single sample
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
-    )  # same shape (with 1)
+        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
+    )  # same shape
     _make_update_assert_equal(
         gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
     )  # same shape
@@ -111,8 +111,8 @@ def test(local_ds_generator, compression):
         gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
     )  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
-    )  # new shape (with 1)
+        gen, "images", 0, np.ones((32, 32), dtype="uint8") * 5
+    )  # new shape
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype="uint8")
     )  # empty sample (new shape)
@@ -164,7 +164,7 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     ds.images[0] = hub.read(cat_path)
     np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
 
-    ds.images[1] = [hub.read(flower_path)]
+    ds.images[1] = hub.read(flower_path)
     np.testing.assert_array_equal(ds.images[1].numpy(), hub.read(flower_path).array)
 
     ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
@@ -237,7 +237,9 @@ def test_failures(memory_ds):
 
 
 def test_warnings(memory_ds):
-    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
+    tensor = memory_ds.create_tensor(
+        "tensor", max_chunk_size=8 * KB, tiling_threshold=4 * KB
+    )
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 
@@ -380,3 +382,34 @@ def test_byte_positions_encoder_update_bug(memory_ds):
     assert ds.abc[0].numpy().shape == (2, 2)
     for i in range(1, 10):
         assert ds.abc[i].numpy().shape == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {},
+        {"sample_compression": "lz4"},
+        {"chunk_compression": "lz4"},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
+@pytest.mark.parametrize("htype", ["generic", "sequence"])
+def test_update_partial(memory_ds, htype, args):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype=htype, **args)
+        ds.x.append(np.ones((10, 10, 3), dtype=np.uint8))
+        ds.x[0][0:2, 0:3, :1] = np.zeros((2, 3, 1), dtype=np.uint8)
+    assert ds.x[0].shape == (10, 10, 3)
+    arr = ds.x[0].numpy()
+    exp = np.ones((10, 10, 3), dtype=np.uint8)
+    exp[0:2, 0:3, 0] *= 0
+    np.testing.assert_array_equal(arr, exp)
+    with ds:
+        ds.x[0][1] += 1
+        ds.x[0][1] *= 3
+    exp[1] += 1
+    exp[1] *= 3
+    arr = ds.x[0].numpy()
+    np.testing.assert_array_equal(arr, exp)

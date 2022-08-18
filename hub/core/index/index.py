@@ -167,13 +167,13 @@ class IndexEntry:
                 return IndexEntry(new_value)
             elif isinstance(item, slice):
                 return IndexEntry(merge_slices(self.value, item))
-            elif isinstance(item, tuple):
+            elif isinstance(item, (tuple, list)):
                 new_value = tuple(slice_at_int(self.value, idx) for idx in item)
                 return IndexEntry(new_value)
-        elif isinstance(self.value, tuple):
+        elif isinstance(self.value, (tuple, list)):
             if isinstance(item, int) or isinstance(item, slice):
                 return IndexEntry(self.value[item])
-            elif isinstance(item, tuple):
+            elif isinstance(item, (tuple, list)):
                 new_value = tuple(self.value[idx] for idx in item)
                 return IndexEntry(new_value)
 
@@ -200,7 +200,7 @@ class IndexEntry:
         return (
             isinstance(self.value, slice)
             and not self.value.start
-            and self.value.stop == None
+            and self.value.stop is None
             and ((self.value.step or 1) == 1)
         )
 
@@ -265,6 +265,9 @@ class Index:
             item = item.values
         elif item in ((), [], None):
             item = slice(None)
+
+        if isinstance(item, tuple):
+            item = list(map(IndexEntry, item))
 
         if not (isinstance(item, list) and isinstance(item[0], IndexEntry)):
             item = [IndexEntry(item)]
@@ -358,15 +361,7 @@ class Index:
         elif isinstance(item, list):
             return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
-            base = self
-            for index in item.values:
-                value = index.value
-                if isinstance(value, tuple) and not (
-                    value and isinstance(value[0], slice)
-                ):
-                    value = (value,)  # type: ignore
-                base = base[value]
-            return base
+            return self[tuple(v.value for v in item.values)]  # type: ignore
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
@@ -404,7 +399,8 @@ class Index:
         self.values[0].validate(parent_length)
 
     def __str__(self):
-        values = [entry.value for entry in self.values]
+        eval_f = lambda v: list(v()) if callable(v) else v
+        values = [eval_f(entry.value) for entry in self.values]
         return f"Index({values})"
 
     def __repr__(self):
@@ -416,9 +412,22 @@ class Index:
             v = e.value
             if isinstance(v, slice):
                 ret.append({"start": v.start, "stop": v.stop, "step": v.step})
+            elif isinstance(v, Iterable):
+                ret.append(list(v))
+            elif callable(v):
+                ret.append(list(v()))
             else:
                 ret.append(v)
         return ret
+
+    @classmethod
+    def from_json(cls, idxs):
+        entries = []
+        for idx in idxs:
+            if isinstance(idx, dict):
+                idx = slice(idx["start"], idx["stop"], idx["step"])
+            entries.append(IndexEntry(idx))
+        return cls(entries)
 
     def __len__(self):
         return len(self.values)

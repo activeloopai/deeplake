@@ -14,6 +14,7 @@ services:
       dockerfile: ./bin/Dockerfile.dev
     volumes:
       - ../:/app
+    shm_size: 2gb 
     command: >
       bash -c "python3 -m pytest -x --local"
 

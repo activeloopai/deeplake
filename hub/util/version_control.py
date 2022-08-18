@@ -18,6 +18,8 @@ from hub.core.lock import Lock
 from hub.util.exceptions import CheckoutError, CommitError
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_creds_encoder_key,
+    get_sequence_encoder_key,
     get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
@@ -247,6 +249,24 @@ def copy_metas(
             pass
 
         try:
+            src_sequence_encoder_key = get_sequence_encoder_key(tensor, src_commit_id)
+            dest_sequence_encoder_key = get_sequence_encoder_key(tensor, dest_commit_id)
+            src_sequence_encoder = storage[src_sequence_encoder_key]
+            dest_sequence_encoder = convert_to_bytes(src_sequence_encoder)
+            storage[dest_sequence_encoder_key] = dest_sequence_encoder
+        except KeyError:
+            pass
+
+        try:
+            src_creds_encoder_key = get_creds_encoder_key(tensor, src_commit_id)
+            dest_creds_encoder_key = get_creds_encoder_key(tensor, dest_commit_id)
+            src_creds_encoder = storage[src_creds_encoder_key]
+            dest_creds_encoder = convert_to_bytes(src_creds_encoder)
+            storage[dest_creds_encoder_key] = dest_creds_encoder
+        except KeyError:
+            pass
+
+        try:
             src_tensor_info_key = get_tensor_info_key(tensor, src_commit_id)
             dest_tensor_info_key = get_tensor_info_key(tensor, dest_commit_id)
             src_tensor_info = storage[src_tensor_info_key]
@@ -300,7 +320,7 @@ def discard_old_metas(
         all_src_keys.append(src_tensor_info_key)
 
     for key in all_src_keys:
-        storage.dirty_keys.discard(key)
+        storage.dirty_keys.pop(key, None)
         if key in storage.lru_sizes:
             size = storage.lru_sizes.pop(key)
             storage.cache_used -= size
@@ -439,6 +459,14 @@ def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) 
 def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     """Checks if the current commit has any data present in it or not."""
     commit_id = version_state["commit_id"]
+    try:
+        dataset_diff_key = get_dataset_diff_key(commit_id)
+        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        if dataset_diff.deleted or dataset_diff.renamed:
+            return True
+    except KeyError:
+        pass
+
     for tensor in version_state["full_tensors"].keys():
         if commit_id == FIRST_COMMIT_ID:
             # if the first commit has even a single tensor i.e. it entered the for loop, it has data
@@ -456,7 +484,7 @@ def current_commit_has_info_modified(
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
         dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
-        if dataset_diff.info_modified:
+        if dataset_diff.info_updated:
             return True
     except KeyError:
         pass
@@ -465,7 +493,7 @@ def current_commit_has_info_modified(
         try:
             tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
             tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
-            if tensor_diff.info_modified:
+            if tensor_diff.info_updated:
                 return True
         except KeyError:
             pass
@@ -495,15 +523,21 @@ def load_meta(dataset):
     storage.clear_hub_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_hub_object(meta_key, DatasetMeta)
+    if not meta.tensor_names:  # backward compatibility
+        meta.tensor_names = {key: key for key in meta.tensors}
+
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
     storage.register_hub_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
+    _tensor_names = version_state["tensor_names"]
+    _tensor_names.clear()
+    _tensor_names.update(meta.tensor_names)
 
-    for tensor_name in meta.tensors:
-        _tensors[tensor_name] = Tensor(tensor_name, dataset)
+    for tensor_key in _tensor_names.values():
+        _tensors[tensor_key] = Tensor(tensor_key, dataset)
 
 
 def warn_node_checkout(commit_node: CommitNode, create: bool):

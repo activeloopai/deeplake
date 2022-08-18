@@ -14,6 +14,8 @@ class Info(HubMemoryObject):
         self.is_dirty = False
 
     def __enter__(self):
+        from hub.core.tensor import Tensor
+
         ds = self._dataset
         key = self._key
         if ds is not None:
@@ -21,7 +23,7 @@ class Info(HubMemoryObject):
             if not ds.version_state["commit_node"].is_head_node:
                 raise InfoError("Cannot modify info from a non-head commit.")
             if key:
-                ds[key].chunk_engine.commit_diff.modify_info()
+                Tensor(key, ds).chunk_engine.commit_diff.modify_info()
             else:
                 ds._dataset_diff.modify_info()
             self.is_dirty = True

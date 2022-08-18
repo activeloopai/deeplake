@@ -1,6 +1,7 @@
-from typing import Union, Sequence, Any
+from typing import List, Union, Sequence, Any
 from functools import reduce
 import numpy as np
+from hub.core.linked_sample import LinkedSample
 from hub.util.exceptions import TensorDtypeMismatchError
 from hub.core.sample import Sample  # type: ignore
 import hub
@@ -28,7 +29,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         return np.array(0).dtype
     elif isinstance(val, float):
         return np.array(0.0).dtype
-    elif isinstance(val, str):
+    elif isinstance(val, (str, LinkedSample)):
         return np.array("").dtype
     elif isinstance(val, bool):
         return np.dtype(bool)
@@ -44,6 +45,8 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"
+    if isinstance(val, List) and len(val) > 0 and isinstance(val[0], LinkedSample):
+        return "generic"
     types = set((map(type, val)))  # type: ignore
     if dict in types:
         return "json"
@@ -56,7 +59,7 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     return "generic"
 
 
-def get_empty_sample(htype: str):
+def get_empty_text_like_sample(htype: str):
     """Get an empty sample of the given htype.
 
     Args:
@@ -133,7 +136,10 @@ def get_incompatible_dtype(
             else getattr(samples, "dtype", np.array(samples).dtype)
         )
     elif isinstance(samples, Sequence):
-        return all(map(lambda x: get_incompatible_dtype(x, dtype), samples))
+        for dt in map(lambda x: get_incompatible_dtype(x, dtype), samples):
+            if dt:
+                return dt
+        return None
     else:
         raise TypeError(
             f"Unexpected object {samples}. Expected np.ndarray, int, float, bool, str or Sequence."

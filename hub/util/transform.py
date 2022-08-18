@@ -1,18 +1,16 @@
+from collections import defaultdict
 import math
 import warnings
 import hub
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from json.decoder import JSONDecodeError
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.encode.tile import TileEncoder
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_diff import CommitDiff
 from hub.util.remove_cache import get_base_storage
 from hub.util.keys import get_tensor_meta_key
 from hub.util.exceptions import (
@@ -24,14 +22,6 @@ from hub.util.exceptions import (
 
 import posixpath
 import time
-
-TransformOut = Tuple[
-    Dict[str, TensorMeta],
-    Dict[str, ChunkIdEncoder],
-    Dict[str, TileEncoder],
-    Dict[str, Optional[CommitChunkSet]],
-    Dict[str, CommitDiff],
-]
 
 
 def transform_sample(
@@ -100,18 +90,28 @@ def is_empty_transform_dataset(dataset: TransformDataset):
     return all(len(dataset[tensor]) == 0 for tensor in dataset.tensors)
 
 
-def store_data_slice(transform_input: Tuple) -> TransformOut:
+def store_data_slice(transform_input: Tuple) -> Dict:
     """Takes a slice of the original data and iterates through it and stores it in the actual storage.
     The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
     They are instead stored in memory and returned."""
     return store_data_slice_with_pbar(None, transform_input)
 
 
-def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> TransformOut:
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     data_slice, output_storage, inp = transform_input
-    group_index, tensors, visible_tensors, pipeline, version_state, skip_ok = inp
+    (
+        group_index,
+        tensors,
+        visible_tensors,
+        label_temp_tensors,
+        actual_tensors,
+        pipeline,
+        version_state,
+        link_creds,
+        skip_ok,
+    ) = inp
     all_chunk_engines = create_worker_chunk_engines(
-        tensors, output_storage, version_state
+        tensors, label_temp_tensors, output_storage, version_state, link_creds
     )
 
     if isinstance(data_slice, hub.Dataset):
@@ -121,6 +121,8 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
         data_slice,
         pipeline,
         visible_tensors,
+        label_temp_tensors,
+        actual_tensors,
         all_chunk_engines,
         group_index,
         pg_callback,
@@ -131,29 +133,42 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Transform
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
+    all_sequence_encoders = {}
     all_chunk_sets = {}
     all_commit_diffs = {}
+    all_creds_encoders = {}
+    all_hash_label_maps = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
         chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
+        all_sequence_encoders[tensor] = chunk_engine.sequence_encoder
         all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
         all_commit_diffs[tensor] = chunk_engine.commit_diff
-    return (
-        all_tensor_metas,
-        all_chunk_id_encoders,
-        all_tile_encoders,
-        all_chunk_sets,
-        all_commit_diffs,
-    )
+        all_creds_encoders[tensor] = chunk_engine.creds_encoder
+        if chunk_engine._is_temp_label_tensor:
+            all_hash_label_maps[tensor] = chunk_engine._hash_label_map
+
+    return {
+        "tensor_metas": all_tensor_metas,
+        "chunk_id_encoders": all_chunk_id_encoders,
+        "sequence_encoders": all_sequence_encoders,
+        "tile_encoders": all_tile_encoders,
+        "commit_chunk_sets": all_chunk_sets,
+        "commit_diffs": all_commit_diffs,
+        "creds_encoders": all_creds_encoders,
+        "hash_label_maps": all_hash_label_maps,
+    }
 
 
 def _transform_sample_and_update_chunk_engines(
     sample,
     pipeline,
     tensors: List[str],
+    label_temp_tensors: Dict[str, str],
+    actual_tensors: Optional[List[str]],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     skip_ok: bool = False,
@@ -167,14 +182,16 @@ def _transform_sample_and_update_chunk_engines(
     result = result_resolved  # type: ignore
     result_keys = set(result.keys())
 
+    # compare with actual tensors if there are temporary tensors
+    actual_tensors = actual_tensors or tensors
     if skip_ok:
-        if not result_keys.issubset(tensors):
-            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
-    elif set(result_keys) != set(tensors):
-        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+        if not result_keys.issubset(actual_tensors):
+            raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(actual_tensors):
+        raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
 
     for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[tensor]
+        chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
         callback = chunk_engine._transform_callback
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
 
@@ -183,6 +200,8 @@ def transform_data_slice_and_append(
     data_slice,
     pipeline,
     tensors: List[str],
+    label_temp_tensors: Dict[str, str],
+    actual_tensors: Optional[List[str]],
     all_chunk_engines: Dict[str, ChunkEngine],
     group_index: str,
     pg_callback=None,
@@ -195,7 +214,14 @@ def transform_data_slice_and_append(
     last_reported_num_samples = 0
     for i, sample in enumerate(data_slice):
         _transform_sample_and_update_chunk_engines(
-            sample, pipeline, tensors, all_chunk_engines, group_index, skip_ok
+            sample,
+            pipeline,
+            tensors,
+            label_temp_tensors,
+            actual_tensors,
+            all_chunk_engines,
+            group_index,
+            skip_ok,
         )
         if pg_callback is not None:
             curr_time = time.time()
@@ -210,7 +236,11 @@ def transform_data_slice_and_append(
 
 
 def create_worker_chunk_engines(
-    tensors: List[str], output_storage: StorageProvider, version_state
+    tensors: List[str],
+    label_temp_tensors: Dict[str, str],
+    output_storage: StorageProvider,
+    version_state,
+    link_creds,
 ) -> Dict[str, ChunkEngine]:
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
@@ -229,22 +259,40 @@ def create_worker_chunk_engines(
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
                 storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
                 existing_meta = storage_chunk_engine.tensor_meta
+
                 chunk_size = storage_chunk_engine.max_chunk_size
+                tiling_threshold = storage_chunk_engine.tiling_threshold
                 new_tensor_meta = TensorMeta(
                     htype=existing_meta.htype,
                     dtype=existing_meta.dtype,
                     sample_compression=existing_meta.sample_compression,
                     chunk_compression=existing_meta.chunk_compression,
                     max_chunk_size=chunk_size,
+                    tiling_threshold=tiling_threshold,
                     links=existing_meta.links,
+                    is_sequence=existing_meta.is_sequence,
+                    is_link=existing_meta.is_link,
+                    hidden=existing_meta.hidden,
+                    verify=existing_meta.verify,
                 )
                 meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
                 memory_cache[meta_key] = new_tensor_meta  # type: ignore
                 storage_cache.clear_cache()
-                storage_chunk_engine = ChunkEngine(
-                    tensor, storage_cache, version_state, memory_cache
-                )
+                if existing_meta.is_link:
+                    storage_chunk_engine = LinkedChunkEngine(
+                        tensor,
+                        storage_cache,
+                        version_state,
+                        link_creds,
+                        memory_cache,
+                    )
+                else:
+                    storage_chunk_engine = ChunkEngine(
+                        tensor, storage_cache, version_state, memory_cache
+                    )
                 storage_chunk_engine._all_chunk_engines = all_chunk_engines
+                if tensor in label_temp_tensors.values():
+                    storage_chunk_engine._is_temp_label_tensor = True
                 all_chunk_engines[tensor] = storage_chunk_engine
                 break
             except (JSONDecodeError, KeyError):
@@ -272,6 +320,8 @@ def add_cache_to_dataset_slice(
         read_only=dataset_slice.read_only,
         token=dataset_slice.token,
         verbose=False,
+        link_creds=dataset_slice.link_creds,
+        pad_tensors=dataset_slice._pad_tensors,
     )
     dataset_slice.checkout(commit_id)
     return dataset_slice
@@ -374,6 +424,8 @@ def check_lengths(all_tensors_generated_length, skip_ok):
 
     first_length = None
     for length in all_tensors_generated_length.values():
+        if length == 0:
+            continue
         if first_length is None:
             first_length = length
         elif length not in [0, first_length]:
@@ -388,3 +440,14 @@ def sanitize_workers_scheduler(num_workers, scheduler):
         scheduler = "serial"
     num_workers = max(num_workers, 1)
     return num_workers, scheduler
+
+
+def process_transform_result(result: List[Dict]):
+    if not result:
+        return result
+    final = defaultdict(list)
+    keys = list(result[0].keys())
+    for item in result:
+        for key in keys:
+            final[key].append(item[key])
+    return final

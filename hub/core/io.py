@@ -7,20 +7,23 @@ from warnings import warn
 from numpy import nditer, argmin
 from numpy import array as nparray
 from math import floor
+import numpy as np
 
 
 from hub.constants import MB
 from hub.core.chunk.base_chunk import BaseChunk
 from hub.core.chunk_engine import ChunkEngine
+from hub.core.linked_chunk_engine import LinkedChunkEngine
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider, LocalProvider
 from hub.core.tiling.deserialize import combine_chunks
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
 )
-from hub.util.keys import get_chunk_key
+from hub.util.keys import get_chunk_key, get_tensor_meta_key
 from hub.util.remove_cache import get_base_storage
 from hub.util.storage import get_pytorch_local_storage
 
@@ -33,8 +36,8 @@ class IOBlock:
     Represents ordered sequential read of samples from corresponding tensor chunks.
     """
 
-    def __init__(self, chunks: List[List[str]], indexes: List[int]) -> None:
-        self._chunks: List[List[str]] = chunks
+    def __init__(self, chunks: List[List[Optional[str]]], indexes: List[int]) -> None:
+        self._chunks: List[List[Optional[str]]] = chunks
         self._ind: List[int] = indexes
 
     def shuffle(self):
@@ -43,13 +46,13 @@ class IOBlock:
         """
         shuffle(self._ind)
 
-    def chunk_names(self, tensor_index: int) -> List[str]:
+    def chunk_names(self, tensor_index: int) -> List[Optional[str]]:
         return self._chunks[tensor_index]
 
     def indices(self) -> List[int]:
         return self._ind
 
-    def chunks(self) -> List[List[str]]:
+    def chunks(self) -> List[List[Optional[str]]]:
         return self._chunks
 
     def split(self, n) -> List["IOBlock"]:
@@ -98,10 +101,10 @@ class SingleThreadScheduler(Scheduler):
 
 class SequentialMultithreadScheduler(Scheduler):
     """
-    Splits list of IO blocks in a way, so PyTroch loader would return
+    Splits list of IO blocks in a way, so PyTorch loader would return
     samples in sequence, when started with `num_worker` > 1.
 
-    Scheduler relays on a fact, that PyTroch DataLoader synchronize
+    Scheduler relays on a fact, that PyTorch DataLoader synchronize
     read of samples per thread and return in a sequence per worker.
 
     Example:
@@ -254,6 +257,8 @@ class SampleStreaming(Streaming):
         tensors: Sequence[str],
         tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
+        return_index: bool = True,
+        pad_tensors: bool = False,
     ) -> None:
         super().__init__()
 
@@ -270,6 +275,7 @@ class SampleStreaming(Streaming):
             )
 
         self.tensors = tensors
+        self.pad_tensors = pad_tensors
         if isinstance(tobytes, bool):
             self.tobytes = {k: tobytes for k in self.tensors}
         else:
@@ -287,6 +293,8 @@ class SampleStreaming(Streaming):
             if self.local_storage is not None
             else None
         )
+
+        self.return_index = return_index
 
     def read(self, schedule: Schedule) -> Iterator:
         for block in schedule._blocks:
@@ -306,9 +314,17 @@ class SampleStreaming(Streaming):
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
 
+                    version_state = self.dataset.version_state
+                    if c_names == [None]:
+                        sample[key] = engine.get_empty_sample()
+                        continue
                     for c_name in c_names:
                         commit_id = engine.get_chunk_commit(c_name)
-                        c_key = get_chunk_key(key, c_name, commit_id)
+                        c_key = get_chunk_key(
+                            version_state["tensor_names"][key],
+                            c_name,  # type: ignore
+                            commit_id,
+                        )
                         if self.local_caches is not None:
                             local_cache = self.local_caches[key]
 
@@ -347,6 +363,8 @@ class SampleStreaming(Streaming):
                     break
 
             if valid_sample_flag:
+                if self.return_index:
+                    sample["index"] = np.array([idx])
                 yield sample
 
     def list_blocks(self) -> List[IOBlock]:
@@ -365,13 +383,19 @@ class SampleStreaming(Streaming):
 
         last_idx: int = 0
 
-        while all([not it.finished for it in iterators]):
-            next_it = iterators[argmin(nparray([it.value[0] for it in iterators]))]
+        check_fn = any if self.pad_tensors else all
+        while check_fn([not it.finished for it in iterators]):
+            next_it = iterators[
+                argmin(nparray([it.value[0] for it in iterators if not it.finished]))
+            ]
             next_it_value = int(next_it.value[0])
 
             if next_it_value >= last_idx:
-                chunks = []
+                chunks: List[List[Optional[str]]] = []
                 for it in iterators:
+                    if it.finished:
+                        chunks.append([None])
+                        continue
                     cur_ids = []
                     if it.value[0] == next_it_value:
                         while not it.finished and it.value[0] == next_it_value:
@@ -379,7 +403,7 @@ class SampleStreaming(Streaming):
                             it.iternext()
                     else:
                         cur_ids.append(it.value[1])
-                    cur_chunks = [
+                    cur_chunks: List[Optional[str]] = [
                         ChunkIdEncoder.name_from_id(cid)  # type: ignore
                         for cid in cur_ids
                     ]
@@ -405,18 +429,30 @@ class SampleStreaming(Streaming):
 
     def _map_chunk_engines(self, tensors: Sequence[str]) -> Dict[str, ChunkEngine]:
         return {
-            key: self._create_chunk_engine(key, self.dataset.version_state)
-            for key in tensors
+            name: self._create_chunk_engine(name, self.dataset.version_state)
+            for name in tensors
         }
 
-    def _create_chunk_engine(self, tensor_key, version_state):
-        return ChunkEngine(tensor_key, self._use_cache(self.storage), version_state)
+    def _create_chunk_engine(self, tensor_name, version_state):
+        tensor_key = version_state["tensor_names"][tensor_name]
+        meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
+        cache = self._use_cache(self.storage)
+        meta = cache.get_hub_object(meta_key, TensorMeta)
+        if meta.is_link:
+            return LinkedChunkEngine(
+                tensor_key,
+                cache,
+                version_state,
+                link_creds=self.dataset.link_creds,
+            )
+        return ChunkEngine(tensor_key, cache, version_state)
 
     def _get_dataset_indicies(self):
+        version_state = self.dataset.version_state
         tensor_lengths = [
-            len(self.dataset.version_state["full_tensors"][tensor])
+            len(version_state["full_tensors"][version_state["tensor_names"][tensor]])
             for tensor in self.tensors
         ]
-        length = min(tensor_lengths, default=0)
-
+        length_fn = max if self.pad_tensors else min
+        length = length_fn(tensor_lengths, default=0)
         return self.dataset.index.values[0].indices(length)

@@ -195,6 +195,11 @@ class LoginException(Exception):
         super().__init__(message)
 
 
+class UserNotLoggedInException(Exception):
+    def __init__(self, message=""):
+        super().__init__(message)
+
+
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
@@ -224,7 +229,9 @@ class AuthorizationException(Exception):
     def __init__(
         self,
         message="You are not authorized to access this resource on Activeloop Server.",
+        response=None,
     ):
+        self.response = response
         super().__init__(message)
 
 
@@ -304,7 +311,7 @@ class UnexpectedStatusCodeException(Exception):
         super().__init__(message)
 
 
-class InvalidTokenException(Exception):
+class EmptyTokenException(Exception):
     def __init__(self, message="The authentication token is empty."):
         super().__init__(message)
 
@@ -522,7 +529,7 @@ class TensorMismatchError(TransformError):
         else:
             super().__init__(
                 f"One or more of the outputs generated during transform contain different tensors than the ones present in the target dataset of transform.\n "
-                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
+                f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}. If you want to do this, pass skip_ok=True to the eval method."
             )
 
 
@@ -623,10 +630,13 @@ class MergeMismatchError(MergeError):
 
 
 class MergeConflictError(MergeError):
-    def __init__(self, conflict_dict):
-        tensor_names = [k for k, v in conflict_dict.items() if v]
-        message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
-        super().__init__(message)
+    def __init__(self, conflict_dict=None, message=""):
+        if conflict_dict:
+            tensor_names = [k for k, v in conflict_dict.items() if v]
+            message = f"Unable to merge, tensors {tensor_names} have conflicts and conflict resolution argument was not provided. Use conflict_resolution='theirs' or conflict_resolution='ours' to resolve the conflict."
+            super().__init__(message)
+        else:
+            super().__init__(message)
 
 
 class CheckoutError(VersionControlError):
@@ -669,9 +679,17 @@ class AgreementError(Exception):
 
 
 class AgreementNotAcceptedError(AgreementError):
-    def __init__(self):
+    def __init__(self, agreements=None):
+        self.agreements = agreements
         super().__init__(
             "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInAgreementError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You are not logged in. Please log in to accept the agreement."
         )
 
 
@@ -686,14 +704,67 @@ class NotLoggedInError(AgreementError):
         super().__init__(msg)
 
 
+class RenameError(Exception):
+    def __init__(self, msg="Only name of the dataset can be different in new path."):
+        super().__init__(msg)
+
+
 class BufferError(Exception):
     pass
 
 
-class RenameError(Exception):
-    def __init__(self):
-        super().__init__("Only name of the dataset can be different in new path.")
-
-
 class InfoError(Exception):
     pass
+
+
+class OutOfChunkCountError(Exception):
+    pass
+
+
+class OutOfSampleCountError(Exception):
+    pass
+
+
+class SampleHtypeMismatchError(Exception):
+    def __init__(self, htype, sample_type):
+        super().__init__(
+            f"htype '{htype}' does not support samples of type {sample_type}."
+        )
+
+
+class EmptyTensorError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class DatasetViewSavingError(Exception):
+    pass
+
+
+class ManagedCredentialsNotFoundError(Exception):
+    def __init__(self, org_id, creds_key):
+        super().__init__(
+            f"Unable to find managed credentials '{creds_key}' for organization {org_id}."
+        )
+
+
+class UnableToReadFromUrlError(Exception):
+    def __init__(self, url, status_code):
+        super().__init__(f"Unable to read from url {url}. Status code: {status_code}")
+
+
+class InvalidTokenException(Exception):
+    def __init__(self):
+        super().__init__(
+            "Token is invalid. Make sure the full token string is included and try again."
+        )
+
+
+class TokenPermissionError(Exception):
+    def __init__(self):
+        message = (
+            "A dataset does not exist at the specified path, or you do not have "
+            "sufficient permissions to load or create one. Please check the dataset "
+            "path and make sure that you have sufficient permissions to the path."
+        )
+        super().__init__(message)

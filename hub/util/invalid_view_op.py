@@ -8,11 +8,17 @@ import hub
 def invalid_view_op(callable: Callable):
     @wraps(callable)
     def inner(x, *args, **kwargs):
-        if not x.index.is_trivial():
-            raise InvalidOperationError(
-                callable.__name__,
-                type(x).__name__,
-            )
+        ds = x if isinstance(x, hub.Dataset) else x.dataset
+        if not ds.__dict__.get("_allow_view_updates"):
+            is_del = callable.__name__ == "delete"
+            managed_view = "_view_entry" in ds.__dict__
+            has_vds = "_vds" in ds.__dict__
+            is_view = not x.index.is_trivial() or has_vds or managed_view
+            if is_view and not (is_del and (has_vds or managed_view)):
+                raise InvalidOperationError(
+                    callable.__name__,
+                    type(x).__name__,
+                )
         return callable(x, *args, **kwargs)
 
     return inner

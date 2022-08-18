@@ -43,29 +43,50 @@ class Lock(object):
         else:
             self.username = username
 
-    def acquire(self, timeout=10, force=False):
+    def _write_lock(self):
+        storage = self.storage
         try:
-            nodeid, timestamp, _ = _parse_lock_bytes(self.storage[self.path])
+            read_only = storage.read_only
+            storage.disable_readonly()
+            storage[self.path] = _get_lock_bytes(self.username)
+        finally:
+            if read_only:
+                storage.enable_readonly()
+
+    def acquire(self, timeout=10, force=False):
+        storage = self.storage
+        path = self.path
+        try:
+            nodeid, timestamp, _ = _parse_lock_bytes(storage[path])
         except KeyError:
-            self.storage[self.path] = _get_lock_bytes()
-            return
+            return self._write_lock()
         if nodeid == uuid.getnode():
-            self.storage[self.path] = _get_lock_bytes(self.username)
-            return
-        while self.path in self.storage:
+            return self._write_lock()
+        while path in storage:
             if time.time() - timestamp >= timeout:
                 if force:
-                    self.storage[self.path] = _get_lock_bytes(self.username)
-                    return
+                    return self._write_lock()
                 else:
                     raise LockedException()
             time.sleep(1)
 
     def release(self):
+        storage = self.storage
         try:
-            del self.storage[self.path]
+            read_only = storage.read_only
+            storage.disable_readonly()
+            del storage[self.path]
         except Exception:
             pass
+        finally:
+            if read_only:
+                storage.enable_readonly()
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, *args, **kwargs):
+        self.release()
 
 
 class PersistentLock(Lock):

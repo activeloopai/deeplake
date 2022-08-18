@@ -7,7 +7,6 @@ from hub.util.remove_cache import remove_memory_cache
 from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gcs_datasets
 from hub.util.transform import get_pbar_description
 import hub
 
@@ -101,6 +100,23 @@ def inplace_transform(sample_in, samples_out):
     samples_out.label.append(3 * sample_in.label.numpy())
 
 
+@hub.compute
+def unequal_transform(sample_in, samples_out):
+    samples_out.x.append(sample_in.x.numpy() * 2)
+    if sample_in.y.numpy().size > 0:
+        samples_out.y.append(sample_in.y.numpy() * 2)
+
+
+@hub.compute
+def add_text(sample_in, samples_out):
+    samples_out.abc.append(sample_in)
+
+
+@hub.compute
+def add_link(sample_in, samples_out):
+    samples_out.abc.append(hub.link(sample_in))
+
+
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
@@ -109,7 +125,11 @@ def check_target_array(ds, index, target):
 
 
 @all_schedulers
-@enabled_non_gcs_datasets
+@pytest.mark.parametrize(
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
 def test_single_transform_hub_dataset(ds, scheduler):
     data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
@@ -338,17 +358,19 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
-    diff = ds_out.diff(as_dict=True)
+    diff = ds_out.diff(as_dict=True)["tensor"]
     change = {
         "image": {
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
         "label": {
             "data_updated": set(),
             "info_updated": False,
             "data_transformed_in_place": False,
+            "data_deleted": set(),
         },
     }
     if do_commit:
@@ -617,7 +639,7 @@ def test_inplace_transform(local_ds_generator):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        diff = ds.diff(as_dict=True)
+        diff = ds.diff(as_dict=True)["tensor"]
         change = {
             "img": {
                 "created": False,
@@ -626,6 +648,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
             "label": {
                 "created": False,
@@ -634,6 +657,7 @@ def test_inplace_transform(local_ds_generator):
                 "data_updated": set(),
                 "data_transformed_in_place": True,
                 "info_updated": False,
+                "data_deleted": set(),
             },
         }
         assert diff == change
@@ -874,3 +898,87 @@ def test_chunk_compression_bug(local_ds):
 
     for index in range(length):
         np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)
+
+
+@hub.compute
+def sequence_transform(inp, out):
+    out.x.append([np.ones(inp)] * inp)
+
+
+def test_sequence_htype_with_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x", htype="sequence")
+        assert ds.x.dtype is None
+        assert ds.x.htype == "sequence[None]"
+        sequence_transform().eval(list(range(1, 11)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    for i in range(10):
+        np.testing.assert_array_equal(ds.x[i].numpy(), np.ones((i + 1, i + 1)))
+    assert ds.x.dtype == np.ones(1).dtype
+    assert ds.x.htype == "sequence[generic]"
+
+
+def test_htype_dtype_after_transform(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image")
+        assert ds.image.htype is None
+        assert ds.image.dtype is None
+        ds.create_tensor("label")
+        fn3().eval(list(range(10)), ds, TRANSFORM_TEST_NUM_WORKERS)
+    assert ds.image.htype == "generic"
+    assert ds.image.dtype == np.ones(1).dtype
+
+
+def test_transform_pad_data_in(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+    ds2 = hub.dataset("./data/unequal2", overwrite=True)
+    ds2.create_tensor("x")
+    ds2.create_tensor("y")
+
+    unequal_transform().eval(ds, ds2, pad_data_in=True, skip_ok=True)
+    assert len(ds2.x) == 10
+    assert len(ds2.y) == 5
+    assert len(ds2) == 5
+    for i in range(10):
+        x = ds2[i].x.numpy()
+        np.testing.assert_equal(x, 2 * i)
+        if i < 5:
+            y = ds2[i].y.numpy()
+            np.testing.assert_equal(y, 2 * i)
+
+    for i, dsv in enumerate(ds2):
+        x, y = dsv.x.numpy(), dsv.y.numpy()
+        np.testing.assert_equal(x, 2 * i)
+        np.testing.assert_equal(y, 2 * i)
+
+
+def test_transform_bug_text(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="text")
+        ls = ["hello"] * 10
+        add_text().eval(ls, ds, num_workers=2)
+        assert len(ds) == 10
+        ds.pop(6)
+        assert len(ds) == 9
+
+        for i in range(9):
+            assert ds[i].abc.numpy() == "hello"
+
+
+def test_transform_bug_link(local_ds, cat_path):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="link")
+        ls = [cat_path] * 10
+        add_link().eval(ls, ds, num_workers=2)
+        assert len(ds) == 10
+        ds.pop(6)
+        assert len(ds) == 9
+
+        for i in range(9):
+            assert ds[i].abc.numpy().shape == (900, 900, 3)
+            assert ds[i].abc.shape == (900, 900, 3)

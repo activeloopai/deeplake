@@ -17,6 +17,7 @@ from hub.util.transform import (
     get_lengths_generated,
     get_old_chunk_paths,
     get_pbar_description,
+    process_transform_result,
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
@@ -28,6 +29,8 @@ from hub.util.exceptions import (
     TransformError,
 )
 from hub.util.version_control import auto_checkout, load_meta
+from hub.util.class_label import sync_labels
+import numpy as np
 
 
 class ComputeFunction:
@@ -47,6 +50,7 @@ class ComputeFunction:
         progressbar: bool = True,
         skip_ok: bool = False,
         check_lengths: bool = True,
+        pad_data_in: bool = False,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
 
@@ -63,6 +67,8 @@ class ComputeFunction:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+                Defaults to False.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -73,7 +79,14 @@ class ComputeFunction:
 
         pipeline = Pipeline([self])
         pipeline.eval(
-            data_in, ds_out, num_workers, scheduler, progressbar, skip_ok, check_lengths
+            data_in,
+            ds_out,
+            num_workers,
+            scheduler,
+            progressbar,
+            skip_ok,
+            check_lengths,
+            pad_data_in,
         )
 
     def __call__(self, sample_in):
@@ -97,6 +110,7 @@ class Pipeline:
         progressbar: bool = True,
         skip_ok: bool = False,
         check_lengths: bool = True,
+        pad_data_in: bool = False,
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -113,6 +127,8 @@ class Pipeline:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+                Defaults to False.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -135,6 +151,9 @@ class Pipeline:
                 auto_checkout(data_in)
             original_data_in = data_in
             data_in = get_dataset_with_zero_size_cache(data_in)
+            if pad_data_in:
+                initial_padding_state = data_in._pad_tensors
+                data_in._enable_padding()
 
         target_ds = data_in if overwrite else ds_out
 
@@ -162,6 +181,7 @@ class Pipeline:
                 target_ds,
                 compute_provider,
                 num_workers,
+                scheduler,
                 progressbar,
                 overwrite,
                 skip_ok,
@@ -175,6 +195,8 @@ class Pipeline:
             if overwrite:
                 original_data_in.storage.clear_cache_without_flush()
                 load_meta(original_data_in)
+                if pad_data_in and not initial_padding_state:
+                    original_data_in._disable_padding()
             else:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
@@ -185,6 +207,7 @@ class Pipeline:
         target_ds: hub.Dataset,
         compute: ComputeProvider,
         num_workers: int,
+        scheduler: str,
         progressbar: bool = True,
         overwrite: bool = False,
         skip_ok: bool = False,
@@ -194,41 +217,74 @@ class Pipeline:
         """
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
+        class_label_tensors = [
+            tensor.key
+            for tensor in target_ds.tensors.values()
+            if tensor.base_htype == "class_label"
+            and not tensor.meta._disable_temp_transform
+        ]
+        label_temp_tensors = {}
+        actual_tensors = (
+            None
+            if not class_label_tensors
+            else [target_ds[t].key for t in target_ds.tensors]
+        )
+
+        for tensor in class_label_tensors:
+            temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
+            with target_ds:
+                temp_tensor_obj = target_ds.create_tensor(
+                    temp_tensor,
+                    htype="class_label",
+                    create_sample_info_tensor=False,
+                    create_shape_tensor=False,
+                    create_id_tensor=False,
+                )
+                temp_tensor_obj.meta._disable_temp_transform = True
+                label_temp_tensors[tensor] = temp_tensor
+            target_ds.flush()
+
         visible_tensors = list(target_ds.tensors)
         visible_tensors = [target_ds[t].key for t in visible_tensors]
+        visible_tensors = list(set(visible_tensors) - set(class_label_tensors))
 
         tensors = list(target_ds._tensors())
         tensors = [target_ds[t].key for t in tensors]
+        tensors = list(set(tensors) - set(class_label_tensors))
+
         group_index = target_ds.group_index
         version_state = target_ds.version_state
         if isinstance(storage, MemoryProvider):
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
-        args = group_index, tensors, visible_tensors, self, version_state, skip_ok
+        args = (
+            group_index,
+            tensors,
+            visible_tensors,
+            label_temp_tensors,
+            actual_tensors,
+            self,
+            version_state,
+            target_ds.link_creds,
+            skip_ok,
+        )
         map_inp = zip(slices, storages, repeat(args))
 
         if progressbar:
             desc = get_pbar_description(self.functions)
-            metas_and_encoders = compute.map_with_progressbar(
+            result = compute.map_with_progressbar(
                 store_data_slice_with_pbar,
                 map_inp,
                 total_length=len(data_in),
                 desc=desc,
             )
         else:
-            metas_and_encoders = compute.map(store_data_slice, map_inp)
-
-        (
-            all_tensor_metas,
-            all_chunk_id_encoders,
-            all_tile_encoders,
-            all_chunk_commit_sets,
-            all_commit_diffs,
-        ) = zip(*metas_and_encoders)
+            result = compute.map(store_data_slice, map_inp)
+        result = process_transform_result(result)
 
         all_num_samples, all_tensors_generated_length = get_lengths_generated(
-            all_tensor_metas, tensors
+            result["tensor_metas"], tensors
         )
 
         check_lengths(all_tensors_generated_length, skip_ok)
@@ -239,18 +295,19 @@ class Pipeline:
 
         old_chunk_paths = get_old_chunk_paths(target_ds, generated_tensors, overwrite)
         merge_all_meta_info(
-            target_ds,
-            storage,
-            generated_tensors,
-            overwrite,
-            all_commit_diffs,
-            all_tile_encoders,
-            all_num_samples,
-            all_tensor_metas,
-            all_chunk_id_encoders,
-            all_chunk_commit_sets,
+            target_ds, storage, generated_tensors, overwrite, all_num_samples, result
         )
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
+
+        if label_temp_tensors:
+            sync_labels(
+                target_ds,
+                label_temp_tensors,
+                result["hash_label_maps"],
+                num_workers=num_workers,
+                scheduler=scheduler,
+                verbose=progressbar,
+            )
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
