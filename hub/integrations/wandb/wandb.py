@@ -87,6 +87,7 @@ def dataset_config(ds):
 
     ret = {
         "Dataset": ds.path,
+        "Commit ID": ds.commit_id,
     }
     if ds.path.startswith("hub://"):
         ret["URL"] = "https://app.activeloop.ai/" + ds.path[len("hub://") :]
