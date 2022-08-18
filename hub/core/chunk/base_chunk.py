@@ -286,6 +286,13 @@ class BaseChunk(HubMemoryObject):
         )
         if tiling_threshold < 0:
             break_into_tiles = False
+
+        if isinstance(incoming_sample, LinkedSample):
+            if self.tensor_meta.is_link:
+                incoming_sample = incoming_sample.path
+            else:
+                raise ValueError("Can't append with hub.link() to tensor whose htype is not 'link'")
+        
         if self.is_text_like:
             if isinstance(incoming_sample, LinkedSample):
                 incoming_sample = incoming_sample.path
