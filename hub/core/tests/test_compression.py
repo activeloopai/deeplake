@@ -60,7 +60,6 @@ def test_array(compression, compressed_image_paths):
         assert_images_close(array, decompressed_array)
 
 
-
 def test_lz4_bc():
     inp = np.random.random((100, 100)).tobytes()
     compressed = lz4.frame.compress(inp)
