@@ -216,6 +216,7 @@ def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_pat
     assert ds.abc[1].numpy().shape == (513, 464, 4)
     assert ds.abc[2].numpy().shape == (900, 900, 3)
     assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+    assert ds.abc.chunk_engine.creds_encoder.num_samples == 3
 
 
 def test_rechunk_cloud_link(local_ds_generator):
@@ -241,28 +242,25 @@ def test_rechunk_cloud_link(local_ds_generator):
         ds.abc[0] = hub.link(s3_path_2, "my_s3_key_2")
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
         sample_0 = ds.abc[0]._linked_sample()
-        assert sample_0.path == s3_path_2
-        assert sample_0.creds_key == "my_s3_key_2"
+        assert sample_0.path == s3_path_2, sample_0.creds_key == "my_s3_key_2"
 
         sample_1 = ds.abc[1]._linked_sample()
-        assert sample_1.path == s3_path_1
-        assert sample_1.creds_key == "my_s3_key_1"
+        assert sample_1.path == s3_path_1, sample_1.creds_key == "my_s3_key_1"
 
         sample_2 = ds.abc[2]._linked_sample()
-        assert sample_2.path == s3_path_1
-        assert sample_2.creds_key == "my_s3_key_1"
+        assert sample_2.path == s3_path_1, sample_2.creds_key == "my_s3_key_1"
 
     ds = local_ds_generator()
     assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
     sample_0 = ds.abc[0]._linked_sample()
-    assert sample_0.path == s3_path_2
-    assert sample_0.creds_key == "my_s3_key_2"
+    assert sample_0.path == s3_path_2, sample_0.creds_key == "my_s3_key_2"
 
     sample_1 = ds.abc[1]._linked_sample()
-    assert sample_1.path == s3_path_1
-    assert sample_1.creds_key == "my_s3_key_1"
+    assert sample_1.path == s3_path_1, sample_1.creds_key == "my_s3_key_1"
 
     sample_2 = ds.abc[2]._linked_sample()
-    assert sample_2.path == s3_path_1
-    assert sample_2.creds_key == "my_s3_key_1"
+    assert sample_2.path == s3_path_1, sample_2.creds_key == "my_s3_key_1"
+
+    assert ds.abc.chunk_engine.creds_encoder.num_samples == 3
