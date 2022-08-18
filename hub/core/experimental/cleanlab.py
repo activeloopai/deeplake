@@ -10,27 +10,6 @@ from sklearn.base import clone
 
 import numpy as np
 
-# TODO: Add default parameters and models
-# TODO: Add support for validation set
-# TODO: Add prune support to delete samples with label issues
-# TODO: Refactor as a class?
-# TODO: Add error checking for the len(tensors) after appending label issues tensors
-# TODO: Error checking, e.g. if number of samples not equal to number of labels in the initial dataset,
-# TODO: Add support for tensorflow models
-# TODO: Add types for the arguments
-# TODO: Create custom config for pip install (e.g. !pip install hub[’cleanlab’])
-# TODO: Add cleanlab kwargs
-# TODO: Add support to create valid and loss accuracy graphs
-# TODO: Add suppport for bounding boxes, task = 'classification' or 'segmentation'
-# TODO: Add tests for the functions
-# TODO: Use y as when calling fit() instead of passing the whole ds?
-# TODO: Use scikit learn shuffle for train set after getting the indices of train and holdout sets.
-# TODO: Instead of deleting label group, just overwrite it at the end if overwrite = True.
-# TODO: Add append parameter. If True, append label issues tensors to the dataset. If False, return label issues as np array.
-# TODO: Add guessed label to tensors
-# TODO: Add progress bar for the training
-# TODO: Add flag branch to move to a different branch.
-
 def get_dataset_tensors(dataset, tensors, dataloader_train_params, overwrite, verbose):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,

@@ -1360,8 +1360,8 @@ class Dataset:
         # skorch_kwargs: Optional[dict] = None,
     ):
         """
-        Cleans the labels of the dataset. Computes out-of-sample predictions for each sample and uses cleanlab (github.com/cleanlab/cleanlab) open-source library
-        to automatically find label errors in a dataset. Then, creates a set of tensors under label_issues group for the entire dataset.
+        Cleans the labels of the dataset. Computes out-of-sample predictions for each sample in a dataset and uses cleanlab (github.com/cleanlab/cleanlab) open-source library
+        to automatically find label errors in a dataset. Then, creates a set of tensors is_label_issue and label_quality_scores under label_issues group.
 
         Note:
             Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
