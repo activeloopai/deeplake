@@ -538,7 +538,7 @@ class ChunkEngine:
         stream = False
         if isinstance(base_storage, (S3Provider, GCSProvider)):
             chunk_size = base_storage.get_object_size(chunk_key)
-            stream = chunk_size > self.min_chunk_size
+            stream = chunk_size > self.max_chunk_size
             if stream:
                 chunk = self.cache.get_hub_object(
                     chunk_key, self.chunk_class, meta=self.chunk_args, url=True

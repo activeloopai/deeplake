@@ -156,8 +156,6 @@ def get_header_from_url(url: str):
     shape_info_nbytes = shape_info_nrows * shape_info_ncols * itemsize
     offset += 8
 
-    while len(byts) - offset < shape_info_nbytes + 4:
-        byts += urlopen(request).read()
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
@@ -172,8 +170,6 @@ def get_header_from_url(url: str):
     byte_positions_nbytes = byte_positions_rows * 3 * itemsize
     offset += 4
 
-    while len(byts) - offset < byte_positions_nbytes:
-        byts += urlopen(request).read()
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
