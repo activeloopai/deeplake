@@ -1,4 +1,3 @@
-from concurrent.futures import process
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
 from hub.hooks import (
@@ -126,7 +125,7 @@ def dataset_written(ds):
                     }
                 )
 
-            output_datasets.append(dataset_config)
+            output_datasets.append(dsconfig)
             run.config.output_datasets = output_datasets
         if key in _CREATED_DATASETS:
             artifact = artifact_from_ds(ds)
@@ -182,7 +181,7 @@ def dataset_read(ds):
                     }
                 )
 
-            input_datasets.append(dataset_config)
+            input_datasets.append(dsconfig)
             run.config.input_datasets = input_datasets
 
         # TODO consider optimized datasets:
