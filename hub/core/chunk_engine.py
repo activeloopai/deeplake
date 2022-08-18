@@ -665,6 +665,7 @@ class ChunkEngine:
         update_tensor_meta: bool = True,
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
+        register_creds: bool = True,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -677,6 +678,7 @@ class ChunkEngine:
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
+            register_creds (bool): Parameter that shows if need to register the creds_key of the sample
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -698,7 +700,8 @@ class ChunkEngine:
             num_samples_added = current_chunk.extend_if_has_space(
                 samples, update_tensor_meta=update_tensor_meta
             )  # type: ignore
-            self.register_new_creds(num_samples_added, samples)
+            if register_creds:
+                self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register, row=start_chunk_row)
                 if start_chunk_row is not None:
@@ -1057,6 +1060,7 @@ class ChunkEngine:
             update_commit_diff=True,
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
+            register_creds=False,
         )
 
     def _merge_chunks(
@@ -1084,6 +1088,7 @@ class ChunkEngine:
             update_commit_diff=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
+            register_creds=False,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         try:
