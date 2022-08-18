@@ -1360,15 +1360,15 @@ class Dataset:
         # skorch_kwargs: Optional[dict] = None,
     ):
         """
-        Cleans the labels of the dataset. Computes out-of-sample predictions and uses Cleanlab (github.com/cleanlab/cleanlab) open-source library
-        to automatically find label errors in machine learning datasets.Then, creates a set of tensors under label_issues group for the entire dataset.
+        Cleans the labels of the dataset. Computes out-of-sample predictions for each sample and uses cleanlab (github.com/cleanlab/cleanlab) open-source library
+        to automatically find label errors in a dataset. Then, creates a set of tensors under label_issues group for the entire dataset.
 
         Note:
             Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
             The tensors can be specified in dataloader_train_params or tensors. Any PyTorch module can be used as a classifier.
 
         Args:
-            module (class): A PyTorch torch.nn.Module module (class or instance). In general, the uninstantiated class should be passed, although instantiated modules will also work. Default is torchvision.models.resnet18(), which is a PyTorch ResNet-18 model.
+            module (class): A PyTorch torch.nn.Module module (class or instance). Default is torchvision.models.resnet18(), which is a PyTorch ResNet-18 model.
             criterion (class): A PyTorch criterion. The uninitialized criterion (loss) used to optimize the module. Default is torch.nn.CrossEntropyLoss.
             optimizer (class): A PyTorch optimizer. The uninitialized optimizer (update rule) used to optimize the module. Default is torch.optim.SGD.
             optimizer_lr (int): The learning rate passed to the optimizer. Default is 0.01.
@@ -1384,6 +1384,10 @@ class Dataset:
         Returns:
             label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
             label_quality_scores: Returns label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+
+        Raises:
+            ...
+
         """
 
         from hub.core.experimental import clean_labels
