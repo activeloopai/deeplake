@@ -223,9 +223,10 @@ class Dataset:
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        always_warn(
-            "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
-        )
+        if self.verbose:
+            always_warn(
+                "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+            )
         self._locked_out = True
 
     def __enter__(self):

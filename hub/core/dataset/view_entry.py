@@ -99,6 +99,9 @@ class ViewEntry:
         )
         return self
 
+    def source_dataset_path(self) -> str:
+        return self.info["source-dataset"]
+
     def delete(self):
         """Deletes the view."""
         self._ds.delete_view(id=self.info["id"])

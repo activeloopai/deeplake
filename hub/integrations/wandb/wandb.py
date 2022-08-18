@@ -1,3 +1,4 @@
+from concurrent.futures import process
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
 from hub.hooks import (
@@ -67,6 +68,34 @@ def get_ds_key(ds):
     return hash_inputs(ds.path, ds.commit_id)
 
 
+def dataset_config(ds):
+    if hasattr(ds, "_view_entry"):
+        entry = ds._view_entry
+        source_ds_path = entry.source_dataset_path
+        vid = entry.id
+        ret = {
+            "Dataset": source_ds_path,
+            "Commit ID": entry.info["source-dataset-version"],
+            "View ID": vid,
+        }
+        if source_ds_path.startswith("hub://") and ds.path.startswith("hub://"):
+            _, org_id, ds_name, _ = process_hub_path(source_ds_path)
+            ret["URL"] = f"https://app.activeloop.ai/{org_id}/{ds_name}?view=vid"
+        q = entry.query
+        if q:
+            ret["query"] = q
+        return ret
+
+    ret = {
+        "Dataset": ds.path,
+    }
+    if ds.path.startswith("hub://"):
+        ret["URL"] = "https://app.activeloop.ai/" + ds.path[len("hub://") :]
+    if not ds.index.is_trivial():
+        ret["index"] = ds.index.to_json()
+    return ret
+
+
 def dataset_written(ds):
     path = ds.path
     run = wandb_run()
@@ -81,25 +110,24 @@ def dataset_written(ds):
         if key not in keys:
             keys[key] = None
             try:
-                output_datasets = run.config.input_datasets
+                output_datasets = run.config.output_datasets
             except (KeyError, AttributeError):
                 output_datasets = []
+            dsconfig = dataset_config(ds)
+            path = dsconfig["Dataset"]
             if path.startswith("hub://"):
-                plat_link = _plat_link(ds)
-                if plat_link not in output_datasets:
-                    run.log(
-                        {
-                            f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
-                                viz_html(path), False
-                            )
-                        }
-                    )
-                    output_datasets.append(plat_link)
-                    run.config.input_datasets = output_datasets
-            else:
-                if path not in output_datasets:
-                    output_datasets.append(path)
-                    run.config.output_datasets = output_datasets
+                import wandb
+
+                run.log(
+                    {
+                        f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
+                            viz_html(path), False
+                        )
+                    }
+                )
+
+            output_datasets.append(dataset_config)
+            run.config.output_datasets = output_datasets
         if key in _CREATED_DATASETS:
             artifact = artifact_from_ds(ds)
             wandb_info = ds.info.get("wandb") or {"commits": {}}
@@ -139,9 +167,11 @@ def dataset_read(ds):
             input_datasets = run.config.input_datasets
         except (KeyError, AttributeError):
             input_datasets = []
-        if path.startswith("hub://"):
-            plat_link = _plat_link(ds)
-            if plat_link not in input_datasets:
+        dsconfig = dataset_config(ds)
+        path = dsconfig["Dataset"]
+        if dsconfig not in input_datasets:
+
+            if path.startswith("hub://"):
                 import wandb
 
                 run.log(
@@ -151,12 +181,11 @@ def dataset_read(ds):
                         )
                     }
                 )
-                input_datasets.append(plat_link)
-                run.config.input_datasets = input_datasets
-        else:
-            if path not in input_datasets:
-                input_datasets.append(path)
-                run.config.input_datasets = input_datasets
+
+            input_datasets.append(dataset_config)
+            run.config.input_datasets = input_datasets
+
+        # TODO consider optimized datasets:
         wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             run_and_artifact = wandb_info["created-by"]
