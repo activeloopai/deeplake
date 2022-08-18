@@ -31,13 +31,13 @@ class VisionClassifierNet(NeuralNet):
             kwargs = self.dataloader_valid_params
             if kwargs is None:
                 kwargs = self.dataloader_train_params
-                kwargs['shuffle'] = False
+                kwargs["shuffle"] = False
 
-        if 'batch_size' not in kwargs:
-            kwargs['batch_size'] = self.batch_size
+        if "batch_size" not in kwargs:
+            kwargs["batch_size"] = self.batch_size
 
-        if kwargs['batch_size'] == -1:
-            kwargs['batch_size'] = len(dataset)
+        if kwargs["batch_size"] == -1:
+            kwargs["batch_size"] = len(dataset)
 
         return dataset.pytorch(**kwargs)
 

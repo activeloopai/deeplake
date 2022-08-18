@@ -10,6 +10,7 @@ from sklearn.base import clone
 
 import numpy as np
 
+
 def get_dataset_tensors(dataset, tensors, dataloader_train_params, overwrite, verbose):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
@@ -121,6 +122,7 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+
 def append_label_issues_tensors(dataset, label_issues, label_quality_scores):
     """
     This function creates a group of tensors label_issues.
@@ -143,6 +145,7 @@ def append_label_issues_tensors(dataset, label_issues, label_quality_scores):
     commit_id = dataset.commit("Added label issues")
 
     return commit_id
+
 
 def clean_labels(
     dataset,
@@ -173,7 +176,7 @@ def clean_labels(
         tensors=tensors,
         dataloader_train_params=dataloader_train_params,
         overwrite=overwrite,
-        verbose=verbose
+        verbose=verbose,
     )
 
     # Get labels of a dataset
@@ -227,6 +230,10 @@ def clean_labels(
 
     if verbose:
         print("Creating tensors with label issues...")
-    append_label_issues_tensors(dataset=dataset, label_issues=label_issues, label_quality_scores=label_quality_scores)
+    append_label_issues_tensors(
+        dataset=dataset,
+        label_issues=label_issues,
+        label_quality_scores=label_quality_scores,
+    )
 
     return label_issues, label_quality_scores

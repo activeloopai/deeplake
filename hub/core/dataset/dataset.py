@@ -1345,9 +1345,9 @@ class Dataset:
 
     def cleanlab(
         self,
-        module = None,
-        criterion = None,
-        optimizer = None,
+        module=None,
+        criterion=None,
+        optimizer=None,
         optimizer_lr: int = 0.01,
         device: str = "cpu",
         epochs: int = 10,
