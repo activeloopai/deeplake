@@ -1,8 +1,7 @@
-from skorch import NeuralNet
-from torch import set_grad_enabled, squeeze, no_grad
-from torch.nn import CrossEntropyLoss, Linear, Conv2d
+import torch
 from torchvision.models import resnet18
-from torch.optim import Adam
+
+from skorch import NeuralNet
 
 # Wraps the PyTorch Module in an sklearn interface.
 class VisionClassifierNet(NeuralNet):
@@ -43,7 +42,7 @@ class VisionClassifierNet(NeuralNet):
 
     def train_step_single(self, batch, **fit_params):
         self._set_training(True)
-        Xi, yi = batch[self.images_tensor], squeeze(batch[self.labels_tensor])
+        Xi, yi = batch[self.images_tensor], torch.squeeze(batch[self.labels_tensor])
 
         y_pred = self.infer(Xi, **fit_params)
         loss = self.get_loss(y_pred, yi, X=Xi, training=True)
@@ -56,14 +55,14 @@ class VisionClassifierNet(NeuralNet):
     def evaluation_step(self, batch, training=False):
         self.check_is_fitted()
         Xi = batch[self.images_tensor]
-        with set_grad_enabled(training):
+        with torch.set_grad_enabled(training):
             self._set_training(training)
             return self.infer(Xi)
 
     def validation_step(self, batch, **fit_params):
         self._set_training(False)
-        Xi, yi = batch[self.images_tensor], squeeze(batch[self.labels_tensor])
-        with no_grad():
+        Xi, yi = batch[self.images_tensor], torch.squeeze(batch[self.labels_tensor])
+        with torch.no_grad():
             y_pred = self.infer(Xi, **fit_params)
             loss = self.get_loss(y_pred, yi, X=Xi, training=False)
         return {
@@ -84,27 +83,34 @@ def pytorch_module_to_skorch(
     dataloader_valid_params,
     tensors,
     num_classes
-    # skorch_kwargs
 ):
     images_tensor, labels_tensor = tensors
+
+    # TODO: Handle "mps" with torch.backends.mps.is_available()
+
+    if device is None:
+        if torch.cuda.is_available():
+            device_name = "cuda:0"
+        else:
+            device_name = "cpu"
+        device = torch.device(device_name)
 
     if module is None:
         # Set default module.
         module = resnet18()
 
         # Check if an image tensor is grayscale.
-        # TODO: Check if this is correct way to do this.
         if len(dataset[images_tensor].shape) < 4:
-            module.conv1 = Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            module.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
 
         # Change the last layer to have num_classes output channels.
-        module.fc = Linear(module.fc.in_features, num_classes)
+        module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
 
     if criterion is None:
-        criterion = CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss
 
     if optimizer is None:
-        optimizer = Adam
+        optimizer = torch.optim.Adam
 
     model = VisionClassifierNet(
         module=module,
@@ -118,7 +124,6 @@ def pytorch_module_to_skorch(
         dataloader_valid_params=dataloader_valid_params,
         images_tensor=images_tensor,
         labels_tensor=labels_tensor,
-        # **skorch_kwargs
     )
 
     return model

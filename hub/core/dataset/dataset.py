@@ -1345,41 +1345,40 @@ class Dataset:
 
     def cleanlab(
         self,
-        module=None,
-        criterion=None,
-        optimizer=None,
+        module: Union[Class, Callable, None] = None,
+        criterion : Optional[Class] = None,
+        optimizer: Optional[Class] = None,
         optimizer_lr: int = 0.01,
-        device: str = "cpu",
+        device = None,
         epochs: int = 10,
         folds: int = 5,
-        verbose: bool = True,
-        tensors: Optional[list] = None,
-        dataloader_train_params: [dict] = None,
+        tensors: Optional[Sequence[str]] = None,
+        dataloader_train_params: Optional[dict] = None,
         dataloader_valid_params: Optional[dict] = None,
-        overwrite: bool = False
-        # skorch_kwargs: Optional[dict] = None,
+        overwrite: bool = False,
+        verbose: bool = True,
     ):
         """
         Cleans the labels of the dataset. Computes out-of-sample predictions for each sample in a dataset and uses cleanlab (github.com/cleanlab/cleanlab) open-source library
-        to automatically find label errors in a dataset. Then, creates a set of tensors is_label_issue and label_quality_scores under label_issues group.
+        that automatically finds label errors in a dataset. Then, creates a set of tensors is_label_issue and label_quality_scores under label_issues group that contains tensors  and .
 
         Note:
             Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
             The tensors can be specified in dataloader_train_params or tensors. Any PyTorch module can be used as a classifier.
 
         Args:
-            module (class): A PyTorch torch.nn.Module module (class or instance). Default is torchvision.models.resnet18(), which is a PyTorch ResNet-18 model.
-            criterion (class): A PyTorch criterion. The uninitialized criterion (loss) used to optimize the module. Default is torch.nn.CrossEntropyLoss.
-            optimizer (class): A PyTorch optimizer. The uninitialized optimizer (update rule) used to optimize the module. Default is torch.optim.SGD.
+            module (class): A PyTorch torch.nn.Module module (class or instance). Default is torchvision.models.resnet18().
+            criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is torch.nn.CrossEntropyLoss.
+            optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is torch.optim.SGD.
             optimizer_lr (int): The learning rate passed to the optimizer. Default is 0.01.
-            device (str): A PyTorch device. The device on which the module and criterion are located. Default is "cpu".
+            device (str, torch.device): The compute device to be used. Default is 'cuda:0' if available, else 'cpu'.
+            fold (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
             epochs (int): The number of epochs to train for each fit() call. Default is 10.
             tensors (list): A list of tensor names that would be considered for cleaning (e.g. ['images', 'labels']).
             dataloader_train_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size.
             dataloader_valid_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size. If not provided, dataloader_train_params will be used with shuffle=False.
             overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Default is False.
-            fold (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
-            skorch_kwargs (dict): Keyword arguments to pass into skorch.NeuralNet. Options that may especially impact accuracy include: ...
+            verbose (bool): This parameter controls how much output is printed. Default is True.
 
         Returns:
             label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
@@ -1406,7 +1405,6 @@ class Dataset:
             optimizer=optimizer,
             optimizer_lr=optimizer_lr,
             overwrite=overwrite
-            # skorch_kwargs=skorch_kwargs,
         )
 
         return label_issues, label_quality_scores

@@ -123,7 +123,7 @@ def estimate_cv_predicted_probabilities(
     return pred_probs
 
 
-def append_label_issues_tensors(dataset, label_issues, label_quality_scores):
+def append_label_issues_tensors(dataset, label_issues, label_quality_scores, verbose):
     """
     This function creates a group of tensors label_issues.
     After creating tensors, automatically commits the changes.
@@ -144,6 +144,10 @@ def append_label_issues_tensors(dataset, label_issues, label_quality_scores):
 
     commit_id = dataset.commit("Added label issues")
 
+    if verbose:
+        print('You can now examine the labels with issues by running a query: select * where "label_issues/is_label_issue" == true')
+        print('You can also view the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"')
+
     return commit_id
 
 
@@ -161,7 +165,6 @@ def clean_labels(
     optimizer,
     optimizer_lr,
     overwrite
-    # skorch_kwargs,
 ):
     """
     This function cleans the labels of a dataset. It wraps a PyTorch instance in a sklearn classifier.
@@ -198,7 +201,6 @@ def clean_labels(
         dataloader_train_params=dataloader_train_params,
         dataloader_valid_params=dataloader_valid_params,
         num_classes=num_classes
-        # skorch_kwargs=skorch_kwargs
     )
 
     # Compute out-of-sample predicted probabilities.
@@ -234,6 +236,7 @@ def clean_labels(
         dataset=dataset,
         label_issues=label_issues,
         label_quality_scores=label_quality_scores,
+        verbose=verbose,
     )
 
     return label_issues, label_quality_scores
