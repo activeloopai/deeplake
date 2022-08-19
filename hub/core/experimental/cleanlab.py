@@ -10,7 +10,7 @@ from sklearn.base import clone
 
 import numpy as np
 
-def get_dataset_tensors(dataset, tensors, dataloader_train_params, create_tensors, overwrite, verbose):
+def get_dataset_tensors(dataset, tensors, dataloader_train_params):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
     it will try to find them in the dataloader_train_params in the transform. If none of
