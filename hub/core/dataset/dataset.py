@@ -1345,22 +1345,22 @@ class Dataset:
 
     def cleanlab(
         self,
-        module: Union[Class, Callable, None] = None,
-        criterion: Optional[Class] = None,
-        optimizer: Optional[Class] = None,
+        module: Union[Any, Callable, None] = None,
+        criterion: Optional[Any] = None,
+        optimizer: Optional[Any] = None,
         optimizer_lr: int = 0.01,
-        device: Union[str, Class, None] = None,
+        device: Union[str, Any, None] = None,
         epochs: int = 10,
         folds: int = 5,
         tensors: Optional[Sequence[str]] = None,
         dataloader_train_params: Optional[dict] = None,
         dataloader_valid_params: Optional[dict] = None,
+        create_tensors: bool = False,
         overwrite: bool = False,
         verbose: bool = True,
     ):
         """
-        Cleans the labels of the dataset. Computes out-of-sample predictions for each sample in a dataset and uses cleanlab (github.com/cleanlab/cleanlab) open-source library
-        that automatically finds label errors in a dataset. Then, creates a set of tensors is_label_issue and label_quality_scores under label_issues group that contains tensors  and .
+        Finds label errors in a dataset via cleanlab (github.com/cleanlab) open-source library.
 
         Note:
             Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
@@ -1377,7 +1377,8 @@ class Dataset:
             tensors (list): A list of tensor names that would be considered for cleaning (e.g. ['images', 'labels']).
             dataloader_train_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size.
             dataloader_valid_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size. If not provided, dataloader_train_params will be used with shuffle=False.
-            overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Default is False.
+            create_tensors (bool): if True, will create tensors is_label_issue and label_quality_scores under label_issues group. This would only work if you have write access to the dataset. Default is False.
+            overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
             verbose (bool): This parameter controls how much output is printed. Default is True.
 
         Returns:
@@ -1395,16 +1396,17 @@ class Dataset:
             self,
             module=module,
             criterion=criterion,
+            optimizer=optimizer,
+            optimizer_lr=optimizer_lr,
             device=device,
             epochs=epochs,
             folds=folds,
-            verbose=verbose,
             tensors=tensors,
             dataloader_train_params=dataloader_train_params,
             dataloader_valid_params=dataloader_valid_params,
-            optimizer=optimizer,
-            optimizer_lr=optimizer_lr,
+            create_tensors=create_tensors,
             overwrite=overwrite,
+            verbose=verbose,
         )
 
         return label_issues, label_quality_scores

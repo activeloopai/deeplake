@@ -10,32 +10,15 @@ from sklearn.base import clone
 
 import numpy as np
 
-
-def get_dataset_tensors(dataset, tensors, dataloader_train_params, overwrite, verbose):
+def get_dataset_tensors(dataset, tensors, dataloader_train_params, create_tensors, overwrite, verbose):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
     it will try to find them in the dataloader_train_params in the transform. If none of
     these are provided, it will iterate over the dataset tensors and return any tensors
-    that match htype 'image' for images and htype 'class_label' for labels. Additionally,
-    this function will also check if the dataset already has a label_issues group.
+    that match htype 'image' for images and htype 'class_label' for labels.
     """
 
     tensors_list = list(dataset.tensors)
-
-    if (
-        "label_issues/is_label_issue" in tensors_list
-        or "label_issues/label_quality_scores" in tensors_list
-    ):
-        if overwrite:
-            if verbose:
-                print("Found existing label_issues tensor. Deleting the tensor...")
-            dataset.delete_group("label_issues")
-            dataset.commit("Removed label issues", allow_empty=True)
-
-        else:
-            raise ValueError(
-                "The group of tensors label_issues already exist. Use overwrite = True, to overwrite the label_issues tensors."
-            )
 
     if tensors is not None:
         tensors = map_tensor_keys(dataset, tensors)
@@ -120,14 +103,47 @@ def estimate_cv_predicted_probabilities(
         pred_probs_cross_val = model_copy.predict_proba(X=ds_holdout)
         pred_probs[holdout_idx] = pred_probs_cross_val
 
+    if verbose:
+        predicted_labels = pred_probs.argmax(axis=1)
+        acc = accuracy_score(y_true=labels, y_pred=predicted_labels)
+        print(f"Cross-validated estimate of accuracy on held-out data: {acc}")
+
     return pred_probs
 
+def check_label_issues_tensors(dataset, overwrite, verbose):
+    """
+    This function checks if a dataset already has a label_issues group.
+    If overwrite = True, it will delete the existing label_issues group,
+    else it will raise an error.
+    """
+    tensors_list = list(dataset.tensors)
 
-def append_label_issues_tensors(dataset, label_issues, label_quality_scores, verbose):
+    if (
+        "label_issues/is_label_issue" in tensors_list
+        or "label_issues/label_quality_scores" in tensors_list
+    ):
+        if overwrite:
+            if verbose:
+                print("Found existing label_issues tensor. Deleting the tensor...")
+            dataset.delete_group("label_issues")
+            dataset.commit("Removed label issues", allow_empty=True)
+
+        else:
+            raise ValueError(
+                "The group of tensors label_issues already exist. Use overwrite = True, to overwrite the label_issues tensors."
+            )
+
+def append_label_issues_tensors(dataset, label_issues, label_quality_scores, overwrite, verbose):
     """
     This function creates a group of tensors label_issues.
     After creating tensors, automatically commits the changes.
     """
+    # Check if label_issues tensor already exists.
+    check_label_issues_tensors(dataset, overwrite, verbose)
+
+    if verbose:
+        print("Creating tensors with label issues...")
+
     with dataset:
 
         dataset.create_group("label_issues")
@@ -159,16 +175,17 @@ def clean_labels(
     dataset,
     module,
     criterion,
+    optimizer,
+    optimizer_lr,
     device,
     epochs,
     folds,
-    verbose,
     tensors,
     dataloader_train_params,
     dataloader_valid_params,
-    optimizer,
-    optimizer_lr,
+    create_tensors,
     overwrite,
+    verbose,
 ):
     """
     This function cleans the labels of a dataset. It wraps a PyTorch instance in a sklearn classifier.
@@ -182,6 +199,7 @@ def clean_labels(
         dataset=dataset,
         tensors=tensors,
         dataloader_train_params=dataloader_train_params,
+        create_tensors=create_tensors,
         overwrite=overwrite,
         verbose=verbose,
     )
@@ -218,11 +236,6 @@ def clean_labels(
     )
 
     if verbose:
-        predicted_labels = pred_probs.argmax(axis=1)
-        acc = accuracy_score(y_true=labels, y_pred=predicted_labels)
-        print(f"Cross-validated estimate of accuracy on held-out data: {acc}")
-
-    if verbose:
         print("Using predicted probabilities to identify label issues ...")
 
     label_issues = find_label_issues(labels=labels, pred_probs=pred_probs)
@@ -234,13 +247,13 @@ def clean_labels(
     if verbose:
         print(f"Identified {np.sum(label_issues)} examples with label issues.")
 
-    if verbose:
-        print("Creating tensors with label issues...")
-    append_label_issues_tensors(
-        dataset=dataset,
-        label_issues=label_issues,
-        label_quality_scores=label_quality_scores,
-        verbose=verbose,
-    )
+    if create_tensors:
+        append_label_issues_tensors(
+            dataset=dataset,
+            label_issues=label_issues,
+            label_quality_scores=label_quality_scores,
+            overwrite=overwrite,
+            verbose=verbose,
+        )
 
     return label_issues, label_quality_scores
