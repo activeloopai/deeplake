@@ -167,10 +167,10 @@ def append_label_issues_tensors(
 
     if verbose:
         print(
-            'You can now examine the labels with issues by running a query: select * where "label_issues/is_label_issue" == true'
+            'Examine labels with issues by running a query: select * where "label_issues/is_label_issue" == true'
         )
         print(
-            'You can also view the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
+            'View the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
         )
 
 
