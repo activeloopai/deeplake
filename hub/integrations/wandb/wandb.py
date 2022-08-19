@@ -236,11 +236,16 @@ def _plat_link(ds):
         else:
             _, org, ds_name, _ = process_hub_path(path)
             vid = path.split("/.queries/")[1]
-            return (
-                f"https://app.activeloop.ai/{org}/{ds_name}/{ds.commit_id}?view={vid}"
-            )
+            ret = f"https://app.activeloop.ai/{org}/{ds_name}"
+            if ds.commit_id:
+                ret += f"/{ds.commit_id}"
+            ret += f"?view={vid}"
+            return ret
     _, org, ds_name, _ = process_hub_path(path)
-    return f"https://app.activeloop.ai/{org}/{ds_name}/{ds.commit_id}"
+    ret = f"https://app.activeloop.ai/{org}/{ds_name}"
+    if ds.commit_id:
+        ret += f"/{ds.commit_id}"
+    return ret
 
 
 def link_html(hub_path):
