@@ -67,7 +67,7 @@ def get_ds_key(ds):
     entry = getattr(ds, "_view_entry", None)
     if entry:
         return hash_inputs(entry)
-    return hash_inputs(ds.path, ds.commit_id, ds.index.to_json(), getattr(ds, "_query", ""))
+    return hash_inputs(ds.path, ds.commit_id)
 
 
 def dataset_config(ds):
