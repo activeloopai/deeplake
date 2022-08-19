@@ -88,7 +88,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
         )
 
     local_ds.point_cloud_with_sample_compression.append(hub.read(path, verify=True))
-    assert local_ds.point_cloud_with_sample_compression == (1, 20153, 18)
+    assert local_ds.point_cloud_with_sample_compression.shape == (1, 20153, 18)
 
 
 def shape_tester(local_ds, path, sample, tensor, feature_size):
