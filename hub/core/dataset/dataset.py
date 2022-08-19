@@ -1360,24 +1360,24 @@ class Dataset:
         verbose: bool = True,
     ):
         """
-        Finds label errors in a dataset via cleanlab (github.com/cleanlab) open-source library.
+        Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
 
         Note:
-            Currently, only image classification task us supported. Therefore, the method accepts two tensors for the images and labels (e.g. ['images', 'labels']).
-            The tensors can be specified in dataloader_train_params or tensors. Any PyTorch module can be used as a classifier.
+            Currently, only image classification tasks is supported. Therefore, the method accepts two tensors for the images and labels (e.g. `['images', 'labels']`).
+            The tensors can be specified in `dataloader_train_params` in `transofrm` or `tensors`. Any PyTorch module can be used as a classifier.
 
         Args:
-            module (class): A PyTorch torch.nn.Module module (class or instance). Default is torchvision.models.resnet18().
-            criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is torch.nn.CrossEntropyLoss.
-            optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is torch.optim.SGD.
+            module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
+            criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.
+            optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is `torch.optim.SGD`.
             optimizer_lr (int): The learning rate passed to the optimizer. Default is 0.01.
-            device (str, torch.device): The compute device to be used. Default is 'cuda:0' if available, else 'cpu'.
+            device (str, torch.device): The compute device to be used. Default is `'cuda:0'` if available, else `'cpu'`.
             fold (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
-            epochs (int): The number of epochs to train for each fit() call. Default is 10.
-            tensors (list): A list of tensor names that would be considered for cleaning (e.g. ['images', 'labels']).
-            dataloader_train_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size.
-            dataloader_valid_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: shuffle, batch_size. If not provided, dataloader_train_params will be used with shuffle=False.
-            create_tensors (bool): if True, will create tensors is_label_issue and label_quality_scores under label_issues group. This would only work if you have write access to the dataset. Default is False.
+            epochs (int): The number of epochs to train for each `fit()` call. Default is 10.
+            tensors (list): A list of tensor names that would be considered for cleaning (e.g. `['images', 'labels']`).
+            dataloader_train_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: `shuffle`, `batch_size`.
+            dataloader_valid_params (dict): Keyword arguments to pass into torch.utils.data.DataLoader. Options that may especially impact accuracy include: `shuffle`, `batch_size`. If not provided, `dataloader_train_params` will be used with `shuffle = False`.
+            create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
             overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
             verbose (bool): This parameter controls how much output is printed. Default is True.
 
