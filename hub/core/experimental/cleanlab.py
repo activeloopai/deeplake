@@ -10,6 +10,7 @@ from sklearn.base import clone
 
 import numpy as np
 
+
 def get_dataset_tensors(dataset, tensors, dataloader_train_params):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
@@ -110,6 +111,7 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+
 def check_label_issues_tensors(dataset, overwrite, verbose):
     """
     This function checks if a dataset already has a label_issues group.
@@ -133,7 +135,10 @@ def check_label_issues_tensors(dataset, overwrite, verbose):
                 "The group of tensors label_issues already exist. Use overwrite = True, to overwrite the label_issues tensors."
             )
 
-def append_label_issues_tensors(dataset, label_issues, label_quality_scores, overwrite, verbose):
+
+def append_label_issues_tensors(
+    dataset, label_issues, label_quality_scores, overwrite, verbose
+):
     """
     This function creates a group of tensors label_issues.
     After creating tensors, automatically commits the changes.
