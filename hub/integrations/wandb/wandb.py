@@ -82,7 +82,7 @@ def dataset_config(ds):
             ret["URL"] = _plat_link(ds)
         q = entry.query
         if q:
-            ret["query"] = q
+            ret["Query"] = q
         return ret
 
     ret = {
@@ -93,6 +93,9 @@ def dataset_config(ds):
         ret["URL"] = _plat_link(ds)
     if not ds.index.is_trivial():
         ret["index"] = ds.index.to_json()
+    q = getattr(ds, "_query", None)
+    if q:
+        ret["Query"] = q
     return ret
 
 
