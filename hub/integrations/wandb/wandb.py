@@ -79,10 +79,7 @@ def dataset_config(ds):
             "View ID": vid,
         }
         if source_ds_path.startswith("hub://") and ds.path.startswith("hub://"):
-            _, org_id, ds_name, _ = process_hub_path(source_ds_path)
-            ret[
-                "URL"
-            ] = f"https://app.activeloop.ai/{org_id}/{ds_name}/{commit_id}?view={vid}"
+            ret["URL"] = _plat_link(ds)
         q = entry.query
         if q:
             ret["query"] = q
@@ -93,9 +90,7 @@ def dataset_config(ds):
         "Commit ID": ds.commit_id,
     }
     if ds.path.startswith("hub://"):
-        ret["URL"] = (
-            "https://app.activeloop.ai/" + ds.path[len("hub://") :] + "/" + ds.commit_id
-        )
+        ret["URL"] = _plat_link(ds)
     if not ds.index.is_trivial():
         ret["index"] = ds.index.to_json()
     return ret
