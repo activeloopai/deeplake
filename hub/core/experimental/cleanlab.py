@@ -158,7 +158,7 @@ def append_label_issues_tensors(dataset, label_issues, label_quality_scores, ove
             dataset.label_issues.is_label_issue.append(label_issue)
             dataset.label_issues.label_quality_scores.append(label_quality_score)
 
-    commit_id = dataset.commit("Added label issues")
+    dataset.commit("Added label issues")
 
     if verbose:
         print(
@@ -167,8 +167,6 @@ def append_label_issues_tensors(dataset, label_issues, label_quality_scores, ove
         print(
             'You can also view the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
         )
-
-    return commit_id
 
 
 def clean_labels(
