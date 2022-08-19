@@ -1346,10 +1346,10 @@ class Dataset:
     def cleanlab(
         self,
         module: Union[Class, Callable, None] = None,
-        criterion : Optional[Class] = None,
+        criterion: Optional[Class] = None,
         optimizer: Optional[Class] = None,
         optimizer_lr: int = 0.01,
-        device = None,
+        device: Union[str, Class, None] = None,
         epochs: int = 10,
         folds: int = 5,
         tensors: Optional[Sequence[str]] = None,
@@ -1404,7 +1404,7 @@ class Dataset:
             dataloader_valid_params=dataloader_valid_params,
             optimizer=optimizer,
             optimizer_lr=optimizer_lr,
-            overwrite=overwrite
+            overwrite=overwrite,
         )
 
         return label_issues, label_quality_scores

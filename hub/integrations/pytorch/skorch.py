@@ -82,7 +82,7 @@ def pytorch_module_to_skorch(
     dataloader_train_params,
     dataloader_valid_params,
     tensors,
-    num_classes
+    num_classes,
 ):
     images_tensor, labels_tensor = tensors
 
@@ -101,7 +101,9 @@ def pytorch_module_to_skorch(
 
         # Check if an image tensor is grayscale.
         if len(dataset[images_tensor].shape) < 4:
-            module.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            module.conv1 = torch.nn.Conv2d(
+                1, 64, kernel_size=7, stride=2, padding=3, bias=False
+            )
 
         # Change the last layer to have num_classes output channels.
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)

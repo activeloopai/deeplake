@@ -145,8 +145,12 @@ def append_label_issues_tensors(dataset, label_issues, label_quality_scores, ver
     commit_id = dataset.commit("Added label issues")
 
     if verbose:
-        print('You can now examine the labels with issues by running a query: select * where "label_issues/is_label_issue" == true')
-        print('You can also view the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"')
+        print(
+            'You can now examine the labels with issues by running a query: select * where "label_issues/is_label_issue" == true'
+        )
+        print(
+            'You can also view the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
+        )
 
     return commit_id
 
@@ -164,7 +168,7 @@ def clean_labels(
     dataloader_valid_params,
     optimizer,
     optimizer_lr,
-    overwrite
+    overwrite,
 ):
     """
     This function cleans the labels of a dataset. It wraps a PyTorch instance in a sklearn classifier.
@@ -200,7 +204,7 @@ def clean_labels(
         tensors=[images_tensor, labels_tensor],
         dataloader_train_params=dataloader_train_params,
         dataloader_valid_params=dataloader_valid_params,
-        num_classes=num_classes
+        num_classes=num_classes,
     )
 
     # Compute out-of-sample predicted probabilities.
