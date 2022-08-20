@@ -1,3 +1,4 @@
+from typing import Dict, Set
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
 from hub.hooks import (
@@ -18,9 +19,9 @@ def wandb_run():
     return getattr(sys.modules.get("wandb"), "run", None)
 
 
-_READ_DATASETS = {}
-_WRITTEN_DATASETS = {}
-_CREATED_DATASETS = set()
+_READ_DATASETS: Dict[str, Set[str]] = {}
+_WRITTEN_DATASETS: Dict[str, Set[str]] = {}
+_CREATED_DATASETS: Set[str] = set()
 
 
 def dataset_created(ds):
@@ -41,7 +42,7 @@ def artifact_name_from_ds_path(ds) -> str:
             vid = path.split("/.queries/", 1)[1]
             artifact_name += f"-view-{vid}"
     else:
-        pfix = pfix.split("://", 1)[0] if "://" in path else "local"
+        pfix = path.split("://", 1)[0] if "://" in path else "local"
         artifact_name = f"{pfix}"
     artifact_name += f"-commit-{ds.commit_id}"
     if ds.has_head_changes:

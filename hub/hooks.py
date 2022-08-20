@@ -1,14 +1,14 @@
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 from uuid import uuid4
 
-CREATE_DATASET_HOOKS = {}
-LOAD_DATASET_HOOKS = {}
-WRITE_DATASET_HOOKS = {}
-READ_DATASET_HOOKS = {}
-HOOK_EVENTS = {}
+CREATE_DATASET_HOOKS: Dict[str, Callable] = {}
+LOAD_DATASET_HOOKS: Dict[str, Callable] = {}
+WRITE_DATASET_HOOKS: Dict[str, Callable] = {}
+READ_DATASET_HOOKS: Dict[str, Callable] = {}
+HOOK_EVENTS: Dict[str, str] = {}
 
 
-def _add_hook(event: str, hook: callable, id: Optional[str] = None):
+def _add_hook(event: str, hook: Callable, id: Optional[str] = None):
     if id is None:
         id = str(uuid4())
     if id in HOOK_EVENTS:
