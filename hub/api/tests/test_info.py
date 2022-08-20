@@ -248,3 +248,9 @@ def test_info_persistence_bug(local_ds_generator):
 
     ds = local_ds_generator()
     assert ds.xyz.info.abc == 123
+
+
+def test_info_has_head_changes_bug(local_ds):
+    with local_ds as ds:
+        ds.info["tst"] = 42
+    assert ds.has_head_changes == True

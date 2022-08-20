@@ -1,6 +1,8 @@
 from hub.core.storage.gcs import GCSProvider
+from hub.util.agreement import handle_dataset_agreements
 from hub.util.cache_chain import generate_chain
 from hub.constants import LOCAL_CACHE_PREFIX, MB
+from hub.util.exceptions import AgreementNotAcceptedError
 from hub.util.tag import process_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
@@ -10,10 +12,10 @@ from hub.core.storage import (
     S3Provider,
     MemoryProvider,
     GDriveProvider,
-    LRUCache,
 )
 from hub.client.client import HubBackendClient
 import posixpath
+from hub.constants import DEFAULT_READONLY
 
 
 def storage_provider_from_path(
@@ -51,7 +53,7 @@ def storage_provider_from_path(
         secret = creds.get("aws_secret_access_key")
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
-        region = creds.get("region")
+        region = creds.get("aws_region")
         profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
             path,
@@ -63,7 +65,11 @@ def storage_provider_from_path(
             profile_name=profile,
             token=token,
         )
-    elif path.startswith("gcp://") or path.startswith("gcs://"):
+    elif (
+        path.startswith("gcp://")
+        or path.startswith("gcs://")
+        or path.startswith("gs://")
+    ):
         storage = GCSProvider(path, creds)
     elif path.startswith("gdrive://"):
         storage = GDriveProvider(path, creds)
@@ -93,12 +99,26 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
+    try:
+        url, creds, mode, expiration = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode
+        )
+    except AgreementNotAcceptedError as e:
+        handle_dataset_agreements(client, e.agreements, org_id, ds_name)
+        url, creds, mode, expiration = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode
+        )
 
-    if not read_only and mode == "r":
-        # warns user about automatic mode change
-        print("Opening dataset in read-only mode as you don't have write permissions.")
+    if mode == "r":
         read_only = True
+        if read_only is None and not DEFAULT_READONLY:
+            # warns user about automatic mode change
+            print(
+                "Opening dataset in read-only mode as you don't have write permissions."
+            )
+
+    if read_only is None:
+        read_only = DEFAULT_READONLY
 
     url = posixpath.join(url, subdir)
 
@@ -141,11 +161,15 @@ def get_storage_and_cache_chain(
     return storage, storage_chain
 
 
-def get_pytorch_local_storage(dataset):
-    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
-    local_cache_name: str = dataset.path + "_pytorch"
-    local_cache_name = local_cache_name.replace("://", "_")
+def get_local_storage_path(path: str, prefix: str):
+    local_cache_name = path.replace("://", "_")
     local_cache_name = local_cache_name.replace("/", "_")
     local_cache_name = local_cache_name.replace("\\", "_")
-    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
+    return f"{prefix}/{local_cache_name}"
+
+
+def get_pytorch_local_storage(dataset):
+    """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
+    local_cache_name: str = f"{dataset.path}_pytorch"
+    local_cache_path = get_local_storage_path(local_cache_name, LOCAL_CACHE_PREFIX)
     return LocalProvider(local_cache_path)

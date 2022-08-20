@@ -1,13 +1,28 @@
 import hub
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, InvalidPasswordException
+from hub.util.exceptions import (
+    AgreementNotAcceptedError,
+    AuthorizationException,
+    LoginException,
+    InvalidPasswordException,
+    ManagedCredentialsNotFoundError,
+    NotLoggedInAgreementError,
+    ResourceNotFoundException,
+    InvalidTokenException,
+    UserNotLoggedInException,
+    TokenPermissionError,
+)
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
+    ACCEPT_AGREEMENTS_SUFFIX,
+    REJECT_AGREEMENTS_SUFFIX,
+    GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
+    HUB_REST_ENDPOINT_STAGING,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
@@ -20,6 +35,7 @@ from hub.client.config import (
     GET_PRESIGNED_URL_SUFFIX,
 )
 from hub.client.log import logger
+import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
 retry_status_codes = {502}
@@ -123,6 +139,8 @@ class HubBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
+        if hub.client.config.USE_STAGING_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_STAGING
 
         return HUB_REST_ENDPOINT
 
@@ -137,7 +155,9 @@ class HubBackendClient:
             string: The auth token corresponding to the accound.
 
         Raises:
+            UserNotLoggedInException: if user is not authorised
             LoginException: If there is an issue retrieving the auth token.
+
         """
         json = {"username": username, "password": password}
         response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
@@ -162,7 +182,11 @@ class HubBackendClient:
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
 
     def get_dataset_credentials(
-        self, org_id: str, ds_name: str, mode: Optional[str] = None
+        self,
+        org_id: str,
+        ds_name: str,
+        mode: Optional[str] = None,
+        no_cache: bool = False,
     ):
         """Retrieves temporary 12 hour credentials for the required dataset from the backend.
 
@@ -171,17 +195,48 @@ class HubBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
+            no_cache (bool): If True, cached creds are ignored and new creds are returned. Default False.
 
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
+
+        Raises:
+            UserNotLoggedInException: When user is not logged in
+            InvalidTokenException: If the specified token is invalid
+            TokenPermissionError: when there are permission or other errors related to token
+            AgreementNotAcceptedError: when user has not accepted the agreement
+            NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
-        response = self.request(
-            "GET",
-            relative_url,
-            endpoint=self.endpoint(),
-            params={"mode": mode},
-        ).json()
+        try:
+            response = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"mode": mode, "no_cache": no_cache},
+            ).json()
+        except Exception as e:
+            if isinstance(e, AuthorizationException):
+                response_data = e.response.json()
+                code = response_data.get("code")
+                if code == 1:
+                    agreements = response_data["agreements"]
+                    agreements = [agreement["text"] for agreement in agreements]
+                    raise AgreementNotAcceptedError(agreements) from e
+                elif code == 2:
+                    raise NotLoggedInAgreementError from e
+            try:
+                decoded_token = jwt.decode(
+                    self.token, options={"verify_signature": False}
+                )
+            except Exception:
+                raise InvalidTokenException
+            if decoded_token["id"] == "public":
+                raise UserNotLoggedInException()
+            if isinstance(e, AuthorizationException):
+                raise TokenPermissionError()
+            raise
+
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]
@@ -218,12 +273,81 @@ class HubBackendClient:
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 
+    def get_managed_creds(self, org_id, creds_key):
+        """Retrieves the managed credentials for the given org_id and creds_key.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            creds_key (str): The key corresponding to the managed credentials.
+
+        Returns:
+            dict: The managed credentials.
+
+        Raises:
+            ManagedCredentialsNotFoundError: If the managed credentials do not exist for the given organization.
+        """
+        relative_url = GET_MANAGED_CREDS_SUFFIX.format(org_id)
+        try:
+            resp = self.request(
+                "GET",
+                relative_url,
+                endpoint=self.endpoint(),
+                params={"query": creds_key},
+            ).json()
+        except ResourceNotFoundException:
+            raise ManagedCredentialsNotFoundError(org_id, creds_key) from None
+        creds = resp["creds"]
+        key_mapping = {
+            "access_key": "aws_access_key_id",
+            "secret_key": "aws_secret_access_key",
+            "session_token": "aws_session_token",
+            "token": "aws_session_token",
+            "region": "aws_region",
+        }
+        final_creds = {}
+        for key, value in creds.items():
+            if key == "access_token":
+                key = "Authorization"
+                value = f"Bearer {value}"
+            elif key in key_mapping:
+                key = key_mapping[key]
+            final_creds[key] = value
+        return final_creds
+
     def delete_dataset_entry(self, username, dataset_name):
         tag = f"{username}/{dataset_name}"
         suffix = f"{DATASET_SUFFIX}/{tag}"
         self.request(
             "DELETE",
             suffix,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def accept_agreements(self, org_id, ds_name):
+        """Accepts the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = ACCEPT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
+            endpoint=self.endpoint(),
+        ).json()
+
+    def reject_agreements(self, org_id, ds_name):
+        """Rejects the agreements for the given org_id and ds_name.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+        """
+        relative_url = REJECT_AGREEMENTS_SUFFIX.format(org_id, ds_name)
+        self.request(
+            "POST",
+            relative_url,
             endpoint=self.endpoint(),
         ).json()
 
@@ -302,3 +426,11 @@ class HubBackendClient:
         ).json()
         presigned_url = response["data"]
         return presigned_url
+
+    def get_user_profile(self):
+        response = self.request(
+            "GET",
+            "/api/user/profile",
+            endpoint=self.endpoint(),
+        )
+        return response.json()

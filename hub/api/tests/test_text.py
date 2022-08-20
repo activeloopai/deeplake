@@ -1,6 +1,6 @@
 import hub
 import pytest
-from hub.tests.dataset_fixtures import enabled_non_gcs_datasets
+from hub.tests.dataset_fixtures import enabled_non_gcs_gdrive_datasets
 
 
 def test_text(memory_ds):
@@ -16,7 +16,7 @@ def test_text(memory_ds):
         assert ds.text[i].numpy()[0] == items[i % 3]
 
 
-@enabled_non_gcs_datasets
+@enabled_non_gcs_gdrive_datasets
 def test_text_transform(ds, scheduler="threaded"):
     ds.create_tensor("text", htype="text")
 
@@ -30,7 +30,7 @@ def test_text_transform(ds, scheduler="threaded"):
     )
 
     assert len(ds) == 2
-    assert ds.text.data() == ["hi", "if ur reading this ur a nerd"]
+    assert ds.text.data()["value"] == ["hi", "if ur reading this ur a nerd"]
 
 
 @pytest.mark.parametrize(
@@ -42,6 +42,9 @@ def test_text_update(memory_ds, args):
         ds.create_tensor("x", htype="text", **args)
         for _ in range(10):
             ds.x.append("cat")
+        assert ds.x[0].text() == "cat"
+
     for i in range(0, 10, 2):
         ds.x[i] = "flower"
-    assert ds.x.data() == ["flower", "cat"] * 5
+    assert ds.x.data()["value"] == ["flower", "cat"] * 5
+    assert ds.x.text() == ["flower", "cat"] * 5

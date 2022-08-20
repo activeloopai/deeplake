@@ -8,13 +8,14 @@ from hub.core.serialize import (
     bytes_to_text,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.util.exceptions import EmptyTensorError
 from hub.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample]) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None
@@ -22,8 +23,9 @@ class SampleCompressedChunk(BaseChunk):
 
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample, compr)
-            self.num_dims = self.num_dims or len(shape)
-            check_sample_shape(shape, self.num_dims)
+            if shape is not None:
+                self.num_dims = self.num_dims or len(shape)
+                check_sample_shape(shape, self.num_dims)
 
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
@@ -36,7 +38,12 @@ class SampleCompressedChunk(BaseChunk):
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
                     self.data_bytes += serialized_sample  # type: ignore
-                    self.register_in_meta_and_headers(sample_nbytes, shape)
+
+                    self.register_in_meta_and_headers(
+                        sample_nbytes,
+                        shape,
+                        update_tensor_meta=update_tensor_meta,
+                    )
                     num_samples += 1
                 else:
                     if serialized_sample:
@@ -56,9 +63,14 @@ class SampleCompressedChunk(BaseChunk):
         sub_index: Optional[Union[int, slice]] = None,
         stream: bool = False,
         decompress: bool = True,
+        is_tile: bool = False,
     ):
-        if not decompress and stream:
-            raise Exception("`decompress=False` is not valid when `stream=True`")
+        if self.is_empty_tensor:
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )
+
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -76,11 +88,16 @@ class SampleCompressedChunk(BaseChunk):
                     f"subfile,,start,{header_size + sb},end,{header_size + eb},,:"
                     + bytes(buffer[:-4]).decode("utf-8")
                 )
+                if not decompress:
+                    return buffer
             else:
                 buffer = buffer[sb:eb]
         if not decompress:
             return bytes(buffer) if copy else buffer
-        shape = self.shapes_encoder[local_index]
+        if not is_tile and self.is_fixed_shape:
+            shape = tuple(self.tensor_meta.min_shape)
+        else:
+            shape = self.shapes_encoder[local_index]
         nframes = shape[0]
         if self.is_text_like:
             buffer = decompress_bytes(buffer, compression=self.compression)
@@ -110,6 +127,8 @@ class SampleCompressedChunk(BaseChunk):
 
         if cast and sample.dtype != self.dtype:
             sample = sample.astype(self.dtype)
+        elif copy and not sample.flags["WRITEABLE"]:
+            sample = sample.copy()
         return sample
 
     def update_sample(self, local_index: int, sample: InputSample):
@@ -118,7 +137,7 @@ class SampleCompressedChunk(BaseChunk):
             sample, self.compression, break_into_tiles=False
         )
 
-        self.check_shape_for_update(local_index, shape)
+        self.check_shape_for_update(shape)
         old_data = self.data_bytes
         self.data_bytes = self.create_updated_data(
             local_index, old_data, serialized_sample

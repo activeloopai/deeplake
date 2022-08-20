@@ -20,6 +20,22 @@ import json
 from urllib.request import Request, urlopen
 
 BaseTypes = Union[np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_]
+HEADER_SIZE_BYTES = 13
+
+
+def infer_header_num_bytes(
+    version: str, shape_info: np.ndarray, byte_positions: np.ndarray
+):
+    """Calculates the number of header bytes in a chunk without serializing it.
+
+    Args:
+        version: (str) Version of hub library
+        shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
+        byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
+
+    Returns:
+        Length of the headers of chunk when serialized as int"""
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + HEADER_SIZE_BYTES
 
 
 def infer_chunk_num_bytes(
@@ -45,7 +61,9 @@ def infer_chunk_num_bytes(
     # NOTE: Assumption: len(version) < 256
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13  # type: ignore
+
+    header_size = infer_header_num_bytes(version, shape_info, byte_positions)
+    return header_size + len_data
 
 
 def serialize_chunk(
@@ -168,13 +186,14 @@ def get_header_from_url(url: str):
 
 
 def deserialize_chunk(
-    byts: Union[bytes, memoryview], copy: bool = True
+    byts: Union[bytes, memoryview], copy: bool = True, partial: bool = False
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk.
         copy: (bool) If true, this function copies the byts while deserializing incase byts was a memoryview.
+        partial: (bool) If true, the byts are only a part of the chunk.
 
     Returns:
         Tuple of:
@@ -182,6 +201,9 @@ def deserialize_chunk(
         encoded shapes info as numpy array,
         encoded byte positions as numpy array,
         chunk data as memoryview.
+
+    Raises:
+        IncompleteHeaderBytesError: For partial chunks, if the byts aren't complete to get the header.
     """
     incoming_mview = isinstance(byts, memoryview)
     byts = memoryview(byts)
@@ -302,7 +324,7 @@ def deserialize_sequence_or_creds_encoder(
 
 
 def check_sample_shape(shape, num_dims):
-    if len(shape) != num_dims:
+    if shape is not None and len(shape) != num_dims:
         raise TensorInvalidSampleShapeError(shape, num_dims)
 
 
@@ -419,6 +441,15 @@ def serialize_partial_sample_object(
         ),
         shape,
     )
+
+
+def serialize_text_sample_object(
+    incoming_sample: Sample, sample_compression: Optional[str]
+):
+    shape = incoming_sample.shape
+    out = incoming_sample
+    result = out.compressed_bytes(sample_compression)
+    return result, shape
 
 
 def serialize_sample_object(

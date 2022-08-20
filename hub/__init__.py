@@ -11,14 +11,12 @@ if sys.platform == "darwin":
 
 __pdoc__ = {
     "api": False,
-    "auto": False,
     "cli": False,
     "client": False,
     "constants": False,
     "config": False,
     "integrations": False,
     "tests": False,
-    "util": False,
     "Dataset.clear_cache": False,
     "Dataset.flush": False,
     "Dataset.read_only": False,
@@ -36,6 +34,7 @@ from .core.tensor import Tensor
 from .util.bugout_reporter import hub_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
+from .htype import htype
 from .integrations import huggingface
 
 compressions = list(SUPPORTED_COMPRESSIONS)
@@ -59,6 +58,7 @@ tensor = Tensor
 __all__ = [
     "tensor",
     "read",
+    "link",
     "__version__",
     "load",
     "empty",
@@ -82,7 +82,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.4.1"
+__version__ = "2.7.5"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

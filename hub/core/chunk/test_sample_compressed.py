@@ -15,6 +15,7 @@ compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4"])
 common_args = {
     "min_chunk_size": 1 * MB,
     "max_chunk_size": 2 * MB,
+    "tiling_threshold": 1 * MB,
 }
 
 
@@ -51,6 +52,7 @@ def test_read_write_sequence_big(cat_path, compression):
     common_args = {
         "min_chunk_size": 16 * MB,
         "max_chunk_size": 32 * MB,
+        "tiling_threshold": 16 * MB,
         "tensor_meta": tensor_meta,
         "compression": compression,
     }
@@ -72,7 +74,7 @@ def test_read_write_sequence_big(cat_path, compression):
         chunk = SampleCompressedChunk(**common_args)
         num_samples = chunk.extend_if_has_space(data_in)
         if num_samples == PARTIAL_NUM_SAMPLES:
-            tiles.append(chunk.read_sample(0))
+            tiles.append(chunk.read_sample(0, is_tile=True))
             sample = data_in[0]
             assert isinstance(sample, SampleTiles)
             if sample.is_last_write:

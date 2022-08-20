@@ -1,5 +1,8 @@
-from typing import Optional
+import pathlib
+from typing import Optional, Union
 from hub.core.storage.provider import StorageProvider
+from hub.util.tag import process_hub_path
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 import glob
 import os
 
@@ -76,3 +79,28 @@ def get_path_type(path: Optional[str]) -> str:
 
 def is_remote_path(path: str) -> bool:
     return get_path_type(path) != "local"
+
+
+def convert_string_to_pathlib_if_needed(path, convert_to_pathlib=False):
+    converted_path = pathlib.Path(path)
+    if convert_to_pathlib and "//" not in path:
+        return converted_path
+    return path
+
+
+def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
+    if isinstance(path, pathlib.Path):
+        path = str(path)
+    return path
+
+
+def get_org_id_and_ds_name(path):
+    if is_hub_cloud_path(path):
+        _, org_id, ds_name, subdir = process_hub_path(path)
+        if subdir:
+            ds_name += "/" + subdir
+    else:
+        org_id = HUB_CLOUD_DEV_USERNAME
+        ds_name = path.replace("/", "_").replace(".", "")
+
+    return org_id, ds_name

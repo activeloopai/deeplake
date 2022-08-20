@@ -1,4 +1,3 @@
-import warnings
 import hub
 from math import ceil
 import time
@@ -12,11 +11,11 @@ from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import (
     S3DeletionError,
     S3GetError,
-    S3ListError,
     S3SetError,
     S3Error,
     PathNotEmptyException,
 )
+from hub.util.warnings import always_warn
 from botocore.exceptions import (
     ReadTimeoutError,
     ConnectionError,
@@ -68,6 +67,7 @@ class S3ResetClientManager:
         self.s3p = s3p
 
     def __enter__(self):
+        self.s3p._check_update_creds(force=True)
         self.s3p._initialize_s3_parameters()
         return self
 
@@ -172,9 +172,12 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._set(path, content)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
                     return
                 except Exception:
                     pass
@@ -182,9 +185,10 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3SetError(err) from err
 
-    def _get(self, path):
+    def _get(self, path, bucket=None):
+        bucket = bucket or self.bucket
         resp = self.client.get_object(
-            Bucket=self.bucket,
+            Bucket=bucket,
             Key=path,
         )
         return resp["Body"].read()
@@ -206,6 +210,8 @@ class S3Provider(StorageProvider):
 
     def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
         if start_byte is not None and end_byte is not None:
+            if start_byte == end_byte:
+                return b""
             range = f"bytes={start_byte}-{end_byte - 1}"
         elif start_byte is not None:
             range = f"bytes={start_byte}-"
@@ -251,9 +257,13 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
-                    return self._get_bytes(path, start_byte, end_byte)
+                    ret = self._get_bytes(path, start_byte, end_byte)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return ret
                 except Exception:
                     pass
             raise S3GetError(err) from err
@@ -287,9 +297,12 @@ class S3Provider(StorageProvider):
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
             for i in range(1, tries + 1):
-                warnings.warn(f"Encountered connection error, retry {i} out of {tries}")
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._del(path)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
                     return
                 except Exception:
                     pass
@@ -301,6 +314,19 @@ class S3Provider(StorageProvider):
     def num_tries(self):
         return min(ceil((time.time() - self.start_time) / 300), 5)
 
+    def _keys_iterator(self):
+        self._check_update_creds()
+        prefix = self.path
+        start_after = ""
+        prefix = prefix[1:] if prefix.startswith("/") else prefix
+        start_after = (start_after or prefix) if prefix.endswith("/") else start_after
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=self.bucket, Prefix=prefix, StartAfter=start_after
+        ):
+            for content in page.get("Contents", ()):
+                yield content["Key"]
+
     def _all_keys(self):
         """Helper function that lists all the objects present at the root of the S3Provider.
 
@@ -310,28 +336,8 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        self._check_update_creds()
-        try:
-            # TODO boto3 list_objects only returns first 1000 objects
-            items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
-        except botocore.exceptions.ClientError as err:
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3ListError):
-                items = self.client.list_objects_v2(
-                    Bucket=self.bucket, Prefix=self.path
-                )
-        except Exception as err:
-            raise S3ListError(err) from err
-
-        if items["KeyCount"] <= 0:
-            return set()
-        items = items["Contents"]
-        names = [item["Key"] for item in items]
-        # removing the prefix from the names
         len_path = len(self.path.split("/")) - 1
-        names = {"/".join(name.split("/")[len_path:]) for name in names}
-        return names
+        return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
 
     def __len__(self):
         """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
@@ -342,8 +348,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        self._check_update_creds()
-        return len(self._all_keys())
+        return sum(1 for _ in self._keys_iterator())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the S3Provider.
@@ -465,18 +470,21 @@ class S3Provider(StorageProvider):
 
         self._set_s3_client_and_resource()
 
-    def _check_update_creds(self):
+    def _check_update_creds(self, force=False):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
-        if self.expiration and float(self.expiration) < time.time():
+        if self.expiration and (force or float(self.expiration) < time.time()):
             client = HubBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
 
             url, creds, mode, expiration = client.get_dataset_credentials(
-                org_id, ds_name, mode
+                org_id,
+                ds_name,
+                mode,
+                force,
             )
             self.expiration = expiration
             self._set_s3_client_and_resource(
@@ -573,5 +581,27 @@ class S3Provider(StorageProvider):
         split_root = root.split("/", 1)
         bucket = split_root[0]
         path = split_root[1] if len(split_root) > 1 else ""
-        resp = self.client.get_object(Bucket=bucket, Key=path)
-        return resp["Body"].read()
+        try:
+            return self._get(path, bucket)
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "NoSuchKey":
+                raise KeyError(err) from err
+            reload = self.need_to_reload_creds(err)
+            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
+            with manager(self, S3GetError):  # type: ignore
+                return self._get(path, bucket)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    ret = self._get(path, bucket)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return ret
+                except Exception:
+                    pass
+            raise S3GetError(err) from err
+        except Exception as err:
+            raise S3GetError(err) from err

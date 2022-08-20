@@ -20,8 +20,17 @@ UNSPECIFIED = "unspecified"
 
 SUPPORTED_MODES = ["r", "a"]
 
+# used to show chunk size
+RANDOM_CHUNK_SIZE = 8 * MB
+# used to show variation between normal chunk size and maximum chunk size
+RANDOM_MINIMAL_CHUNK_SIZE = 2 * MB
+# used to show maximum chunk size allowed to have during random update operation
+RANDOM_MAX_ALLOWED_CHUNK_SIZE = RANDOM_CHUNK_SIZE + RANDOM_MINIMAL_CHUNK_SIZE
+
 # min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
-DEFAULT_MAX_CHUNK_SIZE = 32 * MB
+DEFAULT_MAX_CHUNK_SIZE = 16 * MB
+
+DEFAULT_TILING_THRESHOLD = 16 * MB  # Note: set to -1 to disable tiling
 
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
@@ -45,6 +54,7 @@ DATASET_LOCK_FILENAME = "dataset_lock.lock"
 DATASET_DIFF_FILENAME = "dataset_diff"
 TENSOR_COMMIT_CHUNK_SET_FILENAME = "chunk_set"
 TENSOR_COMMIT_DIFF_FILENAME = "commit_diff"
+TIMESTAMP_FILENAME = "local_download_timestamp"
 
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
@@ -59,8 +69,6 @@ ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
 UNSHARDED_ENCODER_FILENAME = "unsharded"
-
-AGREEMENT_FILENAME = "agreement.txt"
 
 ENCODING_DTYPE = np.uint32
 
@@ -111,7 +119,7 @@ VERSION_CONTROL_INFO_FILENAME_OLD = "version_control_info"
 VERSION_CONTROL_INFO_FILENAME = "version_control_info.json"
 VERSION_CONTROL_INFO_LOCK_FILENAME = "version_control_info.lock"
 
-LINKED_CREDS_FILENAME = "linked_creds"
+LINKED_CREDS_FILENAME = "linked_creds.json"
 LINKED_CREDS_LOCK_FILENAME = "linked_creds.lock"
 
 
@@ -129,8 +137,10 @@ PARTIAL_NUM_SAMPLES = 0.5
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+
 _ENABLE_HUB_SUB_DATASETS = False
-_ENABLE_RANDOM_ASSIGNMENT = False
+_ENABLE_RANDOM_ASSIGNMENT = True
 
 # Frequency for sending progress events and writing to vds
 QUERY_PROGRESS_UPDATE_FREQUENCY = 5  # seconds
@@ -144,3 +154,5 @@ SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE = 4 * MB
 DEFAULT_READONLY = (
     os.environ.get("HUB_DEFAULT_READONLY", "false").strip().lower() == "true"
 )
+
+_UNLINK_VIDEOS = False

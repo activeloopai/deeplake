@@ -1,14 +1,14 @@
 import os
 import sys
 import numpy as np
+import pathlib
 import pytest
 import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal
+from hub.tests.common import assert_array_lists_equal, is_opt_true
 from hub.tests.storage_fixtures import enabled_remote_storages
-from hub.tests.dataset_fixtures import enabled_persistent_dataset_generators
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
     InvalidOperationError,
@@ -26,11 +26,19 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     BadRequestException,
     ReadOnlyModeError,
+    EmptyTensorError,
+    InvalidTokenException,
+    TokenPermissionError,
+    UserNotLoggedInException,
 )
+from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
-from hub.constants import MB
+from hub.constants import GDRIVE_OPT, MB
+from hub.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
+from hub.cli.auth import login, logout
+from hub.util.bugout_reporter import feature_report_path
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -140,6 +148,10 @@ def test_populate_dataset(local_ds):
 
     local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(local_ds.image) == 16
+    assert len(local_ds.image.numpy()) == 16
+    assert len(local_ds.image[0:5].numpy()) == 5
+    assert len(local_ds.image[:-1].numpy()) == 15
+    assert len(local_ds.image[-5:].numpy()) == 5
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
     assert local_ds.meta.version == hub.__version__
@@ -265,6 +277,8 @@ def test_dynamic_tensor(local_ds):
 
 def test_empty_samples(local_ds: Dataset):
     tensor = local_ds.create_tensor("with_empty")
+    with pytest.raises(EmptyTensorError):
+        ds_pytorch = local_ds.pytorch()
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -545,6 +559,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
+    point = memory_ds.create_tensor("point", htype="point")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -555,6 +570,7 @@ def test_htype(memory_ds: Dataset):
     bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
+    point.append(np.ones((11, 2), dtype=np.int32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -656,19 +672,25 @@ def test_index_range(memory_ds):
         memory_ds[[0, 1, 2, 3, 4, 5]]
 
 
-def test_empty_dataset():
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_empty_dataset(convert_to_pathlib):
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test")
+        test_path = "test"
+        test_path = convert_string_to_pathlib_if_needed(test_path, convert_to_pathlib)
+        ds = hub.dataset(test_path)
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = hub.dataset("test")
+        ds = hub.dataset(test_path)
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
-def test_like(local_path):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_like(local_path, convert_to_pathlib):
     src_path = os.path.join(local_path, "src")
+    src_path = convert_string_to_pathlib_if_needed(src_path, convert_to_pathlib)
     dest_path = os.path.join(local_path, "dest")
+    dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
     src_ds = hub.dataset(src_path)
     src_ds.info.update(key=0)
@@ -732,6 +754,13 @@ def test_dataset_delete():
         hub.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
+        pathlib_path = pathlib.Path("test/")
+        hub.empty(pathlib_path).create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.delete(pathlib_path)
+        assert not os.path.isfile("test/dataset_meta.json")
+
         old_size = hub.constants.DELETE_SAFETY_SIZE
         hub.constants.DELETE_SAFETY_SIZE = 1 * MB
 
@@ -760,17 +789,21 @@ def test_dataset_delete():
     ],
     indirect=True,
 )
-def test_dataset_rename(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ds = ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
 
     new_path = "_".join([path, "renamed"])
 
+    ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
+    new_path = convert_string_to_pathlib_if_needed(new_path, convert_to_pathlib)
+
     with pytest.raises(RenameError):
         ds.rename("wrongfolder/new_ds")
 
-    if ds.path.startswith("hub://"):
+    if str(ds.path).startswith("hub://"):
         with pytest.raises(BadRequestException):
             ds.rename(ds.path)
     else:
@@ -778,12 +811,26 @@ def test_dataset_rename(ds_generator, path, hub_token):
             ds.rename(ds.path)
 
     ds = hub.rename(ds.path, new_path, token=hub_token)
-
-    assert ds.path == new_path
+    assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     ds = hub.load(new_path, token=hub_token)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.load(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = hub.dataset(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
 
     hub.delete(new_path, token=hub_token)
 
@@ -792,8 +839,6 @@ def test_dataset_rename(ds_generator, path, hub_token):
     "path,hub_token",
     [
         ["local_path", "hub_cloud_dev_token"],
-        ["s3_path", "hub_cloud_dev_token"],
-        ["gcs_path", "hub_cloud_dev_token"],
         ["hub_cloud_path", "hub_cloud_dev_token"],
     ],
     indirect=True,
@@ -859,6 +904,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    # test fot dataset.load:
     dest_ds = hub.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
@@ -879,6 +925,20 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    hub.deepcopy(
+        src_path,
+        dest_path,
+        tensors=["a", "d"],
+        overwrite=True,
+        src_token=hub_token,
+        dest_token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = hub.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
     hub.delete(src_path, token=hub_token)
     hub.delete(dest_path, token=hub_token)
 
@@ -936,9 +996,12 @@ def test_htypes_list():
         "dicom",
         "generic",
         "image",
+        "image.gray",
+        "image.rgb",
         "json",
         "keypoints_coco",
         "list",
+        "point",
         "segment_mask",
         "text",
         "video",
@@ -1024,6 +1087,16 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+
+
+def test_group_delete_bug(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc/first")
+        ds.delete_group("abc")
+
+    ds = local_ds_generator()
+    assert ds.tensors == {}
+    assert ds.groups == {}
 
 
 def test_tensor_rename(local_ds_generator):
@@ -1130,6 +1203,14 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
         assert ds.audio[i].tobytes() == audio_bytes
 
 
+def test_tobytes_link(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("images", htype="link[image]")
+        ds.images.append(hub.link("https://picsum.photos/id/237/200/300"))
+        sample = hub.read("https://picsum.photos/id/237/200/300")
+        assert ds.images[0].tobytes() == sample.buffer
+
+
 def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
@@ -1154,6 +1235,15 @@ def test_tensor_clear(local_ds_generator):
     assert len(image) == 4
     assert image.htype == "image"
     assert image.meta.sample_compression == "png"
+
+
+def test_tensor_clear_seq(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3, 4]])
+        ds.abc.extend([[1, 2, 3, 4, 5]])
+        ds.abc.clear()
+        assert ds.abc.shape == (0, 0)
 
 
 def test_no_view(memory_ds):
@@ -1270,10 +1360,10 @@ def test_ds_extend():
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = hub.dataset("mem://ds1")
     ds2 = hub.dataset("mem://ds2")
-    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB)
+    ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB, tiling_threshold=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
-    ds2.create_tensor("y", **dest_args)
+    ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
@@ -1298,6 +1388,14 @@ def test_empty_extend(memory_ds):
         ds.create_tensor("y")
         ds.y.extend(np.zeros((len(ds), 3)))
     assert len(ds) == 0
+
+
+def test_extend_with_progressbar():
+    ds1 = hub.dataset("mem://ds1")
+    with ds1:
+        ds1.create_tensor("x")
+        ds1.x.extend([1, 2, 3, 4], progressbar=True)
+    np.testing.assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
 
 
 def test_auto_htype(memory_ds):
@@ -1371,6 +1469,14 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
     )
     memory_ds.images.append(image)
     assert memory_ds.images[2].shape == (323, 480, 3)
+
+
+def test_hub_remote_read_gdrive_root(request, memory_ds, gdrive_creds):
+    if not is_opt_true(request, GDRIVE_OPT):
+        pytest.skip()
+    memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
+    memory_ds.images.append(hub.read("gdrive://cat.jpeg", creds=gdrive_creds))
+    assert memory_ds.images[0].shape == (900, 900, 3)
 
 
 @pytest.mark.skipif(
@@ -1447,6 +1553,35 @@ def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
                 np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
 
 
+def test_sequence_shapes(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
+
+        assert ds.abc[0].shape == (3, 1)
+
+        assert ds.abc.shape_interval.lower == (2, 3, 1)
+        assert ds.abc.shape_interval.upper == (2, 4, 1)
+
+        ds.create_tensor("xyz", htype="sequence")
+        ds.xyz.append([[[1, 2], [3, 4]], [[1, 2, 3], [4, 5, 6]]])
+
+        assert ds.xyz.shape == (1, 2, 2, None)
+        assert ds.xyz[0][0].shape == (2, 2)
+        assert ds.xyz[0][1].shape == (2, 3)
+
+        assert ds.xyz.shape_interval.lower == (1, 2, 2, 2)
+        assert ds.xyz.shape_interval.upper == (1, 2, 2, 3)
+
+        ds.create_tensor("red", htype="sequence")
+        ds.red.extend([[4, 5, 6, 7], [1, 2, 3]])
+
+        assert ds.red[0].shape == (4, 1)
+
+        assert ds.red.shape_interval.lower == (2, 3, 1)
+        assert ds.abc.shape_interval.upper == (2, 4, 1)
+
+
 def test_shape_bug(memory_ds):
     ds = memory_ds
     ds.create_tensor("x")
@@ -1486,26 +1621,43 @@ def test_hidden_tensors(local_ds_generator):
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
 @pytest.mark.parametrize(
-    "index", [slice(None), slice(5, None, None), slice(None, 8, 2)]
+    "index", [slice(None), slice(5, None, None), slice(None, 8, 2), 7]
 )
-def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_dataset_copy(
+    memory_ds, local_ds, num_workers, progressbar, index, convert_to_pathlib
+):
+    memory_ds.path = convert_string_to_pathlib_if_needed(
+        memory_ds.path, convert_to_pathlib
+    )
+    local_ds.path = convert_string_to_pathlib_if_needed(
+        local_ds.path, convert_to_pathlib
+    )
+
     ds = memory_ds
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("images/image1")
+        ds.create_tensor("images/image2")
         ds.create_tensor("label")
+        ds.create_tensor("nocopy")
         for _ in range(10):
-            ds.image.append(np.random.randint(0, 256, (10, 10, 3)))
-            ds.label.append(np.random.randint(0, 10, (1,)))
+            ds.images.image1.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.images.image2.append(np.random.randint(0, 256, (10, 10, 3)))
+            ds.label.append(np.random.randint(0, 10, (1, 10)))
+            ds.nocopy.append([0])
 
     hub.copy(
         ds[index],
         local_ds.path,
+        tensors=["images", "label"],
         overwrite=True,
         num_workers=num_workers,
         progressbar=progressbar,
     )
     local_ds = hub.load(local_ds.path)
-    np.testing.assert_array_equal(ds.image[index].numpy(), local_ds.image.numpy())
+    assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
+    for t in local_ds.tensors:
+        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(
@@ -1518,7 +1670,9 @@ def test_dataset_copy(memory_ds, local_ds, num_workers, progressbar, index):
     ],
     indirect=True,
 )
-def test_hub_exists(ds_generator, path, hub_token):
+@pytest.mark.parametrize("convert_to_pathlib", [True, False])
+def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
+    path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
     assert hub.exists(path, token=hub_token) == True
     assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
@@ -1541,3 +1695,344 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.checkout("branch", create=True)
     assert local_ds.branch == "branch"
     local_ds.create_tensor("x")
+
+
+def test_access_method(s3_ds_generator):
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="download")
+
+    with pytest.raises(DatasetHandlerError):
+        hub.dataset("./some_non_existent_path", access_method="local")
+
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("x")
+        for i in range(10):
+            ds.x.append(i)
+
+    ds = s3_ds_generator(access_method="download")
+    with pytest.raises(DatasetHandlerError):
+        # second time download is not allowed
+        s3_ds_generator(access_method="download")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="invalid")
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="download", overwrite=True)
+
+    with pytest.raises(ValueError):
+        s3_ds_generator(access_method="local", overwrite=True)
+
+    ds = s3_ds_generator(access_method="local")
+    assert not ds.path.startswith("s3://")
+    for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    ds.delete()
+
+
+def test_partial_read_then_write(s3_ds_generator):
+    ds = s3_ds_generator()
+    with ds:
+        ds.create_tensor("xyz")
+        for i in range(10):
+            ds.xyz.append(i * np.ones((1000, 1000)))
+
+    ds = s3_ds_generator()
+    np.testing.assert_array_equal(ds.xyz[0].numpy(), 0 * np.ones((1000, 1000)))
+
+    with ds:
+        ds.xyz[1] = 20 * np.ones((1000, 1000))
+
+
+def test_exist_ok(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("abc")
+        ds.create_tensor("abc", exist_ok=True)
+        ds.create_group("grp")
+        with pytest.raises(TensorGroupAlreadyExistsError):
+            ds.create_group("grp")
+        ds.create_group("grp", exist_ok=True)
+
+
+def verify_label_data(ds):
+    text_labels = [
+        ["airplane"],
+        ["boat"],
+        ["airplane"],
+        ["car"],
+        ["airplane"],
+        ["airplane"],
+        ["car"],
+    ]
+    nested_text_labels = [
+        [["airplane", "boat", "car"], ["boat", "car", "person"]],
+        [["person", "car"], ["airplane", "bus"]],
+        [["airplane", "boat"], ["car", "person"]],
+    ]
+    arr = np.array([0, 1, 0, 2, 0, 0, 2]).reshape((7, 1))
+    nested_arr = [
+        np.array([[0, 1, 2], [1, 2, 3]]),
+        np.array([[3, 2], [0, 4]]),
+        np.array([[0, 1], [2, 3]]),
+    ]
+
+    random_arr = np.array([[0, 1], [1, 2], [0, 1]])
+    random_text_labels = [["l1", "l2"], ["l2", "l3"], ["l1", "l2"]]
+
+    seq_arr = [
+        np.array([0, 1, 2]).reshape(3, 1),
+        [],
+        [],
+        np.array([1, 3]).reshape(2, 1),
+        np.array([0, 2]).reshape(2, 1),
+    ]
+    seq_text_labels = [
+        [["l1"], ["l2"], ["l3"]],
+        [],
+        [],
+        [["l2"], ["l4"]],
+        [["l1"], ["l3"]],
+    ]
+
+    # abc
+    assert ds.abc.info.class_names == ["airplane", "boat", "car"]
+    np_data = ds.abc.numpy()
+    data = ds.abc.data()
+    assert set(data.keys()) == {"value", "text"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["value"], np_data)
+    assert data["text"] == text_labels
+
+    # xyz
+    assert ds.xyz.info.class_names == []
+    np_data = ds.xyz.numpy()
+    data = ds.xyz.data()
+    assert set(data.keys()) == {"value"}
+    np.testing.assert_array_equal(np_data, arr)
+    np.testing.assert_array_equal(data["value"], np_data)
+
+    # nested
+    assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
+    np_data = ds.nested.numpy(aslist=True)
+    data = ds.nested.data(aslist=True)
+    assert set(data.keys()) == {"value", "text"}
+    for i in range(2):
+        np.testing.assert_array_equal(np_data[i], nested_arr[i])
+        np.testing.assert_array_equal(data["value"][i], np_data[i])
+    assert data["text"] == nested_text_labels
+
+    # random
+    assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    np_data = ds.random.numpy()
+    data = ds.random.data()
+    assert set(data.keys()) == {"value", "text"}
+    np.testing.assert_array_equal(np_data, random_arr)
+    np.testing.assert_array_equal(data["value"], np_data)
+    assert data["text"] == random_text_labels
+
+    # seq
+    # assert ds.random.info.class_names == ["l1", "l2", "l3", "l4"]
+    # np_data = ds.seq.numpy(aslist=True)
+    # data = ds.seq.data(aslist=True)
+    # assert set(data.keys()) == {"numeric", "text"}
+    # for i in range(4):
+    #     np.testing.assert_array_equal(np_data[i], seq_arr[i])
+    #     np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    # assert data["text"] == seq_text_labels
+
+
+def test_text_label(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.append("airplane")
+        ds.abc.append("boat")
+        ds.abc.append("airplane")
+        ds.abc.extend(["car", "airplane", 0, 2])
+
+        ds.create_tensor("xyz", htype="class_label")
+        ds.xyz.append(0)
+        ds.xyz.append(1)
+        ds.xyz.append(0)
+        ds.xyz.extend([2, 0, 0, 2])
+
+        ds.create_tensor("nested", htype="class_label")
+        ds.nested.append([[0, 1, 2], [1, 2, 3]])
+        ds.nested.info.class_names = ["airplane", "boat", "car"]
+        ds.nested.extend([[["person", 2], ["airplane", "bus"]], [[0, 1], ["car", 3]]])
+
+        temp = hub.constants._ENABLE_RANDOM_ASSIGNMENT
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+
+        ds.create_tensor("random", htype="class_label")
+        ds.random[0] = ["l1", "l2"]
+        ds.random[1] = ["l2", "l3"]
+        ds.random[2] = ["l2", "l4"]
+        ds.random[2] = ["l1", "l2"]
+
+        ds.create_tensor("seq", htype="sequence[class_label]")
+        ds.seq.append(["l1", "l2", "l3"])
+        with pytest.raises(NotImplementedError):
+            ds.seq[3] = ["l2", "l4"]
+            ds.seq.append(["l3", "l1"])
+            ds.seq[4] = ["l1", "l3"]
+
+        hub.constants._ENABLE_RANDOM_ASSIGNMENT = temp
+
+        verify_label_data(ds)
+
+    ds = local_ds_generator()
+    verify_label_data(ds)
+
+
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_text_labels_transform(local_ds_generator, num_workers):
+    with local_ds_generator() as ds:
+        ds.create_tensor("labels", htype="class_label")
+        ds.create_tensor("multiple_labels", htype="class_label")
+        ds.create_tensor("seq_labels", htype="sequence[class_label]")
+
+    labels = ["car", "ship", "train"]
+    multiple_labels = [["car", "train"], ["ship", "car"], ["train", "ship"]]
+    seq_labels = [["ship", "train", "car"], ["ship", "train"], ["car", "train"]]
+    data = list(zip(labels, multiple_labels, seq_labels))
+
+    @hub.compute
+    def upload(data, ds):
+        ds.labels.append(data[0])
+        ds.multiple_labels.append(data[1])
+        ds.seq_labels.append(data[2])
+        return ds
+
+    def convert_to_idx(data, label_idx_map):
+        if isinstance(data, str):
+            return label_idx_map[data]
+        return [convert_to_idx(label, label_idx_map) for label in data]
+
+    upload().eval(data, ds, num_workers=num_workers)
+
+    for tensor in ("labels", "multiple_labels", "seq_labels"):
+        class_names = ds[tensor].info.class_names
+        label_idx_map = {class_names[i]: i for i in range(len(class_names))}
+        if tensor == "labels":
+            arr = ds[tensor].numpy()
+            assert class_names == ["car", "ship", "train"]
+            expected = np.array(convert_to_idx(labels, label_idx_map)).reshape((3, 1))
+        elif tensor == "multiple_labels":
+            arr = ds[tensor].numpy()
+            assert class_names == ["car", "train", "ship"]
+            expected = np.array(convert_to_idx(multiple_labels, label_idx_map))
+        else:
+            arr = ds[tensor].numpy(aslist=True)
+            assert class_names == ["ship", "train", "car"]
+            expected = convert_to_idx(seq_labels, label_idx_map)
+            expected = [np.array(seq).reshape(-1, 1).tolist() for seq in expected]
+        np.testing.assert_array_equal(arr, expected)
+
+
+def test_empty_sample_partial_read(s3_ds):
+    with s3_ds as ds:
+        ds.create_tensor("xyz")
+        ds.xyz.append([1, 2, 3, 4])
+        ds.xyz.append(None)
+    assert ds.xyz[1].numpy().tolist() == []
+
+
+def test_htype_config_bug(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.info.class_names.append("car")
+        ds.create_tensor("xyz", htype="class_label")
+        assert ds.xyz.info.class_names == []
+
+
+def test_update_bug(local_ds):
+    with local_ds as ds:
+        bb = ds.create_tensor("bb", "bbox", dtype="float64")
+        arr1 = np.array([[1.0, 2.0, 3.0, 4.0]])
+        bb.append(arr1)
+        np.testing.assert_array_equal(bb[0].numpy(), arr1)
+
+        arr2 = np.array([[5.0, 6.0, 7.0, 8.0]])
+        bb[0] = arr2
+        np.testing.assert_array_equal(bb[0].numpy(), arr2)
+
+
+def test_uneven_view(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        view = ds[list(range(0, 10, 2))]
+        np.testing.assert_equal(np.arange(0, 10, 2), view.x.numpy().squeeze())
+        with pytest.raises(IndexError):
+            np.testing.assert_equal(np.arange(0, 10, 2), view.y.numpy().squeeze())
+
+
+def test_uneven_iteration(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        ds._enable_padding()
+        assert len(ds) == 10
+        for i in range(10):
+            x, y = ds[i].x.numpy(), ds[i].y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
+
+        for i, dsv in enumerate(ds):
+            x, y = dsv.x.numpy(), dsv.y.numpy()
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)
+
+
+def test_hub_token_without_permission(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    os.remove(REPORTING_CONFIG_FILE_PATH)
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
+
+    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
+    )
+
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    feature_report_path(
+        "hub://testingacc/test_hub_token",
+        "empty",
+        parameters={},
+        token=hub_cloud_dev_token,
+    )
+
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(TokenPermissionError):
+        hub.empty("hub://activeloop-test/sohas-weapons-train")
+
+    runner.invoke(logout)
+    ds = hub.empty(
+        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    )
+
+
+def test_incompat_dtype_msg(local_ds, capsys):
+    local_ds.create_tensor("abc", dtype="uint32")
+    with pytest.raises(TensorDtypeMismatchError):
+        local_ds.abc.append([0.0])
+    captured = capsys.readouterr()
+    assert "True" not in captured

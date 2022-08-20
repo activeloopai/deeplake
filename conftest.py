@@ -5,9 +5,15 @@ import logging
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
+os.environ["HUB_DOWNLOAD_PATH"] = "./testing/local_storage"
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.disable(logging.INFO)
+
+# Use staging environment for tests.
+import hub.client.config
+
+hub.client.config.USE_STAGING_ENVIRONMENT = True
 
 from hub.constants import *
 from hub.tests.common import SESSION_ID

@@ -79,10 +79,9 @@ pip3 install hub
 
 **By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
-pip3 install hub[av]          -> Audio and video support via PyAV
-pip3 install hub[gcp]         -> GCS support via google-* dependencies
-pip3 install hub[visualizer]  -> Visualizer support in Jupyter Notebooks
-pip3 install hub[all]         -> Installs everything - audio, video and GCS support
+pip3 install "hub[av]"          -> Audio and video support via PyAV
+pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
+pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
 ```
 
 ### 🧠 Training a PyTorch model on a Hub dataset
@@ -263,7 +262,7 @@ Hub users can access and visualize a variety of popular datasets through a free 
 
 
 <details>
-  <summary><b>Activeloop Hub vs DVC</b></summary>
+  <summary><b>Hub vs DVC</b></summary>
   
 Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Hub is a Python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
@@ -271,7 +270,7 @@ Hub and DVC offer dataset version control similar to git for data, but their met
 
 
 <details>
-  <summary><b>Activeloop Hub vs TensorFlow Datasets (TFDS)</b></summary>
+  <summary><b>Hub vs TensorFlow Datasets (TFDS)</b></summary>
   
 Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
@@ -280,19 +279,25 @@ Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets 
 
 
 <details>
-  <summary><b>Activeloop Hub vs HuggingFace</b></summary>
+  <summary><b>Hub vs HuggingFace</b></summary>
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
 
 
 </details>
 
 <details>
-  <summary><b>Activeloop Hub vs WebDatasets</b></summary>
+  <summary><b>Hub vs WebDatasets</b></summary>
 Hub and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Hub enables simple indexing and modification of the dataset without having to recreate it.
 
 
 </details>
 
+<details>
+  <summary><b>Hub vs Zarr</b></summary>
+Hub and Zarr both offer storage of data as chunked arrays. However, hub is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Hub stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Hub handles all the data processing in between. Hub offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
+
+
+</details>
 
 ## Community
 
@@ -338,7 +343,7 @@ If you're a dataset owner and do not want your dataset to be included in this li
 <details>
   <summary><b> Usage Tracking</b></summary>
 
-By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Hub library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below:
+By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Hub library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
 
 ```
 activeloop reporting --off
@@ -347,13 +352,13 @@ activeloop reporting --off
 
 ## Citation
 If you use Hub in your research, please cite Activeloop using:
-
+```
 @article{2022ActiveloopHub,
   title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
   author={Activeloop Developer Team},
   journal={GitHub. Note: https://github.com/activeloopai/Hub},
   year={2022}
 }
-
+```
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.

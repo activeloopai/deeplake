@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 from hub.core.query import DatasetQuery
+from hub.util.exceptions import DatasetViewSavingError, InvalidOperationError
 import hub
 from uuid import uuid4
 
@@ -19,14 +20,31 @@ def hub_compute_filter(sample_in, mod):
     return val % mod == 0
 
 
-def _populate_data(ds, n=1):
+def _populate_data_linked(ds, n, compressed_image_paths, labels):
     with ds:
-        ds.create_tensor("images")
-        ds.create_tensor("labels", htype="class_label", class_names=class_names)
+        if "images" not in ds:
+            ds.create_tensor("images", htype="link[image]")
+            if labels:
+                ds.create_tensor("labels", htype="class_label", class_names=class_names)
+            for i in range(n):
+                ds.images.append(hub.link(compressed_image_paths["png"][0]))
+                if labels:
+                    ds.labels.append(rows[i % 2]["labels"])
+
+
+def _populate_data(ds, n=1, linked=False, paths=None, labels=True):
+    if linked:
+        return _populate_data_linked(ds, n, paths, labels)
+    with ds:
+        if "images" not in ds:
+            ds.create_tensor("images")
+            if labels:
+                ds.create_tensor("labels", htype="class_label", class_names=class_names)
         for _ in range(n):
             for row in rows:
                 ds.images.append(row["images"])
-                ds.labels.append(row["labels"])
+                if labels:
+                    ds.labels.append(row["labels"])
 
 
 @pytest.fixture
@@ -106,14 +124,56 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
-def test_dataset_view_save():
+@pytest.mark.parametrize(
+    "optimize,idx_subscriptable", [(True, True), (False, False), (True, False)]
+)
+def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_paths):
+    id = str(uuid4())
+    arr = np.random.random((100, 32, 32, 3))
+    with hub.dataset(".tests/ds", overwrite=True) as ds:
+        ds.create_tensor("x")
+        ds.x.extend(arr)
+    _populate_data(ds, linked=True, n=100, paths=compressed_image_paths, labels=False)
+    with pytest.raises(DatasetViewSavingError):
+        ds.save_view(optimize=optimize)
+    view = ds[10:77:2, 2:17, 19:31, :1]
+    arr = arr[10:77:2, 2:17, 19:31, :1]
+    if not idx_subscriptable:
+        view = view[0]
+        arr = arr[0]
+    np.testing.assert_array_equal(view.x.numpy(), arr)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(optimize=optimize)
+    ds.commit()
+    ds.save_view(optimize=optimize, id=id)
+    view.save_view(optimize=optimize, id=id)  # test overwrite
+    assert len(ds.get_views()) == 1
+    view2 = ds.get_views()[0].load()
+    np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())
+    view3 = ds.get_view(id).load()
+    np.testing.assert_array_equal(view.x.numpy(), view3.x.numpy())
+
+
+@pytest.mark.parametrize("optimize", [True, False])
+def test_dataset_view_save(optimize):
     with hub.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
-    view.store(".tests/ds_view", overwrite=True)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
+    ds.commit()
+    view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     view2 = hub.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    _populate_data(ds)
+    view = ds.filter("labels == 'dog'")
+    ds.commit()
+    _populate_data(ds)
+    with pytest.raises(DatasetViewSavingError):
+        view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
+    ds.commit()
+    view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
 
 
 @pytest.mark.parametrize(
@@ -126,31 +186,51 @@ def test_dataset_view_save():
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("read_only", [False, True])
-@pytest.mark.parametrize("progressbar", [False, True])
-@pytest.mark.parametrize("query_type", ["string", "function"])
+@pytest.mark.parametrize(
+    "stream,num_workers,read_only,progressbar,query_type,optimize,linked",
+    [
+        (False, 2, True, True, "string", True, False),
+        (True, 0, False, False, "function", False, True),
+    ],
+)
+@pytest.mark.timeout(1200)
 def test_inplace_dataset_view_save(
-    ds_generator, stream, num_workers, read_only, progressbar, query_type
+    ds_generator,
+    stream,
+    num_workers,
+    read_only,
+    progressbar,
+    query_type,
+    optimize,
+    linked,
+    compressed_image_paths,
 ):
     ds = ds_generator()
     if read_only and not ds.path.startswith("hub://"):
         return
-    _populate_data(ds, n=2)
+    id = str(uuid4())
+    to_del = [id]
+    _populate_data(ds, n=10, linked=linked, paths=compressed_image_paths)
+    ds.commit()
     ds.read_only = read_only
     f = (
-        f"labels == 'dog'#{uuid4().hex}"
+        f"labels == 'dog'"
         if query_type == "string"
-        else lambda s: s.labels == "dog"
+        else lambda s: int(s.labels.numpy()) == 0
     )
     view = ds.filter(
-        f, store_result=stream, num_workers=num_workers, progressbar=progressbar
+        f, save_result=stream, num_workers=num_workers, progressbar=progressbar
     )
-    assert read_only or len(ds._get_query_history()) == int(stream)
-    vds_path = view.store()
-    assert read_only or len(ds._get_query_history()) == 1
+    indices = list(view.sample_indices)
+    assert indices
+    assert list(view[:4:2].sample_indices) == indices[:4:2]
+    if stream:
+        to_del.append(view._vds.info["id"])
+    assert len(ds.get_views()) == int(stream)
+    vds_path = view.save_view(optimize=optimize, id=id)
+    assert len(ds.get_views()) == 1 + int(stream)
     view2 = hub.dataset(vds_path)
+    assert indices == list(view2.sample_indices)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
         if read_only:
@@ -159,6 +239,26 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    entry = ds.get_view(id)
+    assert entry.virtual == (not optimize)
+    assert indices == list(entry.load().sample_indices)
+    entry.optimize()
+    assert not entry.virtual
+    view3 = entry.load()
+    assert indices == list(view3.sample_indices)
+    assert list(view3[:4:2].sample_indices) == indices[:4:2], (
+        list(view3.sample_indices),
+        indices,
+    )
+    with pytest.raises(InvalidOperationError):
+        for t in view3.tensors:
+            view3[t].append(np.zeros((1,)))
+    for t in view.tensors:
+        np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
+    for id in to_del:
+        ds.delete_view(id)
+        with pytest.raises(KeyError):
+            ds.get_view(id)
 
 
 def test_group(local_ds):
@@ -209,3 +309,101 @@ def test_multi_category_labels(local_ds):
     for v in (view1, view2, view3, view4):
         np.testing.assert_array_equal(v.image.numpy(), exp_images)
         np.testing.assert_array_equal(v.label.numpy(), exp_labels)
+
+
+def test_query_shape(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="png")
+        shapes = [(16, 32, 3), (32, 16, 3), (32, 32, 3), (16, 16, 3)]
+        counts = [5, 4, 3, 2]
+        for shape, count in zip(shapes, counts):
+            ds.image.extend(np.random.randint(50, 100, (count, *shape), dtype=np.uint8))
+    for shape, count in zip(shapes, counts):
+        assert len(ds.filter(f"image.shape == {shape}")) == count
+
+
+def test_query_sample_info(local_ds, compressed_image_paths):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="jpg")
+        path_to_shape = {}
+        for path in compressed_image_paths["jpeg"]:
+            img = hub.read(path)
+            ds.image.append(img)
+            path_to_shape[path] = img.shape
+    for path in compressed_image_paths["jpeg"]:
+        view = ds.filter(f"r'{path}' in image.sample_info['filename']")
+        np.testing.assert_array_equal(
+            view[0].image.numpy().reshape(-1), np.array(hub.read(path)).reshape(-1)
+        )  # reshape to ignore grayscale normalization
+
+
+@hub.compute
+def create_dataset(class_num, sample_out):
+    """Add new element with a specific class"""
+    sample_out.append({"classes": np.uint32(class_num)})
+    return sample_out
+
+
+def test_query_bug_transformed_dataset(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "classes",
+            htype="class_label",
+            class_names=["class_0", "class_1", "class_2"],
+        )
+
+    with local_ds as ds:
+        # Add 30 elements with randomly generated class
+        list_classes = list(np.random.randint(3, size=30, dtype=np.uint32))
+        create_dataset().eval(list_classes, ds, num_workers=2)
+
+    ds_view = local_ds.filter("classes == 'class_0'", scheduler="threaded")
+    np.testing.assert_array_equal(ds_view.classes.numpy()[:, 0], [0] * len(ds_view))
+
+
+def test_view_sample_indices(memory_ds):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    assert list(ds[:5].sample_indices) == list(range(5))
+    assert list(ds[5:].sample_indices) == list(range(5, 10))
+
+
+def test_query_view_union(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    v1 = ds.filter(lambda s: s.x.numpy() % 2)
+    v2 = ds.filter(lambda s: not (s.x.numpy() % 2))
+    union = ds[sorted(list(set(v1.sample_indices).union(v2.sample_indices)))]
+    np.testing.assert_array_equal(union.x.numpy(), ds.x.numpy())
+
+
+def test_view_saving_with_path(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("nums")
+        ds.nums.extend(list(range(100)))
+        ds.commit()
+        with pytest.raises(DatasetViewSavingError):
+            ds[:10].save_view(path=local_ds.path)
+        vds_path = local_ds.path + "/../vds"
+        hub.delete(vds_path, force=True)
+        ds[:10].save_view(path=vds_path)
+        with pytest.raises(DatasetViewSavingError):
+            ds[:10].save_view(path=vds_path)
+        hub.delete(vds_path, force=True)
+
+
+def test_strided_view_bug(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("nums")
+        ds.nums.extend(list(range(200)))
+        ds.commit()
+    view = ds[:100:2]
+    view.save_view()
+    view2 = ds.get_views()[0].load()
+    np.testing.assert_array_equal(view.nums.numpy(), view2.nums.numpy())

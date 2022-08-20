@@ -10,7 +10,7 @@ from hub.core.dataset import Dataset
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_datasets, enabled_non_gdrive_datasets
+from hub.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -29,8 +29,17 @@ def to_tuple(sample):
     return sample["image"], sample["image2"]
 
 
-def my_collate(batch):
+def reorder_collate(batch):
     x = [((x["a"], x["b"]), x["c"]) for x in batch]
+    return default_collate(x)
+
+
+def dict_to_list(sample):
+    return [sample["a"], sample["b"], sample["c"]]
+
+
+def my_transform_collate(batch):
+    x = [(c, a, b) for a, b, c in batch]
     return default_collate(x)
 
 
@@ -187,7 +196,7 @@ def test_pytorch_transform_dict(ds):
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
         ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+        ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -272,7 +281,7 @@ def test_custom_tensor_order(ds):
     with pytest.raises(TensorDoesNotExistError):
         dl = ds.pytorch(num_workers=0, tensors=["c", "d", "e"])
 
-    dl = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
+    dl = ds.pytorch(num_workers=0, tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -298,7 +307,7 @@ def test_custom_tensor_order(ds):
         np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
         np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
-    dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"])
+    dls = ds.pytorch(num_workers=0, tensors=["c", "d", "a"], return_index=False)
     for i, batch in enumerate(dls):
         c1, d1, a1 = batch
         a2 = batch["a"]
@@ -348,7 +357,7 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
             local_ds.image.append(img_bad)
     num_samples = 0
     num_batches = 0
-    dl = local_ds.pytorch(num_workers=0, batch_size=2)
+    dl = local_ds.pytorch(num_workers=0, batch_size=2, return_index=False)
     for (batch,) in dl:
         num_batches += 1
         num_samples += len(batch)
@@ -405,7 +414,7 @@ def test_groups(local_ds, compressed_image_paths):
         for _ in range(10):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
-    dl = local_ds.pytorch()
+    dl = local_ds.pytorch(return_index=False)
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
@@ -421,7 +430,7 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.arrays.x.append(np.random.random((2, 3)))
             local_ds.arrays.y.append(np.random.random((4, 5)))
 
-    dl = local_ds.images.pytorch()
+    dl = local_ds.images.pytorch(return_index=False)
     for cat, flower in dl:
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
@@ -465,7 +474,8 @@ def test_pytorch_large(local_ds):
 
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_collate(local_ds, shuffle):
+@pytest.mark.parametrize("buffer_size", [0, 10])
+def test_pytorch_collate(local_ds, shuffle, buffer_size):
     local_ds.create_tensor("a")
     local_ds.create_tensor("b")
     local_ds.create_tensor("c")
@@ -474,13 +484,45 @@ def test_pytorch_collate(local_ds, shuffle):
         local_ds.b.append(1)
         local_ds.c.append(2)
 
-    ptds = local_ds.pytorch(batch_size=4, shuffle=shuffle, collate_fn=my_collate)
+    ptds = local_ds.pytorch(
+        batch_size=4,
+        shuffle=shuffle,
+        collate_fn=reorder_collate,
+        buffer_size=buffer_size,
+    )
     for batch in ptds:
         assert len(batch) == 2
         assert len(batch[0]) == 2
         np.testing.assert_array_equal(batch[0][0], np.array([0, 0, 0, 0]).reshape(4, 1))
         np.testing.assert_array_equal(batch[0][1], np.array([1, 1, 1, 1]).reshape(4, 1))
         np.testing.assert_array_equal(batch[1], np.array([2, 2, 2, 2]).reshape(4, 1))
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_transform_collate(local_ds, shuffle):
+    local_ds.create_tensor("a")
+    local_ds.create_tensor("b")
+    local_ds.create_tensor("c")
+    for _ in range(100):
+        local_ds.a.append(0 * np.ones((300, 300)))
+        local_ds.b.append(1 * np.ones((300, 300)))
+        local_ds.c.append(2 * np.ones((300, 300)))
+
+    ptds = local_ds.pytorch(
+        batch_size=4,
+        shuffle=shuffle,
+        collate_fn=my_transform_collate,
+        transform=dict_to_list,
+        buffer_size=10,
+    )
+    for batch in ptds:
+        assert len(batch) == 3
+        for i in range(2):
+            assert len(batch[i]) == 4
+        np.testing.assert_array_equal(batch[0], 2 * np.ones((4, 300, 300)))
+        np.testing.assert_array_equal(batch[1], 0 * np.ones((4, 300, 300)))
+        np.testing.assert_array_equal(batch[2], 1 * np.ones((4, 300, 300)))
 
 
 def run_ddp(rank, size, ds, q, backend="gloo"):
@@ -559,3 +601,148 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
         elif i >= 5 and compression:
             with open(compressed_image_paths["jpeg"][0], "rb") as f:
                 assert f.read() == image
+
+
+@requires_torch
+def test_rename(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("blue/green")
+        ds.abc.append([1, 2, 3])
+        ds.rename_tensor("abc", "xyz")
+        ds.rename_group("blue", "red")
+        ds["red/green"].append([1, 2, 3, 4])
+        loader = ds.pytorch(return_index=False)
+        for sample in loader:
+            assert set(sample.keys()) == {"xyz", "red/green"}
+            np.testing.assert_array_equal(
+                np.array(sample["xyz"]), np.array([[1, 2, 3]])
+            )
+            np.testing.assert_array_equal(
+                np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
+            )
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True, batch_size=4, shuffle=shuffle, num_workers=num_workers
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}
+        for i in range(len(batch)):
+            np.testing.assert_array_equal(batch["index"][i], batch["xyz"][i][0, 0])
+
+
+def index_transform(sample):
+    return sample["index"], sample["xyz"]
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_transform(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform=index_transform,
+    )
+
+    for batch in ptds:
+        assert len(batch) == 2
+        assert len(batch[0]) == 4
+        assert len(batch[1]) == 4
+
+        for i in range(4):
+            np.testing.assert_array_equal(batch[0][i], batch[1][i][0, 0])
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_transform_dict(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform={"xyz": double, "index": None},
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}
+        for i in range(len(batch)):
+            np.testing.assert_array_equal(2 * batch["index"][i], batch["xyz"][i][0, 0])
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        transform={"xyz": double},
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz"}
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_indexes_tensors(local_ds, shuffle, num_workers):
+    with local_ds as ds:
+        ds.create_tensor("xyz")
+        for i in range(8):
+            ds.xyz.append(i * np.ones((2, 2)))
+
+    with pytest.raises(ValueError):
+        ptds = local_ds.pytorch(
+            return_index=True,
+            shuffle=shuffle,
+            tensors=["xyz", "index"],
+        )
+
+    ptds = local_ds.pytorch(
+        return_index=True,
+        batch_size=4,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        tensors=["xyz"],
+    )
+
+    for batch in ptds:
+        assert batch.keys() == {"xyz", "index"}
+
+
+def test_uneven_iteration(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.x.extend(list(range(10)))
+        ds.y.extend(list(range(5)))
+        ptds = ds.pytorch()
+        for i, batch in enumerate(ptds):
+            x, y = np.array(batch["x"][0]), np.array(batch["y"][0])
+            np.testing.assert_equal(x, i)
+            target_y = i if i < 5 else []
+            np.testing.assert_equal(y, target_y)

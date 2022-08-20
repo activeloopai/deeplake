@@ -47,6 +47,9 @@ def test_dataset_locking(ds_generator):
         assert ds.read_only == True
         with pytest.raises(LockedException):
             ds.read_only = False
+        # Raise error if user explicitly asks for write access
+        with pytest.raises(LockedException):
+            ds = ds_generator(read_only=False)
         # No warnings if user requests read only mode
         with warnings.catch_warnings(record=True) as ws:
             ds = ds_generator(read_only=True)

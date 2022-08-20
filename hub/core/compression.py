@@ -286,6 +286,11 @@ def decompress_array(
         return _decompress_apng(buffer)  # type: ignore
     if compression == "dcm":
         return _decompress_dicom(buffer)  # type: ignore
+    if compression is None and isinstance(buffer, memoryview) and shape is not None:
+        assert buffer is not None
+        assert shape is not None
+        return np.frombuffer(buffer=buffer, dtype=dtype).reshape(shape)
+
     try:
         if shape is not None and 0 in shape:
             return np.zeros(shape, dtype=dtype)
@@ -304,9 +309,15 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, in
     """Gets the shape of a bounding box that can contain the given the shapes tiled horizontally."""
     if len(shapes) == 0:
         return (0, 0, 0)
-    channels_shape = shapes[0][2:]
+    channels_shape = None
     for shape in shapes:
-        if shape[2:] != channels_shape:
+        if shape != (0, 0, 0):
+            channels_shape = shape[2:]
+            break
+    if channels_shape is None:
+        channels_shape = (0,)
+    for shape in shapes:
+        if shape != (0, 0, 0) and shape[2:] != channels_shape:
             raise ValueError(
                 "The data can't be compressed as the number of channels doesn't match."
             )
@@ -320,14 +331,18 @@ def compress_multiple(
     The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     if len(arrays) == 0:
         return b""
-    dtype = arrays[0].dtype
+    dtype = None
     for arr in arrays:
-        if arr.dtype != dtype:
-            raise SampleCompressionError(
-                arr.shape,
-                compression,
-                message="All arrays expected to have same dtype.",
-            )
+        if arr.size:
+            if dtype is None:
+                dtype = arr.dtype
+            elif arr.dtype != dtype:
+                raise SampleCompressionError(
+                    arr.shape,
+                    compression,
+                    message="All arrays expected to have same dtype.",
+                )
+
     compr_type = get_compression_type(compression)
     if compr_type == BYTE_COMPRESSION:
         return compress_bytes(
@@ -342,6 +357,8 @@ def compress_multiple(
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
+        if arr.shape == (0, 0, 0):
+            continue
         canvas[: arr.shape[0], next_x : next_x + arr.shape[1]] = arr
         next_x += arr.shape[1]
     return compress_array(canvas, compression=compression)
@@ -371,8 +388,11 @@ def decompress_multiple(
     arrays = []
     next_x = 0
     for shape in shapes:
-        arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
-        next_x += shape[1]
+        if shape == (0, 0, 0):
+            arrays.append(np.zeros(shape, dtype=canvas.dtype))
+        else:
+            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+            next_x += shape[1]
     return arrays
 
 
@@ -815,9 +835,9 @@ def _read_video_shape(
 
 def _decompress_video(
     file: Union[str, bytes],
-    start: Optional[int],
-    stop: Optional[int],
-    step: Optional[int],
+    start: int,
+    stop: int,
+    step: int,
     reverse: bool,
 ):
     container, vstream = _open_video(file)
@@ -874,6 +894,68 @@ def _decompress_video(
     if reverse:
         return video[::-1]
     return video
+
+
+def _read_timestamps(
+    file: Union[str, bytes],
+    start: int,
+    stop: int,
+    step: int,
+    reverse: bool,
+) -> np.ndarray:
+    container, vstream = _open_video(file)
+
+    nframes = math.ceil((stop - start) / step)
+
+    seek_target = _frame_to_stamp(start, vstream)
+    step_time = _frame_to_stamp(step, vstream)
+
+    stamps = []
+    if vstream.duration is None:
+        time_base = 1 / av.time_base
+    else:
+        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+
+    gop_size = (
+        vstream.codec_context.gop_size
+    )  # gop size is distance (in frames) between 2 I-frames
+    if step > gop_size:
+        step_seeking = True
+    else:
+        step_seeking = False
+
+    seekable = True
+    try:
+        container.seek(seek_target, stream=vstream)
+    except av.error.PermissionError:
+        seekable = False
+        container, vstream = _open_video(file)  # try again but this time don't seek
+        warning(
+            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+        )
+
+    i = 0
+    for packet in container.demux(video=0):
+        pts = packet.pts
+        if pts and pts >= seek_target:
+            stamps.append(pts * time_base)
+            i += 1
+            seek_target += step_time
+            if step_seeking and seekable:
+                container.seek(seek_target, stream=vstream)
+
+        if i == nframes:
+            break
+
+    # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
+    # we need it in order of pts (presentation timestamp)
+    stamps.sort()
+    stamps_arr = np.zeros((nframes,), dtype=np.float32)
+    stamps_arr[: len(stamps)] = stamps
+
+    if reverse:
+        return stamps_arr[::-1]
+    return stamps_arr
 
 
 def _open_audio(file: Union[str, bytes, memoryview]):

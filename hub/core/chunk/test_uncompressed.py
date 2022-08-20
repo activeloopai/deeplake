@@ -13,6 +13,7 @@ from hub.core.tiling.sample_tiles import SampleTiles
 common_args = {
     "min_chunk_size": 1 * MB,
     "max_chunk_size": 2 * MB,
+    "tiling_threshold": 1 * MB,
     "compression": None,
 }
 
@@ -60,7 +61,7 @@ def test_read_write_sequence_big(cat_path):
         chunk = UncompressedChunk(**common_args)
         num_samples = chunk.extend_if_has_space(data_in)
         if num_samples == PARTIAL_NUM_SAMPLES:
-            tiles.append(chunk.read_sample(0))
+            tiles.append(chunk.read_sample(0, is_tile=True))
             sample = data_in[0]
             assert isinstance(sample, SampleTiles)
             if sample.is_last_write:
