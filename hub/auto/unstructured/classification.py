@@ -22,7 +22,6 @@ import hub
 LABELS_TENSOR_NAME = "labels"
 
 
-
 def _get_file_paths(directory: Path, relative_to: Union[str, Path] = "") -> List[Path]:
     g = glob.glob(os.path.join(directory, "**"), recursive=True)
     file_paths = []
@@ -193,16 +192,16 @@ class Classification(UnstructuredDataset):
             return ds
 
 
-
-
 class ImageClassification(Classification):
-    def __init__(self, source: str, htype: str): 
+    def __init__(self, source: str, htype: str):
         super().__init__(source, htype)
+
 
 class AudioClassification(Classification):
-    def __init__(self, source: str, htype: str): 
+    def __init__(self, source: str, htype: str):
         super().__init__(source, htype)
 
+
 class VideoClassification(Classification):
-    def __init__(self, source: str, htype: str): 
+    def __init__(self, source: str, htype: str):
         super().__init__(source, htype)

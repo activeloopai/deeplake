@@ -3,7 +3,11 @@ import hub
 from typing import Dict, Optional, Union
 
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
-from hub.auto.unstructured.classification import ImageClassification, AudioClassification, VideoClassification
+from hub.auto.unstructured.classification import (
+    ImageClassification,
+    AudioClassification,
+    VideoClassification,
+)
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
@@ -24,6 +28,11 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     SamePathException,
     AuthorizationException,
+)
+from hub.compression import (
+    IMAGE_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
@@ -51,8 +60,6 @@ IMAGE_FORMAT_NAME = [
 ]
 AUDIO_FORMAT_NAME = ["flac", "mp3", "wav"]
 VIDEO_FORMAT_NAME = ["mp4", "mkv", "avi"]
-
-
 
 
 class dataset:
@@ -716,18 +723,12 @@ class dataset:
             ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
-            if sample_compression in IMAGE_FORMAT_NAME:
-                unstructured = ImageClassification(
-                    source=src, htype="image"
-                )
-            elif sample_compression in AUDIO_FORMAT_NAME:
-                unstructured = AudioClassification(
-                    source=src, htype="audio"
-                )
-            elif sample_compression in VIDEO_FORMAT_NAME:
-                unstructured = VideoClassification(
-                    source=src, htype="video"
-                )
+            if sample_compression in IMAGE_COMPRESSIONS:
+                unstructured = ImageClassification(source=src, htype="image")
+            elif sample_compression in AUDIO_COMPRESSIONS:
+                unstructured = AudioClassification(source=src, htype="audio")
+            elif sample_compression in VIDEO_COMPRESSIONS:
+                unstructured = VideoClassification(source=src, htype="video")
 
             # TODO: auto detect compression
             unstructured.structure(
