@@ -16,11 +16,12 @@ compressions_paremetrized = pytest.mark.parametrize(
 
 @compressions_paremetrized
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
-def test_none_append(local_ds, compression, create_shape_tensor):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_append(local_ds, compression, create_shape_tensor, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", create_shape_tensor=create_shape_tensor, **compression)
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
         ds.xyz.append(np.ones((100, 100, 3), dtype=np.uint8))
 
         for i in range(2):
@@ -32,11 +33,12 @@ def test_none_append(local_ds, compression, create_shape_tensor):
 
 @compressions_paremetrized
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
-def test_only_nones_append(local_ds, compression, create_shape_tensor):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_only_nones_append(local_ds, compression, create_shape_tensor, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", create_shape_tensor=create_shape_tensor, **compression)
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
 
         for i in range(2):
             with pytest.raises(EmptyTensorError):
@@ -46,14 +48,15 @@ def test_only_nones_append(local_ds, compression, create_shape_tensor):
 
 @compressions_paremetrized
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
-def test_none_updates(local_ds, compression, create_shape_tensor):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_updates(local_ds, compression, create_shape_tensor, empty_sample):
     with local_ds as ds:
-        ds.create_tensor("xyz", **compression)
+        ds.create_tensor("xyz", create_shape_tensor=create_shape_tensor, **compression)
         ds.xyz.append(np.ones((100, 100, 3), dtype=np.uint8))
         ds.xyz.append(np.ones((300, 500, 3), dtype=np.uint8))
         ds.xyz.append(np.ones((300, 500, 3), dtype=np.uint8))
 
-        ds.xyz[1] = None
+        ds.xyz[1] = empty_sample
         assert ds.xyz[0].numpy().shape == (100, 100, 3)
         assert ds.xyz[0].shape == (100, 100, 3)
         assert ds.xyz[1].numpy().shape == (0, 0, 0)
@@ -62,11 +65,12 @@ def test_none_updates(local_ds, compression, create_shape_tensor):
         assert ds.xyz[2].shape == (300, 500, 3)
 
 
-def test_none_image_chunk_compression_2d(local_ds):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_image_chunk_compression_2d(local_ds, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", chunk_compression="png")
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
         assert ds.xyz.meta.max_shape == [0, 0, 0]
         assert ds.xyz[0].shape == ()
         assert ds.xyz[1].shape == ()
@@ -80,11 +84,12 @@ def test_none_image_chunk_compression_2d(local_ds):
         assert ds.xyz[2].shape == (500, 500)
 
 
-def test_none_text(local_ds):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_text(local_ds, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", htype="text")
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
         assert ds.xyz.meta.max_shape == [1]
         assert ds.xyz[0].numpy().shape == (1,)
         assert ds.xyz[0].shape == (1,)
@@ -106,11 +111,12 @@ def test_none_text(local_ds):
         assert ds.xyz[2].numpy() == "hello"
 
 
-def test_none_json(local_ds):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_json(local_ds, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", htype="json")
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
         assert ds.xyz.meta.max_shape == [1]
         assert ds.xyz[0].numpy().shape == (1,)
         assert ds.xyz[0].shape == (1,)
@@ -132,11 +138,12 @@ def test_none_json(local_ds):
         assert ds.xyz[2].numpy() == {"hello": "world"}
 
 
-def test_none_list(local_ds):
+@pytest.mark.parametrize("empty_sample", [None, []])
+def test_none_list(local_ds, empty_sample):
     with local_ds as ds:
         ds.create_tensor("xyz", htype="list")
-        ds.xyz.append(None)
-        ds.xyz.append(None)
+        ds.xyz.append(empty_sample)
+        ds.xyz.append(empty_sample)
         assert ds.xyz.meta.max_shape == [0]
         assert ds.xyz[0].numpy().shape == (0,)
         assert ds.xyz[0].shape == (0,)

@@ -30,6 +30,8 @@ from hub.util.exceptions import (
 )
 from hub.hooks import dataset_written, dataset_read
 from hub.util.version_control import auto_checkout, load_meta
+from hub.util.class_label import sync_labels
+import numpy as np
 
 
 class ComputeFunction:
@@ -180,6 +182,7 @@ class Pipeline:
                 target_ds,
                 compute_provider,
                 num_workers,
+                scheduler,
                 progressbar,
                 overwrite,
                 skip_ok,
@@ -205,6 +208,7 @@ class Pipeline:
         target_ds: hub.Dataset,
         compute: ComputeProvider,
         num_workers: int,
+        scheduler: str,
         progressbar: bool = True,
         overwrite: bool = False,
         skip_ok: bool = False,
@@ -216,11 +220,41 @@ class Pipeline:
             dataset_read(data_in)
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
+        class_label_tensors = [
+            tensor.key
+            for tensor in target_ds.tensors.values()
+            if tensor.base_htype == "class_label"
+            and not tensor.meta._disable_temp_transform
+        ]
+        label_temp_tensors = {}
+        actual_tensors = (
+            None
+            if not class_label_tensors
+            else [target_ds[t].key for t in target_ds.tensors]
+        )
+
+        for tensor in class_label_tensors:
+            temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
+            with target_ds:
+                temp_tensor_obj = target_ds.create_tensor(
+                    temp_tensor,
+                    htype="class_label",
+                    create_sample_info_tensor=False,
+                    create_shape_tensor=False,
+                    create_id_tensor=False,
+                )
+                temp_tensor_obj.meta._disable_temp_transform = True
+                label_temp_tensors[tensor] = temp_tensor
+            target_ds.flush()
+
         visible_tensors = list(target_ds.tensors)
         visible_tensors = [target_ds[t].key for t in visible_tensors]
+        visible_tensors = list(set(visible_tensors) - set(class_label_tensors))
 
         tensors = list(target_ds._tensors())
         tensors = [target_ds[t].key for t in tensors]
+        tensors = list(set(tensors) - set(class_label_tensors))
+
         group_index = target_ds.group_index
         version_state = target_ds.version_state
         if isinstance(storage, MemoryProvider):
@@ -231,6 +265,8 @@ class Pipeline:
             group_index,
             tensors,
             visible_tensors,
+            label_temp_tensors,
+            actual_tensors,
             self,
             version_state,
             target_ds.link_creds,
@@ -266,6 +302,16 @@ class Pipeline:
         )
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
         dataset_written(target_ds)
+
+        if label_temp_tensors:
+            sync_labels(
+                target_ds,
+                label_temp_tensors,
+                result["hash_label_maps"],
+                num_workers=num_workers,
+                scheduler=scheduler,
+                verbose=progressbar,
+            )
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401

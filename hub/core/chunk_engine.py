@@ -1,9 +1,20 @@
+from collections import OrderedDict
 from hub.client.log import logger
 import hub
 import numpy as np
 from tqdm import tqdm  # type: ignore
-from typing import Any, Callable, Dict, Optional, Sequence, Union, List, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Sequence,
+    Union,
+    List,
+    Tuple,
+)
 from hub.api.info import Info
+from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from hub.core.serialize import HEADER_SIZE_BYTES
 from hub.core.tensor_link import get_link_transform
@@ -17,6 +28,7 @@ from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
 from hub.util.casting import get_empty_text_like_sample, intelligent_cast
+from hub.util.empty_sample import is_empty_list
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
@@ -66,7 +78,7 @@ from hub.util.exceptions import (
 )
 from hub.util.remove_cache import get_base_storage
 from hub.util.image import convert_sample, convert_img_arr
-from hub.util.class_label import convert_to_idx
+from hub.util.class_label import convert_to_idx, convert_to_hash
 from hub.compression import VIDEO_COMPRESSIONS
 from hub.core.sample import Sample
 from itertools import chain, repeat
@@ -171,6 +183,8 @@ class ChunkEngine:
         self._info_commit_id: Optional[str] = None
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
+        self._is_temp_label_tensor: bool = False
+        self._hash_label_map: Dict[int, str] = OrderedDict()
 
         tensor_meta = self.tensor_meta
 
@@ -597,6 +611,7 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples):
         check_samples_type(samples)
+        samples = [None if is_empty_list(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(samples)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -606,7 +621,9 @@ class ChunkEngine:
             tensor_meta.set_dtype(get_dtype(samples))
         if self._convert_to_list(samples):
             samples = list(samples)
-        if tensor_meta.htype in ("image.gray", "image.rgb"):
+        if self._is_temp_label_tensor:
+            samples = verified_samples = convert_to_hash(samples, self._hash_label_map)
+        elif tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
             converted = []
             for sample in samples:
@@ -775,6 +792,7 @@ class ChunkEngine:
                 if link_callback:
                     link_callback(ls, flat=False)
                     for s in ls:
+                        s = None if is_empty_list(s) else s
                         link_callback(s, flat=True)
 
         else:
@@ -782,6 +800,7 @@ class ChunkEngine:
             ls = verified_samples or samples
             if link_callback:
                 for sample in ls:
+                    sample = None if is_empty_list(sample) else sample
                     link_callback(sample, flat=None)
 
         self.cache.autoflush = initial_autoflush
@@ -972,57 +991,46 @@ class ChunkEngine:
             if sum_bytes > int(RANDOM_MAX_ALLOWED_CHUNK_SIZE / 2):
                 break
             sample_shape = chunk.shapes_encoder[idx]
-
-            if not decompress:
-                samples_to_move = [
-                    Sample(
-                        buffer=sample_data,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                        dtype=chunk.dtype,
-                    )
-                ] + samples_to_move
-            else:
-                samples_to_move = [
-                    Sample(
-                        array=sample_data,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                    )
-                ] + samples_to_move
-
+            new_sample = self._get_sample_object(
+                sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
+            )
+            samples_to_move.append(new_sample)
+        samples_to_move.reverse()
         return samples_to_move
 
     def _get_chunk_samples(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
+        all_samples_in_chunk: List[Sample] = []
 
-        samples_to_move: List[Sample] = []
-
-        for idx in range(0, chunk.num_samples):
-            sample_bytes = chunk.read_sample(idx, decompress=decompress)
+        for idx in range(chunk.num_samples):
+            sample_data = chunk.read_sample(idx, decompress=decompress)
             sample_shape = chunk.shapes_encoder[idx]
+            new_sample = self._get_sample_object(
+                sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
+            )
+            all_samples_in_chunk.append(new_sample)
 
-            if not decompress:
-                samples_to_move = [
-                    Sample(
-                        buffer=sample_bytes,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                        dtype=chunk.dtype,
-                    )
-                ] + samples_to_move
-            else:
-                samples_to_move = [
-                    Sample(
-                        array=sample_bytes,
-                        shape=sample_shape,
-                        compression=chunk.compression,
-                    )
-                ] + samples_to_move
+        return all_samples_in_chunk
 
-        samples_to_move.reverse()
+    def _get_sample_object(
+        self, sample_data, sample_shape, compression, dtype, decompress
+    ):
+        if decompress:
+            sample = Sample(array=sample_data, shape=sample_shape)
+        else:
+            sample = Sample(
+                buffer=sample_data,
+                shape=sample_shape,
+                compression=compression,
+                dtype=dtype,
+            )
 
-        return samples_to_move
+        if self.tensor_meta.htype in ("json", "text", "list"):
+            sample.htype = self.tensor_meta.htype
+        if self.tensor_meta.is_link:
+            sample.htype = "text"
+            sample = LinkedSample(sample.array[0])
+        return sample
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
         samples_to_move = self._get_samples_to_move(chunk=chunk)
@@ -1155,14 +1163,12 @@ class ChunkEngine:
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
             self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
-            return
 
-        if (
+        elif (
             chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE
             or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
         ):
             self.__rechunk(chunk, chunk_row)
-            return
 
     def _update(
         self,
@@ -1191,12 +1197,12 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
         for i, sample in enumerate(samples):  # type: ignore
+            sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
                 chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-                row = self.chunk_id_encoder.__getitem__(global_sample_index, True)
                 local_sample_index = enc.translate_index_relative_to_chunks(
                     global_sample_index
                 )
@@ -1434,10 +1440,7 @@ class ChunkEngine:
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
-                if (
-                    self.tensor_meta.htype in {"text", "json", "list"}
-                    or self.tensor_meta.is_link
-                ):
+                if self.is_text_like:
                     num_bytes_entries = num_samples_in_chunk * 3
                 elif self.tensor_meta.sample_compression is None:
                     num_bytes_entries = 1 * 3
@@ -1703,38 +1706,44 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, index: int):
+    def pop(self, global_sample_index: int):
         self._write_initialization()
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")
-        if index < 0 or index >= self.tensor_meta.length:
+        if global_sample_index < 0 or global_sample_index >= self.tensor_meta.length:
             raise IndexError(
-                f"Index {index} is out of range for tensor of length {self.tensor_meta.length}"
+                f"Index {global_sample_index} is out of range for tensor of length {self.tensor_meta.length}"
             )
 
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
-        self.commit_diff.pop(index)
+        self.commit_diff.pop(global_sample_index)
         if self.is_sequence:
             # pop in reverse order else indices get shifted
-            for idx in reversed(range(*self.sequence_encoder[index])):
+            for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
                 self.pop_item(idx)
-            self.sequence_encoder.pop(index)
+            self.sequence_encoder.pop(global_sample_index)
         else:
-            self.pop_item(index)
+            self.pop_item(global_sample_index)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def pop_item(self, index):
-        chunk_ids, rows, delete = self.chunk_id_encoder.pop(index)
+    def pop_item(self, global_sample_index):
+        enc = self.chunk_id_encoder
+        if not self._is_tiled_sample(global_sample_index):
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+        chunk_ids, rows, delete = enc.pop(global_sample_index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            del self.tile_encoder[index]
+            del self.tile_encoder[global_sample_index]
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
-            chunk_to_update.pop(index)
+            chunk_to_update.pop(local_sample_index)
+
             self._check_rechunk(chunk_to_update, chunk_row=rows[0])
 
             if (
@@ -1751,7 +1760,7 @@ class ChunkEngine:
                 except KeyError:
                     pass
 
-        self.tensor_meta.pop(index)
+        self.tensor_meta.pop(global_sample_index)
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:
@@ -2137,6 +2146,13 @@ class ChunkEngine:
             ndim += 1
         shape = (0,) * ndim
         return np.ones(shape, dtype=dtype)
+
+    @property
+    def is_text_like(self):
+        return (
+            self.tensor_meta.htype in {"text", "json", "list"}
+            or self.tensor_meta.is_link
+        )
 
     def check_remove_active_chunks(self, chunk_key):
         if (
