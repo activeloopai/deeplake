@@ -182,6 +182,23 @@ def test_add_populate_creds(local_ds_generator):
     assert ds.link_creds.creds_dict == {}
 
 
+def test_none_used_key(local_ds_generator, cat_path):
+    local_ds = local_ds_generator()
+    with local_ds as ds:
+        ds.create_tensor("xyz", htype="link[image]")
+        ds.add_creds_key("my_s3_key")
+        ds.populate_creds("my_s3_key", {})
+        ds.xyz.append(hub.link(cat_path))
+        assert ds.link_creds.used_creds_keys == set()
+        ds.xyz.append(hub.link(cat_path, "ENV"))
+        assert ds.link_creds.used_creds_keys == set()
+        ds.xyz.append(hub.link(cat_path, "my_s3_key"))
+        assert ds.link_creds.used_creds_keys == {"my_s3_key"}
+
+    ds = local_ds_generator()
+    assert ds.link_creds.used_creds_keys == {"my_s3_key"}
+
+
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, verify):
