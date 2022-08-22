@@ -1,4 +1,3 @@
-from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.link_creds import LinkCreds
 from hub.core.lock import Lock
 from hub.core.storage.lru_cache import LRUCache
@@ -83,11 +82,3 @@ def get_path_creds_key(sample):
     if sample is None:
         return None, None
     return sample.path, sample.creds_key
-
-
-def convert_creds_key(creds_key: Optional[str], path: str):
-    if creds_key is None and path.startswith(ALL_CLOUD_PREFIXES):
-        creds_key = "ENV"
-    elif creds_key == "ENV" and not path.startswith(ALL_CLOUD_PREFIXES):
-        creds_key = None
-    return creds_key
