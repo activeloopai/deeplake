@@ -41,13 +41,8 @@ import jwt  # should add it to requirements.txt
 retry_status_codes = {502}
 
 
-def response_data_to_error_type_converter():
-
-
-
 ERROR_TYPE_TO_RESPONSE_DATA_DESCRIPTION = {
     TokenPermissionError: "You don't have permission to access this dataset",
-
 }
 
 
@@ -227,6 +222,7 @@ class HubBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
+                authorization_exception_prompt = "You don't have permission to access"
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
@@ -243,7 +239,7 @@ class HubBackendClient:
                     except Exception:
                         raise InvalidTokenException
 
-                    if decoded_token["id"] == "public":
+                    if authorization_exception_prompt in response_data["description"]:
                         raise UserNotLoggedInException()
                     raise TokenPermissionError()
             raise
