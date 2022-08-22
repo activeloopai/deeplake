@@ -2068,6 +2068,9 @@ def test_hub_token_without_permission(
         "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
     )
 
+    with pytest.raises(TokenPermissionError):
+        ds = hub.load("hub://activeloop/fake-path")
+
 
 def test_incompat_dtype_msg(local_ds, capsys):
     local_ds.create_tensor("abc", dtype="uint32")
