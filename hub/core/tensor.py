@@ -815,12 +815,9 @@ class Tensor:
             )
 
             if self.ndim == 2:
-                sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
-                    self.sample_info
-                )
                 meta = {}  # type: ignore
 
-                if sample_info_tensor_is_empty:
+                if self.sample_info:
                     return meta
 
                 for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
@@ -831,11 +828,8 @@ class Tensor:
             meta = []  # type: ignore
             for sample_index in range(len(full_arr)):
                 meta_dict = {}  # type: ignore
-                sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
-                    self.sample_info[sample_index]
-                )
 
-                if sample_info_tensor_is_empty:
+                if self.sample_info[sample_index]:
                     meta.append(meta_dict)  # type: ignore
                     continue
 
@@ -1127,9 +1121,3 @@ class Tensor:
             return list(self.numpy())
         else:
             return list(map(list, self.numpy(aslist=True)))
-
-    @staticmethod
-    def _check_whether_sample_info_is_empty(sample_info):
-        if len(sample_info) == 0:
-            return True
-        return False
