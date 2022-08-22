@@ -41,6 +41,16 @@ import jwt  # should add it to requirements.txt
 retry_status_codes = {502}
 
 
+def response_data_to_error_type_converter():
+
+
+
+ERROR_TYPE_TO_RESPONSE_DATA_DESCRIPTION = {
+    TokenPermissionError: "You don't have permission to access this dataset",
+
+}
+
+
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
@@ -226,15 +236,16 @@ class HubBackendClient:
                 elif code == 2:
                     raise NotLoggedInAgreementError from e
                 else:
+                    try:
+                        decoded_token = jwt.decode(
+                            self.token, options={"verify_signature": False}
+                        )
+                    except Exception:
+                        raise InvalidTokenException
+
+                    if decoded_token["id"] == "public":
+                        raise UserNotLoggedInException()
                     raise TokenPermissionError()
-            try:
-                decoded_token = jwt.decode(
-                    self.token, options={"verify_signature": False}
-                )
-            except Exception:
-                raise InvalidTokenException
-            if decoded_token["id"] == "public":
-                raise UserNotLoggedInException()
             raise
 
         full_url = response.get("path")

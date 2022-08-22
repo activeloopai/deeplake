@@ -2031,28 +2031,9 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def test_hub_token_without_permission(
-    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+def TokenPermissionError_check(
+    username, password, runner, hub_cloud_dev_token,
 ):
-    os.remove(REPORTING_CONFIG_FILE_PATH)
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
-
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
-    )
-
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token",
-        "empty",
-        parameters={},
-        token=hub_cloud_dev_token,
-    )
-
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
@@ -2064,6 +2045,48 @@ def test_hub_token_without_permission(
 
     with pytest.raises(TokenPermissionError):
         ds = hub.load("hub://activeloop/fake-path")
+
+
+def InvalidTokenException_check():
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
+
+
+def UserNotLoggedInException_check(
+    hub_cloud_dev_credentials
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+    with pytest.raises(UserNotLoggedInException):
+       runner.invoke(logout)
+
+
+def DatasetHandlerError_check(
+    hub_cloud_dev_credentials
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(DatasetHandlerError):
+        ds = hub.load(f"hub://{username}/wrong-path")
+
+
+def test_hub_related_permission_exceptions(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    TokenPermissionError_check(
+        username, password, runner, hub_cloud_dev_token,
+    )
+    InvalidTokenException_check()
+    UserNotLoggedInException_check(
+        hub_cloud_dev_credentials
+    )
+    DatasetHandlerError_check(
+        hub_cloud_dev_credentials
+    )
 
 
 def test_incompat_dtype_msg(local_ds, capsys):
