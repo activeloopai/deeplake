@@ -225,6 +225,8 @@ class HubBackendClient:
                     raise AgreementNotAcceptedError(agreements) from e
                 elif code == 2:
                     raise NotLoggedInAgreementError from e
+                else:
+                    raise TokenPermissionError()
             try:
                 decoded_token = jwt.decode(
                     self.token, options={"verify_signature": False}
@@ -233,8 +235,6 @@ class HubBackendClient:
                 raise InvalidTokenException
             if decoded_token["id"] == "public":
                 raise UserNotLoggedInException()
-            if isinstance(e, AuthorizationException):
-                raise TokenPermissionError()
             raise
 
         full_url = response.get("path")
