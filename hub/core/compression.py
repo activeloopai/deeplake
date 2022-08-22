@@ -649,7 +649,7 @@ def read_meta_from_compressed_file(
             try:
                 shape, typestr = _read_point_cloud_shape_and_dtype(file)
             except Exception as e:
-                raise CorruptedSampleError(compression)
+                raise CorruptedSampleError(compression) from e
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)

@@ -42,6 +42,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    InvalidHtypeError,
 )
 
 from hub.util.pretty_print import (
@@ -666,10 +667,13 @@ class Tensor:
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
             ValueError: If the tensor is a link and the credentials are not populated.
+            InvalidHtypeError:  if this method is used with invalid htype
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
+        if self.htype != "point_cloud":
+            raise InvalidHtypeError("point_cloud")
         return self.chunk_engine.numpy(
             self.index, aslist=aslist, fetch_chunks=fetch_chunks
         )
