@@ -650,34 +650,6 @@ class Tensor:
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
-    def get_full_point_cloud_numpy(
-        self, aslist=False, fetch_chunks=False
-    ) -> Union[np.ndarray, List[np.ndarray]]:
-        """Computes the contents of the tensor in numpy format.
-
-        Args:
-            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
-                If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
-                an error is raised.
-            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
-                This will always be True even if specified as False in the following cases:
-                - The tensor is ChunkCompressed
-                - The chunk which is being accessed has more than 128 samples.
-
-        Raises:
-            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
-            ValueError: If the tensor is a link and the credentials are not populated.
-            InvalidHtypeError:  if this method is used with invalid htype
-
-        Returns:
-            A numpy array containing the data represented by this tensor.
-        """
-        if self.htype != "point_cloud":
-            raise InvalidHtypeError("point_cloud")
-        return self.chunk_engine.numpy(
-            self.index, aslist=aslist, fetch_chunks=fetch_chunks
-        )
-
     def numpy(
         self, aslist=False, fetch_chunks=False
     ) -> Union[np.ndarray, List[np.ndarray]]:
@@ -700,9 +672,13 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         if self.htype == "point_cloud":
-            full_numpy_arr = self.get_full_point_cloud_numpy(
-                aslist=aslist, fetch_chunks=fetch_chunks
+            full_numpy_arr = self.chunk_engine.numpy(
+                self.index,
+                aslist=aslist,
+                fetch_chunks=fetch_chunks,
+                pad_tensor=self.pad_tensor,
             )
+
             if isinstance(full_numpy_arr, list):
                 return [arr[..., :3] for arr in full_numpy_arr]
             return full_numpy_arr[..., :3]
@@ -832,7 +808,11 @@ class Tensor:
                 "sample_info": self.sample_info or {},
             }
         elif htype == "point_cloud":
-            full_arr = self.get_full_point_cloud_numpy(aslist=aslist)
+            full_arr = self.chunk_engine.numpy(
+                self.index,
+                aslist=aslist,
+                pad_tensor=self.pad_tensor,
+            )
 
             if self.ndim == 2:
                 sample_info_tensor_is_empty = self._check_whether_sample_info_is_empty(
