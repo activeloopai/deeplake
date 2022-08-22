@@ -90,6 +90,19 @@ def test_point_cloud(local_ds, point_cloud_paths):
     local_ds.point_cloud_with_sample_compression.append(hub.read(path, verify=True))
     assert local_ds.point_cloud_with_sample_compression.shape == (1, 20153, 18)
 
+    local_ds.create_tensor(
+        "point_cloud_data_method_type_tester",
+        htype="point_cloud",
+        sample_compression="las",
+    )
+    local_ds.point_cloud_data_method_type_tester.append(sample)
+    assert isinstance(local_ds.point_cloud_data_method_type_tester.data(), dict)
+
+    local_ds.point_cloud_data_method_type_tester.append(sample)
+    assert isinstance(
+        local_ds.point_cloud_data_method_type_tester.data(aslist=True), list
+    )
+
 
 def shape_tester(local_ds, path, sample, tensor, feature_size):
     with local_ds:
