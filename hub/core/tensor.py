@@ -817,7 +817,7 @@ class Tensor:
             if self.ndim == 2:
                 meta = {}  # type: ignore
 
-                if self.sample_info:
+                if len(self.sample_info) == 0:
                     return meta
 
                 for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
@@ -829,7 +829,7 @@ class Tensor:
             for sample_index in range(len(full_arr)):
                 meta_dict = {}  # type: ignore
 
-                if self.sample_info[sample_index]:
+                if len(self.sample_info[sample_index]) == 0:
                     meta.append(meta_dict)  # type: ignore
                     continue
 
