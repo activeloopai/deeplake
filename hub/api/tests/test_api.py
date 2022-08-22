@@ -2032,7 +2032,10 @@ def test_uneven_iteration(memory_ds):
 
 
 def TokenPermissionError_check(
-    username, password, runner, hub_cloud_dev_token,
+    username,
+    password,
+    runner,
+    hub_cloud_dev_token,
 ):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
@@ -2052,20 +2055,13 @@ def InvalidTokenException_check():
         ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
 
 
-def UserNotLoggedInException_check(
-    hub_cloud_dev_credentials
-):
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
+def UserNotLoggedInException_check(runner):
+    runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
-       runner.invoke(logout)
+        ds = hub.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
 
 
-def DatasetHandlerError_check(
-    hub_cloud_dev_credentials
-):
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
+def DatasetHandlerError_check(runner, username, password):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(DatasetHandlerError):
         ds = hub.load(f"hub://{username}/wrong-path")
@@ -2078,15 +2074,14 @@ def test_hub_related_permission_exceptions(
     runner = CliRunner()
 
     TokenPermissionError_check(
-        username, password, runner, hub_cloud_dev_token,
+        username,
+        password,
+        runner,
+        hub_cloud_dev_token,
     )
     InvalidTokenException_check()
-    UserNotLoggedInException_check(
-        hub_cloud_dev_credentials
-    )
-    DatasetHandlerError_check(
-        hub_cloud_dev_credentials
-    )
+    UserNotLoggedInException_check(runner)
+    DatasetHandlerError_check(runner, username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):
