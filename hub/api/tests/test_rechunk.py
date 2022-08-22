@@ -197,7 +197,7 @@ def test_rechunk_list(local_ds_generator):
 def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_paths):
     dog_path = color_image_paths["jpeg"]
     with local_ds_generator() as ds:
-        ds.create_tensor("abc", "link")
+        ds.create_tensor("abc", "link[image]")
         add_sample_in().eval(
             [hub.link(dog_path), hub.link(flower_path), hub.link(cat_path)],
             ds,
