@@ -1,6 +1,5 @@
 from hub.constants import ALL_CLOUD_PREFIXES
 from hub.core.link_creds import LinkCreds
-from hub.core.linked_sample import LinkedSample
 from hub.core.lock import Lock
 from hub.core.storage.lru_cache import LRUCache
 from hub.util.keys import (
@@ -80,7 +79,7 @@ def save_link_creds(
     lock.release()
 
 
-def get_path_creds_key(sample: Optional[LinkedSample]):
+def get_path_creds_key(sample):
     if sample is None:
         return None, None
     return sample.path, sample.creds_key
