@@ -966,7 +966,6 @@ def test_compressions_list():
         "dib",
         "eps",
         "flac",
-        "fli",
         "gif",
         "ico",
         "im",
@@ -976,7 +975,6 @@ def test_compressions_list():
         "mkv",
         "mp3",
         "mp4",
-        "mpo",
         "msp",
         "pcx",
         "png",
@@ -1188,7 +1186,7 @@ def test_vc_bug(local_ds_generator):
     assert list(ds.tensors) == ["abc", "a/b/c/d"]
 
 
-@pytest.mark.skipif(
+@pytest.mark.skip(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
