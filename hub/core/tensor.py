@@ -57,6 +57,10 @@ from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
+from hub.util.point_cloud import (
+    POINT_CLOUD_FIELD_NAME_TO_TYPESTR,
+    cast_point_cloud_array_to_proper_dtype,
+)
 import warnings
 import webbrowser
 
@@ -669,6 +673,18 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
+        if self.htype == "point_cloud":
+            full_numpy_arr = self.chunk_engine.numpy(
+                self.index,
+                aslist=aslist,
+                fetch_chunks=fetch_chunks,
+                pad_tensor=self.pad_tensor,
+            )
+
+            if isinstance(full_numpy_arr, list):
+                return [arr[..., :3] for arr in full_numpy_arr]
+            return full_numpy_arr[..., :3]
+
         return self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
@@ -793,6 +809,45 @@ class Tensor:
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
             }
+        elif htype == "point_cloud":
+            full_arr = self.chunk_engine.numpy(
+                self.index,
+                aslist=aslist,
+                pad_tensor=self.pad_tensor,
+            )
+
+            if self.ndim == 2:
+                meta = {}  # type: ignore
+
+                if len(self.sample_info) == 0:
+                    return meta
+
+                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
+                    typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
+                    meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
+                return meta
+
+            meta = []  # type: ignore
+            for sample_index in range(len(full_arr)):
+                meta_dict = {}  # type: ignore
+
+                if len(self.sample_info[sample_index]) == 0:
+                    meta.append(meta_dict)  # type: ignore
+                    continue
+
+                for dimension_index, dimension_name in enumerate(
+                    self.sample_info[sample_index]["dimension_names"]
+                ):
+                    dtype = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
+                    meta_dict[dimension_name] = cast_point_cloud_array_to_proper_dtype(
+                        full_arr, sample_index, dimension_index, dtype
+                    )
+                meta.append(meta_dict)  # type: ignore
+
+            if len(full_arr) == 1:
+                meta = meta[0]  # type: ignore
+            return meta
+
         else:
             return {
                 "value": self.numpy(aslist=aslist),

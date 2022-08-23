@@ -3,9 +3,7 @@ import numpy as np
 from numpy import ndarray
 import json
 import base64
-
 from hub.core.sample import Sample  # type: ignore
-
 
 Schema = Any
 

@@ -2,6 +2,7 @@ from hub.compression import (
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
     get_compression_type,
 )
 from hub.core.tiling.sample_tiles import SampleTiles

@@ -40,6 +40,7 @@ extras = {
         "google-auth",
         "google-auth-oauthlib",
     ],
+    "point_cloud": ["laspy"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
