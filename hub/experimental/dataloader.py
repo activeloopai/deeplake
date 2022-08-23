@@ -3,6 +3,7 @@ from typing import Callable, List, Optional
 from hub.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.experimental.util import collate_fn as default_collate  # type: ignore
+from hub.experimental import query
 from hub.util.bugout_reporter import hub_reporter
 
 try:
@@ -15,8 +16,7 @@ except ImportError:
 
 class DataLoader:
     @hub_reporter.record_call
-    @staticmethod
-    def init(dataset):
+    def __new__(cls, dataset):
         return Hub3DataLoader(dataset)
 
 
@@ -103,9 +103,9 @@ class Hub3DataLoader:
         all_vars["_transform"] = transform_fn
         return self.__class__(**all_vars)
 
-    def query(self, query: str):
+    def query(self, query_string: str):
         all_vars = deepcopy(self.__dict__)
-        all_vars["dataset"] = self.dataset.query(query)
+        all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
     def to_pytorch(
