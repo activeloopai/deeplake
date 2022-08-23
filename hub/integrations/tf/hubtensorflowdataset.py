@@ -3,7 +3,7 @@ Tensorflow dataset wrapper
 """
 import abc
 
-import tensorflow as tf
+import tensorflow as tf  # type: ignore
 
 
 def hub_tf_adapter(_fn):

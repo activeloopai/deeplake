@@ -262,7 +262,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             raise TensorMetaMissingRequiredValue(
                 htype, ["chunk_compression", "sample_compression"]  # type: ignore
             )
-    if htype in ("audio", "video"):
+    if htype in ("audio", "video", "point_cloud"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
@@ -289,7 +289,10 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
         if v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
-    if htype in ("json", "list", "text") and not htype_overwrite["dtype"]:
+    if (
+        htype in ("json", "list", "text", "point_cloud_calibration_matrix")
+        and not htype_overwrite["dtype"]
+    ):
         htype_overwrite["dtype"] = HTYPE_CONFIGURATIONS[htype]["dtype"]
 
 
@@ -335,7 +338,7 @@ def _format_values(htype: str, htype_overwrite: dict):
 
     dtype = htype_overwrite["dtype"]
     if dtype is not None:
-        if htype in ("json", "list"):
+        if htype in ("json", "list", "point_cloud_calibration_matrix"):
             if getattr(dtype, "__module__", None) == "typing":
                 htype_overwrite["dtype"] = str(dtype)
         else:

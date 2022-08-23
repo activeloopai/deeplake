@@ -443,6 +443,18 @@ def video_paths():
 
 
 @pytest.fixture
+def point_cloud_paths():
+    paths = {
+        "las": "point_cloud.las",
+    }
+
+    parent = get_dummy_data_path("point_cloud")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+    return paths
+
+
+@pytest.fixture
 def vstream_path(request):
     """Used with parametrize to use all video stream test datasets."""
     return request.getfixturevalue(request.param)
