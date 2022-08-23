@@ -9,6 +9,14 @@ Base Storage Provider
     :special-members:
     :members:
 
+LRU Cache
+~~~~~~~~~
+.. autoclass:: LRUCache()
+    :show-inheritance:
+    :private-members:
+    :special-members:
+    :members:
+
 S3 Storage Provider
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: S3Provider()

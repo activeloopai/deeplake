@@ -1,22 +1,6 @@
 Tensors
 =======
 
-.. currentmodule:: hub.core.tensor
-
-Data is stored in tensors within datasets. They are created using Dataset's :meth:`Dataset.create_tensor <hub.core.dataset.Dataset.create_tensor>` method 
-and can be accessed by ``__getitem__`` or ``__getattr__`` of datasets. Tensors can be indexed just like numpy arrays. 
-No data is fetched until you call one of the functions in :ref:`Retrieving samples`.
-
->>> ds = hub.empty("./my_dataset")
->>> ds.create_tensor('abc')
->>> ds.abc.append([1, 2, 3, 4])
->>> ds.abc # tensor abc
->>> ds['abc'] # tensor abc
->>> ds.abc.numpy()
-array([[1, 2, 3, 4]])
->>> ds['abc'].numpy()
-array([[1, 2, 3, 4]])
-
 .. currentmodule:: hub.core.dataset
 Creating Tensors
 ~~~~~~~~~~~~~~~~

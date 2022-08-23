@@ -17,8 +17,8 @@ Hub is an open-source database for AI.
    Datasets
    Tensors
    Htypes
-   PyTorch and Tensorflow Support
-   Utility Functions
+   PyTorch and Tensorflow Support <Pytorch-and-Tensorflow-Support>
+   Utility Functions <Utility-Functions>
 
 .. toctree::
    :maxdepth: 1
