@@ -1,4 +1,6 @@
-from typing import Dict
+from typing import Dict, List
+
+import numpy as np
 
 
 POINT_CLOUD_FIELD_NAME_TO_TYPESTR: Dict = {
@@ -60,3 +62,11 @@ LAS_HEADER_FILED_NAME_TO_PARSER = {
     "creation_date": creation_date_parser,
     "global_encoding": global_encoding_parser,
 }
+
+
+def cast_point_cloud_array_to_proper_dtype(
+    full_arr, sample_index, dimension_index, dtype
+):
+    if isinstance(full_arr, List):
+        return full_arr[sample_index][:, dimension_index].astype(np.dtype(dtype))
+    return full_arr[sample_index, :, dimension_index].astype(np.dtype(dtype))

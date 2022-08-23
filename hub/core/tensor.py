@@ -42,7 +42,6 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    InvalidHtypeError,
 )
 
 from hub.util.pretty_print import (
@@ -58,7 +57,10 @@ from hub.util.video import normalize_index
 
 from hub.compression import get_compression_type, VIDEO_COMPRESSION
 from hub.util.notebook import is_jupyter, video_html, is_colab
-from hub.util.point_cloud import POINT_CLOUD_FIELD_NAME_TO_TYPESTR
+from hub.util.point_cloud import (
+    POINT_CLOUD_FIELD_NAME_TO_TYPESTR,
+    cast_point_cloud_array_to_proper_dtype,
+)
 import warnings
 import webbrowser
 
@@ -837,9 +839,7 @@ class Tensor:
                     self.sample_info[sample_index]["dimension_names"]
                 ):
                     dtype = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
-                    meta_dict[
-                        dimension_name
-                    ] = self._cast_point_cloud_array_to_proper_dtype(
+                    meta_dict[dimension_name] = cast_point_cloud_array_to_proper_dtype(
                         full_arr, sample_index, dimension_index, dtype
                     )
                 meta.append(meta_dict)  # type: ignore
@@ -852,14 +852,6 @@ class Tensor:
             return {
                 "value": self.numpy(aslist=aslist),
             }
-
-    @staticmethod
-    def _cast_point_cloud_array_to_proper_dtype(
-        full_arr, sample_index, dimension_index, dtype
-    ):
-        if isinstance(full_arr, List):
-            return full_arr[sample_index][:, dimension_index].astype(np.dtype(dtype))
-        return full_arr[sample_index, :, dimension_index].astype(np.dtype(dtype))
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.

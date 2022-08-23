@@ -314,7 +314,7 @@ def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
         )
 
     if htype_overwrite["dtype"] is not None:
-        if htype in ("json", "list", "point_cloud_calibration_matrix"):
+        if htype in ("json", "list"):
             validate_json_schema(htype_overwrite["dtype"])
         else:
             _raise_if_condition(

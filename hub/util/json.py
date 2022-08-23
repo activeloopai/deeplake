@@ -3,7 +3,6 @@ import numpy as np
 from numpy import ndarray
 import json
 import base64
-import laspy  # type: ignore
 from hub.core.sample import Sample  # type: ignore
 
 Schema = Any
