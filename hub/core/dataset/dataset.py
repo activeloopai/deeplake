@@ -13,8 +13,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
 import hub
 from hub.core.link_creds import LinkCreds
-from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3
-from hub.integrations.hub3.dataloader import Hub3DataLoader
 from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
@@ -1418,16 +1416,6 @@ class Dataset:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
 
         return dataloader
-
-    @hub_reporter.record_call
-    def query(self, query_string: str):
-        """
-        Query the dataset.
-        """
-        ds = dataset_to_hub3(self)
-        dsv = ds.query(query_string)
-        indexes = dsv.indexes  # TODO: enable this in indra
-        return self[indexes]
 
     @hub_reporter.record_call
     def filter(
@@ -3238,100 +3226,6 @@ class Dataset:
             not self.index.is_trivial()
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
-        )
-
-    def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched DataLoader object.
-
-        Args:
-            batch_size (int): Number of samples in each batch.
-            drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
-
-        Returns:
-            Dataloader: A Dataloader object.
-        """
-        return Hub3DataLoader(self, _batch_size=batch_size, _drop_last=drop_last)
-
-    def shuffle(self):
-        """Returns a shuffled Dataloader object.
-
-        Returns:
-            Dataloader: A Dataloader object.
-        """
-        return Hub3DataLoader(self, _shuffle=True)
-
-    def transform(self, transform_fn: Callable):
-        """Returns a transformed Dataloader object.
-
-        Args:
-            transform_fn (Callable): A function that takes a sample as input and returns a transformed sample.
-
-        Returns:
-            Dataloader: A Dataloader object.
-        """
-        return Hub3DataLoader(self, _transform=transform_fn)
-
-    def to_pytorch(
-        self,
-        num_workers: int = 0,
-        collate_fn: Callable = None,
-        tensors: Optional[List[str]] = None,
-        num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
-        distributed: bool = False,
-    ):
-        """Returns a pytorch Dataloader object.
-
-        Args:
-            num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
-            collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
-            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
-            num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
-            distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
-
-        Returns:
-            Dataloader: A Dataloader object.
-        """
-        return Hub3DataLoader(
-            self,
-            _mode="pytorch",
-            _num_workers=num_workers,
-            _collate_fn=collate_fn,
-            _tensors=tensors,
-            _num_threads=num_threads,
-            _prefetch_factor=prefetch_factor,
-            _distributed=distributed,
-        )
-
-    def to_numpy(
-        self,
-        num_workers: int = 0,
-        tensors: Optional[List[str]] = None,
-        num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
-    ):
-        """Returns a numpy Dataloader object.
-
-        Args:
-            num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
-            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
-            num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
-
-        Returns:
-            Dataloader: A Dataloader object.
-
-        Raises:
-            ValueError: If .to_pytorch() or .to_numpy() has already been called.
-        """
-        return Hub3DataLoader(
-            self,
-            _mode="numpy",
-            _num_workers=num_workers,
-            _tensors=tensors,
-            _num_threads=num_threads,
-            _prefetch_factor=prefetch_factor,
         )
 
 

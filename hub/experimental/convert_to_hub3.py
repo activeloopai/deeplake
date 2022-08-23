@@ -1,5 +1,4 @@
-import hub
-from hub.integrations.hub3.util import raise_indra_installation_error  # type: ignore
+from hub.experimental.util import raise_indra_installation_error  # type: ignore
 
 try:
     from indra import api  # type: ignore

@@ -1,8 +1,9 @@
 from copy import deepcopy
 from typing import Callable, List, Optional
-from hub.integrations.hub3.convert_to_hub3 import dataset_to_hub3  # type: ignore
-from hub.integrations.hub3.util import raise_indra_installation_error  # type: ignore
-from hub.integrations.hub3.util import collate_fn as default_collate  # type: ignore
+from hub.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
+from hub.experimental.util import raise_indra_installation_error  # type: ignore
+from hub.experimental.util import collate_fn as default_collate  # type: ignore
+from hub.util.bugout_reporter import hub_reporter
 
 try:
     from indra import Loader  # type: ignore
@@ -10,6 +11,13 @@ try:
     INDRA_INSTALLED = True
 except ImportError:
     INDRA_INSTALLED = False
+
+
+class DataLoader:
+    @hub_reporter.record_call
+    @staticmethod
+    def init(dataset):
+        return Hub3DataLoader(dataset)
 
 
 class Hub3DataLoader:
