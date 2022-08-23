@@ -229,7 +229,9 @@ class AuthorizationException(Exception):
     def __init__(
         self,
         message="You are not authorized to access this resource on Activeloop Server.",
+        response=None,
     ):
+        self.response = response
         super().__init__(message)
 
 
@@ -677,9 +679,17 @@ class AgreementError(Exception):
 
 
 class AgreementNotAcceptedError(AgreementError):
-    def __init__(self):
+    def __init__(self, agreements=None):
+        self.agreements = agreements
         super().__init__(
             "You did not accept the agreement. Make sure you type in the dataset name exactly as it appears."
+        )
+
+
+class NotLoggedInAgreementError(AgreementError):
+    def __init__(self):
+        super().__init__(
+            "You are not logged in. Please log in to accept the agreement."
         )
 
 
@@ -751,6 +761,10 @@ class InvalidTokenException(Exception):
 
 
 class TokenPermissionError(Exception):
-    def __init__(self, message=""):
-
+    def __init__(self):
+        message = (
+            "A dataset does not exist at the specified path, or you do not have "
+            "sufficient permissions to load or create one. Please check the dataset "
+            "path and make sure that you have sufficient permissions to the path."
+        )
         super().__init__(message)

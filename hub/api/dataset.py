@@ -144,13 +144,6 @@ class dataset:
                     "‘activeloop register."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    f"You can not load or create this dataset. You do not have sufficient "
-                    f"permissions. Please make sure that you have sufficient permissions "
-                    f"to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
         ds_exists = dataset_exists(cache_chain)
         if overwrite and ds_exists:
@@ -282,12 +275,6 @@ class dataset:
                     f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    "You do not have sufficient permissions to create a dataset at the specified path. "
-                    "Please make sure that you have write access to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -395,12 +382,6 @@ class dataset:
                     "‘activeloop register’."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    "You do not have sufficient permissions to load a dataset from the specified path. "
-                    "Please make sure that you have read access to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(

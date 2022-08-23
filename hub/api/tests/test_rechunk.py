@@ -118,3 +118,149 @@ def test_rechunk_4(local_ds):
                     dtype=np.uint8,
                 )
                 ds.test[i] = test_sample_r
+
+
+@hub.compute
+def add_sample_in(sample_in, samples_out):
+    samples_out.abc.append(sample_in)
+
+
+def test_rechunk_text(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", "text")
+        add_sample_in().eval(
+            ["hello", "world", "abc", "def", "ghi", "yo"], ds, num_workers=2
+        )
+
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = "bye"
+        np.testing.assert_array_equal(
+            ds.abc.numpy(),
+            np.array([["bye"], ["world"], ["abc"], ["def"], ["ghi"], ["yo"]]),
+        )
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(
+        ds.abc.numpy(),
+        np.array([["bye"], ["world"], ["abc"], ["def"], ["ghi"], ["yo"]]),
+    )
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+
+def test_rechunk_json(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", "json")
+        add_sample_in().eval(
+            [{"one": "if"}, {"two": "elif"}, {"three": "else"}], ds, num_workers=2
+        )
+
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = {"four": "finally"}
+        np.testing.assert_array_equal(
+            ds.abc.numpy(),
+            np.array([[{"four": "finally"}], [{"two": "elif"}], [{"three": "else"}]]),
+        )
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(
+        ds.abc.numpy(),
+        np.array([[{"four": "finally"}], [{"two": "elif"}], [{"three": "else"}]]),
+    )
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+
+def test_rechunk_list(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", "list")
+        add_sample_in().eval(
+            [["hello", "world"], ["abc", "def", "ghi"], ["yo"]], ds, num_workers=2
+        )
+
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = ["bye"]
+        np.testing.assert_array_equal(ds.abc[0].numpy(), np.array(["bye"]))
+        np.testing.assert_array_equal(
+            ds.abc[1].numpy(), np.array(["abc", "def", "ghi"])
+        )
+        np.testing.assert_array_equal(ds.abc[2].numpy(), np.array(["yo"]))
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(ds.abc[0].numpy(), np.array(["bye"]))
+    np.testing.assert_array_equal(ds.abc[1].numpy(), np.array(["abc", "def", "ghi"]))
+    np.testing.assert_array_equal(ds.abc[2].numpy(), np.array(["yo"]))
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+
+def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_paths):
+    dog_path = color_image_paths["jpeg"]
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", "link")
+        add_sample_in().eval(
+            [hub.link(dog_path), hub.link(flower_path), hub.link(cat_path)],
+            ds,
+            num_workers=2,
+        )
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = hub.link(cat_path)
+
+        assert ds.abc[0].numpy().shape == (900, 900, 3)
+        assert ds.abc[1].numpy().shape == (513, 464, 4)
+        assert ds.abc[2].numpy().shape == (900, 900, 3)
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+    ds = local_ds_generator()
+    assert ds.abc[0].numpy().shape == (900, 900, 3)
+    assert ds.abc[1].numpy().shape == (513, 464, 4)
+    assert ds.abc[2].numpy().shape == (900, 900, 3)
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+    assert ds.abc.chunk_engine.creds_encoder.num_samples == 3
+
+
+def test_rechunk_cloud_link(local_ds_generator):
+    s3_path_1 = "s3://test-bucket/test-1.jpeg"
+    s3_path_2 = "s3://test-bucket/test-2.jpeg"
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "abc",
+            htype="link[image]",
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+            verify=False,
+        )
+        ds.add_creds_key("my_s3_key_1")
+        ds.add_creds_key("my_s3_key_2")
+        ds.populate_creds("my_s3_key_1", {})
+        ds.populate_creds("my_s3_key_2", {})
+
+        add_sample_in().eval(
+            [hub.link(s3_path_1, "my_s3_key_1")] * 3, ds, num_workers=2
+        )
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
+        ds.abc[0] = hub.link(s3_path_2, "my_s3_key_2")
+
+        assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+
+        sample_0 = ds.abc[0]._linked_sample()
+        assert sample_0.path == s3_path_2, sample_0.creds_key == "my_s3_key_2"
+
+        sample_1 = ds.abc[1]._linked_sample()
+        assert sample_1.path == s3_path_1, sample_1.creds_key == "my_s3_key_1"
+
+        sample_2 = ds.abc[2]._linked_sample()
+        assert sample_2.path == s3_path_1, sample_2.creds_key == "my_s3_key_1"
+
+    ds = local_ds_generator()
+    assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
+    sample_0 = ds.abc[0]._linked_sample()
+    assert sample_0.path == s3_path_2, sample_0.creds_key == "my_s3_key_2"
+
+    sample_1 = ds.abc[1]._linked_sample()
+    assert sample_1.path == s3_path_1, sample_1.creds_key == "my_s3_key_1"
+
+    sample_2 = ds.abc[2]._linked_sample()
+    assert sample_2.path == s3_path_1, sample_2.creds_key == "my_s3_key_1"
+
+    assert ds.abc.chunk_engine.creds_encoder.num_samples == 3

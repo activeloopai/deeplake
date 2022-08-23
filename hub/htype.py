@@ -180,6 +180,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "uint32",
         "class_names": [],
         "_info": ["class_names"],  # class_names should be stored in info, not meta
+        "_disable_temp_transform": False,
     },
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},

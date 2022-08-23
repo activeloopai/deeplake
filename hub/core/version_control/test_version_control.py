@@ -1877,3 +1877,17 @@ def test_reset(local_ds):
 
         for i in range(10):
             np.testing.assert_array_equal(ds.abc[i].numpy(), i)
+
+
+def test_reset_create_delete_tensors(local_ds):
+    with local_ds as ds:
+        local_ds.create_tensor("one")
+        local_ds.create_tensor("two")
+        assert set(ds.tensors.keys()) == {"one", "two"}
+        ds.commit()
+        assert set(ds.tensors.keys()) == {"one", "two"}
+        ds.create_tensor("three")
+        ds.delete_tensor("two")
+        assert set(ds.tensors.keys()) == {"one", "three"}
+        ds.reset()
+        assert set(ds.tensors.keys()) == {"one", "two"}

@@ -132,11 +132,11 @@ class LinkCreds(HubMemoryObject):
         expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
 
-    def add_to_used_creds(self, creds_key: str):
-        if creds_key not in self.used_creds_keys:
-            self.used_creds_keys.add(creds_key)
-            return True
-        return False
+    def add_to_used_creds(self, creds_key: Optional[str]):
+        if creds_key in {"ENV", None} or creds_key in self.used_creds_keys:
+            return False
+        self.used_creds_keys.add(creds_key)
+        return True
 
     def tobytes(self) -> bytes:
         d = {

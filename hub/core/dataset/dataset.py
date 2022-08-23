@@ -680,9 +680,9 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name)
+                self.delete_tensor(t_name, large_ok=True)
 
-        self.storage.maybe_flush()
+        self.storage.flush()
 
     @invalid_view_op
     @hub_reporter.record_call
@@ -3009,8 +3009,13 @@ class Dataset:
         else:
             prefix = "/".join(("versions", self.pending_commit_id))
             storage.clear(prefix=prefix)
-            copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
-            create_commit_chunk_sets(self.commit_id, storage, version_state)
+            src_id, dest_id = self.commit_id, self.pending_commit_id
+
+            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
+            self.checkout(src_id)
+            copy_metas(src_id, dest_id, storage, version_state)
+            create_commit_chunk_sets(dest_id, storage, version_state)
+            self.checkout(dest_id)
         load_meta(self)
         self._info = None
         self._ds_diff = None

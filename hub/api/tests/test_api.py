@@ -1891,6 +1891,51 @@ def test_text_label(local_ds_generator):
     verify_label_data(ds)
 
 
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_text_labels_transform(local_ds_generator, num_workers):
+    with local_ds_generator() as ds:
+        ds.create_tensor("labels", htype="class_label")
+        ds.create_tensor("multiple_labels", htype="class_label")
+        ds.create_tensor("seq_labels", htype="sequence[class_label]")
+
+    labels = ["car", "ship", "train"]
+    multiple_labels = [["car", "train"], ["ship", "car"], ["train", "ship"]]
+    seq_labels = [["ship", "train", "car"], ["ship", "train"], ["car", "train"]]
+    data = list(zip(labels, multiple_labels, seq_labels))
+
+    @hub.compute
+    def upload(data, ds):
+        ds.labels.append(data[0])
+        ds.multiple_labels.append(data[1])
+        ds.seq_labels.append(data[2])
+        return ds
+
+    def convert_to_idx(data, label_idx_map):
+        if isinstance(data, str):
+            return label_idx_map[data]
+        return [convert_to_idx(label, label_idx_map) for label in data]
+
+    upload().eval(data, ds, num_workers=num_workers)
+
+    for tensor in ("labels", "multiple_labels", "seq_labels"):
+        class_names = ds[tensor].info.class_names
+        label_idx_map = {class_names[i]: i for i in range(len(class_names))}
+        if tensor == "labels":
+            arr = ds[tensor].numpy()
+            assert class_names == ["car", "ship", "train"]
+            expected = np.array(convert_to_idx(labels, label_idx_map)).reshape((3, 1))
+        elif tensor == "multiple_labels":
+            arr = ds[tensor].numpy()
+            assert class_names == ["car", "train", "ship"]
+            expected = np.array(convert_to_idx(multiple_labels, label_idx_map))
+        else:
+            arr = ds[tensor].numpy(aslist=True)
+            assert class_names == ["ship", "train", "car"]
+            expected = convert_to_idx(seq_labels, label_idx_map)
+            expected = [np.array(seq).reshape(-1, 1).tolist() for seq in expected]
+        np.testing.assert_array_equal(arr, expected)
+
+
 def test_empty_sample_partial_read(s3_ds):
     with s3_ds as ds:
         ds.create_tensor("xyz")
@@ -1983,3 +2028,11 @@ def test_hub_token_without_permission(
     ds = hub.empty(
         "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
     )
+
+
+def test_incompat_dtype_msg(local_ds, capsys):
+    local_ds.create_tensor("abc", dtype="uint32")
+    with pytest.raises(TensorDtypeMismatchError):
+        local_ds.abc.append([0.0])
+    captured = capsys.readouterr()
+    assert "True" not in captured

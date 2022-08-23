@@ -1,11 +1,9 @@
 import posixpath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 from hub.client.utils import get_user_name
-from hub.constants import AGREEMENT_FILENAME, HUB_CLOUD_DEV_USERNAME
+from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
-from hub.client.log import logger
-from hub.util.agreement import handle_dataset_agreement
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import RenameError
 from hub.util.link import save_link_creds
@@ -25,9 +23,6 @@ class HubCloudDataset(Dataset):
         self._set_org_and_name()
         if self.is_first_load:
             if self.is_actually_cloud:
-                handle_dataset_agreement(
-                    self.agreement, self.path, self.ds_name, self.org_id
-                )
                 if self.verbose and verbose:
                     log_visualizer_link(self.path)
             else:
@@ -237,18 +232,6 @@ class HubCloudDataset(Dataset):
 
         self.ds_name = new_name
         self.path = path
-
-    @property
-    def agreement(self) -> Optional[str]:
-        try:
-            agreement_bytes = self.storage[AGREEMENT_FILENAME]  # type: ignore
-            return agreement_bytes.decode("utf-8")
-        except KeyError:
-            return None
-
-    def add_agreeement(self, agreement: str):
-        self.storage.check_readonly()  # type: ignore
-        self.storage[AGREEMENT_FILENAME] = agreement.encode("utf-8")  # type: ignore
 
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()
