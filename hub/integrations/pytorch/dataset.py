@@ -66,7 +66,6 @@ def _process(tensor, transform: PytorchTransformFunction):
             return cast_type(x.copy())
         except AttributeError:
             return bytes(x)
-    print(tensor)
     tensor = IterableOrderedDict((k, copy(tensor[k])) for k in tensor)
     tensor = transform(tensor)
     return tensor
