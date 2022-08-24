@@ -4,34 +4,34 @@ import numpy as np
 from torchvision.transforms import TrivialAugmentWide
 import torch
 
-def preserve_shape(func):
-    """
-    Preserve shape of the image
-    """
 
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        result = result.reshape(shape)
-        return result
-
-    return wrapped_function
 
 
 def is_grayscale_image(image):
+    """
+    Helper function to spot gray_scale images.
+    """
     return (len(image.shape) == 2) or (len(image.shape) == 3 and image.shape[-1] == 1)
 
 
-
-###########################################################################################################      
 class TrivialAugment(TrivialAugmentWide):
-  def __init__(self,leave_transforms=[]):
+  def __init__(self,exclude_transforms=None, include_transforms=None):
+    """
+    Inherited class from pytorch TrivialAugmentWide. Helps change Augmentation Space. Can either include
+    transforms or exclude transforms. There are 14 transforms available from the Wide Augmentation Space(refer TA paper)
+
+    Args:
+      exclude_transforms: List of transform_names to excludes
+      include_transforms: List of transform_names to include
+    """
     super().__init__()
-    self.leave_transforms = leave_transforms
-    # self.color_transforms = color_transforms
-    # self.geometrical_transforms = geometrical_transforms
+    self.exclude_transforms = exclude_transforms
+    self.include_transforms = include_transforms
+
   def _augmentation_space(self, num_bins: int):
+    """
+    Returns a changed augmentation space that is a subset of the wide augmentation space.
+    """
     aug_space =  {
       # op_name: (magnitudes, signed)
       "Identity": (torch.tensor(0.0), False),
@@ -49,12 +49,23 @@ class TrivialAugment(TrivialAugmentWide):
       "AutoContrast": (torch.tensor(0.0), False),
       "Equalize": (torch.tensor(0.0), False),
     }
-    for transform_name in self.leave_transforms:
-      del aug_space[transform_name]
-    return aug_space
-trivial_augmenter = TrivialAugment()
+    assert self.exclude_transforms!=None or self.include_transforms!=None
+    if self.exclude_transforms!=None:
+      for transform_name in self.exclude_transforms:
+        del aug_space[transform_name]
+      return aug_space
+    elif self.include_transforms!=None:
+      aug_space_additive = {}
+      for transform_name in self.include_transforms:
+        aug_space_additive[transform_name] = aug_space[transform_name]
+      return aug_space_additive
+      
+trivial_augmenter = TrivialAugment()  #Needs to be instantiated only once
 @hub.compute
 def trivial_augment(image):
+  """
+  Applies TrivialAugment on a tensor.
+  """
   shape_initial = list(image.shape)
   shape_new = shape_initial[:-1]
   shape_new.insert(0, shape_initial[-1])
