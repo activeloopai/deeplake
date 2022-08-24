@@ -60,12 +60,13 @@ class TrivialAugment(TrivialAugmentWide):
         aug_space_additive[transform_name] = aug_space[transform_name]
       return aug_space_additive
       
-trivial_augmenter = TrivialAugment()  #Needs to be instantiated only once
+  #Needs to be instantiated only once
 @hub.compute
-def trivial_augment(image):
+def trivial_augment(image, include_transforms=None, exclude_transforms=None):
   """
   Applies TrivialAugment on a tensor.
   """
+  trivial_augmenter = TrivialAugment(include_transforms=include_transforms, exclude_transforms=exclude_transforms)
   shape_initial = list(image.shape)
   shape_new = shape_initial[:-1]
   shape_new.insert(0, shape_initial[-1])
