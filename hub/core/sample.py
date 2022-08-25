@@ -8,17 +8,14 @@ from hub.core.compression import (
     _open_video,
     _read_metadata_from_vstream,
     _read_audio_meta,
+    _read_point_cloud_meta,
 )
 from hub.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
-)
-from hub.compression import (
-    get_compression_type,
-    AUDIO_COMPRESSION,
-    IMAGE_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
 )
 from hub.util.exceptions import UnableToReadFromUrlError
 from hub.util.exif import getexif
@@ -30,8 +27,6 @@ from typing import Optional, Tuple, Union, Dict
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
-
-from urllib.request import urlopen
 
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.google_drive import GDriveProvider
@@ -90,6 +85,7 @@ class Sample:
         self._typestr = None
         self._shape = shape or None
         self._dtype = dtype or None
+
         self.path = None
         self.storage = storage
         self._buffer = None
@@ -124,6 +120,8 @@ class Sample:
                 if self._verify:
                     self._shape, self._typestr = verify_compressed_file(buffer, self._compression)  # type: ignore
 
+        self.htype = None
+
     @property
     def buffer(self):
         if self._buffer is None and self.path is not None:
@@ -131,6 +129,10 @@ class Sample:
         if self._buffer is not None:
             return self._buffer
         return self.compressed_bytes(self.compression)
+
+    @property
+    def is_text_like(self):
+        return self.htype in {"text", "list", "json"}
 
     @property
     def dtype(self):
@@ -231,6 +233,13 @@ class Sample:
             info = _read_audio_meta(self.buffer)
         return info
 
+    def _get_point_cloud_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_point_cloud_meta(self.path)
+        else:
+            info = _read_point_cloud_meta(self.buffer)
+        return info
+
     @property
     def is_lazy(self) -> bool:
         return self._array is None
@@ -251,7 +260,7 @@ class Sample:
             self._uncompressed_bytes = img.tobytes()
         return compress_array(self.array, compression)
 
-    def compressed_bytes(self, compression: str) -> bytes:
+    def compressed_bytes(self, compression: Optional[str]) -> bytes:
         """Returns this sample as compressed bytes.
 
         Note:
@@ -259,7 +268,7 @@ class Sample:
                 returned without re-compressing.
 
         Args:
-            compression (str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
+            compression (optional, str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
@@ -269,7 +278,7 @@ class Sample:
         """
 
         if compression is None:
-            return self.uncompressed_bytes()
+            return self.uncompressed_bytes()  # type: ignore
 
         compressed_bytes = self._compressed_bytes.get(compression)
         if compressed_bytes is None:
@@ -300,9 +309,16 @@ class Sample:
             return
         compression = self.compression
         if compression is None and self._buffer is not None:
-            self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
-                self.shape
-            )
+            if self.is_text_like:
+                from hub.core.serialize import bytes_to_text
+
+                buffer = bytes(self._buffer)
+                self._array = bytes_to_text(buffer, self.htype)
+            else:
+                self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                    self.shape
+                )
+
         else:
             if self.path and get_path_type(self.path) == "local":
                 compressed = self.path
@@ -442,6 +458,8 @@ class Sample:
             meta.update(self._get_video_meta())
         elif compression_type == AUDIO_COMPRESSION:
             meta.update(self._get_audio_meta())
+        elif compression_type == POINT_CLOUD_COMPRESSION:
+            meta.update(self._get_point_cloud_meta())
         meta["shape"] = self.shape
         meta["format"] = self.compression
         if self.path:

@@ -326,7 +326,7 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
         pytest.skip()
         return
 
-    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test"
+    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test_dataset"
 
     yield path
 
@@ -439,6 +439,18 @@ def video_paths():
         paths[k] = [os.path.join(parent, fname) for fname in paths[k]]
     paths["mp4"] += _download_hub_test_videos()
 
+    return paths
+
+
+@pytest.fixture
+def point_cloud_paths():
+    paths = {
+        "las": "point_cloud.las",
+    }
+
+    parent = get_dummy_data_path("point_cloud")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
     return paths
 
 

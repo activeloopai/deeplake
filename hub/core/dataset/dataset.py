@@ -404,6 +404,7 @@ class Dataset:
             ds.create_tensor("images", htype="image", sample_compression="jpg")
             ds.create_tensor("videos", htype="video", sample_compression="mp4")
             ds.create_tensor("data")
+            ds.create_tensor("point_clouds", htype="point_cloud")
 
             # append data
             ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
@@ -553,7 +554,13 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video", "dicom"):
+        if create_sample_info_tensor and htype in (
+            "image",
+            "audio",
+            "video",
+            "dicom",
+            "point_cloud",
+        ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)
@@ -685,9 +692,9 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name)
+                self.delete_tensor(t_name, large_ok=True)
 
-        self.storage.maybe_flush()
+        self.storage.flush()
 
     @invalid_view_op
     @hub_reporter.record_call
@@ -2223,6 +2230,11 @@ class Dataset:
 
         username = jwt.decode(self.token, options={"verify_signature": False})["id"]
 
+        if username == "public":
+            raise DatasetViewSavingError(
+                "Unable to save view for read only dataset. Login to save the view to your user account."
+            )
+
         info = self._get_view_info(id, message, copy)
         base = self._view_base or self
         org_id, ds_name = base.org_id, base.ds_name
@@ -2974,8 +2986,13 @@ class Dataset:
         else:
             prefix = "/".join(("versions", self.pending_commit_id))
             storage.clear(prefix=prefix)
-            copy_metas(self.commit_id, self.pending_commit_id, storage, version_state)
-            create_commit_chunk_sets(self.commit_id, storage, version_state)
+            src_id, dest_id = self.commit_id, self.pending_commit_id
+
+            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
+            self.checkout(src_id)
+            copy_metas(src_id, dest_id, storage, version_state)
+            create_commit_chunk_sets(dest_id, storage, version_state)
+            self.checkout(dest_id)
         load_meta(self)
         self._info = None
         self._ds_diff = None

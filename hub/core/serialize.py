@@ -2,6 +2,7 @@ from hub.compression import (
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
     get_compression_type,
 )
 from hub.core.tiling.sample_tiles import SampleTiles
@@ -441,6 +442,15 @@ def serialize_partial_sample_object(
         ),
         shape,
     )
+
+
+def serialize_text_sample_object(
+    incoming_sample: Sample, sample_compression: Optional[str]
+):
+    shape = incoming_sample.shape
+    out = incoming_sample
+    result = out.compressed_bytes(sample_compression)
+    return result, shape
 
 
 def serialize_sample_object(
