@@ -68,7 +68,7 @@ def get_ds_key(ds):
     entry = getattr(ds, "_view_entry", None)
     if entry:
         return hash_inputs(entry)
-    return hash_inputs(ds.path, ds.commit_id), 
+    return (hash_inputs(ds.path, ds.commit_id),)
 
 
 def dataset_config(ds):
@@ -153,7 +153,6 @@ def dataset_written(ds):
             ds.info["wandb"] = wandb_info
             ds.flush()
             _CREATED_DATASETS.remove(key)
-            print("Logged artifact: ", artifact)
             run.log_artifact(artifact)
     else:
         _CREATED_DATASETS.discard(key)
@@ -203,8 +202,14 @@ def dataset_read(ds):
                     input_datasets.pop(rm)
             run.config.input_datasets = input_datasets
 
+        if not run._settings.mode == "online":
+            return
         # TODO consider optimized datasets:
-        wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id or ds.pending_commit_id)
+        wandb_info = (
+            ds.info.get("wandb", {})
+            .get("commits", {})
+            .get(ds.commit_id or ds.pending_commit_id)
+        )
         if wandb_info:
             run_and_artifact = wandb_info["created-by"]
             run_info = run_and_artifact["run"]
