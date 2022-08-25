@@ -219,7 +219,9 @@ def dataset_read(ds):
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
             except Exception as e:
-                warnings.warn(f"Wandb integration: Error while using wandb artifact: {e}")
+                warnings.warn(
+                    f"Wandb integration: Error while using wandb artifact: {e}"
+                )
         else:
             # For datasets that were not created during a wandb run,
             # we want to "use" an artifact that is not logged by any run.
