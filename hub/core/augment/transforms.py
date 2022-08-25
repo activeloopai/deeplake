@@ -49,7 +49,7 @@ class TrivialAugment(TrivialAugmentWide):
       "AutoContrast": (torch.tensor(0.0), False),
       "Equalize": (torch.tensor(0.0), False),
     }
-    assert not (self.exclude_transforms==None and self.include_transforms==None)
+    assert not (self.exclude_transforms!=None and self.include_transforms!=None)
     if self.exclude_transforms!=None:
       for transform_name in self.exclude_transforms:
         del aug_space[transform_name]
