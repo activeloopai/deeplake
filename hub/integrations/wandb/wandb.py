@@ -140,7 +140,7 @@ def dataset_written(ds):
             wandb_info = ds.info.get("wandb") or {"commits": {}}
             commits = wandb_info["commits"]
             info = {}
-            commits[ds.commit_id] = info
+            commits[ds.commit_id or ds.pending_commit_id] = info
             info["created-by"] = {
                 "run": {
                     "entity": run.entity,
@@ -153,6 +153,7 @@ def dataset_written(ds):
             ds.info["wandb"] = wandb_info
             ds.flush()
             _CREATED_DATASETS.remove(key)
+            print("Logged artifact: ", artifact)
             run.log_artifact(artifact)
     else:
         _CREATED_DATASETS.discard(key)
@@ -222,18 +223,18 @@ def dataset_read(ds):
 
 
 def viz_html(hub_path: str):
-        return f"""
-          <div id='container'></div>
-      <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-      <script>
-        let container = document.getElementById('container')
+    #     return f"""
+    #       <div id='container'></div>
+    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+    #   <script>
+    #     let container = document.getElementById('container')
 
-        window.vis.visualize('{hub_path}', null, null, container, {{
-          requireSignin: true
-        }})
-      </script>
-        """
-    # return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    #     window.vis.visualize('{hub_path}', null, null, container, {{
+    #       requireSignin: true
+    #     }})
+    #   </script>
+    #     """
+    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
 def _plat_link(ds):
