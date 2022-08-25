@@ -94,6 +94,7 @@ class ViewEntry:
         )
         return self
 
+    @property
     def source_dataset_path(self) -> str:
         return self.info["source-dataset"]
 

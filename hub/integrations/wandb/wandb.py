@@ -67,7 +67,7 @@ def get_ds_key(ds):
     entry = getattr(ds, "_view_entry", None)
     if entry:
         return hash_inputs(entry)
-    return hash_inputs(ds.path, ds.commit_id)
+    return hash_inputs(ds.path, ds.commit_id), 
 
 
 def dataset_config(ds):
@@ -167,8 +167,10 @@ def dataset_read(ds):
         _READ_DATASETS[run.id] = {}
     keys = _READ_DATASETS[run.id]
     key = get_ds_key(ds)
-    if key not in keys:
-        keys[key] = None
+    if key not in keys or ds.index.to_json() not in keys[key]:
+        if key not in keys:
+            keys[key] = []
+        keys[key].append(ds.index.to_json())
         try:
             input_datasets = run.config.input_datasets
         except (KeyError, AttributeError):
@@ -189,6 +191,14 @@ def dataset_read(ds):
                 )
 
             input_datasets.append(dsconfig)
+            if len(keys[key]) > 1:
+                rm = None
+                for i, dsconfig in enumerate(input_datasets):
+                    if "index" not in dsconfig:
+                        rm = i
+                        break
+                if rm is not None:
+                    input_datasets.pop(rm)
             run.config.input_datasets = input_datasets
 
         # TODO consider optimized datasets:
@@ -211,18 +221,18 @@ def dataset_read(ds):
 
 
 def viz_html(hub_path: str):
-    #     return f"""
-    #       <div id='container'></div>
-    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-    #   <script>
-    #     let container = document.getElementById('container')
+        return f"""
+          <div id='container'></div>
+      <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+      <script>
+        let container = document.getElementById('container')
 
-    #     window.vis.visualize('{hub_path}', null, null, container, {{
-    #       requireSignin: true
-    #     }})
-    #   </script>
-    #     """
-    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+        window.vis.visualize('{hub_path}', null, null, container, {{
+          requireSignin: true
+        }})
+      </script>
+        """
+    # return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
 def _plat_link(ds):
