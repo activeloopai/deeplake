@@ -677,7 +677,7 @@ class Tensor:
             if isinstance(full_numpy_arr, list):
                 ret = [arr[..., :3] for arr in full_numpy_arr]
             else:
-                ret full_numpy_arr[..., :3]
+                ret = full_numpy_arr[..., :3]
         dataset_read(self.dataset)
         return ret
 
