@@ -674,10 +674,10 @@ class Tensor:
             pad_tensor=self.pad_tensor,
         )
         if self.htype == "point_cloud":
-            if isinstance(full_numpy_arr, list):
-                ret = [arr[..., :3] for arr in full_numpy_arr]
+            if isinstance(ret, list):
+                ret = [arr[..., :3] for arr in ret]
             else:
-                ret = full_numpy_arr[..., :3]
+                ret = ret[..., :3]
         dataset_read(self.dataset)
         return ret
 
