@@ -59,6 +59,7 @@ class TrivialAugment(TrivialAugmentWide):
       for transform_name in self.include_transforms:
         aug_space_additive[transform_name] = aug_space[transform_name]
       return aug_space_additive
+    return aug_space
       
   #Needs to be instantiated only once
 @hub.compute
