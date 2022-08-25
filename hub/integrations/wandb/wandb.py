@@ -204,7 +204,7 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
 
         # TODO consider optimized datasets:
-        wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id)
+        wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id or ds.pending_commit_id)
         if wandb_info:
             run_and_artifact = wandb_info["created-by"]
             run_info = run_and_artifact["run"]
