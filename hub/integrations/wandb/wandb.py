@@ -211,12 +211,15 @@ def dataset_read(ds):
             .get(ds.commit_id or ds.pending_commit_id)
         )
         if wandb_info:
-            run_and_artifact = wandb_info["created-by"]
-            run_info = run_and_artifact["run"]
-            artifact = run_and_artifact["artifact"]
-            run.use_artifact(
-                f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
-            )
+            try:
+                run_and_artifact = wandb_info["created-by"]
+                run_info = run_and_artifact["run"]
+                artifact = run_and_artifact["artifact"]
+                run.use_artifact(
+                    f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
+                )
+            except Exception as e:
+                warnings.warn(f"Wandb integration: Error while using wandb artifact: {e}")
         else:
             # For datasets that were not created during a wandb run,
             # we want to "use" an artifact that is not logged by any run.
