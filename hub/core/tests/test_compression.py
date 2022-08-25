@@ -60,7 +60,8 @@ def test_array(compression, compressed_image_paths):
         np.testing.assert_array_equal(array, decompressed_array)
     else:
         assert_images_close(array, decompressed_array)
-        
+
+
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
 def test_multi_array(compression, compressed_image_paths):
     compression_type = get_compression_type(compression)
@@ -126,7 +127,6 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
         with pytest.raises(CorruptedSampleError):
             with open(path, "rb") as f:
                 verify_compressed_file(f.read(), compression)
-
 
 
 def test_lz4_bc():
