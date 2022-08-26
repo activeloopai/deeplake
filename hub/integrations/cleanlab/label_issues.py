@@ -40,15 +40,18 @@ def get_dataset_tensors(dataset, transform, tensors):
             "Could not find the images and labels tensors. Please provide the images and labels tensors."
         )
 
-    image_tensor_htype, label_tensor_htype = dataset[images_tensor].htype, dataset[labels_tensor].htype
+    image_tensor_htype, label_tensor_htype = (
+        dataset[images_tensor].htype,
+        dataset[labels_tensor].htype,
+    )
 
     if not is_image_tensor(image_tensor_htype):
-                raise TypeError(
+        raise TypeError(
             f'The images tensor has an unsupported htype: {image_tensor_htype}. In general, the images tensor must be of type "image".'
         )
 
     if not is_label_tensor(label_tensor_htype):
-                raise TypeError(
+        raise TypeError(
             f'The labels tensor has an unsupported htype: {label_tensor_htype}. In general, the labels tensor must be of type "class_label".'
         )
 
