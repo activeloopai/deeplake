@@ -17,6 +17,7 @@ from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
+from hub.client.utils import get_user_name
 from hub.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
