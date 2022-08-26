@@ -26,11 +26,9 @@ class VisionClassifierNet(NeuralNet):
 
     def get_iterator(self, dataset, training=False):
         if training:
-            print(f"Training on {len(dataset)} examples")
             kwargs = self.dataloader_train_params
 
         else:
-            print(f"Validating on {len(dataset)} examples")
             kwargs = self.dataloader_valid_params
             if kwargs is None:
                 kwargs = self.dataloader_train_params
@@ -89,7 +87,7 @@ def pytorch_module_to_skorch(
     tensors,
     num_classes,
 ):
-    from hub.integrations.pytorch.utils import repeat_shape
+    from hub.integrations.skorch.utils import repeat_shape
 
     images_tensor, labels_tensor = tensors
 
