@@ -33,9 +33,6 @@ class VisionClassifierNet(NeuralNet):
         if kwargs["batch_size"] == -1:
             kwargs["batch_size"] = len(dataset)
 
-        print(f"Dataloader params: {kwargs}")
-        print(f"Training: {training}")
-
         return dataset.pytorch(**kwargs)
 
     def train_step_single(self, batch, **fit_params):
