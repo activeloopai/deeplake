@@ -38,6 +38,7 @@ def get_dataset_tensors(dataset, tensors, dataloader_train_params):
     # Map the images and labels tensors to the corresponding tensors in the dataset.
     images_tensor, labels_tensor = None, None
 
+    # TODO: check by tensor shape if the tensor is an image or a label.
     if tensors:
         for tensor in tensors:
             if dataset[tensor].htype == "image":
@@ -174,7 +175,7 @@ def append_label_issues_tensors(
         )
 
 
-def clean_labels(
+def get_label_issues(
     dataset,
     module,
     criterion,
@@ -201,10 +202,7 @@ def clean_labels(
     images_tensor, labels_tensor = get_dataset_tensors(
         dataset=dataset,
         tensors=tensors,
-        dataloader_train_params=dataloader_train_params,
-        create_tensors=create_tensors,
-        overwrite=overwrite,
-        verbose=verbose,
+        dataloader_train_params=dataloader_train_params
     )
 
     # Get labels of a dataset
