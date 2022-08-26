@@ -304,7 +304,7 @@ def deserialize_chunkids(
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
-    if version_compare(version, "2.7.5") < 0:  # change this to 2.8.0 closer to release
+    if version_compare(version, "2.7.6") < 0:  # change this to 2.8.0 closer to release
         # Read chunk ids
         ids = np.frombuffer(byts[offset:], dtype=np.uint32).reshape(-1, 2).copy()
         return version, ids, np.uint32
