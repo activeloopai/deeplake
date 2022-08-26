@@ -1,8 +1,8 @@
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.serialize import (
-    serialize_sequence_or_creds_encoder,
-    deserialize_sequence_or_creds_encoder,
+    serialize_generic_encoder,
+    deserialize_generic_encoder,
 )
 
 
@@ -12,7 +12,7 @@ class SequenceEncoder(BytePositionsEncoder, HubMemoryObject):
         instance = cls()
         if not buffer:
             return instance
-        version, ids = deserialize_sequence_or_creds_encoder(buffer, "seq")
+        version, ids = deserialize_generic_encoder(buffer, "seq")
         if ids.nbytes:
             instance._encoded = ids
         instance.version = version
@@ -21,7 +21,7 @@ class SequenceEncoder(BytePositionsEncoder, HubMemoryObject):
 
     def tobytes(self) -> memoryview:
         return memoryview(
-            serialize_sequence_or_creds_encoder(self.version, self._encoded)
+            serialize_generic_encoder(self.version, self._encoded)
         )
 
     def pop(self, index):

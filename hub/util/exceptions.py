@@ -582,6 +582,8 @@ class FullChunkError(ChunkEngineError):
 class ChunkIdEncoderError(ChunkEngineError):
     pass
 
+class ChunkIdEncoderFullError(ChunkEngineError):
+    pass
 
 class ChunkSizeTooSmallError(ChunkEngineError):
     def __init__(

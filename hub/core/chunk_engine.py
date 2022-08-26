@@ -16,6 +16,7 @@ from typing import (
 from hub.api.info import Info
 from hub.core.linked_sample import LinkedSample
 from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
+from hub.core.meta.encode.encoder_map import EncoderMap
 from hub.core.serialize import HEADER_SIZE_BYTES
 from hub.core.tensor_link import get_link_transform
 from hub.core.version_control.commit_diff import CommitDiff
@@ -32,6 +33,7 @@ from hub.util.empty_sample import is_empty_list
 from hub.util.shape_interval import ShapeInterval
 from hub.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
+    ENCODING_DTYPE,
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
     RANDOM_MAX_ALLOWED_CHUNK_SIZE,
@@ -40,6 +42,7 @@ from hub.constants import (
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
     DEFAULT_TILING_THRESHOLD,
+    UNSHARDED_ENCODER_FILENAME,
 )
 from hub.core.chunk.base_chunk import BaseChunk, InputSample
 from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
@@ -61,6 +64,7 @@ from hub.util.chunk_engine import (
 )
 from hub.util.keys import (
     get_chunk_id_encoder_key,
+    get_chunk_id_encoder_map_key,
     get_sequence_encoder_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
@@ -163,6 +167,11 @@ class ChunkEngine:
 
         self._chunk_id_encoder: Optional[ChunkIdEncoder] = None
         self._chunk_id_encoder_commit_id: Optional[str] = None
+        self._chunk_id_encoder_filename: Optional[str] = None
+
+        self._chunk_id_encoder_map: Optional[EncoderMap] = None
+        self._chunk_id_encoder_map_commit_id: Optional[str] = None
+        self._chunk_id_encoder_map_exists: Optional[bool] = None
 
         self._sequence_encoder: Optional[SequenceEncoder] = None
         self._sequence_encoder_commit_id: Optional[str] = None
@@ -265,7 +274,80 @@ class ChunkEngine:
         return self._meta_cache or self.cache
 
     @property
-    def chunk_id_encoder(self) -> ChunkIdEncoder:
+    def chunk_id_encoder_map(self) -> EncoderMap:
+        """Get the chunk id encoder map from cache, if one is not found, it creates a blank encoder."""
+        commit_id = self.commit_id
+        if (
+            self._chunk_id_encoder_map is None
+            or self._chunk_id_encoder_map_commit_id != commit_id
+        ):
+            key = get_chunk_id_encoder_map_key(self.key, commit_id)
+            if not self.chunk_id_encoder_map_exists:
+                mp = EncoderMap()
+                mp.add_encoder() # creates entry for unsharded encoder
+                try:
+                    self.meta_cache[key] = mp
+                    self._chunk_id_encoder_map_exists = True
+                except ReadOnlyModeError:
+                    pass
+            else:
+                mp = self.meta_cache.get_hub_object(key, EncoderMap)
+            self._chunk_id_encoder_map = mp
+            self._chunk_id_encoder_map_commit_id = commit_id
+            self.meta_cache.register_hub_object(key, mp)
+        return self._chunk_id_encoder_map
+
+
+    @property
+    def chunk_id_encoder_map_exists(self) -> bool:
+        """Checks if the commit chunk set exists for the given tensor in the current commit."""
+        if self._chunk_id_encoder_map_exists is None:
+            commit_id = self.commit_id
+            if (
+                self._chunk_id_encoder_map is not None
+                and self._chunk_id_encoder_map_commit_id == commit_id
+            ):
+                res = True
+            else:
+                try:
+                    key = get_chunk_id_encoder_map_key(self.key, commit_id)
+                    self.meta_cache[key]
+                    res = True
+                except KeyError:
+                    res = False
+
+            self._chunk_id_encoder_map_exists = res
+
+        return self._chunk_id_encoder_map_exists
+
+    def get_chunk_id_encoder_from_index(self, global_sample_index: Optional[int] = None):
+        """If index isn't given it returns last chunk id encoder."""
+        if self.chunk_id_encoder_map_exists:
+            if global_sample_index is not None:
+                filename = self.chunk_id_encoder_map.get_encoder_name(global_sample_index)
+            else:
+                filename = self.chunk_id_encoder_map.get_last_encoder_name()
+        else:
+            filename = UNSHARDED_ENCODER_FILENAME
+
+        if self._chunk_id_encoder_filename != filename:
+            # TODO: send previous encoder to storage if dirty
+            pass
+        return self.get_chunk_id_encoder_from_filename(filename)
+
+    def create_chunk_id_encoder(self):
+        if self.num_samples == 0:
+            filename, dtype = UNSHARDED_ENCODER_FILENAME, ENCODING_DTYPE            
+        else:
+            # creates one if it doesn't exist
+            enc_map = self.chunk_id_encoder_map
+            filename, dtype = enc_map.add_encoder()
+
+        enc = ChunkIdEncoder(dtype=dtype)
+        key = get_chunk_id_encoder_key(filename, self.key, self.commit_id)
+        self.meta_cache[key] = enc
+
+    def get_chunk_id_encoder_from_filename(self, filename) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
         For more information on what `ChunkIdEncoder` is used for, see the `__init__` docstring.
 
@@ -280,19 +362,17 @@ class ChunkEngine:
         if (
             self._chunk_id_encoder is None
             or self._chunk_id_encoder_commit_id != commit_id
+            or self._chunk_id_encoder_filename != filename
         ):
-            commit_id = self.commit_id
-            key = get_chunk_id_encoder_key(self.key, commit_id)
-            if not self.chunk_id_encoder_exists:
-                enc = ChunkIdEncoder()
-                try:
-                    self.meta_cache[key] = enc
-                except ReadOnlyModeError:
-                    pass
+            key = get_chunk_id_encoder_key(filename, self.key, commit_id)
+            if not self.chunk_id_encoder_exists(filename):
+                enc = self.create_chunk_id_encoder()
             else:
                 enc = self.meta_cache.get_hub_object(key, ChunkIdEncoder)
+                ffw_chunk_id_encoder(enc)
             self._chunk_id_encoder = enc
             self._chunk_id_encoder_commit_id = commit_id
+            self._chunk_id_encoder_filename = filename
             self.meta_cache.register_hub_object(key, enc)
         return self._chunk_id_encoder
 
@@ -377,16 +457,16 @@ class ChunkEngine:
         except KeyError:
             return False
 
-    @property
-    def chunk_id_encoder_exists(self) -> bool:
+    def chunk_id_encoder_exists(self, filename) -> bool:
         commit_id = self.commit_id
         if (
             self._chunk_id_encoder is not None
             and self._chunk_id_encoder_commit_id == commit_id
+            and self._chunk_id_encoder_filename == filename
         ):
             return True
         try:
-            key = get_chunk_id_encoder_key(self.key, commit_id)
+            key = get_chunk_id_encoder_key(filename, self.key, commit_id)
             self.meta_cache[key]
             return True
         except KeyError:
@@ -432,10 +512,8 @@ class ChunkEngine:
         return None
 
     @property
-    def num_chunks(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
-        return self.chunk_id_encoder.num_chunks
+    def has_no_chunks(self):
+        return self.tensor_meta.length == 0
 
     @property
     def num_samples(self) -> int:
@@ -480,23 +558,20 @@ class ChunkEngine:
             self.cache.register_hub_object(value.key, value)
 
     @property
-    def last_appended_chunk_name(self) -> str:
-        return self.chunk_id_encoder.get_name_for_chunk(-1)
-
-    @property
-    def last_appended_chunk_id(self) -> str:
-        return self.chunk_id_encoder.get_id_for_chunk(-1)
+    def last_appended_chunk_name_and_id(self) -> str:
+        enc = self.get_chunk_id_encoder_from_index()
+        return enc.get_name_for_chunk(-1), enc.get_id_for_chunk(-1)
 
     def last_appended_chunk(self) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
-        if self.num_chunks == 0 or last_index in self.tile_encoder:
+        if self.has_no_chunks or last_index in self.tile_encoder:
             return None
-        chunk_name = self.last_appended_chunk_name
+        chunk_name, chunk_id = self.last_appended_chunk_name_and_id
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
         chunk.key = chunk_key  # type: ignore
-        chunk.id = self.last_appended_chunk_id  # type: ignore
+        chunk.id = chunk_id # type: ignore
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         if (
@@ -597,7 +672,7 @@ class ChunkEngine:
         return FIRST_COMMIT_ID
 
     def _write_initialization(self):
-        ffw_chunk_id_encoder(self.chunk_id_encoder)
+        pass
 
     def _convert_to_list(self, samples):
         if self.chunk_class != UncompressedChunk:
@@ -666,6 +741,7 @@ class ChunkEngine:
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
         register_creds: bool = True,
+        chunk_id_encoder: Optional[ChunkIdEncoder] = None,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -679,6 +755,7 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+            chunk_id_encoder (ChunkIdEncoder, Optional): Parameter that shows the chunk id encoder to be used for the chunk id
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -689,7 +766,7 @@ class ChunkEngine:
         if current_chunk is None:
             current_chunk = self._create_new_chunk(register)
             updated_chunks.append(current_chunk)
-        enc = self.chunk_id_encoder
+        enc = chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
         if register and update_commit_diff:
@@ -765,12 +842,14 @@ class ChunkEngine:
         if len(samples) == 0:
             return
         samples, verified_samples = self._sanitize_samples(samples)
+        chunk_id_encoder = self.get_chunk_id_encoder_from_index()
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
+            chunk_id_encoder=chunk_id_encoder,
         )
         return verified_samples
 
@@ -811,9 +890,9 @@ class ChunkEngine:
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
+    def _create_new_chunk(self, register=True, row: Optional[int] = None, chunk_id_encoder = None) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
-        chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register, row=row)
+        chunk_id = chunk_id_encoder.generate_chunk_id(register=register, row=row)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)  # type: ignore
         chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
@@ -836,12 +915,23 @@ class ChunkEngine:
         chunk_folder_path = get_chunk_key(self.key, "", commit_id)
         self.cache.clear(prefix=chunk_folder_path)
 
-        enc_key = get_chunk_id_encoder_key(self.key, commit_id)
+        if not self.chunk_id_encoder_map_exists:
+            filename = UNSHARDED_ENCODER_FILENAME
+            enc_key = get_chunk_id_encoder_key(filename, self.key, commit_id)
+            try:
+                del self.meta_cache[enc_key]
+            except KeyError:
+                pass
+            
+        for index in range(len(self.chunk_id_encoder_map.array)):
+            filename = self.chunk_id_encoder_map.get_encoder_name(index)
+            enc_key = get_chunk_id_encoder_key(filename, self.key, commit_id)
+            try:
+                del self.meta_cache[enc_key]
+            except KeyError:
+                pass
         self._chunk_id_encoder = None
-        try:
-            del self.meta_cache[enc_key]
-        except KeyError:
-            pass
+        
 
         info_key = get_tensor_info_key(self.key, commit_id)
         try:
@@ -875,11 +965,12 @@ class ChunkEngine:
         self.meta_cache.maybe_flush()
 
     def _replace_tiled_sample(self, global_sample_index: int, sample):
+        chunk_id_encoder = self.get_chunk_id_encoder_from_index(global_sample_index)
         new_chunks, tiles = self._samples_to_chunks(
-            [sample], start_chunk=None, register=False
+            [sample], start_chunk=None, register=False, chunk_id_encoder=chunk_id_encoder
         )
         new_chunk_ids = [chunk.id for chunk in new_chunks]
-        self.chunk_id_encoder._replace_chunks_for_tiled_sample(
+        chunk_id_encoder._replace_chunks_for_tiled_sample(
             global_sample_index, new_chunk_ids
         )
         if tiles:
@@ -891,7 +982,7 @@ class ChunkEngine:
         if len(index.values) == 1:
             self._replace_tiled_sample(global_sample_index, sample)
             return
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         tile_enc = self.tile_encoder
         chunk_ids = enc[global_sample_index]
         sample_shape = tile_enc.get_sample_shape(global_sample_index)
@@ -1037,16 +1128,16 @@ class ChunkEngine:
             sample = LinkedSample(sample.array[0])
         return sample
 
-    def __rechunk(self, chunk: BaseChunk, chunk_row: int):
+    def __rechunk(self, chunk: BaseChunk, chunk_id_encoder: ChunkIdEncoder, row: int):
         samples_to_move = self._get_samples_to_move(chunk=chunk)
         num_samples = len(samples_to_move)
         if num_samples == 0:
             return
-        new_chunk = self._create_new_chunk(register=True, row=chunk_row)
-        new_chunk_row = chunk_row + 1
+        new_chunk = self._create_new_chunk(register=True, row=row)
+        new_chunk_row = row + 1
 
-        self.chunk_id_encoder.decrease_samples(row=chunk_row, num_samples=num_samples)
-        self.chunk_id_encoder.decrease_samples(
+        chunk_id_encoder.decrease_samples(row=row, num_samples=num_samples)
+        chunk_id_encoder.decrease_samples(
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
@@ -1061,10 +1152,12 @@ class ChunkEngine:
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
             register_creds=False,
+            chunk_id_encoder=chunk_id_encoder,
         )
 
     def _merge_chunks(
         self,
+        chunk_id_encoder: ChunkIdEncoder,
         from_chunk: BaseChunk,
         from_chunk_row: int,
         to_chunk: BaseChunk,
@@ -1089,25 +1182,27 @@ class ChunkEngine:
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
             register_creds=False,
+            chunk_id_encoder=chunk_id_encoder,
         )
-        self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
+        chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         try:
             del self.cache[from_chunk.key]  # type: ignore
         except KeyError:
             pass
         return True
 
-    def _is_tiled(self, row: int) -> bool:
+    def _is_tiled(self, chunk_id_encoder: ChunkIdEncoder, row: int) -> bool:
         """checkes whether the chunk is tiled or not
 
         Args:
+            chunk_id_encoder: ChunkIdEncoder object
             row (int): Represents the row of the chunk.
 
         Returns:
             bool: return true if the current chunk and previous/next row chunk have the same chunk index false otherwise.
         """
 
-        arr = self.chunk_id_encoder.array
+        arr = chunk_id_encoder.array
         if row >= 1 and len(arr) > 1:
             if arr[row][LAST_SEEN_INDEX_COLUMN] == arr[row - 1][LAST_SEEN_INDEX_COLUMN]:
                 return True
@@ -1116,12 +1211,12 @@ class ChunkEngine:
                 return True
         return False
 
-    def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
-        next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
+    def _try_merge_with_next_chunk(self, chunk: BaseChunk, chunk_id_encoder: ChunkIdEncoder, row: int) -> bool:
+        next_chunk_id = chunk_id_encoder.get_next_chunk_id(row)
         if next_chunk_id is None:
             return False
         next_chunk_row = row + 1
-        if self._is_tiled(next_chunk_row):
+        if self._is_tiled(chunk_id_encoder, next_chunk_row):
             return False
 
         next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)  # type: ignore
@@ -1132,6 +1227,7 @@ class ChunkEngine:
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             # merge with next chunk
             return self._merge_chunks(
+                chunk_id_encoder=chunk_id_encoder,
                 from_chunk=next_chunk,
                 from_chunk_row=next_chunk_row,
                 to_chunk=chunk,
@@ -1139,13 +1235,13 @@ class ChunkEngine:
             )
         return False
 
-    def _try_merge_with_previous_chunk(self, chunk: BaseChunk, row: int) -> bool:
-        prev_chunk_id = self.chunk_id_encoder.get_prev_chunk_id(row)
+    def _try_merge_with_previous_chunk(self, chunk: BaseChunk, chunk_id_encoder: ChunkIdEncoder, row: int) -> bool:
+        prev_chunk_id = chunk_id_encoder.get_prev_chunk_id(row)
         if prev_chunk_id is None:
             return False
 
         prev_chunk_row = row - 1
-        if self._is_tiled(prev_chunk_row):
+        if self._is_tiled(chunk_id_encoder, prev_chunk_row):
             return False
 
         prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)  # type: ignore
@@ -1156,6 +1252,7 @@ class ChunkEngine:
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             # merge with previous chunk
             return self._merge_chunks(
+                chunk_id_encoder=chunk_id_encoder,
                 from_chunk=chunk,
                 from_chunk_row=row,
                 to_chunk=prev_chunk,
@@ -1163,23 +1260,23 @@ class ChunkEngine:
             )
         return False
 
-    def _try_merge_with_neighbor_and_split(self, chunk: BaseChunk, row: int):
+    def _try_merge_with_neighbor_and_split(self, chunk: BaseChunk, chunk_id_encoder: ChunkIdEncoder, row: int):
         if self._try_merge_with_previous_chunk(chunk, row) is False:
             self._try_merge_with_next_chunk(chunk, row)
 
-    def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
+    def _check_rechunk(self, chunk: BaseChunk, chunk_id_encoder: ChunkIdEncoder, row: int):
         """function to check if there is a need to re-chunk the current one"""
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
-            self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+            self._try_merge_with_neighbor_and_split(chunk=chunk, chunk_id_encoder = chunk_id_encoder, row=row)
 
         elif (
             chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE
             or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
         ):
-            self.__rechunk(chunk, chunk_row)
+            self.__rechunk(chunk, chunk_id_encoder=chunk_id_encoder, row=row)
 
     def _update(
         self,
@@ -1198,7 +1295,6 @@ class ChunkEngine:
         if operator is not None:
             return self._update_with_operator(index, samples, operator)
 
-        enc = self.chunk_id_encoder
         index_length = index.length(self.num_samples)
         samples = make_sequence(samples, index_length)
         verified_samples = self.check_each_sample(samples)
@@ -1210,6 +1306,7 @@ class ChunkEngine:
         for i, sample in enumerate(samples):  # type: ignore
             sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
+            enc = self.get_chunk_id_encoder_from_index(global_sample_index)
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)
             else:
@@ -1235,7 +1332,7 @@ class ChunkEngine:
                 if chunk.key != self.last_chunk_key:  # type: ignore
                     nbytes_after_updates.append(chunk.nbytes)
                 self._check_rechunk(
-                    chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
+                    chunk, chunk_id_encoder=enc, row=enc.__getitem__(global_sample_index, True)[0][1]
                 )
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
@@ -1292,7 +1389,7 @@ class ChunkEngine:
             raise Exception(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         chunks = self.get_chunks_for_sample(global_sample_index)
         if len(chunks) > 1:
             raise NotImplementedError(
@@ -1310,7 +1407,7 @@ class ChunkEngine:
         self,
         global_sample_index: int,
     ) -> Tuple[int, ...]:
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         if self._is_tiled_sample(global_sample_index):
             return self.tile_encoder.get_sample_shape(global_sample_index)
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
@@ -1331,12 +1428,11 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         return tensor_meta.min_shape == tensor_meta.max_shape
 
-    @property
-    def num_samples_per_chunk(self):
+    def num_samples_per_chunk(self, chunk_id_encoder: ChunkIdEncoder = None):
         # should only be called if self.is_fixed_shape
         if self._num_samples_per_chunk is None:
             self._num_samples_per_chunk = (
-                self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
+                chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
             )
         return self._num_samples_per_chunk
 
@@ -1348,9 +1444,9 @@ class ChunkEngine:
         copy: bool = False,
         decompress: bool = True,
     ) -> np.ndarray:
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
-            num_samples_per_chunk = self.num_samples_per_chunk
+            num_samples_per_chunk = self.num_samples_per_chunk(enc)
             local_sample_index = global_sample_index % num_samples_per_chunk
         else:
             local_sample_index = enc.translate_index_relative_to_chunks(
@@ -1417,7 +1513,7 @@ class ChunkEngine:
         )
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         chunk_ids = enc[global_sample_index]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk, stream = self.get_video_chunk(chunk_ids[0])
@@ -1434,7 +1530,7 @@ class ChunkEngine:
 
     def get_chunk_info(self, global_sample_index, fetch_chunks):
         """Returns the chunk_id, row and worst case header size of chunk containing the given sample."""
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         out = enc.__getitem__(global_sample_index, return_row_index=True)
         chunk_id, row = out[0][0], out[0][1]
 
@@ -1470,7 +1566,7 @@ class ChunkEngine:
         return chunk_id, row, worst_case_header_size
 
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         chunk_id, row, worst_case_header_size = self.get_chunk_info(
             global_sample_index, fetch_chunks
         )
@@ -1495,7 +1591,8 @@ class ChunkEngine:
 
     def get_partial_tiled_sample(self, global_sample_index, index):
         tile_enc = self.tile_encoder
-        chunk_ids = self.chunk_id_encoder[global_sample_index]
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
+        chunk_ids = enc[global_sample_index]
         sample_shape = tile_enc.get_sample_shape(global_sample_index)
         tile_shape = tile_enc.get_tile_shape(global_sample_index)
         ordered_tile_ids = np.array(chunk_ids).reshape(
@@ -1591,7 +1688,6 @@ class ChunkEngine:
 
     def numpy_from_data_cache(self, index, length, aslist, pad_tensor=False):
         samples = []
-        enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
             if pad_tensor and global_sample_index >= self.tensor_meta.length:
                 sample = self.get_empty_sample()
@@ -1604,15 +1700,16 @@ class ChunkEngine:
                     self.cached_data is None
                     or global_sample_index not in self.cache_range
                 ):
+                    enc = self.get_chunk_id_encoder_from_index(global_sample_index)
                     row = enc.__getitem__(global_sample_index, True)[0][1]
                     chunks = self.get_chunks_for_sample(global_sample_index)
                     assert len(chunks) == 1
 
-                    chunk_arr = self.chunk_id_encoder.array
+                    chunk_arr = enc.array
 
                     chunk = chunks[0]
                     first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                    last_sample = self.chunk_id_encoder.array[row][1]
+                    last_sample = chunk_arr[row][1]
                     num_samples = last_sample - first_sample + 1
 
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
@@ -1645,9 +1742,10 @@ class ChunkEngine:
         Returns:
             List[BaseChunk]: BaseChunk objects that contains `global_sample_index`.
         """
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         return [
             self.get_chunk_from_chunk_id(chunk_id, copy)
-            for chunk_id in self.chunk_id_encoder[global_sample_index]
+            for chunk_id in enc[global_sample_index]
         ]
 
     def validate_num_samples_is_synchronized(self):
@@ -1678,10 +1776,23 @@ class ChunkEngine:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
-            return [
-                ChunkIdEncoder.name_from_id(chunk_id)
-                for chunk_id in self.chunk_id_encoder.array[:, CHUNK_ID_COLUMN]
-            ]  # type: ignore
+            if not self.chunk_id_encoder_map_exists:
+                chunk_id_encoder = self.get_chunk_id_encoder_from_index()
+                return [
+                    ChunkIdEncoder.name_from_id(chunk_id)
+                    for chunk_id in chunk_id_encoder.array[:, CHUNK_ID_COLUMN]
+                ]
+            all_chunks = []
+            for index in range(len(self.chunk_id_encoder_map.array)):
+                filename = self.chunk_id_encoder_map.get_encoder_name(index)
+                chunk_id_encoder = self.get_chunk_id_encoder_from_filename(filename)
+                all_chunks.extend(
+                    [
+                        ChunkIdEncoder.name_from_id(chunk_id)
+                        for chunk_id in chunk_id_encoder.array[:, CHUNK_ID_COLUMN]
+                    ]
+                )
+            return all_chunks
         else:
             return list(self.commit_chunk_set.chunks)  # type: ignore
 
@@ -1743,7 +1854,7 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def pop_item(self, global_sample_index):
-        enc = self.chunk_id_encoder
+        enc = self.get_chunk_id_encoder_from_index(global_sample_index)
         if not self._is_tiled_sample(global_sample_index):
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
@@ -1755,7 +1866,7 @@ class ChunkEngine:
             chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(local_sample_index)
 
-            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+            self._check_rechunk(chunk_to_update, chunk_id_encoder=enc, row=rows[0])
 
             if (
                 self.active_updated_chunk is not None

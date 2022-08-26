@@ -129,13 +129,13 @@ def get_tensor_commit_diff_key(key: str, commit_id: str) -> str:
     return "/".join(("versions", commit_id, key, TENSOR_COMMIT_DIFF_FILENAME))
 
 
-def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
+def get_chunk_id_encoder_key(filename: str, key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join(
             (
                 key,
                 ENCODED_CHUNK_NAMES_FOLDER,
-                UNSHARDED_ENCODER_FILENAME,
+                filename,
             )
         )
     return "/".join(
@@ -144,11 +144,22 @@ def get_chunk_id_encoder_key(key: str, commit_id: str) -> str:
             commit_id,
             key,
             ENCODED_CHUNK_NAMES_FOLDER,
-            UNSHARDED_ENCODER_FILENAME,
+            filename,
         )
     )
 
-
+def get_chunk_id_encoder_map_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join((key, ENCODED_CHUNK_NAMES_FOLDER, "map"))
+    return "/".join(
+        (
+            "versions",
+            commit_id,
+            key,
+            ENCODED_CHUNK_NAMES_FOLDER,
+            "map",
+        )
+    )
 def get_sequence_encoder_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join(

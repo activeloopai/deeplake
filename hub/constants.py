@@ -69,6 +69,7 @@ ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
 # unsharded naming will help with backwards compatibility
 UNSHARDED_ENCODER_FILENAME = "unsharded"
+ENCODER_NUM_ENTRIES = 100_000
 
 ENCODING_DTYPE = np.uint32
 

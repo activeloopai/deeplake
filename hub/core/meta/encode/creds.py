@@ -2,8 +2,8 @@ import json
 from typing import Any, Optional
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import (
-    deserialize_sequence_or_creds_encoder,
-    serialize_sequence_or_creds_encoder,
+    deserialize_generic_encoder,
+    serialize_generic_encoder,
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
@@ -29,7 +29,7 @@ class CredsEncoder(ShapeEncoder, HubMemoryObject):
         instance = cls()
         if not buffer:
             return instance
-        version, ids = deserialize_sequence_or_creds_encoder(buffer, "creds")
+        version, ids = deserialize_generic_encoder(buffer, "creds")
         if ids.nbytes:
             instance._encoded = ids
         instance.version = version
@@ -38,7 +38,7 @@ class CredsEncoder(ShapeEncoder, HubMemoryObject):
 
     def tobytes(self) -> memoryview:
         return memoryview(
-            serialize_sequence_or_creds_encoder(self.version, self._encoded)
+            serialize_generic_encoder(self.version, self._encoded)
         )
 
     @property

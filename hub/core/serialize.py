@@ -4,6 +4,7 @@ from hub.compression import (
     AUDIO_COMPRESSION,
     get_compression_type,
 )
+from hub.core.fast_forwarding import version_compare
 from hub.core.tiling.sample_tiles import SampleTiles
 from hub.core.partial_sample import PartialSample
 from hub.util.compression import get_compression_ratio  # type: ignore
@@ -253,18 +254,18 @@ def deserialize_chunk(
     return version, shape_info, byte_positions, data  # type: ignore
 
 
-def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
         version: (str) Version of hub library.
-        ids: (list) Encoded chunk ids from a `ChunkIdEncoder` instance.
+        arr: (np.ndarray) Encoded chunk ids from a `ChunkIdEncoder` instance.
 
     Returns:
         Serialized chunk ids as memoryview.
     """
     len_version = len(version)
-    flatbuff = bytearray(1 + len_version + sum([x.nbytes for x in ids]))
+    flatbuff = bytearray(1 + len_version + arr.nbytes)
 
     # Write version
     len_version = len(version)
@@ -272,11 +273,15 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     flatbuff[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
 
-    # Write ids
-    for arr in ids:
-        flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
-        offset += arr.nbytes
+    # write number of bytes per entry
+    dtype = arr.dtype
+    num_bytes = dtype.itemsize
+    flatbuff[offset : offset + 1] = num_bytes
+    offset += 1
 
+    # Write ids
+    flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
+    offset += arr.nbytes
     return memoryview(flatbuff)
 
 
@@ -287,36 +292,40 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         byts: (bytes) Serialized chunk ids.
 
     Returns:
-        Tuple of:
-        hub version used to create the chunk,
-        encoded chunk ids as memoryview.
+        Tuple of: hub version used to create the chunk, encoded chunk ids as memoryview and offset of the encoder.
     """
     byts = memoryview(byts)
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
-
     # Read version
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
+    if version_compare(version, "2.7.5") < 0: #change closer to release
+        # Read chunk ids
+        ids = np.frombuffer(byts[offset:], dtype=np.uint32).reshape(-1, 2).copy()
+        return version, ids, 0
+    else:
+        # Read number of bytes per entry
+        num_bytes = byts[offset]
+        dtype = np.dtype(f"<{num_bytes}u")
+        offset += 1
+        # Read chunk ids
+        ids = np.frombuffer(byts[offset:], dtype=dtype).reshape(-1, 2).copy()
+        return version, ids
 
-    # Read chunk ids
-    ids = np.frombuffer(byts[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
-    return version, ids
 
-
-def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
+def serialize_generic_encoder(version: str, enc: np.ndarray) -> bytes:
     return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
 
 
-def deserialize_sequence_or_creds_encoder(
-    byts: Union[bytes, memoryview], enc_type: str
-) -> Tuple[str, np.ndarray]:
-    dim = 2 if enc_type == "creds" else 3
+def deserialize_generic_encoder(
+    byts: Union[bytes, memoryview], enc_type: str, dtype = hub.constants.ENCODING_DTYPE
+) -> Tuple[str, np.ndarray]:        
+    dim = 3 if enc_type == "seq" else 2
     byts = memoryview(byts)
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     enc = (
-        np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
+        np.frombuffer(byts[1 + len_version :], dtype=dtype)
         .reshape(-1, dim)
         .copy()
     )
