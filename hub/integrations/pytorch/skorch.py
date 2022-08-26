@@ -120,33 +120,23 @@ def pytorch_module_to_skorch(
         optimizer = torch.optim.Adam
 
     if dataset_valid:
-        model = VisionClassifierNet(
-            module=module,
-            criterion=criterion,
-            device=device,
-            max_epochs=epochs,
-            optimizer=optimizer,
-            optimizer__lr=optimizer_lr,
-            train_split=predefined_split(dataset_valid),
-            dataloader_train_params=dataloader_train_params,
-            dataloader_valid_params=dataloader_valid_params,
-            images_tensor=images_tensor,
-            labels_tensor=labels_tensor,
-        )
-
+        train_split = predefined_split(dataset_valid),
     else:
-        model = VisionClassifierNet(
-            module=module,
-            criterion=criterion,
-            device=device,
-            max_epochs=epochs,
-            optimizer=optimizer,
-            optimizer__lr=optimizer_lr,
-            train_split=None,
-            dataloader_train_params=dataloader_train_params,
-            dataloader_valid_params=dataloader_valid_params,
-            images_tensor=images_tensor,
-            labels_tensor=labels_tensor,
-        )
+        train_split = None
+
+    model = VisionClassifierNet(
+        module=module,
+        criterion=criterion,
+        device=device,
+        max_epochs=epochs,
+        optimizer=optimizer,
+        optimizer__lr=optimizer_lr,
+        train_split=train_split,
+        dataloader_train_params=dataloader_train_params,
+        dataloader_valid_params=dataloader_valid_params,
+        images_tensor=images_tensor,
+        labels_tensor=labels_tensor,
+    )
+
 
     return model
