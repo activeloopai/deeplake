@@ -285,7 +285,7 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     return memoryview(flatbuff)
 
 
-def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray, np.dtype]:
+def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray, type]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
@@ -309,7 +309,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         if num_bytes == 4:
             dtype = np.uint32
         elif num_bytes == 8:
-            dtype = np.uint64
+            dtype = np.uint64 # type: ignore
         else:
             raise ValueError(f"Invalid number of bytes per entry: {num_bytes}")
         offset += 1
