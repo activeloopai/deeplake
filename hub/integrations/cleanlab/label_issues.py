@@ -14,9 +14,7 @@ import numpy as np
 def get_dataset_tensors(dataset, transform, tensors):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
-    it will try to find them in the transform. If none of
-    these are provided, it will iterate over the dataset tensors and return any tensors
-    that match htype 'image' for images and htype 'class_label' for labels.
+    it will try to get them from the transform.
     """
     from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
 
@@ -109,7 +107,8 @@ def estimate_cv_predicted_probabilities(
 def get_predicted_labels(dataset, label_issues, model, verbose):
     """
     This function returns the predicted labels for a dataset
-    after pruning samples with label errors.
+    after pruning samples with label errors and training classifier
+    on a cleaned dataset.
     """
     from hub.integrations.cleanlab.utils import subset_dataset
 
@@ -157,11 +156,11 @@ def get_label_issues(
     verbose,
 ):
     """
-    This function cleans the labels of a dataset. It wraps a PyTorch instance in a sklearn classifier.
+    This function finds label issues of a dataset. It wraps a PyTorch instance in a sklearn classifier.
     Next, it runs cross-validation to get out-of-sample predicted probabilities for each example.
-    Then, it calls filter.find_label_issues to find label issues and rank.get_label_quality_scores
-    to find label quality scores for each sample in the dataset. At the end, it creates tensors
-    with label issues.
+    Then, it calls `filter.find_label_issues` to find label issues and `rank.get_label_quality_scores`
+    to find label quality scores for each sample in the dataset. Finally, it fits the model on a
+    cleaned dataset to compute predicted labels.
     """
 
     images_tensor, labels_tensor = get_dataset_tensors(

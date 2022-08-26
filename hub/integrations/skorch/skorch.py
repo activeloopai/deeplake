@@ -7,6 +7,12 @@ from skorch.helper import predefined_split
 
 # Wraps the PyTorch Module in a sklearn interface.
 class VisionClassifierNet(NeuralNet):
+    """
+    This class extends the NeuralNet class from skorch.
+    It overrides get_dataset and get_iterator to return the Hub's PyTorch Dataloader.
+    Additionally, it overrides train_step_single, evaluation_step and validation_step
+    to get the data for each batch from the images and label tensors.
+    """
     def __init__(
         self,
         images_tensor,
@@ -80,6 +86,10 @@ def pytorch_module_to_skorch(
     optimizer_lr,
     num_classes,
 ):
+    """
+    This function wraps a PyTorch Module in a skorch NeuralNet.
+    It will also initialize a default PyTorch module if one is not provided.
+    """
     from hub.integrations.skorch.utils import repeat_shape
 
     images_tensor, labels_tensor = tensors
