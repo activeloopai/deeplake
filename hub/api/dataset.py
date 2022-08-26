@@ -990,11 +990,11 @@ class dataset:
 
             # TODO: support more than just image classification (and update docstring)
             if sample_compression in IMAGE_COMPRESSIONS:
-                unstructured = ImageClassification(source=src, htype="image")
+                unstructured = ImageClassification(source=src, htype="image")  # type: ignore
             elif sample_compression in AUDIO_COMPRESSIONS:
-                unstructured = AudioClassification(source=src, htype="audio")
+                unstructured = AudioClassification(source=src, htype="audio")  # type: ignore
             elif sample_compression in VIDEO_COMPRESSIONS:
-                unstructured = VideoClassification(source=src, htype="video")
+                unstructured = VideoClassification(source=src, htype="video")  # type: ignore
 
             # TODO: auto detect compression
             unstructured.structure(
