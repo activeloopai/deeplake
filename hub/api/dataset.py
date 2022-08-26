@@ -153,7 +153,11 @@ class dataset:
 
         try:
             if access_method == "stream":
+<<<<<<< Updated upstream
                 return dataset_factory(
+=======
+                ret = dataset_factory(
+>>>>>>> Stashed changes
                     path=path,
                     storage=cache_chain,
                     read_only=read_only,
@@ -161,6 +165,13 @@ class dataset:
                     token=token,
                     verbose=verbose,
                 )
+<<<<<<< Updated upstream
+=======
+                if create:
+                    dataset_created(ret)
+                else:
+                    dataset_loaded(ret)
+>>>>>>> Stashed changes
 
             return get_local_dataset(
                 access_method=access_method,
@@ -393,13 +404,15 @@ class dataset:
 
         try:
             if access_method == "stream":
-                return dataset_factory(
+                ret = dataset_factory(
                     path=path,
                     storage=cache_chain,
                     read_only=read_only,
                     token=token,
                     verbose=verbose,
                 )
+                dataset_loaded(ret)
+                return ret
             return get_local_dataset(
                 access_method=access_method,
                 path=path,
