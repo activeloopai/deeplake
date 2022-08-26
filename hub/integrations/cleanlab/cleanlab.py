@@ -4,7 +4,7 @@ from hub.core.dataset import Dataset
 
 def clean_labels(
     dataset: Type[Dataset],
-    # dataset_valid: Optional[Type[Dataset]] = None,
+    dataset_valid: Optional[Type[Dataset]] = None,
     module: Union[Any, Callable, None] = None,
     criterion: Optional[Any] = None,
     optimizer: Optional[Any] = None,
@@ -52,9 +52,16 @@ def clean_labels(
 
     from hub.integrations.cleanlab import get_label_issues
     from hub.integrations.cleanlab import create_label_issues_tensors
+    from hub.integrations.cleanlab.utils import is_dataset
 
-    # TODO: Check if dataset is Hub Dataset
-    # hub.core.dataset.hub_cloud_dataset.HubCloudDataset
+    if not is_dataset(dataset):
+        raise ValueError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
+
+    if dataset_valid and not is_dataset(dataset_valid):
+        raise ValueError(f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}")
+
+    if create_tensors and dataset.read_only:
+        raise ValueError(f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`")
 
     label_issues, label_quality_scores = get_label_issues(
         dataset=dataset,
