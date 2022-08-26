@@ -14,10 +14,6 @@ except ImportError:
     INDRA_INSTALLED = False
 
 
-class DataLoader:
-    @hub_reporter.record_call
-    def __new__(cls, dataset):
-        return Hub3DataLoader(dataset)
 
 
 class Hub3DataLoader:
@@ -108,7 +104,7 @@ class Hub3DataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
-    def to_pytorch(
+    def pytorch(
         self,
         num_workers: int = 0,
         collate_fn: Callable = None,
@@ -147,7 +143,7 @@ class Hub3DataLoader:
         all_vars["_mode"] = "pytorch"
         return self.__class__(**all_vars)
 
-    def to_numpy(
+    def numpy(
         self,
         num_workers: int = 0,
         tensors: Optional[List[str]] = None,
@@ -214,3 +210,6 @@ class Hub3DataLoader:
             drop_last=drop_last,
             upcast=upcast,
         )
+
+def dataloader(dataset) -> Hub3DataLoader:
+    return Hub3DataLoader(dataset)
