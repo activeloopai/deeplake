@@ -2,6 +2,7 @@ import torch
 from torchvision.models import resnet18
 
 from skorch import NeuralNet
+from skorch.helper import predefined_split
 
 # Wraps the PyTorch Module in an sklearn interface.
 class VisionClassifierNet(NeuralNet):
@@ -24,14 +25,16 @@ class VisionClassifierNet(NeuralNet):
 
     def get_iterator(self, dataset, training=False):
         if training:
+            print(f"Training on {len(dataset)} examples")
             kwargs = self.dataloader_train_params
 
         else:
+            print(f"Validating on {len(dataset)} examples")
             kwargs = self.dataloader_valid_params
             if kwargs is None:
                 kwargs = self.dataloader_train_params
-                # Set this to False to avoid getting incorrect probabilities in cross-validation.
-                kwargs["shuffle"] = False
+            # Set this to False to avoid getting incorrect probabilities in cross-validation.
+            kwargs["shuffle"] = False
 
         if "batch_size" not in kwargs:
             kwargs["batch_size"] = self.batch_size
@@ -74,6 +77,7 @@ class VisionClassifierNet(NeuralNet):
 
 def pytorch_module_to_skorch(
     dataset,
+    dataset_valid,
     module,
     criterion,
     device,
@@ -87,11 +91,11 @@ def pytorch_module_to_skorch(
 ):
     images_tensor, labels_tensor = tensors
 
-    # TODO: Handle "mps" with torch.backends.mps.is_available()
-
     if device is None:
         if torch.cuda.is_available():
             device_name = "cuda:0"
+        elif torch.backends.mps.is_available():
+            device_name = "mps"
         else:
             device_name = "cpu"
         device = torch.device(device_name)
@@ -115,18 +119,34 @@ def pytorch_module_to_skorch(
     if optimizer is None:
         optimizer = torch.optim.Adam
 
-    model = VisionClassifierNet(
-        module=module,
-        criterion=criterion,
-        device=device,
-        max_epochs=epochs,
-        optimizer=optimizer,
-        optimizer__lr=optimizer_lr,
-        train_split=None,
-        dataloader_train_params=dataloader_train_params,
-        dataloader_valid_params=dataloader_valid_params,
-        images_tensor=images_tensor,
-        labels_tensor=labels_tensor,
-    )
+    if dataset_valid:
+        model = VisionClassifierNet(
+            module=module,
+            criterion=criterion,
+            device=device,
+            max_epochs=epochs,
+            optimizer=optimizer,
+            optimizer__lr=optimizer_lr,
+            train_split=predefined_split(dataset_valid),
+            dataloader_train_params=dataloader_train_params,
+            dataloader_valid_params=dataloader_valid_params,
+            images_tensor=images_tensor,
+            labels_tensor=labels_tensor,
+        )
+
+    else:
+        model = VisionClassifierNet(
+            module=module,
+            criterion=criterion,
+            device=device,
+            max_epochs=epochs,
+            optimizer=optimizer,
+            optimizer__lr=optimizer_lr,
+            train_split=None,
+            dataloader_train_params=dataloader_train_params,
+            dataloader_valid_params=dataloader_valid_params,
+            images_tensor=images_tensor,
+            labels_tensor=labels_tensor,
+        )
 
     return model

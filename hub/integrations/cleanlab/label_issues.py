@@ -115,6 +115,7 @@ def estimate_cv_predicted_probabilities(
 
 def get_label_issues(
     dataset,
+    dataset_valid,
     module,
     criterion,
     optimizer,
@@ -150,6 +151,7 @@ def get_label_issues(
     # Wrap the PyTorch Module in scikit-learn interface.
     model = to_skorch(
         dataset=dataset,
+        dataset_valid=dataset_valid,
         module=module,
         criterion=criterion,
         device=device,

@@ -65,6 +65,7 @@ def clean_labels(
 
     label_issues, label_quality_scores = get_label_issues(
         dataset=dataset,
+        dataset_valid=dataset_valid,
         module=module,
         criterion=criterion,
         optimizer=optimizer,
