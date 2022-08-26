@@ -196,6 +196,7 @@ class Hub3DataLoader:
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
         distributed = self._distributed or False
+        upcast = self._mode == "pytorch" # only upcast for pytorch, this handles unsupported dtypes
 
         return Loader(
             dataset,
@@ -209,4 +210,5 @@ class Hub3DataLoader:
             prefetch_factor=prefetch_factor,
             tensors=tensors,
             drop_last=drop_last,
+            upcast=upcast,
         )
