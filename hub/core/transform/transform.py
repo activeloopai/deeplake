@@ -28,6 +28,7 @@ from hub.util.exceptions import (
     HubComposeIncompatibleFunction,
     TransformError,
 )
+from hub.hooks import dataset_written, dataset_read
 from hub.util.version_control import auto_checkout, load_meta
 from hub.util.class_label import sync_labels
 import numpy as np
@@ -215,6 +216,8 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
+        if isinstance(data_in, hub.Dataset):
+            dataset_read(data_in)
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
         class_label_tensors = [
@@ -233,13 +236,14 @@ class Pipeline:
         for tensor in class_label_tensors:
             temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
             with target_ds:
-                target_ds.create_tensor(
+                temp_tensor_obj = target_ds.create_tensor(
                     temp_tensor,
-                    dtype=np.uint32,
+                    htype="class_label",
                     create_sample_info_tensor=False,
                     create_shape_tensor=False,
                     create_id_tensor=False,
                 )
+                temp_tensor_obj.meta._disable_temp_transform = True
                 label_temp_tensors[tensor] = temp_tensor
             target_ds.flush()
 
@@ -297,6 +301,7 @@ class Pipeline:
             target_ds, storage, generated_tensors, overwrite, all_num_samples, result
         )
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
+        dataset_written(target_ds)
 
         if label_temp_tensors:
             sync_labels(

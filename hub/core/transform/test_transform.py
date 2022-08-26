@@ -972,7 +972,7 @@ def test_transform_bug_text(local_ds):
 
 def test_transform_bug_link(local_ds, cat_path):
     with local_ds as ds:
-        ds.create_tensor("abc", htype="link")
+        ds.create_tensor("abc", htype="link[image]")
         ls = [cat_path] * 10
         add_link().eval(ls, ds, num_workers=2)
         assert len(ds) == 10

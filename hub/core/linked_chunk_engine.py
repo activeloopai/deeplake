@@ -154,7 +154,7 @@ class LinkedChunkEngine(ChunkEngine):
     def verify(self):
         return self.tensor_meta.is_link and self.tensor_meta.verify
 
-    def check_each_sample(self, samples):
+    def check_each_sample(self, samples, verify_creds_key_exists=True):
         link_creds = self.link_creds
         verified_samples = []
         for i, sample in enumerate(samples):
@@ -169,7 +169,8 @@ class LinkedChunkEngine(ChunkEngine):
             path, creds_key = get_path_creds_key(sample)
 
             # verifies existence of creds_key
-            link_creds.get_encoding(creds_key, path)
+            if verify_creds_key_exists:
+                link_creds.get_encoding(creds_key, path)
 
             if sample is None or sample.path == "":
                 verified_samples.append(sample)

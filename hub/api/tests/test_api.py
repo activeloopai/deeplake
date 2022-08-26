@@ -7,7 +7,7 @@ import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal, is_opt_true
+from hub.tests.common import assert_array_lists_equal, is_opt_true, get_dummy_data_path
 from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
@@ -560,6 +560,12 @@ def test_htype(memory_ds: Dataset):
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
     point = memory_ds.create_tensor("point", htype="point")
+    point_cloud = memory_ds.create_tensor(
+        "point_cloud", htype="point_cloud", sample_compression="las"
+    )
+    memory_ds.create_tensor(
+        "point_cloud_calibration_matrix", htype="point_cloud.calibration_matrix"
+    )
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -571,6 +577,17 @@ def test_htype(memory_ds: Dataset):
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
+
+    point_cloud.append(
+        hub.read(os.path.join(get_dummy_data_path("point_cloud"), "point_cloud.las"))
+    )
+    point_cloud_dummy_data_path = pathlib.Path(get_dummy_data_path("point_cloud"))
+    point_cloud.append(hub.read(point_cloud_dummy_data_path / "point_cloud.las"))
+    # Along the forst direcection three matrices are concatenated, the first matrix is P,
+    # the second one is Tr and the third one is R
+    memory_ds.point_cloud_calibration_matrix.append(
+        np.zeros((3, 4, 4), dtype=np.float32)
+    )
 
 
 def test_dtype(memory_ds: Dataset):
@@ -969,6 +986,7 @@ def test_compressions_list():
         "ico",
         "jpeg",
         "jpeg2000",
+        "las",
         "lz4",
         "mkv",
         "mp3",
@@ -991,6 +1009,7 @@ def test_htypes_list():
     assert hub.htypes == [
         "audio",
         "bbox",
+        "bbox.3d",
         "binary_mask",
         "class_label",
         "dicom",
@@ -998,10 +1017,13 @@ def test_htypes_list():
         "image",
         "image.gray",
         "image.rgb",
+        "instance_label",
         "json",
         "keypoints_coco",
         "list",
         "point",
+        "point_cloud",
+        "point_cloud.calibration_matrix",
         "segment_mask",
         "text",
         "video",
@@ -2028,3 +2050,11 @@ def test_hub_token_without_permission(
     ds = hub.empty(
         "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
     )
+
+
+def test_incompat_dtype_msg(local_ds, capsys):
+    local_ds.create_tensor("abc", dtype="uint32")
+    with pytest.raises(TensorDtypeMismatchError):
+        local_ds.abc.append([0.0])
+    captured = capsys.readouterr()
+    assert "True" not in captured

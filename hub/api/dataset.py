@@ -1,5 +1,4 @@
 import os
-import re
 import hub
 import pathlib
 import posixpath
@@ -12,6 +11,7 @@ from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.util.path import convert_pathlib_to_string_if_needed
+from hub.hooks import dataset_created, dataset_loaded
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -139,25 +139,34 @@ class dataset:
                     "‘activeloop register."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    f"You can not load or create this dataset. You do not have sufficient "
-                    f"permissions. Please make sure that you have sufficient permissions "
-                    f"to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
         ds_exists = dataset_exists(cache_chain)
-        if overwrite and ds_exists:
-            cache_chain.clear()
+
+        if ds_exists:
+            if overwrite:
+                cache_chain.clear()
+                create = True
+            else:
+                create = False
+        else:
+            create = True
 
         try:
+            remote_ds = dataset_factory(
+                path=path,
+                storage=cache_chain,
+                read_only=read_only,
+                public=public,
+                token=token,
+                verbose=verbose,
+            )
+            if create:
+                dataset_created(remote_ds)
+            else:
+                dataset_loaded(remote_ds)
+
             if access_method == "stream":
-<<<<<<< Updated upstream
-                return dataset_factory(
-=======
                 ret = dataset_factory(
->>>>>>> Stashed changes
                     path=path,
                     storage=cache_chain,
                     read_only=read_only,
@@ -165,13 +174,11 @@ class dataset:
                     token=token,
                     verbose=verbose,
                 )
-<<<<<<< Updated upstream
-=======
                 if create:
                     dataset_created(ret)
                 else:
                     dataset_loaded(ret)
->>>>>>> Stashed changes
+                return ret
 
             return get_local_dataset(
                 access_method=access_method,
@@ -287,12 +294,6 @@ class dataset:
                     f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    "You do not have sufficient permissions to create a dataset at the specified path. "
-                    "Please make sure that you have write access to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -303,9 +304,8 @@ class dataset:
                 f" a new empty dataset, either specify another path or use overwrite=True. "
                 f"If you want to load the dataset that exists at this path, use hub.load() instead."
             )
-
         read_only = storage.read_only
-        return dataset_factory(
+        ret = dataset_factory(
             path=path,
             storage=cache_chain,
             read_only=read_only,
@@ -313,6 +313,8 @@ class dataset:
             token=token,
             verbose=verbose,
         )
+        dataset_created(ret)
+        return ret
 
     @staticmethod
     def load(
@@ -390,12 +392,6 @@ class dataset:
                     "‘activeloop register’."
                 )
                 raise UserNotLoggedInException(message)
-            elif isinstance(e, TokenPermissionError):
-                message = (
-                    "You do not have sufficient permissions to load a dataset from the specified path. "
-                    "Please make sure that you have read access to the path provided."
-                )
-                raise TokenPermissionError(message)
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
