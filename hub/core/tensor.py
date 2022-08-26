@@ -26,12 +26,6 @@ from hub.util.keys import (
     tensor_exists,
     get_tensor_info_key,
     get_sample_id_tensor_key,
-)
-from hub.util.keys import (
-    get_tensor_meta_key,
-    tensor_exists,
-    get_tensor_info_key,
-    get_sample_id_tensor_key,
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
 )
@@ -43,10 +37,8 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-
+from hub.hooks import dataset_read, dataset_written
 from hub.util.pretty_print import (
-    max_array_length,
-    get_string,
     summary_tensor,
 )
 from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
@@ -315,6 +307,7 @@ class Tensor:
             progressbar=progressbar,
             link_callback=self._append_to_links if self.meta.links else None,
         )
+        dataset_written(self.dataset)
 
     @property
     def info(self):
@@ -636,17 +629,18 @@ class Tensor:
                 append_link_callback=append_link_callback,
                 update_link_callback=update_link_callback,
             )
-            return
+        else:
 
-        if not item_index.values[0].subscriptable() and not self.is_sequence:
-            # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
-            value = [value]
+            if not item_index.values[0].subscriptable() and not self.is_sequence:
+                # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
+                value = [value]
 
-        self.chunk_engine.update(
-            self.index[item_index],
-            value,
-            link_callback=update_link_callback,
-        )
+            self.chunk_engine.update(
+                self.index[item_index],
+                value,
+                link_callback=update_link_callback,
+            )
+        dataset_written(self.dataset)
 
     def __iter__(self):
         for i in range(len(self)):
@@ -673,24 +667,19 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        if self.htype == "point_cloud":
-            full_numpy_arr = self.chunk_engine.numpy(
-                self.index,
-                aslist=aslist,
-                fetch_chunks=fetch_chunks,
-                pad_tensor=self.pad_tensor,
-            )
-
-            if isinstance(full_numpy_arr, list):
-                return [arr[..., :3] for arr in full_numpy_arr]
-            return full_numpy_arr[..., :3]
-
-        return self.chunk_engine.numpy(
+        ret = self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
             fetch_chunks=fetch_chunks,
             pad_tensor=self.pad_tensor,
         )
+        if self.htype == "point_cloud":
+            if isinstance(ret, list):
+                ret = [arr[..., :3] for arr in ret]
+            else:
+                ret = ret[..., :3]
+        dataset_read(self.dataset)
+        return ret
 
     def summary(self):
         pretty_print = summary_tensor(self)
@@ -870,7 +859,9 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         idx = self.index.values[0].value
-        return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        dataset_read(self.dataset)
+        return ret
 
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():

@@ -17,6 +17,7 @@ from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
+from hub.client.utils import get_user_name
 from hub.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -113,7 +114,7 @@ from hub.util.version_control import (
 )
 from hub.util.pretty_print import summary_dataset
 from hub.core.dataset.view_entry import ViewEntry
-from hub.client.utils import get_user_name
+from hub.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
@@ -223,9 +224,10 @@ class Dataset:
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        always_warn(
-            "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
-        )
+        if self.verbose:
+            always_warn(
+                "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+            )
         self._locked_out = True
 
     def __enter__(self):
@@ -1421,7 +1423,7 @@ class Dataset:
 
         if use_progress_bar:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
-
+        dataset_read(self)
         return dataloader
 
     @hub_reporter.record_call
@@ -1462,7 +1464,7 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
-        result = fn(
+        ret = fn(
             self,
             function,
             num_workers=num_workers,
@@ -1472,7 +1474,8 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
-        return result
+        dataset_read(self)
+        return ret
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -1547,6 +1550,7 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
+        dataset_read(self)
         return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
 
     def flush(self):
