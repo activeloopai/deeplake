@@ -63,6 +63,7 @@ class Encoder(ABC):
 
         Args:
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
+            dtype (np.dtype): Dtype of the encoder. Defaults to `ENCODING_DTYPE`.
         """
         self.dtype = dtype
 

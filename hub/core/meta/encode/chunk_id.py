@@ -110,7 +110,8 @@ class ChunkIdEncoder(Encoder, HubMemoryObject):
             register (Optional, bool): Whether the generated chunk id should be added to the encoder. Default True.
             row (Optional, int): Iterator position where the new generated id should be inserted
 
-        Returns: The random chunk ID.
+        Returns:
+            The generated chunk id.
 
         Raises:
             OutOfChunkCountError: When the row is out of chunk bounds
