@@ -72,7 +72,7 @@ def clean_labels(
             f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
         )
 
-    label_issues, label_quality_scores = get_label_issues(
+    label_issues, label_quality_scores, guessed_labels = get_label_issues(
         dataset=dataset,
         dataset_valid=dataset_valid,
         transform=transform,
@@ -94,8 +94,9 @@ def clean_labels(
             dataset=dataset,
             label_issues=label_issues,
             label_quality_scores=label_quality_scores,
+            guessed_labels=guessed_labels,
             overwrite=overwrite,
             verbose=verbose,
         )
 
-    return label_issues, label_quality_scores
+    return label_issues, label_quality_scores, guessed_labels

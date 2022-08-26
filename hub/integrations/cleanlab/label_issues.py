@@ -107,6 +107,35 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+def get_guessed_labels(dataset, label_issues, model, verbose):
+    """
+    This function returns the guessed labels for a dataset.
+    """
+    from hub.integrations.cleanlab.utils import subset_dataset
+
+    if verbose:
+        print(f"Pruning {np.sum(label_issues)} examples with label issues ...")
+
+    label_issues_mask = ~label_issues
+    cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+
+    if verbose:
+        print(f"Remaining clean data has {len(cleaned_dataset)} examples.")
+
+    # Initialize a fresh untrained model.
+    model_copy = clone(model)
+
+    if verbose:
+        print("Fitting final model on the clean data...")
+
+    # Fit model to training set, predict on holdout set, and update pred_probs.
+    model_copy.fit(X=cleaned_dataset)
+
+    # Get a vector of predicted probabilities for each example in the original dataset.
+    pred_probs = model_copy.predict_proba(X=dataset)
+    predicted_labels = pred_probs.argmax(axis=1)
+
+    return predicted_labels
 
 def get_label_issues(
     dataset,
@@ -182,4 +211,6 @@ def get_label_issues(
     if verbose:
         print(f"Identified {np.sum(label_issues)} examples with label issues.")
 
-    return label_issues, label_quality_scores
+    guessed_labels = get_guessed_labels(dataset=dataset, label_issues=label_issues, model=model, verbose=verbose)
+
+    return label_issues, label_quality_scores, guessed_labels

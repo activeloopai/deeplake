@@ -1,9 +1,9 @@
 from hub.core.dataset import Dataset
 
+import numpy as np
 
 def is_dataset(dataset):
     return isinstance(dataset, Dataset)
-
 
 def is_image_tensor(image_tensor_htype):
     supported_image_htypes = set(
@@ -23,3 +23,8 @@ def is_label_tensor(label_tensor_htype):
         label_tensor_htype in supported_label_htypes
         and not label_tensor_htype.startswith("sequence")
     )
+
+def subset_dataset(dataset, mask):
+    """Extracts subset of samples where mask is True"""
+    mask = np.where(mask)[0].tolist()
+    return dataset[mask]

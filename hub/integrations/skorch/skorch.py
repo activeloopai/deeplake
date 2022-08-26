@@ -128,6 +128,7 @@ def pytorch_module_to_skorch(
         iterator_train__shuffle=shuffle,
     )
 
+    # Set transoform params for the train and validation dataloader.
     model.set_params(
         iterator_train__transform=transform, iterator_valid__transform=transform
     )

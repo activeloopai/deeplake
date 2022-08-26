@@ -1,7 +1,9 @@
+
 from torchvision import transforms
 
 
 def repeat_shape(images_tensor, transform):
+
     repeat_tform = transforms.Lambda(lambda x: x.repeat(int(3 / x.shape[0]), 1, 1))
 
     if transform is None:
