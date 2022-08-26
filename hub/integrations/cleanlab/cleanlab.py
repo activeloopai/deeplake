@@ -54,6 +54,7 @@ def clean_labels(
     from hub.integrations.cleanlab import create_label_issues_tensors
     from hub.integrations.cleanlab.utils import is_dataset
 
+    # Catch most common user errors early.
     if not is_dataset(dataset):
         raise ValueError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 

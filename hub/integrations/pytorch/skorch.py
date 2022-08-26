@@ -1,4 +1,5 @@
 import torch
+
 from torchvision.models import resnet18
 
 from skorch import NeuralNet
@@ -76,7 +77,6 @@ class VisionClassifierNet(NeuralNet):
 
 
 def pytorch_module_to_skorch(
-    dataset,
     dataset_valid,
     module,
     criterion,
@@ -89,6 +89,8 @@ def pytorch_module_to_skorch(
     tensors,
     num_classes,
 ):
+    from hub.integrations.pytorch.utils import repeat_shape
+
     images_tensor, labels_tensor = tensors
 
     if device is None:
@@ -104,11 +106,9 @@ def pytorch_module_to_skorch(
         # Set default module.
         module = resnet18()
 
-        # Check if an image tensor is grayscale.
-        if len(dataset[images_tensor].shape) < 4:
-            module.conv1 = torch.nn.Conv2d(
-                1, 64, kernel_size=7, stride=2, padding=3, bias=False
-            )
+        # Make training work with both grayscale and color images.
+        dataloader_train_params = repeat_shape(images_tensor, dataloader_train_params)
+        dataloader_valid_params = repeat_shape(images_tensor, dataloader_valid_params)
 
         # Change the last layer to have num_classes output channels.
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)

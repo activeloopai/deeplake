@@ -150,7 +150,6 @@ def get_label_issues(
 
     # Wrap the PyTorch Module in scikit-learn interface.
     model = to_skorch(
-        dataset=dataset,
         dataset_valid=dataset_valid,
         module=module,
         criterion=criterion,
