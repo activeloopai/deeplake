@@ -285,7 +285,7 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     return memoryview(flatbuff)
 
 
-def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray, np.dtype]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
