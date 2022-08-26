@@ -30,6 +30,7 @@ class VisionClassifierNet(NeuralNet):
             kwargs = self.dataloader_valid_params
             if kwargs is None:
                 kwargs = self.dataloader_train_params
+                # Set this to False to avoid getting incorrect probabilities in cross-validation.
                 kwargs["shuffle"] = False
 
         if "batch_size" not in kwargs:

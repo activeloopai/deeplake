@@ -1,8 +1,10 @@
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Union, Type
+from hub.core.dataset import Dataset
 
 
 def clean_labels(
-    dataset,
+    dataset: Type[Dataset],
+    # dataset_valid: Optional[Type[Dataset]] = None,
     module: Union[Any, Callable, None] = None,
     criterion: Optional[Any] = None,
     optimizer: Optional[Any] = None,
@@ -49,6 +51,10 @@ def clean_labels(
     """
 
     from hub.integrations.cleanlab import get_label_issues
+    from hub.integrations.cleanlab import create_label_issues_tensors
+
+    # TODO: Check if dataset is Hub Dataset
+    # hub.core.dataset.hub_cloud_dataset.HubCloudDataset
 
     label_issues, label_quality_scores = get_label_issues(
         dataset=dataset,
@@ -62,9 +68,16 @@ def clean_labels(
         tensors=tensors,
         dataloader_train_params=dataloader_train_params,
         dataloader_valid_params=dataloader_valid_params,
-        create_tensors=create_tensors,
-        overwrite=overwrite,
         verbose=verbose,
     )
+
+    if create_tensors:
+        create_label_issues_tensors(
+            dataset=dataset,
+            label_issues=label_issues,
+            label_quality_scores=label_quality_scores,
+            overwrite=overwrite,
+            verbose=verbose,
+        )
 
     return label_issues, label_quality_scores
