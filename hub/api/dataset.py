@@ -53,27 +53,6 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
-IMAGE_FORMAT_NAME = [
-    "bmp",
-    "dib",
-    "gif",
-    "ico",
-    "jpeg",
-    "jpeg2000",
-    "pcx",
-    "png",
-    "ppm",
-    "sgi",
-    "tga",
-    "tiff",
-    "webp",
-    "wmf",
-    "xbm",
-    "jpg",
-]
-AUDIO_FORMAT_NAME = ["flac", "mp3", "wav"]
-VIDEO_FORMAT_NAME = ["mp4", "mkv", "avi"]
-
 
 class dataset:
     @staticmethod
