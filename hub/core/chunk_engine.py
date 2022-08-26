@@ -284,7 +284,7 @@ class ChunkEngine:
             commit_id = self.commit_id
             key = get_chunk_id_encoder_key(self.key, commit_id)
             if not self.chunk_id_encoder_exists:
-                enc = ChunkIdEncoder()
+                enc = ChunkIdEncoder(dtype=np.uint64)
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
@@ -1612,8 +1612,8 @@ class ChunkEngine:
                     chunk_arr = self.chunk_id_encoder.array
 
                     chunk = chunks[0]
-                    first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                    last_sample = self.chunk_id_encoder.array[row][1]
+                    first_sample = int(0 if row == 0 else chunk_arr[row - 1][1] + 1)
+                    last_sample = int(self.chunk_id_encoder.array[row][1])
                     num_samples = last_sample - first_sample + 1
 
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
