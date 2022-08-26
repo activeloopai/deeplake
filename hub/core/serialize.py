@@ -292,7 +292,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
         byts: (bytes) Serialized chunk ids.
 
     Returns:
-        Tuple of: hub version used to create the chunk, encoded chunk ids as memoryview and offset of the encoder.
+        Tuple of: hub version used to create the chunk, encoded chunk ids as memoryview and dtype of the encoder.
     """
     byts = memoryview(byts)
     # Read version
@@ -302,7 +302,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     if version_compare(version, "2.7.5") < 0:  # change this to 2.8.0 closer to release
         # Read chunk ids
         ids = np.frombuffer(byts[offset:], dtype=np.uint32).reshape(-1, 2).copy()
-        return version, ids, 0
+        return version, ids, np.uint32
     else:
         # Read number of bytes per entry
         num_bytes = byts[offset]
