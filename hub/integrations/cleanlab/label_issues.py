@@ -20,8 +20,6 @@ def get_dataset_tensors(dataset, transform, tensors):
     """
     from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
 
-    # tensors_list = list(dataset.tensors)
-
     if tensors is not None:
         tensors = map_tensor_keys(dataset, tensors)
 
@@ -107,6 +105,7 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+
 def get_guessed_labels(dataset, label_issues, model, verbose):
     """
     This function returns the guessed labels for a dataset.
@@ -128,14 +127,17 @@ def get_guessed_labels(dataset, label_issues, model, verbose):
     if verbose:
         print("Fitting final model on the clean data...")
 
-    # Fit model to training set, predict on holdout set, and update pred_probs.
+    # Fit model to the cleaned training set.
     model_copy.fit(X=cleaned_dataset)
 
     # Get a vector of predicted probabilities for each example in the original dataset.
     pred_probs = model_copy.predict_proba(X=dataset)
+
+    # Get predicted class for each example.
     predicted_labels = pred_probs.argmax(axis=1)
 
     return predicted_labels
+
 
 def get_label_issues(
     dataset,
@@ -211,6 +213,8 @@ def get_label_issues(
     if verbose:
         print(f"Identified {np.sum(label_issues)} examples with label issues.")
 
-    guessed_labels = get_guessed_labels(dataset=dataset, label_issues=label_issues, model=model, verbose=verbose)
+    guessed_labels = get_guessed_labels(
+        dataset=dataset, label_issues=label_issues, model=model, verbose=verbose
+    )
 
     return label_issues, label_quality_scores, guessed_labels

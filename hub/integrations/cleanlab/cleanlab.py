@@ -47,7 +47,8 @@ def clean_labels(
 
     Returns:
         label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
-        label_quality_scores: Returns label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+        label_quality_scores: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+        guessed_labels: Class predicted by model trained on cleaned data for each example in the dataset.
 
     Raises:
         ...

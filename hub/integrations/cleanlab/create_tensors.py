@@ -50,7 +50,9 @@ def create_label_issues_tensors(
             "guessed_label", htype="generic", dtype="uint32"
         )
 
-        for label_issue, label_quality_score, guessed_label in zip(label_issues, label_quality_scores, guessed_label):
+        for label_issue, label_quality_score, guessed_label in zip(
+            label_issues, label_quality_scores, guessed_label
+        ):
             dataset.label_issues.is_label_issue.append(label_issue)
             dataset.label_issues.label_quality_scores.append(label_quality_score)
             dataset.label_issues.guessed_label.append(guessed_label)
