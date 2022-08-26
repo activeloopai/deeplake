@@ -7,13 +7,7 @@ def is_dataset(dataset):
 
 def is_image_tensor(image_tensor_htype):
     supported_image_htypes = set(
-        [
-            "image",
-            "image.rgb",
-            "image.gray",
-            "generic"
-
-        ],
+        ["image", "image.rgb", "image.gray", "generic"],
     )
     return (
         image_tensor_htype in supported_image_htypes
@@ -23,10 +17,7 @@ def is_image_tensor(image_tensor_htype):
 
 def is_label_tensor(label_tensor_htype):
     supported_label_htypes = set(
-        [
-            "class_label",
-            "generic"
-        ],
+        ["class_label", "generic"],
     )
     return (
         label_tensor_htype in supported_label_htypes
